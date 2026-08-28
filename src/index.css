@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+:root {
+    --bg-base: #e5e5e5;
+    --bg-panel: #f5f5f5;
+    --bg-input: #ffffff;
+    --bg-inverted: #2b2b2b;
+    --border-light: #a3a3a3;
+    --border-dark: #111111;
+    --text-main: #111111;
+    --text-muted: #737373;
+    --text-inverted: #ffffff;
+    --hover-bg: #d4d4d4;
+    --chat-font-size: 15px;
+    /* The voice orb: one flat colour, opposite the page it sits on. */
+    --orb: #111111;
+}
+
+body.dark {
+    --bg-base: #121212;
+    --bg-panel: #1e1e1e;
+    --bg-input: #121212;
+    --bg-inverted: #2d2d2d;
+    --border-light: #333333;
+    --border-dark: #555555;
+    --text-main: #e0e0e0;
+    --text-muted: #888888;
+    --text-inverted: #ffffff;
+    --hover-bg: #2a2a2a;
+    --orb: #ffffff;
+}
+
+@layer base {
+    body {
+        background-color: var(--bg-base);
+        color: var(--text-main);
+        @apply font-sans overflow-hidden select-text transition-colors duration-300;
+        margin: 0;
+    }
+}
+
+/* A terminal caret: hard on, hard off, no fading in between. */
+@keyframes typing-caret {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+
+.typing-caret {
+    animation: typing-caret 1.06s step-end infinite;
+}
+
+.drag-region {
+    -webkit-app-region: drag;
+}
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+    width: 14px;
+}
+::-webkit-scrollbar-track {
+    background-color: var(--hover-bg);
+    border-left: 2px solid var(--border-light);
+}
+::-webkit-scrollbar-thumb {
+    background-color: var(--text-muted);
+    border: 2px solid var(--hover-bg);
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-light);
+}
+
+.ui-box {
+    background-color: var(--bg-panel);
+    border: 3px solid var(--border-light);
+    color: var(--text-main);
+    box-shadow: 4px 4px 0 var(--border-light);
+    @apply rounded-xl transition-colors duration-300;
+}
+.ui-box-dark {
+    background-color: var(--bg-inverted);
+    border: 3px solid var(--border-dark);
+    color: var(--text-inverted);
+    box-shadow: 4px 4px 0 var(--border-dark);
+    @apply rounded-xl transition-colors duration-300;
+}
+.ui-input {
+    background-color: var(--bg-input);
+    border: 3px solid var(--border-light);
+    color: var(--text-main);
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.1);
+    @apply rounded-xl focus:outline-none transition-colors duration-300;
+}
+.ui-input:focus {
+    border-color: var(--text-muted);
+}
+.composer {
+    background-color: var(--bg-input);
+    border: 3px solid var(--border-light);
+    color: var(--text-main);
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.1);
+    @apply rounded-xl flex flex-col transition-colors duration-300;
+}
+.composer:focus-within {
+    border-color: var(--text-muted);
+}
+.composer-pill {
+    color: var(--text-muted);
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors;
+}
+.composer-pill:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-main);
+}
+
+.ui-btn {
+    background-color: var(--bg-inverted);
+    color: var(--text-inverted);
+    border: 3px solid var(--border-dark);
+    box-shadow: 2px 2px 0 var(--border-dark);
+    @apply rounded-xl active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all flex items-center justify-center;
+}
+.ui-btn-ghost {
+    color: var(--text-muted);
+    border: 2px solid var(--border-light);
+    @apply rounded-lg hover:text-white transition-colors;
+}
+
+.markdown-body p {
+    @apply mb-3 last:mb-0;
+}
+.markdown-body ul {
+    @apply list-disc pl-5 mb-3;
+}
+.markdown-body ol {
+    @apply list-decimal pl-5 mb-3;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+    color: var(--text-main);
+    @apply mt-5 mb-3;
+}
+.markdown-body h1 {
+    @apply text-2xl;
+}
+.markdown-body h2 {
+    @apply text-xl;
+}
+.markdown-body h3 {
+    @apply text-lg;
+}
+.markdown-body a {
+    @apply underline text-blue-600 hover:text-blue-800;
+}
+.markdown-body pre {
+    @apply my-0;
+}
+.markdown-body table {
+    background-color: var(--bg-base);
+    border: 3px solid var(--border-light);
+    @apply w-full mb-3 border-collapse rounded-xl overflow-hidden overflow-x-auto block;
+}
+.markdown-body th,
+.markdown-body td {
+    border-bottom: 2px solid var(--border-light);
+    border-right: 2px solid var(--border-light);
+    @apply px-3 py-2 text-left last:border-r-0;
+}
+.markdown-body tr:last-child td {
+    @apply border-b-0;
+}
+.markdown-body th {
+    background-color: var(--hover-bg);
+    @apply font-bold;
+}
+
+.message-container {
+    @apply w-full;
+}
+
+.typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 0;
+}
+.typing-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--text-main);
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: typing-blink 1.4s infinite both;
+}
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing-blink {
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 1;
+    }
+}
