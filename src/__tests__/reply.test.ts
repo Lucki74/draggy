@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createThinkFilter,
   generateReply,
   isMarker,
   markerPending,
@@ -109,7 +110,63 @@ describe("holding back an opening that could be a search request", () => {
   });
 });
 
+describe("keeping a model's reasoning out of the speaker", () => {
+  const through = (deltas: string[]) => {
+    const filter = createThinkFilter();
+    return deltas.map(filter).join("");
+  };
+
+  it("passes ordinary text straight through", () => {
+    expect(through(["It's ", "about four hours."])).toBe("It's about four hours.");
+  });
+
+  it("drops a complete think block", () => {
+    expect(through(["<think>weighing it up</think>Four hours."])).toBe("Four hours.");
+  });
+
+  it("drops one split across many chunks", () => {
+    expect(
+      through(["<th", "ink>the user said ", "hello</th", "ink>", "Hey there."]),
+    ).toBe("Hey there.");
+  });
+
+  it("says nothing at all while the reasoning is still open", () => {
+    const filter = createThinkFilter();
+    expect(filter("<think>still going")).toBe("");
+    expect(filter(" and going")).toBe("");
+    expect(filter("</think>Done.")).toBe("Done.");
+  });
+
+  it("holds back only what could still be an opening tag", () => {
+    const filter = createThinkFilter();
+    // "<" could begin the tag, so it waits rather than speaking a stray angle.
+    expect(filter("5 <")).toBe("5 ");
+    expect(filter(" 6")).toBe("< 6");
+  });
+
+  it("keeps text either side of the reasoning", () => {
+    expect(through(["Right. <think>hmm</think> Four hours."])).toBe(
+      "Right.  Four hours.",
+    );
+  });
+
+  it("handles more than one block", () => {
+    expect(through(["<think>a</think>One. <think>b</think>Two."])).toBe(
+      "One. Two.",
+    );
+  });
+});
+
 describe("speaking an ordinary reply", () => {
+  it("never speaks reasoning the model wrote into the reply", async () => {
+    const { result, spoken } = run([
+      ["<think>", "The user said hello. I should be warm.", "</think>", "Hey there."],
+    ]);
+
+    await expect(result).resolves.toMatchObject({ spoken: "Hey there." });
+    expect(spoken.join("")).not.toContain("The user said hello");
+  });
+
   it("hands text on as it arrives once the marker is ruled out", async () => {
     const { result, spoken, searched } = run([["It's ", "about ", "four hours."]]);
 
@@ -236,11 +293,13 @@ describe("what the model is given to answer from", () => {
     expect(messages[1]).toEqual({ role: "user", content: "hello" });
   });
 
-  it("asks Ollama not to think out loud", async () => {
+  it("leaves the think flag unset so Ollama parses reasoning out for us", async () => {
     const { result, bodies } = run([["Fine."]]);
     await result;
 
-    expect(bodies[0].think).toBe(false);
+    // Sending think:false makes Ollama stop separating a reasoning model's
+    // deliberation, which then arrives untagged in content and gets spoken.
+    expect(bodies[0]).not.toHaveProperty("think");
     expect(bodies[0].stream).toBe(true);
   });
 

@@ -35,10 +35,6 @@ one or a neural voice that runs on your GPU. Voice mode uses its own small model
 chosen for how fast it starts speaking rather than how much it knows, because
 two seconds of silence is worse than a slightly shorter answer.
 
-**Route the easy decisions to a small model.** A tiny helper model decides
-whether a question needs the web, your documents, or nothing at all, so the main
-model is not asked to reason about it first.
-
 ## Requirements
 
 Ollama has to be installed and running. Draggy will offer to install it if it
@@ -88,7 +84,7 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 670
+which is typecheck, lint and the test suite in one go. There are around 640
 tests and they run in under two seconds, so there is no excuse for skipping
 them.
 

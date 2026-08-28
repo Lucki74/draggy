@@ -11,6 +11,7 @@ import {
   Loader2,
   X,
   Search,
+  ChevronDown,
   ChevronRight,
   Library,
   Wrench,
@@ -29,11 +30,14 @@ import {
   pullModel,
 } from "./ollama";
 import type { PullPhase } from "./ollama";
-import { chatBlock, countUsable } from "./modelKinds";
+import {
+  chatBlock,
+  countUsable,
+  isEmbeddingModel,
+  selectableVoiceModels,
+} from "./modelKinds";
 import type { InstalledModel } from "./ollama";
 import { describeFit, describeSplit } from "./vram";
-import { onRouterState } from "./router";
-import type { RouterState } from "./router";
 import type {
   AppSettings,
   LibraryModel,
@@ -183,7 +187,6 @@ export default function SettingsPage({
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [updaterState, setUpdaterState] = useState<UpdaterState | null>(null);
-  const [helper, setHelper] = useState<RouterState | null>(null);
 
   useEffect(() => {
     if (tab !== "models") return;
@@ -323,8 +326,6 @@ export default function SettingsPage({
       .then((result) => setStorageStats(result?.stats ?? null))
       .catch(() => undefined);
   }, [tab, modelsVersion]);
-
-  useEffect(() => onRouterState(setHelper), []);
 
   useEffect(() => {
     const api = window.electronAPI?.updater;
@@ -709,6 +710,25 @@ export default function SettingsPage({
 
           {tab === "personalization" && (
             <Section title={t("personalization")}>
+              <Field label={t("talkModel")}>
+                <ModelSelect
+                  value={settings.voiceModel}
+                  models={selectableVoiceModels(installedModels)}
+                  automatic={t("automatic")}
+                  onPick={(name) => onUpdate({ ...settings, voiceModel: name })}
+                />
+              </Field>
+
+              <Field label={t("embeddingModel")}>
+                <ModelSelect
+                  value={settings.embedModel}
+                  models={installedModels.filter((entry) =>
+                    isEmbeddingModel(entry.name),
+                  )}
+                  onPick={(name) => onUpdate({ ...settings, embedModel: name })}
+                />
+              </Field>
+
               <Field label={t("thinkingMode")}>
                 <div className="flex bg-[var(--hover-bg)] rounded-xl p-1.5 border-[3px] border-[var(--border-light)]">
                   {(["low", "medium", "high"] as const).map((mode) => (
@@ -807,15 +827,6 @@ export default function SettingsPage({
                   onChange={(value) => onUpdate({ ...settings, libraryEnabled: value })}
                 />
               </Field>
-
-              <Field label={t("embeddingModel")}>
-                <input
-                  type="text"
-                  value={settings.embedModel}
-                  onChange={(e) => onUpdate({ ...settings, embedModel: e.target.value })}
-                  className="w-full p-3 ui-input text-sm font-bold"
-                  spellCheck={false}
-                /></Field>
 
               <Field label={t("indexedFolders")}>
                 <div className="space-y-2">
@@ -922,43 +933,6 @@ export default function SettingsPage({
                       {t("codeExecutionWarning")}
                     </p>
                   </div>
-                )}
-              </Field>
-
-              <Field label={t("fastRouter")}>
-                <Toggle
-                  checked={settings.routerEnabled}
-                  onChange={(value) => onUpdate({ ...settings, routerEnabled: value })}
-                />
-
-                {settings.routerEnabled && helper?.downloading && (
-                  <div className="space-y-2 p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                      <span className="text-sm font-bold truncate flex-1 min-w-0">
-                        {helper.downloading}
-                      </span>
-                      <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                        {helper.percent}%
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${helper.percent}%`, background: "var(--text-main)" }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {settings.routerEnabled && !helper?.downloading && helper?.model && (
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                    {helper.model}
-                  </p>
-                )}
-
-                {settings.routerEnabled && helper?.error && (
-                  <p className="text-xs font-bold text-red-500">{helper.error}</p>
                 )}
               </Field>
 
@@ -1113,6 +1087,128 @@ function Section({
       </h2>
       {children}
     </div>
+  );
+}
+
+/**
+ * Picks one of the installed models for a job.
+ *
+ * Whatever is currently set is always offered, even when it is not installed:
+ * a model that has been removed, or one named before it was pulled, would
+ * otherwise be silently swapped for something else the moment this renders.
+ */
+function ModelSelect({
+  value,
+  models,
+  onPick,
+  automatic,
+}: {
+  value: string;
+  models: InstalledModel[];
+  onPick: (name: string) => void;
+  /** Label for the empty choice. Omitted, there is no empty choice. */
+  automatic?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  const names = models.map((entry) => entry.name);
+  const options = value && !names.includes(value) ? [value, ...names] : names;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const choose = (name: string) => {
+    onPick(name);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="w-full p-3 ui-input text-sm font-bold flex items-center gap-2 text-left"
+      >
+        <span className="flex-1 min-w-0 truncate">
+          {value || automatic || "—"}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 text-[var(--text-muted)] transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+          {automatic && (
+            <ModelOption
+              label={automatic}
+              selected={value === ""}
+              onClick={() => choose("")}
+            />
+          )}
+
+          {options.length === 0 && !automatic && (
+            <p className="px-2 py-1.5 text-xs font-bold text-[var(--text-muted)]">
+              —
+            </p>
+          )}
+
+          {options.map((name) => (
+            <ModelOption
+              key={name}
+              label={name}
+              selected={name === value}
+              onClick={() => choose(name)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModelOption({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${
+        selected
+          ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+          : "hover:bg-[var(--hover-bg)]"
+      }`}
+    >
+      <span className="flex-1 min-w-0 truncate text-xs font-bold">{label}</span>
+      {selected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+    </button>
   );
 }
 

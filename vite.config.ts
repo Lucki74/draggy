@@ -64,6 +64,21 @@ function onnxRuntimeAssets(): PluginOption {
 export default defineConfig({
   plugins: [react(), onnxRuntimeAssets()],
   base: "./",
+  optimizeDeps: {
+    /**
+     * The speech stack is reachable only through dynamic imports inside
+     * workers, which the dependency crawler cannot follow at start-up. Left to
+     * find them on its own, Vite discovers all three the first time voice mode
+     * runs, re-optimises, and changes the hash in every dependency URL.
+     *
+     * The page survives that: it is reloaded. A worker is not, so a worker
+     * already running holds a URL that no longer exists and fails with
+     * "does not provide an export named ..." — which is what voice mode was
+     * doing on its first run after a cold start. Naming them here optimises
+     * them once, before the server accepts a request.
+     */
+    include: ["onnxruntime-web", "@huggingface/transformers", "kokoro-js"],
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,

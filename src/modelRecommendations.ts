@@ -32,19 +32,3 @@ export function getRecommendedModel(vram: number): string {
   const recommendation = sorted[sorted.length - 1];
   return recommendation ? recommendation.model : "qwen3:0.6b";
 }
-
-export const helperRecommendations: ModelRecommendation[] = [
-  { vram: 0,    model: "smollm2:360m", label: "SmolLM2 360M", params: "360M" },
-  { vram: 4.0,  model: "qwen3:0.6b",   label: "Qwen 3 0.6B",  params: "0.6B" },
-  { vram: 8.0,  model: "llama3.2:1b",  label: "Llama 3.2 1B", params: "1B"   },
-  { vram: 16.0, model: "qwen3:1.7b",   label: "Qwen 3 1.7B",  params: "1.7B" },
-];
-
-export function getRecommendedHelperModel(vram: number): string {
-  const affordable = helperRecommendations
-    .filter((entry) => entry.vram <= vram)
-    .sort((a, b) => a.vram - b.vram);
-
-  const choice = affordable[affordable.length - 1] ?? helperRecommendations[0];
-  return choice.model;
-}

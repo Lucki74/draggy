@@ -91,18 +91,6 @@ export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search th
 
 export const NO_BROWSING_PROMPT = `Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched.`;
 
-/**
- * Added when the fast helper has judged what the question needs. In automatic
- * mode the search tools are withheld entirely for a question that does not
- * need them, so this explains the situation rather than merely discouraging a
- * search the model could still make.
- */
-export const ROUTED_KNOWN_PROMPT = `This question does not need anything from the web, so the search tools are not available for this reply. Answer it directly from what you know. If it turns out you genuinely need current information you do not have, say so plainly in a sentence instead of guessing, and suggest turning web search on.`;
-
-export const ROUTED_SEARCH_PROMPT = `This question probably needs current information. Search once with a few plain keywords, read the most promising result, then answer. Do not run several searches at once, and do not reword the same question repeatedly.`;
-
-export const ROUTED_LOCAL_PROMPT = `This question looks like it is about the user's own documents. Search their library first, and only fall back to the web if their own files do not contain the answer.`;
-
 export const NATIVE_TOOL_PROMPT = `Call tools through the tool interface rather than describing the call in your reply. Call one at a time and wait for the result before deciding what to do next. Stop calling tools and answer as soon as you have what you need.
 
 For Word documents provide Markdown, for PowerPoint provide Markdown with headings for each slide, for Excel provide CSV.`;
@@ -173,11 +161,6 @@ export function buildVoicePrompt(searchEnabled: boolean): string {
 export interface PromptMode {
   nativeTools: boolean;
   nativeThinking: boolean;
-  /**
-   * What the fast helper decided this question needs, when it was consulted.
-   * Null means no decision was made and the model chooses for itself.
-   */
-  route?: "search" | "local" | "known" | null;
 }
 
 export function buildSystemPrompt(
@@ -214,16 +197,10 @@ export function buildSystemPrompt(
   } else if (settings.webMode === "on") {
     if (!mode.nativeTools) parts.push(BROWSING_WORKFLOW_PROMPT);
     parts.push(FORCE_SEARCH_PROMPT);
-  } else {
-    // Automatic mode. When the helper has judged the question, say what it
-    // decided; otherwise leave the choice to the answering model as before.
-    if (mode.route !== "known" && !mode.nativeTools) {
-      parts.push(BROWSING_WORKFLOW_PROMPT);
-    }
-
-    if (mode.route === "known") parts.push(ROUTED_KNOWN_PROMPT);
-    else if (mode.route === "search") parts.push(ROUTED_SEARCH_PROMPT);
-    else if (mode.route === "local") parts.push(ROUTED_LOCAL_PROMPT);
+  } else if (!mode.nativeTools) {
+    // Automatic mode: the model decides for itself whether a question needs
+    // the web.
+    parts.push(BROWSING_WORKFLOW_PROMPT);
   }
 
   return parts.join("\n\n");

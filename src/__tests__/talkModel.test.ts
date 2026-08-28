@@ -17,10 +17,20 @@ describe("sizing the talk model to the machine", () => {
     expect(tierFor(0).model).toBe("smollm2:360m");
     expect(tierFor(1.5).model).toBe("smollm2:360m");
     expect(tierFor(2).model).toBe("llama3.2:1b");
-    expect(tierFor(4).model).toBe("qwen3:1.7b");
+    expect(tierFor(4).model).toBe("llama3.2:3b");
     expect(tierFor(6.5).model).toBe("llama3.2:3b");
-    expect(tierFor(12).model).toBe("qwen3:4b");
-    expect(tierFor(24).model).toBe("qwen3:8b");
+    expect(tierFor(12).model).toBe("gemma3:4b");
+    expect(tierFor(24).model).toBe("llama3.1:8b");
+  });
+
+  it("offers no model that reasons before it answers", () => {
+    // A model that deliberates for six hundred characters before its first
+    // word is a fine chat model and an unusable voice.
+    for (const tier of TALK_TIERS) {
+      expect(tier.model, `${tier.model} is a reasoning model`).not.toMatch(
+        /^(qwen3|deepseek-r1|magistral|phi4-reasoning)/,
+      );
+    }
   });
 
   it("falls to the smallest rung when the card cannot be read", () => {
@@ -34,7 +44,7 @@ describe("sizing the talk model to the machine", () => {
     expect(tierFor(96).model).toBe(top.model);
     // A spoken answer is two sentences: nothing above this rung is offered
     // automatically however much memory the machine has.
-    expect(top.model).toBe("qwen3:8b");
+    expect(top.model).toBe("llama3.1:8b");
   });
 
   it("only rises, never falls, as memory grows", () => {
@@ -46,7 +56,7 @@ describe("sizing the talk model to the machine", () => {
   });
 
   it("names the rung a model belongs to", () => {
-    expect(tierOf("qwen3:4b")?.label).toBe("Qwen 3 4B");
+    expect(tierOf("gemma3:4b")?.label).toBe("Gemma 3 4B");
     expect(tierOf("mistral")).toBeNull();
   });
 });
@@ -82,9 +92,9 @@ describe("recognising a model already on disk", () => {
 
 describe("planning what Talk will run", () => {
   it("uses the sized model when it is already installed", () => {
-    const plan = planTalkModel({ installed: ["qwen3:4b"], vram: 10 });
+    const plan = planTalkModel({ installed: ["gemma3:4b"], vram: 10 });
 
-    expect(plan.model).toBe("qwen3:4b");
+    expect(plan.model).toBe("gemma3:4b");
     expect(plan.source).toBe("sized");
     expect(plan.download).toBeNull();
   });
@@ -92,15 +102,15 @@ describe("planning what Talk will run", () => {
   it("asks for a download when the sized model is missing", () => {
     const plan = planTalkModel({ installed: ["llama3.1:70b"], vram: 10 });
 
-    expect(plan.model).toBe("qwen3:4b");
-    expect(plan.download?.model).toBe("qwen3:4b");
+    expect(plan.model).toBe("gemma3:4b");
+    expect(plan.download?.model).toBe("gemma3:4b");
     expect(plan.download?.downloadGB).toBeGreaterThan(0);
   });
 
   it("honours a model the user pinned", () => {
     const plan = planTalkModel({
       override: "mistral:7b",
-      installed: ["mistral:7b", "qwen3:4b"],
+      installed: ["mistral:7b", "gemma3:4b"],
       vram: 10,
     });
 
@@ -113,11 +123,11 @@ describe("planning what Talk will run", () => {
     // Deleting a model is not a request to download it again.
     const plan = planTalkModel({
       override: "mistral:7b",
-      installed: ["qwen3:1.7b"],
+      installed: ["llama3.2:3b"],
       vram: 4,
     });
 
-    expect(plan.model).toBe("qwen3:1.7b");
+    expect(plan.model).toBe("llama3.2:3b");
     expect(plan.source).toBe("sized");
     expect(plan.download).toBeNull();
   });
@@ -152,11 +162,11 @@ describe("fetching the planned model", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const provided = await provideTalkModel(
-      { model: "qwen3:4b", tier: null, source: "sized", download: null },
+      { model: "gemma3:4b", tier: null, source: "sized", download: null },
       { fallback: "llama3.1:8b" },
     );
 
-    expect(provided).toEqual({ model: "qwen3:4b", substituted: false });
+    expect(provided).toEqual({ model: "gemma3:4b", substituted: false });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -180,15 +190,15 @@ describe("fetching the planned model", () => {
     const seen: number[] = [];
     const provided = await provideTalkModel(
       {
-        model: "qwen3:4b",
+        model: "gemma3:4b",
         tier: null,
         source: "sized",
-        download: TALK_TIERS[4],
+        download: TALK_TIERS[3],
       },
       { fallback: "llama3.1:8b", onProgress: (p) => seen.push(p.percent) },
     );
 
-    expect(provided).toEqual({ model: "qwen3:4b", substituted: false });
+    expect(provided).toEqual({ model: "gemma3:4b", substituted: false });
     expect(seen[seen.length - 1]).toBe(100);
   });
 
@@ -200,10 +210,10 @@ describe("fetching the planned model", () => {
 
     const provided = await provideTalkModel(
       {
-        model: "qwen3:4b",
+        model: "gemma3:4b",
         tier: null,
         source: "sized",
-        download: TALK_TIERS[4],
+        download: TALK_TIERS[3],
       },
       { fallback: "llama3.1:8b" },
     );

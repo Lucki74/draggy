@@ -271,7 +271,6 @@ export interface AppSettings {
   codeExecution: boolean;
   libraryEnabled: boolean;
   embedModel: string;
-  routerEnabled: boolean;
   showMetrics: boolean;
   autoUpdate: boolean;
 }

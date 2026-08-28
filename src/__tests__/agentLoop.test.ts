@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  decideRoute,
-  lastQuestion,
-  questionForRouting,
-  runAgentTurn,
-  toWireMessage,
-} from "../agent/agentLoop";
+import { lastQuestion, runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import type { AgentHost } from "../agent/agentLoop";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
@@ -33,7 +27,6 @@ const SETTINGS = {
   codeExecution: true,
   libraryEnabled: true,
   embedModel: "nomic-embed-text",
-  routerEnabled: true,
   showMetrics: true,
   fitContext: 8192,
   autoUpdate: true,
@@ -775,16 +768,7 @@ describe("keeping prose where the model wrote it", () => {
   });
 });
 
-describe("deciding whether a question needs the web", () => {
-  const QUESTION = "What is the weather in Paris right now?";
-
-  const replying = (word: string) =>
-    vi.fn(async () =>
-      new Response(JSON.stringify({ message: { content: word }, done: true }), {
-        status: 200,
-      }),
-    );
-
+describe("finding the question the user actually asked", () => {
   it("finds the question the user actually asked", () => {
     expect(
       lastQuestion([
@@ -797,184 +781,6 @@ describe("deciding whether a question needs the web", () => {
 
   it("has nothing to report when the user has not spoken", () => {
     expect(lastQuestion([{ id: "1", role: "assistant", content: "hi" }])).toBe("");
-  });
-
-  it("classifies in automatic mode", async () => {
-    vi.stubGlobal("fetch", replying("SEARCH"));
-
-    expect(await decideRoute(MODEL, SETTINGS, QUESTION)).toBe("search");
-  });
-
-  it("does not ask when the user has already decided", async () => {
-    const fetchSpy = replying("SEARCH");
-    vi.stubGlobal("fetch", fetchSpy);
-
-    expect(
-      await decideRoute(MODEL, { ...SETTINGS, webMode: "on" }, QUESTION),
-    ).toBeNull();
-    expect(
-      await decideRoute(MODEL, { ...SETTINGS, webMode: "off" }, QUESTION),
-    ).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("does not ask when the helper is switched off", async () => {
-    const fetchSpy = replying("SEARCH");
-    vi.stubGlobal("fetch", fetchSpy);
-
-    expect(
-      await decideRoute(MODEL, { ...SETTINGS, routerEnabled: false }, QUESTION),
-    ).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("does not spend a round trip on a couple of words", async () => {
-    const fetchSpy = replying("KNOWN");
-    vi.stubGlobal("fetch", fetchSpy);
-
-    expect(await decideRoute(MODEL, SETTINGS, "hi")).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("falls back to letting the model decide when classifying fails", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("helper is down"); }));
-
-    expect(await decideRoute(MODEL, SETTINGS, QUESTION)).toBeNull();
-  });
-
-  it("leaves the choice alone when the helper answers with nonsense", async () => {
-    vi.stubGlobal("fetch", replying("banana"));
-
-    expect(await decideRoute(MODEL, SETTINGS, QUESTION)).toBeNull();
-  });
-});
-
-describe("acting on the decision", () => {
-  const CALL = [{ function: { name: "search_web", arguments: { query: "x" } } }];
-
-  /**
-   * Classifying and answering both go to the same model, so the first chat
-   * call is served the one-word verdict and the rest run as normal turns.
-   */
-  function installRoutedFetch(verdict: string, turns: Turn[], capabilities: string[]) {
-    const { requests } = installFetch(turns, capabilities);
-    const chatImpl = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
-
-    let served = false;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (!served && url.endsWith("/api/chat")) {
-          served = true;
-          return new Response(
-            JSON.stringify({ message: { content: verdict }, done: true }),
-            { status: 200 },
-          );
-        }
-        return chatImpl(url, init);
-      }),
-    );
-
-    return { requests };
-  }
-
-  it("withholds the search tools when the question needs no web", async () => {
-    const { requests } = installRoutedFetch("KNOWN", [{ content: ["Four."] }], ["tools"]);
-
-    const result = await run([userMessage("What is two plus two, exactly?")]).promise;
-
-    const chat = requests.find((r) => r.model === MODEL) as Record<string, unknown>;
-    const tools = (chat.tools ?? []) as { function: { name: string } }[];
-    const names = tools.map((tool) => tool.function.name);
-
-    expect(names).not.toContain("search_web");
-    expect(names).not.toContain("read_url");
-    expect(result.textContent).toBe("Four.");
-  });
-
-  it("keeps the search tools when the question does need the web", async () => {
-    const { requests } = installRoutedFetch(
-      "SEARCH",
-      [{ content: [""], toolCalls: CALL }, { content: ["Done."] }],
-      ["tools"],
-    );
-
-    await run([userMessage("What is the weather in Paris right now?")]).promise;
-
-    const chat = requests.find((r) => r.model === MODEL) as Record<string, unknown>;
-    const tools = (chat.tools ?? []) as { function: { name: string } }[];
-
-    expect(tools.map((tool) => tool.function.name)).toContain("search_web");
-  });
-
-  it("tells the model why it has no search tools", async () => {
-    const { requests } = installRoutedFetch("KNOWN", [{ content: ["Four."] }], ["tools"]);
-
-    await run([userMessage("What is two plus two, exactly?")]).promise;
-
-    const chat = requests.find((r) => r.model === MODEL) as Record<string, unknown>;
-    const system = String(
-      ((chat.messages as { role: string; content: string }[])[0] || {}).content,
-    );
-
-    // It must not claim the user turned browsing off; they chose automatic.
-    expect(system).toContain("not available for this reply");
-    expect(system).not.toContain("Web access is turned off");
-  });
-
-  it("changes nothing when classifying is switched off", async () => {
-    const { requests } = installFetch([{ content: ["Hi."] }], ["tools"]);
-
-    await run(
-      [userMessage("What is the weather in Paris right now?")],
-      undefined,
-      undefined,
-      { ...SETTINGS, routerEnabled: false },
-    ).promise;
-
-    const chat = requests.find((r) => r.model === MODEL) as Record<string, unknown>;
-    const tools = (chat.tools ?? []) as { function: { name: string } }[];
-
-    expect(tools.map((tool) => tool.function.name)).toContain("search_web");
-  });
-});
-
-describe("giving a follow-up question its context", () => {
-  it("passes a lone question through unchanged", () => {
-    expect(
-      questionForRouting([{ id: "1", role: "user", content: "What is a mutex?" }]),
-    ).toBe("What is a mutex?");
-  });
-
-  it("attaches the previous question to a follow-up", () => {
-    const input = questionForRouting([
-      { id: "1", role: "user", content: "What is the weather in Paris?" },
-      { id: "2", role: "assistant", content: "It is raining." },
-      { id: "3", role: "user", content: "And in Berlin?" },
-    ]);
-
-    expect(input).toContain("What is the weather in Paris?");
-    expect(input).toContain("And in Berlin?");
-    // The current question must come last, so it is the one being classified.
-    expect(input.indexOf("And in Berlin?")).toBeGreaterThan(
-      input.indexOf("What is the weather in Paris?"),
-    );
-  });
-
-  it("uses only the question before, not the whole conversation", () => {
-    const input = questionForRouting([
-      { id: "1", role: "user", content: "FIRST" },
-      { id: "2", role: "user", content: "SECOND" },
-      { id: "3", role: "user", content: "THIRD" },
-    ]);
-
-    expect(input).not.toContain("FIRST");
-    expect(input).toContain("SECOND");
-    expect(input).toContain("THIRD");
-  });
-
-  it("has nothing to classify when the user has not spoken", () => {
-    expect(questionForRouting([{ id: "1", role: "assistant", content: "hi" }])).toBe("");
   });
 });
 
@@ -1096,37 +902,6 @@ describe("carrying on a reply that was cut short", () => {
     await run([userMessage("hi there, how are you")]).promise;
 
     expect(wireText(requests)).not.toContain("cut short");
-  });
-});
-
-describe("not re-deciding on a continuation", () => {
-  it("does not classify when carrying a reply on", async () => {
-    const fetchSpy = vi.fn(async () =>
-      new Response(JSON.stringify({ message: { content: "KNOWN" }, done: true }), {
-        status: 200,
-      }),
-    );
-    vi.stubGlobal("fetch", fetchSpy);
-
-    expect(
-      await decideRoute(MODEL, SETTINGS, "What is the weather in Paris?", undefined, true),
-    ).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("still classifies an ordinary turn", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ message: { content: "SEARCH" }, done: true }), {
-          status: 200,
-        }),
-      ),
-    );
-
-    expect(
-      await decideRoute(MODEL, SETTINGS, "What is the weather in Paris?", undefined, false),
-    ).toBe("search");
   });
 });
 

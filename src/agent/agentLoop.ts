@@ -7,7 +7,7 @@ import {
   pickContextSize,
   readMetrics,
 } from "../ollama";
-import type { GenerationMetrics, ModelInfo } from "../ollama";
+import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt } from "../prompts";
 import {
   MAX_TOOL_LOOPS,
@@ -19,8 +19,6 @@ import {
   parseToolCall,
   stripToolSyntax,
 } from "../toolParsing";
-import { routeQuestion } from "../router";
-import type { Route } from "../router";
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { runTool, toolDefinitions } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
@@ -148,76 +146,12 @@ export interface AgentResult {
 const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
-/**
- * Too short to route: a couple of words carry no signal, and the round trip
- * would cost more than the decision is worth.
- */
-const ROUTE_MIN_CHARS = 12;
-
 /** The most recent thing the user actually asked. */
 export function lastQuestion(messages: Message[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") return messages[i].content || "";
   }
   return "";
-}
-
-/** Characters of the previous question kept as context for a follow-up. */
-const ROUTE_CONTEXT_CHARS = 200;
-
-/**
- * What to classify.
- *
- * A follow-up like "And in Berlin?" carries no clue on its own about whether
- * it needs the web; the question before it does. Attaching that one line took
- * follow-up routing from three of four to four of four in testing.
- */
-export function questionForRouting(messages: Message[]): string {
-  const asked: string[] = [];
-  for (let i = messages.length - 1; i >= 0 && asked.length < 2; i--) {
-    if (messages[i].role === "user") asked.push(messages[i].content || "");
-  }
-
-  const [current, previous] = asked;
-  if (!current) return "";
-  if (!previous) return current;
-
-  return `Earlier the user asked: "${previous.slice(0, ROUTE_CONTEXT_CHARS)}"
-
-Now they ask: ${current}`;
-}
-
-/**
- * Works out what this question needs, when there is a decision to make. In
- * "on" and "off" the user has already decided, so nothing is asked.
- *
- * The answering model does the classifying. A small helper was tried and
- * measured first: on nineteen questions a 1B model scored 7/19 and collapsed
- * to a single label, while the model already answering scored 19/19. It is
- * loaded and warm either way, so this costs no memory and no download.
- *
- * Every failure path returns null, which leaves the previous behaviour of
- * letting the model decide for itself mid-answer.
- */
-export async function decideRoute(
-  model: string,
-  settings: AppSettings,
-  question: string,
-  signal?: AbortSignal,
-  isContinuation = false,
-): Promise<Route | null> {
-  // Carrying on a reply is not a new question, and the reply was cut off for
-  // lack of room: spending another round trip to re-decide helps nobody.
-  if (isContinuation) return null;
-  if (settings.webMode !== "auto") return null;
-  if (!settings.routerEnabled) return null;
-  if (question.trim().length < ROUTE_MIN_CHARS) return null;
-
-  try {
-    return await routeQuestion(model, question, signal);
-  } catch {
-    return null;
-  }
 }
 
 export async function runAgentTurn(
@@ -256,18 +190,7 @@ export async function runAgentTurn(
     memo: new Map<string, unknown>(),
   };
 
-  // The helper's verdict is wanted before the first token, so it is fetched
-  // alongside the model's capabilities rather than after them.
-  const [info, route]: [ModelInfo | null, Route | null] = await Promise.all([
-    getModelInfo(model),
-    decideRoute(
-      model,
-      settings,
-      questionForRouting(messages),
-      signal,
-      request.isContinuation,
-    ),
-  ]);
+  const info = await getModelInfo(model);
 
   const nativeTools = hasCapability(info, "tools");
   const nativeVision = hasCapability(info, "vision");
@@ -275,18 +198,12 @@ export async function runAgentTurn(
     hasCapability(info, "thinking") && settings.thinkingMode !== "low";
   const cleanStream = nativeTools && nativeThinking;
 
-  // A question the helper judged answerable from knowledge gets no search
-  // tools at all. Telling a model not to search is far less effective than
-  // simply not offering it the option.
-  const turnEnvironment: ToolEnvironment =
-    route === "known" ? { ...environment, webMode: "off" } : environment;
-
   const systemPrompt = buildSystemPrompt(
     settings,
-    { nativeTools, nativeThinking, route },
-    turnEnvironment,
+    { nativeTools, nativeThinking },
+    environment,
   );
-  const definitions = toolDefinitions(turnEnvironment);
+  const definitions = toolDefinitions(environment);
 
   const prefill = request.isContinuation
     ? (request.seed?.textContent ?? "")
@@ -641,7 +558,7 @@ export async function runAgentTurn(
             call.function?.name || "",
             call.function?.arguments || {},
             toolContext,
-            turnEnvironment,
+            environment,
           );
           wire.push({
             role: "tool",
@@ -652,7 +569,7 @@ export async function runAgentTurn(
       } else {
         wire.push({ role: "assistant", content: rawChunk });
         const { name, args } = parseToolCall(toolMatch as string);
-        const result = await runTool(name || "", args || {}, toolContext, turnEnvironment);
+        const result = await runTool(name || "", args || {}, toolContext, environment);
         wire.push({ role: "user", content: result });
       }
     } finally {

@@ -14,7 +14,7 @@ import {
   titleFromContent,
   writeLocalStorage,
 } from "./utils";
-import { isCloudModel, listModels } from "./ollama";
+import { isCloudModel } from "./ollama";
 import { registerBuiltinTools } from "./tools/builtin";
 import type { ToolEnvironment } from "./tools/registry";
 import { runAgentTurn } from "./agent/agentLoop";
@@ -26,7 +26,6 @@ import {
   queueSessionSave,
   storageBackend,
 } from "./storage";
-import { ensureRouterModel, setRouterState } from "./router";
 import type {
   ChatSession,
   AppSettings,
@@ -58,7 +57,6 @@ const defaultSettings: AppSettings = {
   codeExecution: false,
   libraryEnabled: true,
   embedModel: "nomic-embed-text",
-  routerEnabled: true,
   showMetrics: true,
   autoUpdate: true,
 };
@@ -153,31 +151,6 @@ export default function App() {
       .configure({ automatic: settings.autoUpdate })
       .catch(() => undefined);
   }, [settings.autoUpdate, isSplashMode]);
-
-  useEffect(() => {
-    setRouterState({ enabled: settings.routerEnabled });
-    if (!settings.routerEnabled || !model) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const [installed, specs] = await Promise.all([
-          listModels(),
-          window.electronAPI?.getSystemSpecs() ?? Promise.resolve(null),
-        ]);
-        if (cancelled) return;
-
-        await ensureRouterModel(installed, model, specs?.vram ?? 0);
-      } catch {
-        /* the helper model is an optimisation; the main model still answers */
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [settings.routerEnabled, model]);
 
   const refreshLibraryReadiness = useCallback(() => {
     if (!settings.libraryEnabled || !window.electronAPI?.library) {

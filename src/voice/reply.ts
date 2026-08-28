@@ -66,6 +66,63 @@ function queryTail(head: string): string {
   return colon === -1 ? "" : head.slice(colon + 1);
 }
 
+const THINK_OPEN = "<think>";
+const THINK_CLOSE = "</think>";
+
+/**
+ * Drops a model's private reasoning out of a stream of speech.
+ *
+ * Ollama keeps reasoning in its own field for models it knows how to parse, so
+ * this is the belt to that braces: a model or template that writes `<think>`
+ * into the reply itself would otherwise have every word of its deliberation
+ * read out loud. Text that could still be the start of a tag is held back
+ * rather than spoken, which costs at most seven characters of latency.
+ */
+export function createThinkFilter(): (delta: string) => string {
+  let buffer = "";
+  let thinking = false;
+
+  /** How much of the tail could be the beginning of `tag`. */
+  const partial = (text: string, tag: string): number => {
+    const most = Math.min(text.length, tag.length - 1);
+    for (let length = most; length > 0; length--) {
+      if (tag.startsWith(text.slice(text.length - length))) return length;
+    }
+    return 0;
+  };
+
+  return (delta) => {
+    buffer += delta;
+    let out = "";
+
+    for (;;) {
+      if (thinking) {
+        const close = buffer.indexOf(THINK_CLOSE);
+        if (close === -1) {
+          // Keep only what could be part of the closing tag.
+          buffer = buffer.slice(buffer.length - partial(buffer, THINK_CLOSE));
+          return out;
+        }
+        buffer = buffer.slice(close + THINK_CLOSE.length);
+        thinking = false;
+        continue;
+      }
+
+      const open = buffer.indexOf(THINK_OPEN);
+      if (open === -1) break;
+
+      out += buffer.slice(0, open);
+      buffer = buffer.slice(open + THINK_OPEN.length);
+      thinking = true;
+    }
+
+    const held = partial(buffer, THINK_OPEN);
+    out += buffer.slice(0, buffer.length - held);
+    buffer = buffer.slice(buffer.length - held);
+    return out;
+  };
+}
+
 export interface StreamOptions {
   model: string;
   messages: { role: string; content: string }[];
@@ -81,7 +138,11 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
     body: JSON.stringify({
       model: options.model,
       stream: true,
-      think: false,
+      // `think` is deliberately not sent. Passing false does not stop a
+      // reasoning model reasoning — it stops Ollama *parsing* the reasoning,
+      // so the model's private deliberation arrives untagged in `content` and
+      // gets read out loud. Left unset, Ollama routes it to a separate
+      // `thinking` field that this module never reads.
       keep_alive: KEEP_ALIVE,
       options: {
         num_ctx: VOICE_CONTEXT,
@@ -170,11 +231,15 @@ export async function generateReply(
     let head = "";
     let query = "";
 
+    const unthink = createThinkFilter();
+
     await streamVoiceChat({
       model: request.model,
       messages,
       signal: request.signal,
-      onDelta: (delta) => {
+      onDelta: (raw) => {
+        const delta = unthink(raw);
+        if (!delta) return;
         if (mode === "speak") {
           speak(delta);
           return;

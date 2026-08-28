@@ -55,9 +55,6 @@ interface TalkScreenProps {
 
 const SPEEDS = [0.9, 1, 1.1, 1.25];
 
-/** The dropdown value that means "size a model to this machine". */
-const AUTOMATIC = "";
-
 export default function TalkScreen({
   settings,
   onUpdateSettings,
@@ -80,7 +77,7 @@ export default function TalkScreen({
   const [installed, setInstalled] = useState<InstalledModel[]>([]);
   const [systemVoices, setSystemVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [vram, setVram] = useState(0);
-  const [openMenu, setOpenMenu] = useState<"model" | "voice" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"voice" | null>(null);
 
   const talkRef = useRef<Conversation | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -337,13 +334,11 @@ export default function TalkScreen({
           <SetupPanel
             t={t}
             settings={settings}
-            models={installed}
             systemVoices={systemVoices}
             neuralPossible={neuralPossible}
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
             menuRef={menuRef}
-            autoLabel={plan.tier?.label ?? plan.model}
             onUpdateSettings={onUpdateSettings}
           />
         )}
@@ -354,9 +349,6 @@ export default function TalkScreen({
               {step.label || t("preparingVoice")}
             </p>
             <ProgressBar percent={step.percent} measured={step.measured} />
-            <p className="text-[11px] font-medium text-[var(--text-muted)] text-center">
-              {t("firstRunOnly")}
-            </p>
           </div>
         )}
 
@@ -503,31 +495,28 @@ export default function TalkScreen({
           </button>
         )}
 
-        <div className="flex flex-col items-center gap-1">
+        {/* Only while a conversation is running, where it is diagnostic rather
+            than decoration: which model is answering, and whether the neural
+            detector and GPU synthesis actually loaded. */}
+        {live && (
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] opacity-60">
             <span>{modelLabel || t("noModelSelected")}</span>
             <span>·</span>
             <span>{voiceLabel}</span>
-            {live && view.detector === "energy" && (
+            {view.detector === "energy" && (
               <>
                 <span>·</span>
                 <span title={t("basicDetectorHint")}>{t("basicDetector")}</span>
               </>
             )}
-            {live && view.device && (
+            {view.device && (
               <>
                 <span>·</span>
                 <span>{view.device}</span>
               </>
             )}
           </div>
-
-          {!live && plan.download && (
-            <p className="text-[10px] font-medium text-[var(--text-muted)] opacity-60">
-              {t("firstRunDownload")} · ~{plan.download.downloadGB} GB
-            </p>
-          )}
-        </div>
+        )}
       </footer>
     </div>
   );
@@ -566,40 +555,26 @@ function ProgressBar({
 interface SetupPanelProps {
   t: (key: string) => string;
   settings: AppSettings;
-  models: InstalledModel[];
   systemVoices: SpeechSynthesisVoice[];
   neuralPossible: boolean;
-  openMenu: "model" | "voice" | null;
-  setOpenMenu: (menu: "model" | "voice" | null) => void;
+  openMenu: "voice" | null;
+  setOpenMenu: (menu: "voice" | null) => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
-  /** The model automatic sizing would pick on this machine. */
-  autoLabel: string;
   onUpdateSettings: (settings: AppSettings) => void;
 }
 
 function SetupPanel({
   t,
   settings,
-  models,
   systemVoices,
   neuralPossible,
   openMenu,
   setOpenMenu,
   menuRef,
-  autoLabel,
   onUpdateSettings,
 }: SetupPanelProps) {
   const useNeural = settings.voiceEngine === "neural" && neuralPossible;
   const rate = settings.voiceRate || 1;
-
-  const modelOptions = [
-    { id: AUTOMATIC, label: t("automatic"), hint: autoLabel },
-    ...models.map((entry) => ({
-      id: entry.name,
-      label: entry.name,
-      hint: entry.parameterSize,
-    })),
-  ];
 
   const voiceOptions = useNeural
     ? NEURAL_VOICES.map((voice) => ({
@@ -631,31 +606,12 @@ function SetupPanel({
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-md" ref={menuRef}>
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
-          {t("talk")}
-        </h1>
-        <p className="text-sm font-medium text-[var(--text-muted)] leading-relaxed max-w-sm">
-          {t("talkIntro")}
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
+        {t("talk")}
+      </h1>
 
       <div className="w-full flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Dropdown
-            open={openMenu === "model"}
-            onToggle={() => setOpenMenu(openMenu === "model" ? null : "model")}
-            label={t("model")}
-            value={settings.voiceModel || t("automatic")}
-            note={settings.voiceModel ? "" : t("sizedToGpu")}
-            options={modelOptions}
-            selected={settings.voiceModel}
-            onPick={(id) => {
-              onUpdateSettings({ ...settings, voiceModel: id });
-              setOpenMenu(null);
-            }}
-          />
-
           <Dropdown
             open={openMenu === "voice"}
             onToggle={() => setOpenMenu(openMenu === "voice" ? null : "voice")}

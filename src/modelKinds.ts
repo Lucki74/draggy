@@ -1,6 +1,3 @@
-import { ROUTER_CANDIDATES } from "./router";
-import { helperRecommendations } from "./modelRecommendations";
-
 /**
  * Which installed models are fit to hold a conversation.
  *
@@ -17,10 +14,15 @@ import { helperRecommendations } from "./modelRecommendations";
  * leave that user with nothing at all.
  */
 
-export const HELPER_MODELS: ReadonlySet<string> = new Set([
-  ...ROUTER_CANDIDATES,
-  ...helperRecommendations.map((entry) => entry.model),
-]);
+const SMALL_MODEL_NAMES = [
+  "smollm2:360m",
+  "qwen3:0.6b",
+  "llama3.2:1b",
+  "qwen3:1.7b",
+  "gemma3:1b",
+];
+
+export const HELPER_MODELS: ReadonlySet<string> = new Set(SMALL_MODEL_NAMES);
 
 /**
  * Families whose whole purpose is embeddings. Matched on the name because it

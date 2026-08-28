@@ -11,9 +11,9 @@ import { KEEP_ALIVE } from "./constants";
  * for context length and reasoning depth, both of which are paid for in time to
  * first token.
  *
- * The fast helper the router uses is the wrong shape too, in the other
- * direction. It is sized to emit one word of classification, and a 360M model
- * asked to hold a conversation produces replies that are quick and wrong.
+ * A model sized for one-word classification tasks is the wrong shape too, in
+ * the other direction: a 360M model asked to hold a conversation produces
+ * replies that are quick and wrong.
  *
  * So Talk gets its own ladder, sized to the graphics card. Every rung is a
  * small instruction-tuned model that answers conversationally and loads in a
@@ -33,15 +33,26 @@ export interface TalkTier {
   downloadGB: number;
 }
 
+/**
+ * Every rung is an instruction-tuned model that answers immediately.
+ *
+ * Hybrid-reasoning models — the Qwen 3 family among them — are deliberately
+ * absent, and the reason is measured rather than aesthetic. Asked to say hello,
+ * Qwen 3 4B writes six hundred characters of private deliberation before its
+ * first word of answer, and there is no way to stop it: Ollama's `think: false`
+ * only stops the reasoning being separated out, and Qwen's own `/no_think`
+ * switch has no effect through Ollama's template. A model that thinks before
+ * speaking is a fine chat model and a poor voice, because the user is sitting
+ * in silence for the whole of it.
+ */
 export const TALK_TIERS: readonly TalkTier[] = [
   // The floor is for machines with no usable graphics memory at all, where the
   // reply is generated on the processor and size is the whole latency budget.
   { vram: 0, model: "smollm2:360m", label: "SmolLM2 360M", params: "360M", downloadGB: 0.3 },
   { vram: 2, model: "llama3.2:1b", label: "Llama 3.2 1B", params: "1B", downloadGB: 1.3 },
-  { vram: 4, model: "qwen3:1.7b", label: "Qwen 3 1.7B", params: "1.7B", downloadGB: 1.4 },
-  { vram: 6, model: "llama3.2:3b", label: "Llama 3.2 3B", params: "3B", downloadGB: 2.0 },
-  { vram: 8, model: "qwen3:4b", label: "Qwen 3 4B", params: "4B", downloadGB: 2.6 },
-  { vram: 16, model: "qwen3:8b", label: "Qwen 3 8B", params: "8B", downloadGB: 5.2 },
+  { vram: 4, model: "llama3.2:3b", label: "Llama 3.2 3B", params: "3B", downloadGB: 2.0 },
+  { vram: 8, model: "gemma3:4b", label: "Gemma 3 4B", params: "4B", downloadGB: 3.3 },
+  { vram: 16, model: "llama3.1:8b", label: "Llama 3.1 8B", params: "8B", downloadGB: 4.7 },
 ];
 
 export function tierFor(vram: number): TalkTier {
