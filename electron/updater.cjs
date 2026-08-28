@@ -1,8 +1,33 @@
 const { log } = require("./logger.cjs");
 
+/**
+ * Keeping the app up to date.
+ *
+ * With automatic updates on this behaves the way a desktop app is expected to:
+ * it looks for a new version shortly after launch and every few hours after
+ * that, downloads what it finds in the background, and installs it the next
+ * time the app is quit. With them off nothing happens unless the user presses a
+ * button in settings.
+ *
+ * The first check is deliberately late. Launching already competes for the
+ * network with an Ollama model download and the speech models, and an update
+ * that arrives twenty seconds later is no worse to the user than one that
+ * arrives immediately.
+ */
+
+/** How long after launch the first check runs. */
+const FIRST_CHECK_MS = 20_000;
+
+/** How often to look again while the app stays open. */
+const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 let updater = null;
 let state = { status: "idle", version: null, percent: 0, notes: null, error: null };
 let broadcast = () => {};
+
+let automatic = false;
+let firstCheckTimer = null;
+let intervalTimer = null;
 
 function publish(next) {
   state = { ...state, ...next };
@@ -36,7 +61,9 @@ function init(app, sendToWindows) {
     return null;
   }
 
-  updater.autoDownload = false;
+  // Downloading is only ever automatic when the user has asked for it; the
+  // setting arrives from the renderer a moment after this.
+  updater.autoDownload = automatic;
   updater.autoInstallOnAppQuit = true;
   updater.logger = {
     info: (message) => log.info("updater", message),
@@ -67,6 +94,43 @@ function init(app, sendToWindows) {
   });
 
   return updater;
+}
+
+function unschedule() {
+  if (firstCheckTimer) clearTimeout(firstCheckTimer);
+  if (intervalTimer) clearInterval(intervalTimer);
+  firstCheckTimer = null;
+  intervalTimer = null;
+}
+
+function schedule() {
+  if (!updater || firstCheckTimer || intervalTimer) return;
+
+  firstCheckTimer = setTimeout(() => {
+    firstCheckTimer = null;
+    void check({ silent: true });
+  }, FIRST_CHECK_MS);
+
+  intervalTimer = setInterval(() => void check({ silent: true }), CHECK_INTERVAL_MS);
+
+  // A pending check is never a reason to keep the process alive.
+  firstCheckTimer.unref?.();
+  intervalTimer.unref?.();
+}
+
+/**
+ * Turns automatic updating on or off. Called by the renderer whenever the
+ * setting changes, and once at startup with whatever it was left on.
+ */
+function configure({ automatic: wanted } = {}) {
+  automatic = Boolean(wanted);
+
+  if (updater) updater.autoDownload = automatic;
+
+  if (automatic) schedule();
+  else unschedule();
+
+  return { ...state };
 }
 
 async function check({ silent } = {}) {
@@ -104,4 +168,17 @@ function current() {
   return { ...state };
 }
 
-module.exports = { init, check, download, install, current, isConfigured };
+function dispose() {
+  unschedule();
+}
+
+module.exports = {
+  init,
+  configure,
+  check,
+  download,
+  install,
+  current,
+  dispose,
+  isConfigured,
+};

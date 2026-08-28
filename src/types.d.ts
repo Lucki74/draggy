@@ -402,6 +402,11 @@ declare global {
 
       updater: {
         state: () => Promise<UpdaterState>;
+        /**
+         * Turns background checking and downloading on or off. Sent whenever
+         * the automatic-updates setting changes, and once at startup.
+         */
+        configure: (options: { automatic: boolean }) => Promise<UpdaterState>;
         check: (options?: { silent?: boolean }) => Promise<UpdaterState>;
         download: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;

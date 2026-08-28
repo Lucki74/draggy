@@ -145,6 +145,15 @@ export default function App() {
       .catch(() => undefined);
   }, [settings.searchProvider, settings.searxngUrl, settings.braveApiKey]);
 
+  // The main process owns the update schedule, so it has to be told what the
+  // setting says — at startup as much as when it is changed.
+  useEffect(() => {
+    if (isSplashMode) return;
+    window.electronAPI?.updater
+      .configure({ automatic: settings.autoUpdate })
+      .catch(() => undefined);
+  }, [settings.autoUpdate, isSplashMode]);
+
   useEffect(() => {
     setRouterState({ enabled: settings.routerEnabled });
     if (!settings.routerEnabled || !model) return;

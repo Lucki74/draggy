@@ -459,6 +459,7 @@ app.whenReady().then(() => {
 });
 
 app.on("before-quit", () => {
+  updater.dispose();
   storage.close();
   library.close();
 });
@@ -1526,6 +1527,9 @@ ipcMain.handle("run-code", wrap("runner", async (event, language, source, timeou
 ));
 
 ipcMain.handle("updater:state", () => updater.current());
+ipcMain.handle("updater:configure", (event, options) =>
+  updater.configure(options || {}),
+);
 ipcMain.handle("updater:check", (event, options) => updater.check(options || {}));
 ipcMain.handle("updater:download", () => updater.download());
 ipcMain.handle("updater:install", () => updater.install());

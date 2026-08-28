@@ -1,0 +1,57 @@
+name: Release
+
+# Publishing a version is a tag away: `npm version patch` writes the version
+# and the tag, `git push --follow-tags` starts this. electron-builder uploads
+# the installers and, importantly, the latest.yml files that the in-app updater
+# reads to decide whether a newer version exists.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# electron-builder creates the GitHub release and attaches the artifacts, which
+# it cannot do with the default read-only token.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not throw away the build of the other.
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: release
+          - os: ubuntu-latest
+            build: release:linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # electron-builder shells out to fakeroot to stage the .deb.
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot
+
+      - run: npm ci
+
+      # The suite is run on the platform the app is developed on. Running it
+      # twice would only tell us the same thing, and a platform quirk in a test
+      # should not be able to hold up a release build that is otherwise sound.
+      - name: Typecheck, lint and test
+        if: runner.os == 'Windows'
+        run: npm run check
+
+      - name: Build and publish
+        run: npm run ${{ matrix.build }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
