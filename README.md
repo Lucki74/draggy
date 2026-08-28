@@ -59,6 +59,12 @@ Download the installer from the
 checks for new versions on its own and installs them when you quit, unless you
 turn that off in Settings.
 
+Windows will show a SmartScreen warning about an unknown publisher: click **More
+info**, then **Run anyway**. The installer is not code signed, which is a
+certificate I have not bought rather than anything Windows found wrong with it.
+If you would rather check than trust, the release includes a SHA-512 for the
+installer, and building from source is a few commands below.
+
 ## Building it yourself
 
 ```bash
