@@ -90,6 +90,9 @@
     "exceljs": "^4.4.0",
     "pptxgenjs": "^4.0.1"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@huggingface/transformers": "^3.8.1",
