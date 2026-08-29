@@ -23,8 +23,9 @@ JavaScript programs to check its own work. Code runs in a scratch directory with
 no network access and gets killed after twenty seconds.
 
 **Search your own documents.** Point it at a folder and it indexes the contents
-locally with an embedding model, then searches those passages before it searches
-the web. Useful for contracts, notes, a codebase, anything you would rather not
+locally with an embedding model — sized to your VRAM the same way the chat model
+is, or pick one yourself — then searches those passages before it searches the
+web. Useful for contracts, notes, a codebase, anything you would rather not
 upload somewhere.
 
 **Talk to it.** Voice mode listens continuously, works out when you have
@@ -84,7 +85,7 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 640
+which is typecheck, lint and the test suite in one go. There are around 660
 tests and they run in under two seconds, so there is no excuse for skipping
 them.
 
@@ -120,10 +121,11 @@ web searches you or the model trigger, pages the browser tool opens, the speech
 models the first time voice mode runs, and the update check. Everything else is
 local. There is no telemetry and nowhere for it to go.
 
-Web search uses DuckDuckGo unless you configure something else. In Settings you
-can point it at your own SearxNG instance or give it a Brave API key, and it
-falls back through Startpage and a couple of lighter endpoints when a provider
-is rate limiting or down.
+Web search defaults to automatic: your own SearXNG instance if you have set one
+up, then Brave's API if you have supplied a key, then DuckDuckGo, Startpage and
+two lighter fallbacks, tried in order until one answers. You can also pin it to
+a specific provider — Brave Search, DuckDuckGo, Startpage, Brave's API or
+SearXNG — in Settings.
 
 ## Languages
 
@@ -142,3 +144,8 @@ themselves.
 
 Tool calling quality varies a lot by model. Anything under about 4B parameters
 will describe a tool call instead of making one often enough to be annoying.
+
+## License
+
+All rights reserved — see [LICENSE](LICENSE). The source is here to read and
+build for yourself, not to redistribute or reuse without asking first.

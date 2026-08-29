@@ -56,7 +56,7 @@ const defaultSettings: AppSettings = {
   braveApiKey: "",
   codeExecution: false,
   libraryEnabled: true,
-  embedModel: "nomic-embed-text",
+  embedModel: "",
   showMetrics: true,
   autoUpdate: true,
 };
@@ -703,7 +703,7 @@ export default function App() {
         ) : viewMode === "files" ? (
           <CreatedFiles settings={settings} />
         ) : viewMode === "talk" ? (
-          <TalkScreen settings={settings} onUpdateSettings={setSettings} />
+          <TalkScreen settings={settings} />
         ) : viewMode === "settings" ? (
           <SettingsPage
             settings={settings}

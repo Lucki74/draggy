@@ -340,7 +340,9 @@ export default function StartupScreen({
                   className="h-full rounded-full"
                   style={{ background: "var(--text-main)" }}
                   initial={{ width: 0 }}
-                  animate={{ width: `${downloadProgress.percent}%` }}
+                  animate={{
+                    width: `${Math.min(100, Math.max(0, downloadProgress.percent))}%`,
+                  }}
                   transition={{ ease: "linear", duration: 0.25 }}
                 />
               ) : (
@@ -359,7 +361,7 @@ export default function StartupScreen({
 
             {downloadProgress.total > 0 && (
               <p className="text-[var(--text-main)] text-xs font-bold mt-0.5 tracking-wider">
-                {downloadProgress.percent.toFixed(1)}%
+                {Math.min(100, Math.max(0, downloadProgress.percent)).toFixed(1)}%
               </p>
             )}
           </motion.div>

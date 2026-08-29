@@ -246,7 +246,13 @@ export interface ChatSession {
   isOutOfContext?: boolean;
 }
 
-export type SearchProvider = "auto" | "duckduckgo" | "searxng" | "brave" | "bing";
+export type SearchProvider =
+  | "auto"
+  | "duckduckgo"
+  | "startpage"
+  | "searxng"
+  | "brave"
+  | "brave-html";
 
 export interface AppSettings {
   theme: "light" | "dark";

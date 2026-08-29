@@ -20,6 +20,7 @@ import {
   RefreshCw,
   FileText,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { translations, languages } from "./translations";
@@ -38,6 +39,13 @@ import {
 } from "./modelKinds";
 import type { InstalledModel } from "./ollama";
 import { describeFit, describeSplit } from "./vram";
+import { planEmbedModel } from "./embedModel";
+import {
+  DEFAULT_NEURAL_VOICE,
+  NEURAL_VOICES,
+  isNeuralVoiceAvailable,
+} from "./voice/neuralVoice";
+import { isSystemVoiceSupported, listVoices } from "./voice/systemVoice";
 import type {
   AppSettings,
   LibraryModel,
@@ -48,6 +56,8 @@ import type {
   StorageStats,
   UpdaterState,
 } from "./types";
+
+const VOICE_SPEEDS = [0.9, 1, 1.1, 1.25];
 
 function variantTags(model: LibraryModel) {
   return model.sizes.length > 0 ? model.sizes : ["latest"];
@@ -179,6 +189,7 @@ export default function SettingsPage({
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [vram, setVram] = useState(0);
   const [unifiedMemory, setUnifiedMemory] = useState(false);
+  const [systemVoices, setSystemVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const [librarySources, setLibrarySources] = useState<LibrarySource[]>([]);
   const [libraryStats, setLibraryStats] = useState<LibraryStats | null>(null);
@@ -258,6 +269,14 @@ export default function SettingsPage({
       cancelled = true;
     };
   }, [modelsVersion]);
+
+  useEffect(() => {
+    if (!isSystemVoiceSupported()) return;
+    const refresh = () => setSystemVoices(listVoices(settings.language));
+    refresh();
+    speechSynthesis.addEventListener("voiceschanged", refresh);
+    return () => speechSynthesis.removeEventListener("voiceschanged", refresh);
+  }, [settings.language]);
 
   useEffect(() => {
     let cancelled = false;
@@ -341,6 +360,21 @@ export default function SettingsPage({
     window.electronAPI?.updater.check({ silent: true }).catch(() => undefined);
   }, [tab, settings.autoUpdate]);
 
+  /**
+   * The concrete model indexing will run with, pulling the VRAM-sized rung
+   * first if "automatic" has never been fetched on this machine before.
+   */
+  const resolveEmbedModel = async (): Promise<string | null> => {
+    const plan = planEmbedModel({
+      override: settings.embedModel,
+      installed: installedModels.map((entry) => entry.name),
+      vram,
+    });
+
+    if (plan.download && !(await startPull(plan.model))) return null;
+    return plan.model;
+  };
+
   const addLibraryFolder = async () => {
     const api = window.electronAPI?.library;
     if (!api) return;
@@ -349,9 +383,15 @@ export default function SettingsPage({
     const picked = await api.pickFolder();
     if (!picked?.success || !picked.path) return;
 
+    const model = await resolveEmbedModel();
+    if (!model) {
+      setLibraryError(modelError || "Could not prepare the embedding model.");
+      return;
+    }
+
     setLibraryProgress({ phase: "indexing", current: 0, total: 0, file: "" });
 
-    const result = await api.index(picked.path, settings.embedModel);
+    const result = await api.index(picked.path, model);
     setLibraryProgress(null);
 
     if (!result?.success) {
@@ -366,9 +406,16 @@ export default function SettingsPage({
     if (!api) return;
 
     setLibraryError("");
+
+    const model = await resolveEmbedModel();
+    if (!model) {
+      setLibraryError(modelError || "Could not prepare the embedding model.");
+      return;
+    }
+
     setLibraryProgress({ phase: "indexing", current: 0, total: 0, file: "" });
 
-    const result = await api.index(path, settings.embedModel);
+    const result = await api.index(path, model);
     setLibraryProgress(null);
 
     if (!result?.success) setLibraryError(result?.error || "Indexing failed.");
@@ -380,9 +427,9 @@ export default function SettingsPage({
     await refreshLibrary();
   };
 
-  const startPull = async (name: string) => {
+  const startPull = async (name: string): Promise<boolean> => {
     const target = name.trim();
-    if (!target || pullState) return;
+    if (!target || pullState) return false;
 
     setModelError("");
     setPullState({ name: target, percent: 0, phase: "preparing" });
@@ -403,10 +450,12 @@ export default function SettingsPage({
         controller.signal,
       );
       refreshModels();
+      return true;
     } catch (err) {
       if (!controller.signal.aborted) {
         setModelError(err instanceof Error ? err.message : String(err));
       }
+      return false;
     } finally {
       pullControllerRef.current = null;
       setPullState(null);
@@ -431,6 +480,31 @@ export default function SettingsPage({
       customInstructions: [...settings.customInstructions, trimmed],
     });
   };
+
+  const neuralPossible = isNeuralVoiceAvailable(settings.language);
+  const useNeuralVoice = settings.voiceEngine === "neural" && neuralPossible;
+  const voiceRate = settings.voiceRate || 1;
+
+  const voiceOptions = useNeuralVoice
+    ? NEURAL_VOICES.map((voice) => ({
+        id: voice.id,
+        label: voice.name,
+        hint: `${voice.accent} · ${voice.gender}`,
+      }))
+    : systemVoices.map((voice) => ({
+        id: voice.name,
+        label: voice.name,
+        hint: voice.lang,
+      }));
+
+  const selectedVoice = useNeuralVoice
+    ? settings.neuralVoice || DEFAULT_NEURAL_VOICE
+    : settings.voiceName;
+
+  const pickVoice = (id: string) =>
+    onUpdate(
+      useNeuralVoice ? { ...settings, neuralVoice: id } : { ...settings, voiceName: id },
+    );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
@@ -585,35 +659,11 @@ export default function SettingsPage({
 
               <Field label={t("downloadModel")}>
                 {pullState ? (
-                  <div className="space-y-2 p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                      <span className="text-sm font-bold truncate flex-1 min-w-0">
-                        {pullState.name}
-                      </span>
-                      <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                        {pullState.phase === "downloading"
-                          ? `${pullState.percent.toFixed(0)}%`
-                          : t(PULL_PHASE_KEYS[pullState.phase])}
-                      </span>
-                      <button
-                        onClick={() => pullControllerRef.current?.abort()}
-                        className="p-1 text-[var(--text-muted)] hover:text-red-500 transition-colors"
-                        title={t("cancel")}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{
-                          width: `${pullState.percent}%`,
-                          background: "var(--text-main)",
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <PullProgressBar
+                    state={pullState}
+                    onCancel={() => pullControllerRef.current?.abort()}
+                    t={t}
+                  />
                 ) : (
                   <>
                     <div className="relative">
@@ -719,12 +769,85 @@ export default function SettingsPage({
                 />
               </Field>
 
+              <Field label={t("voiceLabel")}>
+                <div className="space-y-2">
+                  <OptionSelect
+                    value={selectedVoice}
+                    options={voiceOptions}
+                    onPick={pickVoice}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-light)]">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdate({ ...settings, voiceEngine: "system" })
+                        }
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                          !useNeuralVoice
+                            ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                            : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+                        }`}
+                      >
+                        {t("systemVoice")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdate({ ...settings, voiceEngine: "neural" })
+                        }
+                        disabled={!neuralPossible}
+                        title={
+                          neuralPossible
+                            ? t("naturalVoiceHint")
+                            : t("naturalVoiceEnglishOnly")
+                        }
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                          useNeuralVoice
+                            ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                            : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          {t("naturalVoice")}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-light)]"
+                      title={t("speed")}
+                    >
+                      {VOICE_SPEEDS.map((speed) => (
+                        <button
+                          key={speed}
+                          type="button"
+                          onClick={() =>
+                            onUpdate({ ...settings, voiceRate: speed })
+                          }
+                          className={`px-2 py-1.5 rounded-lg text-[11px] font-bold tabular-nums transition-colors ${
+                            Math.abs(voiceRate - speed) < 0.01
+                              ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                              : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+                          }`}
+                        >
+                          {speed}×
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Field>
+
               <Field label={t("embeddingModel")}>
                 <ModelSelect
                   value={settings.embedModel}
                   models={installedModels.filter((entry) =>
                     isEmbeddingModel(entry.name),
                   )}
+                  automatic={t("automatic")}
                   onPick={(name) => onUpdate({ ...settings, embedModel: name })}
                 />
               </Field>
@@ -868,7 +991,9 @@ export default function SettingsPage({
                     </div>
                   ))}
 
-                  {libraryProgress ? (
+                  {pullState ? (
+                    <PullProgressBar state={pullState} t={t} />
+                  ) : libraryProgress ? (
                     <div className="space-y-2 p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
@@ -938,21 +1063,28 @@ export default function SettingsPage({
 
               <Field label={t("searchProvider")}>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["auto", "duckduckgo", "searxng", "brave", "bing"] as SearchProvider[]).map(
-                    (provider) => (
-                      <button
-                        key={provider}
-                        onClick={() => onUpdate({ ...settings, searchProvider: provider })}
-                        className={`px-3 py-2.5 text-xs font-bold rounded-xl border-[3px] transition-all ${
-                          settings.searchProvider === provider
-                            ? "border-[var(--text-main)] bg-[var(--hover-bg)]"
-                            : "border-[var(--border-light)] hover:bg-[var(--hover-bg)]"
-                        }`}
-                      >
-                        {t(`provider_${provider}`)}
-                      </button>
-                    ),
-                  )}
+                  {(
+                    [
+                      "auto",
+                      "brave-html",
+                      "duckduckgo",
+                      "startpage",
+                      "brave",
+                      "searxng",
+                    ] as SearchProvider[]
+                  ).map((provider) => (
+                    <button
+                      key={provider}
+                      onClick={() => onUpdate({ ...settings, searchProvider: provider })}
+                      className={`px-3 py-2.5 text-xs font-bold rounded-xl border-[3px] transition-all ${
+                        settings.searchProvider === provider
+                          ? "border-[var(--text-main)] bg-[var(--hover-bg)]"
+                          : "border-[var(--border-light)] hover:bg-[var(--hover-bg)]"
+                      }`}
+                    >
+                      {t(`provider_${provider.replace(/-/g, "_")}`)}
+                    </button>
+                  ))}
                 </div></Field>
 
               <Field label={t("searxngUrl")}>
@@ -1090,6 +1222,48 @@ function Section({
   );
 }
 
+function PullProgressBar({
+  state,
+  onCancel,
+  t,
+}: {
+  state: { name: string; percent: number; phase: PullPhase };
+  onCancel?: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-2 p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
+      <div className="flex items-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+        <span className="text-sm font-bold truncate flex-1 min-w-0">{state.name}</span>
+        <span className="text-[11px] font-bold text-[var(--text-muted)]">
+          {state.phase === "downloading"
+            ? `${Math.min(100, Math.max(0, state.percent)).toFixed(0)}%`
+            : t(PULL_PHASE_KEYS[state.phase])}
+        </span>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="p-1 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+            title={t("cancel")}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      <div className="h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${Math.min(100, Math.max(0, state.percent))}%`,
+            background: "var(--text-main)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Picks one of the installed models for a job.
  *
@@ -1212,6 +1386,99 @@ function ModelOption({
   );
 }
 
+/** Picks one of a list of labeled options, such as a voice. */
+function OptionSelect({
+  value,
+  options,
+  onPick,
+}: {
+  value: string;
+  options: { id: string; label: string; hint?: string }[];
+  onPick: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const selected = options.find((option) => option.id === value);
+
+  const choose = (id: string) => {
+    onPick(id);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="w-full p-3 ui-input text-sm font-bold flex items-center gap-2 text-left"
+      >
+        <span className="flex-1 min-w-0 truncate">{selected?.label || "—"}</span>
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 text-[var(--text-muted)] transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+          {options.length === 0 ? (
+            <p className="px-2 py-1.5 text-xs font-bold text-[var(--text-muted)]">
+              —
+            </p>
+          ) : (
+            options.map((option) => (
+              <button
+                key={option.id || "auto"}
+                type="button"
+                onClick={() => choose(option.id)}
+                className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${
+                  option.id === value
+                    ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                    : "hover:bg-[var(--hover-bg)]"
+                }`}
+              >
+                <span className="flex-1 min-w-0 truncate text-xs font-bold">
+                  {option.label}
+                </span>
+                {option.hint && (
+                  <span className="text-[10px] font-medium opacity-60 flex-shrink-0">
+                    {option.hint}
+                  </span>
+                )}
+                {option.id === value && (
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Field({
   label,
   children,
@@ -1319,7 +1586,7 @@ function UpdatePanel({
                 : status === "available"
                   ? `${t("updateAvailable")} v${state?.version}`
                   : status === "downloading"
-                    ? `${t("downloading")} ${state?.percent ?? 0}%`
+                    ? `${t("downloading")} ${Math.min(100, Math.max(0, state?.percent ?? 0))}%`
                     : status === "ready"
                       ? `${t("updateReady")} v${state?.version}`
                       : status === "error"
@@ -1333,7 +1600,10 @@ function UpdatePanel({
             <div className="h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]">
               <div
                 className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${state?.percent ?? 0}%`, background: "var(--text-main)" }}
+                style={{
+                  width: `${Math.min(100, Math.max(0, state?.percent ?? 0))}%`,
+                  background: "var(--text-main)",
+                }}
               />
             </div>
           )}

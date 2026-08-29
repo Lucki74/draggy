@@ -1,3 +1,5 @@
+import { createFileProgressTracker } from "./utils";
+
 const SAMPLE_RATE = 16000;
 const CHUNKING_THRESHOLD = SAMPLE_RATE * 28;
 
@@ -52,6 +54,7 @@ async function load(request: InitRequest): Promise<void> {
   }
 
   device = await detectDevice();
+  const track = createFileProgressTracker();
 
   const instance = await pipeline(
     "automatic-speech-recognition",
@@ -69,14 +72,12 @@ async function load(request: InitRequest): Promise<void> {
         total?: number;
       }) => {
         if (event.status !== "progress") return;
-        const loaded = event.loaded || 0;
-        const total = event.total || 0;
         self.postMessage({
           type: "progress",
           file: event.file || "",
-          loaded,
-          total,
-          percent: total > 0 ? (loaded / total) * 100 : 0,
+          loaded: event.loaded || 0,
+          total: event.total || 0,
+          percent: track(event),
         });
       },
     },

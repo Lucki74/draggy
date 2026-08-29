@@ -387,7 +387,7 @@ function LibraryHits({
       {hits.map((hit, index) => (
         <button
           key={index}
-          onClick={() => window.electronAPI?.openCreatedFiles()}
+          onClick={() => window.electronAPI?.openFile?.(hit.path)}
           title={hit.path}
           className="flex items-center gap-3 p-2.5 rounded-xl border-[2px] border-[var(--border-light)] bg-[var(--bg-base)] hover:bg-[var(--hover-bg)] transition-all text-left"
         >

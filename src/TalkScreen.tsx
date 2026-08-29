@@ -4,12 +4,9 @@ import {
   AlertCircle,
   Captions,
   CaptionsOff,
-  Check,
-  ChevronDown,
   Loader2,
   Mic,
   MicOff,
-  Sparkles,
   SkipForward,
   X,
 } from "lucide-react";
@@ -27,7 +24,7 @@ import {
   NEURAL_VOICES,
   isNeuralVoiceAvailable,
 } from "./voice/neuralVoice";
-import { isSystemVoiceSupported, listVoices } from "./voice/systemVoice";
+import { isSystemVoiceSupported } from "./voice/systemVoice";
 import type { InstalledModel } from "./ollama";
 import type {
   Activity,
@@ -35,7 +32,6 @@ import type {
   ConversationView,
   StartupStep,
 } from "./voice/conversation";
-import type { VoiceEngineId } from "./voice/voiceEngine";
 import type { AppSettings } from "./types";
 
 /**
@@ -50,15 +46,9 @@ import type { AppSettings } from "./types";
 
 interface TalkScreenProps {
   settings: AppSettings;
-  onUpdateSettings: (settings: AppSettings) => void;
 }
 
-const SPEEDS = [0.9, 1, 1.1, 1.25];
-
-export default function TalkScreen({
-  settings,
-  onUpdateSettings,
-}: TalkScreenProps) {
+export default function TalkScreen({ settings }: TalkScreenProps) {
   const t = useCallback(
     (key: string) =>
       translations[settings.language]?.[key] || translations["en"][key] || key,
@@ -75,13 +65,10 @@ export default function TalkScreen({
   const [failure, setFailure] = useState("");
   const [captions, setCaptions] = useState(false);
   const [installed, setInstalled] = useState<InstalledModel[]>([]);
-  const [systemVoices, setSystemVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [vram, setVram] = useState(0);
-  const [openMenu, setOpenMenu] = useState<"voice" | null>(null);
 
   const talkRef = useRef<Conversation | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   /**
    * Preparation can take a minute when a model has to be fetched, and the user
@@ -113,14 +100,6 @@ export default function TalkScreen({
       .catch(() => setVram(0));
   }, [refreshModels]);
 
-  useEffect(() => {
-    if (!isSystemVoiceSupported()) return;
-    const refresh = () => setSystemVoices(listVoices(settings.language));
-    refresh();
-    speechSynthesis.addEventListener("voiceschanged", refresh);
-    return () => speechSynthesis.removeEventListener("voiceschanged", refresh);
-  }, [settings.language]);
-
   useEffect(
     () => () => {
       attemptRef.current++;
@@ -133,17 +112,6 @@ export default function TalkScreen({
   useEffect(() => {
     if (captions) transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [view.turns, captions]);
-
-  useEffect(() => {
-    if (!openMenu) return;
-    const onDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenu(null);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [openMenu]);
 
   // ------------------------------------------------------------------ the plan
 
@@ -329,19 +297,6 @@ export default function TalkScreen({
           live={live}
           level={level}
         />
-
-        {(view.stage === "idle" || view.stage === "failed") && (
-          <SetupPanel
-            t={t}
-            settings={settings}
-            systemVoices={systemVoices}
-            neuralPossible={neuralPossible}
-            openMenu={openMenu}
-            setOpenMenu={setOpenMenu}
-            menuRef={menuRef}
-            onUpdateSettings={onUpdateSettings}
-          />
-        )}
 
         {view.stage === "starting" && (
           <div className="w-full max-w-xs flex flex-col items-center gap-3">
@@ -548,248 +503,6 @@ function ProgressBar({
           transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
-    </div>
-  );
-}
-
-interface SetupPanelProps {
-  t: (key: string) => string;
-  settings: AppSettings;
-  systemVoices: SpeechSynthesisVoice[];
-  neuralPossible: boolean;
-  openMenu: "voice" | null;
-  setOpenMenu: (menu: "voice" | null) => void;
-  menuRef: React.RefObject<HTMLDivElement | null>;
-  onUpdateSettings: (settings: AppSettings) => void;
-}
-
-function SetupPanel({
-  t,
-  settings,
-  systemVoices,
-  neuralPossible,
-  openMenu,
-  setOpenMenu,
-  menuRef,
-  onUpdateSettings,
-}: SetupPanelProps) {
-  const useNeural = settings.voiceEngine === "neural" && neuralPossible;
-  const rate = settings.voiceRate || 1;
-
-  const voiceOptions = useNeural
-    ? NEURAL_VOICES.map((voice) => ({
-        id: voice.id,
-        label: voice.name,
-        hint: `${voice.accent} · ${voice.gender}`,
-      }))
-    : systemVoices.map((voice) => ({
-        id: voice.name,
-        label: voice.name,
-        hint: voice.lang,
-      }));
-
-  const selectedVoice = useNeural
-    ? settings.neuralVoice || DEFAULT_NEURAL_VOICE
-    : settings.voiceName;
-
-  const pickVoice = (id: string) => {
-    onUpdateSettings(
-      useNeural ? { ...settings, neuralVoice: id } : { ...settings, voiceName: id },
-    );
-    setOpenMenu(null);
-  };
-
-  const setEngine = (engine: VoiceEngineId) => {
-    onUpdateSettings({ ...settings, voiceEngine: engine });
-    setOpenMenu(null);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-md" ref={menuRef}>
-      <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
-        {t("talk")}
-      </h1>
-
-      <div className="w-full flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Dropdown
-            open={openMenu === "voice"}
-            onToggle={() => setOpenMenu(openMenu === "voice" ? null : "voice")}
-            label={t("voiceLabel")}
-            value={
-              voiceOptions.find((option) => option.id === selectedVoice)?.label ||
-              t("systemVoice")
-            }
-            options={voiceOptions}
-            selected={selectedVoice}
-            onPick={pickVoice}
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-light)]">
-            <Tab
-              active={!useNeural}
-              onClick={() => setEngine("system")}
-              label={t("systemVoice")}
-            />
-            <Tab
-              active={useNeural}
-              onClick={() => setEngine("neural")}
-              disabled={!neuralPossible}
-              title={
-                neuralPossible ? t("naturalVoiceHint") : t("naturalVoiceEnglishOnly")
-              }
-              label={
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {t("naturalVoice")}
-                </span>
-              }
-            />
-          </div>
-
-          <div
-            className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-light)]"
-            title={t("speed")}
-          >
-            {SPEEDS.map((speed) => (
-              <button
-                key={speed}
-                type="button"
-                onClick={() => onUpdateSettings({ ...settings, voiceRate: speed })}
-                className={`px-2 py-1.5 rounded-lg text-[11px] font-bold tabular-nums transition-colors ${
-                  Math.abs(rate - speed) < 0.01
-                    ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
-                }`}
-              >
-                {speed}×
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Tab({
-  active,
-  onClick,
-  label,
-  disabled,
-  title,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: React.ReactNode;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-        active
-          ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-          : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-interface DropdownProps {
-  open: boolean;
-  onToggle: () => void;
-  label: string;
-  value: string;
-  /** Shown beside the value, for a choice that resolves to something else. */
-  note?: string;
-  options: { id: string; label: string; hint?: string }[];
-  selected: string;
-  onPick: (id: string) => void;
-}
-
-function Dropdown({
-  open,
-  onToggle,
-  label,
-  value,
-  note,
-  options,
-  selected,
-  onPick,
-}: DropdownProps) {
-  return (
-    <div className="relative flex-1 min-w-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-light)] hover:bg-[var(--hover-bg)] transition-colors text-left"
-      >
-        <span className="flex-1 min-w-0">
-          <span className="block text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            {note || label}
-          </span>
-          <span className="block truncate text-[12px] font-bold text-[var(--text-main)]">
-            {value}
-          </span>
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 flex-shrink-0 text-[var(--text-muted)] transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full mt-1 left-0 right-0 ui-box p-1 z-50 flex flex-col gap-0.5 max-h-56 overflow-y-auto"
-          >
-            {options.length === 0 ? (
-              <p className="px-2 py-1.5 text-[11px] font-bold text-[var(--text-muted)]">
-                —
-              </p>
-            ) : (
-              options.map((option) => (
-                <button
-                  key={option.id || "auto"}
-                  type="button"
-                  onClick={() => onPick(option.id)}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
-                    option.id === selected
-                      ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                      : "hover:bg-[var(--hover-bg)]"
-                  }`}
-                >
-                  <span className="flex-1 min-w-0 truncate text-[11px] font-bold">
-                    {option.label}
-                  </span>
-                  {option.hint && (
-                    <span className="text-[10px] font-medium opacity-60 flex-shrink-0">
-                      {option.hint}
-                    </span>
-                  )}
-                  {option.id === selected && (
-                    <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                  )}
-                </button>
-              ))
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

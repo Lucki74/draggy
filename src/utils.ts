@@ -37,6 +37,57 @@ export function normalizeMath(content: string): string {
     .replace(/\\\)/g, "$");
 }
 
+export interface FileProgressEvent {
+  file?: string;
+  loaded?: number;
+  total?: number;
+}
+
+/**
+ * Turns a multi-file download's progress events into one figure for the
+ * whole job.
+ *
+ * transformers.js reports `loaded`/`total` per file, so using them straight
+ * off an event measures whichever file is in flight rather than the whole
+ * download: a small tokenizer file reaches 100% in an instant, then the
+ * figure drops back to 0 the moment the real multi-hundred-megabyte weights
+ * file starts. Files are therefore added up by name, the same way Ollama's
+ * own per-layer download reports are combined in `createPullTracker`.
+ */
+export function createFileProgressTracker(): (event: FileProgressEvent) => number {
+  const files = new Map<string, { loaded: number; total: number }>();
+  let total = 0;
+  let percent = 0;
+
+  return (event) => {
+    const fileTotal = event.total || 0;
+    if (fileTotal <= 0) return percent;
+
+    const key = event.file || "";
+    const seen = files.get(key);
+    files.set(key, {
+      total: fileTotal,
+      // Events can repeat for the same file; a file never un-downloads.
+      loaded: Math.max(seen?.loaded ?? 0, event.loaded || 0),
+    });
+
+    const previousTotal = total;
+    let loaded = 0;
+    total = 0;
+    for (const file of files.values()) {
+      loaded += file.loaded;
+      total += file.total;
+    }
+
+    const measured = total > 0 ? (loaded / total) * 100 : 0;
+    // A newly discovered file makes the job bigger, and going back is then
+    // the honest thing to show. While the job stays the same size the figure
+    // only ever grows.
+    percent = total === previousTotal ? Math.max(percent, measured) : measured;
+    return percent;
+  };
+}
+
 export function safeJsonParse<T = unknown>(text: string): T | null {
   try {
     return JSON.parse(text) as T;

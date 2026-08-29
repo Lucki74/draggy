@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { createFileProgressTracker } from "../utils";
+
 /**
  * Kokoro, an 82 million parameter speech synthesiser, running locally.
  *
@@ -69,6 +71,7 @@ async function load(request: InitRequest): Promise<void> {
   }
 
   device = await detectDevice();
+  const track = createFileProgressTracker();
 
   const instance = await KokoroTTS.from_pretrained(MODEL_ID, {
     // q8 keeps the download near 90 MB and stays comfortably faster than
@@ -82,14 +85,12 @@ async function load(request: InitRequest): Promise<void> {
       total?: number;
     }) => {
       if (event.status !== "progress") return;
-      const loaded = event.loaded || 0;
-      const total = event.total || 0;
       self.postMessage({
         type: "progress",
         file: event.file || "",
-        loaded,
-        total,
-        percent: total > 0 ? (loaded / total) * 100 : 0,
+        loaded: event.loaded || 0,
+        total: event.total || 0,
+        percent: track(event),
       });
     },
   });
