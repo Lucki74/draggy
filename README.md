@@ -1,3 +1,5 @@
+<img width="96" height="96" alt="icon_light" src="https://github.com/user-attachments/assets/746650c8-1251-443f-a323-43ed7dee89ec"/>
+
 # Draggy
 
 Draggy is a desktop AI assistant that runs the model on your own computer. No
