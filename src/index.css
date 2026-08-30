@@ -39,6 +39,17 @@ body.dark {
     }
 }
 
+/*
+ * The browser toolbar paints only its own bar. The window below it is the
+ * page, in a separate view, and the toolbar's view is grown over the top of
+ * it to make room for an open menu — so everything this page does not draw
+ * has to let the page underneath show through.
+ */
+body.browser-bar {
+    background-color: transparent;
+    transition: none;
+}
+
 /* A terminal caret: hard on, hard off, no fading in between. */
 @keyframes typing-caret {
     0%,

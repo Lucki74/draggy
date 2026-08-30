@@ -63,9 +63,12 @@ import {
 import {
   describeContextUse,
   getModelInfo,
+  isCloudModel,
   listInstalledModels,
   needsTextModeTools,
+  warmModel,
 } from "./ollama";
+import { KEEP_ALIVE } from "./agent/agentLoop";
 import { isSpeechSupported, startRecording, transcribe } from "./speech";
 import type { Recorder } from "./speech";
 import type { InstalledModel, ModelInfo } from "./ollama";
@@ -580,9 +583,35 @@ function FileCard({
  * Drawn from the site name rather than fetched, so the app never tells anyone
  * else which pages the user is looking at.
  */
+/**
+ * The site's own icon, falling back to its initial.
+ *
+ * The icon is fetched and cached by the main process and handed over the
+ * `draggy://` protocol, since the renderer may not load images from remote
+ * hosts. A site with no usable icon, or no network, silently keeps the
+ * coloured letter rather than leaving a gap in the row.
+ */
 function SiteBadge({ hostname }: { hostname: string }) {
   const label = siteLabel(hostname);
   const hue = hueFor(label);
+
+  // Which host failed, rather than whether one did, so a row reused for a
+  // different site starts out trying again instead of inheriting the last
+  // one's missing icon.
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+
+  if (hostname && failedFor !== hostname) {
+    return (
+      <img
+        src={`draggy://favicon/${encodeURIComponent(hostname)}`}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        onError={() => setFailedFor(hostname)}
+        className="w-5 h-5 rounded-sm flex-shrink-0 mt-0.5 object-contain select-none"
+      />
+    );
+  }
 
   return (
     <span
@@ -1145,6 +1174,22 @@ export default function ChatScreen({
     return () => clearTimeout(handle);
   }, [input, draftKey]);
 
+  // Loading the model is the slow part of the first reply. Starting it the
+  // moment there is something typed — rather than waiting for send — hides
+  // that load behind however long composing the message actually takes.
+  // Re-armed once the box is empty again, so a model whose keep-alive has
+  // since lapsed gets warmed again next time.
+  const warmedForModelRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!input.trim()) {
+      warmedForModelRef.current = null;
+      return;
+    }
+    if (warmedForModelRef.current === model || isCloudModel(model)) return;
+    warmedForModelRef.current = model;
+    warmModel(model, KEEP_ALIVE).catch(() => undefined);
+  }, [input, model]);
+
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
@@ -1513,11 +1558,11 @@ export default function ChatScreen({
     isAtBottom.current = true;
   };
 
-  const copyToClipboard = (text: string, idx: number) => {
+  const copyToClipboard = useCallback((text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(idx);
     setTimeout(() => setCopiedIndex(null), 2000);
-  };
+  }, []);
 
   const greeting = useMemo(
     () => pickGreeting(settings.language, chat.id),

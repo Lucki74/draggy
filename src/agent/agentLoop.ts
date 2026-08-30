@@ -194,8 +194,8 @@ export async function runAgentTurn(
 
   const nativeTools = hasCapability(info, "tools");
   const nativeVision = hasCapability(info, "vision");
-  const nativeThinking =
-    hasCapability(info, "thinking") && settings.thinkingMode !== "low";
+  const hasThinkingCapability = hasCapability(info, "thinking");
+  const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low";
   const cleanStream = nativeTools && nativeThinking;
 
   const systemPrompt = buildSystemPrompt(
@@ -319,7 +319,10 @@ export async function runAgentTurn(
           keep_alive: KEEP_ALIVE,
           options: { num_ctx: numCtx, num_predict: -1 },
           messages: wire,
-          ...(nativeThinking ? { think: true } : {}),
+          // Explicit false, not just the absence of true: a capable model left
+          // to its own template default often reasons anyway, which is the
+          // opposite of what Fast mode asks for.
+          ...(hasThinkingCapability ? { think: nativeThinking } : {}),
           ...(nativeTools ? { tools: definitions } : {}),
         }),
         signal: loopController.signal,

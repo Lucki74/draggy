@@ -1,6 +1,8 @@
 const {
   app,
+  BaseWindow,
   BrowserWindow,
+  WebContentsView,
   dialog,
   ipcMain,
   Menu,
@@ -14,7 +16,8 @@ const os = require("os");
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
-const { setupAdblocker, injectCosmeticFilters } = require("./adblocker.cjs");
+const adblocker = require("./adblocker.cjs");
+const favicon = require("./favicon.cjs");
 const logger = require("./logger.cjs");
 const { log } = logger;
 const platform = require("./platform.cjs");
@@ -72,8 +75,31 @@ function modelFileHeaders(relative, size) {
   };
 }
 
+const faviconCacheDir = () => path.join(app.getPath("userData"), "favicon-cache");
+
+async function serveFavicon(hostname) {
+  if (!favicon.isValidHostname(hostname)) {
+    return new Response("Bad request", { status: 400 });
+  }
+
+  const bytes = await favicon.loadFavicon(faviconCacheDir(), hostname);
+  if (!bytes) return new Response("Not found", { status: 404 });
+
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": favicon.sniffImageType(bytes) || "image/x-icon",
+      "Cache-Control": "max-age=604800",
+    },
+  });
+}
+
 async function serveCachedModelFile(request) {
   const url = new URL(request.url);
+
+  if (url.host === "favicon") {
+    return serveFavicon(decodeURIComponent(url.pathname).replace(/^\/+/, ""));
+  }
+
   if (url.host !== "models") {
     return new Response("Not found", { status: 404 });
   }
@@ -207,33 +233,75 @@ function cleanUserAgent(webContents) {
   return webContents.userAgent.replace(/Electron\/[0-9.]+ /g, "");
 }
 
-let headlessHooksInstalled = false;
-function installHeadlessSessionHooks(ses) {
-  if (headlessHooksInstalled) return;
-  headlessHooksInstalled = true;
+/**
+ * The session every external page loads in, whoever opened it.
+ *
+ * Keeping the web off `defaultSession` is what stops the app's own Content
+ * Security Policy — `default-src 'self'`, `frame-src 'none'`, `form-action
+ * 'none'` — being forced onto other people's sites, which blocked their
+ * scripts, styles, video and forms and left the browser showing wreckage.
+ * That policy is right for the renderer and wrong for everything else.
+ *
+ * The user's browsing and the model's page reads deliberately share it. A
+ * challenge the user clears in the visible window leaves its cookie here, so
+ * the model's next read of that site is simply allowed through.
+ */
+const WEB_PARTITION = "persist:draggy-web";
+
+let webSessionHooked = false;
+function getWebSession() {
+  const ses = session.fromPartition(WEB_PARTITION);
+  if (webSessionHooked) return ses;
+  webSessionHooked = true;
+
+  // Client-hint headers name Electron specifically. Dropping them presents an
+  // ordinary Chromium, the same reasoning as `cleanUserAgent`.
   ses.webRequest.onBeforeSendHeaders((details, callback) => {
     delete details.requestHeaders["sec-ch-ua"];
     delete details.requestHeaders["sec-ch-ua-mobile"];
     delete details.requestHeaders["sec-ch-ua-platform"];
     callback({ requestHeaders: details.requestHeaders });
   });
+
+  return ses;
+}
+
+/**
+ * Whether the ad blocker is on, for every web session at once.
+ *
+ * Persisted through the same store the renderer uses, so the choice survives
+ * a restart, and read back by the browser window's toolbar.
+ */
+const ADBLOCK_KEY = "adblockEnabled";
+
+function adblockEnabled() {
+  try {
+    // Absent means on: blocking is the default, and a database that cannot be
+    // read is not a reason to start showing ads.
+    return storage.getValue(ADBLOCK_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+async function applyAdblockSetting() {
+  const ses = getWebSession();
+  const userData = app.getPath("userData");
+
+  if (adblockEnabled()) {
+    return adblocker.enableBlocking(userData, ses);
+  }
+
+  await adblocker.disableBlocking(userData, ses);
+  return false;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PAGE_STATE_SCRIPT = `
   (() => {
-    const iframe = document.querySelector('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"], #cf-turnstile iframe, iframe[src*="hcaptcha.com"], iframe[src*="recaptcha"], iframe[src*="datadome.co"], iframe[src*="perimeterx"]');
-    let challengeBox = null;
-    if (iframe) {
-      const r = iframe.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        challengeBox = { x: r.x, y: r.y, w: r.width, h: r.height };
-      }
-    }
     const body = document.body ? document.body.innerText : "";
     return {
-      challengeBox,
       title: document.title || "",
       readyState: document.readyState,
       textLength: body.trim().length,
@@ -256,25 +324,245 @@ function isBotChallengePage(state) {
   );
 }
 
+/**
+ * The browser the user gets when they click a link.
+ *
+ * Two views rather than one window: a toolbar drawn by the renderer, so it is
+ * the app's own typeface and colours rather than an operating system chrome,
+ * and the page underneath in the shared web session. The toolbar stays on
+ * `defaultSession` because it is our page and wants the app's protocol and
+ * policy; the page below deliberately does not.
+ */
+const TOOLBAR_HEIGHT = 48;
+
+/**
+ * How far the toolbar view grows to hold an open menu.
+ *
+ * The toolbar and the page are separate views, and a view clips whatever it
+ * draws to its own bounds — so a menu hanging below a 48px bar is simply cut
+ * off, and the page, being a sibling, covers what is left. While a menu is
+ * open the bar is given enough room to draw it and sits above the page; the
+ * part of that region the menu does not use is transparent, and a click
+ * anywhere in it closes the menu, which is what a click outside a menu
+ * should do anyway.
+ */
+const TOOLBAR_MENU_HEIGHT = 260;
+
+/** Every open browser window, so the toolbars can be told what changed. */
+const browserWindows = new Set();
+
 function openInAppBrowser(url) {
-  const browserWin = new BrowserWindow({
-    width: 1024,
-    height: 768,
-    backgroundColor: "#ffffff",
+  const win = new BaseWindow({
+    width: 1200,
+    height: 820,
+    backgroundColor: "#1E1E1E",
+    title: APP_NAME,
+    icon: path.join(__dirname, "icon.ico"),
+  });
+  win.setMenuBarVisibility(false);
+
+  const toolbar = new WebContentsView({
     webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  const content = new WebContentsView({
+    webPreferences: {
+      session: getWebSession(),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webgl: true,
+      autoplayPolicy: "no-user-gesture-required",
     },
   });
-  browserWin.setMenuBarVisibility(false);
-  
-  browserWin.webContents.on("dom-ready", () => {
-    injectCosmeticFilters(browserWin.webContents);
+
+  // The page first, the toolbar second: the last child drawn is the one on
+  // top, and a menu that opens under the bar has to be above the page.
+  win.contentView.addChildView(content);
+  win.contentView.addChildView(toolbar);
+
+  // Everything the toolbar page does not paint lets the page below show
+  // through, so the grown bar is invisible except for the menu itself.
+  toolbar.setBackgroundColor("#00000000");
+
+  const entry = { win, toolbar, content, menuOpen: false };
+
+  const layout = () => {
+    const { width, height } = win.getContentBounds();
+
+    toolbar.setBounds({
+      x: 0,
+      y: 0,
+      width,
+      height: entry.menuOpen
+        ? Math.min(height, TOOLBAR_HEIGHT + TOOLBAR_MENU_HEIGHT)
+        : TOOLBAR_HEIGHT,
+    });
+
+    // The page never moves for a menu; only the bar above it grows.
+    content.setBounds({
+      x: 0,
+      y: TOOLBAR_HEIGHT,
+      width,
+      height: Math.max(0, height - TOOLBAR_HEIGHT),
+    });
+  };
+
+  entry.layout = layout;
+
+  layout();
+  win.on("resize", layout);
+
+  browserWindows.add(entry);
+
+  const sendState = () => {
+    if (toolbar.webContents.isDestroyed()) return;
+    toolbar.webContents.send("browser-bar-state", {
+      url: content.webContents.getURL(),
+      title: content.webContents.getTitle(),
+      canGoBack: content.webContents.navigationHistory.canGoBack(),
+      canGoForward: content.webContents.navigationHistory.canGoForward(),
+      loading: content.webContents.isLoading(),
+      adblock: adblockEnabled(),
+    });
+  };
+
+  for (const event of [
+    "did-navigate",
+    "did-navigate-in-page",
+    "did-start-loading",
+    "did-stop-loading",
+    "page-title-updated",
+  ]) {
+    content.webContents.on(event, sendState);
+  }
+
+  // A link that wants a new window opens another browser window rather than a
+  // chromeless popup with no way back.
+  content.webContents.setWindowOpenHandler(({ url: target }) => {
+    openInAppBrowser(target);
+    return { action: "deny" };
   });
 
-  browserWin.loadURL(url);
+  toolbar.webContents.once("did-finish-load", sendState);
+
+  win.on("closed", () => {
+    browserWindows.delete(entry);
+  });
+
+  const toolbarUrl = isDevelopment()
+    ? "http://127.0.0.1:5173/?browserbar=true"
+    : `${RENDERER_ORIGIN}/index.html?browserbar=true`;
+
+  toolbar.webContents.loadURL(toolbarUrl);
+  content.webContents.loadURL(url, {
+    userAgent: cleanUserAgent(content.webContents),
+  });
+
+  return entry;
 }
+
+/** The window a toolbar belongs to, found from the message it just sent. */
+function browserWindowFor(event) {
+  for (const entry of browserWindows) {
+    if (entry.toolbar.webContents.id === event.sender.id) return entry;
+  }
+  return null;
+}
+
+function broadcastBrowserState() {
+  for (const entry of browserWindows) {
+    if (entry.toolbar.webContents.isDestroyed()) continue;
+    entry.toolbar.webContents.send("browser-bar-state", {
+      url: entry.content.webContents.getURL(),
+      title: entry.content.webContents.getTitle(),
+      canGoBack: entry.content.webContents.navigationHistory.canGoBack(),
+      canGoForward: entry.content.webContents.navigationHistory.canGoForward(),
+      loading: entry.content.webContents.isLoading(),
+      adblock: adblockEnabled(),
+    });
+  }
+}
+
+ipcMain.handle("browser-bar-menu", (event, open) => {
+  const entry = browserWindowFor(event);
+  if (!entry) return { success: false };
+
+  entry.menuOpen = Boolean(open);
+  entry.layout();
+  return { success: true };
+});
+
+ipcMain.handle("browser-bar-action", (event, action, value) => {
+  const entry = browserWindowFor(event);
+  if (!entry) return { success: false };
+
+  const web = entry.content.webContents;
+
+  switch (action) {
+    case "back":
+      if (web.navigationHistory.canGoBack()) web.navigationHistory.goBack();
+      break;
+    case "forward":
+      if (web.navigationHistory.canGoForward()) web.navigationHistory.goForward();
+      break;
+    case "reload":
+      web.reload();
+      break;
+    case "stop":
+      web.stop();
+      break;
+    case "navigate": {
+      const target = normaliseTypedUrl(String(value || ""));
+      if (target) web.loadURL(target, { userAgent: cleanUserAgent(web) });
+      break;
+    }
+    default:
+      return { success: false };
+  }
+
+  return { success: true };
+});
+
+/**
+ * What the user typed in the address bar.
+ *
+ * Anything that is not obviously a URL is a search, the same as every other
+ * browser: "how tall is everest" should not become a failed DNS lookup.
+ */
+function normaliseTypedUrl(raw) {
+  const value = raw.trim();
+  if (!value) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return value;
+  if (/^[^\s/]+\.[^\s/]{2,}(\/|$|\?)/.test(value)) return `https://${value}`;
+  return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`;
+}
+
+ipcMain.handle("browser-bar-set-adblock", async (event, enabled) => {
+  const on = Boolean(enabled);
+
+  try {
+    storage.setValue(ADBLOCK_KEY, on ? "on" : "off");
+  } catch (error) {
+    log.warn("adblocker", `could not save the setting: ${error.message}`);
+  }
+
+  const active = await applyAdblockSetting();
+
+  // Filters are decided as a request is made, so the page in front of the user
+  // only changes once it is asked for again.
+  const entry = browserWindowFor(event);
+  if (entry && !entry.content.webContents.isDestroyed()) {
+    entry.content.webContents.reload();
+  }
+
+  broadcastBrowserState();
+  return { success: true, enabled: active };
+});
 
 let mainWindow;
 let splashWindow;
@@ -402,7 +690,6 @@ function createWindow() {
   }
   mainWindow.setAutoHideMenuBar(true);
 
-  setupAdblocker(mainWindow.webContents.session);
   logger.attachWindow(mainWindow, "main");
 
   if (isDevelopment()) {
@@ -436,7 +723,14 @@ app.whenReady().then(() => {
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
 
+  // The renderer's own policy, and deliberately only the renderer's: the web
+  // session below is left with whatever policy each site sends for itself.
   applyContentSecurityPolicy(session.defaultSession, !isDevelopment());
+
+  adblocker.primeAdblocker(app.getPath("userData"));
+  applyAdblockSetting().catch((error) =>
+    log.warn("adblocker", `could not apply the setting: ${error.message}`),
+  );
 
   session.defaultSession.setPermissionRequestHandler(
     (contents, permission, callback) => {
@@ -588,6 +882,7 @@ async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }
   const win = new BrowserWindow({
     show: false,
     webPreferences: {
+      session: getWebSession(),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -639,17 +934,11 @@ ipcMain.handle("get-page-content", async (event, url) => {
   const win = new BrowserWindow({
     show: false,
     webPreferences: {
+      session: getWebSession(),
       nodeIntegration: false,
       contextIsolation: true,
-      webgl: true, 
-      preload: path.join(__dirname, 'stealth-preload.cjs'),
+      webgl: true,
     },
-  });
-
-  installHeadlessSessionHooks(win.webContents.session);
-
-  win.webContents.on('did-finish-load', () => {
-    injectCosmeticFilters(win.webContents);
   });
 
   try {
@@ -661,23 +950,20 @@ ipcMain.handle("get-page-content", async (event, url) => {
     for (let i = 0; i < 6; i++) {
       const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
 
-      if (state.challengeBox) {
-        const box = state.challengeBox;
-        for (let offset = 20; offset < box.w; offset += 40) {
-          const clickX = Math.round(box.x + offset);
-          const clickY = Math.round(box.y + box.h / 2);
+      // A challenge is not something to wait out or work around. Saying so
+      // immediately gives the model something true to tell the user, and
+      // saves the twelve seconds the old retry loop spent getting nowhere.
+      if (isBotChallengePage(state)) {
+        win.destroy();
+        return {
+          title: state.title || url,
+          text: "",
+          blocked: "human-verification",
+          url,
+        };
+      }
 
-          win.webContents.sendInputEvent({ type: 'mouseMove', x: clickX - 10, y: clickY - 10 });
-          await sleep(50);
-          win.webContents.sendInputEvent({ type: 'mouseMove', x: clickX, y: clickY });
-          await sleep(50);
-
-          win.webContents.sendInputEvent({ type: 'mouseDown', x: clickX, y: clickY, button: 'left', clickCount: 1 });
-          await sleep(50);
-          win.webContents.sendInputEvent({ type: 'mouseUp', x: clickX, y: clickY, button: 'left', clickCount: 1 });
-        }
-      } else if (
-        !isBotChallengePage(state) &&
+      if (
         state.readyState === "complete" &&
         !win.webContents.isLoading() &&
         state.textLength > 200
@@ -724,19 +1010,13 @@ function getBrowserSession() {
     width: 1280,
     height: 900,
     webPreferences: {
+      session: getWebSession(),
       nodeIntegration: false,
       contextIsolation: true,
       webgl: true,
       plugins: true,
       autoplayPolicy: 'no-user-gesture-required',
-      preload: path.join(__dirname, 'stealth-preload.cjs'),
     },
-  });
-
-  installHeadlessSessionHooks(browserSession.webContents.session);
-
-  browserSession.webContents.on('did-finish-load', () => {
-    injectCosmeticFilters(browserSession.webContents);
   });
 
   browserSession.on('closed', () => {
@@ -757,13 +1037,18 @@ ipcMain.handle("browser-navigate", async (event, url) => {
 
     for (let i = 0; i < 6; i++) {
       const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
-      if (
-        state.readyState === "complete" &&
-        !isBotChallengePage(state) &&
-        state.textLength > 50
-      ) {
-        break;
+
+      if (isBotChallengePage(state)) {
+        return {
+          success: false,
+          blocked: "human-verification",
+          url: win.webContents.getURL(),
+          error:
+            "This page is behind a human-verification challenge and cannot be read automatically.",
+        };
       }
+
+      if (state.readyState === "complete" && state.textLength > 50) break;
       await sleep(2000);
     }
 

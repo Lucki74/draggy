@@ -470,6 +470,34 @@ describe("native thinking models", () => {
   });
 });
 
+describe("fast thinking mode", () => {
+  const FAST_SETTINGS = { ...SETTINGS, thinkingMode: "low" } as AppSettings;
+
+  it("tells a native-capable model not to think, explicitly rather than by omission", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBe(false);
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
+  });
+
+  it("does not ask a non-native model to reason via the prompt either", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], []);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBeUndefined();
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
+  });
+});
+
 describe("stopping", () => {
   it("reports an aborted turn", async () => {
     const controller = new AbortController();

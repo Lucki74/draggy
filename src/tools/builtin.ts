@@ -157,6 +157,22 @@ const readUrl: ToolSpec = {
       const page = await api()?.readUrl(url);
       if (!page) throw new Error("No data");
 
+      // A human-verification page is not a failure to retry or reword. Saying
+      // so plainly, once, is what stops the model trying the same URL five
+      // more ways, and the user can open it themselves in a click.
+      if (page.blocked === "human-verification") {
+        ctx.patchStep(stepId, { isComplete: true, type: "error" });
+        ctx.pushStep({
+          id: ctx.newId(),
+          type: "error",
+          content: `${ctx.t("pageNeedsVerification")} ${url}`,
+          isComplete: true,
+        });
+        ctx.syncSteps();
+
+        return `TOOL RESULT (read_url): This page is behind a human-verification challenge (such as Cloudflare) and cannot be read automatically. Do not retry this URL or try to work around the check. Tell the user the page needs them to open it and pass the check themselves, and give them the link: ${url}`;
+      }
+
       const lines = page.text.split("\n").filter((line) => line.trim().length > 0);
       const shown = Math.min(lines.length, PAGE_LINE_LIMIT);
 

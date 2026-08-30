@@ -22,6 +22,11 @@ Word, PowerPoint, Excel, code and text files for you, and run short Python or
 JavaScript programs to check its own work. Code runs in a scratch directory with
 no network access and gets killed after twenty seconds.
 
+**Browse, with the ads gone.** Links open in a browser window inside the app,
+with back, forward, reload and an address bar. Ad and tracker blocking runs on
+uBlock Origin's engine and its filter lists, and there is a switch in the
+toolbar to turn it off for a site that needs it.
+
 **Search your own documents.** Point it at a folder and it indexes the contents
 locally with an embedding model — sized to your VRAM the same way the chat model
 is, or pick one yourself — then searches those passages before it searches the
@@ -85,7 +90,7 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 660
+which is typecheck, lint and the test suite in one go. There are around 680
 tests and they run in under two seconds, so there is no excuse for skipping
 them.
 
@@ -107,6 +112,15 @@ The interesting boundary is `electron/preload.cjs`: the renderer has no Node
 access and reaches the filesystem, the network and the database only through the
 handful of functions exposed there.
 
+The second boundary is the session split. Draggy's own window runs on Electron's
+default session under a strict Content Security Policy; every external page —
+whether you opened it or the model did — runs on a separate partition with no
+policy of ours imposed on it. Forcing `default-src 'self'` onto someone else's
+site blocks their scripts, styles, video and forms, which is a fine way to make
+a browser useless. Sharing that one partition between your browsing and the
+model's page reads is also what lets a verification check you pass by hand
+carry over to what the model can read afterwards.
+
 The voice pipeline is worth a look if you are into that sort of thing.
 `src/voice/gate.ts` turns a stream of speech probabilities into conversation
 events and knows nothing about audio or models, which makes the whole
@@ -118,8 +132,11 @@ just said — a trailing "um" buys you more time than a full stop does.
 
 The only things that reach the internet are: downloading models from Ollama,
 web searches you or the model trigger, pages the browser tool opens, the speech
-models the first time voice mode runs, and the update check. Everything else is
-local. There is no telemetry and nowhere for it to go.
+models the first time voice mode runs, the ad blocker's filter lists (fetched
+once and cached on disk), the icon of each site that appears in a search result
+— asked of that site directly, never of a third-party favicon service — and the
+update check. Everything else is local. There is no telemetry and nowhere for
+it to go.
 
 Web search defaults to automatic: your own SearXNG instance if you have set one
 up, then Brave's API if you have supplied a key, then DuckDuckGo, Startpage and
