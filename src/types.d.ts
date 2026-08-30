@@ -123,6 +123,15 @@ export interface UpdaterState {
   error: string | null;
 }
 
+export interface BrowserBarState {
+  url: string;
+  title: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  loading: boolean;
+  adblock: boolean;
+}
+
 export interface AppInfo {
   version: string;
   electron: string;
@@ -309,7 +318,13 @@ declare global {
         searxngUrl: string;
         braveApiKey: string;
       }) => Promise<{ success: boolean }>;
-      readUrl: (url: string) => Promise<{ title: string; text: string }>;
+      readUrl: (url: string) => Promise<{
+        title: string;
+        text: string;
+        /** Set when the page could not be read rather than had no content. */
+        blocked?: "human-verification";
+        url?: string;
+      }>;
 
       browserNavigate: (url: string) => Promise<{ success: boolean; title?: string; url?: string; error?: string }>;
       browserGetElements: () => Promise<{
@@ -416,6 +431,19 @@ declare global {
         download: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;
         onState: (callback: (state: UpdaterState) => void) => void;
+        offState: () => void;
+      };
+
+      browserBar: {
+        action: (
+          name: "back" | "forward" | "reload" | "stop" | "navigate",
+          value?: string,
+        ) => Promise<{ success: boolean }>;
+        setMenuOpen: (open: boolean) => Promise<{ success: boolean }>;
+        setAdblock: (
+          enabled: boolean,
+        ) => Promise<{ success: boolean; enabled: boolean }>;
+        onState: (callback: (state: BrowserBarState) => void) => void;
         offState: () => void;
       };
 

@@ -79,6 +79,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     offState: () => ipcRenderer.removeAllListeners("updater-state"),
   },
 
+  browserBar: {
+    action: (name, value) =>
+      ipcRenderer.invoke("browser-bar-action", name, value),
+    setMenuOpen: (open) => ipcRenderer.invoke("browser-bar-menu", open),
+    setAdblock: (enabled) =>
+      ipcRenderer.invoke("browser-bar-set-adblock", enabled),
+    onState: (callback) => subscribe("browser-bar-state", callback),
+    offState: () => ipcRenderer.removeAllListeners("browser-bar-state"),
+  },
+
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
   readLogs: () => ipcRenderer.invoke("logs:tail"),

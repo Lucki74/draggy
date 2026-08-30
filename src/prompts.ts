@@ -180,7 +180,10 @@ export function buildSystemPrompt(
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 
-  if (!mode.nativeThinking) {
+  // Fast mode means no reasoning at all, not merely an unspecified amount of
+  // it: a model with no native "thinking" support otherwise still gets told
+  // to reason, just without the depth instruction below.
+  if (!mode.nativeThinking && settings.thinkingMode !== "low") {
     parts.push(THINK_TAG_PROMPT);
     const thinking = THINKING_PROMPTS[settings.thinkingMode];
     if (thinking) parts.push(thinking);

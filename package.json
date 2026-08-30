@@ -86,6 +86,7 @@
     ]
   },
   "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.2",
     "docx": "^9.7.1",
     "electron-updater": "^6.8.9",
     "exceljs": "^4.4.0",

@@ -14,10 +14,10 @@ import {
   titleFromContent,
   writeLocalStorage,
 } from "./utils";
-import { isCloudModel } from "./ollama";
+import { isCloudModel, warmModel } from "./ollama";
 import { registerBuiltinTools } from "./tools/builtin";
 import type { ToolEnvironment } from "./tools/registry";
-import { runAgentTurn } from "./agent/agentLoop";
+import { KEEP_ALIVE, runAgentTurn } from "./agent/agentLoop";
 import {
   SETTINGS_KEY,
   cancelSessionSave,
@@ -586,7 +586,37 @@ export default function App() {
         ? prev
         : { ...prev, modelName: selectedModel },
     );
+    // Loading the weights takes seconds, and paying for that inside the
+    // first message is the moment it feels worst. Starting it here — at boot
+    // and on every model switch, while the user is still reading or typing —
+    // means it is usually already resident by the time they send.
+    if (!isCloudModel(selectedModel)) {
+      warmModel(selectedModel, KEEP_ALIVE).catch(() => undefined);
+    }
   }, []);
+
+  // Stable identities so MessageItem's memo() actually skips messages that
+  // have not changed instead of re-rendering the whole conversation on every
+  // streamed token — a plain inline arrow function here would hand every
+  // message a "new" callback prop on every render.
+  const onRegenerateChat = useCallback(
+    (idx: number) => {
+      if (currentChatId) handleRegenerate(currentChatId, idx);
+    },
+    [currentChatId, handleRegenerate],
+  );
+  const onSwitchVersionChat = useCallback(
+    (mIdx: number, vIdx: number) => {
+      if (currentChatId) handleSwitchVersion(currentChatId, mIdx, vIdx);
+    },
+    [currentChatId, handleSwitchVersion],
+  );
+  const onEditMessageChat = useCallback(
+    (mIdx: number, content: string) => {
+      if (currentChatId) handleEditMessage(currentChatId, mIdx, content);
+    },
+    [currentChatId, handleEditMessage],
+  );
 
   const currentSession = sessions.find((s) => s.id === currentChatId);
 
@@ -729,13 +759,9 @@ export default function App() {
             onSendMessage={(content, attachments) =>
               handleSendMessage(currentChatId, content, attachments)
             }
-            onRegenerate={(idx) => handleRegenerate(currentChatId, idx)}
-            onSwitchVersion={(mIdx, vIdx) =>
-              handleSwitchVersion(currentChatId, mIdx, vIdx)
-            }
-            onEditMessage={(mIdx, content) =>
-              handleEditMessage(currentChatId, mIdx, content)
-            }
+            onRegenerate={onRegenerateChat}
+            onSwitchVersion={onSwitchVersionChat}
+            onEditMessage={onEditMessageChat}
             onStopGeneration={() => handleStopGeneration(currentChatId)}
             onContinueGeneration={() => handleContinueGeneration(currentChatId)}
             onDismissOutOfContext={() => handleDismissOutOfContext(currentChatId)}
