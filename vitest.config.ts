@@ -15,6 +15,7 @@ export default defineConfig({
         "src/fileList.ts",
         "src/greetings.ts",
         "src/modelKinds.ts",
+        "src/modelRecommendations.ts",
         "src/ollama.ts",
         "src/storage.ts",
         "src/toolParsing.ts",

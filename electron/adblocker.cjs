@@ -152,14 +152,8 @@ async function disableBlocking(userDataPath, session) {
   }
 }
 
-async function isBlockingEnabled(userDataPath, session) {
-  const blocker = await loadEngine(userDataPath);
-  return Boolean(blocker && blocker.isBlockingEnabled(session));
-}
-
 module.exports = {
   primeAdblocker,
   enableBlocking,
   disableBlocking,
-  isBlockingEnabled,
 };

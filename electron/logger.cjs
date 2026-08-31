@@ -123,6 +123,5 @@ module.exports = {
   attachWindow,
   log,
   readTail,
-  logPath: () => logFile,
   logFolder: () => logDir,
 };

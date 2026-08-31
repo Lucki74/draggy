@@ -247,5 +247,4 @@ module.exports = {
   installFromDmg,
   defaultShellEnv,
   pythonCandidates,
-  OLLAMA_DOWNLOAD_PAGE,
 };

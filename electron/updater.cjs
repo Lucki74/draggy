@@ -34,17 +34,6 @@ function publish(next) {
   broadcast(state);
 }
 
-function isConfigured(app) {
-  if (!app.isPackaged) return false;
-
-  try {
-    const { autoUpdater } = require("electron-updater");
-    return Boolean(autoUpdater.isUpdaterActive());
-  } catch {
-    return false;
-  }
-}
-
 function init(app, sendToWindows) {
   broadcast = sendToWindows;
 
@@ -180,5 +169,4 @@ module.exports = {
   install,
   current,
   dispose,
-  isConfigured,
 };

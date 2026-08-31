@@ -50,6 +50,7 @@ import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { visit } from "unist-util-visit";
 import type { Node as UnistNode, Parent as UnistParent } from "unist";
 import { selectableModels } from "./modelKinds";
+import type { SettingsTab } from "./SettingsPage";
 import { translations } from "./translations";
 import {
   isBinary,
@@ -237,7 +238,7 @@ interface ChatScreenProps {
   onContinueGeneration: () => void;
   onDismissOutOfContext: () => void;
   onSelectModel: (name: string) => void;
-  onOpenSettings: (tab: "appearance" | "models") => void;
+  onOpenSettings: (tab: SettingsTab) => void;
   onNewChat: () => void;
   settings: AppSettings;
   onUpdateSettings: (settings: AppSettings) => void;
@@ -568,8 +569,9 @@ function FileCard({
         )}
 
         {writing && (
-          <span className="inline-block w-2 h-4 bg-gray-300 align-middle animate-pulse absolute"
-            style={{ position: "static", marginLeft: "1rem", marginBottom: "1rem" }}
+          <span
+            className="inline-block w-2 h-4 bg-gray-300 align-middle animate-pulse"
+            style={{ marginLeft: "1rem", marginBottom: "1rem" }}
           />
         )}
       </div>

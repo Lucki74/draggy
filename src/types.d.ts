@@ -326,7 +326,14 @@ declare global {
         url?: string;
       }>;
 
-      browserNavigate: (url: string) => Promise<{ success: boolean; title?: string; url?: string; error?: string }>;
+      browserNavigate: (url: string) => Promise<{
+        success: boolean;
+        title?: string;
+        url?: string;
+        /** Set when a bot check stopped the page, as `readUrl` reports it. */
+        blocked?: "human-verification";
+        error?: string;
+      }>;
       browserGetElements: () => Promise<{
         success: boolean;
         elements: BrowserElement[];

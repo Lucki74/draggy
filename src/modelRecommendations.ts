@@ -24,11 +24,18 @@ export const modelRecommendations: ModelRecommendation[] = [
   { vram: 48.0, model: "qwen3:235b-a22b",     label: "Qwen 3 235B MoE",     params: "235B MoE"},
 ];
 
+/** The bottom rung, whatever order the table above happens to be written in. */
+const SMALLEST = [...modelRecommendations].sort((a, b) => a.vram - b.vram)[0];
+
 export function getRecommendedModel(vram: number): string {
-  const sorted = [...modelRecommendations]
-    .filter((r) => r.vram <= vram)
+  const affordable = [...modelRecommendations]
+    .filter((entry) => entry.vram <= vram)
     .sort((a, b) => a.vram - b.vram);
 
-  const recommendation = sorted[sorted.length - 1];
-  return recommendation ? recommendation.model : "qwen3:0.6b";
+  // A machine below the bottom rung still has to be given something, and that
+  // something is the smallest model in the table rather than a name written out
+  // beside it. It used to name a 0.6B model — twice the size of the 360M one
+  // directly above it — which is the wrong way to fail on a machine that has no
+  // usable graphics memory at all.
+  return (affordable[affordable.length - 1] ?? SMALLEST).model;
 }

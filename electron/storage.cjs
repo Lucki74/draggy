@@ -463,13 +463,6 @@ function loadChatSummaries() {
     }));
 }
 
-function loadChat(id) {
-  const row = db
-    .prepare("SELECT id, title, updated_at, is_out_of_context FROM chats WHERE id = ?")
-    .get(id);
-  return row ? hydrateChat(row) : null;
-}
-
 function deleteChat(id) {
   db.prepare("DELETE FROM chats WHERE id = ?").run(id);
   db.prepare("DELETE FROM message_search WHERE chat_id = ?").run(id);
@@ -571,7 +564,6 @@ module.exports = {
   saveChat,
   loadChats,
   loadChatSummaries,
-  loadChat,
   deleteChat,
   clearChats,
   searchChats,
