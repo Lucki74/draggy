@@ -40,9 +40,11 @@ npm run check
 Typecheck, lint and the full test suite. There are around 680 tests and they run
 in about two seconds, so there is no reason to skip them.
 
-Note that nothing runs this for you: the only GitHub workflow fires on a release
-tag, not on pull requests. Until that changes, `npm run check` on your own
-machine is the only thing between a mistake and `main`.
+Note that nothing runs this for you. GitHub scans the repository with CodeQL,
+but that looks for security issues — no workflow runs the tests, the
+typechecker or ESLint on a pull request, and the release workflow fires only on
+a version tag. Until that changes, `npm run check` on your own machine is the
+only thing between a mistake and `main`.
 
 Tests run in a Node environment with no GPU and no Electron, which is why the
 logic worth testing is kept away from the code that talks to hardware.
