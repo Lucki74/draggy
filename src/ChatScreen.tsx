@@ -741,7 +741,7 @@ const MessageItem = memo(
             )}
 
           {isEditing && msg.role === "user" ? (
-            <div className="flex flex-col w-full p-4 font-bold leading-relaxed break-words border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]">
+            <div className="flex flex-col w-full p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
@@ -766,13 +766,26 @@ const MessageItem = memo(
               </div>
             </div>
           ) : (
+            /**
+             * wrap-anywhere, not break-words. The bubble is a shrink-to-fit
+             * flex item, so its width comes from the content's min-content
+             * size, and `overflow-wrap: break-word` does not reduce that — it
+             * only breaks a word once a line already exists to overflow. Ask a
+             * model to count to a billion and the reply is one unbreakable
+             * "word" tens of thousands of pixels wide, which the bubble sizes
+             * itself to and the whole conversation then scrolls sideways.
+             * `anywhere` is the same rendering for ordinary prose and counts
+             * towards min-content, which is the part that matters here.
+             * break-all would also work and would mangle the other eleven
+             * languages, so it does not.
+             */
             <div
               className={
                 msg.role === "user"
-                  ? "p-4 font-bold leading-relaxed break-words border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]"
+                  ? "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]"
                   : text === "" && steps.length === 0 && isGenerating && isLast
                     ? "p-3 px-4 rounded-2xl bg-[var(--bg-panel)] border-[3px] border-[var(--border-light)] w-fit"
-                    : "p-4 font-bold leading-relaxed break-words border-[3px] rounded-xl bg-[var(--bg-panel)] text-[var(--text-main)] border-[var(--border-light)] rounded-tl-none shadow-[4px_4px_0_var(--border-light)] markdown-body"
+                    : "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-panel)] text-[var(--text-main)] border-[var(--border-light)] rounded-tl-none shadow-[4px_4px_0_var(--border-light)] markdown-body"
               }
               style={{ fontSize: "var(--chat-font-size)" }}
             >
