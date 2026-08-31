@@ -3,7 +3,7 @@ import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import type { AgentHost } from "../agent/agentLoop";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
-import { forgetModelInfo } from "../ollama";
+import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
 import type { AppSettings, Message, SearchStep, TurnMetrics } from "../types";
 
 const MODEL = "test-model";
@@ -222,6 +222,10 @@ beforeEach(() => {
   registerTool(fakeSearch);
   toolCalls = [];
   forgetModelInfo(MODEL);
+  // The chosen context window is remembered per model so that turns do not
+  // reload it, which also means one test's long conversation would otherwise
+  // set the window every later test sees.
+  forgetContextSize(MODEL);
 });
 
 afterEach(() => {
@@ -471,7 +475,7 @@ describe("fast thinking mode", () => {
     expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
   });
 
-  it("does not ask a non-native model to reason via the prompt either", async () => {
+  it("asks a non-native model for the answer, rather than saying nothing", async () => {
     const { requests } = installFetch([{ content: ["Four."] }], []);
 
     await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
@@ -481,6 +485,57 @@ describe("fast thinking mode", () => {
       (requests[0] as { messages: { content: string }[] }).messages[0].content,
     );
     expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
+    expect(system).not.toContain("You MUST use <think>");
+    expect(system).toContain("Answer immediately");
+  });
+
+  it("tells a native-capable model to skip the scratchpad as well", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).toContain("Answer immediately");
+  });
+
+  it("still asks a native-capable model to think in the other modes", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBe(true);
+  });
+});
+
+describe("keeping the model loaded", () => {
+  type ChatBody = { options: { num_ctx: number } };
+
+  it("asks for the window the warm-up already loaded", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await warmModel(MODEL, "30m", 0);
+    await run([userMessage("hi")]).promise;
+
+    // Two /api/chat calls: the warm-up, then the turn. Ollama unloads and
+    // reloads the weights when num_ctx changes, so these have to agree.
+    expect(requests).toHaveLength(2);
+    expect((requests[1] as ChatBody).options.num_ctx).toBe(
+      (requests[0] as ChatBody).options.num_ctx,
+    );
+  });
+
+  it("does not give a window back once the conversation has needed it", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("x".repeat(60000))]).promise;
+    const grown = (requests[0] as ChatBody).options.num_ctx;
+
+    await run([userMessage("hi")]).promise;
+
+    expect(grown).toBeGreaterThan(4096);
+    expect((requests[1] as ChatBody).options.num_ctx).toBe(grown);
   });
 });
 

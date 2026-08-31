@@ -592,6 +592,11 @@ export default function App() {
     // first message is the moment it feels worst. Starting it here — at boot
     // and on every model switch, while the user is still reading or typing —
     // means it is usually already resident by the time they send.
+    //
+    // Sized for an empty conversation, which is what a model switch usually
+    // precedes. Opening a long chat and typing into it warms again, at that
+    // chat's size; the window only grows, so the second warm-up is the one
+    // that counts and this one is never in its way.
     if (!isCloudModel(selectedModel)) {
       warmModel(selectedModel, KEEP_ALIVE).catch(() => undefined);
     }

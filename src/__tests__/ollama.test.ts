@@ -3,8 +3,10 @@ import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   PULL_PHASE_KEYS,
+  contextSizeFor,
   createPullTracker,
   describeContextUse,
+  forgetContextSize,
   forgetModelInfo,
   getModelInfo,
   isCloudModel,
@@ -13,6 +15,7 @@ import {
   pickContextSize,
   pullModel,
   readMetrics,
+  warmModel,
 } from "../ollama";
 
 describe("context budgeting", () => {
@@ -519,5 +522,88 @@ describe("asking a model what it can do", () => {
     const info = await getModelInfo("probe:failure");
 
     expect(info?.capabilities).toEqual(["embedding"]);
+  });
+});
+
+describe("holding a model in memory", () => {
+  const MODEL = "sticky:test";
+
+  const stubShow = () =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).endsWith("/api/show")) {
+          return new Response(
+            JSON.stringify({
+              capabilities: ["completion"],
+              model_info: { "test.context_length": 32768 },
+              details: { parameter_size: "8B", quantization_level: "Q4_K_M" },
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response("{}", { status: 200 });
+      }),
+    );
+
+  afterEach(() => {
+    forgetContextSize(MODEL);
+    forgetModelInfo(MODEL);
+  });
+
+  it("grows the window when the conversation needs more room", () => {
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+    expect(contextSizeFor(MODEL, 200000, 131072)).toBe(65536);
+  });
+
+  it("never shrinks it again, because shrinking costs a reload", () => {
+    contextSizeFor(MODEL, 200000, 131072);
+
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(65536);
+  });
+
+  it("still respects what the model can actually hold", () => {
+    expect(contextSizeFor(MODEL, 500000, 8192)).toBe(8192);
+  });
+
+  it("forgets a model, so a reinstalled one starts over", () => {
+    contextSizeFor(MODEL, 200000, 131072);
+    forgetContextSize(MODEL);
+
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+  });
+
+  it("warms the model at the size the turn will ask for", async () => {
+    stubShow();
+
+    await warmModel(MODEL, "30m", 100000);
+
+    const sent = vi.mocked(fetch).mock.calls.find(([url]) =>
+      String(url).endsWith("/api/chat"),
+    );
+    const body = JSON.parse(String((sent?.[1] as RequestInit).body));
+
+    // The window the warm-up picked is the one the next turn is handed, so the
+    // weights are loaded once rather than loaded and then loaded again.
+    expect(body.options.num_ctx).toBe(contextSizeFor(MODEL, 100000, 32768));
+    expect(body.keep_alive).toBe("30m");
+  });
+
+  it("leaves room for the system prompt the turn will carry", async () => {
+    stubShow();
+
+    // A conversation that fits the smaller bucket on its own, and does not
+    // once the prompt in front of it is counted. Warming to the smaller one
+    // would hand the turn a window it has to grow, which is a reload.
+    expect(pickContextSize(8000, 32768)).toBe(4096);
+
+    await warmModel(MODEL, "30m", 8000);
+
+    const sent = vi.mocked(fetch).mock.calls.find(([url]) =>
+      String(url).endsWith("/api/chat"),
+    );
+    const body = JSON.parse(String((sent?.[1] as RequestInit).body));
+
+    expect(body.options.num_ctx).toBe(8192);
   });
 });

@@ -80,11 +80,23 @@ User said hi. I will greet them concisely and warmly.
 Hello! How can I help you today?`;
 
 
-export const THINKING_PROMPTS: Record<AppSettings["thinkingMode"], string> = {
+/**
+ * Fast mode, for a model that reasons in plain text.
+ *
+ * `think: false` settles it for a model Ollama reports as thinking-capable, and
+ * costs nothing to send. A model without that capability has no switch to
+ * throw: left alone, a reasoning model writes its scratchpad into the reply
+ * whatever the template says, so the only lever left is asking it not to.
+ */
+export const FAST_PROMPT = `Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself.`;
+
+export const THINKING_PROMPTS: Record<
+  Exclude<AppSettings["thinkingMode"], "low">,
+  string
+> = {
   high: "\n\nCRITICAL INSTRUCTION: You MUST use <think>...</think> tags to reason before answering. Your reasoning process must be extremely deep, exhaustive, and step-by-step. Consider multiple perspectives, edge cases, and perform extensive self-correction. Do not rush your conclusion; take as much time and generate as much thought process as necessary in the <think> block to fully explore the problem space.",
   medium:
     "\n\nInstruction: You MUST use <think>...</think> tags to reason before answering. Think carefully and be thorough. Outline your logical steps clearly inside the <think> block before providing your final answer.",
-  low: "",
 };
 
 export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search the web before answering, even if you believe you already know the answer, and base your reply on what you find.`;
@@ -181,12 +193,14 @@ export function buildSystemPrompt(
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 
   // Fast mode means no reasoning at all, not merely an unspecified amount of
-  // it: a model with no native "thinking" support otherwise still gets told
-  // to reason, just without the depth instruction below.
-  if (!mode.nativeThinking && settings.thinkingMode !== "low") {
+  // it. Saying nothing turned out not to be enough: omitting the instruction
+  // to reason is not the same as asking for an answer, and a reasoning model
+  // fills the silence by reasoning anyway.
+  if (settings.thinkingMode === "low") {
+    parts.push(FAST_PROMPT);
+  } else if (!mode.nativeThinking) {
     parts.push(THINK_TAG_PROMPT);
-    const thinking = THINKING_PROMPTS[settings.thinkingMode];
-    if (thinking) parts.push(thinking);
+    parts.push(THINKING_PROMPTS[settings.thinkingMode]);
   }
 
   if (settings.customInstructions.length > 0) {

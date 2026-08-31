@@ -1176,22 +1176,6 @@ export default function ChatScreen({
     return () => clearTimeout(handle);
   }, [input, draftKey]);
 
-  // Loading the model is the slow part of the first reply. Starting it the
-  // moment there is something typed — rather than waiting for send — hides
-  // that load behind however long composing the message actually takes.
-  // Re-armed once the box is empty again, so a model whose keep-alive has
-  // since lapsed gets warmed again next time.
-  const warmedForModelRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!input.trim()) {
-      warmedForModelRef.current = null;
-      return;
-    }
-    if (warmedForModelRef.current === model || isCloudModel(model)) return;
-    warmedForModelRef.current = model;
-    warmModel(model, KEEP_ALIVE).catch(() => undefined);
-  }, [input, model]);
-
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
@@ -1609,6 +1593,32 @@ export default function ChatScreen({
     historyChars: messageChars,
     maxContext: modelInfo?.contextLength ?? null,
   });
+
+  // Loading the model is the slow part of the first reply. Starting it the
+  // moment there is something typed — rather than waiting for send — hides
+  // that load behind however long composing the message actually takes.
+  // Re-armed once the box is empty again, so a model whose keep-alive has
+  // since lapsed gets warmed again next time.
+  //
+  // The conversation is measured and handed over because the warm-up has to
+  // reserve the same context window the turn will ask for. It lives down here,
+  // below that measurement, for no better reason than that.
+  const warmedForModelRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!input.trim()) {
+      warmedForModelRef.current = null;
+      return;
+    }
+    if (warmedForModelRef.current === model || isCloudModel(model)) return;
+    warmedForModelRef.current = model;
+    warmModel(model, KEEP_ALIVE, messageChars + draftChars).catch(
+      () => undefined,
+    );
+    // Measured only to size the window, and a keystroke that does not change
+    // the bucket must not re-warm: the guard above already covers that, and
+    // listing the counts here would only re-run this on every character.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, model]);
 
   const estimatedTokens = contextUse.usedTokens;
   const maxTokens = contextUse.windowTokens;

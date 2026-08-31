@@ -1,10 +1,10 @@
 import {
   OLLAMA_HOST,
+  contextSizeFor,
   getModelInfo,
   gpuShareFor,
   hasCapability,
   mergeMetrics,
-  pickContextSize,
   readMetrics,
 } from "../ollama";
 import type { GenerationMetrics } from "../ollama";
@@ -236,7 +236,8 @@ export async function runAgentTurn(
   let loopCount = 0;
   let isFinished = false;
   let outOfContext = false;
-  let numCtx = 0;
+  // Assigned on the first pass of the loop below, which always runs.
+  let numCtx: number;
   let metrics: GenerationMetrics | null = null;
 
   let fullFinalContent = request.seed?.content ?? "";
@@ -294,9 +295,15 @@ export async function runAgentTurn(
       patchStep(textStepId, { content: value });
     };
 
-    numCtx = Math.max(
-      numCtx,
-      pickContextSize(estimateChars(wire), info?.contextLength ?? null),
+    // Recomputed each pass because tool results are appended to the wire as
+    // they come back, and asked of the shared tally rather than worked out
+    // here so that the warm-up which ran while the user was typing has already
+    // loaded the model at this size. See contextSizeFor: a disagreement here
+    // costs a full reload of the weights.
+    numCtx = contextSizeFor(
+      model,
+      estimateChars(wire),
+      info?.contextLength ?? null,
     );
 
     const requestStart = performance.now();

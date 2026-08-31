@@ -139,6 +139,40 @@ export function pickContextSize(
   return cap;
 }
 
+/**
+ * The context size each model is currently loaded at.
+ *
+ * Ollama keys a resident model on the options it was loaded with, and `num_ctx`
+ * is one of them: a request asking for a different window unloads the weights
+ * and loads them again. Measured against a local 8B at Q4 that is three seconds
+ * on a warm disk and six on a cold one, paid before the first token. Nothing
+ * else in the request costs anything — `think`, `num_predict` and the tool
+ * schemas all measured under ten milliseconds against a loaded model.
+ *
+ * So the window is decided once per model, and only ever grows. Growing is
+ * unavoidable when a conversation genuinely outgrows its window; shrinking is
+ * not worth a reload, and allowing it is what made leaving a long chat for a
+ * new one and coming back reload the model twice.
+ */
+const loadedContextSizes = new Map<string, number>();
+
+export function contextSizeFor(
+  model: string,
+  charEstimate: number,
+  maxContext: number | null,
+): number {
+  const size = Math.max(
+    loadedContextSizes.get(model) ?? 0,
+    pickContextSize(charEstimate, maxContext),
+  );
+  loadedContextSizes.set(model, size);
+  return size;
+}
+
+export function forgetContextSize(model: string) {
+  loadedContextSizes.delete(model);
+}
+
 export interface ContextUse {
   usedTokens: number;
   windowTokens: number;
@@ -291,7 +325,42 @@ export function mergeMetrics(
   };
 }
 
-export async function warmModel(name: string, keepAlive: string): Promise<void> {
+/**
+ * What the system prompt and tool catalogue add to a turn, on top of the
+ * conversation itself. Measured across the configurations the app builds: 5.4
+ * KB at its smallest, 8.5 KB with text-mode tools, the library and code
+ * execution all on. This is the middle of that, not the top of it.
+ *
+ * Rounding up to the maximum would be the safe-looking choice and is the wrong
+ * one. The two errors are not symmetrical. Guessing low costs one reload, the
+ * first time a conversation crosses a bucket boundary, after which the window
+ * is remembered and every later turn is free. Guessing high can settle on a
+ * window a whole bucket wider than the conversation needs, and a KV cache that
+ * no longer fits alongside the weights pushes layers onto the CPU — which is
+ * not six seconds once, it is every token from then on.
+ */
+const SYSTEM_PROMPT_CHARS = 6000;
+
+/**
+ * Loads the weights ahead of a turn, in the shape that turn will ask for.
+ *
+ * `charEstimate` is how much conversation the next turn will carry, and it is
+ * the whole point: warming without one loaded the model at Ollama's default
+ * window, and the turn that followed asked for a different one and reloaded it.
+ * The warm-up was not merely useless then — it guaranteed the reload.
+ */
+export async function warmModel(
+  name: string,
+  keepAlive: string,
+  charEstimate = 0,
+): Promise<void> {
+  const info = await getModelInfo(name);
+  const numCtx = contextSizeFor(
+    name,
+    charEstimate + SYSTEM_PROMPT_CHARS,
+    info?.contextLength ?? null,
+  );
+
   await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -300,7 +369,7 @@ export async function warmModel(name: string, keepAlive: string): Promise<void> 
       stream: false,
       think: false,
       keep_alive: keepAlive,
-      options: { num_predict: 1 },
+      options: { num_ctx: numCtx, num_predict: 1 },
       messages: [{ role: "user", content: "hi" }],
     }),
   });
@@ -314,6 +383,7 @@ export async function deleteModel(name: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`Could not remove ${name}`);
   forgetModelInfo(name);
+  forgetContextSize(name);
 }
 
 export async function readNdjsonStream(

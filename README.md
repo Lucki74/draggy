@@ -18,6 +18,11 @@ graphics card has and picks a model that will actually fit, then downloads it.
 An 8 GB card gets Qwen 3 8B; a laptop with 2 GB gets something much smaller. You
 can override the choice at any time, and swap models mid-conversation.
 
+Three answering modes sit on the chat toolbar. Balanced and Deep let the model
+reason before it replies; Fast turns reasoning off outright rather than asking
+for less of it, which on a small model is the difference between a one-word
+question costing one second and costing eight.
+
 **Use tools, when they help.** Draggy can search the web, read a page, drive a
 real browser session (navigate, click, fill inputs, read the result back), write
 Word, PowerPoint, Excel, code and text files for you, and run short Python or
@@ -92,7 +97,7 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 680
+which is typecheck, lint and the test suite in one go. There are around 690
 tests and they run in under two seconds, so there is no excuse for skipping
 them.
 

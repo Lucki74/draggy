@@ -37,7 +37,7 @@ or more makes this pleasant; less works, with smaller models.
 npm run check
 ```
 
-Typecheck, lint and the full test suite. There are around 680 tests and they run
+Typecheck, lint and the full test suite. There are around 690 tests and they run
 in about two seconds, so there is no reason to skip them.
 
 Note that nothing runs this for you. GitHub scans the repository with CodeQL,
