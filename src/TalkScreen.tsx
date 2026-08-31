@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { translations } from "./translations";
 import { listInstalledModels } from "./ollama";
-import { selectableVoiceModels } from "./modelKinds";
+import { selectableModels } from "./modelKinds";
 import Orb from "./voice/Orb";
 import {
   emptyConversationView,
@@ -87,7 +87,7 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
 
   const refreshModels = useCallback(() => {
     listInstalledModels()
-      .then((models) => setInstalled(selectableVoiceModels(models)))
+      .then((models) => setInstalled(selectableModels(models)))
       .catch(() => setInstalled([]));
   }, []);
 

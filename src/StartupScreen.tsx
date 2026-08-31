@@ -2,9 +2,14 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, HardDrive, AlertCircle } from "lucide-react";
 import { getRecommendedModel } from "./modelRecommendations";
-import { selectableChatModelNames } from "./modelKinds";
+import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
-import { PULL_PHASE_KEYS, isCloudModel, listModels, pullModel } from "./ollama";
+import {
+  PULL_PHASE_KEYS,
+  isCloudModel,
+  listInstalledModels,
+  pullModel,
+} from "./ollama";
 import Logo from "./Logo";
 
 interface StartupScreenProps {
@@ -136,7 +141,8 @@ export default function StartupScreen({
         }
 
         setStatus(tr("verifyingAssets"));
-        const models = await listModels();
+        const installed = await listInstalledModels();
+        const models = installed.map((entry) => entry.name);
 
         let hasModel =
           !!targetModel &&
@@ -154,7 +160,7 @@ export default function StartupScreen({
 
         // Falling back to whatever happens to be installed must not land on an
         // embedding model, which cannot answer anything.
-        const chattable = selectableChatModelNames(models);
+        const chattable = selectableModels(installed).map((entry) => entry.name);
         if (!hasModel && chattable.length > 0) {
           targetModel = chattable[0];
           hasModel = true;

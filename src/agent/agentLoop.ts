@@ -146,14 +146,6 @@ export interface AgentResult {
 const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
-/** The most recent thing the user actually asked. */
-export function lastQuestion(messages: Message[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return messages[i].content || "";
-  }
-  return "";
-}
-
 export async function runAgentTurn(
   request: AgentRequest,
   host: AgentHost,

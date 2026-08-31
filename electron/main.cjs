@@ -35,7 +35,38 @@ const MODEL_CACHE_ORIGIN = "https://huggingface.co";
 /** What the app calls itself: window titles, the taskbar, the data folder. */
 const APP_NAME = "Draggy";
 
-const runCommand = platform.runCommand;
+/**
+ * Names it answered to before. The data folder is named after the app, so a
+ * rename points a returning user at a folder that does not exist yet, which
+ * from where they are sitting is indistinguishable from having lost the lot.
+ * Both spellings are tried because only the case-sensitive platforms care and
+ * an extra `existsSync` costs nothing.
+ */
+const LEGACY_APP_NAMES = ["localai", "LocalAI"];
+
+/**
+ * Takes over the old folder, once, on the first run under the new name.
+ *
+ * Runs before the logger and the database, both of which create files in the
+ * new folder, and anything already there is left where it is. Returns what
+ * happened, for the log to pick up as soon as there is one.
+ */
+function adoptLegacyDataFolder() {
+  const parent = app.getPath("appData");
+  const to = app.getPath("userData");
+  const notes = [];
+
+  for (const name of LEGACY_APP_NAMES) {
+    const from = path.join(parent, name);
+    if (from === to) continue;
+
+    const result = appData.adoptFolder({ from, to });
+    if (result.message) notes.push(result.message);
+    if (result.plan === "adopt") break;
+  }
+
+  return notes;
+}
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -706,7 +737,10 @@ function broadcast(channel, payload) {
 }
 
 app.whenReady().then(() => {
+  const adopted = adoptLegacyDataFolder();
+
   logger.init(app);
+  for (const note of adopted) log.info("appData", note);
 
   try {
     storage.init(app.getPath("userData"));

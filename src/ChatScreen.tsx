@@ -49,7 +49,7 @@ import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { visit } from "unist-util-visit";
 import type { Node as UnistNode, Parent as UnistParent } from "unist";
-import { selectableChatModels } from "./modelKinds";
+import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
 import {
   isBinary,
@@ -1253,7 +1253,7 @@ export default function ChatScreen({
     let cancelled = false;
     listInstalledModels()
       .then((models) => {
-        if (!cancelled) setInstalledModels(selectableChatModels(models));
+        if (!cancelled) setInstalledModels(selectableModels(models));
       })
       .catch(() => undefined);
     return () => {

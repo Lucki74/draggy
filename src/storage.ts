@@ -157,7 +157,7 @@ const localStorageBackend: StorageBackend = {
   },
 };
 
-let backend: StorageBackend = window.electronAPI?.db
+const backend: StorageBackend = window.electronAPI?.db
   ? sqliteBackend
   : localStorageBackend;
 
@@ -262,8 +262,4 @@ export function cancelSessionSave(id: string): void {
   const timer = pending.get(id);
   if (timer) clearTimeout(timer);
   pending.delete(id);
-}
-
-export function setStorageBackendForTesting(next: StorageBackend): void {
-  backend = next;
 }

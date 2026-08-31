@@ -98,10 +98,6 @@ export function allToolNames(): string[] {
   return [...registry.keys()];
 }
 
-export function getTool(name: string): ToolSpec | undefined {
-  return registry.get(name);
-}
-
 export function availableTools(environment: ToolEnvironment): ToolSpec[] {
   return allTools().filter(
     (spec) => !spec.available || spec.available(environment),

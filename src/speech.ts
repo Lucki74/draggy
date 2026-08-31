@@ -31,7 +31,6 @@ interface WorkerReply {
 
 let worker: Worker | null = null;
 let readyPromise: Promise<void> | null = null;
-let activeDevice: "webgpu" | "wasm" | null = null;
 let nextId = 1;
 
 const pending = new Map<
@@ -46,10 +45,6 @@ export function isSpeechSupported(): boolean {
     typeof navigator.mediaDevices?.getUserMedia === "function" &&
     typeof MediaRecorder !== "undefined"
   );
-}
-
-export function getSpeechDevice(): "webgpu" | "wasm" | null {
-  return activeDevice;
 }
 
 function ensureWorker(): Worker {
@@ -78,7 +73,6 @@ function ensureWorker(): Worker {
     pending.delete(reply.id);
 
     if (reply.type === "ready") {
-      activeDevice = reply.device || "wasm";
       entry.resolve("");
     } else if (reply.type === "error") {
       entry.reject(new Error(reply.message));
@@ -131,10 +125,6 @@ export interface TranscribeOptions {
 }
 
 /** True while the engine is working, so callers can avoid queueing behind it. */
-export function isTranscribing(): boolean {
-  return pending.size > 0;
-}
-
 export async function transcribeSamples(
   samples: Float32Array,
   options: TranscribeOptions | ((progress: SpeechProgress) => void) = {},

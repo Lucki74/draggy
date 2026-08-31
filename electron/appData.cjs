@@ -24,16 +24,59 @@ const pathDefault = require("path");
 const MARKER = "draggy.db";
 
 /**
+ * The same file under the name the app answered to before it was Draggy.
+ *
+ * It matters twice. A folder left by that version holds this and not `MARKER`,
+ * so without it there is nothing here that looks like data worth keeping. And
+ * the file has to arrive under the current name: carried over as it stands, it
+ * sits beside a database the app then creates empty, which is the same thing
+ * as having lost it.
+ */
+const LEGACY_MARKER = "localai.db";
+
+/**
+ * What an entry is called once it is in the new folder.
+ *
+ * Only the database is renamed, and its `-wal` and `-shm` companions travel
+ * with it: SQLite finds them by the main file's name, and a write-ahead log
+ * left behind under the old one takes every uncheckpointed write with it.
+ * Everything else, old backups included, keeps the name it had.
+ */
+function arrivalName(entry, marker, legacyMarker) {
+  if (!legacyMarker || !entry.startsWith(legacyMarker)) return entry;
+  if (entry === legacyMarker) return marker;
+  if (entry.startsWith(`${legacyMarker}-`)) {
+    return marker + entry.slice(legacyMarker.length);
+  }
+  return entry;
+}
+
+/**
  * Decides what to do, without touching anything. Returns one of:
  *
  * - `"adopt"`    the old folder holds the data and should be carried over
  * - `"keep-new"` the new folder already holds data of its own; leave both
  * - `"none"`     there is nothing to carry over
  */
-function planAdoption({ fs = fsDefault, path = pathDefault, from, to, marker = MARKER }) {
+function planAdoption({
+  fs = fsDefault,
+  path = pathDefault,
+  from,
+  to,
+  marker = MARKER,
+  legacyMarker = LEGACY_MARKER,
+}) {
   if (!from || !to || from === to) return "none";
   if (!fs.existsSync(from)) return "none";
-  if (!fs.existsSync(path.join(from, marker))) return "none";
+
+  // Either name proves the old folder was used. Only the current one counts on
+  // the new side: a stray legacy database there is a leftover, not a reason to
+  // refuse data that has nowhere else to go.
+  const holdsData = [marker, legacyMarker].some(
+    (name) => name && fs.existsSync(path.join(from, name)),
+  );
+  if (!holdsData) return "none";
+
   if (fs.existsSync(to) && fs.existsSync(path.join(to, marker))) return "keep-new";
   return "adopt";
 }
@@ -49,10 +92,17 @@ function planAdoption({ fs = fsDefault, path = pathDefault, from, to, marker = M
  * Never throws. Failing to move old data is not a reason to refuse to start,
  * and the old folder is left untouched so a later run can try again.
  */
-function adoptFolder({ fs = fsDefault, path = pathDefault, from, to, marker = MARKER }) {
+function adoptFolder({
+  fs = fsDefault,
+  path = pathDefault,
+  from,
+  to,
+  marker = MARKER,
+  legacyMarker = LEGACY_MARKER,
+}) {
   let plan;
   try {
-    plan = planAdoption({ fs, path, from, to, marker });
+    plan = planAdoption({ fs, path, from, to, marker, legacyMarker });
   } catch (error) {
     return { moved: 0, plan: "none", message: `could not inspect ${from}: ${error.message}` };
   }
@@ -66,7 +116,7 @@ function adoptFolder({ fs = fsDefault, path = pathDefault, from, to, marker = MA
     fs.mkdirSync(to, { recursive: true });
 
     for (const entry of fs.readdirSync(from)) {
-      const target = path.join(to, entry);
+      const target = path.join(to, arrivalName(entry, marker, legacyMarker));
       if (fs.existsSync(target)) {
         skipped++;
         continue;
@@ -99,4 +149,4 @@ function adoptFolder({ fs = fsDefault, path = pathDefault, from, to, marker = MA
   };
 }
 
-module.exports = { planAdoption, adoptFolder, MARKER };
+module.exports = { planAdoption, adoptFolder, arrivalName, MARKER, LEGACY_MARKER };

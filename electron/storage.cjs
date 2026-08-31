@@ -220,7 +220,7 @@ function init(userDataPath) {
 
   // A damaged search index or key-value table would otherwise make every save
   // fail forever, with nothing but an unexplained warning in the interface.
-  let healthy = false;
+  let healthy;
 
   try {
     db = new DatabaseSync(dbPath);

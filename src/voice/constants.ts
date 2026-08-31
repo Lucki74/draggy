@@ -64,9 +64,6 @@ export const PARTIAL_BUDGET_MS = 1400;
 export const BARGE_IN_MS = 240;
 export const BARGE_IN_PROB = 0.6;
 
-/** Quiet required after a barge-in before the assistant may speak again. */
-export const RESUME_GUARD_MS = 300;
-
 /**
  * While the assistant is speaking, the microphone still hears it through echo
  * cancellation residue. Requiring a higher probability during output keeps the

@@ -37,6 +37,42 @@ function usedKeys(): Map<string, string> {
   return found;
 }
 
+/**
+ * Every bare word the interface could be passing to `t()`. Keys are not always
+ * written inline: some are held in a lookup table or come off a settings value,
+ * so any quoted identifier in the source counts as a possible key.
+ */
+function referencedWords(): Set<string> {
+  const words = new Set<string>();
+  const pattern = /["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]/g;
+
+  for (const file of sourceFiles(SOURCE_DIR)) {
+    const source = fs.readFileSync(file, "utf8");
+    let match;
+    while ((match = pattern.exec(source)) !== null) words.add(match[1]);
+  }
+
+  return words;
+}
+
+/**
+ * Prefixes of keys built at the call site, as in t(`provider_${id}`). Every key
+ * starting with one of these is reachable even though its full name is never
+ * written down.
+ */
+function dynamicPrefixes(): string[] {
+  const prefixes = new Set<string>();
+  const pattern = /\bt\(\s*`([A-Za-z_][A-Za-z0-9_]*)\$\{/g;
+
+  for (const file of sourceFiles(SOURCE_DIR)) {
+    const source = fs.readFileSync(file, "utf8");
+    let match;
+    while ((match = pattern.exec(source)) !== null) prefixes.add(match[1]);
+  }
+
+  return [...prefixes];
+}
+
 describe("language coverage", () => {
   it("ships every language the picker offers", () => {
     for (const code of codes) {
@@ -112,5 +148,22 @@ describe("every key the interface asks for exists", () => {
       .map(([key, file]) => `${key} (used in ${file})`);
 
     expect(missing, `add these to translations.ts: ${missing.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("every key the tables define is still asked for", () => {
+  it("has no string left behind by a feature that was removed", () => {
+    const words = referencedWords();
+    const prefixes = dynamicPrefixes();
+
+    const orphaned = referenceKeys.filter(
+      (key) =>
+        !words.has(key) && !prefixes.some((prefix) => key.startsWith(prefix)),
+    );
+
+    expect(
+      orphaned,
+      `these keys are defined in all ${codes.length} languages but nothing reads them: ${orphaned.join(", ")}`,
+    ).toEqual([]);
   });
 });

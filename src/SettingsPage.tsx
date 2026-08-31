@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Trash2,
   Plus,
@@ -32,10 +32,9 @@ import {
 } from "./ollama";
 import type { PullPhase } from "./ollama";
 import {
-  chatBlock,
-  countUsable,
+  cannotGenerate,
   isEmbeddingModel,
-  selectableVoiceModels,
+  selectableModels,
 } from "./modelKinds";
 import type { InstalledModel } from "./ollama";
 import { describeFit, describeSplit } from "./vram";
@@ -168,10 +167,6 @@ export default function SettingsPage({
 
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [installedModels, setInstalledModels] = useState<InstalledModel[]>([]);
-  const usableModelCount = useMemo(
-    () => countUsable(installedModels.map((entry) => entry.name)),
-    [installedModels],
-  );
   const [pullState, setPullState] = useState<{
     name: string;
     percent: number;
@@ -596,24 +591,18 @@ export default function SettingsPage({
                   {installedModels.map((entry) => {
                     const isActive = entry.name === activeModel;
                     // Still listed, so it can be removed; just not choosable.
-                    const block = chatBlock(entry.name, usableModelCount);
+                    const cannotChat = cannotGenerate(entry.capabilities);
                     return (
                       <div
                         key={entry.name}
                         className={`flex items-center gap-3 p-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] ${
-                          block ? "opacity-60" : ""
+                          cannotChat ? "opacity-60" : ""
                         }`}
                       >
                         <button
                           onClick={() => onSelectModel(entry.name)}
-                          disabled={isActive || block !== null}
-                          title={
-                            block === "embedding"
-                              ? t("embeddingOnlyHint")
-                              : block === "helper"
-                                ? t("tooSmallForChatHint")
-                                : undefined
-                          }
+                          disabled={isActive || cannotChat}
+                          title={cannotChat ? t("embeddingOnlyHint") : undefined}
                           className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:cursor-default"
                         >
                           <span className="text-sm font-bold truncate">
@@ -624,11 +613,9 @@ export default function SettingsPage({
                               {entry.parameterSize}
                             </span>
                           )}
-                          {block && (
+                          {cannotChat && (
                             <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[var(--text-muted)] flex-shrink-0">
-                              {block === "embedding"
-                                ? t("embeddingOnly")
-                                : t("tooSmallForChat")}
+                              {t("embeddingOnly")}
                             </span>
                           )}
                         </button>
@@ -763,7 +750,7 @@ export default function SettingsPage({
               <Field label={t("talkModel")}>
                 <ModelSelect
                   value={settings.voiceModel}
-                  models={selectableVoiceModels(installedModels)}
+                  models={selectableModels(installedModels)}
                   automatic={t("automatic")}
                   onPick={(name) => onUpdate({ ...settings, voiceModel: name })}
                 />
@@ -845,7 +832,7 @@ export default function SettingsPage({
                 <ModelSelect
                   value={settings.embedModel}
                   models={installedModels.filter((entry) =>
-                    isEmbeddingModel(entry.name),
+                    isEmbeddingModel(entry.capabilities),
                   )}
                   automatic={t("automatic")}
                   onPick={(name) => onUpdate({ ...settings, embedModel: name })}

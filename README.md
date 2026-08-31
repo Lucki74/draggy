@@ -96,7 +96,8 @@ which is typecheck, lint and the test suite in one go. There are around 680
 tests and they run in under two seconds, so there is no excuse for skipping
 them.
 
-See [RELEASING.md](RELEASING.md) for how versions are tagged and published.
+See [CONTRIBUTING.md](CONTRIBUTING.md) if you are thinking of sending a patch,
+and [RELEASING.md](RELEASING.md) for how versions are tagged and published.
 
 ## How it is laid out
 
@@ -166,5 +167,9 @@ will describe a tool call instead of making one often enough to be annoying.
 
 ## License
 
-All rights reserved — see [LICENSE](LICENSE). The source is here to read and
-build for yourself, not to redistribute or reuse without asking first.
+GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
+
+Draggy is free software: you may use, study, change and share it. If you pass
+it on, modified or not, you have to pass those same freedoms on with it and
+make your source available under the same licence. There is no warranty, to
+the extent the law allows.

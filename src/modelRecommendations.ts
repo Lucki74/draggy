@@ -18,7 +18,7 @@ export const modelRecommendations: ModelRecommendation[] = [
   { vram: 10.0, model: "gemma4:12b",           label: "Gemma 4 12B",         params: "12B"     },
   { vram: 12.0, model: "phi4",                 label: "Phi-4",               params: "14B"     },
   { vram: 14.0, model: "qwen3:14b",           label: "Qwen 3 14B",          params: "14B"     },
-  { vram: 16.0, model: "gemma4:27b",           label: "Gemma 4 27B MoE",     params: "27B MoE" },
+  { vram: 16.0, model: "gemma4:26b",           label: "Gemma 4 26B MoE",     params: "26B MoE" },
   { vram: 20.0, model: "qwen3:32b",           label: "Qwen 3 32B",          params: "32B"     },
   { vram: 24.0, model: "gemma4:31b",           label: "Gemma 4 31B",         params: "31B"     },
   { vram: 48.0, model: "qwen3:235b-a22b",     label: "Qwen 3 235B MoE",     params: "235B MoE"},

@@ -42,7 +42,9 @@ const defaultSettings: AppSettings = {
   theme: "light",
   fontSize: "base",
   language: "en",
-  modelName: "llama3.2",
+  // Empty means "not chosen yet": the startup screen adopts whatever is
+  // already installed, and sizes a model to the graphics card if nothing is.
+  modelName: "",
   customInstructions: [],
   thinkingMode: "medium",
   webMode: "auto",

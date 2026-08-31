@@ -5,7 +5,8 @@ import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { planAdoption, adoptFolder, MARKER } = require("./appData.cjs");
+const { planAdoption, adoptFolder, MARKER, LEGACY_MARKER } =
+  require("./appData.cjs");
 
 let workdir;
 let from;
@@ -190,5 +191,62 @@ describe("carrying the folder over", () => {
 
     expect(() => adoptFolder({ fs: blind, from, to })).not.toThrow();
     expect(adoptFolder({ fs: blind, from, to }).moved).toBe(0);
+  });
+});
+
+describe("the database the old name left behind", () => {
+  /** A folder as the version before the rename left it. */
+  const withLegacyData = (dir, body = "every chat ever") => {
+    write(dir, LEGACY_MARKER, body);
+    write(dir, `${LEGACY_MARKER}-wal`, "writes not yet checkpointed");
+    write(dir, `${LEGACY_MARKER}-shm`, "shared memory index");
+  };
+
+  it("adopts a folder whose database still has the old name", () => {
+    withLegacyData(from);
+    expect(planAdoption({ from, to })).toBe("adopt");
+  });
+
+  it("carries the database over under the name the app now opens", () => {
+    withLegacyData(from);
+    adoptFolder({ from, to });
+
+    expect(fs.readFileSync(path.join(to, MARKER), "utf8")).toBe("every chat ever");
+    expect(fs.existsSync(path.join(to, LEGACY_MARKER))).toBe(false);
+  });
+
+  it("brings the write-ahead log with it, renamed to match", () => {
+    // SQLite finds the -wal by the main file's name. Left behind under the old
+    // one it is simply dropped, taking any uncheckpointed writes with it.
+    withLegacyData(from);
+    adoptFolder({ from, to });
+
+    expect(fs.existsSync(path.join(to, `${MARKER}-wal`))).toBe(true);
+    expect(fs.existsSync(path.join(to, `${MARKER}-shm`))).toBe(true);
+    expect(fs.existsSync(path.join(to, `${LEGACY_MARKER}-wal`))).toBe(false);
+  });
+
+  it("leaves an old backup under the name it was filed as", () => {
+    withLegacyData(from);
+    write(from, `${LEGACY_MARKER}.backup-20260825`, "an archive, not a database");
+    adoptFolder({ from, to });
+
+    expect(fs.existsSync(path.join(to, `${LEGACY_MARKER}.backup-20260825`))).toBe(
+      true,
+    );
+  });
+
+  it("never lands on a current database that already exists", () => {
+    withLegacyData(from, "older");
+    withData(to, "newer");
+
+    expect(planAdoption({ from, to })).toBe("keep-new");
+    expect(adoptFolder({ from, to }).moved).toBe(0);
+    expect(fs.readFileSync(path.join(to, MARKER), "utf8")).toBe("newer");
+  });
+
+  it("still ignores a folder the old version never stored anything in", () => {
+    scaffolded(from);
+    expect(planAdoption({ from, to })).toBe("none");
   });
 });

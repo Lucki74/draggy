@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lastQuestion, runAgentTurn, toWireMessage } from "../agent/agentLoop";
+import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import type { AgentHost } from "../agent/agentLoop";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
@@ -75,7 +75,6 @@ interface Turn {
 
 function installFetch(turns: Turn[], capabilities: string[]) {
   const requests: Record<string, unknown>[] = [];
-  const routeRequests: Record<string, unknown>[] = [];
   let turnIndex = 0;
 
   const impl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -107,19 +106,6 @@ function installFetch(turns: Turn[], capabilities: string[]) {
       const body = JSON.parse(String(init?.body));
       requests.push(body);
 
-      // Classifying the question is its own call and must not eat one of the
-      // scripted answer turns. An unrecognised reply means "no decision", which
-      // is the behaviour every test here was written against.
-      const system = String(body?.messages?.[0]?.content ?? "");
-      if (system.startsWith("You are a classifier")) {
-        routeRequests.push(body);
-        requests.pop();
-        return new Response(
-          JSON.stringify({ message: { content: "-" }, done: true }),
-          { status: 200 },
-        );
-      }
-
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
 
       const lines: unknown[] = [];
@@ -141,7 +127,7 @@ function installFetch(turns: Turn[], capabilities: string[]) {
   });
 
   vi.stubGlobal("fetch", impl);
-  return { requests, routeRequests };
+  return { requests };
 }
 
 function makeHost() {
@@ -793,22 +779,6 @@ describe("keeping prose where the model wrote it", () => {
 
     const result = await promise;
     expect(result.textContent).toContain("Half a thought");
-  });
-});
-
-describe("finding the question the user actually asked", () => {
-  it("finds the question the user actually asked", () => {
-    expect(
-      lastQuestion([
-        { id: "1", role: "user", content: "first" },
-        { id: "2", role: "assistant", content: "answer" },
-        { id: "3", role: "user", content: "second" },
-      ]),
-    ).toBe("second");
-  });
-
-  it("has nothing to report when the user has not spoken", () => {
-    expect(lastQuestion([{ id: "1", role: "assistant", content: "hi" }])).toBe("");
   });
 });
 

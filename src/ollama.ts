@@ -39,9 +39,27 @@ export interface InstalledModel {
   size: number;
   parameterSize: string;
   family: string;
+  /**
+   * What Ollama says this model can do. Empty when the server could not be
+   * asked, which every reader treats as "no information" rather than "no".
+   */
+  capabilities: string[];
 }
 
 const modelInfoCache = new Map<string, Promise<ModelInfo | null>>();
+
+/**
+ * How long to wait for Ollama to describe a model.
+ *
+ * Reading a manifest off the local disk takes milliseconds, so this is not a
+ * budget so much as a limit on how wrong things can go. `listInstalledModels`
+ * asks about every installed model at once and the startup screen waits on the
+ * answer, so a server that accepts the connection and then says nothing would
+ * otherwise hold the splash screen open indefinitely. Timing out is safe: the
+ * result is an empty capability list, which every reader treats as "unknown"
+ * rather than as "no", and the failure is not cached.
+ */
+const MODEL_INFO_TIMEOUT_MS = 5000;
 
 async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
   try {
@@ -49,6 +67,7 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: model }),
+      signal: AbortSignal.timeout(MODEL_INFO_TIMEOUT_MS),
     });
     if (!res.ok) return null;
 
@@ -160,7 +179,7 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
   if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
 
   const data = await res.json();
-  return (data?.models || [])
+  const listed: Omit<InstalledModel, "capabilities">[] = (data?.models || [])
     .map(
       (m: {
         name: string;
@@ -173,17 +192,17 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
         family: m.details?.family || "",
       }),
     )
-    .filter((m: InstalledModel) => !isCloudModel(m.name));
-}
+    .filter((m: { name: string }) => !isCloudModel(m.name));
 
-export async function listModels(): Promise<string[]> {
-  const models = await listInstalledModels();
-  return models.map((m) => m.name);
-}
+  // `/api/tags` says nothing about what a model can do, so each one is asked
+  // separately. The calls go out together and `getModelInfo` caches them, so
+  // the price is paid once per model for as long as the app is open.
+  const info = await Promise.all(listed.map((m) => getModelInfo(m.name)));
 
-export async function listLoadedModels(): Promise<string[]> {
-  const loaded = await describeLoadedModels();
-  return loaded.map((entry) => entry.name);
+  return listed.map((model, index) => ({
+    ...model,
+    capabilities: info[index]?.capabilities ?? [],
+  }));
 }
 
 export async function describeLoadedModels(): Promise<LoadedModel[]> {
@@ -270,18 +289,6 @@ export function mergeMetrics(
     model: a.model,
     gpuPercent: b.gpuPercent ?? a.gpuPercent,
   };
-}
-
-export async function unloadModel(name: string): Promise<void> {
-  try {
-    await fetch(`${OLLAMA_HOST}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: name, messages: [], keep_alive: 0 }),
-    });
-  } catch {
-    return;
-  }
 }
 
 export async function warmModel(name: string, keepAlive: string): Promise<void> {

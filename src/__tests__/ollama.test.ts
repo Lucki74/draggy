@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   PULL_PHASE_KEYS,
   createPullTracker,
   describeContextUse,
+  forgetModelInfo,
+  getModelInfo,
   isCloudModel,
   mergeMetrics,
   needsTextModeTools,
@@ -465,5 +467,57 @@ describe("reporting a download to the screen", () => {
     } finally {
       globalThis.fetch = original;
     }
+  });
+});
+
+describe("asking a model what it can do", () => {
+  const shown = (capabilities: string[]) =>
+    new Response(JSON.stringify({ capabilities }), { status: 200 });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    forgetModelInfo("probe:deadline");
+    forgetModelInfo("probe:failure");
+  });
+
+  it("gives the request a deadline, so one hung model cannot stall the list", async () => {
+    let sent: RequestInit | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        sent = init;
+        return shown(["completion"]);
+      }),
+    );
+
+    await getModelInfo("probe:deadline");
+
+    expect(sent?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("reports nothing when the request times out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      }),
+    );
+
+    expect(await getModelInfo("probe:failure")).toBeNull();
+  });
+
+  it("does not remember a timeout, so the next look can still succeed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      }),
+    );
+    await getModelInfo("probe:failure");
+
+    vi.stubGlobal("fetch", vi.fn(async () => shown(["embedding"])));
+    const info = await getModelInfo("probe:failure");
+
+    expect(info?.capabilities).toEqual(["embedding"]);
   });
 });
