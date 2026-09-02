@@ -2,17 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * Site icons for search results.
- *
- * Fetched from the site itself rather than from Google's favicon service,
- * which is what this used to do: asking a third party for an icon tells that
- * third party every domain the user is looking at, and the only party who
- * learns anything this way is the site whose result is already on screen.
- *
- * Served back to the renderer over `draggy://`, because the renderer's own
- * content policy allows images from exactly two places and a remote host is
- * not one of them. Plain `fetch` rather than a session, so nothing carries a
- * cookie.
+ * Site icons, asked of the site itself rather than Google's service, which
+ * would learn every domain the user looks at. Served back over `draggy://`.
  */
 
 const HOSTNAME_RE = /^[a-z0-9][a-z0-9.-]{0,253}$/i;
@@ -21,11 +12,8 @@ const FETCH_TIMEOUT_MS = 5000;
 const MAX_ICON_BYTES = 256 * 1024;
 
 /**
- * The image formats a favicon actually arrives in.
- *
- * Sniffed rather than trusted from Content-Type, because a wrong header is
- * common and an HTML error page served as an icon should not be cached as
- * one. A file that matches nothing here is not an image.
+ * The formats a favicon arrives in, sniffed rather than trusted from
+ * Content-Type: an HTML error page should not be cached as an icon.
  */
 function sniffImageType(bytes) {
   if (bytes.length < 4) return null;
@@ -63,13 +51,8 @@ async function fetchIcon(url, deps) {
 }
 
 /**
- * Every icon a page declares in its head, for the sites without
- * /favicon.ico.
- *
- * Attribute values are matched quoted or bare, because plenty of real pages
- * are minified to `rel=icon href=/favicon.ico` and requiring quotes silently
- * loses them. Several are returned rather than one, since the first declared
- * icon is not always the one that actually resolves.
+ * Every icon a page declares, for sites without /favicon.ico. Values match
+ * quoted or bare, since minified pages drop the quotes.
  */
 const LINK_ICON_RE =
   /<link\b[^>]*\brel\s*=\s*(?:"[^"]*\bicon\b[^"]*"|'[^']*\bicon\b[^']*'|[^\s"'>]*icon[^\s>]*)[^>]*>/gi;
@@ -112,10 +95,8 @@ async function declaredIconUrls(origin, deps) {
 }
 
 /**
- * The icon bytes for a host, from disk when it has been asked for before.
- *
- * A host with no usable icon is remembered as an empty file, so a list of ten
- * results does not re-ask the same dead endpoint every time it is rendered.
+ * The icon bytes for a host, from disk when asked before. A host with none is
+ * remembered as an empty file, so ten results do not re-ask a dead endpoint.
  */
 async function loadFavicon(cacheDir, hostname, deps = { fetch }) {
   if (!isValidHostname(hostname)) return null;

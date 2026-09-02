@@ -4,7 +4,13 @@ import type { AgentHost } from "../agent/agentLoop";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
-import type { AppSettings, Message, SearchStep, TurnMetrics } from "../types";
+import type {
+  AppSettings,
+  CompactionState,
+  Message,
+  SearchStep,
+  TurnMetrics,
+} from "../types";
 
 const MODEL = "test-model";
 
@@ -174,11 +180,18 @@ const userMessage = (content: string): Message => ({
   content,
 });
 
+const assistantMessage = (content: string): Message => ({
+  id: "a1",
+  role: "assistant",
+  content,
+});
+
 function run(
   messages: Message[],
   signal?: AbortSignal,
   host = makeHost(),
   settings: AppSettings = SETTINGS,
+  compaction: CompactionState | null = null,
 ) {
   return {
     host,
@@ -188,6 +201,7 @@ function run(
         settings,
         environment: ENVIRONMENT,
         messages,
+        compaction,
         signal: signal ?? new AbortController().signal,
       },
       host.host,
@@ -222,9 +236,8 @@ beforeEach(() => {
   registerTool(fakeSearch);
   toolCalls = [];
   forgetModelInfo(MODEL);
-  // The chosen context window is remembered per model so that turns do not
-  // reload it, which also means one test's long conversation would otherwise
-  // set the window every later test sees.
+  // The window is remembered per model, so one test's long conversation would
+  // otherwise set the window every later test sees.
   forgetContextSize(MODEL);
 });
 
@@ -263,7 +276,44 @@ describe("a plain answer with no tools", () => {
     const body = requests[0] as { messages: { role: string; content: string }[] };
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[0].content).toContain("Draggy");
-    expect(body.messages[1].content).toBe("what is 2+2");
+    // The clock is appended to the last user message rather than sent in the
+    // system prompt, so the message is no longer exactly what was typed.
+    expect(body.messages[1].content).toContain("what is 2+2");
+  });
+
+  describe("keeping the cached prefix intact", () => {
+    it("does not put a changing clock in the system prompt", async () => {
+      const { requests } = installFetch([{ content: ["ok"] }], []);
+      await run([userMessage("hello")]).promise;
+
+      const body = requests[0] as { messages: { content: string }[] };
+      // A timestamp here ends the common prefix at token zero, which makes
+      // every turn re-evaluate the whole conversation.
+      expect(body.messages[0].content).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    });
+
+    it("puts the clock on the last user message instead", async () => {
+      const { requests } = installFetch([{ content: ["ok"] }], []);
+      await run([userMessage("hello")]).promise;
+
+      const body = requests[0] as { messages: { role: string; content: string }[] };
+      const last = body.messages[body.messages.length - 1];
+      expect(last.content).toContain("Current time:");
+    });
+
+    it("keeps the system prompt identical across two turns", async () => {
+      const { requests } = installFetch(
+        [{ content: ["one"] }, { content: ["two"] }],
+        [],
+      );
+
+      await run([userMessage("first")]).promise;
+      await run([userMessage("second")]).promise;
+
+      const first = requests[0] as { messages: { content: string }[] };
+      const second = requests[1] as { messages: { content: string }[] };
+      expect(second.messages[0].content).toBe(first.messages[0].content);
+    });
   });
 
   it("asks for a context window that fits the conversation", async () => {
@@ -1038,5 +1088,83 @@ describe("picking up at the exact word it stopped", () => {
 
     const sent = requests[0].messages as { role: string; content: string }[];
     expect(sent[sent.length - 1].role).toBe("user");
+  });
+});
+
+describe("carrying a folded conversation", () => {
+  const folded: CompactionState = {
+    throughIndex: 4,
+    summary: "Budget is 4200 GBP. Deadline 14 March.",
+    updatedAt: 0,
+  };
+
+  const longChat = () => [
+    userMessage("one"),
+    assistantMessage("first answer"),
+    userMessage("two"),
+    assistantMessage("second answer"),
+    userMessage("three"),
+    assistantMessage("third answer"),
+    userMessage("four"),
+  ];
+
+  it("sends the summary instead of the messages it covers", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { role: string; content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("Budget is 4200 GBP");
+    expect(wire).not.toContain("first answer");
+    expect(wire).not.toContain("second answer");
+  });
+
+  it("still sends everything after the fold", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("third answer");
+    expect(wire).toContain("four");
+  });
+
+  it("puts the summary directly after the system prompt", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { role: string; content: string }[] };
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[1].content).toContain("Budget is 4200 GBP");
+  });
+
+  it("ignores a summary that claims more messages than exist", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    const stale: CompactionState = { ...folded, throughIndex: 99 };
+    await run([userMessage("only one")], undefined, makeHost(), SETTINGS, stale)
+      .promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).not.toContain("Budget is 4200 GBP");
+    expect(wire).toContain("only one");
+  });
+
+  it("sends the conversation whole when nothing has been folded", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat()).promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("first answer");
   });
 });

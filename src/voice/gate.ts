@@ -14,19 +14,16 @@ import {
 } from "./constants";
 
 /**
- * Turns a stream of speech probabilities into conversation events.
- *
- * Everything here is a pure function of the frames pushed in, so the whole
- * turn-taking policy can be tested without a microphone.
+ * Turns speech probabilities into conversation events. A pure function of the
+ * frames pushed in, so turn-taking is testable without a microphone.
  */
 
 export interface GateEvents {
   /** The user has started talking. */
   onSpeechStart: () => void;
   /**
-   * A pause long enough to be worth transcribing, but not yet long enough to
-   * count as the end of the turn. Transcribing here and discarding the result
-   * if talking resumes is what removes the wait at the endpoint.
+   * A pause worth transcribing, but not yet the end of the turn. Transcribing
+   * now and discarding it if talking resumes removes the endpoint wait.
    */
   onSpeculate: (samples: Float32Array) => void;
   /** The turn is over. */
@@ -111,9 +108,8 @@ export function createGate(events: GateEvents): Gate {
 
   return {
     push(frame, probability, outputActive) {
-      // Echo cancellation leaks some of the assistant's own voice back into the
-      // microphone. Asking for more confidence while it is talking is what
-      // keeps it from answering itself.
+      // Echo cancellation leaks the assistant's own voice back in, so more
+      // confidence is asked for while it is talking.
       const onset = outputActive ? SPEECH_ON + OUTPUT_PROB_BONUS : SPEECH_ON;
       const voiced = speaking ? probability >= SPEECH_OFF : probability >= onset;
 

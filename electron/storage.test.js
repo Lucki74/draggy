@@ -498,3 +498,59 @@ describe("surviving a damaged database", () => {
     storage.init(workdir);
   });
 });
+
+describe("carrying a folded conversation across restarts", () => {
+  const folded = {
+    throughIndex: 4,
+    summary: "Budget is 4200 GBP. Deadline 14 March.",
+    updatedAt: 1700000000000,
+  };
+
+  it("saves and reads back a summary", () => {
+    storage.saveChat(
+      session("c1", [message("m1", "user", "hi")], { compaction: folded }),
+    );
+
+    const [chat] = storage.loadChats();
+    expect(chat.compaction).toEqual(folded);
+  });
+
+  it("reads back nothing when a chat was never folded", () => {
+    storage.saveChat(session("c2", [message("m1", "user", "hi")]));
+
+    const [chat] = storage.loadChats();
+    expect(chat.compaction).toBeNull();
+  });
+
+  it("clears a summary when the chat is saved again without one", () => {
+    const chat = session("c3", [message("m1", "user", "hi")], {
+      compaction: folded,
+    });
+    storage.saveChat(chat);
+    storage.saveChat({ ...chat, compaction: null });
+
+    expect(storage.loadChats()[0].compaction).toBeNull();
+  });
+
+  it("ignores a summary it cannot make sense of", () => {
+    // Written by a future version, or half-written. Losing a summary costs one
+    // idle generation to rebuild; failing the conversation costs the lot.
+    storage.saveChat(
+      session("c4", [message("m1", "user", "hi")], {
+        compaction: { throughIndex: 4 },
+      }),
+    );
+
+    expect(storage.loadChats()[0].compaction).toBeNull();
+  });
+
+  it("ignores a summary with no index to anchor it", () => {
+    storage.saveChat(
+      session("c5", [message("m1", "user", "hi")], {
+        compaction: { summary: "notes with nowhere to sit" },
+      }),
+    );
+
+    expect(storage.loadChats()[0].compaction).toBeNull();
+  });
+});

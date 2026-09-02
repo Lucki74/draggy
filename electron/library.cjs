@@ -17,7 +17,7 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_CHUNKS_PER_FILE = 400;
 const MAX_INDEXED_CHUNKS = 60000;
 
-const OFFICE_EXTENSIONS = new Set([".docx", ".pptx", ".xlsx"]);
+const OFFICE_EXTENSIONS = new Set([".docx", ".pptx", ".xlsx", ".pdf"]);
 
 const TEXT_EXTENSIONS = new Set([
   ".txt", ".md", ".markdown", ".rst", ".log", ".csv", ".tsv", ".json",
@@ -69,6 +69,9 @@ const SCHEMA = `
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE VIRTUAL TABLE IF NOT EXISTS library_search
+    USING fts5(text, chunk_id UNINDEXED, source_id UNINDEXED);
 `;
 
 let db = null;
@@ -77,7 +80,35 @@ let matrixCache = null;
 function init(userDataPath) {
   db = new DatabaseSync(path.join(userDataPath, "library.db"));
   db.exec(SCHEMA);
+  syncSearchIndex();
   log.info("library", "index opened");
+}
+
+/**
+ * Brings the keyword index back in line with the chunks. FTS5 has no foreign
+ * keys, so it repairs itself on start rather than needing a one-shot migration.
+ */
+function syncSearchIndex() {
+  try {
+    db.exec(
+      "DELETE FROM library_search WHERE chunk_id NOT IN (SELECT id FROM library_chunks)",
+    );
+
+    const added = db.prepare(
+      `INSERT INTO library_search (chunk_id, source_id, text)
+       SELECT c.id, f.source_id,
+              CASE WHEN c.heading <> '' THEN c.heading || ' ' || c.text ELSE c.text END
+       FROM library_chunks c
+       JOIN library_files f ON f.id = c.file_id
+       WHERE c.id NOT IN (SELECT chunk_id FROM library_search)`,
+    ).run();
+
+    if (added.changes > 0) {
+      log.info("library", `keyword index caught up on ${added.changes} passages`);
+    }
+  } catch (error) {
+    log.warn("library", `could not sync the keyword index: ${error.message}`);
+  }
 }
 
 function invalidateCache() {
@@ -103,7 +134,8 @@ function splitParagraphs(text) {
     .filter(Boolean);
 }
 
-const EXPLICIT_HEADING_RE = /^(#{1,6}\s+\S.*|--- Slide \d+ ---|--- Sheet: .*?---)\s*$/;
+const EXPLICIT_HEADING_RE =
+  /^(#{1,6}\s+\S.*|--- Slide \d+ ---|--- Page \d+ ---|--- Sheet: .*?---)\s*$/;
 
 function looksLikeTitle(line) {
   return (
@@ -304,7 +336,7 @@ async function indexFile(sourceId, file, model, existing) {
   const chunks = chunkText(text);
 
   if (chunks.length === 0) {
-    if (existing) db.prepare("DELETE FROM library_files WHERE id = ?").run(existing.id);
+    if (existing) removeFileRows(existing.id);
     return { skipped: false, chunks: 0 };
   }
 
@@ -320,7 +352,7 @@ async function indexFile(sourceId, file, model, existing) {
 
   db.exec("BEGIN");
   try {
-    if (existing) db.prepare("DELETE FROM library_files WHERE id = ?").run(existing.id);
+    if (existing) removeFileRows(existing.id);
 
     db.prepare(
       "INSERT INTO library_files (source_id, path, mtime, size, chunks, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -331,8 +363,26 @@ async function indexFile(sourceId, file, model, existing) {
       "INSERT INTO library_chunks (file_id, position, heading, text, embedding) VALUES (?, ?, ?, ?, ?)",
     );
 
+    const insertSearch = db.prepare(
+      "INSERT INTO library_search (chunk_id, source_id, text) VALUES (?, ?, ?)",
+    );
+
     chunks.forEach((chunk, index) => {
-      insert.run(fileId, index, chunk.heading, chunk.text, toBlob(vectors[index]));
+      const written = insert.run(
+        fileId,
+        index,
+        chunk.heading,
+        chunk.text,
+        toBlob(vectors[index]),
+      );
+
+      // The heading goes in with the body: a passage under "Payment terms"
+      // should be findable by those words even if the body never repeats them.
+      insertSearch.run(
+        Number(written.lastInsertRowid),
+        sourceId,
+        chunk.heading ? `${chunk.heading} ${chunk.text}` : chunk.text,
+      );
     });
 
     db.exec("COMMIT");
@@ -343,6 +393,17 @@ async function indexFile(sourceId, file, model, existing) {
 
   invalidateCache();
   return { skipped: false, chunks: chunks.length };
+}
+
+/**
+ * Drops a file and all that points at it. Chunks go by cascade; keyword rows do
+ * not, and match by chunk so reindexing one file leaves the rest alone.
+ */
+function removeFileRows(fileId) {
+  db.prepare(
+    "DELETE FROM library_search WHERE chunk_id IN (SELECT id FROM library_chunks WHERE file_id = ?)",
+  ).run(fileId);
+  db.prepare("DELETE FROM library_files WHERE id = ?").run(fileId);
 }
 
 async function indexSource(sourcePath, model, onProgress) {
@@ -407,7 +468,7 @@ async function indexSource(sourcePath, model, onProgress) {
 
   for (const [filePath, row] of existing) {
     if (!seen.has(filePath)) {
-      db.prepare("DELETE FROM library_files WHERE id = ?").run(row.id);
+      removeFileRows(row.id);
       invalidateCache();
     }
   }
@@ -417,65 +478,232 @@ async function indexSource(sourcePath, model, onProgress) {
   return { success: true, indexed, skipped, failed, chunks, files: files.length };
 }
 
+/**
+ * How many candidates each arm contributes before fusion. Deeper than the
+ * result count: a keyword hit at rank 30 the vectors missed is the whole point.
+ */
+const CANDIDATE_DEPTH = 40;
+
+/**
+ * The reciprocal-rank-fusion constant, from the paper. At 60 a strong hit in
+ * one list beats a mediocre showing in both, without either arm winning.
+ */
+const RRF_K = 60;
+
+/**
+ * Every vector in one flat array, with no passage text. The old shape held a
+ * few hundred megabytes resident to answer a question touching six passages.
+ */
 function buildMatrix() {
   if (matrixCache) return matrixCache;
 
   const rows = db
     .prepare(
-      `SELECT c.id, c.heading, c.text, c.embedding, f.path
-       FROM library_chunks c JOIN library_files f ON f.id = c.file_id`,
+      `SELECT c.id, c.embedding, f.source_id
+       FROM library_chunks c JOIN library_files f ON f.id = c.file_id
+       ORDER BY c.id`,
     )
     .all();
 
   if (rows.length === 0) {
-    matrixCache = { vectors: [], entries: [] };
+    matrixCache = { ids: [], sources: [], data: new Float32Array(0), dim: 0 };
     return matrixCache;
   }
 
-  matrixCache = {
-    vectors: rows.map((row) => fromBlob(row.embedding)),
-    entries: rows.map((row) => ({
-      id: row.id,
-      heading: row.heading,
-      text: row.text,
-      path: row.path,
-    })),
-  };
+  const dim = fromBlob(rows[0].embedding).length;
+  const data = new Float32Array(rows.length * dim);
+  const ids = new Array(rows.length);
+  const sources = new Array(rows.length);
 
+  let count = 0;
+  for (const row of rows) {
+    const vector = fromBlob(row.embedding);
+
+    // Changing the embedding model without reindexing leaves two vector widths
+    // here. Comparing them yields a number, which is worse than yielding none.
+    if (vector.length !== dim) continue;
+
+    data.set(vector, count * dim);
+    ids[count] = row.id;
+    sources[count] = row.source_id;
+    count++;
+  }
+
+  matrixCache = { ids: ids.slice(0, count), sources: sources.slice(0, count), data, dim };
   return matrixCache;
 }
 
-function dot(a, b) {
-  const length = Math.min(a.length, b.length);
+/** Cosine similarity, which for normalised vectors is the dot product. */
+function scoreAgainst(data, offset, query, dim) {
   let total = 0;
-  for (let i = 0; i < length; i++) total += a[i] * b[i];
+  for (let i = 0; i < dim; i++) total += query[i] * data[offset + i];
   return total;
 }
 
-function rankChunks(queryVector, vectors, entries, limit) {
+/**
+ * Ranks every passage against the query. Pure, and given the matrix rather than
+ * reaching for the cache, so ordering is testable without a database.
+ */
+function rankChunks(queryVector, matrix, limit, sourceId = null) {
+  const { ids, sources, data, dim } = matrix;
+  if (!ids || ids.length === 0 || !dim) return [];
+
   const scored = [];
-  for (let i = 0; i < vectors.length; i++) {
-    scored.push({ index: i, score: dot(queryVector, vectors[i]) });
+  for (let index = 0; index < ids.length; index++) {
+    if (sourceId !== null && sources[index] !== sourceId) continue;
+    scored.push({
+      id: ids[index],
+      score: scoreAgainst(data, index * dim, queryVector, dim),
+    });
   }
 
   scored.sort((a, b) => b.score - a.score);
 
-  return scored
-    .slice(0, Math.max(1, Math.min(20, limit || 6)))
-    .map(({ index, score }) => ({
-      ...entries[index],
-      score: Number(score.toFixed(4)),
-      name: path.basename(entries[index].path),
+  const wanted = Math.max(1, Math.min(CANDIDATE_DEPTH, limit || CANDIDATE_DEPTH));
+  return scored.slice(0, wanted);
+}
+
+function vectorCandidates(queryVector, sourceId, depth) {
+  return rankChunks(queryVector, buildMatrix(), depth, sourceId);
+}
+
+/**
+ * The query as FTS5 will accept it. A typed question is not valid syntax, so
+ * each word is quoted and joined with OR; BM25 ranks the partial matches.
+ */
+function toSearchQuery(term) {
+  const words = String(term).toLowerCase().match(/[\p{L}\p{N}_]+/gu) || [];
+  const useful = words.filter((word) => word.length > 1).slice(0, 24);
+  if (useful.length === 0) return null;
+  return useful.map((word) => `"${word}"`).join(" OR ");
+}
+
+function keywordCandidates(term, sourceId, depth) {
+  const query = toSearchQuery(term);
+  if (!query) return [];
+
+  try {
+    const rows =
+      sourceId === null
+        ? db
+            .prepare(
+              "SELECT chunk_id FROM library_search WHERE library_search MATCH ? ORDER BY rank LIMIT ?",
+            )
+            .all(query, depth)
+        : db
+            .prepare(
+              "SELECT chunk_id FROM library_search WHERE library_search MATCH ? AND source_id = ? ORDER BY rank LIMIT ?",
+            )
+            .all(query, sourceId, depth);
+
+    return rows.map((row) => row.chunk_id);
+  } catch (error) {
+    // A keyword arm that will not run is a worse search, not a broken one: the
+    // vectors still answer.
+    log.warn("library", `keyword search failed: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Reciprocal rank fusion. A cosine score and a BM25 rank cannot be compared, so
+ * this fuses on position: high in either list counts, high in both counts more.
+ */
+function fuse(vectorHits, keywordIds, limit) {
+  const scores = new Map();
+
+  const add = (id, rank) => {
+    scores.set(id, (scores.get(id) || 0) + 1 / (RRF_K + rank + 1));
+  };
+
+  vectorHits.forEach((hit, rank) => add(hit.id, rank));
+  keywordIds.forEach((id, rank) => add(id, rank));
+
+  const similarity = new Map(vectorHits.map((hit) => [hit.id, hit.score]));
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id, score]) => ({
+      id,
+      score,
+      // The cosine score is what a person reading the result understands;
+      // the fusion score is meaningless outside this function.
+      similarity: similarity.get(id) ?? null,
     }));
 }
 
-async function search(query, limit, model) {
+/** The passages themselves, fetched only for the handful being returned. */
+function hydrateChunks(ranked) {
+  if (ranked.length === 0) return [];
+
+  const placeholders = ranked.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `SELECT c.id, c.heading, c.text, f.path
+       FROM library_chunks c JOIN library_files f ON f.id = c.file_id
+       WHERE c.id IN (${placeholders})`,
+    )
+    .all(...ranked.map((entry) => entry.id));
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+
+  return ranked
+    .map((entry) => {
+      const row = byId.get(entry.id);
+      if (!row) return null;
+
+      return {
+        id: row.id,
+        heading: row.heading,
+        text: row.text,
+        path: row.path,
+        name: path.basename(row.path),
+        score: Number((entry.similarity ?? entry.score).toFixed(4)),
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Finds a source by folder name or path, since people name folders and the
+ * index stores paths. An ambiguous name matches nothing rather than guessing.
+ */
+function resolveSource(name) {
+  const wanted = String(name || "").trim().toLowerCase();
+  if (!wanted) return null;
+
+  const rows = db.prepare("SELECT id, path FROM library_sources").all();
+
+  const matches = rows.filter((row) => {
+    const full = row.path.toLowerCase();
+    return full === wanted || path.basename(full).includes(wanted) || full.includes(wanted);
+  });
+
+  return matches.length === 1 ? matches[0].id : null;
+}
+
+async function search(query, limit, model, options = {}) {
   const term = String(query || "").trim();
   if (!term) return { success: true, results: [] };
 
-  const { vectors, entries } = buildMatrix();
-  if (entries.length === 0) {
+  const { ids } = buildMatrix();
+  if (ids.length === 0) {
     return { success: true, results: [], empty: true };
+  }
+
+  const sourceId =
+    options.source === undefined || options.source === null || options.source === ""
+      ? null
+      : resolveSource(options.source);
+
+  if (options.source && sourceId === null) {
+    return {
+      success: true,
+      results: [],
+      unknownSource: true,
+      sources: listSources().map((entry) => entry.path),
+    };
   }
 
   let queryVector;
@@ -485,7 +713,14 @@ async function search(query, limit, model) {
     return { success: false, error: error.message, results: [] };
   }
 
-  return { success: true, results: rankChunks(queryVector, vectors, entries, limit) };
+  const wanted = Math.max(1, Math.min(20, limit || 6));
+
+  // Neither arm is trusted alone: vectors find the same meaning in other
+  // words, keywords find the part number and error code vectors always miss.
+  const vectorHits = vectorCandidates(queryVector, sourceId, CANDIDATE_DEPTH);
+  const keywordIds = keywordCandidates(term, sourceId, CANDIDATE_DEPTH);
+
+  return { success: true, results: hydrateChunks(fuse(vectorHits, keywordIds, wanted)) };
 }
 
 function listSources() {
@@ -507,12 +742,16 @@ function listSources() {
 }
 
 function removeSource(id) {
+  // FTS5 has no foreign keys, so the keyword rows have to go explicitly. They
+  // carry the source they came from precisely so this can be one statement.
+  db.prepare("DELETE FROM library_search WHERE source_id = ?").run(Number(id));
   db.prepare("DELETE FROM library_sources WHERE id = ?").run(Number(id));
   invalidateCache();
   return { success: true };
 }
 
 function clear() {
+  db.exec("DELETE FROM library_search");
   db.exec("DELETE FROM library_sources");
   invalidateCache();
   return { success: true };
@@ -549,6 +788,9 @@ module.exports = {
   chunkText,
   normalise,
   rankChunks,
+  fuse,
+  toSearchQuery,
+  buildMatrix,
   toBlob,
   fromBlob,
   close,

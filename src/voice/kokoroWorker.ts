@@ -3,11 +3,8 @@
 import { createFileProgressTracker } from "../utils";
 
 /**
- * Kokoro, an 82 million parameter speech synthesiser, running locally.
- *
- * This is what makes the assistant sound like a person rather than a car
- * navigation system. It is an optional download because the model is around
- * 90 MB and only covers English; every other language keeps the system voice.
+ * Kokoro, an 82M speech synthesiser running locally, so the assistant sounds
+ * like a person. Optional: 90 MB, English only, others keep the system voice.
  */
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";

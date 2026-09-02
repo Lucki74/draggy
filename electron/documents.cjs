@@ -1,9 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
+const { pathToFileURL } = require("url");
 
 const DOCUMENT_TEXT_LIMIT = 200000;
 const SLIDE_BODY_LINES = 12;
+
+/**
+ * How many pages of a PDF are read. A thousand-page scan produces almost no
+ * text and would otherwise be read to the end to discover that.
+ */
+const MAX_PDF_PAGES = 500;
 
 const EXECUTABLE_EXTENSIONS = new Set([
   ".exe", ".msi", ".msix", ".appx", ".com", ".scr", ".pif", ".cpl", ".dll",
@@ -362,12 +369,135 @@ async function readXlsx(buffer) {
   return parts.join("\n");
 }
 
+/**
+ * pdf.js, loaded on first use rather than at startup. Sixteen megabytes of
+ * JavaScript, and most sessions never open a PDF at all.
+ */
+let pdfjsPromise = null;
+
+/**
+ * Where the package lives once packaged. Node cannot import ES modules from
+ * inside asar, so it is left unpacked and the path redirected to match.
+ */
+function pdfjsDir() {
+  const root = path.dirname(require.resolve("pdfjs-dist/package.json"));
+  return root.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+}
+
+function loadPdfjs() {
+  if (pdfjsPromise) return pdfjsPromise;
+
+  pdfjsPromise = (async () => {
+    const dir = pdfjsDir();
+    const build = path.join(dir, "legacy", "build");
+
+    // The legacy build is the one pdf.js asks for outside a browser; the
+    // default build warns and relies on APIs Node does not have.
+    const pdfjs = await import(pathToFileURL(path.join(build, "pdf.mjs")).href);
+    pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
+      path.join(build, "pdf.worker.mjs"),
+    ).href;
+
+    return { pdfjs, dir };
+  })().catch((error) => {
+    // A failed load must not be remembered as the answer, or one bad moment
+    // disables PDFs for the rest of the run.
+    pdfjsPromise = null;
+    throw error;
+  });
+
+  return pdfjsPromise;
+}
+
+/**
+ * The text of a page, in the order pdf.js reports it. Items carry their own
+ * end-of-line flag, which beats inferring breaks from coordinates.
+ */
+function pageText(items) {
+  let out = "";
+  for (const item of items) {
+    if (typeof item.str !== "string") continue;
+    out += item.str;
+    if (item.hasEOL) out += "\n";
+  }
+  return out.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Reads a PDF into text, one marked section per page. The markers match what
+ * readPptx uses, so the library chunker treats them as headings.
+ */
+async function readPdf(buffer) {
+  const { pdfjs, dir } = await loadPdfjs();
+
+  const task = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    // A document that arrived from outside has no business running anything.
+    isEvalSupported: false,
+    // pdf.js warns about things that only matter when drawing a page. None of
+    // it changes the text, and left on it logs a warning for every page.
+    verbosity: pdfjs.VerbosityLevel.ERRORS,
+    // Both directories ship with the package. Without them a PDF that leans on
+    // a standard font, or any CJK encoding, extracts as blanks.
+    standardFontDataUrl: pathToFileURL(path.join(dir, "standard_fonts") + path.sep).href,
+    cMapUrl: pathToFileURL(path.join(dir, "cmaps") + path.sep).href,
+    cMapPacked: true,
+  });
+
+  let document;
+  try {
+    document = await task.promise;
+  } catch (error) {
+    if (error && error.name === "PasswordException") {
+      throw new Error("This PDF is password protected, so its text cannot be read.", {
+        cause: error,
+      });
+    }
+    throw new Error(`This PDF could not be opened: ${error.message}`, { cause: error });
+  }
+
+  try {
+    const pages = Math.min(document.numPages, MAX_PDF_PAGES);
+    const sections = [];
+    let length = 0;
+
+    for (let number = 1; number <= pages; number++) {
+      const page = await document.getPage(number);
+      const content = await page.getTextContent();
+      const text = pageText(content.items);
+      page.cleanup();
+
+      if (!text) continue;
+
+      sections.push(`--- Page ${number} ---\n${text}`);
+      length += text.length;
+      if (length >= DOCUMENT_TEXT_LIMIT) break;
+    }
+
+    if (sections.length === 0) {
+      throw new Error(
+        "This PDF has no text to extract. It is most likely a scan or a set of images, and Draggy does not run OCR.",
+      );
+    }
+
+    if (document.numPages > pages) {
+      sections.push(`--- ${document.numPages - pages} further pages were not read ---`);
+    }
+
+    return sections.join("\n\n");
+  } finally {
+    // Frees the worker for this document whether or not the read succeeded.
+    await task.destroy();
+  }
+}
+
 async function extractText(filename, buffer) {
   const extension = path.extname(String(filename)).toLowerCase();
 
   if (extension === ".docx") return readDocx(buffer);
   if (extension === ".pptx") return readPptx(buffer);
   if (extension === ".xlsx") return readXlsx(buffer);
+  if (extension === ".pdf") return readPdf(buffer);
 
   throw new Error("Unsupported document type");
 }
@@ -402,5 +532,8 @@ module.exports = {
   readDocx,
   readPptx,
   readXlsx,
+  readPdf,
+  pageText,
+  MAX_PDF_PAGES,
   extractText,
 };

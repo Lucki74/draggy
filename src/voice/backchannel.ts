@@ -1,8 +1,6 @@
 /**
- * Backchannels are the noises a listener makes to show they are still there —
- * "mhm", "right", "yeah". They are not turns. An assistant that stops and
- * restarts every time you agree with it feels broken, so these are recognised
- * and dropped instead of being answered.
+ * Backchannels — "mhm", "right", "yeah" — are not turns. An assistant that
+ * restarts every time you agree with it feels broken, so these are dropped.
  */
 
 const TOKENS: Record<string, string[]> = {

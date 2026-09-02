@@ -1,12 +1,8 @@
 import { VAD_FRAME } from "./constants";
 
 /**
- * Speech detection, with the neural model when it is available and an energy
- * detector when it is not.
- *
- * The fallback exists because a conversation that refuses to start is worse
- * than one that occasionally mishears a fan. It reports a probability on the
- * same scale, so nothing downstream has to know which one is running.
+ * Speech detection, neural where possible and energy-based otherwise: a
+ * conversation that will not start is worse than one that mishears a fan.
  */
 
 const MODEL_PATH =

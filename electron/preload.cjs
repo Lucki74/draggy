@@ -57,8 +57,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     index: (path, model) => ipcRenderer.invoke("library:index", path, model),
     remove: (id) => ipcRenderer.invoke("library:remove", id),
     clear: () => ipcRenderer.invoke("library:clear"),
-    search: (query, limit, model) =>
-      ipcRenderer.invoke("library:search", query, limit, model),
+    search: (query, limit, model, options) =>
+      ipcRenderer.invoke("library:search", query, limit, model, options),
     onProgress: (callback) => subscribe("library-progress", callback),
     offProgress: () => ipcRenderer.removeAllListeners("library-progress"),
   },
@@ -87,6 +87,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("browser-bar-set-adblock", enabled),
     onState: (callback) => subscribe("browser-bar-state", callback),
     offState: () => ipcRenderer.removeAllListeners("browser-bar-state"),
+  },
+
+  mcp: {
+    catalogue: () => ipcRenderer.invoke("mcp:catalogue"),
+    config: () => ipcRenderer.invoke("mcp:config"),
+    save: (id, entry) => ipcRenderer.invoke("mcp:save", id, entry),
+    forget: (id) => ipcRenderer.invoke("mcp:forget", id),
+    start: (id) => ipcRenderer.invoke("mcp:start", id),
+    stop: (id) => ipcRenderer.invoke("mcp:stop", id),
+    running: () => ipcRenderer.invoke("mcp:running"),
+    startEnabled: () => ipcRenderer.invoke("mcp:start-enabled"),
+    call: (serverId, toolName, args) =>
+      ipcRenderer.invoke("mcp:call", serverId, toolName, args),
+    onState: (callback) => subscribe("mcp-state", callback),
+    offState: () => ipcRenderer.removeAllListeners("mcp-state"),
   },
 
   appInfo: () => ipcRenderer.invoke("app:version"),

@@ -2,45 +2,25 @@ const fsDefault = require("fs");
 const pathDefault = require("path");
 
 /**
- * Carrying a data folder over when the app changes its name.
- *
- * Chats, settings, created files and the model cache all live in a folder
- * named after the app. Renaming the app therefore points it at a folder that
- * does not exist yet, which to the person using it is indistinguishable from
- * having everything deleted. The old folder is adopted once, on the first run
- * under the new name.
- *
- * This has to be right the first time — there is no second chance at someone's
- * chat history — so the decision is kept here, away from the startup sequence,
- * where it can be tested.
+ * Carrying a data folder over when the app is renamed. Pointing at a folder
+ * that does not exist yet looks exactly like having lost everything.
  */
 
 /**
- * The file that proves the app itself has stored something. Emptiness is not a
- * usable test: Electron writes its own profile scaffolding (Preferences, a
- * Network folder, a Local State file) into the folder as it starts, so a
- * folder nobody has ever used still has things in it.
+ * The file proving the app stored something. Emptiness is no test: Electron
+ * writes its own profile scaffolding into the folder as it starts.
  */
 const MARKER = "draggy.db";
 
 /**
- * The same file under the name the app answered to before it was Draggy.
- *
- * It matters twice. A folder left by that version holds this and not `MARKER`,
- * so without it there is nothing here that looks like data worth keeping. And
- * the file has to arrive under the current name: carried over as it stands, it
- * sits beside a database the app then creates empty, which is the same thing
- * as having lost it.
+ * The marker under the app's previous name. It must arrive renamed, or it sits
+ * beside a fresh empty database, which is the same as having lost it.
  */
 const LEGACY_MARKER = "localai.db";
 
 /**
- * What an entry is called once it is in the new folder.
- *
- * Only the database is renamed, and its `-wal` and `-shm` companions travel
- * with it: SQLite finds them by the main file's name, and a write-ahead log
- * left behind under the old one takes every uncheckpointed write with it.
- * Everything else, old backups included, keeps the name it had.
+ * Only the database is renamed, and its `-wal` and `-shm` travel with it:
+ * SQLite finds those by the main file's name. Everything else keeps its name.
  */
 function arrivalName(entry, marker, legacyMarker) {
   if (!legacyMarker || !entry.startsWith(legacyMarker)) return entry;
@@ -52,11 +32,8 @@ function arrivalName(entry, marker, legacyMarker) {
 }
 
 /**
- * Decides what to do, without touching anything. Returns one of:
- *
- * - `"adopt"`    the old folder holds the data and should be carried over
- * - `"keep-new"` the new folder already holds data of its own; leave both
- * - `"none"`     there is nothing to carry over
+ * Decides what to do without touching anything: "adopt" carries the old folder
+ * over, "keep-new" leaves both alone, "none" has nothing to carry.
  */
 function planAdoption({
   fs = fsDefault,
@@ -69,9 +46,8 @@ function planAdoption({
   if (!from || !to || from === to) return "none";
   if (!fs.existsSync(from)) return "none";
 
-  // Either name proves the old folder was used. Only the current one counts on
-  // the new side: a stray legacy database there is a leftover, not a reason to
-  // refuse data that has nowhere else to go.
+  // Either name proves the old folder was used. On the new side only the
+  // current one counts; a stray legacy database there is just a leftover.
   const holdsData = [marker, legacyMarker].some(
     (name) => name && fs.existsSync(path.join(from, name)),
   );
@@ -82,15 +58,8 @@ function planAdoption({
 }
 
 /**
- * Carries the folder over, and says in one line what happened.
- *
- * The contents are moved one by one rather than the folder as a whole, since
- * the new folder usually exists already by this point. Anything the new folder
- * has a name for is left alone: overwriting is never the right answer when the
- * question is whose data is newer.
- *
- * Never throws. Failing to move old data is not a reason to refuse to start,
- * and the old folder is left untouched so a later run can try again.
+ * Carries the folder over entry by entry, never overwriting. Never throws:
+ * failing to move old data is not a reason to refuse to start.
  */
 function adoptFolder({
   fs = fsDefault,

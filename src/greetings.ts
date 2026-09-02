@@ -1,17 +1,6 @@
 /**
- * The line that greets an empty chat.
- *
- * A single fixed sentence makes every new chat look like the one before it.
- * These are drawn from a set instead, picked from the chat's own id so the
- * line holds still while it is being read and a new chat brings a new one.
- *
- * They are kept here rather than in the translation table because that table
- * holds one string per key, and each language needs two dozen. Each set keeps
- * the same register as the rest of that language's interface: `vous` in
- * French, `du` in German, the polite forms in Japanese and Korean.
- *
- * Keep them short. They are set in large uppercase type, so a long sentence
- * wraps and stops reading as a greeting.
+ * The line greeting an empty chat, picked from the chat's id so it holds still.
+ * Keep them short: large uppercase type, and a long sentence wraps badly.
  */
 
 export const GREETINGS: Record<string, string[]> = {

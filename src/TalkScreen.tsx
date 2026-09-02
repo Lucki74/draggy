@@ -35,13 +35,8 @@ import type {
 import type { AppSettings } from "./types";
 
 /**
- * Voice mode.
- *
- * The screen has three shapes and never more than one at a time: a set-up panel
- * before the conversation, a progress bar while it is being prepared, and the
- * conversation itself, which is the orb, one line of status and one line of
- * what was just said. Everything that is not one of those three is a control at
- * the bottom edge, out of the way of the thing being looked at.
+ * Voice mode, in three shapes and never more than one: a set-up panel, a
+ * progress bar, and the conversation. Everything else sits at the bottom edge.
  */
 
 interface TalkScreenProps {
@@ -71,9 +66,8 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Preparation can take a minute when a model has to be fetched, and the user
-   * is free to leave in the middle of it. The token says whether the session
-   * that eventually opens is still the one anybody asked for.
+   * Preparation can take a minute and the user may leave mid-way. The token
+   * says whether the session that opens is still the one anyone asked for.
    */
   const attemptRef = useRef(0);
   const cancelRef = useRef<AbortController | null>(null);

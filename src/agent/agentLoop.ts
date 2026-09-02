@@ -1,4 +1,5 @@
 import {
+  KEEP_ALIVE,
   OLLAMA_HOST,
   contextSizeFor,
   getModelInfo,
@@ -8,7 +9,8 @@ import {
   readMetrics,
 } from "../ollama";
 import type { GenerationMetrics } from "../ollama";
-import { buildSystemPrompt } from "../prompts";
+import { buildSystemPrompt, currentTimeNote } from "../prompts";
+import { renderCompactionBlock } from "./compaction";
 import {
   MAX_TOOL_LOOPS,
   STREAM_UI_INTERVAL_MS,
@@ -23,9 +25,10 @@ import { buildResumeMessage, joinContinuation } from "./resume";
 import { runTool, toolDefinitions } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import { generateId, isBinary, safeJsonParse } from "../utils";
-import type { AppSettings, Message, SearchStep } from "../types";
+import type { AppSettings, CompactionState, Message, SearchStep } from "../types";
 
-export const KEEP_ALIVE = "30m";
+// Re-exported for the screens that warm the model with the same value.
+export { KEEP_ALIVE };
 
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 
@@ -115,6 +118,8 @@ export interface AgentRequest {
   messages: Message[];
   isContinuation?: boolean;
   seed?: AgentSeed | null;
+  /** The older part of this conversation, already folded into notes. */
+  compaction?: CompactionState | null;
   signal: AbortSignal;
 }
 
@@ -201,9 +206,8 @@ export async function runAgentTurn(
     ? (request.seed?.textContent ?? "")
     : "";
 
-  // On a continuation the half-written reply is pulled out of the history and
-  // put back at the very end, because a model completes a trailing assistant
-  // message but starts afresh after a user one.
+  // On a continuation the half-written reply moves to the very end: a model
+  // completes a trailing assistant message but starts afresh after a user one.
   const history =
     request.isContinuation &&
     messages.length > 0 &&
@@ -211,9 +215,21 @@ export async function runAgentTurn(
       ? messages.slice(0, -1)
       : messages;
 
+  // Messages the summary covers are not sent again, unless the summary no
+  // longer fits: a record of messages that are gone is worse than nothing.
+  const compaction =
+    request.compaction && request.compaction.throughIndex < history.length
+      ? request.compaction
+      : null;
+
+  const carried = compaction ? history.slice(compaction.throughIndex) : history;
+
   const wire: WireMessage[] = [
     { role: "system", content: systemPrompt },
-    ...history.map((message) => toWireMessage(message, nativeVision)),
+    ...(compaction
+      ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
+      : []),
+    ...carried.map((message) => toWireMessage(message, nativeVision)),
   ];
 
   if (request.isContinuation) {
@@ -233,6 +249,18 @@ export async function runAgentTurn(
     }
   }
 
+  // The clock goes at the tail, where changing it costs nothing. In the system
+  // prompt it ended the cached prefix, re-evaluating the chat every turn.
+  const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
+  if (lastUserIndex !== -1) {
+    wire[lastUserIndex] = {
+      ...wire[lastUserIndex],
+      content: `${wire[lastUserIndex].content}
+
+${currentTimeNote()}`,
+    };
+  }
+
   let loopCount = 0;
   let isFinished = false;
   let outOfContext = false;
@@ -244,9 +272,8 @@ export async function runAgentTurn(
   let fullFinalTextContent = request.seed?.textContent ?? "";
 
   /**
-   * Cleaning a stream normally trims it, which is right for a fresh reply and
-   * wrong for a continued one: the space the model puts between the words it
-   * is joining is the only thing keeping them apart.
+   * Trimming is right for a fresh reply and wrong for a continued one: that
+   * space is the only thing keeping the joined words apart.
    */
   const cleanText = (raw: string): string => {
     const cleaned = cleanStream ? raw.trim() : stripToolSyntax(raw);
@@ -277,9 +304,8 @@ export async function runAgentTurn(
     pushStep({ id: thinkStepId, type: "thinking", content: "", isComplete: false });
 
     /**
-     * Prose written during this pass. It is shown as a step, in sequence with
-     * the tool activity around it. If the pass turns out to be the last one the
-     * step is removed again and the text becomes the reply itself.
+     * Prose from this pass, shown as a step among the tool activity. On the
+     * last pass the step is removed and the text becomes the reply.
      */
     let textStepId: string | null = null;
 
@@ -295,11 +321,8 @@ export async function runAgentTurn(
       patchStep(textStepId, { content: value });
     };
 
-    // Recomputed each pass because tool results are appended to the wire as
-    // they come back, and asked of the shared tally rather than worked out
-    // here so that the warm-up which ran while the user was typing has already
-    // loaded the model at this size. See contextSizeFor: a disagreement here
-    // costs a full reload of the weights.
+    // Recomputed each pass as tool results arrive, and asked of the shared
+    // tally: a disagreement with the warm-up costs a full reload.
     numCtx = contextSizeFor(
       model,
       estimateChars(wire),
@@ -318,9 +341,8 @@ export async function runAgentTurn(
           keep_alive: KEEP_ALIVE,
           options: { num_ctx: numCtx, num_predict: -1 },
           messages: wire,
-          // Explicit false, not just the absence of true: a capable model left
-          // to its own template default often reasons anyway, which is the
-          // opposite of what Fast mode asks for.
+          // Explicit false, not merely the absence of true: left to its own
+          // template a capable model reasons anyway, which Fast mode forbids.
           ...(hasThinkingCapability ? { think: nativeThinking } : {}),
           ...(nativeTools ? { tools: definitions } : {}),
         }),

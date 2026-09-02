@@ -24,18 +24,8 @@ import type { Detector, DetectorKind } from "./vad";
 import type { VoiceEngine, VoiceEngineId } from "./voiceEngine";
 
 /**
- * The conversation.
- *
- * Everything here is arranged around one number: the gap between the user
- * falling silent and hearing the first word back. Every stage overlaps the one
- * before it — the turn is transcribed during the pause rather than after it,
- * the answer is spoken clause by clause as it is generated, and the model is
- * already resident in memory before the first question is asked.
- *
- * The listening machinery is deliberately dumb and testable: the gate turns
- * speech probabilities into events, the turn detector decides how long a pause
- * has to be, and neither knows anything about models or audio output. This file
- * is only the wiring between them.
+ * The conversation, arranged around the gap between falling silent and hearing
+ * a reply. Every stage overlaps the one before; this file is only the wiring.
  */
 
 export type Stage = "idle" | "starting" | "live" | "failed";
@@ -184,9 +174,8 @@ export async function openConversation(
   let listening = 0;
 
   /**
-   * The answer being generated, held by identity rather than by a counter: a
-   * barge-in that turns out to be "mhm" leaves it untouched, and generation
-   * carries on into the speaker's held buffer instead of starting again.
+   * The answer being generated, held by identity: a barge-in that turns out to
+   * be "mhm" leaves it alone, and generation carries on rather than restarting.
    */
   let answer: Answer | null = null;
 
@@ -448,9 +437,8 @@ export async function openConversation(
       const text = (await readTurn(samples)).trim();
       if (closed || mine !== listening) return;
 
-      // Whisper writes "Thank you." or "[BLANK_AUDIO]" for silence it was asked
-      // to transcribe anyway. An empty result and an acknowledgement are both
-      // reasons to carry on rather than to answer.
+      // Whisper writes "Thank you." or "[BLANK_AUDIO]" for silence. Both that
+      // and an acknowledgement are reasons to carry on rather than answer.
       if (!text || isBackchannel(text, language())) {
         resume();
         return;
@@ -532,9 +520,8 @@ export async function openConversation(
       },
     });
 
-    // The microphone prompt comes first: it is the only step that fails for a
-    // reason the user can do something about, and it should not arrive at the
-    // end of a download.
+    // The microphone prompt comes first: the only step that fails for a reason
+    // the user can act on, and it should not arrive after a download.
     capture = await startCapture({
       onLevel: (value) => {
         level = value;
@@ -567,9 +554,8 @@ export async function openConversation(
     answering = provided.model;
     publish({ model: provided.model });
 
-    // Loading the weights takes seconds for anything above a billion
-    // parameters. It runs behind the remaining steps so the user waits for it
-    // once, here, instead of inside their first spoken turn.
+    // Loading weights takes seconds above a billion parameters, so it runs
+    // behind the remaining steps rather than inside the first spoken turn.
     const warming = warmTalkModel(provided.model);
 
     step(hooks.strings.loadingSpeechModel, 0, true);

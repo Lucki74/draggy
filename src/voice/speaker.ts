@@ -3,11 +3,8 @@ import type { SentenceChunker } from "./chunker";
 import type { VoiceEngine, VoiceEngineId } from "./voiceEngine";
 
 /**
- * What the assistant says, and when.
- *
- * Generated text arrives a token at a time; a synthesiser wants whole clauses.
- * This sits between them, cutting the stream at the earliest point that still
- * sounds like a phrase and handing it straight to whichever engine is running.
+ * What the assistant says, and when. Text arrives a token at a time and a
+ * synthesiser wants clauses, so this cuts at the earliest phrase-shaped point.
  */
 
 export interface Speaker {
@@ -19,9 +16,8 @@ export interface Speaker {
   /** Say something at once, ahead of the queue's remaining text. */
   say: (text: string) => void;
   /**
-   * Stop talking but keep buffering the reply. Used the instant a barge-in is
-   * detected, before it is known whether the user actually took the turn: if it
-   * turns out they only said "mhm", resume() picks up without repeating.
+   * Stop talking but keep buffering, the instant a barge-in is detected. If
+   * the user only said "mhm", resume() picks up without repeating.
    */
   suspend: () => void;
   resume: () => void;
@@ -63,9 +59,8 @@ export function createSpeaker(engine: VoiceEngine): Speaker {
 
     suspend() {
       suspended = true;
-      // Whatever was already handed to the engine is abandoned; anything
-      // generated from here on is kept, so resuming skips ahead instead of
-      // repeating a sentence the user already heard the start of.
+      // What the engine already has is abandoned and later text kept, so
+      // resuming skips ahead rather than repeating a half-heard sentence.
       held = [];
       engine.cancel();
     },

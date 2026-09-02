@@ -12,15 +12,8 @@ interface TypedGreetingProps {
 }
 
 /**
- * Types a line out one character at a time, with a caret blinking after it.
- *
- * The component holds no memory of earlier text: give it a `key` of the line
- * itself and a new greeting arrives as a fresh component, which starts the
- * typing over without having to reset anything by hand.
- *
- * The animated copy is hidden from screen readers, which are given the whole
- * line at once instead — a greeting delivered a letter at a time is no use to
- * anyone listening.
+ * Types a line out a character at a time. Keyed by the line, so a new greeting
+ * restarts it; screen readers are given the whole line at once instead.
  */
 export default function TypedGreeting({ text, className = "" }: TypedGreetingProps) {
   const [shown, setShown] = useState(0);

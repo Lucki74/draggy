@@ -1,17 +1,6 @@
 /**
- * Builds every icon the app needs from the drawings in build/.
- *
- * Windows wants an .ico, macOS an .icns and Linux a folder of PNGs, and the
- * running app loads its window icon separately from the packaged one. Keeping
- * them in step by hand is how they drift, so they are all generated here:
- * change the drawing, run `npm run icons`, and every surface follows.
- *
- * The drawing is a flat silhouette, which alone would vanish against a
- * background of its own colour — a white dragon is invisible on a light
- * taskbar. It is therefore set on a dark tile, so the icon carries its own
- * contrast and reads the same wherever the system puts it.
- *
- * Run with: npm run icons
+ * Builds every icon from the drawings in build/, so they cannot drift apart.
+ * The silhouette sits on a dark tile, or it vanishes on a light taskbar.
  */
 import sharp from "sharp";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -33,9 +22,8 @@ const TILE = "#1e1e1e";
 const RADIUS = 0.2;
 
 /**
- * How much of the tile the drawing occupies, leaving a margin around it.
- * Small icons need that margin trimmed back or the dragon becomes a smudge;
- * large ones can afford to breathe.
+ * How much of the tile the drawing occupies. Small icons need the margin
+ * trimmed or the dragon smudges; large ones can afford to breathe.
  */
 const artShare = (size) => (size <= 32 ? 0.86 : size <= 64 ? 0.8 : 0.74);
 
@@ -65,9 +53,8 @@ const ICNS_TYPES = [
 ];
 
 /**
- * The drawing sits in a wide transparent margin. Scaling the whole canvas
- * would shrink the dragon to half the tile, so the margin is measured and cut
- * away first, leaving the artwork itself to be fitted.
+ * The drawing sits in a wide transparent margin. Scaling the whole canvas would
+ * halve the dragon, so the margin is measured and cut away first.
  */
 async function readArtwork() {
   const { data, info } = await sharp(SOURCE)
@@ -133,11 +120,8 @@ const raw = async (artwork, size) =>
   (await compose(artwork, size)).ensureAlpha().raw().toBuffer();
 
 /**
- * One image inside an .ico, in the bitmap form Windows has always understood.
- *
- * The height is doubled in the header because the format expects the colour
- * image to be followed by a one-bit mask. Transparency comes from the alpha
- * channel, so the mask is left empty.
+ * One image inside an .ico. The header doubles the height because the format
+ * expects a one-bit mask; transparency comes from alpha, so it is left empty.
  */
 function bitmapEntry(rgba, size) {
   const header = Buffer.alloc(40);
@@ -239,9 +223,8 @@ async function main() {
     await writeFile(path.join(linux, `${size}x${size}.png`), await png(artwork, size));
   }
 
-  // The mark the interface draws, without the tile: inside the app it sits on
-  // the app's own surfaces and takes its colour from the text around it, so
-  // only the shape is needed. Trimmed, so it fills whatever box it is given.
+  // The mark the interface draws, without the tile: inside the app it takes
+  // its colour from the text around it, so only the shape is needed.
   const inApp = path.join(ROOT, "src", "assets");
   await mkdir(inApp, { recursive: true });
   await writeFile(path.join(inApp, "dragon.png"), artwork);

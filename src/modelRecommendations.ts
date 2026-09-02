@@ -32,10 +32,7 @@ export function getRecommendedModel(vram: number): string {
     .filter((entry) => entry.vram <= vram)
     .sort((a, b) => a.vram - b.vram);
 
-  // A machine below the bottom rung still has to be given something, and that
-  // something is the smallest model in the table rather than a name written out
-  // beside it. It used to name a 0.6B model — twice the size of the 360M one
-  // directly above it — which is the wrong way to fail on a machine that has no
-  // usable graphics memory at all.
+  // Below the bottom rung, the smallest model in the table rather than a name
+  // written beside it: that named a 0.6B, twice the size of the 360M above.
   return (affordable[affordable.length - 1] ?? SMALLEST).model;
 }

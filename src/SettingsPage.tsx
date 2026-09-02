@@ -21,8 +21,11 @@ import {
   FileText,
   AlertTriangle,
   Sparkles,
+  Blocks,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import McpPanel from "./settings/McpPanel";
+import { Field, Section, Stat, Toggle } from "./settings/Controls";
 import { translations, languages } from "./translations";
 import {
   PULL_PHASE_KEYS,
@@ -131,6 +134,7 @@ export type SettingsTab =
   | "models"
   | "library"
   | "tools"
+  | "extensions"
   | "personalization"
   | "language"
   | "data"
@@ -141,6 +145,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: "models", label: "models", icon: Cpu },
   { id: "library", label: "library", icon: Library },
   { id: "tools", label: "tools", icon: Wrench },
+  { id: "extensions", label: "extensions", icon: Blocks },
   { id: "personalization", label: "personalization", icon: Sliders },
   { id: "language", label: "language", icon: Globe },
   { id: "data", label: "data", icon: Database },
@@ -1103,6 +1108,12 @@ export default function SettingsPage({
             </Section>
           )}
 
+          {tab === "extensions" && (
+            <Section title={t("extensions")}>
+              <McpPanel t={t} />
+            </Section>
+          )}
+
           {tab === "updates" && (
             <Section title={t("updates")}>
               <UpdatePanel state={updaterState} settings={settings} onUpdate={onUpdate} t={t} />
@@ -1192,23 +1203,10 @@ export default function SettingsPage({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-muted)]">
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
+/**
+ * The extensions panel. Turning a server on runs someone else's program with
+ * the credentials typed into it, so the panel says so rather than hiding it.
+ */
 function PullProgressBar({
   state,
   onCancel,
@@ -1252,11 +1250,8 @@ function PullProgressBar({
 }
 
 /**
- * Picks one of the installed models for a job.
- *
- * Whatever is currently set is always offered, even when it is not installed:
- * a model that has been removed, or one named before it was pulled, would
- * otherwise be silently swapped for something else the moment this renders.
+ * Picks an installed model. Whatever is set is always offered, even if missing,
+ * or a removed model would be silently swapped the moment this renders.
  */
 function ModelSelect({
   value,
@@ -1462,61 +1457,6 @@ function OptionSelect({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-3">
-      <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      role="switch"
-      aria-checked={checked}
-      className="w-14 h-8 rounded-full p-1 border-[3px] border-[var(--border-light)] transition-colors"
-      style={{
-        backgroundColor: checked ? "var(--bg-inverted)" : "var(--hover-bg)",
-      }}
-    >
-      <span
-        className={`block w-4 h-4 rounded-full transition-transform ${
-          checked ? "translate-x-6" : ""
-        }`}
-        style={{ backgroundColor: checked ? "var(--text-inverted)" : "var(--text-muted)" }}
-      />
-    </button>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="p-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-        {label}
-      </p>
-      <p className="text-lg font-bold tabular-nums">{value}</p>
     </div>
   );
 }

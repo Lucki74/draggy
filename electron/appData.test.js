@@ -61,9 +61,8 @@ describe("deciding whether to take over the old folder", () => {
   });
 
   it("still adopts when the new folder is only Electron's scaffolding", () => {
-    // The trap: Electron writes Preferences and a Network folder as it starts,
-    // so treating "has any file in it" as "has been used" would strand every
-    // chat in the old folder for good.
+    // Electron writes Preferences as it starts, so "has any file in it" would
+    // strand every chat in the old folder for good.
     withData(from);
     scaffolded(to);
     expect(planAdoption({ from, to })).toBe("adopt");

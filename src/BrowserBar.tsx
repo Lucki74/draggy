@@ -11,12 +11,8 @@ import {
 import { translations } from "./translations";
 
 /**
- * The chrome above a page the user opened.
- *
- * It is a separate view from the page below it, which is the whole point:
- * the toolbar keeps the app's protocol, policy and styling, and the page
- * gets none of them. Everything here goes through IPC to the window that
- * owns both views, because this view cannot reach the page directly.
+ * The chrome above an opened page, a separate view so the toolbar keeps our
+ * policy and the page gets none of it. Everything below goes through IPC.
  */
 
 interface BrowserState {
@@ -52,9 +48,8 @@ export default function BrowserBar({ language }: { language: string }) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Whether the address bar belongs to the user right now. A ref rather than
-   * state because the subscription below is registered once and would
-   * otherwise close over the value it saw on the first render.
+   * Whether the address bar belongs to the user now. A ref, because the
+   * subscription is registered once and would close over the first value.
    */
   const editingRef = useRef(false);
 
@@ -72,9 +67,8 @@ export default function BrowserBar({ language }: { language: string }) {
   }, []);
 
   /**
-   * Opening the menu also asks for the room to draw it, since the toolbar is
-   * its own view and clips anything past its bounds. Every path that changes
-   * the menu goes through here so the two can never disagree.
+   * Opening the menu also asks for room to draw it, since the view clips its
+   * own bounds. Every path goes through here so the two cannot disagree.
    */
   const showMenu = useCallback((open: boolean) => {
     setMenuOpen(open);

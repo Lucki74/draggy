@@ -10,18 +10,8 @@ import {
 } from "./constants";
 
 /**
- * Turning a question into words to say.
- *
- * The one thing this must never do is make the user wait for a complete
- * sentence. Text is handed on the instant it can be, because everything
- * downstream — cutting into clauses, synthesising, playing — is a pipeline that
- * only starts when the first characters arrive.
- *
- * The one exception is the search marker. A reply that begins "SEARCH:" is a
- * request for the web rather than something to say out loud, and there is no
- * way to un-say it once the synthesiser has it. So the opening is held back —
- * but only for as long as it could still become that marker, which is seven
- * characters, rather than for a fixed sniff of the reply.
+ * Turns a question into words to say, handing text on the instant it can. Only
+ * the first seven characters wait, in case they become a "SEARCH:" marker.
  */
 
 export interface VoiceTurn {
@@ -37,10 +27,8 @@ function probe(head: string): string {
 }
 
 /**
- * Whether the reply so far could still turn out to be a search request.
- *
- * True means hold the text back. False means it is ordinary speech and every
- * character of it can go straight to the synthesiser.
+ * Whether the reply could still be a search request. True holds the text back;
+ * false sends every character straight to the synthesiser.
  */
 export function markerPending(head: string): boolean {
   const seen = probe(head);
@@ -70,13 +58,8 @@ const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 
 /**
- * Drops a model's private reasoning out of a stream of speech.
- *
- * Ollama keeps reasoning in its own field for models it knows how to parse, so
- * this is the belt to that braces: a model or template that writes `<think>`
- * into the reply itself would otherwise have every word of its deliberation
- * read out loud. Text that could still be the start of a tag is held back
- * rather than spoken, which costs at most seven characters of latency.
+ * Drops private reasoning out of speech. A template that writes `<think>` into
+ * the reply would otherwise have every word of it read out loud.
  */
 export function createThinkFilter(): (delta: string) => string {
   let buffer = "";
@@ -138,11 +121,8 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
     body: JSON.stringify({
       model: options.model,
       stream: true,
-      // `think` is deliberately not sent. Passing false does not stop a
-      // reasoning model reasoning — it stops Ollama *parsing* the reasoning,
-      // so the model's private deliberation arrives untagged in `content` and
-      // gets read out loud. Left unset, Ollama routes it to a separate
-      // `thinking` field that this module never reads.
+      // `think` is deliberately unset. False stops Ollama parsing reasoning,
+      // not producing it, so deliberation arrives in `content` and is spoken.
       keep_alive: KEEP_ALIVE,
       options: {
         num_ctx: VOICE_CONTEXT,
@@ -200,12 +180,8 @@ export interface ReplyResult {
 type Mode = "sniff" | "speak" | "query" | "drop";
 
 /**
- * One spoken answer, including the web round trip when the model asks for one.
- *
- * The second pass is deliberately not allowed to search again. A small model
- * that has just been handed search results will sometimes ask for more of them
- * instead of answering, and a conversation that loops through "let me look that
- * up" is worse than one that answers from what it already has.
+ * One spoken answer, with the web round trip if asked. The second pass may not
+ * search again: a model handed results will otherwise ask for more of them.
  */
 export async function generateReply(
   request: ReplyRequest,
@@ -250,9 +226,8 @@ export async function generateReply(
           if (mode === "query") query += line === -1 ? delta : delta.slice(0, line);
           if (line === -1) return;
 
-          // The marker line is over. Either the query is complete and there is
-          // nothing left worth generating, or the line was swallowed and the
-          // answer starts here.
+          // The marker line is over: either the query is complete, or the
+          // line was swallowed and the answer starts here.
           if (mode === "query") return false;
           mode = "speak";
           speak(delta.slice(line + 1));

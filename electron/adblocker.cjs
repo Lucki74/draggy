@@ -4,17 +4,8 @@ const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const { log } = require("./logger.cjs");
 
 /**
- * Ad and tracker blocking, using uBlock Origin's own engine.
- *
- * The hand-written domain and substring blocklist this replaced could not
- * express the one thing that matters on a real site: an exception. Blocking
- * every URL containing "/ads?" or hiding every element whose class starts
- * with "ad-" takes the page's own scripts and layout with it, which is why
- * video players and half-rendered articles were the normal result rather
- * than the exception.
- *
- * The filter lists encode those exceptions, per site, maintained by people
- * who watch the sites break. Matching them is what this engine does.
+ * Ad and tracker blocking on uBlock Origin's engine. A hand-written blocklist
+ * cannot express per-site exceptions, so it broke players and layouts.
  */
 
 const GHOSTERY =
@@ -26,16 +17,8 @@ const ADGUARD =
 const LOCAL_PREFIX = "draggy-filters:";
 
 /**
- * What the engine is built from.
- *
- * uBlock Origin's own default subscriptions, the same ones a fresh uBO
- * install enables, plus AdGuard's equivalents and OISD. The projects write
- * rules against different sites, and a host one of them has not got around to
- * is usually covered by another.
- *
- * Measured against a 482-endpoint probe: uBO's set alone blocked 79%, adding
- * AdGuard's reached 90%, and the whole set below reaches 96%. What is left is
- * video-player infrastructure, which is covered in `draggy-extra.txt`.
+ * uBO's default subscriptions, plus AdGuard's and OISD. On a 482-endpoint
+ * probe: uBO alone 79%, with AdGuard 90%, the whole set below 96%.
  */
 const FILTER_LISTS = [
   `${GHOSTERY}/easylist/easylist.txt`,
@@ -60,20 +43,15 @@ const FILTER_LISTS = [
   `${ADGUARD}/filter_11_Mobile/filter.txt`,
   `${ADGUARD}/filter_14_Annoyances/filter.txt`,
   `${ADGUARD}/filter_17_TrackParam/filter.txt`,
-  // OISD is a domain-level list in the DNS-blocker tradition. The small form
-  // is the one its author curates against breakage rather than for maximum
-  // coverage, and it catches the endpoints the site-by-site lists never had a
-  // reason to name. Measured against the 482-endpoint probe the larger form
-  // was worth one further block for twice the compile time.
+  // OISD is domain-level; the small form is curated against breakage. The
+  // large form was worth one further block for twice the compile time.
   "https://small.oisd.nl/abp",
   `${LOCAL_PREFIX}draggy-extra.txt`,
 ];
 
 /**
- * Lets a bundled file be listed alongside the remote ones.
- *
- * The engine builder only knows how to fetch, so the local supplement is
- * handed back as a response rather than given a separate code path.
+ * Lets a bundled file sit alongside the remote ones. The engine builder only
+ * knows how to fetch, so the local supplement is returned as a response.
  */
 async function fetchList(url, init) {
   if (typeof url === "string" && url.startsWith(LOCAL_PREFIX)) {
@@ -85,9 +63,8 @@ async function fetchList(url, init) {
 }
 
 /**
- * The name carries a version, because a cached engine is a compiled copy of
- * whatever the list set was when it was written. Changing the lists without
- * changing this would keep serving the old rules forever.
+ * The name carries a version: a cached engine is a compiled copy of the list
+ * set. Changing lists without changing this would serve old rules forever.
  */
 const ENGINE_FILE = "adblock-engine-v2.bin";
 
@@ -98,12 +75,8 @@ const ENGINE_FILE = "adblock-engine-v2.bin";
 let enginePromise = null;
 
 /**
- * Compiles the filter lists, or reads them back from the last run.
- *
- * The lists are fetched once and cached on disk, so this reaches the network
- * on a first run and after the cache expires, not on every launch. A failure
- * here is not fatal: blocking is a convenience, and a machine that is offline
- * or behind a proxy should still get a browser that loads pages.
+ * Compiles the filter lists, or reads back the cache. Failing is not fatal: an
+ * offline machine should still get a browser that loads pages.
  */
 function loadEngine(userDataPath) {
   if (enginePromise) return enginePromise;
@@ -124,10 +97,8 @@ function loadEngine(userDataPath) {
 }
 
 /**
- * Starts compiling the engine without waiting for it.
- *
- * Called at start-up so the first window that wants blocking is not the one
- * paying for the download.
+ * Starts compiling without waiting, at start-up, so the first window that
+ * wants blocking is not the one paying for the download.
  */
 function primeAdblocker(userDataPath) {
   void loadEngine(userDataPath);

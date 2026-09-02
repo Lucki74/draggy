@@ -2,25 +2,8 @@ import { pullModel, warmModel } from "../ollama";
 import { KEEP_ALIVE } from "./constants";
 
 /**
- * Choosing the model that does the talking.
- *
- * A spoken reply is a different job from a written one. It is two sentences
- * long, it has to start arriving within a few hundred milliseconds of the user
- * falling silent, and nobody ever reads it back. The model that writes essays
- * and calls tools in the chat window is the wrong shape for that: it is loaded
- * for context length and reasoning depth, both of which are paid for in time to
- * first token.
- *
- * A model sized for one-word classification tasks is the wrong shape too, in
- * the other direction: a 360M model asked to hold a conversation produces
- * replies that are quick and wrong.
- *
- * So Talk gets its own ladder, sized to the graphics card. Every rung is a
- * small instruction-tuned model that answers conversationally and loads in a
- * couple of seconds, and the rung is picked from the VRAM actually present and
- * downloaded on first use. The ladder deliberately stops climbing early: past
- * about four billion parameters a spoken answer is not noticeably better, and
- * the extra weights are paid for on every single turn.
+ * The model that does the talking, on its own VRAM-sized ladder. It stops early:
+ * past four billion parameters a spoken answer is no better and costs a turn.
  */
 
 export interface TalkTier {
@@ -34,16 +17,8 @@ export interface TalkTier {
 }
 
 /**
- * Every rung is an instruction-tuned model that answers immediately.
- *
- * Hybrid-reasoning models — the Qwen 3 family among them — are deliberately
- * absent, and the reason is measured rather than aesthetic. Asked to say hello,
- * Qwen 3 4B writes six hundred characters of private deliberation before its
- * first word of answer, and there is no way to stop it: Ollama's `think: false`
- * only stops the reasoning being separated out, and Qwen's own `/no_think`
- * switch has no effect through Ollama's template. A model that thinks before
- * speaking is a fine chat model and a poor voice, because the user is sitting
- * in silence for the whole of it.
+ * Every rung answers immediately. Reasoning models are absent: asked to say
+ * hello, Qwen 3 4B writes six hundred characters first, and cannot be stopped.
  */
 export const TALK_TIERS: readonly TalkTier[] = [
   // The floor is for machines with no usable graphics memory at all, where the
@@ -67,11 +42,8 @@ export function tierOf(model: string): TalkTier | null {
 }
 
 /**
- * Whether something already on disk counts as the model we wanted.
- *
- * Ollama names a re-quantised build "qwen3:4b-instruct-q5_K_M", which is the
- * same model to anyone talking to it. Treating that as a miss would download a
- * second copy of weights the user already has.
+ * Whether something on disk counts as the model wanted. A re-quantised build is
+ * the same model here, and calling it a miss re-downloads the weights.
  */
 export function installedMatch(
   wanted: string,
@@ -112,12 +84,8 @@ export interface TalkPlanInput {
 }
 
 /**
- * What Talk will run, and what it has to fetch first.
- *
- * A pinned model that is no longer installed quietly reverts to automatic
- * rather than sending the user to a download they never asked for: they chose
- * from a list of what they had, and removing it is not a request to get it
- * back.
+ * What Talk runs, and what it must fetch. A pinned model that is gone reverts
+ * to automatic: removing it was not a request to download it again.
  */
 export function planTalkModel(input: TalkPlanInput): TalkPlan {
   const pinned = input.override?.trim() ?? "";
@@ -158,11 +126,8 @@ export interface ProvidedModel {
 }
 
 /**
- * Puts the planned model on the machine and into memory.
- *
- * A failed download is not a reason to lose the conversation. The chat model is
- * already installed by definition, so it answers instead and the interface says
- * which model is actually speaking.
+ * Puts the planned model on the machine. A failed download falls back to the
+ * chat model, which is installed by definition, and the interface says so.
  */
 export async function provideTalkModel(
   plan: TalkPlan,
@@ -189,12 +154,8 @@ export async function provideTalkModel(
 }
 
 /**
- * Loads the weights before the first question rather than during it.
- *
- * Without this the user pays the load time — seconds, for anything above a
- * billion parameters — inside their first spoken turn, which is exactly the
- * moment the conversation feels broken. Failure here is harmless: the model
- * loads on the first real request instead.
+ * Loads the weights before the first question, or the user pays seconds inside
+ * their first spoken turn. Failing is harmless; it loads on the real request.
  */
 export async function warmTalkModel(model: string): Promise<void> {
   try {

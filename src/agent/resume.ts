@@ -1,20 +1,8 @@
 import type { SearchStep } from "../types";
 
 /**
- * Rebuilding what a reply already did, so continuing it does not start again.
- *
- * When a reply is cut short the conversation the model was given is gone: the
- * tool results only ever existed inside that turn. Continuing therefore used to
- * hand the model its own half-finished prose and nothing else, so it would
- * cheerfully create the same file a second time and run the same code again.
- *
- * The step list is the surviving record of that work, and this turns it back
- * into something the model can read.
- *
- * Compactness matters more here than anywhere else: the reply was cut off for
- * running out of room, so a verbose recap would simply cause it again. Actions
- * with side effects are kept first and reasoning is trimmed hardest, because
- * repeating a thought is free and repeating a file write is not.
+ * Rebuilds what a cut-off reply already did, from the steps, since tool results
+ * do not survive the turn. Side effects are kept; repeating a write is not free.
  */
 
 /** Total characters the recap may occupy. */
@@ -187,16 +175,8 @@ const MIN_OVERLAP = 12;
 const RESTART_SIGNATURE = 60;
 
 /**
- * Sticks a continued reply back onto the part that was already written.
- *
- * There is no separator: the reply may have been cut off mid-word, and
- * "expanse of salt" followed by "water" has to come out as "saltwater". A
- * newline here is what used to make continuing always look like a fresh
- * paragraph.
- *
- * Models do not reliably obey an instruction not to repeat themselves, so two
- * kinds of repetition are removed rather than trusted away: re-emitting the
- * last few words, and starting the whole reply again.
+ * Joins a continued reply to what was written, with no separator: "salt" and
+ * "water" must become "saltwater". Repetition is removed rather than trusted.
  */
 export function joinContinuation(before: string, after: string): string {
   if (!before) return after;

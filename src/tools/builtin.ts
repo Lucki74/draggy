@@ -8,9 +8,8 @@ const webEnabled = (environment: { webMode: string }) => environment.webMode !==
 const PAGE_LINE_LIMIT = 500;
 
 /**
- * How many searches may come back empty before searching is switched off for
- * the rest of the turn. Without this a model that gets one empty answer will
- * reword the same question indefinitely, which is both slow and useless.
+ * How many empty searches before searching is switched off for the turn. A
+ * model that gets one empty answer rewords the same question indefinitely.
  */
 const SEARCH_FAILURE_BUDGET = 3;
 
@@ -83,9 +82,8 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
 
         const remaining = SEARCH_FAILURE_BUDGET - failures - 1;
 
-        // A search engine that will not answer is a temporary outage, not
-        // evidence that nothing exists. Saying which one it was stops the model
-        // concluding the subject is unknown and inventing more queries.
+        // An engine that will not answer is an outage, not evidence that
+        // nothing exists. Saying so stops the model inventing more queries.
         if (status === "unavailable") {
           return `TOOL RESULT (search_web): No search engine would answer just now (tried ${outcome.tried.join(", ") || "none"}). This is a temporary outage, not a sign that nothing exists on the subject.${remaining > 0 ? " Do not reword the question; if you retry at all, wait for a different question." : " Answer from your own knowledge and say which parts you could not check."}`;
         }
@@ -157,9 +155,16 @@ const readUrl: ToolSpec = {
       const page = await api()?.readUrl(url);
       if (!page) throw new Error("No data");
 
-      // A human-verification page is not a failure to retry or reword. Saying
-      // so plainly, once, is what stops the model trying the same URL five
-      // more ways, and the user can open it themselves in a click.
+      // An address the tools will not fetch. Saying so once, and why, is what
+      // stops the model looking for a way around it.
+      if (page.blocked === "refused") {
+        ctx.patchStep(stepId, { isComplete: true, type: "error" });
+        ctx.syncSteps();
+        return `TOOL RESULT (read_url): ${page.reason || "That address cannot be opened."}`;
+      }
+
+      // A human-verification page is not worth retrying. Saying so once stops
+      // the model trying the same URL five more ways.
       if (page.blocked === "human-verification") {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.pushStep({
@@ -428,7 +433,7 @@ const createFile: ToolSpec = {
     content: {
       type: "string",
       description:
-        "File body. Markdown for .docx and .pptx, CSV for .xlsx, raw code otherwise.",
+        "File body. Markdown for .docx, .pptx and .pdf, CSV for .xlsx, raw code otherwise.",
     },
   },
   required: ["filename", "content"],
@@ -482,6 +487,11 @@ const searchLibrary: ToolSpec = {
       type: "string",
       description: "What to look for, phrased as a question or a set of keywords.",
     },
+    source: {
+      type: "string",
+      description:
+        "Optional. The name of one indexed folder to search, when the user named one. Leave it out to search everything.",
+    },
   },
   required: ["query"],
   usage:
@@ -489,6 +499,7 @@ const searchLibrary: ToolSpec = {
   available: (environment) => environment.libraryReady,
   run: async (args, ctx) => {
     const query = String(args.query);
+    const source = args.source ? String(args.source) : undefined;
     const stepId = ctx.newId();
 
     ctx.pushStep({
@@ -498,7 +509,17 @@ const searchLibrary: ToolSpec = {
       isComplete: false,
     });
 
-    const result = await api()?.library.search(query, 6);
+    const result = await api()?.library.search(query, 6, undefined, { source });
+
+    // A folder the user named that is not indexed is worth saying plainly:
+    // searching everything instead would quietly answer a different question.
+    if (result?.unknownSource) {
+      ctx.patchStep(stepId, { isComplete: true, type: "error" });
+      ctx.syncSteps();
+      return `TOOL RESULT (search_library): There is no indexed folder called "${source}". The folders available are: ${
+        result.sources?.join(", ") || "none"
+      }. Search again without the source argument, or ask the user which folder they mean.`;
+    }
 
     if (!result?.success) {
       ctx.patchStep(stepId, { isComplete: true, type: "error" });

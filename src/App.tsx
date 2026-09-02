@@ -14,9 +14,17 @@ import {
   titleFromContent,
   writeLocalStorage,
 } from "./utils";
-import { isCloudModel, warmModel } from "./ollama";
+import { contextSizeFor, isCloudModel, warmModel } from "./ollama";
+import {
+  budgetForWindow,
+  compactionSurvives,
+  planCompaction,
+  runCompaction,
+} from "./agent/compaction";
 import { registerBuiltinTools } from "./tools/builtin";
+import { unregisterGroup } from "./tools/registry";
 import type { ToolEnvironment } from "./tools/registry";
+import { syncMcpTools } from "./tools/mcp";
 import { KEEP_ALIVE, runAgentTurn } from "./agent/agentLoop";
 import {
   SETTINGS_KEY,
@@ -100,6 +108,7 @@ export default function App() {
   );
 
   const abortControllers = useRef<{ [chatId: string]: AbortController }>({});
+  const compactionControllers = useRef<{ [chatId: string]: AbortController }>({});
   const sessionsRef = useRef(sessions);
   const settingsRef = useRef(settings);
 
@@ -153,6 +162,33 @@ export default function App() {
       .configure({ automatic: settings.autoUpdate })
       .catch(() => undefined);
   }, [settings.autoUpdate, isSplashMode]);
+
+
+  // MCP servers start after the window is up: `npx` may fetch a package, and
+  // none of those tools are needed until the first message is sent.
+  useEffect(() => {
+    if (isSplashMode || !window.electronAPI?.mcp) return;
+
+    const api = window.electronAPI.mcp;
+
+    const call = (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ) => api.call(serverId, toolName, args);
+
+    api.onState((state) => syncMcpTools(state.servers, call));
+
+    api
+      .startEnabled()
+      .then((result) => syncMcpTools(result.servers ?? [], call))
+      .catch(() => undefined);
+
+    return () => {
+      api.offState();
+      unregisterGroup("external");
+    };
+  }, [isSplashMode]);
 
   const refreshLibraryReadiness = useCallback(() => {
     if (!settings.libraryEnabled || !window.electronAPI?.library) {
@@ -270,6 +306,62 @@ export default function App() {
     [libraryReady],
   );
 
+
+  /**
+   * Folds the older conversation into notes in the idle gap, paid while the
+   * user reads. Cancelled on send, and tried again after the next turn.
+   */
+  const maybeCompact = useCallback(
+    async (chatId: string) => {
+      if (!model || isCloudModel(model)) return;
+
+      const session = sessionsRef.current.find((s) => s.id === chatId);
+      if (!session || session.isGenerating) return;
+
+      const existing = session.compaction ?? null;
+
+      // The window the model is already loaded at. `contextSizeFor` never
+      // shrinks, so asking it here cannot cause the reload this is avoiding.
+      const numCtx = contextSizeFor(model, 0, null);
+
+      const plan = planCompaction(session.messages, {
+        existing,
+        budgetChars: budgetForWindow(numCtx),
+      });
+      if (!plan) return;
+
+      compactionControllers.current[chatId]?.abort();
+      const controller = new AbortController();
+      compactionControllers.current[chatId] = controller;
+
+      try {
+        const next = await runCompaction({
+          model,
+          numCtx,
+          messages: session.messages,
+          plan,
+          existing,
+          signal: controller.signal,
+        });
+
+        if (!next || controller.signal.aborted) return;
+
+        updateSession(chatId, (s) =>
+          // The conversation can have moved on while this ran; it may not have
+          // gone backwards past what was just folded.
+          s.messages.length >= next.throughIndex ? { ...s, compaction: next } : s,
+        );
+      } catch {
+        // Nothing is lost by a fold that failed, and it will be tried again.
+      } finally {
+        if (compactionControllers.current[chatId] === controller) {
+          delete compactionControllers.current[chatId];
+        }
+      }
+    },
+    [model, updateSession],
+  );
+
   const generateResponse = useCallback(
     async (
       chatId: string,
@@ -280,6 +372,9 @@ export default function App() {
       if (!model) return;
 
       abortControllers.current[chatId]?.abort();
+      // A fold in flight is now competing with the reply the user is waiting
+      // for, on the same model.
+      compactionControllers.current[chatId]?.abort();
       const controller = new AbortController();
       abortControllers.current[chatId] = controller;
 
@@ -355,6 +450,7 @@ export default function App() {
             messages: contextMessages,
             isContinuation,
             seed,
+            compaction: sessionsRef.current.find((s) => s.id === chatId)?.compaction,
             signal: controller.signal,
           },
           {
@@ -409,10 +505,14 @@ export default function App() {
           updateSession(chatId, (s) =>
             s.isGenerating ? { ...s, isGenerating: false } : s,
           );
+
+          // The user is now reading rather than waiting, which is the only
+          // moment folding is free.
+          if (!controller.signal.aborted) void maybeCompact(chatId);
         }
       }
     },
-    [model, updateSession, patchActiveMessage, toolEnvironment, t],
+    [model, updateSession, patchActiveMessage, toolEnvironment, t, maybeCompact],
   );
 
   const handleStopGeneration = useCallback(
@@ -421,6 +521,7 @@ export default function App() {
         abortControllers.current[chatId].abort();
         delete abortControllers.current[chatId];
       }
+      compactionControllers.current[chatId]?.abort();
       updateSession(chatId, (s) => ({ ...s, isGenerating: false }));
     },
     [updateSession],
@@ -436,9 +537,20 @@ export default function App() {
           ? session.messages.slice(0, index)
           : session.messages.slice(0, -1);
 
+      // Regenerating inside the folded range rewrites history the notes claim
+      // to describe, so they have to go.
+      const survived = compactionSurvives(
+        session.compaction,
+        targetMessages,
+        typeof index === "number" ? index : undefined,
+      );
+      if (survived !== session.compaction) {
+        updateSession(chatId, (s) => ({ ...s, compaction: survived }));
+      }
+
       generateResponse(chatId, targetMessages, true);
     },
-    [generateResponse],
+    [generateResponse, updateSession],
   );
 
   const handleEditMessage = useCallback(
@@ -462,7 +574,11 @@ export default function App() {
         currentVersionIndex: versions.length,
       });
 
-      updateSession(chatId, (s) => ({ ...s, messages: msgs }));
+      updateSession(chatId, (s) => ({
+        ...s,
+        messages: msgs,
+        compaction: compactionSurvives(s.compaction, msgs, messageIndex),
+      }));
       generateResponse(chatId, msgs, false);
     },
     [generateResponse, updateSession],
@@ -538,6 +654,8 @@ export default function App() {
     (e: React.MouseEvent, chatId: string) => {
       e.stopPropagation();
       handleStopGeneration(chatId);
+      compactionControllers.current[chatId]?.abort();
+      delete compactionControllers.current[chatId];
       cancelSessionSave(chatId);
       setSessions((prev) => prev.filter((s) => s.id !== chatId));
       storageBackend()
@@ -562,6 +680,8 @@ export default function App() {
   const handleClearChats = useCallback(() => {
     Object.values(abortControllers.current).forEach((c) => c.abort());
     abortControllers.current = {};
+    Object.values(compactionControllers.current).forEach((c) => c.abort());
+    compactionControllers.current = {};
     for (const session of sessionsRef.current) cancelSessionSave(session.id);
     setSessions([]);
     setCurrentChatId(null);
@@ -588,24 +708,15 @@ export default function App() {
         ? prev
         : { ...prev, modelName: selectedModel },
     );
-    // Loading the weights takes seconds, and paying for that inside the
-    // first message is the moment it feels worst. Starting it here — at boot
-    // and on every model switch, while the user is still reading or typing —
-    // means it is usually already resident by the time they send.
-    //
-    // Sized for an empty conversation, which is what a model switch usually
-    // precedes. Opening a long chat and typing into it warms again, at that
-    // chat's size; the window only grows, so the second warm-up is the one
-    // that counts and this one is never in its way.
+    // Loading the weights takes seconds, and the first message is where that
+    // hurts most. Sized for an empty chat; typing into a long one warms again.
     if (!isCloudModel(selectedModel)) {
       warmModel(selectedModel, KEEP_ALIVE).catch(() => undefined);
     }
   }, []);
 
-  // Stable identities so MessageItem's memo() actually skips messages that
-  // have not changed instead of re-rendering the whole conversation on every
-  // streamed token — a plain inline arrow function here would hand every
-  // message a "new" callback prop on every render.
+  // Stable identities so MessageItem's memo() actually skips unchanged
+  // messages; an inline arrow would hand each a new prop on every render.
   const onRegenerateChat = useCallback(
     (idx: number) => {
       if (currentChatId) handleRegenerate(currentChatId, idx);

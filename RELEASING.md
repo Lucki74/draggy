@@ -55,6 +55,17 @@ To build an installer without touching GitHub at all, use `npm run
 electron:build` — every non-release build script passes `--publish never`, so a
 local build can never upload anything by accident.
 
+If that fails with `unable to verify the first certificate`, something on the
+machine is intercepting TLS — antivirus, a proxy, a VPN — with a root Windows
+trusts and Node does not. Node reads the system store when told to:
+
+```powershell
+$env:NODE_OPTIONS = "--use-system-ca"
+```
+
+The workflow runners have clean trust stores, so a tagged release is unaffected
+either way.
+
 ## How the app behaves
 
 `Settings → Updates` holds a single **Automatic updates** switch.

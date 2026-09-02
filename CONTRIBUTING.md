@@ -37,14 +37,15 @@ or more makes this pleasant; less works, with smaller models.
 npm run check
 ```
 
-Typecheck, lint and the full test suite. There are around 690 tests and they run
+Typecheck, lint and the full test suite. There are around 920 tests and they run
 in about two seconds, so there is no reason to skip them.
 
-Note that nothing runs this for you. GitHub scans the repository with CodeQL,
-but that looks for security issues — no workflow runs the tests, the
-typechecker or ESLint on a pull request, and the release workflow fires only on
-a version tag. Until that changes, `npm run check` on your own machine is the
-only thing between a mistake and `main`.
+CI runs that same command on every push and pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), so a mistake will be
+caught — but it is caught faster on your own machine, and the suite takes
+about two seconds. GitHub also scans the repository with CodeQL, which looks
+for security issues rather than broken tests, and the release workflow fires
+only on a version tag.
 
 Tests run in a Node environment with no GPU and no Electron, which is why the
 logic worth testing is kept away from the code that talks to hardware.
@@ -56,9 +57,11 @@ data folder without touching one. Follow that shape and your change is testable.
 
 ```
 electron/     main process: windows, IPC, SQLite, search, the embedded
-              browser, code execution, updates
+              browser, code execution, MCP servers, updates
 src/          the React app
-src/agent/    the streaming tool-calling loop
+src/agent/    the streaming tool-calling loop, and conversation compaction
+src/chat/     the message list and the rules for what can be attached
+src/settings/ the settings panels
 src/tools/    tool definitions and the registry they live in
 src/voice/    capture, voice activity detection, turn-taking, speech
 src/__tests__ everything that can be tested without a GPU
@@ -82,8 +85,11 @@ Match the file you are editing. Beyond that:
 **Comments explain why, not what.** The code already says what it does. A
 comment earns its place by recording the reason a decision went the way it did,
 or the failure that made it necessary — the kind of thing the next person would
-otherwise have to rediscover by breaking it. Most modules open with a paragraph
-of this; read a few before writing one.
+otherwise have to rediscover by breaking it.
+
+**Two lines, and no more.** Every comment in the codebase fits in two lines of
+at most twenty-five words each, including the module headers. The reason still
+has to be in there; find the shorter way to say it.
 
 **Name the tradeoff in the pull request.** If you picked a number — a timeout, a
 threshold, a buffer size — say where it came from.

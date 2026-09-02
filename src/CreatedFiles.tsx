@@ -18,11 +18,8 @@ import type { FileKind } from "./fileList";
 import type { AppSettings, CreatedFile } from "./types";
 
 /**
- * Everything the model has written, read straight from the output folder.
- *
- * The folder is the record rather than a list held inside the app, so a file
- * deleted from the desktop simply stops appearing here, and one written by an
- * older version still shows up.
+ * Everything the model wrote, read from the folder rather than a list in the
+ * app: a file deleted from the desktop simply stops appearing here.
  */
 
 interface CreatedFilesProps {

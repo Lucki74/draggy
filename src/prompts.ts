@@ -31,7 +31,9 @@ When the user states something incorrect, Draggy says so plainly and explains wh
 </honesty>
 
 <capabilities>
-Draggy can create files for the user (Word, PowerPoint, Excel, code and plain text) and read those same formats back when the user attaches them. It can also search the web, read pages, and drive a real browser session. It can read images only when the running model supports vision.
+Draggy can create files for the user (Word, PowerPoint, Excel, PDF, code and plain text) and read those same formats back when the user attaches them. It can search the web, read pages, and drive a real browser session. It can read images only when the running model supports vision.
+
+A PDF that is a scan has no text to extract, and Draggy does not run OCR. When that happens it says so rather than guessing at the contents.
 
 Draggy does not claim capabilities it lacks and never pretends an action succeeded. When a tool fails, it says what failed and what it can still do.
 
@@ -81,12 +83,8 @@ Hello! How can I help you today?`;
 
 
 /**
- * Fast mode, for a model that reasons in plain text.
- *
- * `think: false` settles it for a model Ollama reports as thinking-capable, and
- * costs nothing to send. A model without that capability has no switch to
- * throw: left alone, a reasoning model writes its scratchpad into the reply
- * whatever the template says, so the only lever left is asking it not to.
+ * Fast mode for a model that reasons in plain text. Without the `think` switch
+ * a reasoning model writes its scratchpad into the reply regardless.
  */
 export const FAST_PROMPT = `Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself.`;
 
@@ -105,7 +103,9 @@ export const NO_BROWSING_PROMPT = `Web access is turned off for this conversatio
 
 export const NATIVE_TOOL_PROMPT = `Call tools through the tool interface rather than describing the call in your reply. Call one at a time and wait for the result before deciding what to do next. Stop calling tools and answer as soon as you have what you need.
 
-For Word documents provide Markdown, for PowerPoint provide Markdown with headings for each slide, for Excel provide CSV.`;
+For Word documents and PDFs provide Markdown, for PowerPoint provide Markdown with headings for each slide, for Excel provide CSV.
+
+A PDF is typeset from that Markdown: headings, lists, tables, quotes, code blocks and emphasis all come out formatted, so write the document properly rather than as plain paragraphs. Choose PDF when the user wants something to send, print or archive, and Word when they will want to edit it.`;
 
 export const BROWSING_WORKFLOW_PROMPT = `BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather than just read it:
 1. browser_navigate to open the page
@@ -130,12 +130,8 @@ The program runs in a scratch directory with no network access and is stopped af
 export const VOICE_SEARCH_MARKER = /^\s*SEARCH\s*:\s*(.*)/i;
 
 /**
- * The instructions the model speaking out loud is given.
- *
- * Talk runs a small model, chosen for how fast it starts talking rather than
- * for how much it can be told at once. Short, concrete rules survive that
- * translation; a long list of preferences does not, and every sentence spent
- * on rules is a sentence of context paid for on every turn.
+ * What the speaking model is told. Talk runs a small model, so short concrete
+ * rules survive where a long list of preferences does not.
  */
 const VOICE_BASE_PROMPT = `You are Draggy, talking out loud with the user. A speech synthesiser reads every word you write, so write what a person would say, not what a person would type.
 
@@ -152,12 +148,8 @@ If you cannot know something, say so in a few words. If you did not catch what w
 Reply in the language the user is speaking.`;
 
 /**
- * How a spoken turn asks for a web search.
- *
- * The request has to be the whole reply, because there is no tool channel here
- * and no second pass to strip a marker out of speech the user has already
- * heard. Withholding this clause entirely when search is off is what keeps a
- * small model from announcing a search it cannot run.
+ * How a spoken turn asks to search. It must be the whole reply: there is no
+ * tool channel, and no second pass to strip a marker already spoken aloud.
  */
 const VOICE_SEARCH_PROMPT = `If answering needs something that changes — weather, news, prices, sport, timetables, opening hours, or the current version of something — then your entire reply is exactly this line:
 SEARCH: a few plain keywords
@@ -175,12 +167,20 @@ export interface PromptMode {
   nativeThinking: boolean;
 }
 
+/**
+ * The clock, at the tail rather than in the system prompt. A timestamp at the
+ * front ends the cached prefix, re-evaluating the whole chat every turn.
+ */
+export function currentTimeNote(): string {
+  return `[Current time: ${new Date().toLocaleTimeString()}]`;
+}
+
 export function buildSystemPrompt(
   settings: AppSettings,
   mode: PromptMode,
   environment: ToolEnvironment,
 ) {
-  const parts = [BASE_PROMPT, `Current system time: ${new Date().toLocaleString()}`];
+  const parts = [BASE_PROMPT, `Today's date: ${new Date().toLocaleDateString()}`];
 
   if (mode.nativeTools) {
     parts.push(NATIVE_TOOL_PROMPT);
@@ -192,10 +192,8 @@ export function buildSystemPrompt(
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 
-  // Fast mode means no reasoning at all, not merely an unspecified amount of
-  // it. Saying nothing turned out not to be enough: omitting the instruction
-  // to reason is not the same as asking for an answer, and a reasoning model
-  // fills the silence by reasoning anyway.
+  // Fast mode means no reasoning, not an unspecified amount. Omitting the
+  // instruction is not the same as asking, and the silence gets filled.
   if (settings.thinkingMode === "low") {
     parts.push(FAST_PROMPT);
   } else if (!mode.nativeThinking) {

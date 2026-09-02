@@ -17,7 +17,8 @@ const SCHEMA = `
     id                TEXT PRIMARY KEY,
     title             TEXT NOT NULL,
     updated_at        INTEGER NOT NULL,
-    is_out_of_context INTEGER NOT NULL DEFAULT 0
+    is_out_of_context INTEGER NOT NULL DEFAULT 0,
+    compaction        TEXT
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -226,6 +227,7 @@ function init(userDataPath) {
     db = new DatabaseSync(dbPath);
     db.exec(SCHEMA);
     migrate();
+    ensureColumn("chats", "compaction", "TEXT");
     healthy = isUsable(db);
   } catch (error) {
     log.warn("storage", `could not open the database: ${error.message}`);
@@ -253,6 +255,19 @@ function recordSchemaVersion(version) {
 function hasLegacyMessageTable() {
   const columns = db.prepare("PRAGMA table_info(messages)").all();
   return columns.length > 0 && !columns.some((column) => column.name === "row_id");
+}
+
+/**
+ * Adds a column to an existing database, once. Kept out of `migrate()`: a
+ * column every version can ignore needs no schema version of its own.
+ */
+function ensureColumn(table, name, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (columns.some((column) => column.name === name)) return false;
+
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+  log.info("storage", `added ${table}.${name}`);
+  return true;
 }
 
 function migrate() {
@@ -332,17 +347,19 @@ function searchBody(message) {
 function saveChat(session) {
   const transaction = () => {
     db.prepare(
-      `INSERT INTO chats (id, title, updated_at, is_out_of_context)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          updated_at = excluded.updated_at,
-         is_out_of_context = excluded.is_out_of_context`,
+         is_out_of_context = excluded.is_out_of_context,
+         compaction = excluded.compaction`,
     ).run(
       session.id,
       String(session.title || ""),
       Number(session.updatedAt) || Date.now(),
       session.isOutOfContext ? 1 : 0,
+      session.compaction ? JSON.stringify(session.compaction) : null,
     );
 
     db.prepare("DELETE FROM messages WHERE chat_id = ?").run(session.id);
@@ -403,6 +420,19 @@ function saveChat(session) {
   return { success: true };
 }
 
+function parseCompaction(value) {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed.throughIndex !== "number") return null;
+    if (typeof parsed.summary !== "string" || !parsed.summary) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function hydrateChat(chatRow) {
   const messageRows = db
     .prepare(
@@ -435,13 +465,18 @@ function hydrateChat(chatRow) {
     updatedAt: chatRow.updated_at,
     isOutOfContext: Boolean(chatRow.is_out_of_context),
     isGenerating: false,
+    // Losing a summary costs one idle generation to rebuild, so an unparseable
+    // row is not worth failing a whole conversation over.
+    compaction: parseCompaction(chatRow.compaction),
     messages,
   };
 }
 
 function loadChats() {
   const rows = db
-    .prepare("SELECT id, title, updated_at, is_out_of_context FROM chats ORDER BY updated_at DESC")
+    .prepare(
+      "SELECT id, title, updated_at, is_out_of_context, compaction FROM chats ORDER BY updated_at DESC",
+    )
     .all();
   return rows.map(hydrateChat);
 }

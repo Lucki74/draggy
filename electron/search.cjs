@@ -6,11 +6,8 @@ const DESKTOP_USER_AGENT =
 const RESULT_LIMIT = 10;
 
 /**
- * The smallest gap between two requests to the same provider. Firing five
- * searches at once is exactly what makes a free search engine start returning
- * empty pages, and an empty page reads to the model as "nothing exists", which
- * sends it off inventing more queries. Spacing them out costs a second and
- * avoids the whole spiral.
+ * The smallest gap between two requests to one provider. Firing five at once
+ * returns empty pages, which the model reads as "nothing exists".
  */
 const PROVIDER_GAP_MS = 900;
 
@@ -38,9 +35,8 @@ const DUCKDUCKGO_EXTRACT = `
 `;
 
 /**
- * The lite endpoint is a plain table: each result is a link row followed by a
- * snippet row. It is served from different infrastructure to the html endpoint,
- * so it usually still answers when that one has started refusing.
+ * The lite endpoint is a plain table of link and snippet rows. Different
+ * infrastructure to the html one, so it answers when that starts refusing.
  */
 const DUCKDUCKGO_LITE_EXTRACT = `
   (() => {
@@ -102,9 +98,8 @@ const BRAVE_HTML_EXTRACT = `
 `;
 
 /**
- * DuckDuckGo hands out links through its own redirector. The real destination
- * is in the uddg parameter, and the model needs that one: it cannot read a
- * redirect, and a redirector URL tells it nothing about the source.
+ * DuckDuckGo hands out links through a redirector; the destination is in the
+ * uddg parameter. A redirector URL tells the model nothing about the source.
  */
 function unwrapRedirect(url) {
   try {
@@ -261,10 +256,8 @@ const brave = {
 };
 
 /**
- * Ordered by how reliably each one answers. Bing used to sit at the end; it
- * stopped returning anything to a scraper, and its RSS feed answers some
- * queries with results for a completely different question, which is worse than
- * no answer at all. It was removed rather than left in as dead weight.
+ * Ordered by how reliably each answers. Bing was removed: it returns nothing to
+ * a scraper, and its RSS feed answers some queries with the wrong question.
  */
 const PROVIDERS = [searxng, brave, duckduckgo, startpage, duckduckgoLite, braveHtml];
 
@@ -321,12 +314,8 @@ function clearCache() {
 }
 
 /**
- * Runs the chain until something answers.
- *
- * The status matters as much as the results. "empty" means the web was asked
- * and genuinely had nothing; "unavailable" means nobody would answer, which is
- * a temporary condition and not a fact about the world. Telling the model which
- * one happened is what stops it rewording the same question ten times.
+ * Runs the chain until something answers. "empty" means the web had nothing;
+ * "unavailable" means nobody answered, which is temporary, not a fact.
  */
 async function runSearch(query, config, deps) {
   const term = String(query || "").trim();

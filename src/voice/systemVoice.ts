@@ -1,13 +1,8 @@
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
 /**
- * The operating system's own voice, through the Web Speech API.
- *
- * It costs nothing, starts instantly and speaks every language the machine has
- * installed, which is why it is the default. It also has two long-standing
- * Chromium defects that have to be worked around: synthesis stalls after about
- * fifteen seconds of continuous speech, and utterances beyond a few hundred
- * characters are silently truncated.
+ * The system voice: free, instant, every installed language, and the default.
+ * Chromium stalls it after fifteen seconds and truncates long utterances.
  */
 
 const VOICE_LANGUAGES: Record<string, string> = {
@@ -130,9 +125,8 @@ export function createSystemVoice(options: EngineOptions): VoiceEngine {
       setSpeaking(false);
     },
 
-    // There is no way to change the volume of an utterance already in flight,
-    // so a ducked system voice simply keeps talking. The barge-in guard is what
-    // protects the user here instead.
+    // An utterance in flight cannot change volume, so a ducked system voice
+    // keeps talking; the barge-in guard protects the user instead.
     duck() {},
 
     dispose() {

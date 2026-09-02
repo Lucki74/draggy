@@ -2,6 +2,12 @@ import { safeJsonParse } from "./utils";
 
 export const OLLAMA_HOST = "http://127.0.0.1:11434";
 
+/**
+ * How long Ollama keeps a model resident. Here rather than in the chat loop
+ * because compaction needs it too and cannot import the loop that imports it.
+ */
+export const KEEP_ALIVE = "30m";
+
 export const FALLBACK_CONTEXT_LENGTH = 8192;
 
 export const CONTEXT_BUCKETS = [4096, 8192, 16384, 32768, 65536, 131072];
@@ -49,15 +55,8 @@ export interface InstalledModel {
 const modelInfoCache = new Map<string, Promise<ModelInfo | null>>();
 
 /**
- * How long to wait for Ollama to describe a model.
- *
- * Reading a manifest off the local disk takes milliseconds, so this is not a
- * budget so much as a limit on how wrong things can go. `listInstalledModels`
- * asks about every installed model at once and the startup screen waits on the
- * answer, so a server that accepts the connection and then says nothing would
- * otherwise hold the splash screen open indefinitely. Timing out is safe: the
- * result is an empty capability list, which every reader treats as "unknown"
- * rather than as "no", and the failure is not cached.
+ * How long to wait for Ollama to describe a model, so a silent server cannot
+ * hold the splash screen open. Timing out reads as "unknown", not as "no".
  */
 const MODEL_INFO_TIMEOUT_MS = 5000;
 
@@ -140,19 +139,8 @@ export function pickContextSize(
 }
 
 /**
- * The context size each model is currently loaded at.
- *
- * Ollama keys a resident model on the options it was loaded with, and `num_ctx`
- * is one of them: a request asking for a different window unloads the weights
- * and loads them again. Measured against a local 8B at Q4 that is three seconds
- * on a warm disk and six on a cold one, paid before the first token. Nothing
- * else in the request costs anything — `think`, `num_predict` and the tool
- * schemas all measured under ten milliseconds against a loaded model.
- *
- * So the window is decided once per model, and only ever grows. Growing is
- * unavoidable when a conversation genuinely outgrows its window; shrinking is
- * not worth a reload, and allowing it is what made leaving a long chat for a
- * new one and coming back reload the model twice.
+ * The window each model is loaded at. Changing `num_ctx` reloads the weights,
+ * three to six seconds, so it is decided once per model and only ever grows.
  */
 const loadedContextSizes = new Map<string, number>();
 
@@ -228,9 +216,8 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
     )
     .filter((m: { name: string }) => !isCloudModel(m.name));
 
-  // `/api/tags` says nothing about what a model can do, so each one is asked
-  // separately. The calls go out together and `getModelInfo` caches them, so
-  // the price is paid once per model for as long as the app is open.
+  // `/api/tags` says nothing about capabilities, so each model is asked. The
+  // calls go together and are cached, so the price is paid once per model.
   const info = await Promise.all(listed.map((m) => getModelInfo(m.name)));
 
   return listed.map((model, index) => ({
@@ -326,28 +313,14 @@ export function mergeMetrics(
 }
 
 /**
- * What the system prompt and tool catalogue add to a turn, on top of the
- * conversation itself. Measured across the configurations the app builds: 5.4
- * KB at its smallest, 8.5 KB with text-mode tools, the library and code
- * execution all on. This is the middle of that, not the top of it.
- *
- * Rounding up to the maximum would be the safe-looking choice and is the wrong
- * one. The two errors are not symmetrical. Guessing low costs one reload, the
- * first time a conversation crosses a bucket boundary, after which the window
- * is remembered and every later turn is free. Guessing high can settle on a
- * window a whole bucket wider than the conversation needs, and a KV cache that
- * no longer fits alongside the weights pushes layers onto the CPU — which is
- * not six seconds once, it is every token from then on.
+ * What the prompt and tool catalogue add to a turn: 5.4 to 8.5 KB, so this is
+ * the middle. Guessing low costs one reload; guessing high spills to the CPU.
  */
 const SYSTEM_PROMPT_CHARS = 6000;
 
 /**
- * Loads the weights ahead of a turn, in the shape that turn will ask for.
- *
- * `charEstimate` is how much conversation the next turn will carry, and it is
- * the whole point: warming without one loaded the model at Ollama's default
- * window, and the turn that followed asked for a different one and reloaded it.
- * The warm-up was not merely useless then — it guaranteed the reload.
+ * Loads the weights ahead of a turn, at the size that turn will ask for.
+ * Warming without `charEstimate` did not merely waste time: it forced a reload.
  */
 export async function warmModel(
   name: string,
@@ -419,12 +392,8 @@ export async function readNdjsonStream(
 const PULL_PROGRESS_INTERVAL_MS = 100;
 
 /**
- * What a pull is doing, whatever wording Ollama happens to use for it.
- *
- * Reading the wording directly is what broke the startup bar: the progress
- * lines say "pulling a3de86cd1c13", not "downloading", so a check for the word
- * "downloading" never matched and the bar sat at nought bytes forever while
- * the heading showed a raw digest.
+ * What a pull is doing, whatever wording Ollama uses. The lines say "pulling
+ * a3de86cd1c13", so matching on "downloading" left the bar at nought forever.
  */
 export type PullPhase = "preparing" | "downloading" | "verifying" | "done";
 
@@ -468,17 +437,8 @@ function phaseFromStatus(status: string, current: PullPhase): PullPhase {
 }
 
 /**
- * Turns Ollama's pull stream into one figure for the whole download.
- *
- * Every progress line describes a single layer, so reading `completed`/`total`
- * straight off the line measures whichever layer is in flight rather than the
- * job. A model is several layers, so that number restarts part-way through and
- * lands on a 1 kB layer at the end, which is how a finished 5 GB download can
- * report a couple of kilobytes. Layers are therefore added up by digest.
- *
- * The lines that carry no byte counts at all — "verifying sha256 digest",
- * "writing manifest" — must leave the totals alone. Zeroing on those is what
- * made the bar fall back to its indeterminate state right at the end.
+ * One figure for the whole download. Each line describes one layer, so they are
+ * summed by digest; lines with no byte counts must leave the totals alone.
  */
 export function createPullTracker(): (
   line: Record<string, unknown>,
@@ -513,9 +473,8 @@ export function createPullTracker(): (
       }
 
       const measured = total > 0 ? (completed / total) * 100 : 0;
-      // A newly announced layer makes the job bigger, and going back is then
-      // the honest thing to show. While the job stays the same size the figure
-      // only ever grows.
+      // A newly announced layer makes the job bigger, so going back is honest.
+      // While the job stays the same size the figure only ever grows.
       percent = total === previousTotal ? Math.max(percent, measured) : measured;
       phase = "downloading";
     } else {
@@ -563,9 +522,8 @@ export async function pullModel(
     const progress = track(parsed);
     const now = performance.now();
 
-    // Throttling exists to spare the renderer thousands of byte updates, but a
-    // change of phase happens once and has to get through, or the screen is
-    // left saying "downloading" while Ollama is writing the manifest.
+    // Throttling spares the renderer thousands of updates, but a phase change
+    // happens once and must get through, or the screen lies about the stage.
     const changedPhase = progress.phase !== lastPhase;
     if (!changedPhase && now - lastPaint < PULL_PROGRESS_INTERVAL_MS) return;
 

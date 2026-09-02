@@ -1,25 +1,18 @@
 /**
- * Cutting a stream of generated tokens into things worth saying out loud.
- *
- * Two competing pressures shape this. The first fragment should leave as early
- * as possible, because until it does the user is listening to silence. Every
- * fragment after it should be as long as possible, because a synthesiser given
- * whole sentences produces far better rhythm than one fed three words at a
- * time. So the first cut is eager and the rest are patient.
+ * Cuts generated tokens into things worth saying aloud. The first cut is eager,
+ * because until it lands the user hears silence; the rest are patient.
  */
 
 /**
- * A complete sentence is always safe to say on its own, so the opening one
- * leaves at any length: "Yes." should be heard while the rest is still being
- * written. A cut on a comma is riskier and needs a few words behind it.
+ * A complete sentence is safe at any length: "Yes." should be heard while the
+ * rest is still being written. A comma is riskier and needs words behind it.
  */
 const FIRST_CLAUSE_MIN = 6;
 const FIRST_CHUNK_MAX = 90;
 
 /**
- * Every fragment after the first waits until it has enough text to carry its
- * own rhythm. A synthesiser given whole sentences sounds far better than one
- * fed three words at a time.
+ * Fragments after the first wait for enough text to carry their own rhythm: a
+ * synthesiser given whole sentences beats one fed three words at a time.
  */
 const CHUNK_MIN = 70;
 

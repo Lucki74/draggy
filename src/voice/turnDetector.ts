@@ -5,16 +5,8 @@ import {
 } from "./constants";
 
 /**
- * Deciding when a person has finished talking.
- *
- * Waiting a fixed amount of silence is the usual approach and it is wrong in
- * both directions at once: it talks over someone who paused to think, and it
- * leaves dead air after someone who clearly finished. What the silence means
- * depends on what was said just before it, so this reads the words.
- *
- * A full semantic endpointing model would be better still. This gets most of
- * the benefit from the last word of the transcript, costs nothing, and needs no
- * download.
+ * Deciding when someone has finished talking. Fixed silence is wrong both ways,
+ * so this reads the last word instead: most of the benefit, and no download.
  */
 
 export type Completeness = "complete" | "unfinished" | "unclear";
@@ -95,9 +87,8 @@ const CONNECTOR: Record<string, string[]> = {
 const TERMINAL = /[.!?。！？…]["'”’)\]]?$/;
 
 /**
- * Nobody trails off into a question mark. These end a turn even when the last
- * word is one that usually means more is coming, which matters for languages
- * that invert the pronoun to ask a question: "Quelle heure est-il ?"
+ * Nobody trails off into a question mark. These end a turn even after a word
+ * that usually means more is coming: "Quelle heure est-il ?"
  */
 const STRONG_TERMINAL = /[!?！？]["'”’)\]]?$/;
 const MID_SENTENCE = /[,;:،、，:-]["'”’)\]]?$/;
@@ -115,9 +106,8 @@ function listFor(table: Record<string, string[]>, language: string): string[] {
 }
 
 /**
- * Reads the tail of a transcript and reports whether the speaker sounds
- * finished. "unclear" means the text gives no signal either way, which is the
- * honest answer for a bare fragment with no punctuation.
+ * Reads the tail of a transcript for whether the speaker sounds finished.
+ * "unclear" is the honest answer for a bare fragment with no punctuation.
  */
 export function judgeCompleteness(
   text: string,

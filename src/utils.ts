@@ -44,15 +44,8 @@ export interface FileProgressEvent {
 }
 
 /**
- * Turns a multi-file download's progress events into one figure for the
- * whole job.
- *
- * transformers.js reports `loaded`/`total` per file, so using them straight
- * off an event measures whichever file is in flight rather than the whole
- * download: a small tokenizer file reaches 100% in an instant, then the
- * figure drops back to 0 the moment the real multi-hundred-megabyte weights
- * file starts. Files are therefore added up by name, the same way Ollama's
- * own per-layer download reports are combined in `createPullTracker`.
+ * One figure for a multi-file download. Per-file counts make a tokenizer hit
+ * 100% then fall back to nought, so files are summed by name instead.
  */
 export function createFileProgressTracker(): (event: FileProgressEvent) => number {
   const files = new Map<string, { loaded: number; total: number }>();
@@ -80,9 +73,8 @@ export function createFileProgressTracker(): (event: FileProgressEvent) => numbe
     }
 
     const measured = total > 0 ? (loaded / total) * 100 : 0;
-    // A newly discovered file makes the job bigger, and going back is then
-    // the honest thing to show. While the job stays the same size the figure
-    // only ever grows.
+    // A newly discovered file makes the job bigger, so going back is honest.
+    // While the job stays the same size the figure only ever grows.
     percent = total === previousTotal ? Math.max(percent, measured) : measured;
     return percent;
   };
@@ -137,12 +129,8 @@ export function siteLabel(hostname: string): string {
 }
 
 /**
- * A stable colour for a site badge.
- *
- * Favicons used to be fetched from Google, which meant every domain the user
- * looked at was announced to Google and, because the content policy blocks the
- * request anyway, produced nothing but a broken image. Deriving a colour from
- * the name keeps the badge recognisable without asking anyone.
+ * A stable colour for a site badge, derived from the name. Fetching favicons
+ * from Google announced every domain the user looked at, and was blocked.
  */
 export function hueFor(text: string): number {
   let hash = 0;
@@ -156,12 +144,8 @@ export function hueFor(text: string): number {
 export const TITLE_LENGTH = 40;
 
 /**
- * Names a chat after the message that started it.
- *
- * Asking a small model to invent a title was tried and removed: it was slow,
- * it sometimes titled a chat with the assistant's refusal rather than the
- * question, and a wrong title is worse than a plain one. An excerpt is always
- * recognisable and never surprising.
+ * Names a chat after the message that started it. Asking a model was slow and
+ * sometimes titled the chat with its own refusal; a wrong title is worse.
  */
 export function titleFromContent(content: string, fallback: string): string {
   const trimmed = content.trim().replace(/\s+/g, " ");

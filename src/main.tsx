@@ -9,11 +9,8 @@ import { safeJsonParse } from "./utils";
 import type { AppSettings } from "./types";
 
 /**
- * The browser toolbar is its own window, and deliberately not the app.
- *
- * Rendering it through `App` would start the chat machinery — the session
- * store, the migration, the updater — inside a window that is forty-eight
- * pixels tall and shows three buttons. It only needs the language.
+ * The browser toolbar is its own window, not the app. Rendering it through
+ * `App` would start the session store and updater for three buttons.
  */
 const isBrowserBar = window.location.search.includes("browserbar=true");
 

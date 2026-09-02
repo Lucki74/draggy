@@ -270,9 +270,8 @@ describe("the context meter", () => {
   });
 });
 /**
- * The lines below are copied from a real `POST /api/pull` against Ollama
- * 0.33.1. Nothing in the stream ever says "downloading", which is what the
- * startup screen used to wait for.
+ * Copied from a real `POST /api/pull` against Ollama 0.33.1. Nothing in the
+ * stream says "downloading", which the startup screen used to wait for.
  */
 const BLOB = "sha256:a3de86cd1c1354b0e7d2ce1e4a1e6f0e0d0c0b0a09080706050403020100ffee";
 const CONFIG = "sha256:966de95ca8a62200913e3f8bfbf84c8494536f1b94b49166851e766445e96639";
@@ -592,9 +591,8 @@ describe("holding a model in memory", () => {
   it("leaves room for the system prompt the turn will carry", async () => {
     stubShow();
 
-    // A conversation that fits the smaller bucket on its own, and does not
-    // once the prompt in front of it is counted. Warming to the smaller one
-    // would hand the turn a window it has to grow, which is a reload.
+    // Fits the smaller bucket alone, but not once the prompt is counted.
+    // Warming to the smaller one hands the turn a window it must grow.
     expect(pickContextSize(8000, 32768)).toBe(4096);
 
     await warmModel(MODEL, "30m", 8000);

@@ -1,11 +1,6 @@
 /**
- * Timings for the spoken conversation loop.
- *
- * The numbers come from published guidance for production voice agents rather
- * than from taste: a turn-taking gap of 200-450 ms reads as natural, a barge-in
- * has to be handled end to end in under 150 ms, and a sustained-voice guard of
- * 200-300 ms is what stops a cough or a keyboard from cutting the assistant off
- * mid-sentence.
+ * Timings for the spoken loop, from published guidance rather than taste: a
+ * 200-450 ms gap reads as natural, a barge-in must land under 150 ms.
  */
 
 export const SAMPLE_RATE = 16000;
@@ -19,9 +14,8 @@ export function framesFor(milliseconds: number): number {
 }
 
 /**
- * Speech probability uses two thresholds instead of one. Rising through
- * SPEECH_ON opens a turn and falling below SPEECH_OFF closes it, so a voice
- * hovering around a single threshold cannot rattle the state machine.
+ * Two thresholds, not one: rising through SPEECH_ON opens a turn and falling
+ * below SPEECH_OFF closes it, so a wavering voice cannot rattle the machine.
  */
 export const SPEECH_ON = 0.5;
 export const SPEECH_OFF = 0.35;
@@ -44,9 +38,8 @@ export const ENDPOINT_BASE_MS = 700;
 export const ENDPOINT_SLOW_MS = 1150;
 
 /**
- * Transcription starts here rather than at the endpoint. If the speaker turns
- * out to have only drawn breath the result is thrown away, and if they really
- * had finished the text is already waiting when the endpoint arrives.
+ * Transcription starts here, not at the endpoint. A drawn breath throws the
+ * result away; a finished sentence is already transcribed when the turn ends.
  */
 export const SPECULATE_AT_MS = 260;
 
@@ -54,9 +47,8 @@ export const SPECULATE_AT_MS = 260;
 export const PARTIAL_INTERVAL_MS = 700;
 
 /**
- * A partial pass is skipped when the previous one took longer than this, so a
- * slow machine falls back to a single pass at the endpoint instead of building
- * a backlog it can never clear.
+ * A partial pass is skipped when the last took longer than this, so a slow
+ * machine falls back to one pass instead of building an unclearable backlog.
  */
 export const PARTIAL_BUDGET_MS = 1400;
 
@@ -65,9 +57,8 @@ export const BARGE_IN_MS = 240;
 export const BARGE_IN_PROB = 0.6;
 
 /**
- * While the assistant is speaking, the microphone still hears it through echo
- * cancellation residue. Requiring a higher probability during output keeps the
- * assistant from interrupting itself.
+ * The microphone still hears the assistant through echo-cancellation residue,
+ * so a higher probability during output keeps it from interrupting itself.
  */
 export const OUTPUT_PROB_BONUS = 0.15;
 
@@ -81,13 +72,8 @@ export const VOICE_CONTEXT = 4096;
 export const VOICE_NUM_PREDICT = 200;
 
 /**
- * Sampling for speech rather than for prose.
- *
- * A spoken answer is two sentences long, so there is no room for a model to
- * wander back to the point; slightly tighter sampling than the chat default
- * keeps the first sentence on target. The repeat penalty matters more here than
- * it does in writing, because a small model that loops a clause produces audio
- * the user has to sit through rather than a paragraph they can skim past.
+ * Sampling for speech, not prose. Two sentences leave no room to wander back,
+ * and a looped clause is audio to sit through rather than text to skim.
  */
 export const VOICE_TEMPERATURE = 0.6;
 export const VOICE_TOP_P = 0.9;

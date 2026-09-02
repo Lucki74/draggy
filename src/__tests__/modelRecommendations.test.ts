@@ -9,9 +9,8 @@ const smallest = ladder[0];
 
 describe("sizing the first-launch model to the card", () => {
   it("gives a machine with no usable graphics memory the smallest model", () => {
-    // The fallback used to name a model of its own, a 0.6B one — twice the size
-    // of the 360M at the bottom of the ladder, handed to the machine least able
-    // to run it.
+    // The fallback used to name a 0.6B model, twice the size of the 360M at
+    // the bottom, handed to the machine least able to run it.
     expect(getRecommendedModel(0)).toBe(smallest.model);
   });
 

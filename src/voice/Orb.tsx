@@ -2,17 +2,8 @@ import { useEffect, useRef } from "react";
 import type { Activity } from "./conversation";
 
 /**
- * The thing you look at while you talk.
- *
- * One filled circle, one colour, no gradient and no glow: dark on a light
- * theme, white on a dark one. Everything it has to say it says with size and
- * with a single stroked arc, because a shape that only changes size stays
- * legible at a glance from across a room, which is how voice mode is used.
- *
- * The microphone level arrives about thirty times a second, far too often to
- * put through React. It is pulled from the conversation inside an animation
- * frame and written straight to the DOM, so the orb tracks a voice closely
- * while the transcript underneath it stays still.
+ * The thing you look at while you talk: one circle, speaking through size, so
+ * it reads across a room. Level is written to the DOM, not through React.
  */
 
 interface OrbProps {

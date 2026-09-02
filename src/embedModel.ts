@@ -1,21 +1,6 @@
 /**
- * Choosing the model that turns a file into vectors.
- *
- * Indexing has a latency budget a chat model does not: a folder of a few
- * hundred files has to finish in a reasonable sitting, and no single file
- * should make someone wonder if the app has hung. Ten seconds for the
- * largest file this app will chunk (400 passages, batched sixteen at a
- * time — see `MAX_CHUNKS_PER_FILE` and `EMBED_BATCH` in
- * `electron/library.cjs`) is the target every rung below is picked to meet.
- *
- * That budget is also why this ladder can climb further per gigabyte of
- * VRAM than `voice/talkModel.ts`'s does. A chat reply pays for every
- * parameter on every generated token; a passage is a single forward pass
- * through the encoder, so a bigger embedding model costs one pass, not one
- * pass per word out.
- *
- * Every rung is a real, fetchable Ollama tag, sized against what it
- * actually downloads today rather than a raw parameter count.
+ * The model that turns a file into vectors. Every rung is picked to index the
+ * largest chunkable file in ten seconds; a passage is one forward pass.
  */
 
 export interface EmbedTier {
@@ -29,9 +14,8 @@ export interface EmbedTier {
 }
 
 export const EMBED_TIERS: readonly EmbedTier[] = [
-  // The floor is for machines with no usable graphics memory at all, where
-  // embedding runs on the processor and every extra parameter is paid for
-  // in wall-clock time.
+  // The floor is for machines with no usable graphics memory, where every
+  // extra parameter is paid for in wall-clock time on the processor.
   { vram: 0, model: "all-minilm", label: "All-MiniLM", params: "33M", downloadGB: 0.05 },
   { vram: 2, model: "nomic-embed-text", label: "Nomic Embed Text", params: "137M", downloadGB: 0.27 },
   { vram: 4, model: "mxbai-embed-large", label: "MxBai Embed Large", params: "335M", downloadGB: 0.65 },
@@ -52,11 +36,8 @@ export function tierOfEmbed(model: string): EmbedTier | null {
 }
 
 /**
- * Whether something already on disk counts as the model we wanted.
- *
- * Ollama names a re-quantised build "qwen3-embedding:0.6b-q8_0", which is
- * the same model to anyone indexing with it. Treating that as a miss would
- * download a second copy of weights already on the machine.
+ * Whether something on disk counts as the model wanted. A re-quantised build
+ * is the same model here, and treating it as a miss re-downloads the weights.
  */
 function installedMatch(wanted: string, installed: readonly string[]): string | null {
   const target = wanted.trim().toLowerCase();
@@ -94,12 +75,8 @@ export interface EmbedPlanInput {
 }
 
 /**
- * What indexing will run with, and what it has to fetch first.
- *
- * A pinned model that is no longer installed quietly reverts to automatic
- * rather than sending the user to a download they never asked for: they
- * chose from a list of what they had, and removing it is not a request to
- * get it back.
+ * What indexing runs with, and what it must fetch. A pinned model that is gone
+ * reverts to automatic: removing it was not a request to download it again.
  */
 export function planEmbedModel(input: EmbedPlanInput): EmbedPlan {
   const pinned = input.override?.trim() ?? "";

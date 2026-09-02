@@ -11,6 +11,9 @@ export default defineConfig({
       // anything a coverage number here would mean.
       include: [
         "src/agent/*.ts",
+        "src/chat/attachments.ts",
+        "src/chat/slashCommands.ts",
+        "src/tools/mcp.ts",
         "src/embedModel.ts",
         "src/fileList.ts",
         "src/greetings.ts",
@@ -25,6 +28,10 @@ export default defineConfig({
         "src/vram.ts",
         "electron/documents.cjs",
         "electron/favicon.cjs",
+        "electron/markdownHtml.cjs",
+        "electron/mcp.cjs",
+        "electron/mcpCatalogue.cjs",
+        "electron/urlPolicy.cjs",
         "electron/library.cjs",
         "electron/search.cjs",
         "electron/storage.cjs",

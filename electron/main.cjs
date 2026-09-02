@@ -28,6 +28,10 @@ const runner = require("./runner.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
+const urlPolicy = require("./urlPolicy.cjs");
+const mcp = require("./mcp.cjs");
+const mcpCatalogue = require("./mcpCatalogue.cjs");
+const pdfWriter = require("./pdfWriter.cjs");
 
 const OLLAMA_HOST = "127.0.0.1:11434";
 const MODEL_CACHE_ORIGIN = "https://huggingface.co";
@@ -36,20 +40,14 @@ const MODEL_CACHE_ORIGIN = "https://huggingface.co";
 const APP_NAME = "Draggy";
 
 /**
- * Names it answered to before. The data folder is named after the app, so a
- * rename points a returning user at a folder that does not exist yet, which
- * from where they are sitting is indistinguishable from having lost the lot.
- * Both spellings are tried because only the case-sensitive platforms care and
- * an extra `existsSync` costs nothing.
+ * Names it answered to before. Both spellings are tried because only the
+ * case-sensitive platforms care and an extra `existsSync` costs nothing.
  */
 const LEGACY_APP_NAMES = ["localai", "LocalAI"];
 
 /**
- * Takes over the old folder, once, on the first run under the new name.
- *
- * Runs before the logger and the database, both of which create files in the
- * new folder, and anything already there is left where it is. Returns what
- * happened, for the log to pick up as soon as there is one.
+ * Takes over the old folder once, before the logger and database create files
+ * in the new one. Returns what happened, for the log to pick up later.
  */
 function adoptLegacyDataFolder() {
   const parent = app.getPath("appData");
@@ -265,17 +263,8 @@ function cleanUserAgent(webContents) {
 }
 
 /**
- * The session every external page loads in, whoever opened it.
- *
- * Keeping the web off `defaultSession` is what stops the app's own Content
- * Security Policy — `default-src 'self'`, `frame-src 'none'`, `form-action
- * 'none'` — being forced onto other people's sites, which blocked their
- * scripts, styles, video and forms and left the browser showing wreckage.
- * That policy is right for the renderer and wrong for everything else.
- *
- * The user's browsing and the model's page reads deliberately share it. A
- * challenge the user clears in the visible window leaves its cookie here, so
- * the model's next read of that site is simply allowed through.
+ * The session every external page loads in. Off `defaultSession` so our own CSP
+ * is not forced onto other people's sites, which left the browser in wreckage.
  */
 const WEB_PARTITION = "persist:draggy-web";
 
@@ -298,10 +287,8 @@ function getWebSession() {
 }
 
 /**
- * Whether the ad blocker is on, for every web session at once.
- *
- * Persisted through the same store the renderer uses, so the choice survives
- * a restart, and read back by the browser window's toolbar.
+ * Whether the ad blocker is on, for every web session at once. Persisted in the
+ * renderer's store so the choice survives a restart.
  */
 const ADBLOCK_KEY = "adblockEnabled";
 
@@ -356,26 +343,14 @@ function isBotChallengePage(state) {
 }
 
 /**
- * The browser the user gets when they click a link.
- *
- * Two views rather than one window: a toolbar drawn by the renderer, so it is
- * the app's own typeface and colours rather than an operating system chrome,
- * and the page underneath in the shared web session. The toolbar stays on
- * `defaultSession` because it is our page and wants the app's protocol and
- * policy; the page below deliberately does not.
+ * The browser the user gets on a link. Two views: our toolbar on
+ * `defaultSession`, and the page below in the shared web session.
  */
 const TOOLBAR_HEIGHT = 48;
 
 /**
- * How far the toolbar view grows to hold an open menu.
- *
- * The toolbar and the page are separate views, and a view clips whatever it
- * draws to its own bounds — so a menu hanging below a 48px bar is simply cut
- * off, and the page, being a sibling, covers what is left. While a menu is
- * open the bar is given enough room to draw it and sits above the page; the
- * part of that region the menu does not use is transparent, and a click
- * anywhere in it closes the menu, which is what a click outside a menu
- * should do anyway.
+ * How far the toolbar grows for an open menu. A view clips to its own bounds,
+ * so a menu below a 48px bar is cut off and the page covers what is left.
  */
 const TOOLBAR_MENU_HEIGHT = 260;
 
@@ -383,6 +358,13 @@ const TOOLBAR_MENU_HEIGHT = 260;
 const browserWindows = new Set();
 
 function openInAppBrowser(url) {
+  // Reached from `setWindowOpenHandler` and `will-navigate`, so the string can
+  // come from a page rather than from the person using the app.
+  if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
+    log.warn("browser", `refused to open ${String(url).slice(0, 120)}`);
+    return null;
+  }
+
   const win = new BaseWindow({
     width: 1200,
     height: 820,
@@ -560,15 +542,17 @@ ipcMain.handle("browser-bar-action", (event, action, value) => {
 });
 
 /**
- * What the user typed in the address bar.
- *
- * Anything that is not obviously a URL is a search, the same as every other
- * browser: "how tall is everest" should not become a failed DNS lookup.
+ * What the user typed in the address bar. Anything not obviously a URL is a
+ * search: "how tall is everest" should not become a failed DNS lookup.
  */
 function normaliseTypedUrl(raw) {
   const value = raw.trim();
   if (!value) return null;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return value;
+  // A typed `http://localhost:3000` is someone's own dev server and should
+  // work; a typed `file://` falls through to a search rather than loading.
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+    return urlPolicy.isFetchableUrl(value, { allowPrivate: true }) ? value : null;
+  }
   if (/^[^\s/]+\.[^\s/]{2,}(\/|$|\?)/.test(value)) return `https://${value}`;
   return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`;
 }
@@ -788,6 +772,9 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   updater.dispose();
+  // Spawned servers are children of this process and would otherwise be left
+  // running after the window is gone.
+  mcp.stopAll();
   storage.close();
   library.close();
 });
@@ -965,6 +952,11 @@ ipcMain.handle("search-web-detailed", async (event, query) =>
 );
 
 ipcMain.handle("get-page-content", async (event, url) => {
+  if (!urlPolicy.isFetchableUrl(url)) {
+    log.warn("read-url", `refused ${String(url).slice(0, 120)}`);
+    return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(url), url };
+  }
+
   const win = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -984,9 +976,8 @@ ipcMain.handle("get-page-content", async (event, url) => {
     for (let i = 0; i < 6; i++) {
       const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
 
-      // A challenge is not something to wait out or work around. Saying so
-      // immediately gives the model something true to tell the user, and
-      // saves the twelve seconds the old retry loop spent getting nowhere.
+      // A challenge is not something to wait out. Saying so at once gives the
+      // model something true to say, and saves twelve seconds of retrying.
       if (isBotChallengePage(state)) {
         win.destroy();
         return {
@@ -1061,6 +1052,11 @@ function getBrowserSession() {
 }
 
 ipcMain.handle("browser-navigate", async (event, url) => {
+  if (!urlPolicy.isFetchableUrl(url)) {
+    log.warn("browser", `refused navigation to ${String(url).slice(0, 120)}`);
+    return { success: false, refused: true, error: urlPolicy.refusalFor(url) };
+  }
+
   const win = getBrowserSession();
 
   try {
@@ -1633,7 +1629,13 @@ ipcMain.handle("create-file", async (event, filename, content) => {
       return { success: false, error: "Refused to write outside the output folder." };
     }
 
-    await documents.writeGeneratedFile(filepath, String(content ?? ""));
+    // PDFs are laid out by Chromium, so they skip `documents`, which is kept
+    // free of Electron so it can be tested in plain Node.
+    if (path.extname(safeFilename).toLowerCase() === ".pdf") {
+      await pdfWriter.writePdf(filepath, String(content ?? ""));
+    } else {
+      await documents.writeGeneratedFile(filepath, String(content ?? ""));
+    }
 
     log.info("create-file", `wrote ${safeFilename}`);
     return { success: true, filepath, filename: safeFilename };
@@ -1827,8 +1829,13 @@ ipcMain.handle("library:remove", wrap("library", async (event, id) =>
 
 ipcMain.handle("library:clear", wrap("library", async () => library.clear()));
 
-ipcMain.handle("library:search", wrap("library", async (event, query, limit, model) =>
-  library.search(query, limit, String(model || library.meta("embed_model", library.DEFAULT_EMBED_MODEL))),
+ipcMain.handle("library:search", wrap("library", async (event, query, limit, model, options) =>
+  library.search(
+    query,
+    limit,
+    String(model || library.meta("embed_model", library.DEFAULT_EMBED_MODEL)),
+    options || {},
+  ),
 ));
 
 ipcMain.handle("runner:probe", wrap("runner", async () => ({
@@ -1861,6 +1868,97 @@ ipcMain.handle("app:version", () => ({
   platform: process.platform,
   arch: os.arch(),
   packaged: app.isPackaged,
+}));
+
+
+/**
+ * MCP servers, configured per server in the usual store. Credentials go there
+ * too: the same local SQLite file, and the same protection the chats get.
+ */
+const MCP_CONFIG_KEY = "mcpServers";
+
+function mcpConfig() {
+  try {
+    const raw = storage.getValue(MCP_CONFIG_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMcpConfig(config) {
+  storage.setValue(MCP_CONFIG_KEY, JSON.stringify(config));
+}
+
+ipcMain.handle("mcp:catalogue", () => ({
+  success: true,
+  categories: mcpCatalogue.categories(),
+  servers: mcpCatalogue.listCatalogue(),
+}));
+
+ipcMain.handle("mcp:config", () => ({ success: true, config: mcpConfig() }));
+
+ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
+  const config = mcpConfig();
+
+  if (!mcpCatalogue.findEntry(String(id))) {
+    return { success: false, error: `There is no server called "${id}".` };
+  }
+
+  config[String(id)] = {
+    enabled: Boolean(entry?.enabled),
+    env: entry?.env && typeof entry.env === "object" ? entry.env : {},
+    arguments:
+      entry?.arguments && typeof entry.arguments === "object" ? entry.arguments : {},
+  };
+
+  saveMcpConfig(config);
+  return { success: true };
+}));
+
+ipcMain.handle("mcp:forget", wrap("mcp", async (event, id) => {
+  const config = mcpConfig();
+  delete config[String(id)];
+  saveMcpConfig(config);
+  mcp.stopServer(String(id));
+  return { success: true };
+}));
+
+ipcMain.handle("mcp:start", wrap("mcp", async (event, id) => {
+  const config = mcpConfig();
+  const state = await mcp.startServer(String(id), config[String(id)] || {});
+  broadcast("mcp-state", { servers: mcp.listRunning() });
+  return { success: state.status === "ready", state };
+}));
+
+ipcMain.handle("mcp:stop", wrap("mcp", async (event, id) => {
+  const result = mcp.stopServer(String(id));
+  broadcast("mcp-state", { servers: mcp.listRunning() });
+  return result;
+}));
+
+ipcMain.handle("mcp:running", () => ({ success: true, servers: mcp.listRunning() }));
+
+ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) =>
+  mcp.callTool(String(serverId), String(toolName), args || {}),
+));
+
+/**
+ * Starts what the user switched on, once the window is up. A ten-second npx
+ * install should not hold the splash screen, and no tool is needed yet.
+ */
+ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
+  const config = mcpConfig();
+  const states = [];
+
+  for (const [id, entry] of Object.entries(config)) {
+    if (!entry?.enabled) continue;
+    states.push(await mcp.startServer(id, entry));
+  }
+
+  broadcast("mcp-state", { servers: mcp.listRunning() });
+  return { success: true, servers: states };
 }));
 
 ipcMain.handle("logs:open", async () => shell.openPath(logger.logFolder()));

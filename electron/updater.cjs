@@ -1,18 +1,8 @@
 const { log } = require("./logger.cjs");
 
 /**
- * Keeping the app up to date.
- *
- * With automatic updates on this behaves the way a desktop app is expected to:
- * it looks for a new version shortly after launch and every few hours after
- * that, downloads what it finds in the background, and installs it the next
- * time the app is quit. With them off nothing happens unless the user presses a
- * button in settings.
- *
- * The first check is deliberately late. Launching already competes for the
- * network with an Ollama model download and the speech models, and an update
- * that arrives twenty seconds later is no worse to the user than one that
- * arrives immediately.
+ * Checks after launch and every few hours, downloads in the background, installs
+ * on quit. The first check is late: launch already competes for the network.
  */
 
 /** How long after launch the first check runs. */

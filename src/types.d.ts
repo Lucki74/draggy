@@ -177,10 +177,8 @@ export interface SearchStep {
   type:
     | "thinking"
     /**
-     * Ordinary prose the model wrote between two tool calls. It lives in the
-     * step list rather than in the message body so that it stays where it was
-     * written, instead of being collected up and dumped after all the tool
-     * activity.
+     * Prose written between two tool calls. In the step list so it stays where
+     * it was written, rather than collected up after the tool activity.
      */
     | "text"
     | "searching"
@@ -246,6 +244,67 @@ export interface Message {
   metrics?: TurnMetrics | null;
 }
 
+/**
+ * The older conversation, folded into notes. `throughIndex` is exclusive, and
+ * this describes what goes on the wire, not what the conversation is.
+ */
+export interface CompactionState {
+  throughIndex: number;
+  summary: string;
+  updatedAt: number;
+}
+
+
+/** One field a server needs before it will run. */
+export interface McpRequirement {
+  key: string;
+  label: string;
+  secret?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  multiple?: boolean;
+}
+
+export interface McpCatalogueEntry {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  package: string;
+  args: string[];
+  arguments?: McpRequirement[];
+  env: McpRequirement[];
+  /** Shown next to the switch when a server can do something irreversible. */
+  caution?: string;
+}
+
+export interface McpServerConfig {
+  enabled: boolean;
+  env: Record<string, string>;
+  arguments: Record<string, string | string[]>;
+}
+
+export interface McpToolDescription {
+  name: string;
+  qualifiedName: string;
+  description: string;
+  inputSchema: {
+    type?: string;
+    properties?: Record<
+      string,
+      { type?: string; description?: string; enum?: unknown[] }
+    >;
+    required?: string[];
+  };
+}
+
+export interface McpServerState {
+  id: string;
+  status: string;
+  error: string | null;
+  tools: McpToolDescription[];
+}
+
 export interface ChatSession {
   id: string;
   title: string;
@@ -253,6 +312,7 @@ export interface ChatSession {
   updatedAt: number;
   isGenerating: boolean;
   isOutOfContext?: boolean;
+  compaction?: CompactionState | null;
 }
 
 export type SearchProvider =
@@ -306,9 +366,8 @@ declare global {
         provider: string | null;
         tried: string[];
         /**
-         * "empty" means the web was asked and had nothing. "unavailable" means
-         * no provider would answer, which is temporary and says nothing about
-         * the subject.
+         * "empty" means the web had nothing; "unavailable" means no provider
+         * answered, which is temporary and says nothing about the subject.
          */
         status: "ok" | "empty" | "unavailable";
         cached?: boolean;
@@ -322,7 +381,9 @@ declare global {
         title: string;
         text: string;
         /** Set when the page could not be read rather than had no content. */
-        blocked?: "human-verification";
+        blocked?: "human-verification" | "refused";
+        /** Why a refused address was refused, worded for the model. */
+        reason?: string;
         url?: string;
       }>;
 
@@ -332,6 +393,8 @@ declare global {
         url?: string;
         /** Set when a bot check stopped the page, as `readUrl` reports it. */
         blocked?: "human-verification";
+        /** Set when the address was outside what the tools may fetch. */
+        refused?: boolean;
         error?: string;
       }>;
       browserGetElements: () => Promise<{
@@ -408,10 +471,15 @@ declare global {
           query: string,
           limit?: number,
           model?: string,
+          options?: { source?: string },
         ) => Promise<{
           success: boolean;
           results?: LibraryHit[];
           empty?: boolean;
+          /** Set when a named folder matched no source, or matched several. */
+          unknownSource?: boolean;
+          /** The folders actually indexed, so the model can name a real one. */
+          sources?: string[];
           error?: string;
         }>;
         onProgress: (callback: (progress: LibraryProgress) => void) => void;
@@ -451,6 +519,34 @@ declare global {
           enabled: boolean,
         ) => Promise<{ success: boolean; enabled: boolean }>;
         onState: (callback: (state: BrowserBarState) => void) => void;
+        offState: () => void;
+      };
+
+
+      mcp: {
+        catalogue: () => Promise<{
+          success: boolean;
+          categories: { id: string; label: string }[];
+          servers: McpCatalogueEntry[];
+        }>;
+        config: () => Promise<{ success: boolean; config: Record<string, McpServerConfig> }>;
+        save: (
+          id: string,
+          entry: McpServerConfig,
+        ) => Promise<{ success: boolean; error?: string }>;
+        forget: (id: string) => Promise<{ success: boolean }>;
+        start: (
+          id: string,
+        ) => Promise<{ success: boolean; state: McpServerState; error?: string }>;
+        stop: (id: string) => Promise<{ success: boolean }>;
+        running: () => Promise<{ success: boolean; servers: McpServerState[] }>;
+        startEnabled: () => Promise<{ success: boolean; servers: McpServerState[] }>;
+        call: (
+          serverId: string,
+          toolName: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ success: boolean; text?: string; error?: string }>;
+        onState: (callback: (state: { servers: McpServerState[] }) => void) => void;
         offState: () => void;
       };
 

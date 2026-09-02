@@ -23,11 +23,14 @@ reason before it replies; Fast turns reasoning off outright rather than asking
 for less of it, which on a small model is the difference between a one-word
 question costing one second and costing eight.
 
-**Use tools, when they help.** Draggy can search the web, read a page, drive a
-real browser session (navigate, click, fill inputs, read the result back), write
-Word, PowerPoint, Excel, code and text files for you, and run short Python or
-JavaScript programs to check its own work. Code runs in a scratch directory with
-no network access and gets killed after twenty seconds.
+**Use tools, when they help.** Draggy can search the web, read a page, and
+drive a real browser session — navigate, click, fill inputs, read the result
+back. It writes Word, PowerPoint, Excel, PDF, code and plain text files, and
+reads those same formats back when you attach one. PDFs are typeset through the
+browser engine the app already ships, so a document comes out with real
+headings, tables and page numbers rather than a wall of text. It also runs short
+Python and JavaScript programs to check its own work, in a scratch directory
+with no network access, killed after twenty seconds.
 
 **Browse, with the ads gone.** Links open in a browser window inside the app,
 with back, forward, reload and an address bar. Ad and tracker blocking runs on
@@ -35,10 +38,20 @@ uBlock Origin's engine and its filter lists, and there is a switch in the
 toolbar to turn it off for a site that needs it.
 
 **Search your own documents.** Point it at a folder and it indexes the contents
-locally with an embedding model — sized to your VRAM the same way the chat model
-is, or pick one yourself — then searches those passages before it searches the
-web. Useful for contracts, notes, a codebase, anything you would rather not
-upload somewhere.
+locally — PDFs, Word, PowerPoint, Excel, Markdown, source code and plain text —
+with an embedding model sized to your VRAM the same way the chat model is, or
+one you pick yourself. Questions about your own material are searched there
+before the web. Search runs on meaning and on keywords at once and fuses the
+two, so a paraphrase and an exact part number both find the right passage.
+Useful for contracts, notes, a codebase, anything you would rather not upload
+somewhere.
+
+**Extend it, if you want to.** Draggy speaks the Model Context Protocol, so it
+can borrow tools from servers other people wrote — GitHub, Slack, Notion,
+Postgres, Playwright, a folder on disk, thirty-nine of them in a catalogue in
+Settings. Nothing is on by default: an extension is a program that runs on your
+machine with the credentials you give it, which is a real decision, so you make
+it one server at a time.
 
 **Talk to it.** Voice mode listens continuously, works out when you have
 actually finished a sentence rather than just paused for breath, and answers out
@@ -97,9 +110,9 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 690
-tests and they run in under two seconds, so there is no excuse for skipping
-them.
+which is typecheck, lint and the test suite in one go. There are around 920
+tests and they run in under two seconds. CI runs the same command on every push
+and pull request, but it is faster to find out before you push.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) if you are thinking of sending a patch,
 and [RELEASING.md](RELEASING.md) for how versions are tagged and published.
@@ -108,9 +121,11 @@ and [RELEASING.md](RELEASING.md) for how versions are tagged and published.
 
 ```
 electron/     main process: windows, IPC, SQLite, search, the embedded
-              browser, code execution, updates
+              browser, code execution, MCP servers, updates
 src/          the React app
-src/agent/    the streaming tool-calling loop
+src/agent/    the streaming tool-calling loop, and conversation compaction
+src/chat/     the message list and the rules for what can be attached
+src/settings/ the settings panels
 src/tools/    tool definitions and the registry they live in
 src/voice/    capture, voice activity detection, turn-taking, speech
 src/__tests__ everything that can be tested without a GPU
@@ -142,8 +157,9 @@ The only things that reach the internet are: downloading models from Ollama,
 web searches you or the model trigger, pages the browser tool opens, the speech
 models the first time voice mode runs, the ad blocker's filter lists (fetched
 once and cached on disk), the icon of each site that appears in a search result
-— asked of that site directly, never of a third-party favicon service — and the
-update check. Everything else is local. There is no telemetry and nowhere for
+— asked of that site directly, never of a third-party favicon service — the
+update check, and any MCP extension you switch on, which fetches its package
+from npm and then talks to whatever service it is for. Everything else is local. There is no telemetry and nowhere for
 it to go.
 
 Web search defaults to automatic: your own SearXNG instance if you have set one
@@ -169,6 +185,13 @@ themselves.
 
 Tool calling quality varies a lot by model. Anything under about 4B parameters
 will describe a tool call instead of making one often enough to be annoying.
+
+A long conversation is folded down as it goes: once it approaches the size of
+the context window, the older half is condensed into notes and a line appears
+in the transcript saying so. The messages themselves are never touched — they
+stay on screen and stay searchable — but the model is working from a summary of
+them from that point on. The fold happens while you are reading the last reply,
+never while you are waiting for the next one.
 
 ## License
 

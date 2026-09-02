@@ -234,7 +234,9 @@ describe("XML entity decoding", () => {
 
 describe("routing by extension", () => {
   it("rejects an unsupported document type", async () => {
-    await expect(documents.extractText("a.pdf", Buffer.alloc(0))).rejects.toThrow(
+    // .pdf used to stand in for "unsupported" here. It is read now, so the
+    // example has to be a format that genuinely is not.
+    await expect(documents.extractText("a.odt", Buffer.alloc(0))).rejects.toThrow(
       /Unsupported/,
     );
   });

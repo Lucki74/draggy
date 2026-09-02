@@ -2,12 +2,8 @@ import { DUCK_GAIN } from "./voiceEngine";
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
 /**
- * Playback side of the neural voice.
- *
- * Fragments are generated one at a time and scheduled back to back on the audio
- * clock, so the next one is being synthesised while the current one is still
- * playing and the seam between them is sample-accurate rather than whenever a
- * timer happened to fire.
+ * Playback for the neural voice. Fragments are scheduled back to back on the
+ * audio clock, so each seam is sample-accurate rather than timer-accurate.
  */
 
 const ORT_ASSET_DIR = "ort/";

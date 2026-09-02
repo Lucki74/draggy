@@ -2,12 +2,8 @@
 import * as ort from "onnxruntime-web";
 
 /**
- * Silero VAD, off the main thread.
- *
- * Energy thresholds cannot tell a voice from a fan, a keyboard, or music
- * playing in the next room, which is why the old detector both missed quiet
- * speech and answered the room. This is a 2 MB neural classifier that returns
- * the probability a 32 ms frame contains speech.
+ * Silero VAD off the main thread: a 2 MB classifier scoring each 32 ms frame.
+ * Energy thresholds missed quiet speech and answered the room instead.
  */
 
 const FRAME = 512;

@@ -4,7 +4,16 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const library = require("./library.cjs");
 
-const { chunkText, normalise, rankChunks, toBlob, fromBlob, CHUNK_TARGET_CHARS } =
+const {
+  chunkText,
+  normalise,
+  rankChunks,
+  fuse,
+  toSearchQuery,
+  toBlob,
+  fromBlob,
+  CHUNK_TARGET_CHARS,
+} =
   library;
 
 const paragraph = (word, times) => Array.from({ length: times }, () => word).join(" ");
@@ -237,11 +246,22 @@ describe("storing vectors as SQLite blobs", () => {
 });
 
 describe("ranking retrieved passages", () => {
-  const entries = [
-    { id: 1, heading: "Payment", text: "Invoices are payable within forty-five days.", path: "/docs/contract.md" },
-    { id: 2, heading: "Method", text: "Bake at two hundred and thirty degrees.", path: "/docs/recipe.md" },
-    { id: 3, heading: "Term", text: "The renewal date is 3 September 2026.", path: "/docs/contract.md" },
-  ];
+  /**
+   * The shape the index holds: vectors end to end in one buffer, ids alongside.
+   * Passage text is not in it, and is fetched for the few being returned.
+   */
+  function matrix(vectors, ids, sources = null) {
+    const dim = vectors[0].length;
+    const data = new Float32Array(vectors.length * dim);
+    vectors.forEach((vector, index) => data.set(vector, index * dim));
+
+    return {
+      ids,
+      sources: sources ?? ids.map(() => 1),
+      data,
+      dim,
+    };
+  }
 
   const vectors = [
     normalise(Float32Array.from([1, 0, 0])),
@@ -249,9 +269,11 @@ describe("ranking retrieved passages", () => {
     normalise(Float32Array.from([0.9, 0, 0.1])),
   ];
 
+  const index = matrix(vectors, [1, 2, 3]);
+
   it("puts the closest passage first", () => {
     const query = normalise(Float32Array.from([1, 0, 0]));
-    const ranked = rankChunks(query, vectors, entries, 3);
+    const ranked = rankChunks(query, index, 3);
 
     expect(ranked[0].id).toBe(1);
     expect(ranked[1].id).toBe(3);
@@ -260,7 +282,7 @@ describe("ranking retrieved passages", () => {
 
   it("returns scores in descending order", () => {
     const query = normalise(Float32Array.from([0.5, 0.5, 0]));
-    const ranked = rankChunks(query, vectors, entries, 3);
+    const ranked = rankChunks(query, index, 3);
 
     for (let i = 1; i < ranked.length; i++) {
       expect(ranked[i - 1].score).toBeGreaterThanOrEqual(ranked[i].score);
@@ -269,55 +291,124 @@ describe("ranking retrieved passages", () => {
 
   it("honours the requested limit", () => {
     const query = normalise(Float32Array.from([1, 0, 0]));
-    expect(rankChunks(query, vectors, entries, 2)).toHaveLength(2);
+    expect(rankChunks(query, index, 2)).toHaveLength(2);
   });
 
-  it("treats a missing or zero limit as the default", () => {
+  it("treats a missing or zero limit as the full candidate depth", () => {
     const query = normalise(Float32Array.from([1, 0, 0]));
 
-    expect(rankChunks(query, vectors, entries, 0)).toHaveLength(3);
-    expect(rankChunks(query, vectors, entries, undefined)).toHaveLength(3);
-  });
-
-  it("never returns more than twenty passages", () => {
-    const query = normalise(Float32Array.from([1, 0, 0]));
-
-    const manyEntries = Array.from({ length: 50 }, (_, i) => ({
-      id: i,
-      heading: "",
-      text: `passage ${i}`,
-      path: `/docs/file${i}.md`,
-    }));
-    const manyVectors = manyEntries.map(() =>
-      normalise(Float32Array.from([Math.random(), Math.random(), Math.random()])),
-    );
-
-    expect(rankChunks(query, manyVectors, manyEntries, 999)).toHaveLength(20);
+    expect(rankChunks(query, index, 0)).toHaveLength(3);
+    expect(rankChunks(query, index, undefined)).toHaveLength(3);
   });
 
   it("guards against a negative limit", () => {
     const query = normalise(Float32Array.from([1, 0, 0]));
-    expect(rankChunks(query, vectors, entries, -5).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("attaches the file name so the model can cite a source", () => {
-    const query = normalise(Float32Array.from([0, 1, 0]));
-    expect(rankChunks(query, vectors, entries, 1)[0].name).toBe("recipe.md");
-  });
-
-  it("keeps the heading and body text on each hit", () => {
-    const query = normalise(Float32Array.from([1, 0, 0]));
-    const [top] = rankChunks(query, vectors, entries, 1);
-
-    expect(top.heading).toBe("Payment");
-    expect(top.text).toContain("forty-five days");
+    expect(rankChunks(query, index, -5).length).toBeGreaterThanOrEqual(1);
   });
 
   it("finds the right passage for a realistic query direction", () => {
-    const bakingQuery = normalise(Float32Array.from([0.05, 0.99, 0]));
-    expect(rankChunks(bakingQuery, vectors, entries, 1)[0].name).toBe("recipe.md");
+    const baking = normalise(Float32Array.from([0.05, 0.99, 0]));
+    expect(rankChunks(baking, index, 1)[0].id).toBe(2);
 
-    const contractQuery = normalise(Float32Array.from([0.95, 0.05, 0.1]));
-    expect(rankChunks(contractQuery, vectors, entries, 1)[0].name).toBe("contract.md");
+    // Ids 1 and 3 are two passages of the same contract, either of which is a
+    // right answer here; id 2 is the recipe and is not.
+    const contract = normalise(Float32Array.from([0.95, 0.05, 0.1]));
+    expect([1, 3]).toContain(rankChunks(contract, index, 1)[0].id);
+  });
+
+  it("searches one folder when asked to", () => {
+    const scoped = matrix(vectors, [1, 2, 3], [7, 9, 7]);
+    const query = normalise(Float32Array.from([1, 0, 0]));
+
+    const ranked = rankChunks(query, scoped, 10, 9);
+    expect(ranked.map((hit) => hit.id)).toEqual([2]);
+  });
+
+  it("returns nothing for an empty index", () => {
+    const query = normalise(Float32Array.from([1, 0, 0]));
+    expect(rankChunks(query, { ids: [], sources: [], data: new Float32Array(0), dim: 0 }, 5))
+      .toEqual([]);
+  });
+});
+
+describe("turning a typed question into an FTS5 query", () => {
+  it("quotes each word and joins them with OR", () => {
+    expect(toSearchQuery("payment terms")).toBe('"payment" OR "terms"');
+  });
+
+  it("survives punctuation that would otherwise be FTS5 syntax", () => {
+    // Each of these is a syntax error if passed through unaltered.
+    expect(() => toSearchQuery('what about "quotes" and NEAR and -minus?')).not.toThrow();
+    expect(toSearchQuery('"quoted"')).toBe('"quoted"');
+    expect(toSearchQuery("a - b")).toBe(null);
+  });
+
+  it("keeps identifiers a vector search would miss", () => {
+    expect(toSearchQuery("error ENOENT in build_step_2")).toContain('"enoent"');
+    expect(toSearchQuery("error ENOENT in build_step_2")).toContain('"build_step_2"');
+  });
+
+  it("handles languages that are not English", () => {
+    expect(toSearchQuery("échéance du contrat")).toContain('"échéance"');
+    expect(toSearchQuery("契約 の 期限")).toContain('"契約"');
+  });
+
+  it("returns nothing to search for when there are no usable words", () => {
+    expect(toSearchQuery("")).toBe(null);
+    expect(toSearchQuery("   ")).toBe(null);
+    expect(toSearchQuery("? ! -")).toBe(null);
+  });
+
+  it("caps a very long question", () => {
+    const many = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    expect(toSearchQuery(many).split(" OR ")).toHaveLength(24);
+  });
+});
+
+describe("fusing the two arms of the search", () => {
+  const vectorHits = [
+    { id: 1, score: 0.9 },
+    { id: 2, score: 0.8 },
+    { id: 3, score: 0.7 },
+  ];
+
+  it("ranks a passage both arms found above one only a single arm did", () => {
+    const fused = fuse(vectorHits, [3, 9], 4);
+    expect(fused[0].id).toBe(3);
+  });
+
+  it("keeps a keyword-only hit that the vectors missed entirely", () => {
+    // The whole reason for a second arm: an exact term the embedding does not
+    // place anywhere near the query.
+    const fused = fuse(vectorHits, [42], 10);
+    expect(fused.map((hit) => hit.id)).toContain(42);
+  });
+
+  it("keeps a vector-only hit that shares no words with the query", () => {
+    const fused = fuse(vectorHits, [], 10);
+    expect(fused.map((hit) => hit.id)).toEqual([1, 2, 3]);
+  });
+
+  it("reports the cosine score, not the fusion score, for a vector hit", () => {
+    const [top] = fuse(vectorHits, [1], 1);
+    expect(top.similarity).toBeCloseTo(0.9, 6);
+  });
+
+  it("has no cosine score to report for a keyword-only hit", () => {
+    const fused = fuse([], [5], 1);
+    expect(fused[0].similarity).toBeNull();
+  });
+
+  it("honours the limit", () => {
+    expect(fuse(vectorHits, [7, 8, 9], 2)).toHaveLength(2);
+  });
+
+  it("returns nothing when neither arm found anything", () => {
+    expect(fuse([], [], 5)).toEqual([]);
+  });
+
+  it("never lists the same passage twice", () => {
+    const fused = fuse(vectorHits, [1, 2, 3], 10);
+    expect(new Set(fused.map((hit) => hit.id)).size).toBe(fused.length);
   });
 });
