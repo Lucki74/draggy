@@ -2,8 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
-const { spawn, execFile } = require("child_process");
-const { IS_WINDOWS, defaultShellEnv, pythonCandidates, runCommand } = require("./platform.cjs");
+const {
+  IS_WINDOWS,
+  defaultShellEnv,
+  execFileHidden,
+  pythonCandidates,
+  runCommand,
+  spawnHidden,
+} = require("./platform.cjs");
 const { log } = require("./logger.cjs");
 
 const DEFAULT_TIMEOUT_MS = 20000;
@@ -58,7 +64,7 @@ function killTree(child) {
   if (child.exitCode !== null || child.signalCode !== null) return;
 
   if (IS_WINDOWS) {
-    execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], () => {});
+    execFileHidden("taskkill", ["/pid", String(child.pid), "/T", "/F"], {}, () => {});
     return;
   }
 
@@ -148,10 +154,9 @@ async function runCode({ userDataPath, language, source, timeoutMs }) {
   const started = Date.now();
 
   const result = await new Promise((resolve) => {
-    const child = spawn(command, [...args, scriptPath], {
+    const child = spawnHidden(command, [...args, scriptPath], {
       cwd: workdir,
       env,
-      windowsHide: true,
       detached: !IS_WINDOWS,
       stdio: ["ignore", "pipe", "pipe"],
     });

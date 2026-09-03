@@ -1,4 +1,3 @@
-const { spawn } = require("child_process");
 const { log } = require("./logger.cjs");
 const platform = require("./platform.cjs");
 const catalogue = require("./mcpCatalogue.cjs");
@@ -161,7 +160,7 @@ async function startServer(id, config = {}) {
 
   let child;
   try {
-    child = spawn(npx.file, [...npx.prefixArgs, ...spec.args], {
+    child = platform.spawnHidden(npx.file, [...npx.prefixArgs, ...spec.args], {
       // The server inherits a normal shell environment plus whatever
       // credentials were entered for it, and nothing else.
       env: {
@@ -170,7 +169,6 @@ async function startServer(id, config = {}) {
         ...spec.env,
       },
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
     });
   } catch (error) {
     return { id, status: "error", error: error.message, tools: [] };

@@ -11,7 +11,6 @@ const {
   session,
 } = require("electron");
 const path = require("path");
-const { spawn } = require("child_process");
 const os = require("os");
 const http = require("http");
 const https = require("https");
@@ -1316,10 +1315,9 @@ ipcMain.handle("start-ollama", async () => {
 
     log.info("ollama", `starting ${launcher.file}`);
 
-    const child = spawn(launcher.file, launcher.args, {
+    const child = platform.spawnHidden(launcher.file, launcher.args, {
       detached: false,
       stdio: "ignore",
-      windowsHide: true,
       env: { ...platform.defaultShellEnv(), OLLAMA_HOST },
     });
     child.unref();
@@ -1438,10 +1436,9 @@ ipcMain.handle("install-ollama", async () => {
           }
 
           try {
-            const child = spawn(installerPath, spec.args, {
+            const child = platform.spawnHidden(installerPath, spec.args, {
               detached: true,
               stdio: "ignore",
-              windowsHide: true,
             });
             child.on("exit", () => {
               fs.unlink(installerPath, () => {});

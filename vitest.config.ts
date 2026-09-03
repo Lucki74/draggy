@@ -30,6 +30,7 @@ export default defineConfig({
         "electron/favicon.cjs",
         "electron/markdownHtml.cjs",
         "electron/mcp.cjs",
+        "electron/platform.cjs",
         "electron/mcpCatalogue.cjs",
         "electron/urlPolicy.cjs",
         "electron/library.cjs",

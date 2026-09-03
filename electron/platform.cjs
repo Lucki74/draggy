@@ -1,18 +1,34 @@
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 
 const IS_WINDOWS = process.platform === "win32";
 const IS_MAC = process.platform === "darwin";
 const IS_LINUX = process.platform === "linux";
 
+/**
+ * Every child process the app starts, with its console window suppressed.
+ *
+ * A packaged Draggy is a GUI binary with no console of its own, so a console
+ * program started without this gets a brand new window that flashes at the user.
+ * Going through here means the flag cannot be forgotten at one call site.
+ */
+function spawnHidden(file, args, options = {}) {
+  return spawn(file, args, { ...options, windowsHide: true });
+}
+
+/** The same guarantee for the one-shot calls. */
+function execFileHidden(file, args, options, callback) {
+  return execFile(file, args, { ...options, windowsHide: true }, callback);
+}
+
 function runCommand(file, args, timeout) {
   return new Promise((resolve) => {
-    execFile(
+    execFileHidden(
       file,
       args,
-      { encoding: "utf8", windowsHide: true, timeout },
+      { encoding: "utf8", timeout },
       (err, stdout) => resolve(err ? null : stdout),
     );
   });
@@ -301,4 +317,6 @@ module.exports = {
   defaultShellEnv,
   pythonCandidates,
   resolveNpx,
+  spawnHidden,
+  execFileHidden,
 };
