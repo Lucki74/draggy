@@ -4,8 +4,8 @@
  */
 
 /**
- * Nothing here duplicates a built-in feature. Draggy already searches the web,
- * reads pages and drives a browser, so search and browser servers are left out.
+ * Nothing here duplicates a built-in feature. Draggy has Brave, DuckDuckGo and a
+ * browser of its own, so those are out; a service it cannot do is not a duplicate.
  */
 
 /**
@@ -104,6 +104,47 @@ const CATALOGUE = [
     site: "https://21st.dev",
     args: [],
     env: [{ key: "API_KEY", label: "21st.dev API key", secret: true, required: true }],
+  },
+
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    description:
+      "Ask Perplexity a question and get an answer with its sources, rather than a page of results to read yourself.",
+    package: "server-perplexity-ask",
+    site: "https://www.perplexity.ai",
+    args: [],
+    env: [{ key: "PERPLEXITY_API_KEY", label: "Perplexity API key", secret: true, required: true }],
+  },
+  {
+    id: "exa",
+    name: "Exa",
+    description:
+      "Search the web by meaning rather than by keyword, which finds pages that never use the words you typed.",
+    package: "exa-mcp-server",
+    site: "https://exa.ai",
+    args: [],
+    env: [{ key: "EXA_API_KEY", label: "Exa API key", secret: true, required: true }],
+  },
+  {
+    id: "tavily",
+    name: "Tavily",
+    description:
+      "A search API built for models: results come back already extracted and trimmed, instead of as pages to scrape.",
+    package: "tavily-mcp",
+    site: "https://tavily.com",
+    args: [],
+    env: [{ key: "TAVILY_API_KEY", label: "Tavily API key", secret: true, required: true }],
+  },
+  {
+    id: "firecrawl",
+    name: "Firecrawl",
+    description:
+      "Crawl a whole site and turn its pages into clean markdown, where the built-in reader takes one page at a time.",
+    package: "firecrawl-mcp",
+    site: "https://firecrawl.dev",
+    args: [],
+    env: [{ key: "FIRECRAWL_API_KEY", label: "Firecrawl API key", secret: true, required: true }],
   },
 
   {

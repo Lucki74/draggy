@@ -48,8 +48,8 @@ somewhere.
 
 **Extend it, if you want to.** Draggy speaks the Model Context Protocol, so it
 can borrow tools from servers other people wrote — GitHub, Slack, Notion,
-Postgres, a folder on disk, thirty of them in a catalogue in Settings. None
-duplicate what Draggy already does on its own. Nothing is on by default: an extension is a program that runs on your
+Postgres, Perplexity, a folder on disk, thirty-four of them in a catalogue in
+Settings. None duplicate a provider Draggy already ships. Nothing is on by default: an extension is a program that runs on your
 machine with the credentials you give it, which is a real decision, so you make
 it one server at a time.
 

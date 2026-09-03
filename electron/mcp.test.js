@@ -160,12 +160,20 @@ describe("the server catalogue", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("does not duplicate anything the app already does", () => {
-    // Draggy searches the web, reads pages and drives a browser on its own. A
-    // second way to do those is a tool the model has to choose between.
-    const overlapping = /brave|duckduckgo|puppeteer|playwright|browserbase/i;
+  it("does not offer a provider the app already has", () => {
+    // Brave and DuckDuckGo are built-in search providers, and the browser is
+    // built in too. A second way to do those is a choice the model can get wrong.
+    const builtIn = /^(brave|duckduckgo|puppeteer|playwright|browserbase)/i;
     for (const entry of entries) {
-      expect(entry.id, `${entry.id} overlaps a built-in feature`).not.toMatch(overlapping);
+      expect(entry.id, `${entry.id} duplicates a built-in feature`).not.toMatch(builtIn);
+    }
+  });
+
+  it("still offers the search services the app cannot do itself", () => {
+    // The rule is about duplicating a provider, not about search as a subject.
+    const ids = entries.map((entry) => entry.id);
+    for (const id of ["perplexity", "exa", "tavily", "firecrawl"]) {
+      expect(ids, `${id} is not a duplicate and should be offered`).toContain(id);
     }
   });
 
