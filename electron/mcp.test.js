@@ -160,17 +160,36 @@ describe("the server catalogue", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("puts every server in a category that exists", () => {
-    const known = new Set(catalogue.categories().map((category) => category.id));
+  it("does not duplicate anything the app already does", () => {
+    // Draggy searches the web, reads pages and drives a browser on its own. A
+    // second way to do those is a tool the model has to choose between.
+    const overlapping = /brave|duckduckgo|puppeteer|playwright|browserbase/i;
     for (const entry of entries) {
-      expect(known, `${entry.id} has category ${entry.category}`).toContain(entry.category);
+      expect(entry.id, `${entry.id} overlaps a built-in feature`).not.toMatch(overlapping);
     }
   });
 
-  it("uses every category it declares", () => {
-    const used = new Set(entries.map((entry) => entry.category));
-    for (const category of catalogue.categories()) {
-      expect(used, `nothing is in ${category.id}`).toContain(category.id);
+  it("links every server to its package documentation", () => {
+    for (const entry of entries) {
+      expect(entry.docs, entry.id).toBe(
+        `https://www.npmjs.com/package/${entry.package}`,
+      );
+    }
+  });
+
+  it("links to the service, where there is one behind it", () => {
+    // Memory and sequential thinking have no service, and say so by omission.
+    for (const entry of entries) {
+      if (entry.site === undefined) continue;
+      expect(entry.site, entry.id).toMatch(/^https:\/\//);
+    }
+  });
+
+  it("gives the servers that talk to a service a website", () => {
+    const local = new Set(["filesystem", "memory", "sequential-thinking"]);
+    for (const entry of entries) {
+      if (local.has(entry.id)) continue;
+      expect(entry.site, `${entry.id} has no website`).toBeTruthy();
     }
   });
 
@@ -213,9 +232,9 @@ describe("searching the catalogue", () => {
     expect(catalogue.searchCatalogue("transcript").length).toBeGreaterThan(0);
   });
 
-  it("matches on category", () => {
-    const found = catalogue.searchCatalogue("productivity");
-    expect(found.every((entry) => entry.category === "productivity")).toBe(true);
+  it("matches on the package name", () => {
+    const found = catalogue.searchCatalogue("supabase");
+    expect(found.map((entry) => entry.id)).toContain("supabase");
   });
 
   it("ignores case", () => {
@@ -276,8 +295,14 @@ describe("knowing when a server can start", () => {
 describe("building the command line", () => {
   it("runs the package through npx", () => {
     const spec = catalogue.commandFor(catalogue.findEntry("memory"), {});
-    expect(spec.command).toMatch(/^npx(\.cmd)?$/);
     expect(spec.args).toEqual(["-y", "@modelcontextprotocol/server-memory"]);
+  });
+
+  it("leaves how npx is launched to the platform", () => {
+    // Windows cannot spawn the `npx.cmd` shim at all, so the launcher is
+    // resolved in platform.cjs rather than named here.
+    const spec = catalogue.commandFor(catalogue.findEntry("memory"), {});
+    expect(spec.command).toBeUndefined();
   });
 
   it("keeps the fixed arguments an entry declares", () => {
@@ -310,5 +335,28 @@ describe("building the command line", () => {
 
   it("has no command for a server that does not exist", () => {
     expect(catalogue.commandFor(null, {})).toBeNull();
+  });
+});
+
+describe("launching npx", () => {
+  const platform = require("./platform.cjs");
+
+  it("finds a launcher on a machine that has npm", () => {
+    const npx = platform.resolveNpx();
+    expect(npx, "npm should be present in a dev environment").not.toBeNull();
+    expect(npx.file).toBeTruthy();
+    expect(npx.prefixArgs[0]).toMatch(/npx-cli\.js$/);
+  });
+
+  it("never returns the shell shim, which cannot be spawned", () => {
+    // Node has refused to spawn a .cmd since the CVE-2024-27980 fix, so
+    // pointing at npx.cmd here is what made every server fail with EINVAL.
+    const npx = platform.resolveNpx();
+    expect(npx.file).not.toMatch(/\.cmd$/i);
+    for (const arg of npx.prefixArgs) expect(arg).not.toMatch(/\.cmd$/i);
+  });
+
+  it("runs the launcher as plain Node", () => {
+    expect(platform.resolveNpx().asNode).toBe(true);
   });
 });

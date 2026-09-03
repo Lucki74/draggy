@@ -268,9 +268,12 @@ export interface McpRequirement {
 export interface McpCatalogueEntry {
   id: string;
   name: string;
-  category: string;
   description: string;
   package: string;
+  /** The package's own page on npm, which renders its README. */
+  docs: string;
+  /** The service the server talks to. Absent for a purely local one. */
+  site?: string;
   args: string[];
   arguments?: McpRequirement[];
   env: McpRequirement[];
@@ -526,7 +529,6 @@ declare global {
       mcp: {
         catalogue: () => Promise<{
           success: boolean;
-          categories: { id: string; label: string }[];
           servers: McpCatalogueEntry[];
         }>;
         config: () => Promise<{ success: boolean; config: Record<string, McpServerConfig> }>;

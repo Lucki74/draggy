@@ -148,12 +148,27 @@ async function startServer(id, config = {}) {
 
   const spec = catalogue.commandFor(definition, config);
 
+  const npx = platform.resolveNpx();
+  if (!npx) {
+    return {
+      id,
+      status: "error",
+      error:
+        "npm could not be found on this machine, and extensions are fetched with npx. Install Node.js and try again.",
+      tools: [],
+    };
+  }
+
   let child;
   try {
-    child = spawn(spec.command, spec.args, {
+    child = spawn(npx.file, [...npx.prefixArgs, ...spec.args], {
       // The server inherits a normal shell environment plus whatever
       // credentials were entered for it, and nothing else.
-      env: { ...platform.defaultShellEnv(), ...spec.env },
+      env: {
+        ...platform.defaultShellEnv(),
+        ...(npx.asNode ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+        ...spec.env,
+      },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });

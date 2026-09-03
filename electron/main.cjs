@@ -1893,7 +1893,6 @@ function saveMcpConfig(config) {
 
 ipcMain.handle("mcp:catalogue", () => ({
   success: true,
-  categories: mcpCatalogue.categories(),
   servers: mcpCatalogue.listCatalogue(),
 }));
 

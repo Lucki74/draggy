@@ -4,32 +4,23 @@
  */
 
 /**
+ * Nothing here duplicates a built-in feature. Draggy already searches the web,
+ * reads pages and drives a browser, so search and browser servers are left out.
+ */
+
+/**
  * What a server needs before it runs. `secret: true` marks a credential, which
  * the interface masks and never logs.
  */
 
-const CATEGORIES = [
-  { id: "development", label: "Development" },
-  { id: "web", label: "Web and search" },
-  { id: "productivity", label: "Productivity" },
-  { id: "data", label: "Databases" },
-  { id: "cloud", label: "Cloud and infrastructure" },
-  { id: "knowledge", label: "Knowledge and memory" },
-  { id: "design", label: "Design" },
-  { id: "media", label: "Media" },
-];
-
 const CATALOGUE = [
-  // ---------------------------------------------------------------- development
   {
     id: "filesystem",
     name: "Filesystem",
-    category: "development",
     description:
       "Read, write and search files in folders you choose. The folders are the arguments: nothing outside them is reachable.",
     package: "@modelcontextprotocol/server-filesystem",
     args: [],
-    /** Paths the user has to supply before this can run. */
     arguments: [
       {
         key: "roots",
@@ -46,10 +37,10 @@ const CATALOGUE = [
   {
     id: "github",
     name: "GitHub",
-    category: "development",
     description:
       "Search repositories, read issues and pull requests, create branches and commits.",
     package: "@modelcontextprotocol/server-github",
+    site: "https://github.com",
     args: [],
     env: [
       {
@@ -63,9 +54,9 @@ const CATALOGUE = [
   {
     id: "gitlab",
     name: "GitLab",
-    category: "development",
     description: "Read and write projects, issues and merge requests on GitLab.",
     package: "@modelcontextprotocol/server-gitlab",
+    site: "https://gitlab.com",
     args: [],
     env: [
       { key: "GITLAB_PERSONAL_ACCESS_TOKEN", label: "GitLab token", secret: true, required: true },
@@ -75,9 +66,9 @@ const CATALOGUE = [
   {
     id: "sentry",
     name: "Sentry",
-    category: "development",
     description: "Look up issues, stack traces and releases from Sentry.",
     package: "@sentry/mcp-server",
+    site: "https://sentry.io",
     args: [],
     env: [
       { key: "SENTRY_ACCESS_TOKEN", label: "Sentry access token", secret: true, required: true },
@@ -87,10 +78,10 @@ const CATALOGUE = [
   {
     id: "jetbrains",
     name: "JetBrains IDEs",
-    category: "development",
     description:
       "Drive a running JetBrains IDE — open files, read the project tree, run inspections.",
     package: "@jetbrains/mcp-proxy",
+    site: "https://www.jetbrains.com",
     args: [],
     env: [],
     caution: "Needs the MCP Server plugin installed in the IDE and the IDE running.",
@@ -98,118 +89,29 @@ const CATALOGUE = [
   {
     id: "context7",
     name: "Context7 docs",
-    category: "development",
     description:
       "Up-to-date API documentation for thousands of libraries, fetched per question instead of recalled from training.",
     package: "@upstash/context7-mcp",
+    site: "https://context7.com",
     args: [],
     env: [],
   },
   {
     id: "magic-ui",
     name: "21st.dev Magic",
-    category: "development",
     description: "Generate React interface components from a description.",
     package: "@21st-dev/magic",
+    site: "https://21st.dev",
     args: [],
     env: [{ key: "API_KEY", label: "21st.dev API key", secret: true, required: true }],
   },
 
-  // ------------------------------------------------------------------------ web
-  {
-    id: "brave-search",
-    name: "Brave Search",
-    category: "web",
-    description: "Web and local search through Brave's API.",
-    package: "@modelcontextprotocol/server-brave-search",
-    args: [],
-    env: [{ key: "BRAVE_API_KEY", label: "Brave Search API key", secret: true, required: true }],
-  },
-  {
-    id: "tavily",
-    name: "Tavily",
-    category: "web",
-    description: "Search and page extraction built for models rather than for people.",
-    package: "tavily-mcp",
-    args: [],
-    env: [{ key: "TAVILY_API_KEY", label: "Tavily API key", secret: true, required: true }],
-  },
-  {
-    id: "exa",
-    name: "Exa",
-    category: "web",
-    description: "Neural search over the web, good at finding pages by what they mean.",
-    package: "exa-mcp-server",
-    args: [],
-    env: [{ key: "EXA_API_KEY", label: "Exa API key", secret: true, required: true }],
-  },
-  {
-    id: "perplexity",
-    name: "Perplexity",
-    category: "web",
-    description: "Ask Perplexity a question and get a sourced answer back.",
-    package: "server-perplexity-ask",
-    args: [],
-    env: [{ key: "PERPLEXITY_API_KEY", label: "Perplexity API key", secret: true, required: true }],
-  },
-  {
-    id: "duckduckgo",
-    name: "DuckDuckGo",
-    category: "web",
-    description: "Web search with no API key and no account.",
-    package: "duckduckgo-mcp-server",
-    args: [],
-    env: [],
-  },
-  {
-    id: "firecrawl",
-    name: "Firecrawl",
-    category: "web",
-    description: "Crawl a site and turn its pages into clean markdown.",
-    package: "firecrawl-mcp",
-    args: [],
-    env: [{ key: "FIRECRAWL_API_KEY", label: "Firecrawl API key", secret: true, required: true }],
-  },
-  {
-    id: "playwright",
-    name: "Playwright browser",
-    category: "web",
-    description:
-      "Drive a real browser: navigate, click, fill forms, take snapshots of the page.",
-    package: "@playwright/mcp",
-    args: [],
-    env: [],
-    caution: "Downloads a browser the first time it runs.",
-  },
-  {
-    id: "puppeteer",
-    name: "Puppeteer browser",
-    category: "web",
-    description: "Browser automation through Chrome DevTools, with screenshots.",
-    package: "@modelcontextprotocol/server-puppeteer",
-    args: [],
-    env: [],
-  },
-  {
-    id: "browserbase",
-    name: "Browserbase",
-    category: "web",
-    description: "Run a browser session in the cloud rather than on this machine.",
-    package: "@browserbasehq/mcp",
-    args: [],
-    env: [
-      { key: "BROWSERBASE_API_KEY", label: "Browserbase API key", secret: true, required: true },
-      { key: "BROWSERBASE_PROJECT_ID", label: "Project ID", required: true },
-    ],
-  },
-
-  // ---------------------------------------------------------------- productivity
   {
     id: "slack",
     name: "Slack",
-    category: "productivity",
     description: "Read channels and messages, post replies, look up users.",
     package: "@modelcontextprotocol/server-slack",
+    site: "https://slack.com",
     args: [],
     env: [
       { key: "SLACK_BOT_TOKEN", label: "Slack bot token", secret: true, required: true },
@@ -219,9 +121,9 @@ const CATALOGUE = [
   {
     id: "notion",
     name: "Notion",
-    category: "productivity",
     description: "Search, read and write Notion pages and databases.",
     package: "@notionhq/notion-mcp-server",
+    site: "https://www.notion.so",
     args: [],
     env: [
       { key: "NOTION_TOKEN", label: "Notion integration token", secret: true, required: true },
@@ -230,27 +132,27 @@ const CATALOGUE = [
   {
     id: "linear",
     name: "Linear",
-    category: "productivity",
     description: "Read and update Linear issues, projects and cycles.",
     package: "linear-mcp-server",
+    site: "https://linear.app",
     args: [],
     env: [{ key: "LINEAR_API_KEY", label: "Linear API key", secret: true, required: true }],
   },
   {
     id: "todoist",
     name: "Todoist",
-    category: "productivity",
     description: "Create, complete and search tasks in Todoist.",
     package: "@abhiz123/todoist-mcp-server",
+    site: "https://todoist.com",
     args: [],
     env: [{ key: "TODOIST_API_TOKEN", label: "Todoist API token", secret: true, required: true }],
   },
   {
     id: "obsidian",
     name: "Obsidian",
-    category: "productivity",
     description: "Read and search an Obsidian vault on this machine.",
     package: "mcp-obsidian",
+    site: "https://obsidian.md",
     args: [],
     arguments: [
       {
@@ -265,9 +167,9 @@ const CATALOGUE = [
   {
     id: "google-drive",
     name: "Google Drive",
-    category: "productivity",
     description: "Search Drive and read the contents of documents.",
     package: "@modelcontextprotocol/server-gdrive",
+    site: "https://drive.google.com",
     args: [],
     env: [
       { key: "GDRIVE_CREDENTIALS_PATH", label: "Path to credentials JSON", required: true },
@@ -276,20 +178,19 @@ const CATALOGUE = [
   {
     id: "google-maps",
     name: "Google Maps",
-    category: "productivity",
     description: "Geocoding, directions, places and distance lookups.",
     package: "@modelcontextprotocol/server-google-maps",
+    site: "https://developers.google.com/maps",
     args: [],
     env: [{ key: "GOOGLE_MAPS_API_KEY", label: "Google Maps API key", secret: true, required: true }],
   },
 
-  // ----------------------------------------------------------------------- data
   {
     id: "postgres",
     name: "PostgreSQL",
-    category: "data",
     description: "Run read-only queries against a Postgres database and inspect its schema.",
     package: "@modelcontextprotocol/server-postgres",
+    site: "https://www.postgresql.org",
     args: [],
     arguments: [
       {
@@ -304,9 +205,9 @@ const CATALOGUE = [
   {
     id: "mongodb",
     name: "MongoDB",
-    category: "data",
     description: "Query collections and inspect schemas in MongoDB or Atlas.",
     package: "mongodb-mcp-server",
+    site: "https://www.mongodb.com",
     args: [],
     env: [
       { key: "MDB_MCP_CONNECTION_STRING", label: "Connection string", secret: true, required: true },
@@ -315,9 +216,9 @@ const CATALOGUE = [
   {
     id: "redis",
     name: "Redis",
-    category: "data",
     description: "Read and write keys in a Redis instance.",
     package: "@modelcontextprotocol/server-redis",
+    site: "https://redis.io",
     args: [],
     arguments: [
       { key: "url", label: "Redis URL", placeholder: "redis://localhost:6379", required: true },
@@ -327,9 +228,9 @@ const CATALOGUE = [
   {
     id: "elasticsearch",
     name: "Elasticsearch",
-    category: "data",
     description: "Search indices and inspect mappings in Elasticsearch.",
     package: "@elastic/mcp-server-elasticsearch",
+    site: "https://www.elastic.co",
     args: [],
     env: [
       { key: "ES_URL", label: "Elasticsearch URL", required: true },
@@ -339,9 +240,9 @@ const CATALOGUE = [
   {
     id: "supabase",
     name: "Supabase",
-    category: "data",
     description: "Manage Supabase projects, run queries and inspect tables.",
     package: "@supabase/mcp-server-supabase",
+    site: "https://supabase.com",
     args: [],
     env: [
       { key: "SUPABASE_ACCESS_TOKEN", label: "Supabase access token", secret: true, required: true },
@@ -350,20 +251,19 @@ const CATALOGUE = [
   {
     id: "airtable",
     name: "Airtable",
-    category: "data",
     description: "Read and write Airtable bases, tables and records.",
     package: "airtable-mcp-server",
+    site: "https://airtable.com",
     args: [],
     env: [{ key: "AIRTABLE_API_KEY", label: "Airtable API key", secret: true, required: true }],
   },
 
-  // ---------------------------------------------------------------------- cloud
   {
     id: "kubernetes",
     name: "Kubernetes",
-    category: "cloud",
     description: "Inspect and manage a Kubernetes cluster through your current kubeconfig.",
     package: "mcp-server-kubernetes",
+    site: "https://kubernetes.io",
     args: [],
     env: [],
     caution: "Acts as whatever your current kubeconfig context is allowed to do.",
@@ -371,9 +271,9 @@ const CATALOGUE = [
   {
     id: "cloudflare",
     name: "Cloudflare",
-    category: "cloud",
     description: "Manage Workers, KV, R2 and D1 on a Cloudflare account.",
     package: "@cloudflare/mcp-server-cloudflare",
+    site: "https://www.cloudflare.com",
     args: [],
     env: [
       { key: "CLOUDFLARE_API_TOKEN", label: "Cloudflare API token", secret: true, required: true },
@@ -382,18 +282,18 @@ const CATALOGUE = [
   {
     id: "heroku",
     name: "Heroku",
-    category: "cloud",
     description: "Inspect and manage Heroku apps, dynos, add-ons and logs.",
     package: "@heroku/mcp-server",
+    site: "https://www.heroku.com",
     args: [],
     env: [{ key: "HEROKU_API_KEY", label: "Heroku API key", secret: true, required: true }],
   },
   {
     id: "stripe",
     name: "Stripe",
-    category: "cloud",
     description: "Look up customers, payments, subscriptions and invoices.",
     package: "@stripe/mcp",
+    site: "https://stripe.com",
     args: ["--tools=all"],
     env: [{ key: "STRIPE_SECRET_KEY", label: "Stripe secret key", secret: true, required: true }],
     caution: "A live key can move real money. Use a restricted or test key.",
@@ -401,9 +301,9 @@ const CATALOGUE = [
   {
     id: "aws-kb",
     name: "AWS Knowledge Base",
-    category: "cloud",
     description: "Retrieve from an Amazon Bedrock knowledge base.",
     package: "@modelcontextprotocol/server-aws-kb-retrieval",
+    site: "https://aws.amazon.com/bedrock/",
     args: [],
     env: [
       { key: "AWS_ACCESS_KEY_ID", label: "AWS access key ID", secret: true, required: true },
@@ -412,11 +312,9 @@ const CATALOGUE = [
     ],
   },
 
-  // ------------------------------------------------------------------ knowledge
   {
     id: "memory",
     name: "Memory",
-    category: "knowledge",
     description:
       "A knowledge graph the model can write to and read back, so facts survive between conversations.",
     package: "@modelcontextprotocol/server-memory",
@@ -426,7 +324,6 @@ const CATALOGUE = [
   {
     id: "sequential-thinking",
     name: "Sequential thinking",
-    category: "knowledge",
     description:
       "A scratchpad for working a hard problem through in numbered steps, revising earlier ones as it goes.",
     package: "@modelcontextprotocol/server-sequential-thinking",
@@ -436,57 +333,60 @@ const CATALOGUE = [
   {
     id: "everything",
     name: "Everything (reference)",
-    category: "knowledge",
     description:
       "The reference server. Exercises every part of the protocol — useful for checking that MCP works at all.",
     package: "@modelcontextprotocol/server-everything",
+    site: "https://modelcontextprotocol.io",
     args: [],
     env: [],
   },
 
-  // --------------------------------------------------------------------- design
   {
     id: "figma",
     name: "Figma",
-    category: "design",
     description: "Read Figma files and turn frames into layout and style information.",
     package: "figma-developer-mcp",
+    site: "https://www.figma.com",
     args: ["--stdio"],
     env: [{ key: "FIGMA_API_KEY", label: "Figma API key", secret: true, required: true }],
   },
-
-  // ---------------------------------------------------------------------- media
   {
     id: "youtube-transcript",
     name: "YouTube transcripts",
-    category: "media",
     description: "Fetch the transcript of a YouTube video so it can be read or summarised.",
     package: "youtube-transcript-mcp",
+    site: "https://www.youtube.com",
     args: [],
     env: [],
   },
 ];
 
-/** Every catalogue entry, in a stable order. */
-function listCatalogue() {
-  return CATALOGUE.map((entry) => ({ ...entry }));
+/**
+ * The package's page on npm, which renders its README. Derived rather than
+ * stored, so the link can never drift out of step with the package name.
+ */
+function docsUrl(entry) {
+  if (!entry) return null;
+  return `https://www.npmjs.com/package/${entry.package}`;
 }
 
-function categories() {
-  return CATEGORIES.map((entry) => ({ ...entry }));
+/** Every catalogue entry, with its documentation link filled in. */
+function listCatalogue() {
+  return CATALOGUE.map((entry) => ({ ...entry, docs: docsUrl(entry) }));
 }
 
 function findEntry(id) {
-  return CATALOGUE.find((entry) => entry.id === id) || null;
+  const entry = CATALOGUE.find((candidate) => candidate.id === id);
+  return entry ? { ...entry, docs: docsUrl(entry) } : null;
 }
 
-/** Entries whose name, description or category matches what was typed. */
+/** Entries whose name or description matches what was typed. */
 function searchCatalogue(term) {
   const wanted = String(term || "").trim().toLowerCase();
   if (!wanted) return listCatalogue();
 
   return listCatalogue().filter((entry) =>
-    [entry.id, entry.name, entry.description, entry.category].some((field) =>
+    [entry.id, entry.name, entry.description].some((field) =>
       String(field).toLowerCase().includes(wanted),
     ),
   );
@@ -494,7 +394,7 @@ function searchCatalogue(term) {
 
 /**
  * What is still missing before a server can start. Returned, not thrown, so the
- * interface can grey out the switch and say which field is empty.
+ * interface can open the setup fields rather than starting something doomed.
  */
 function missingRequirements(entry, config = {}) {
   if (!entry) return ["unknown server"];
@@ -522,8 +422,8 @@ function missingRequirements(entry, config = {}) {
 }
 
 /**
- * The command line as it will be spawned. `npx -y` rather than a pinned
- * version, since pinning would ship a stale server with every release.
+ * The npx arguments for a server. `npx -y` rather than a pinned version, since
+ * pinning would ship a stale server with every release.
  */
 function commandFor(entry, config = {}) {
   if (!entry) return null;
@@ -542,20 +442,20 @@ function commandFor(entry, config = {}) {
     }
   }
 
+  // How npx is actually launched is a platform question, and lives in
+  // platform.cjs: the `.cmd` shim cannot be spawned on Windows at all.
   return {
-    command: process.platform === "win32" ? "npx.cmd" : "npx",
     args: ["-y", entry.package, ...(entry.args || []), ...extra],
     env: { ...(config.env || {}) },
   };
 }
 
 module.exports = {
-  CATEGORIES,
   CATALOGUE,
   listCatalogue,
-  categories,
   findEntry,
   searchCatalogue,
   missingRequirements,
   commandFor,
+  docsUrl,
 };

@@ -229,6 +229,59 @@ function defaultShellEnv() {
   return { ...process.env, PATH: merged.join(path.delimiter) };
 }
 
+/**
+ * Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder.
+ * Windows ships `npx.cmd`; the real program is this file next to it.
+ */
+function npxCliFrom(dir) {
+  return path.join(dir, "node_modules", "npm", "bin", "npx-cli.js");
+}
+
+/**
+ * How to run npx without going through its shell script.
+ *
+ * Node has refused to spawn a `.cmd` since the CVE-2024-27980 fix, so
+ * `spawn("npx.cmd")` fails outright with EINVAL on Windows. Running the shim
+ * through a shell would work and would put user-supplied paths and connection
+ * strings on a command line, so instead the JavaScript behind the shim is run
+ * directly by the binary already running this code.
+ *
+ * Returns null when npm cannot be found, which means MCP servers cannot start
+ * and the caller should say so plainly.
+ */
+function resolveNpx() {
+  const candidates = [path.dirname(process.execPath)];
+
+  const separator = IS_WINDOWS ? ";" : ":";
+  const names = IS_WINDOWS ? ["npx.cmd", "npx.exe", "npx"] : ["npx"];
+
+  for (const dir of String(process.env.PATH || "").split(separator)) {
+    if (!dir) continue;
+    for (const name of names) {
+      try {
+        if (fs.existsSync(path.join(dir, name))) candidates.push(dir);
+      } catch {
+        /* an unreadable PATH entry is not worth failing over */
+      }
+    }
+  }
+
+  for (const dir of candidates) {
+    const cli = npxCliFrom(dir);
+    try {
+      if (fs.existsSync(cli)) {
+        // ELECTRON_RUN_AS_NODE makes the packaged binary behave as plain Node,
+        // which is how `runner.cjs` runs JavaScript too.
+        return { file: process.execPath, prefixArgs: [cli], asNode: true };
+      }
+    } catch {
+      /* keep looking */
+    }
+  }
+
+  return null;
+}
+
 function pythonCandidates() {
   return IS_WINDOWS ? ["python", "py"] : ["python3", "python"];
 }
@@ -247,4 +300,5 @@ module.exports = {
   installFromDmg,
   defaultShellEnv,
   pythonCandidates,
+  resolveNpx,
 };
