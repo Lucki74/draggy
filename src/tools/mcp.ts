@@ -85,16 +85,37 @@ export function describeMcpTool(
     usage: `${JSON.stringify(
       Object.fromEntries(required.map((key) => [key, "..."])),
     )} → ${summary}`,
-    run: async (args) => {
+    run: async (args, ctx) => {
+      // An external tool has to appear in the timeline like a built-in one, or
+      // a server that takes ten seconds looks like the app has stopped.
+      const stepId = ctx.newId();
+      ctx.pushStep({
+        id: stepId,
+        type: "extension",
+        content: `${serverId} — **${tool.name}**`,
+        isComplete: false,
+      });
+
       const result = await call(serverId, tool.name, args);
 
       if (!result) {
+        ctx.patchStep(stepId, { isComplete: true, type: "error" });
+        ctx.syncSteps();
         return `TOOL RESULT (${tool.qualifiedName}): The ${serverId} server is unavailable.`;
       }
 
       if (!result.success) {
+        ctx.patchStep(stepId, {
+          isComplete: true,
+          type: "error",
+          content: `${serverId} — ${tool.name} failed`,
+        });
+        ctx.syncSteps();
         return `TOOL RESULT (${tool.qualifiedName}): Failed - ${result.error || "unknown error"}`;
       }
+
+      ctx.patchStep(stepId, { isComplete: true });
+      ctx.syncSteps();
 
       return `TOOL RESULT (${tool.qualifiedName}):\n${result.text}`;
     },

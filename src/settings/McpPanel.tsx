@@ -106,13 +106,26 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
 
     setBusy(entry.id);
     try {
-      if (on) await api?.start(entry.id);
-      else await api?.stop(entry.id);
+      // Only servers that are actually running come back from `running()`, so a
+      // server that failed to start would lose its own reason on the way here.
+      // The reply from `start` carries it, so that one is kept.
+      let failed: McpServerState | null = null;
 
-      // Asked for rather than assembled from the reply: a server can fail
-      // after spawning, and only the main process knows what is running.
+      if (on) {
+        const started = await api?.start(entry.id);
+        if (started?.state && started.state.status !== "ready") failed = started.state;
+      } else {
+        await api?.stop(entry.id);
+      }
+
       const fresh = await api?.running();
-      if (fresh?.servers) setRunning(fresh.servers);
+      const servers = fresh?.servers ?? [];
+
+      setRunning(
+        failed
+          ? [...servers.filter((server) => server.id !== entry.id), failed]
+          : servers,
+      );
     } finally {
       setBusy(null);
     }
@@ -236,7 +249,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                     )}
 
                     <code className="text-[10px] text-[var(--text-muted)] opacity-70 truncate">
-                      npx -y {entry.package}
+                      {entry.package}
                     </code>
                   </div>
 

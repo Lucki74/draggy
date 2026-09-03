@@ -737,6 +737,8 @@ app.whenReady().then(() => {
     log.error("library", "could not open the document index", error);
   }
 
+  mcp.init(app.getPath("userData"));
+
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
 

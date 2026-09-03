@@ -96,6 +96,13 @@ export default function App() {
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(isSplashMode);
 
+  /**
+   * An update that finished downloading, offered once per launch. The install
+   * itself is silent, so "Install now" is a restart rather than a wizard.
+   */
+  const [updateReady, setUpdateReady] = useState<string | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
   const openSettings = useCallback((tab: SettingsTab) => {
     setSettingsTab(tab);
     setViewMode("settings");
@@ -188,6 +195,27 @@ export default function App() {
       api.offState();
       unregisterGroup("external");
     };
+  }, [isSplashMode]);
+
+  useEffect(() => {
+    if (isSplashMode || !window.electronAPI?.updater) return;
+
+    const updater = window.electronAPI.updater;
+
+    // Already downloaded before this window opened, which is the usual case:
+    // the check runs twenty seconds after launch and the download is quiet.
+    updater
+      .state()
+      .then((current) => {
+        if (current?.status === "ready") setUpdateReady(current.version ?? "");
+      })
+      .catch(() => undefined);
+
+    updater.onState((next) => {
+      if (next.status === "ready") setUpdateReady(next.version ?? "");
+    });
+
+    return () => updater.offState();
   }, [isSplashMode]);
 
   const refreshLibraryReadiness = useCallback(() => {
@@ -773,6 +801,46 @@ export default function App() {
       className="w-screen h-screen overflow-hidden flex transition-colors duration-300"
       style={{ backgroundColor: "var(--bg-base)", color: "var(--text-main)" }}
     >
+      {updateReady !== null && !updateDismissed && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="update-ready-title"
+        >
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-6 shadow-xl">
+            <h2
+              id="update-ready-title"
+              className="text-base font-bold tracking-wide"
+            >
+              {t("updateReadyTitle")}
+            </h2>
+
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+              {updateReady
+                ? `${t("updateReadyBody")} (${updateReady})`
+                : t("updateReadyBody")}
+            </p>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => window.electronAPI?.updater.install()}
+                className="flex-1 rounded-xl bg-[var(--bg-inverted)] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-inverted)] transition-opacity hover:opacity-90"
+              >
+                {t("updateInstallNow")}
+              </button>
+
+              <button
+                onClick={() => setUpdateDismissed(true)}
+                className="flex-1 rounded-xl border-[3px] border-[var(--border-light)] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] transition-colors hover:text-[var(--text-main)]"
+              >
+                {t("updateLater")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {storageWarning && (
         <div
           role="alert"
@@ -852,16 +920,6 @@ export default function App() {
           <CreatedFiles settings={settings} />
         ) : viewMode === "talk" ? (
           <TalkScreen settings={settings} />
-        ) : viewMode === "settings" ? (
-          <SettingsPage
-            settings={settings}
-            activeModel={model}
-            initialTab={settingsTab}
-            onUpdate={setSettings}
-            onSelectModel={handleModelReady}
-            onClearChats={handleClearChats}
-            onLibraryChange={refreshLibraryReadiness}
-          />
         ) : currentChatId ? (
           <ChatScreen
             model={model}
@@ -892,6 +950,30 @@ export default function App() {
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />
         )}
+
+        {/*
+          Mounted for the life of the app rather than only while it is open. A
+          model download lives in this component, and unmounting it aborted the
+          pull the moment the user looked at anything else.
+        */}
+        <div
+          className={
+            viewMode === "settings"
+              ? "absolute inset-0 flex flex-col"
+              : "absolute inset-0 flex flex-col invisible pointer-events-none"
+          }
+          aria-hidden={viewMode !== "settings"}
+        >
+          <SettingsPage
+            settings={settings}
+            activeModel={model}
+            initialTab={settingsTab}
+            onUpdate={setSettings}
+            onSelectModel={handleModelReady}
+            onClearChats={handleClearChats}
+            onLibraryChange={refreshLibraryReadiness}
+          />
+        </div>
       </div>
     </div>
   );

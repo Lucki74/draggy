@@ -1,6 +1,7 @@
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  Blocks,
   Check,
   ChevronRight,
   Copy,
@@ -65,6 +66,7 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   typing: Type,
   library: Library,
   run_code: Terminal,
+  extension: Blocks,
 };
 
 const formatTokens = (value: number) =>

@@ -394,11 +394,14 @@ const CATALOGUE = [
   {
     id: "youtube-transcript",
     name: "YouTube transcripts",
-    description: "Fetch the transcript of a YouTube video so it can be read or summarised.",
-    package: "youtube-transcript-mcp",
+    description:
+      "Fetch the transcript of a YouTube video, with its title and available languages, so it can be read or summarised.",
+    package: "@sinco-lab/mcp-youtube-transcript",
     site: "https://www.youtube.com",
     args: [],
     env: [],
+    caution:
+      "YouTube blocks transcript reads for some videos. The server reports the failure rather than returning a partial transcript.",
   },
 ];
 
@@ -463,8 +466,8 @@ function missingRequirements(entry, config = {}) {
 }
 
 /**
- * The npx arguments for a server. `npx -y` rather than a pinned version, since
- * pinning would ship a stale server with every release.
+ * The arguments a server is started with: its own, then anything the user
+ * supplied. The package itself is installed separately and run directly.
  */
 function commandFor(entry, config = {}) {
   if (!entry) return null;
@@ -483,10 +486,8 @@ function commandFor(entry, config = {}) {
     }
   }
 
-  // How npx is actually launched is a platform question, and lives in
-  // platform.cjs: the `.cmd` shim cannot be spawned on Windows at all.
   return {
-    args: ["-y", entry.package, ...(entry.args || []), ...extra],
+    args: [...(entry.args || []), ...extra],
     env: { ...(config.env || {}) },
   };
 }

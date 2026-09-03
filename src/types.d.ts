@@ -193,7 +193,9 @@ export interface SearchStep {
     | "scanned"
     | "create_file"
     | "library"
-    | "run_code";
+    | "run_code"
+    /** A tool borrowed from an MCP server, so the timeline shows those too. */
+    | "extension";
   content: string;
   thoughtTime?: number;
   isComplete?: boolean;

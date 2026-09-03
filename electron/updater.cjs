@@ -139,7 +139,10 @@ async function download() {
 
 function install() {
   if (!updater || state.status !== "ready") return { ...state };
-  setImmediate(() => updater.quitAndInstall(false, true));
+
+  // Silent, and relaunch afterwards. The wizard asked where to install and
+  // whether to continue, for a version of an app the user already has.
+  setImmediate(() => updater.quitAndInstall(true, true));
   return { ...state, status: "installing" };
 }
 

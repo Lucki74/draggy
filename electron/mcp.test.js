@@ -301,16 +301,20 @@ describe("knowing when a server can start", () => {
 });
 
 describe("building the command line", () => {
-  it("runs the package through npx", () => {
+  it("passes only the server's own arguments", () => {
+    // The package is installed separately and its entry point run directly, so
+    // neither npx nor the package name belongs on this command line.
     const spec = catalogue.commandFor(catalogue.findEntry("memory"), {});
-    expect(spec.args).toEqual(["-y", "@modelcontextprotocol/server-memory"]);
+    expect(spec.args).toEqual([]);
   });
 
-  it("leaves how npx is launched to the platform", () => {
-    // Windows cannot spawn the `npx.cmd` shim at all, so the launcher is
-    // resolved in platform.cjs rather than named here.
-    const spec = catalogue.commandFor(catalogue.findEntry("memory"), {});
-    expect(spec.command).toBeUndefined();
+  it("never names npx or the package", () => {
+    for (const entry of catalogue.listCatalogue()) {
+      const spec = catalogue.commandFor(entry, {});
+      expect(spec.args, entry.id).not.toContain("-y");
+      expect(spec.args, entry.id).not.toContain(entry.package);
+      expect(spec.command, entry.id).toBeUndefined();
+    }
   });
 
   it("keeps the fixed arguments an entry declares", () => {

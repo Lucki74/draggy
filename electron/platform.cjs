@@ -249,8 +249,8 @@ function defaultShellEnv() {
  * Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder.
  * Windows ships `npx.cmd`; the real program is this file next to it.
  */
-function npxCliFrom(dir) {
-  return path.join(dir, "node_modules", "npm", "bin", "npx-cli.js");
+function npmCliFrom(dir, tool) {
+  return path.join(dir, "node_modules", "npm", "bin", `${tool}-cli.js`);
 }
 
 /**
@@ -265,7 +265,7 @@ function npxCliFrom(dir) {
  * Returns null when npm cannot be found, which means MCP servers cannot start
  * and the caller should say so plainly.
  */
-function resolveNpx() {
+function resolveNpmTool(tool) {
   const candidates = [path.dirname(process.execPath)];
 
   const separator = IS_WINDOWS ? ";" : ":";
@@ -283,7 +283,7 @@ function resolveNpx() {
   }
 
   for (const dir of candidates) {
-    const cli = npxCliFrom(dir);
+    const cli = npmCliFrom(dir, tool);
     try {
       if (fs.existsSync(cli)) {
         // ELECTRON_RUN_AS_NODE makes the packaged binary behave as plain Node,
@@ -296,6 +296,16 @@ function resolveNpx() {
   }
 
   return null;
+}
+
+/** How to run npx without its shell shim. Null when npm cannot be found. */
+function resolveNpx() {
+  return resolveNpmTool("npx");
+}
+
+/** The same for npm, which is what installs a server before it is run. */
+function resolveNpm() {
+  return resolveNpmTool("npm");
 }
 
 function pythonCandidates() {
@@ -317,6 +327,7 @@ module.exports = {
   defaultShellEnv,
   pythonCandidates,
   resolveNpx,
+  resolveNpm,
   spawnHidden,
   execFileHidden,
 };

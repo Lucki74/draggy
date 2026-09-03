@@ -16,9 +16,11 @@ const ADGUARD =
 /** Read from `electron/filters/` instead of the network. */
 const LOCAL_PREFIX = "draggy-filters:";
 
+const EASYLIST_DOWNLOADS = "https://easylist-downloads.adblockplus.org";
+
 /**
- * uBO's default subscriptions, plus AdGuard's and OISD. On a 482-endpoint
- * probe: uBO alone 79%, with AdGuard 90%, the whole set below 96%.
+ * uBO's default subscriptions, plus AdGuard's, OISD, and the list that defuses
+ * adblock walls. uBO's own filters carry the YouTube ad rules.
  */
 const FILTER_LISTS = [
   `${GHOSTERY}/easylist/easylist.txt`,
@@ -29,6 +31,9 @@ const FILTER_LISTS = [
   `${GHOSTERY}/ublock-origin/filters-2022.txt`,
   `${GHOSTERY}/ublock-origin/filters-2023.txt`,
   `${GHOSTERY}/ublock-origin/filters-2024.txt`,
+  // The current year's file is where the YouTube ad rules are kept, and it was
+  // missing: uBO splits its filters by year and only adds to the newest.
+  `${GHOSTERY}/ublock-origin/filters-2025.txt`,
   `${GHOSTERY}/ublock-origin/filters.txt`,
   `${GHOSTERY}/ublock-origin/quick-fixes.txt`,
   `${GHOSTERY}/ublock-origin/resource-abuse.txt`,
@@ -43,6 +48,9 @@ const FILTER_LISTS = [
   `${ADGUARD}/filter_11_Mobile/filter.txt`,
   `${ADGUARD}/filter_14_Annoyances/filter.txt`,
   `${ADGUARD}/filter_17_TrackParam/filter.txt`,
+  // Defuses the "turn off your ad blocker" walls, which are scripts that detect
+  // the blocker rather than adverts. EasyList maintains it per site.
+  `${EASYLIST_DOWNLOADS}/antiadblockfilters.txt`,
   // OISD is domain-level; the small form is curated against breakage. The
   // large form was worth one further block for twice the compile time.
   "https://small.oisd.nl/abp",
@@ -66,7 +74,7 @@ async function fetchList(url, init) {
  * The name carries a version: a cached engine is a compiled copy of the list
  * set. Changing lists without changing this would serve old rules forever.
  */
-const ENGINE_FILE = "adblock-engine-v2.bin";
+const ENGINE_FILE = "adblock-engine-v3.bin";
 
 /**
  * One engine for the whole app, shared by every session that blocks. It is a
@@ -124,6 +132,8 @@ async function disableBlocking(userDataPath, session) {
 }
 
 module.exports = {
+  FILTER_LISTS,
+  loadEngine,
   primeAdblocker,
   enableBlocking,
   disableBlocking,

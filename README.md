@@ -34,8 +34,10 @@ with no network access, killed after twenty seconds.
 
 **Browse, with the ads gone.** Links open in a browser window inside the app,
 with back, forward, reload and an address bar. Ad and tracker blocking runs on
-uBlock Origin's engine and its filter lists, and there is a switch in the
-toolbar to turn it off for a site that needs it.
+uBlock Origin's engine and its filter lists — including the scriptlets that
+strip YouTube's adverts and the list that defuses "turn off your ad blocker"
+walls — and there is a switch in the toolbar to turn it off for a site that
+needs it.
 
 **Search your own documents.** Point it at a folder and it indexes the contents
 locally — PDFs, Word, PowerPoint, Excel, Markdown, source code and plain text —
@@ -78,8 +80,10 @@ speech models if you use voice mode.
 
 Download the installer from the
 [Releases page](https://github.com/Lucki74/draggy/releases) and run it. Draggy
-checks for new versions on its own and installs them when you quit, unless you
-turn that off in Settings.
+checks for new versions on its own, downloads them in the background, and offers
+to install when you next open it — one dialog, **Install now** or **Maybe
+later**. Installing is silent: no wizard, no questions. Turn it off in Settings
+if you would rather.
 
 Windows will show a SmartScreen warning about an unknown publisher: click **More
 info**, then **Run anyway**. The installer is not code signed, which is a

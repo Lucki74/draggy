@@ -1,5 +1,7 @@
 const { log } = require("./logger.cjs");
 const platform = require("./platform.cjs");
+const fs = require("fs");
+const path = require("path");
 const catalogue = require("./mcpCatalogue.cjs");
 
 /**
@@ -98,6 +100,117 @@ function splitQualifiedName(name) {
   };
 }
 
+/** How long an install may take before it is treated as stuck. */
+const INSTALL_TIMEOUT_MS = 180000;
+
+/** Where servers are installed. Set once, from the app's data folder. */
+let serverRoot = null;
+
+function init(userDataPath) {
+  serverRoot = path.join(userDataPath, "mcp-servers");
+}
+
+/**
+ * Runs npm to completion, hidden, and resolves with what it wrote to stderr.
+ * Scripts are refused: an MCP server has no business running one on install.
+ */
+function npmInstall(pkg) {
+  const npm = platform.resolveNpm();
+  if (!npm) return Promise.resolve({ ok: false, detail: "npm could not be found" });
+
+  fs.mkdirSync(serverRoot, { recursive: true });
+
+  return new Promise((resolve) => {
+    const child = platform.spawnHidden(
+      npm.file,
+      [
+        ...npm.prefixArgs,
+        "install", pkg,
+        "--prefix", serverRoot,
+        "--no-audit", "--no-fund", "--no-package-lock",
+        "--ignore-scripts",
+        "--loglevel", "error",
+      ],
+      {
+        env: { ...platform.defaultShellEnv(), ELECTRON_RUN_AS_NODE: "1" },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      if (stderr.length < MAX_STDERR_CHARS) stderr += chunk;
+    });
+
+    const timer = setTimeout(() => {
+      child.kill();
+      resolve({ ok: false, detail: "the download timed out" });
+    }, INSTALL_TIMEOUT_MS);
+
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ ok: false, detail: error.message });
+    });
+
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      resolve({ ok: code === 0, detail: stderr.trim().split("\n").slice(-3).join(" ") });
+    });
+  });
+}
+
+/**
+ * The JavaScript a package says to run, as an absolute path.
+ *
+ * Running it directly is what keeps a console window off the screen: npx starts
+ * a package through a `cmd.exe` shim, and Electron is a GUI binary with no
+ * console, so that shim gets a brand new visible one.
+ */
+function entryPointFor(pkg) {
+  const dir = path.join(serverRoot, "node_modules", ...pkg.split("/"));
+  const manifestPath = path.join(dir, "package.json");
+  if (!fs.existsSync(manifestPath)) return null;
+
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return null;
+  }
+
+  const bin = manifest.bin;
+  const relative =
+    typeof bin === "string"
+      ? bin
+      : bin && typeof bin === "object"
+        ? bin[Object.keys(bin)[0]]
+        : manifest.main;
+
+  if (!relative) return null;
+
+  const entry = path.join(dir, relative);
+  return fs.existsSync(entry) ? entry : null;
+}
+
+/** Installs a server if it is not already on disk, and returns its entry point. */
+async function provideServer(pkg) {
+  const existing = entryPointFor(pkg);
+  if (existing) return { entry: existing };
+
+  const installed = await npmInstall(pkg);
+  if (!installed.ok) {
+    return { error: `${pkg} could not be installed${installed.detail ? ` — ${installed.detail}` : ""}.` };
+  }
+
+  const entry = entryPointFor(pkg);
+  if (!entry) {
+    return { error: `${pkg} installed but does not say which file to run.` };
+  }
+
+  return { entry };
+}
+
 /** Every running server, by catalogue id. */
 const running = new Map();
 
@@ -147,25 +260,33 @@ async function startServer(id, config = {}) {
 
   const spec = catalogue.commandFor(definition, config);
 
-  const npx = platform.resolveNpx();
-  if (!npx) {
+  if (!serverRoot) {
+    return { id, status: "error", error: "Extensions are not ready yet.", tools: [] };
+  }
+
+  if (!platform.resolveNpm()) {
     return {
       id,
       status: "error",
       error:
-        "npm could not be found on this machine, and extensions are fetched with npx. Install Node.js and try again.",
+        "npm could not be found on this machine, and extensions are installed with it. Install Node.js and try again.",
       tools: [],
     };
   }
 
+  const provided = await provideServer(definition.package);
+  if (provided.error) {
+    return { id, status: "error", error: provided.error, tools: [] };
+  }
+
   let child;
   try {
-    child = platform.spawnHidden(npx.file, [...npx.prefixArgs, ...spec.args], {
+    child = platform.spawnHidden(process.execPath, [provided.entry, ...spec.args], {
       // The server inherits a normal shell environment plus whatever
       // credentials were entered for it, and nothing else.
       env: {
         ...platform.defaultShellEnv(),
-        ...(npx.asNode ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+        ELECTRON_RUN_AS_NODE: "1",
         ...spec.env,
       },
       stdio: ["pipe", "pipe", "pipe"],
@@ -354,6 +475,8 @@ async function callTool(serverId, toolName, args) {
 }
 
 module.exports = {
+  init,
+  entryPointFor,
   PROTOCOL_VERSION,
   createLineReader,
   renderToolResult,
