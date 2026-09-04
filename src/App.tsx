@@ -184,7 +184,7 @@ export default function App() {
       args: Record<string, unknown>,
     ) => api.call(serverId, toolName, args);
 
-    api.onState((state) => syncMcpTools(state.servers, call));
+    const stopWatching = api.onState((state) => syncMcpTools(state.servers, call));
 
     api
       .startEnabled()
@@ -192,7 +192,7 @@ export default function App() {
       .catch(() => undefined);
 
     return () => {
-      api.offState();
+      stopWatching();
       unregisterGroup("external");
     };
   }, [isSplashMode]);
@@ -211,11 +211,9 @@ export default function App() {
       })
       .catch(() => undefined);
 
-    updater.onState((next) => {
+    return updater.onState((next) => {
       if (next.status === "ready") setUpdateReady(next.version ?? "");
     });
-
-    return () => updater.offState();
   }, [isSplashMode]);
 
   const refreshLibraryReadiness = useCallback(() => {
@@ -265,7 +263,7 @@ export default function App() {
 
   useEffect(() => {
     if (isSplashMode) return;
-    window.electronAPI?.onBootModel((bootModel) => {
+    return window.electronAPI?.onBootModel((bootModel) => {
       setSettings((prev) =>
         prev.modelName === bootModel ? prev : { ...prev, modelName: bootModel },
       );

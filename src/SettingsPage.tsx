@@ -329,11 +329,11 @@ export default function SettingsPage({
       })
       .catch(() => undefined);
 
-    window.electronAPI?.library.onProgress(setLibraryProgress);
+    const stopWatching = window.electronAPI?.library.onProgress(setLibraryProgress);
 
     return () => {
       cancelled = true;
-      window.electronAPI?.library.offProgress();
+      stopWatching?.();
     };
   }, [tab, loadLibrary]);
 
@@ -351,8 +351,7 @@ export default function SettingsPage({
     if (!api) return;
 
     api.state().then(setUpdaterState).catch(() => undefined);
-    api.onState(setUpdaterState);
-    return () => api.offState();
+    return api.onState(setUpdaterState);
   }, []);
 
   useEffect(() => {

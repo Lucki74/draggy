@@ -57,13 +57,11 @@ export default function BrowserBar({ language }: { language: string }) {
     const api = window.electronAPI?.browserBar;
     if (!api) return;
 
-    api.onState((next: BrowserState) => {
+    return api.onState((next: BrowserState) => {
       setState(next);
       // A page finishing its load must not overwrite a half-typed address.
       if (!editingRef.current) setDraft(next.url);
     });
-
-    return () => api.offState();
   }, []);
 
   /**

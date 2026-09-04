@@ -78,7 +78,7 @@ export default function StartupScreen({
       return;
     }
 
-    window.electronAPI.onDownloadProgress((p) => {
+    const stopWatching = window.electronAPI.onDownloadProgress((p) => {
       setDownloadProgress((prev) => ({
         percent: Number(p.percent) || 0,
         completed: Number(p.completed) || 0,
@@ -224,7 +224,7 @@ export default function StartupScreen({
 
     bootSequence();
 
-    return () => window.electronAPI?.offDownloadProgress();
+    return () => stopWatching();
   }, [modelName, onReady]);
 
   return (

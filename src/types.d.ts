@@ -1,3 +1,6 @@
+/** Drops one listener from a main-process channel, leaving the others alone. */
+export type Unsubscribe = () => void;
+
 export interface SystemSpecs {
   cpu: string;
   ram: number;
@@ -487,8 +490,7 @@ declare global {
           sources?: string[];
           error?: string;
         }>;
-        onProgress: (callback: (progress: LibraryProgress) => void) => void;
-        offProgress: () => void;
+        onProgress: (callback: (progress: LibraryProgress) => void) => Unsubscribe;
       };
 
       runner: {
@@ -510,8 +512,7 @@ declare global {
         check: (options?: { silent?: boolean }) => Promise<UpdaterState>;
         download: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;
-        onState: (callback: (state: UpdaterState) => void) => void;
-        offState: () => void;
+        onState: (callback: (state: UpdaterState) => void) => Unsubscribe;
       };
 
       browserBar: {
@@ -523,8 +524,7 @@ declare global {
         setAdblock: (
           enabled: boolean,
         ) => Promise<{ success: boolean; enabled: boolean }>;
-        onState: (callback: (state: BrowserBarState) => void) => void;
-        offState: () => void;
+        onState: (callback: (state: BrowserBarState) => void) => Unsubscribe;
       };
 
 
@@ -550,8 +550,9 @@ declare global {
           toolName: string,
           args: Record<string, unknown>,
         ) => Promise<{ success: boolean; text?: string; error?: string }>;
-        onState: (callback: (state: { servers: McpServerState[] }) => void) => void;
-        offState: () => void;
+        onState: (
+          callback: (state: { servers: McpServerState[] }) => void,
+        ) => Unsubscribe;
       };
 
       appInfo: () => Promise<AppInfo>;
@@ -560,9 +561,8 @@ declare global {
 
       onDownloadProgress: (
         callback: (progress: DownloadProgressEvent) => void,
-      ) => void;
-      offDownloadProgress: () => void;
-      onBootModel: (callback: (model: string) => void) => void;
+      ) => Unsubscribe;
+      onBootModel: (callback: (model: string) => void) => Unsubscribe;
       bootFinished: (model: string) => void;
       quitApp: () => void;
     };

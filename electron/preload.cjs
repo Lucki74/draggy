@@ -1,8 +1,14 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+/**
+ * Two parts of the app may want the same channel: Settings shows an update's
+ * progress while the window waits for one to finish. Returns a disposer that
+ * removes this listener alone, so neither can silence the other.
+ */
 const subscribe = (channel, callback) => {
-  ipcRenderer.removeAllListeners(channel);
-  ipcRenderer.on(channel, (_event, value) => callback(value));
+  const listener = (_event, value) => callback(value);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -60,7 +66,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     search: (query, limit, model, options) =>
       ipcRenderer.invoke("library:search", query, limit, model, options),
     onProgress: (callback) => subscribe("library-progress", callback),
-    offProgress: () => ipcRenderer.removeAllListeners("library-progress"),
   },
 
   runner: {
@@ -76,7 +81,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     download: () => ipcRenderer.invoke("updater:download"),
     install: () => ipcRenderer.invoke("updater:install"),
     onState: (callback) => subscribe("updater-state", callback),
-    offState: () => ipcRenderer.removeAllListeners("updater-state"),
   },
 
   browserBar: {
@@ -86,7 +90,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     setAdblock: (enabled) =>
       ipcRenderer.invoke("browser-bar-set-adblock", enabled),
     onState: (callback) => subscribe("browser-bar-state", callback),
-    offState: () => ipcRenderer.removeAllListeners("browser-bar-state"),
   },
 
   mcp: {
@@ -101,7 +104,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     call: (serverId, toolName, args) =>
       ipcRenderer.invoke("mcp:call", serverId, toolName, args),
     onState: (callback) => subscribe("mcp-state", callback),
-    offState: () => ipcRenderer.removeAllListeners("mcp-state"),
   },
 
   appInfo: () => ipcRenderer.invoke("app:version"),
@@ -109,7 +111,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   readLogs: () => ipcRenderer.invoke("logs:tail"),
 
   onDownloadProgress: (callback) => subscribe("download-progress", callback),
-  offDownloadProgress: () => ipcRenderer.removeAllListeners("download-progress"),
   onBootModel: (callback) => subscribe("boot-model", callback),
   bootFinished: (model) => ipcRenderer.send("boot-finished", model),
   quitApp: () => ipcRenderer.send("quit-app"),
