@@ -959,8 +959,9 @@ export default function App() {
         <div
           className={
             viewMode === "settings"
-              ? "absolute inset-0 flex flex-col"
-              : "absolute inset-0 flex flex-col invisible pointer-events-none"
+              ? // Opaque, or the chat's composer shows through underneath it.
+                "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)]"
+              : "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)] invisible pointer-events-none"
           }
           aria-hidden={viewMode !== "settings"}
         >
