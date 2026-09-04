@@ -9,7 +9,7 @@ describe("the filter list set", () => {
 
   it("loads the current year's uBO filters", () => {
     // uBO splits its filters by year and only adds to the newest file, so an
-    // old set silently stops receiving new rules — YouTube's among them.
+    // old set silently stops receiving new rules, YouTube's among them.
     expect(lists.some((url) => url.includes("filters-2025.txt"))).toBe(true);
   });
 

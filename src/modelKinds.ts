@@ -4,8 +4,8 @@
  */
 
 /**
- * Whether this model is unable to hold a conversation. Silence — no
- * capabilities at all — is not an answer, and reads as no objection.
+ * Whether this model is unable to hold a conversation. Silence, meaning no
+ * capabilities at all, is not an answer, and reads as no objection.
  */
 export function cannotGenerate(capabilities: string[] | undefined): boolean {
   if (!capabilities || capabilities.length === 0) return false;

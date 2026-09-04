@@ -151,10 +151,10 @@ Reply in the language the user is speaking.`;
  * How a spoken turn asks to search. It must be the whole reply: there is no
  * tool channel, and no second pass to strip a marker already spoken aloud.
  */
-const VOICE_SEARCH_PROMPT = `If answering needs something that changes — weather, news, prices, sport, timetables, opening hours, or the current version of something — then your entire reply is exactly this line:
+const VOICE_SEARCH_PROMPT = `If answering needs something that changes (weather, news, prices, sport, timetables, opening hours, or the current version of something) then your entire reply is exactly this line:
 SEARCH: a few plain keywords
 
-Nothing before it, nothing after it, no URL, no sentence. Everything that does not change — history, geography, definitions, maths, how something works — you answer yourself without searching.`;
+Nothing before it, nothing after it, no URL, no sentence. Everything that does not change (history, geography, definitions, maths, how something works) you answer yourself without searching.`;
 
 export function buildVoicePrompt(searchEnabled: boolean): string {
   return searchEnabled

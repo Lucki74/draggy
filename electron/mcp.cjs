@@ -200,7 +200,7 @@ async function provideServer(pkg) {
 
   const installed = await npmInstall(pkg);
   if (!installed.ok) {
-    return { error: `${pkg} could not be installed${installed.detail ? ` — ${installed.detail}` : ""}.` };
+    return { error: `${pkg} could not be installed${installed.detail ? `: ${installed.detail}` : ""}.` };
   }
 
   const entry = entryPointFor(pkg);
@@ -334,7 +334,7 @@ async function startServer(id, config = {}) {
 
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => {
-    // Kept, capped, and only surfaced when the server fails to start — most
+    // Kept, capped, and only surfaced when the server fails to start. Most
     // servers write ordinary startup chatter here.
     if (entry.stderr.length < MAX_STDERR_CHARS) entry.stderr += chunk;
   });
@@ -417,7 +417,7 @@ async function startServer(id, config = {}) {
     return {
       id,
       status: "error",
-      error: detail ? `${error.message} — ${detail}` : error.message,
+      error: detail ? `${error.message}: ${detail}` : error.message,
       tools: [],
     };
   }

@@ -79,7 +79,7 @@ const CATALOGUE = [
     id: "jetbrains",
     name: "JetBrains IDEs",
     description:
-      "Drive a running JetBrains IDE — open files, read the project tree, run inspections.",
+      "Drive a running JetBrains IDE: open files, read the project tree, run inspections.",
     package: "@jetbrains/mcp-proxy",
     site: "https://www.jetbrains.com",
     args: [],
@@ -375,7 +375,7 @@ const CATALOGUE = [
     id: "everything",
     name: "Everything (reference)",
     description:
-      "The reference server. Exercises every part of the protocol — useful for checking that MCP works at all.",
+      "The reference server. Exercises every part of the protocol, so it is useful for checking MCP works at all.",
     package: "@modelcontextprotocol/server-everything",
     site: "https://modelcontextprotocol.io",
     args: [],

@@ -1,5 +1,5 @@
 /**
- * Backchannels — "mhm", "right", "yeah" — are not turns. An assistant that
+ * Backchannels like "mhm", "right" and "yeah" are not turns. An assistant that
  * restarts every time you agree with it feels broken, so these are dropped.
  */
 
@@ -58,7 +58,7 @@ function listFor(language: string): Set<string> {
 
 /**
  * True when the whole utterance is nothing but acknowledgement. Every token has
- * to match — "yeah but wait" contains "yeah" and is emphatically a real turn.
+ * to match: "yeah but wait" contains "yeah" and is emphatically a real turn.
  */
 export function isBackchannel(text: string, language: string): boolean {
   const trimmed = text.trim();

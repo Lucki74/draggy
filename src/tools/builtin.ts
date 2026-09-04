@@ -538,7 +538,7 @@ const searchLibrary: ToolSpec = {
 
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("libraryMatches")} **${result.results.length}** — ${query}`,
+      content: `${ctx.t("libraryMatches")} **${result.results.length}**: ${query}`,
       libraryHits: result.results.map((hit) => ({
         name: hit.name,
         path: hit.path,
@@ -550,7 +550,7 @@ const searchLibrary: ToolSpec = {
     const passages = result.results
       .map(
         (hit, index) =>
-          `[Passage #${index + 1}] ${hit.name}${hit.heading ? ` — ${hit.heading}` : ""}\n${hit.text}`,
+          `[Passage #${index + 1}] ${hit.name}${hit.heading ? `: ${hit.heading}` : ""}\n${hit.text}`,
       )
       .join("\n\n");
 
@@ -599,7 +599,7 @@ const runCode: ToolSpec = {
       ctx.patchStep(stepId, {
         isComplete: true,
         type: "error",
-        content: `${ctx.t("codeFailed")} — ${result.error}`,
+        content: `${ctx.t("codeFailed")}: ${result.error}`,
       });
       ctx.syncSteps();
       return `TOOL RESULT (run_code): Could not run - ${result.error}`;

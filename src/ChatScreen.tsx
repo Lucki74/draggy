@@ -351,8 +351,8 @@ export default function ChatScreen({
           const parsed = await window.electronAPI?.readDocument(file.name, bytes);
 
           if (!parsed?.success || !parsed.text) {
-            // A PDF fails in more ways than "wrong format" — a scan, a
-            // password — and the reader says which, which is worth saying.
+            // A PDF fails in more ways than "wrong format": a scan, or a
+            // password. The reader says which, which is worth saying.
             rejected.push(`${file.name} - ${parsed?.error || t("unsupportedFile")}`);
             continue;
           }
@@ -686,8 +686,8 @@ export default function ChatScreen({
           <ErrorBoundary key={msg.id}>
             {/*
               Everything above this line has been folded into notes and is no
-              longer sent to the model. The messages themselves are untouched —
-              still here, still searchable — but the model is working from a
+              longer sent to the model. The messages themselves are untouched,
+              still here and still searchable, but the model works from a
               summary of them, and saying so is the difference between "it
               forgot" and "it condensed".
             */}
@@ -946,7 +946,7 @@ export default function ChatScreen({
                 }`}
                 title={
                   toolWarning && settings.webMode !== "off"
-                    ? `${t("webSearch")} — ${toolWarning}`
+                    ? `${t("webSearch")}: ${toolWarning}`
                     : t("webSearch")
                 }
               >
@@ -974,7 +974,7 @@ export default function ChatScreen({
                   }`}
                   title={
                     toolWarning
-                      ? `${t("codeExecution")} — ${toolWarning}`
+                      ? `${t("codeExecution")}: ${toolWarning}`
                       : t("codeExecution")
                   }
                 >

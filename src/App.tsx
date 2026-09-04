@@ -162,7 +162,7 @@ export default function App() {
   }, [settings.searchProvider, settings.searxngUrl, settings.braveApiKey]);
 
   // The main process owns the update schedule, so it has to be told what the
-  // setting says — at startup as much as when it is changed.
+  // setting says, at startup as much as when it is changed.
   useEffect(() => {
     if (isSplashMode) return;
     window.electronAPI?.updater

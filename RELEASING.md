@@ -34,6 +34,11 @@ The version in `package.json` is the single source of truth. An installed copy
 compares its own version against the one in `latest.yml`, so a release whose tag
 and `package.json` disagree will simply never be offered.
 
+Keep the number a plain one. A prerelease such as `1.2.3-fix` sorts *below*
+`1.2.3` under semver, and electron-builder takes the update channel from the
+prerelease word, so it uploads `fix.yml` rather than the `latest.yml` the app
+reads. The installers appear on GitHub and nobody is ever offered them.
+
 ## Releasing from your own machine instead
 
 If you would rather not use the workflow, build and publish locally. This needs
@@ -52,11 +57,11 @@ release:linux` does the same for the AppImage and `.deb`. Both require the tag
 for that version to exist already.
 
 To build an installer without touching GitHub at all, use `npm run
-electron:build` — every non-release build script passes `--publish never`, so a
+electron:build`. Every non-release build script passes `--publish never`, so a
 local build can never upload anything by accident.
 
 If that fails with `unable to verify the first certificate`, something on the
-machine is intercepting TLS — antivirus, a proxy, a VPN — with a root Windows
+machine is intercepting TLS (antivirus, a proxy, a VPN) with a root Windows
 trusts and Node does not. Node reads the system store when told to:
 
 ```powershell

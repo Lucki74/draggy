@@ -183,7 +183,7 @@ export function buildSummaryMessages(
 
 ${previous}
 
-Below is what happened next. Write ONLY the notes for this new part — do not repeat, rewrite or refer back to the notes above. What you write will be appended to them.
+Below is what happened next. Write ONLY the notes for this new part. Do not repeat, rewrite or refer back to the notes above. What you write will be appended to them.
 
 ${transcript}`
     : `Write the notes for this conversation.

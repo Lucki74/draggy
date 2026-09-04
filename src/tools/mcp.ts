@@ -92,7 +92,7 @@ export function describeMcpTool(
       ctx.pushStep({
         id: stepId,
         type: "extension",
-        content: `${serverId} — **${tool.name}**`,
+        content: `${serverId}: **${tool.name}**`,
         isComplete: false,
       });
 
@@ -108,7 +108,7 @@ export function describeMcpTool(
         ctx.patchStep(stepId, {
           isComplete: true,
           type: "error",
-          content: `${serverId} — ${tool.name} failed`,
+          content: `${serverId}: ${tool.name} failed`,
         });
         ctx.syncSteps();
         return `TOOL RESULT (${tool.qualifiedName}): Failed - ${result.error || "unknown error"}`;

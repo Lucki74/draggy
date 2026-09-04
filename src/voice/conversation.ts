@@ -294,7 +294,7 @@ export async function openConversation(
     history.map((turn) => ({
       role: turn.role,
       content: turn.cut
-        ? `${turn.text} [cut off here — the user started speaking]`
+        ? `${turn.text} [cut off here, the user started speaking]`
         : turn.text,
     }));
 

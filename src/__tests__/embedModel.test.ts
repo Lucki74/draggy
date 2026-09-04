@@ -32,7 +32,7 @@ describe("sizing the embedding model to the machine", () => {
   });
 
   it("never asks for more than what a 400-chunk file can pay back in ten seconds", () => {
-    // No hard numbers to check here — just that nothing above the tested
+    // No hard numbers to check here, just that nothing above the tested
     // top rung sneaks in unreasoned about.
     expect(EMBED_TIERS[EMBED_TIERS.length - 1].model).toBe("qwen3-embedding:8b");
   });
