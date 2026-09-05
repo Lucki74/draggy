@@ -37,7 +37,7 @@ or more makes this pleasant; less works, with smaller models.
 npm run check
 ```
 
-Typecheck, lint and the full test suite. There are around 940 tests and they run
+Typecheck, lint and the full test suite. There are around 950 tests and they run
 in about two seconds, so there is no reason to skip them.
 
 CI runs that same command on every push and pull request

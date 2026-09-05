@@ -312,6 +312,31 @@ function pythonCandidates() {
   return IS_WINDOWS ? ["python", "py"] : ["python3", "python"];
 }
 
+/**
+ * Kills a child and everything it started. Signalling the child alone leaves
+ * whatever it spawned running, with nobody left to notice.
+ */
+function killTree(child) {
+  if (!child || child.pid === undefined) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  if (IS_WINDOWS) {
+    execFileHidden("taskkill", ["/pid", String(child.pid), "/T", "/F"], {}, () => {});
+    return;
+  }
+
+  try {
+    // Negative pid means the group, which is why the child was detached.
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      /* the process is already gone */
+    }
+  }
+}
+
 module.exports = {
   IS_WINDOWS,
   IS_MAC,
@@ -330,4 +355,5 @@ module.exports = {
   resolveNpm,
   spawnHidden,
   execFileHidden,
+  killTree,
 };

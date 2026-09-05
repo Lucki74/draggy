@@ -430,8 +430,10 @@ function stopServer(id) {
   running.delete(id);
 
   try {
+    // Ending stdin is how the protocol says goodbye; the tree kill is for the
+    // server that ignores it, and for anything the server started itself.
     entry.child.stdin.end();
-    entry.child.kill();
+    platform.killTree(entry.child);
   } catch {
     // Already gone, which is the state we wanted.
   }

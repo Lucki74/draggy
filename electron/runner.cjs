@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const {
   IS_WINDOWS,
   defaultShellEnv,
-  execFileHidden,
+  killTree,
   pythonCandidates,
   runCommand,
   spawnHidden,
@@ -60,22 +60,17 @@ function truncate(text) {
   };
 }
 
-function killTree(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
+/**
+ * Every run currently in flight. A program with a twenty-second budget outlives
+ * a quit otherwise, and on macOS and Linux it is detached into its own group.
+ */
+const live = new Set();
 
-  if (IS_WINDOWS) {
-    execFileHidden("taskkill", ["/pid", String(child.pid), "/T", "/F"], {}, () => {});
-    return;
-  }
-
-  try {
-    process.kill(-child.pid, "SIGKILL");
-  } catch {
-    try {
-      child.kill("SIGKILL");
-    } catch {
-      /* the process is already gone */
-    }
+/** Kills every run still going. Called when the app is on its way out. */
+function stopAll() {
+  for (const child of [...live]) {
+    live.delete(child);
+    killTree(child);
   }
 }
 
@@ -161,6 +156,8 @@ async function runCode({ userDataPath, language, source, timeoutMs }) {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
+    live.add(child);
+
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -179,11 +176,13 @@ async function runCode({ userDataPath, language, source, timeoutMs }) {
 
     child.on("error", (error) => {
       clearTimeout(timer);
+      live.delete(child);
       resolve({ success: false, error: error.message });
     });
 
     child.on("close", (code, signal) => {
       clearTimeout(timer);
+      live.delete(child);
       const out = truncate(stdout);
       const err = truncate(stderr);
 
@@ -225,6 +224,7 @@ async function probe() {
 
 module.exports = {
   runCode,
+  stopAll,
   probe,
   normaliseLanguage,
   LANGUAGES,

@@ -478,6 +478,14 @@ function openInAppBrowser(url) {
   return entry;
 }
 
+/** Shuts every in-app browser window, which is what quitting should mean. */
+function closeBrowserWindows() {
+  for (const entry of [...browserWindows]) {
+    if (!entry.win.isDestroyed()) entry.win.destroy();
+  }
+  browserWindows.clear();
+}
+
 /** The window a toolbar belongs to, found from the message it just sent. */
 function browserWindowFor(event) {
   for (const entry of browserWindows) {
@@ -704,6 +712,10 @@ function createWindow() {
   }
   mainWindow.setAutoHideMenuBar(true);
 
+  // The browser belongs to the app, not the other way round. A browser window
+  // left open kept Draggy running with its own window already gone.
+  mainWindow.on("closed", closeBrowserWindows);
+
   logger.attachWindow(mainWindow, "main");
 
   if (isDevelopment()) {
@@ -771,14 +783,42 @@ app.whenReady().then(() => {
   });
 });
 
-app.on("before-quit", () => {
-  updater.dispose();
-  // Spawned servers are children of this process and would otherwise be left
-  // running after the window is gone.
-  mcp.stopAll();
-  storage.close();
-  library.close();
-});
+/**
+ * Everything Draggy started, stopped on the way out. One step failing must not
+ * skip the rest, so each is on its own.
+ */
+function shutdown() {
+  const steps = [
+    ["browsers", closeBrowserWindows],
+    ["updater", () => updater.dispose()],
+    // Servers and code runs are children of this process and would otherwise
+    // be left running after the window is gone.
+    ["mcp", () => mcp.stopAll()],
+    ["runner", () => runner.stopAll()],
+    ["ollama", stopOllama],
+    ["storage", () => storage.close()],
+    ["library", () => library.close()],
+  ];
+
+  for (const [name, step] of steps) {
+    try {
+      step();
+    } catch (error) {
+      log.warn("shutdown", `${name}: ${error?.message || error}`);
+    }
+  }
+}
+
+/** Only ever the instance Draggy started, never one that was already running. */
+function stopOllama() {
+  if (!ollamaStartedHere) return;
+
+  const child = ollamaStartedHere;
+  ollamaStartedHere = null;
+  platform.killTree(child);
+}
+
+app.on("before-quit", shutdown);
 
 ipcMain.on("boot-finished", (event, model) => {
   bootCompleted = true;
@@ -1297,6 +1337,12 @@ const resolveOllamaLauncher = platform.resolveOllamaLauncher;
 
 let isStartingOllama = false;
 
+/**
+ * Ollama, only when Draggy was the one that started it. An instance that was
+ * already up belongs to whoever started it and is left alone on quit.
+ */
+let ollamaStartedHere = null;
+
 ipcMain.handle("start-ollama", async () => {
   if (isStartingOllama) return true;
   isStartingOllama = true;
@@ -1323,6 +1369,11 @@ ipcMain.handle("start-ollama", async () => {
       env: { ...platform.defaultShellEnv(), OLLAMA_HOST },
     });
     child.unref();
+
+    ollamaStartedHere = child;
+    child.on("exit", () => {
+      if (ollamaStartedHere === child) ollamaStartedHere = null;
+    });
 
     let started = false;
     for (let i = 0; i < 20; i++) {
