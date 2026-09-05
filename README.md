@@ -78,7 +78,7 @@ Draggy sizes the model to the machine it finds, so there is no single number
 that decides whether it runs. These two sets are the ones worth knowing.
 
 ### Minimum
-
+| | |
 | --- | --- |
 | System | Windows 10 64-bit (1809 or newer), macOS 11, 64-bit Linux with glibc 2.28 or newer |
 | Processor | Intel Core i5-8250U, AMD Ryzen 3 3200U, Apple M1 |
@@ -93,7 +93,7 @@ parameters a model will also describe a tool call rather than make one, often
 enough to be irritating, so web search and the browser are unreliable down here.
 
 ### Recommended
-
+| | |
 | --- | --- |
 | System | Windows 11, macOS 14, Newest Linux |
 | Processor | Intel Core i5-12400, AMD Ryzen 5 5600, or Apple M2 |
