@@ -178,6 +178,11 @@ a browser useless. Sharing that one partition between your browsing and the
 model's page reads is also what lets a verification check you pass by hand
 carry over to what the model can read afterwards.
 
+Draggy starts real processes, and one `shutdown()` on quit stops all of them:
+browser windows, extension servers, a code run still going, and Ollama if Draggy
+was the one that started it. An Ollama that was already running is left alone,
+because it may be serving something else.
+
 The voice pipeline is worth a look if you are into that sort of thing.
 `src/voice/gate.ts` turns a stream of speech probabilities into conversation
 events and knows nothing about audio or models, which makes the whole
