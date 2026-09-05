@@ -79,13 +79,12 @@ that decides whether it runs. These two sets are the ones worth knowing.
 
 ### Minimum
 
-| | |
 | --- | --- |
-| System | Windows 10 64-bit (1809 or newer), macOS 11, or 64-bit Linux with glibc 2.28 or newer |
-| Processor | Intel Core i5-8250U, AMD Ryzen 3 3200U, Apple M1, or anything newer |
+| System | Windows 10 64-bit (1809 or newer), macOS 11, 64-bit Linux with glibc 2.28 or newer |
+| Processor | Intel Core i5-8250U, AMD Ryzen 3 3200U, Apple M1 |
 | Memory | 8 GB |
-| Graphics | Integrated is fine: Intel UHD 620, AMD Radeon Vega 8. No dedicated card needed |
-| Disk | 10 GB free, which Draggy checks before the first launch |
+| Graphics | Intel UHD 620, AMD Radeon Vega 8 |
+| Disk | 10 GB free |
 
 With no usable graphics memory Draggy picks a model of around 1B parameters and
 runs it on the processor. That works, and it is slow: a few words a second, and
@@ -95,31 +94,17 @@ enough to be irritating, so web search and the browser are unreliable down here.
 
 ### Recommended
 
-| | |
 | --- | --- |
-| System | Windows 11, macOS 14, or a current Linux |
+| System | Windows 11, macOS 14, Newest Linux |
 | Processor | Intel Core i5-12400, AMD Ryzen 5 5600, or Apple M2 |
 | Memory | 16 GB |
-| Graphics | 8 GB of VRAM: GeForce RTX 4060, RTX 3070, Radeon RX 7600, Intel Arc A750. Apple M2 with 16 GB of unified memory does the same job |
-| Disk | 20 GB free, on an SSD |
+| Graphics | GeForce RTX 3070, Radeon RX 7600, Intel Arc A750 |
+| Disk | 20 GB free (SSD) |
 
 Eight gigabytes of VRAM is where Draggy picks Qwen 3 8B, the smallest model that
 holds a conversation, calls tools reliably and answers questions about your own
 documents well. Apple Silicon does better than its number suggests, because the
 memory is shared with the processor rather than split from it.
-
-### Everything at once
-
-Voice mode downloads a few hundred megabytes of speech models the first time it
-runs, and the neural voice sounds smoothest with a card that is not already busy
-generating. The document library adds an embedding model, anywhere from 50 MB at
-the bottom to 4.7 GB at the top, and indexing is a one-time cost per folder.
-
-A card with 16 GB, such as a GeForce RTX 4080, an RTX 4060 Ti 16 GB or a Radeon
-RX 7800 XT, runs a 14B model with voice and the library alongside it. An Apple
-M3 Pro with 36 GB does the same. Draggy will use more than that if you have it:
-the top of its table is a 235B mixture-of-experts model at 48 GB, which means a
-card like an RTX 6000 Ada or two 24 GB cards.
 
 ## Installing
 
