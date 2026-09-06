@@ -4,7 +4,7 @@
   "description": "A desktop AI assistant that talks, browses and works with your files all on local models.",
   "license": "GPL-3.0-or-later",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.5",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
