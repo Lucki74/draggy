@@ -1,6 +1,37 @@
-<img width="96" height="96" alt="icon_light" src="https://github.com/user-attachments/assets/746650c8-1251-443f-a323-43ed7dee89ec"/>
+<div align="center">
+
+<img width="96" height="96" alt="Draggy" src="https://github.com/user-attachments/assets/746650c8-1251-443f-a323-43ed7dee89ec"/>
 
 # Draggy
+
+
+[![Website](https://img.shields.io/badge/Website-draggyai.vercel.app-000000?style=flat&logo=vercel&logoColor=white)](https://draggyai.vercel.app)
+[![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
+[![Documentation](https://img.shields.io/badge/Docs-wiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://github.com/Lucki74/draggy/wiki)
+
+[![Release](https://img.shields.io/github/v/release/Lucki74/draggy?style=flat&label=release&color=2b2b2b)](https://github.com/Lucki74/draggy/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/Lucki74/draggy/ci.yml?style=flat&label=build&logo=githubactions&logoColor=white)](https://github.com/Lucki74/draggy/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Lucki74/draggy?style=flat&label=license&color=2b2b2b)](LICENSE)
+
+[![Windows](https://img.shields.io/badge/Windows-2b2b2b?style=flat&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTMgNS43IDEwLjQgNC41djcuMUgzek0xMS41IDQuMyAyMSAzdjguNmgtOS41ek0zIDEyLjdoNy40djcuMUwzIDE4LjZ6TTExLjUgMTIuN0gyMVYyMWwtOS41LTEuM3oiLz48L3N2Zz4=)](https://github.com/Lucki74/draggy/releases/latest)
+[![macOS](https://img.shields.io/badge/macOS-2b2b2b?style=flat&logo=apple&logoColor=white)](https://github.com/Lucki74/draggy/releases/latest)
+[![Linux](https://img.shields.io/badge/Linux-2b2b2b?style=flat&logo=linux&logoColor=white)](https://github.com/Lucki74/draggy/releases/latest)
+
+![Electron](https://img.shields.io/badge/Electron-47848F?style=flat&logo=electron&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-2b2b2b?style=flat&logo=ollama&logoColor=white)
+
+</div>
+
+> [!WARNING]
+> **Install from official sources only.** Draggy comes from this repository, its
+> [releases page](https://github.com/Lucki74/draggy/releases) and
+> [draggyai.vercel.app](https://draggyai.vercel.app). Nothing is code signed, 
+> a re-upload elsewhere is indistinguishable from a tampered build.
 
 Draggy is a desktop AI assistant that talks, browses and works with your files,
 all on models running on your own computer.
@@ -9,7 +40,8 @@ It drives a local [Ollama](https://ollama.com) instance, so there is no account,
 no API key, and no request leaving the machine unless you ask for one. An
 Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
-Full documentation is in the [wiki](https://github.com/Lucki74/draggy/wiki).
+Full documentation is in the [wiki](https://github.com/Lucki74/draggy/wiki), and
+the site is at [draggyai.vercel.app](https://draggyai.vercel.app).
 
 ## What it does
 
@@ -60,8 +92,9 @@ holds a conversation and calls tools reliably.
 
 ## Installing
 
-Download the installer from the
-[Releases page](https://github.com/Lucki74/draggy/releases) and run it. Draggy
+Pick your system on [draggyai.vercel.app](https://draggyai.vercel.app), or take
+the installer straight from the
+[Releases page](https://github.com/Lucki74/draggy/releases), and run it. Draggy
 updates itself in the background and offers to install on the next launch.
 
 Nothing is code signed, which is a certificate I have not bought rather than
