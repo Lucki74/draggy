@@ -5,78 +5,34 @@
 Draggy is a desktop AI assistant that talks, browses and works with your files,
 all on models running on your own computer.
 
-Voice mode holds a spoken conversation, a browser window inside the app blocks
-ads, search runs over your own documents, and thirty-four optional extensions
-borrow tools from other services.
-
 It drives a local [Ollama](https://ollama.com) instance, so there is no account,
-no API key, and no request leaving the machine unless you ask for one. Your
-chats, your files, your settings and the documents you index stay on disk where
-you put them.
+no API key, and no request leaving the machine unless you ask for one. An
+Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
-It is an Electron app, built with React and TypeScript, for Windows, macOS and
-Linux.
+Full documentation is in the [wiki](https://github.com/Lucki74/draggy/wiki).
 
 ## What it does
 
-**Chat with a local model.** On first launch Draggy looks at how much VRAM your
-graphics card has and picks a model that will actually fit, then downloads it.
-An 8 GB card gets Qwen 3 8B; a laptop with 2 GB gets something much smaller. You
-can override the choice at any time, and swap models mid-conversation.
-
-Three answering modes sit on the chat toolbar. Balanced and Deep let the model
-reason before it replies; Fast turns reasoning off outright rather than asking
-for less of it, which on a small model is the difference between a one-word
-question costing one second and costing eight.
-
-**Use tools, when they help.** Draggy can search the web, read a page, and
-drive a real browser session: navigate, click, fill inputs, read the result
-back. Any conversation can be exported to Markdown from the history list. It
-writes Word, PowerPoint, Excel, PDF, code and plain text files, and
-reads those same formats back when you attach one. PDFs are typeset through the
-browser engine the app already ships, so a document comes out with real
-headings, tables and page numbers rather than a wall of text. It also runs short
-Python and JavaScript programs to check its own work, in a scratch directory
-with no network access, killed after twenty seconds.
-
-**Browse, with the ads gone.** Links open in a browser window inside the app,
-with back, forward, reload and an address bar. Ad and tracker blocking runs on
-uBlock Origin's engine and its filter lists, including the scriptlets that
-strip YouTube's adverts and the list that defuses "turn off your ad blocker"
-walls. A switch in the toolbar turns it off for a site that needs it.
-
-**Search your own documents.** Point it at a folder and it indexes the contents
-locally (PDFs, Word, PowerPoint, Excel, Markdown, source code and plain text)
-with an embedding model sized to your VRAM the same way the chat model is, or
-one you pick yourself. Questions about your own material are searched there
-before the web. Search runs on meaning and on keywords at once and fuses the
-two, so a paraphrase and an exact part number both find the right passage.
-Useful for contracts, notes, a codebase, anything you would rather not upload
-somewhere.
-
-**Extend it, if you want to.** Draggy speaks the Model Context Protocol, so it
-can borrow tools from servers other people wrote: GitHub, Slack, Notion,
-Postgres, Perplexity, a folder on disk, thirty-four of them in a catalogue in
-Settings. None duplicate a provider Draggy already ships, and nothing is on by
-default. An extension is a program that runs on your machine with the
-credentials you give it, which is a real decision, so you make it one server at
-a time.
-
-**Talk to it.** Voice mode listens continuously, works out when you have
-actually finished a sentence rather than just paused for breath, and answers out
-loud. You can interrupt it mid-sentence and it stops, the way a person would.
-Speech recognition runs in the app with Whisper; the voice is either a system
-one or a neural voice that runs on your GPU. Voice mode uses its own small model
-chosen for how fast it starts speaking rather than how much it knows, because
-two seconds of silence is worse than a slightly shorter answer.
+- **Chat with a local model.** Draggy sizes a model to your graphics card on
+  first launch and downloads it. Three answering modes, swappable models.
+- **Use tools.** Web search, reading a page, and driving a real browser session.
+  It writes Word, PowerPoint, Excel, PDF, code and text files, reads them back
+  when you attach one, and runs short Python and JavaScript in a sandbox.
+- **Browse without ads.** Links open in a browser window inside the app, with
+  uBlock Origin's engine and filter lists, YouTube adverts and anti-adblock
+  walls included.
+- **Search your own documents.** Point it at a folder and it indexes the
+  contents locally, on meaning and keywords at once.
+- **Extend it.** Thirty-four Model Context Protocol servers in a catalogue,
+  none on by default.
+- **Talk to it.** Continuous voice mode that works out when you have finished a
+  sentence, answers out loud, and stops when you cut in.
+- **Export a conversation.** Any chat to Markdown, from the history list.
 
 ## Requirements
 
 Ollama has to be installed and running. Draggy will offer to install it if it
 cannot find it.
-
-Draggy sizes the model to the machine it finds, so there is no single number
-that decides whether it runs. These two sets are the ones worth knowing.
 
 ### Minimum
 | | |
@@ -87,11 +43,8 @@ that decides whether it runs. These two sets are the ones worth knowing.
 | Graphics | Intel UHD 620, AMD Radeon Vega 8 |
 | Disk | 10 GB free |
 
-With no usable graphics memory Draggy picks a model of around 1B parameters and
-runs it on the processor. That works, and it is slow: a few words a second, and
-answers plainly less capable than a larger model gives. Below about 4B
-parameters a model will also describe a tool call rather than make one, often
-enough to be irritating, so web search and the browser are unreliable down here.
+At this end the model runs on the processor at a few words a second, and
+anything under about 4B parameters is unreliable at calling tools.
 
 ### Recommended
 | | |
@@ -103,24 +56,19 @@ enough to be irritating, so web search and the browser are unreliable down here.
 | Disk | 20 GB free (SSD) |
 
 Eight gigabytes of VRAM is where Draggy picks Qwen 3 8B, the smallest model that
-holds a conversation, calls tools reliably and answers questions about your own
-documents well. Apple Silicon does better than its number suggests, because the
-memory is shared with the processor rather than split from it.
+holds a conversation and calls tools reliably.
 
 ## Installing
 
 Download the installer from the
 [Releases page](https://github.com/Lucki74/draggy/releases) and run it. Draggy
-checks for new versions on its own, downloads them in the background, and offers
-to install when you next open it: one dialog, **Install now** or **Maybe
-later**. Installing is silent: no wizard, no questions. Turn it off in Settings
-if you would rather.
+updates itself in the background and offers to install on the next launch.
 
-Windows will show a SmartScreen warning about an unknown publisher: click **More
-info**, then **Run anyway**. The installer is not code signed, which is a
-certificate I have not bought rather than anything Windows found wrong with it.
-If you would rather check than trust, the release includes a SHA-512 for the
-installer, and building from source is a few commands below.
+Nothing is code signed, which is a certificate I have not bought rather than
+anything wrong with the build. Windows shows a SmartScreen warning: **More
+info**, then **Run anyway**. macOS needs the quarantine flag cleared with
+`xattr -cr /Applications/Draggy.app`, and cannot update itself. Each release
+includes a SHA-512 if you would rather check than trust.
 
 ## Building it yourself
 
@@ -132,25 +80,10 @@ npm install
 npm run electron:dev
 ```
 
-That starts Vite and Electron together with hot reload. For a production
-installer:
-
-```bash
-npm run electron:build
-```
-
-The result lands in `dist-electron`. Before committing anything, run:
-
-```bash
-npm run check
-```
-
-which is typecheck, lint and the test suite in one go. There are around 990
-tests and they run in under two seconds. CI runs the same command on every push
-and pull request, but it is faster to find out before you push.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) if you are thinking of sending a patch,
-and [RELEASING.md](RELEASING.md) for how versions are tagged and published.
+Vite and Electron together with hot reload. `npm run electron:build` produces an
+installer in `dist-electron`, and `npm run check` is typecheck, lint and around
+990 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
+sending a patch, and [RELEASING.md](RELEASING.md) for how versions are cut.
 
 ## How it is laid out
 
@@ -166,79 +99,47 @@ src/voice/    capture, voice activity detection, turn-taking, speech
 src/__tests__ everything that can be tested without a GPU
 ```
 
-The interesting boundary is `electron/preload.cjs`: the renderer has no Node
-access and reaches the filesystem, the network and the database only through the
-handful of functions exposed there.
+Two boundaries matter. `electron/preload.cjs` is the security one: the renderer
+has no Node access and reaches the filesystem, network and database only through
+what is exposed there. The second is the session split, with Draggy's own window
+under a strict Content Security Policy and every external page on a separate
+partition with no policy of ours imposed on it.
 
-The second boundary is the session split. Draggy's own window runs on Electron's
-default session under a strict Content Security Policy; every external page,
-whether you opened it or the model did, runs on a separate partition with no
-policy of ours imposed on it. Forcing `default-src 'self'` onto someone else's
-site blocks their scripts, styles, video and forms, which is a fine way to make
-a browser useless. Sharing that one partition between your browsing and the
-model's page reads is also what lets a verification check you pass by hand
-carry over to what the model can read afterwards.
+Quitting stops everything Draggy started: browser windows, extension servers, a
+code run still going, and Ollama if Draggy was the one that started it.
 
-Draggy starts real processes, and one `shutdown()` on quit stops all of them:
-browser windows, extension servers, a code run still going, and Ollama if Draggy
-was the one that started it. An Ollama that was already running is left alone,
-because it may be serving something else.
+[Architecture](https://github.com/Lucki74/draggy/wiki/Architecture) has the rest.
 
-The voice pipeline is worth a look if you are into that sort of thing.
-`src/voice/gate.ts` turns a stream of speech probabilities into conversation
-events and knows nothing about audio or models, which makes the whole
-turn-taking policy testable without a microphone. `src/voice/turnDetector.ts`
-decides how long a pause has to be before your turn is over, based on what you
-just said. A trailing "um" buys you more time than a full stop does.
+## Privacy
 
-## A note on privacy
-
-The only things that reach the internet are: downloading models from Ollama,
-web searches you or the model trigger, pages the browser tool opens, the speech
-models the first time voice mode runs, the ad blocker's filter lists (fetched
-once and cached on disk), the icon of each site that appears in a search result
-(asked of that site directly, never of a third-party favicon service), the
-update check, and any MCP extension you switch on, which fetches its package
-from npm and then talks to whatever service it is for. Everything else is local.
-There is no telemetry and nowhere for it to go.
-
-Web search defaults to automatic: your own SearXNG instance if you have set one
-up, then Brave's API if you have supplied a key, then DuckDuckGo, Startpage and
-two lighter fallbacks, tried in order until one answers. You can also pin it in
-Settings to a specific provider: Brave Search, DuckDuckGo, Startpage, Brave's
-API or SearXNG.
+The only things that reach the internet are model downloads, searches you or the
+model trigger, pages the browser opens, the speech models on first use, the ad
+blocker's filter lists, site icons for search results, the update check, and any
+extension you switch on. Everything else is local. There is no telemetry and
+nowhere for it to go.
 
 ## Languages
 
-The interface is translated into English, French, Spanish, German, Italian,
-Portuguese, Dutch, Russian, Chinese, Japanese, Korean and Arabic. Whether the
-model answers in your language depends on the model, not on Draggy.
+English, French, Spanish, German, Italian, Portuguese, Dutch, Russian, Chinese,
+Japanese, Korean and Arabic. Whether the model answers in your language depends
+on the model, not on Draggy.
 
 ## Known rough edges
 
-Voice mode is new and marked beta in the interface. It works well with a decent
-GPU and a headset; over laptop speakers the echo cancellation has to work harder
-and the model will occasionally answer itself.
-
-macOS builds are published but not signed, so Gatekeeper refuses them until you
-clear the quarantine flag with `xattr -cr /Applications/Draggy.app`, and they
-cannot update themselves. Signing is a certificate that has not been bought.
-
-Tool calling quality varies a lot by model. Anything under about 4B parameters
-will describe a tool call instead of making one often enough to be annoying.
-
-A long conversation is folded down as it goes: once it approaches the size of
-the context window, the older half is condensed into notes and a line appears
-in the transcript saying so. The messages themselves are never touched. They
-stay on screen and stay searchable, but the model is working from a summary of
-them from that point on. The fold happens while you are reading the last reply,
-never while you are waiting for the next one.
+- Voice mode is beta. It wants a decent GPU and a headset; over laptop speakers
+  the model will occasionally answer itself.
+- macOS builds are unsigned, so they need the quarantine flag cleared and cannot
+  update themselves.
+- Tool calling quality varies a lot by model, and small models get it wrong.
+- A long conversation is condensed into notes as it approaches the context
+  window. The messages stay on screen and stay searchable; the model works from
+  the summary.
 
 ## License
 
 GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
 
-Draggy is free software: you may use, study, change and share it. If you pass
-it on, modified or not, you have to pass those same freedoms on with it and
-make your source available under the same licence. There is no warranty, to
-the extent the law allows.
+Draggy is free software: you may use, study, change and share it. If you pass it
+on, modified or not, you have to pass those same freedoms on with it and make
+your source available under the same licence. There is no warranty, to the
+extent the law allows.
