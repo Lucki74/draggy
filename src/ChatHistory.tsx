@@ -96,7 +96,7 @@ export default function ChatHistory({
                     has to keep its click rather than doing both things at once.
                   */}
                   <div
-                    className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="flex items-center opacity-70 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button

@@ -46,6 +46,19 @@ describe("the chat list", () => {
     expect(screen.getByRole("button", { name: "Export as Markdown" })).toBeTruthy();
   });
 
+  it("shows the row actions without needing a hover first", () => {
+    // Shipped hidden behind hover in 1.2.5, which made a new feature no one
+    // knew about invisible to everyone who did not happen to sweep the mouse.
+    renderHistory();
+
+    const actions = screen
+      .getByRole("button", { name: "Export as Markdown" })
+      .closest("div");
+
+    expect(actions?.className).not.toContain("opacity-0");
+    expect(actions?.className).toContain("group-hover:opacity-100");
+  });
+
   it("exports the row it was clicked on", () => {
     const { onExportChat } = renderHistory();
 
