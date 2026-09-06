@@ -61,3 +61,20 @@ describe("packaging", () => {
     expect(pkg.description.length).toBeGreaterThan(20);
   });
 });
+
+describe("a version with a prerelease tag still reaches people", () => {
+  const updater = fs.readFileSync("electron/updater.cjs", "utf8");
+
+  it("keeps every build in one manifest", () => {
+    // electron-builder otherwise names the file after the prerelease word, so
+    // 1.2.6-fix would publish fix.yml, which no installed app ever reads.
+    expect(pkg.build.detectUpdateChannel).toBe(false);
+    expect(updater).toContain('updater.channel = "latest"');
+  });
+
+  it("accepts one as an update", () => {
+    // Without this a stable build refuses a prerelease outright, whatever the
+    // number says.
+    expect(updater).toContain("updater.allowPrerelease = true");
+  });
+});

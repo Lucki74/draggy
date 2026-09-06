@@ -34,10 +34,23 @@ The version in `package.json` is the single source of truth. An installed copy
 compares its own version against the one in `latest.yml`, so a release whose tag
 and `package.json` disagree will simply never be offered.
 
-Keep the number a plain one. A prerelease such as `1.2.3-fix` sorts *below*
-`1.2.3` under semver, and electron-builder takes the update channel from the
-prerelease word, so it uploads `fix.yml` rather than the `latest.yml` the app
-reads. The installers appear on GitHub and nobody is ever offered them.
+## Versions with a tag on the end
+
+A version like `1.2.6-fix` or `1.3.0-rc.1` is a normal release here. Two
+settings make that work, and both matter:
+
+- `detectUpdateChannel: false` in the build config. Without it
+  electron-builder names the manifest after the prerelease word, so a
+  `1.2.6-fix` build uploads `fix.yml` instead of the `latest.yml` every
+  installed copy reads.
+- `allowPrerelease` and `channel` in `electron/updater.cjs`. A stable build
+  otherwise refuses a prerelease outright, whatever the number says.
+
+The one rule config cannot change is ordering. Semver puts a prerelease
+**below** the version it is tagged from, so `1.2.6-fix` is newer than `1.2.5`
+but `1.2.5-fix` is **older** than `1.2.5` and is never offered to anyone
+already on it. Tag from the version you are heading for, not the one you are
+on. `npm version 1.2.6-fix` writes it, the same as `patch` does.
 
 ## Releasing from your own machine instead
 

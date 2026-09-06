@@ -44,6 +44,11 @@ function init(app, sendToWindows) {
   // setting arrives from the renderer a moment after this.
   updater.autoDownload = automatic;
   updater.autoInstallOnAppQuit = true;
+
+  // A version like 1.2.6-fix is a real release here, not a channel of its own.
+  // Both sides are pinned to latest.yml so every build lands in one manifest.
+  updater.allowPrerelease = true;
+  updater.channel = "latest";
   updater.logger = {
     info: (message) => log.info("updater", message),
     warn: (message) => log.warn("updater", message),
