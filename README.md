@@ -31,7 +31,8 @@ question costing one second and costing eight.
 
 **Use tools, when they help.** Draggy can search the web, read a page, and
 drive a real browser session: navigate, click, fill inputs, read the result
-back. It writes Word, PowerPoint, Excel, PDF, code and plain text files, and
+back. Any conversation can be exported to Markdown from the history list. It
+writes Word, PowerPoint, Excel, PDF, code and plain text files, and
 reads those same formats back when you attach one. PDFs are typeset through the
 browser engine the app already ships, so a document comes out with real
 headings, tables and page numbers rather than a wall of text. It also runs short
@@ -144,7 +145,7 @@ The result lands in `dist-electron`. Before committing anything, run:
 npm run check
 ```
 
-which is typecheck, lint and the test suite in one go. There are around 950
+which is typecheck, lint and the test suite in one go. There are around 990
 tests and they run in under two seconds. CI runs the same command on every push
 and pull request, but it is faster to find out before you push.
 
@@ -219,8 +220,9 @@ Voice mode is new and marked beta in the interface. It works well with a decent
 GPU and a headset; over laptop speakers the echo cancellation has to work harder
 and the model will occasionally answer itself.
 
-macOS builds are not signed yet, which means they install fine but cannot update
-themselves.
+macOS builds are published but not signed, so Gatekeeper refuses them until you
+clear the quarantine flag with `xattr -cr /Applications/Draggy.app`, and they
+cannot update themselves. Signing is a certificate that has not been bought.
 
 Tool calling quality varies a lot by model. Anything under about 4B parameters
 will describe a tool call instead of making one often enough to be annoying.

@@ -20,7 +20,7 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      # One platform failing should not throw away the build of the other.
+      # One platform failing should not throw away the builds of the others.
       fail-fast: false
       matrix:
         include:
@@ -28,6 +28,10 @@ jobs:
             build: release
           - os: ubuntu-latest
             build: release:linux
+          # Unsigned, so macOS asks the user to clear the quarantine flag and
+          # the app cannot update itself. Still better than no build at all.
+          - os: macos-latest
+            build: release:mac
 
     steps:
       - uses: actions/checkout@v4

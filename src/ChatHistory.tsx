@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, MessageSquare, Trash } from "lucide-react";
+import { Download, Search, MessageSquare, Trash } from "lucide-react";
 import type { ChatSession, AppSettings } from "./types";
 import { translations } from "./translations";
 
@@ -7,6 +7,7 @@ interface ChatHistoryProps {
   sessions: ChatSession[];
   onSelectChat: (id: string) => void;
   onDeleteChat: (e: React.MouseEvent, id: string) => void;
+  onExportChat: (e: React.MouseEvent, id: string) => void;
   settings: AppSettings;
 }
 
@@ -17,6 +18,7 @@ export default function ChatHistory({
   sessions,
   onSelectChat,
   onDeleteChat,
+  onExportChat,
   settings,
 }: ChatHistoryProps) {
   const t = (key: string) =>
@@ -89,12 +91,31 @@ export default function ChatHistory({
                       {session.title}
                     </h2>
                   </div>
-                  <button
-                    onClick={(e) => onDeleteChat(e, session.id)}
-                    className="p-1.5 text-[var(--text-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  {/*
+                    The row itself opens the conversation, so an action on it
+                    has to keep its click rather than doing both things at once.
+                  */}
+                  <div
+                    className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Trash className="w-4 h-4" />
-                  </button>
+                    <button
+                      onClick={(e) => onExportChat(e, session.id)}
+                      title={t("exportChat")}
+                      aria-label={t("exportChat")}
+                      className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => onDeleteChat(e, session.id)}
+                      title={t("delete")}
+                      aria-label={t("delete")}
+                      className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-[var(--text-muted)] text-[13px] font-medium line-clamp-2 leading-relaxed">
                   {getFirstAiResponse(session)}

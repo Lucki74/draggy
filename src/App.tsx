@@ -21,6 +21,7 @@ import {
   planCompaction,
   runCompaction,
 } from "./agent/compaction";
+import { chatToMarkdown, exportFilename } from "./chat/export";
 import { registerBuiltinTools } from "./tools/builtin";
 import { unregisterGroup } from "./tools/registry";
 import type { ToolEnvironment } from "./tools/registry";
@@ -676,6 +677,32 @@ export default function App() {
     [generateResponse, handleDismissOutOfContext],
   );
 
+  /**
+   * Writes the conversation into the app's own files folder, the same place
+   * the model puts what it makes, and shows it.
+   */
+  const handleExportChat = useCallback(
+    async (event: React.MouseEvent, chatId: string) => {
+      event.stopPropagation();
+
+      const chat = sessionsRef.current.find((session) => session.id === chatId);
+      if (!chat || !window.electronAPI) return;
+
+      const markdown = chatToMarkdown(chat, { assistantName: model || "Assistant" });
+      const result = await window.electronAPI.createFile(
+        exportFilename(chat),
+        markdown,
+      );
+
+      if (result?.success && result.filepath) {
+        window.electronAPI.revealCreatedFile(result.filepath);
+      } else {
+        setStorageWarning(result?.error || t("chatExportFailed"));
+      }
+    },
+    [model, t],
+  );
+
   const handleDeleteChat = useCallback(
     (e: React.MouseEvent, chatId: string) => {
       e.stopPropagation();
@@ -912,6 +939,7 @@ export default function App() {
             sessions={sessions}
             onSelectChat={selectChat}
             onDeleteChat={handleDeleteChat}
+            onExportChat={handleExportChat}
             settings={settings}
           />
         ) : viewMode === "files" ? (

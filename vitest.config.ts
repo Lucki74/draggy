@@ -3,7 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "electron/**/*.test.js"],
+    // Component tests carry their own `@vitest-environment jsdom` docblock,
+    // so the logic suite keeps running in plain Node with nothing stubbed.
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "electron/**/*.test.js"],
+    setupFiles: ["src/__tests__/helpers/setup.ts"],
     reporters: ["default"],
     coverage: {
       // The logic-heavy modules the suite is actually aimed at. Screens and
