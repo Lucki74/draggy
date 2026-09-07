@@ -40,8 +40,6 @@ It drives a local [Ollama](https://ollama.com) instance, so there is no account,
 no API key, and no request leaving the machine unless you ask for one. An
 Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
-Full documentation is in the [wiki](https://github.com/Lucki74/draggy/wiki), and
-the site is at [draggyai.vercel.app](https://draggyai.vercel.app).
 
 ## What it does
 
