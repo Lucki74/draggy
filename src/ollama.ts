@@ -196,6 +196,22 @@ export function isCloudModel(name: string): boolean {
   return tag === "cloud" || tag.endsWith("-cloud");
 }
 
+/**
+ * Which Ollama is running. Only the first launch asks, to find out whether the
+ * MLX builds it is about to recommend on a Mac can actually be run.
+ */
+export async function getOllamaVersion(): Promise<string | null> {
+  try {
+    const res = await fetch(`${OLLAMA_HOST}/api/version`);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return typeof data?.version === "string" ? data.version : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listInstalledModels(): Promise<InstalledModel[]> {
   const res = await fetch(`${OLLAMA_HOST}/api/tags`);
   if (!res.ok) throw new Error(`Ollama returned ${res.status}`);

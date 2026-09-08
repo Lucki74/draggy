@@ -5,34 +5,79 @@ export interface ModelRecommendation {
   params: string;
 }
 
-export const modelRecommendations: ModelRecommendation[] = [
-  { vram: 0.5,  model: "smollm2:360m",       label: "SmolLM2 360M",         params: "360M"    },
-  { vram: 1.0,  model: "qwen3:0.6b",         label: "Qwen 3 0.6B",         params: "0.6B"    },
-  { vram: 1.5,  model: "qwen3:1.7b",         label: "Qwen 3 1.7B",         params: "1.7B"    },
-  { vram: 2.0,  model: "gemma4:e2b",          label: "Gemma 4 E2B",         params: "2B eff." },
-  { vram: 3.0,  model: "llama3.2:3b",         label: "Llama 3.2 3B",        params: "3B"      },
-  { vram: 4.0,  model: "phi4-mini",            label: "Phi-4 Mini",          params: "3.8B"    },
-  { vram: 5.0,  model: "qwen3:4b",            label: "Qwen 3 4B",           params: "4B"      },
-  { vram: 6.0,  model: "gemma4:e4b",           label: "Gemma 4 E4B",         params: "4B eff." },
-  { vram: 8.0,  model: "qwen3:8b",            label: "Qwen 3 8B",           params: "8B"      },
-  { vram: 10.0, model: "gemma4:12b",           label: "Gemma 4 12B",         params: "12B"     },
-  { vram: 12.0, model: "phi4",                 label: "Phi-4",               params: "14B"     },
-  { vram: 14.0, model: "qwen3:14b",           label: "Qwen 3 14B",          params: "14B"     },
-  { vram: 16.0, model: "gemma4:26b",           label: "Gemma 4 26B MoE",     params: "26B MoE" },
-  { vram: 20.0, model: "qwen3:32b",           label: "Qwen 3 32B",          params: "32B"     },
-  { vram: 24.0, model: "gemma4:31b",           label: "Gemma 4 31B",         params: "31B"     },
-  { vram: 48.0, model: "qwen3:235b-a22b",     label: "Qwen 3 235B MoE",     params: "235B MoE"},
+/**
+ * Enough about the machine to pick a ladder, and nothing else. Kept as plain
+ * data so the choice can be tested without a Mac, a card or a running Ollama.
+ */
+export interface RuntimeTarget {
+  platform?: string;
+  arch?: string;
+  ollamaVersion?: string | null;
+}
+
+export const MLX_MIN_OLLAMA = [0, 19];
+
+export const mlxLadder: ModelRecommendation[] = [
+  { vram: 4.0,  model: "qwen3.5:2b-mlx",   label: "Qwen 3.5 2B",   params: "2B"      },
+  { vram: 5.0,  model: "qwen3.5:4b-mlx",   label: "Qwen 3.5 4B",   params: "4B"      },
+  { vram: 10.0, model: "qwen3.5:9b-mlx",   label: "Qwen 3.5 9B",   params: "9B"      },
+  { vram: 21.0, model: "qwen3.5:27b-mlx",  label: "Qwen 3.5 27B",  params: "27B MoE" },
+  { vram: 23.0, model: "qwen3.5:35b-mlx",  label: "Qwen 3.5 35B",  params: "35B MoE" },
 ];
 
-/** The bottom rung, whatever order the table above happens to be written in. */
-const SMALLEST = [...modelRecommendations].sort((a, b) => a.vram - b.vram)[0];
+export const ggufLadder: ModelRecommendation[] = [
+  { vram: 2.0,  model: "qwen3.5:0.8b",     label: "Qwen 3.5 0.8B", params: "0.8B"     },
+  { vram: 4.0,  model: "qwen3.5:2b",       label: "Qwen 3.5 2B",   params: "2B"       },
+  { vram: 5.0,  model: "qwen3.5:4b",       label: "Qwen 3.5 4B",   params: "4B"       },
+  { vram: 8.0,  model: "qwen3.5:9b",       label: "Qwen 3.5 9B",   params: "9B"       },
+  { vram: 10.0, model: "gemma4:12b",       label: "Gemma 4 12B",   params: "12B"      },
+  { vram: 20.0, model: "qwen3.5:27b",      label: "Qwen 3.5 27B",  params: "27B MoE"  },
+  { vram: 24.0, model: "gemma4:31b",       label: "Gemma 4 31B",   params: "31B"      },
+  { vram: 32.0, model: "qwen3.5:35b",      label: "Qwen 3.5 35B",  params: "35B MoE"  },
+  { vram: 96.0, model: "qwen3.5:122b",     label: "Qwen 3.5 122B", params: "122B MoE" },
+];
 
-export function getRecommendedModel(vram: number): string {
-  const affordable = [...modelRecommendations]
-    .filter((entry) => entry.vram <= vram)
-    .sort((a, b) => a.vram - b.vram);
+/** Kept as the name the rest of the app knows: the ladder for a plain PC. */
+export const modelRecommendations = ggufLadder;
 
-  // Below the bottom rung, the smallest model in the table rather than a name
-  // written beside it: that named a 0.6B, twice the size of the 360M above.
-  return (affordable[affordable.length - 1] ?? SMALLEST).model;
+function atLeast(version: string | null | undefined, minimum: number[]): boolean {
+  if (!version) return false;
+
+  const parts = version.trim().replace(/^v/i, "").split(/[.\-+]/);
+
+  for (let index = 0; index < minimum.length; index++) {
+    const part = Number.parseInt(parts[index] ?? "", 10);
+    if (Number.isNaN(part)) return false;
+    if (part !== minimum[index]) return part > minimum[index];
+  }
+
+  return true;
+}
+
+/**
+ * MLX is Apple's framework and needs Apple's silicon: an Intel Mac has no
+ * unified memory and runs the same GGUF builds a PC does.
+ */
+export function supportsMlx(target: RuntimeTarget = {}): boolean {
+  return (
+    target.platform === "darwin" &&
+    target.arch === "arm64" &&
+    atLeast(target.ollamaVersion, MLX_MIN_OLLAMA)
+  );
+}
+
+export function ladderFor(target: RuntimeTarget = {}): ModelRecommendation[] {
+  return supportsMlx(target) ? mlxLadder : ggufLadder;
+}
+
+export function getRecommendedModel(
+  vram: number,
+  target: RuntimeTarget = {},
+): string {
+  const ladder = ladderFor(target);
+
+  const climbing = [...ladder].sort((a, b) => a.vram - b.vram);
+  const affordable = climbing.filter((entry) => entry.vram <= vram);
+
+  return (affordable[affordable.length - 1] ?? climbing[0]).model;
 }

@@ -6,6 +6,7 @@ import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
 import {
   PULL_PHASE_KEYS,
+  getOllamaVersion,
   isCloudModel,
   listInstalledModels,
   pullModel,
@@ -169,7 +170,11 @@ export default function StartupScreen({
         if (!hasModel) {
           setStatus(tr("checkingHardware"));
           const specs = await window.electronAPI?.getSystemSpecs();
-          targetModel = getRecommendedModel(specs?.vram || 0);
+          targetModel = getRecommendedModel(specs?.vram || 0, {
+            platform: specs?.platform,
+            arch: specs?.arch,
+            ollamaVersion: await getOllamaVersion(),
+          });
 
           if (!isOnline) {
             setError({

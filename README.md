@@ -73,8 +73,9 @@ cannot find it.
 | Graphics | Intel UHD 620, AMD Radeon Vega 8 |
 | Disk | 10 GB free |
 
-At this end the model runs on the processor at a few words a second, and
-anything under about 4B parameters is unreliable at calling tools.
+At this end the model runs on the processor at a few words a second. Every
+model Draggy picks calls tools, reads images and reasons, but a small one does
+all three less well than a large one.
 
 ### Recommended
 | | |
@@ -85,8 +86,12 @@ anything under about 4B parameters is unreliable at calling tools.
 | Graphics | GeForce RTX 3070, Radeon RX 7600, Intel Arc A750 |
 | Disk | 20 GB free (SSD) |
 
-Eight gigabytes of VRAM is where Draggy picks Qwen 3 8B, the smallest model that
-holds a conversation and calls tools reliably.
+Eight gigabytes of VRAM is where Draggy picks Qwen 3.5 9B, the smallest model
+that holds a conversation and calls tools without needing much patience.
+
+On an Apple Silicon Mac, Draggy picks the MLX build of the same model instead,
+which is the faster engine on that hardware. It needs Ollama 0.19 or newer, and
+falls back to the ordinary build if it finds an older one.
 
 ## Installing
 
