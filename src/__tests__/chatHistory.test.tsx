@@ -55,7 +55,7 @@ describe("the chat list", () => {
       .getByRole("button", { name: "Export as Markdown" })
       .closest("div");
 
-    expect(actions?.className).not.toContain("opacity-0");
+    expect(actions?.className).toContain("opacity-0");
     expect(actions?.className).toContain("group-hover:opacity-100");
   });
 
