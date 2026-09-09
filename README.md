@@ -5,7 +5,7 @@
 # Draggy
 
 
-[![Website](https://img.shields.io/badge/Website-draggyai.vercel.app-000000?style=flat&logo=vercel&logoColor=white)](https://draggyai.vercel.app)
+[![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
 [![Documentation](https://img.shields.io/badge/Docs-wiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://github.com/Lucki74/draggy/wiki)
 
@@ -30,8 +30,8 @@
 > [!WARNING]
 > **Install from official sources only.** Draggy comes from this repository, its
 > [releases page](https://github.com/Lucki74/draggy/releases) and
-> [draggyai.vercel.app](https://draggyai.vercel.app). Nothing is code signed, 
-> a re-upload elsewhere is indistinguishable from a tampered build.
+> [draggy.org](https://draggy.org). Nothing is code signed, so a re-upload
+> elsewhere is indistinguishable from a tampered build.
 
 Draggy is a desktop AI assistant that talks, browses and works with your files,
 all on models running on your own computer.
@@ -95,10 +95,10 @@ falls back to the ordinary build if it finds an older one.
 
 ## Installing
 
-Pick your system on [draggyai.vercel.app](https://draggyai.vercel.app), or take
-the installer straight from the
-[Releases page](https://github.com/Lucki74/draggy/releases), and run it. Draggy
-updates itself in the background and offers to install on the next launch.
+Pick your system on [draggy.org](https://draggy.org), or take the installer
+straight from the [Releases page](https://github.com/Lucki74/draggy/releases),
+and run it. Draggy updates itself in the background and offers to install on
+the next launch.
 
 Nothing is code signed, which is a certificate I have not bought rather than
 anything wrong with the build. Windows shows a SmartScreen warning: **More
