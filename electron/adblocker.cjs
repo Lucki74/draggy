@@ -4,8 +4,9 @@ const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const { log } = require("./logger.cjs");
 
 /**
- * Ad and tracker blocking on uBlock Origin's engine. A hand-written blocklist
- * cannot express per-site exceptions, so it broke players and layouts.
+ * Ad and tracker blocking: Ghostery's engine, uBlock Origin's lists. A
+ * hand-written blocklist cannot express per-site exceptions, so it broke
+ * players and layouts.
  */
 
 const GHOSTERY =

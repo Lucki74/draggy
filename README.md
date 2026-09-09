@@ -49,8 +49,8 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   It writes Word, PowerPoint, Excel, PDF, code and text files, reads them back
   when you attach one, and runs short Python and JavaScript in a sandbox.
 - **Browse without ads.** Links open in a browser window inside the app, with
-  uBlock Origin's engine and filter lists, YouTube adverts and anti-adblock
-  walls included.
+  uBlock Origin's filter lists on Ghostery's engine, YouTube adverts and
+  anti-adblock walls included.
 - **Search your own documents.** Point it at a folder and it indexes the
   contents locally, on meaning and keywords at once.
 - **Extend it.** Thirty-four Model Context Protocol servers in a catalogue,
