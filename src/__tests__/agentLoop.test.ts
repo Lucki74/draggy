@@ -798,6 +798,80 @@ describe("putting attachments on the wire", () => {
   });
 });
 
+describe("sending earlier reasoning back", () => {
+  // With its reasoning dropped from the history Laguna stopped reasoning at
+  // all: no thinking in any request, against 400 characters with it kept.
+  const thought = (content: string): SearchStep => ({
+    id: content,
+    type: "thinking",
+    content,
+    isComplete: true,
+  });
+
+  const reply: Message = {
+    id: "a1",
+    role: "assistant",
+    content: "156.",
+    steps: [
+      thought("12 times 13 is 156."),
+      { id: "s", type: "searching", content: "searching", isComplete: true },
+      thought("  "),
+      thought("Checked: 13 times 12 is 156 too."),
+    ],
+  };
+
+  it("keeps a reply's reasoning, every pass of it, when asked", () => {
+    expect(toWireMessage(reply, false, true).thinking).toBe(
+      "12 times 13 is 156.\n\nChecked: 13 times 12 is 156 too.",
+    );
+  });
+
+  it("leaves it out otherwise, and never puts any on a user message", () => {
+    expect(toWireMessage(reply, false).thinking).toBeUndefined();
+    expect(toWireMessage(userMessage("hi"), false, true).thinking).toBeUndefined();
+  });
+
+  it("sends it back with the history to a model that reasons natively", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], ["thinking"]);
+
+    await run([userMessage("what is 12 * 13"), reply, userMessage("and 14 * 13")]).promise;
+
+    const body = requests[0] as { messages: { role: string; thinking?: string }[] };
+    const sent = body.messages.find((message) => message.role === "assistant");
+    expect(sent?.thinking).toContain("12 times 13 is 156.");
+  });
+
+  it("does not for a model that has no thinking of its own", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("what is 12 * 13"), reply, userMessage("and 14 * 13")]).promise;
+
+    const body = requests[0] as { messages: { role: string; thinking?: string }[] };
+    expect(body.messages.some((message) => "thinking" in message)).toBe(false);
+  });
+
+  it("keeps the reasoning behind a tool call for the pass after it", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["I should look this up."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "paris" } } }],
+        },
+        { content: ["Paris."] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    await run([userMessage("capital of France?")]).promise;
+
+    const second = requests[1] as {
+      messages: { role: string; thinking?: string; tool_calls?: unknown[] }[];
+    };
+    const call = second.messages.find((message) => message.tool_calls);
+    expect(call?.thinking).toBe("I should look this up.");
+  });
+});
+
 describe("keeping prose where the model wrote it", () => {
   const CALL = [{ function: { name: "search_web", arguments: { query: "paris" } } }];
 

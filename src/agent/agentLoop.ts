@@ -51,12 +51,23 @@ interface OllamaChunk {
 export interface WireMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
+  /** An earlier reply's reasoning, sent back so the model keeps reasoning. */
+  thinking?: string;
   images?: string[];
   tool_calls?: OllamaToolCall[];
   tool_name?: string;
 }
 
-export function toWireMessage(message: Message, allowImages: boolean): WireMessage {
+/**
+ * `keepThinking` sends a reply's reasoning back with it. A model that sees
+ * none in the history takes the hint: Laguna wrote no thinking at all with
+ * the reasoning dropped, and 400 characters of it with the reasoning kept.
+ */
+export function toWireMessage(
+  message: Message,
+  allowImages: boolean,
+  keepThinking = false,
+): WireMessage {
   let content = message.content || "";
   const images: string[] = [];
 
@@ -92,9 +103,18 @@ export function toWireMessage(message: Message, allowImages: boolean): WireMessa
     }
   }
 
+  const thinking =
+    keepThinking && message.role === "assistant"
+      ? (message.steps ?? [])
+          .filter((step) => step.type === "thinking" && step.content.trim())
+          .map((step) => step.content)
+          .join("\n\n")
+      : "";
+
   return {
     role: message.role,
     content: content.trim() || " ",
+    ...(thinking ? { thinking } : {}),
     ...(images.length > 0 ? { images } : {}),
   };
 }
@@ -102,7 +122,10 @@ export function toWireMessage(message: Message, allowImages: boolean): WireMessa
 export function estimateChars(messages: WireMessage[]): number {
   return messages.reduce(
     (total, message) =>
-      total + message.content.length + (message.images?.length || 0) * 4000,
+      total +
+      message.content.length +
+      (message.thinking?.length || 0) +
+      (message.images?.length || 0) * 4000,
     0,
   );
 }
@@ -232,7 +255,7 @@ export async function runAgentTurn(
     ...(compaction
       ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
       : []),
-    ...carried.map((message) => toWireMessage(message, nativeVision)),
+    ...carried.map((message) => toWireMessage(message, nativeVision, nativeThinking)),
   ];
 
   if (request.isContinuation) {
@@ -599,8 +622,12 @@ ${currentTimeNote()}`,
       fullFinalContent += rawChunk + "\n";
       host.onPatch(combine("", ""));
 
+      // The reasoning goes back with the call, since a model that cannot see
+      // it reasoned before one stops reasoning before the next.
+      const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+
       if (nativeTools) {
-        wire.push({ role: "assistant", content: rawChunk, tool_calls: pendingCalls });
+        wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
 
         for (const call of pendingCalls) {
           const result = await runTool(
@@ -616,7 +643,7 @@ ${currentTimeNote()}`,
           });
         }
       } else {
-        wire.push({ role: "assistant", content: rawChunk });
+        wire.push({ role: "assistant", content: rawChunk, ...kept });
         const { name, args } = parseToolCall(toolMatch as string);
         const result = await runTool(name || "", args || {}, toolContext, environment);
         wire.push({ role: "user", content: result });
