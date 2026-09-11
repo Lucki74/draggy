@@ -10,6 +10,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Checking out and running the suite is all this does, so the token it gets
+# can read the repository and nothing else.
+permissions:
+  contents: read
+
 # Two pushes to the same branch in quick succession only need the newer one.
 concurrency:
   group: ci-${{ github.ref }}
