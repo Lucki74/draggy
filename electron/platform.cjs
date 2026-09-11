@@ -1,7 +1,7 @@
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
-const { execFile, spawn } = require("child_process");
+const { execFile, execFileSync, spawn } = require("child_process");
 
 const IS_WINDOWS = process.platform === "win32";
 const IS_MAC = process.platform === "darwin";
@@ -337,6 +337,28 @@ function killTree(child) {
   }
 }
 
+/**
+ * The same, finished before it returns, for quitting. A taskkill started in
+ * the background is a child of Draggy too, so it died with Draggy before it
+ * had walked the tree, and every llama-server Ollama had started ran on.
+ * Signals elsewhere are already synchronous.
+ */
+function killTreeSync(child) {
+  if (!IS_WINDOWS) return killTree(child);
+  if (!child || child.pid === undefined) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  try {
+    execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 10000,
+      windowsHide: true,
+    });
+  } catch {
+    /* the process is already gone */
+  }
+}
+
 module.exports = {
   IS_WINDOWS,
   IS_MAC,
@@ -356,4 +378,5 @@ module.exports = {
   spawnHidden,
   execFileHidden,
   killTree,
+  killTreeSync,
 };

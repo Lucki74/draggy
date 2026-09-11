@@ -423,7 +423,7 @@ async function startServer(id, config = {}) {
   }
 }
 
-function stopServer(id) {
+function stopServer(id, now = false) {
   const entry = running.get(id);
   if (!entry) return { success: true };
 
@@ -433,7 +433,8 @@ function stopServer(id) {
     // Ending stdin is how the protocol says goodbye; the tree kill is for the
     // server that ignores it, and for anything the server started itself.
     entry.child.stdin.end();
-    platform.killTree(entry.child);
+    if (now) platform.killTreeSync(entry.child);
+    else platform.killTree(entry.child);
   } catch {
     // Already gone, which is the state we wanted.
   }
@@ -441,8 +442,9 @@ function stopServer(id) {
   return { success: true };
 }
 
+/** For quitting, so every kill has finished before Draggy has. */
 function stopAll() {
-  for (const id of [...running.keys()]) stopServer(id);
+  for (const id of [...running.keys()]) stopServer(id, true);
 }
 
 /**

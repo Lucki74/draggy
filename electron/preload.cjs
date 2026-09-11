@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSystemSpecs: () => ipcRenderer.invoke("get-system-specs"),
   checkOllama: () => ipcRenderer.invoke("check-ollama"),
   startOllama: () => ipcRenderer.invoke("start-ollama"),
+  modelInUse: (name) => ipcRenderer.send("model-in-use", name),
   installOllama: () => ipcRenderer.invoke("install-ollama"),
   checkInternet: () => ipcRenderer.invoke("check-internet"),
   checkDiskSpace: () => ipcRenderer.invoke("check-disk-space"),

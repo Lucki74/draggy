@@ -815,10 +815,59 @@ function stopOllama() {
 
   const child = ollamaStartedHere;
   ollamaStartedHere = null;
-  platform.killTree(child);
+  // Each model Ollama loads runs as a llama-server of its own, so this has to
+  // take the whole tree, and finish doing so before Draggy exits.
+  platform.killTreeSync(child);
 }
 
-app.on("before-quit", shutdown);
+/**
+ * Every model Draggy has had Ollama load. An Ollama Draggy did not start is
+ * left running on quit, but these are unloaded from it: kept warm for half an
+ * hour otherwise, each one a llama-server holding memory for nobody.
+ */
+const modelsInUse = new Set();
+
+ipcMain.on("model-in-use", (_event, name) => {
+  if (typeof name === "string" && name) modelsInUse.add(name);
+});
+
+/** A quit that hangs is worse than a model left loaded. */
+const RELEASE_TIMEOUT_MS = 2000;
+
+function releaseModels() {
+  const names = [...modelsInUse];
+  modelsInUse.clear();
+
+  return Promise.allSettled(
+    names.map((model) =>
+      fetch(`${OLLAMA_URL}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, keep_alive: 0 }),
+        signal: AbortSignal.timeout(RELEASE_TIMEOUT_MS),
+      }),
+    ),
+  );
+}
+
+let quitting = false;
+
+app.on("before-quit", (event) => {
+  if (quitting) return;
+  quitting = true;
+
+  // One Draggy started goes whole in shutdown, models and all.
+  if (ollamaStartedHere || modelsInUse.size === 0) {
+    shutdown();
+    return;
+  }
+
+  event.preventDefault();
+  releaseModels().finally(() => {
+    shutdown();
+    app.quit();
+  });
+});
 
 ipcMain.on("boot-finished", (event, model) => {
   bootCompleted = true;
@@ -1364,7 +1413,9 @@ ipcMain.handle("start-ollama", async () => {
     log.info("ollama", `starting ${launcher.file}`);
 
     const child = platform.spawnHidden(launcher.file, launcher.args, {
-      detached: false,
+      // Its own group on macOS and Linux, so the kill on quit reaches the
+      // llama-server processes too rather than only Ollama itself.
+      detached: !platform.IS_WINDOWS,
       stdio: "ignore",
       env: { ...platform.defaultShellEnv(), OLLAMA_HOST },
     });

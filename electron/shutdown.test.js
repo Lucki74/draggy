@@ -73,6 +73,49 @@ setInterval(() => {}, 1000);`,
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }, 20000);
 
+  it("takes the whole tree even when Draggy exits straight after", async () => {
+    // What left every llama-server running: Ollama went, its runners did not,
+    // because the taskkill that was to take them died with Draggy.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-tree-"));
+    const pidFile = path.join(dir, "grandchild");
+    const quitter = path.join(dir, "quitter.cjs");
+
+    // Detached on Windows, as the runners effectively are: outside the job
+    // that would otherwise take them down with their parent regardless.
+    const grandchild = `require("fs").writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000);`;
+    const parent = `require("child_process").spawn(process.execPath, ["-e", ${JSON.stringify(grandchild)}], { stdio: "ignore", detached: process.platform === "win32" }); setInterval(() => {}, 1000);`;
+
+    fs.writeFileSync(
+      quitter,
+      `const fs = require("fs");
+const platform = require(${JSON.stringify(path.join(HERE, "platform.cjs"))});
+const child = platform.spawnHidden(process.execPath, ["-e", ${JSON.stringify(parent)}], {
+  stdio: "ignore",
+  detached: !platform.IS_WINDOWS,
+});
+const wait = setInterval(() => {
+  if (!fs.existsSync(${JSON.stringify(pidFile)})) return;
+  clearInterval(wait);
+  platform.killTreeSync(child);
+  process.exit(0);
+}, 50);
+`,
+    );
+
+    const quit = platform.spawnHidden(process.execPath, [quitter], { stdio: "ignore" });
+    await new Promise((resolve) => quit.on("exit", resolve));
+
+    const pid = Number(fs.readFileSync(pidFile, "utf8"));
+    for (let i = 0; i < 20 && alive(pid); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const survived = alive(pid);
+    if (survived) process.kill(pid);
+
+    expect(survived).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 20000);
+
   it("stops tracking a run that finished on its own", async () => {
     const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-run-"));
 
@@ -109,7 +152,26 @@ describe("shutdown covers every module that starts a process", () => {
   });
 
   it("is wired to before-quit", () => {
-    expect(main).toContain('app.on("before-quit", shutdown)');
+    const handler = main.slice(main.indexOf('app.on("before-quit"'));
+    expect(handler.slice(0, handler.indexOf("\n});"))).toContain("shutdown();");
+  });
+
+  it("unloads its models from an Ollama it leaves running", () => {
+    // Kept warm for half an hour otherwise, each one a llama-server.
+    expect(main).toContain('ipcMain.on("model-in-use"');
+    expect(main).toContain("keep_alive: 0");
+  });
+
+  it("finishes every kill before Draggy exits", () => {
+    // A kill left to run in the background is Draggy's child too, and dies
+    // with it before it has done anything.
+    const mcp = fs.readFileSync(path.join(HERE, "mcp.cjs"), "utf8");
+    const runnerSource = fs.readFileSync(path.join(HERE, "runner.cjs"), "utf8");
+    const stopRuns = runnerSource.slice(runnerSource.indexOf("function stopAll()"));
+
+    expect(main).toContain("platform.killTreeSync(child)");
+    expect(mcp).toContain("stopServer(id, true)");
+    expect(stopRuns.slice(0, stopRuns.indexOf("\n}"))).toContain("killTreeSync(child)");
   });
 
   it("closes in-app browser windows with the main window", () => {

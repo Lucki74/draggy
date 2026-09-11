@@ -179,6 +179,8 @@ export interface SearchStep {
   id: string;
   type:
     | "thinking"
+    /** Ollama loading the weights, gone again at the first token. */
+    | "loading"
     /**
      * Prose written between two tool calls. In the step list so it stays where
      * it was written, rather than collected up after the tool activity.
@@ -364,6 +366,8 @@ declare global {
       getSystemSpecs: () => Promise<SystemSpecs>;
       checkOllama: () => Promise<boolean>;
       startOllama: () => Promise<boolean>;
+      /** So what Draggy loaded is unloaded when it quits. */
+      modelInUse: (name: string) => void;
       installOllama: () => Promise<boolean>;
       checkInternet: () => Promise<boolean>;
       checkDiskSpace: () => Promise<number>;

@@ -79,7 +79,11 @@ interface Turn {
   final?: Record<string, unknown>;
 }
 
-function installFetch(turns: Turn[], capabilities: string[]) {
+function installFetch(
+  turns: Turn[],
+  capabilities: string[],
+  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80 }],
+) {
   const requests: Record<string, unknown>[] = [];
   let turnIndex = 0;
 
@@ -102,10 +106,7 @@ function installFetch(turns: Turn[], capabilities: string[]) {
     }
 
     if (url.endsWith("/api/ps")) {
-      return new Response(
-        JSON.stringify({ models: [{ name: MODEL, size: 100, size_vram: 80 }] }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ models: loaded }), { status: 200 });
     }
 
     if (url.endsWith("/api/chat")) {
@@ -243,6 +244,57 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("a model Ollama has to load first", () => {
+  // Every list the host is shown, since the notice has to be gone by the end.
+  function watchSteps() {
+    const host = makeHost();
+    const seen: SearchStep[][] = [];
+    const onSteps = host.host.onSteps;
+    host.host.onSteps = (steps) => {
+      seen.push(steps);
+      onSteps(steps);
+    };
+    return { host, seen };
+  }
+
+  const loadingSteps = (seen: SearchStep[][]) =>
+    seen.flat().filter((step) => step.type === "loading");
+
+  it("says so while it loads, and not once the reply is in", async () => {
+    // Loading was the long silence before the first token, shown only as the
+    // typing dots, which is what looked stuck.
+    installFetch([{ content: ["Hi"] }], [], []);
+    const { host, seen } = watchSteps();
+
+    const result = await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen)[0]?.content).toBe("warmingUpModel");
+    expect(result.steps.some((step) => step.type === "loading")).toBe(false);
+  });
+
+  it("says nothing when it is in memory at that window already", async () => {
+    const first = installFetch([{ content: ["Hi"] }], []);
+    await run([userMessage("hi")]).promise;
+    const { num_ctx } = (first.requests[0] as { options: { num_ctx: number } }).options;
+
+    // Ollama lists the tag even when it was asked for without one.
+    installFetch([{ content: ["Hi"] }], [], [{ name: `${MODEL}:latest`, context_length: num_ctx }]);
+    const { host, seen } = watchSteps();
+    await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen)).toEqual([]);
+  });
+
+  it("says so when it is in memory at another window, which Ollama reloads for", async () => {
+    installFetch([{ content: ["Hi"] }], [], [{ name: MODEL, context_length: 999 }]);
+    const { host, seen } = watchSteps();
+
+    await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen).length).toBeGreaterThan(0);
+  });
 });
 
 describe("a plain answer with no tools", () => {

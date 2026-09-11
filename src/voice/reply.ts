@@ -1,4 +1,4 @@
-import { OLLAMA_HOST, readNdjsonStream } from "../ollama";
+import { OLLAMA_HOST, noteModelInUse, readNdjsonStream } from "../ollama";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import {
   KEEP_ALIVE,
@@ -115,6 +115,8 @@ export interface StreamOptions {
 }
 
 export async function streamVoiceChat(options: StreamOptions): Promise<void> {
+  noteModelInUse(options.model);
+
   const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

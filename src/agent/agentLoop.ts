@@ -5,7 +5,9 @@ import {
   getModelInfo,
   gpuShareFor,
   hasCapability,
+  isLoadedAt,
   mergeMetrics,
+  noteModelInUse,
   readMetrics,
 } from "../ollama";
 import type { GenerationMetrics } from "../ollama";
@@ -188,6 +190,7 @@ export async function runAgentTurn(
   };
 
   const info = await getModelInfo(model);
+  noteModelInUse(model);
 
   const nativeTools = hasCapability(info, "tools");
   const nativeVision = hasCapability(info, "vision");
@@ -329,6 +332,27 @@ ${currentTimeNote()}`,
       info?.contextLength ?? null,
     );
 
+    // A load is the long silence before the first token, and all it used to
+    // show was the typing dots: 15 to 26 s for a 20 GB model on an 8 GB card.
+    const loadStepId =
+      (await isLoadedAt(model, numCtx)) === false ? generateId() : null;
+    if (loadStepId !== null) {
+      pushStep({
+        id: loadStepId,
+        type: "loading",
+        content: host.t("warmingUpModel"),
+        isComplete: false,
+      });
+    }
+
+    let loading = loadStepId !== null;
+    const doneLoading = () => {
+      if (!loading) return;
+      loading = false;
+      dropStep(loadStepId as string);
+      syncSteps();
+    };
+
     const requestStart = performance.now();
 
     try {
@@ -400,6 +424,7 @@ ${currentTimeNote()}`,
             if (!trimmed) continue;
             const parsed = safeJsonParse<OllamaChunk>(trimmed);
             if (!parsed) continue;
+            doneLoading();
             if (parsed.message?.content) added += parsed.message.content;
             if (parsed.message?.thinking) thinkingAdded += parsed.message.thinking;
             readChunk(parsed);
@@ -597,6 +622,7 @@ ${currentTimeNote()}`,
         wire.push({ role: "user", content: result });
       }
     } finally {
+      doneLoading();
       signal.removeEventListener("abort", abortHandler);
     }
   }

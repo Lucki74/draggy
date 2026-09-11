@@ -6,6 +6,7 @@ const {
   IS_WINDOWS,
   defaultShellEnv,
   killTree,
+  killTreeSync,
   pythonCandidates,
   runCommand,
   spawnHidden,
@@ -66,11 +67,14 @@ function truncate(text) {
  */
 const live = new Set();
 
-/** Kills every run still going. Called when the app is on its way out. */
+/**
+ * Kills every run still going. Called when the app is on its way out, so each
+ * kill has to have finished before Draggy has.
+ */
 function stopAll() {
   for (const child of [...live]) {
     live.delete(child);
-    killTree(child);
+    killTreeSync(child);
   }
 }
 

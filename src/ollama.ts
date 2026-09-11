@@ -274,6 +274,44 @@ export async function gpuShareFor(model: string): Promise<number | null> {
   return match ? match.gpuPercent : null;
 }
 
+/** "qwen3" and "qwen3:latest" are the same model to Ollama. */
+const withTag = (name: string) => (name.includes(":") ? name : `${name}:latest`);
+
+/**
+ * Whether the model is in memory at this window already. Ollama reloads for
+ * any other, and a load is the long silence before the first token. Null when
+ * Ollama could not say.
+ */
+export async function isLoadedAt(
+  model: string,
+  numCtx: number,
+): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${OLLAMA_HOST}/api/ps`);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const entry = (data?.models || []).find(
+      (loaded: { name: string }) => withTag(loaded.name) === withTag(model),
+    );
+    if (!entry) return false;
+
+    // Older versions do not report the window. Better to say nothing than to
+    // announce a load that is not coming.
+    return typeof entry.context_length === "number"
+      ? entry.context_length === numCtx
+      : true;
+  } catch {
+    return null;
+  }
+}
+
+/** Told to the main process, which unloads these when Draggy quits. */
+export function noteModelInUse(model: string): void {
+  if (typeof window === "undefined") return;
+  window.electronAPI?.modelInUse?.(model);
+}
+
 const NS_PER_MS = 1e6;
 
 export function readMetrics(
@@ -343,6 +381,8 @@ export async function warmModel(
   keepAlive: string,
   charEstimate = 0,
 ): Promise<void> {
+  noteModelInUse(name);
+
   const info = await getModelInfo(name);
   const numCtx = contextSizeFor(
     name,
