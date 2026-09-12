@@ -45,6 +45,7 @@ import {
   REMARK_PLUGINS,
 } from "./markdown";
 import ApprovalCard from "./ApprovalCard";
+import DiffBlock from "./DiffBlock";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -739,6 +740,10 @@ const MessageItem = memo(
                         <LibraryHits hits={step.libraryHits} t={t} />
                       ) : step.type === "run_code" ? (
                         <CodeRunOutput step={step} t={t} />
+                      ) : step.type === "edit_file" &&
+                        step.before !== undefined &&
+                        step.after !== undefined ? (
+                        <DiffBlock before={step.before} after={step.after} t={t} />
                       ) : null;
 
                     return (

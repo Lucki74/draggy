@@ -15,6 +15,10 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    showMoreLines: "Show more",
+    rename: "Rename",
+    emptyFolder: "Empty",
+    chooseFile: "Choose a file to see it",
     undoChange: "Undo",
     changeUndone: "Undone",
     undoFailed: "That change could not be undone",
@@ -275,6 +279,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    showMoreLines: "Afficher plus",
+    rename: "Renommer",
+    emptyFolder: "Vide",
+    chooseFile: "Choisissez un fichier pour le voir",
     undoChange: "Annuler",
     changeUndone: "Annulé",
     undoFailed: "Cette modification n'a pas pu être annulée",
@@ -535,6 +543,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    showMoreLines: "Mostrar más",
+    rename: "Cambiar nombre",
+    emptyFolder: "Vacío",
+    chooseFile: "Elige un archivo para verlo",
     undoChange: "Deshacer",
     changeUndone: "Deshecho",
     undoFailed: "No se pudo deshacer ese cambio",
@@ -795,6 +807,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    showMoreLines: "Mehr anzeigen",
+    rename: "Umbenennen",
+    emptyFolder: "Leer",
+    chooseFile: "Wähle eine Datei, um sie zu sehen",
     undoChange: "Rückgängig",
     changeUndone: "Rückgängig gemacht",
     undoFailed: "Diese Änderung konnte nicht rückgängig gemacht werden",
@@ -1055,6 +1071,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    showMoreLines: "Mostra altro",
+    rename: "Rinomina",
+    emptyFolder: "Vuota",
+    chooseFile: "Scegli un file per vederlo",
     undoChange: "Annulla",
     changeUndone: "Annullato",
     undoFailed: "Non è stato possibile annullare la modifica",
@@ -1315,6 +1335,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    showMoreLines: "Mostrar mais",
+    rename: "Mudar o nome",
+    emptyFolder: "Vazia",
+    chooseFile: "Escolhe um ficheiro para o ver",
     undoChange: "Anular",
     changeUndone: "Anulado",
     undoFailed: "Não foi possível anular essa alteração",
@@ -1575,6 +1599,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    showMoreLines: "Meer tonen",
+    rename: "Naam wijzigen",
+    emptyFolder: "Leeg",
+    chooseFile: "Kies een bestand om het te zien",
     undoChange: "Ongedaan maken",
     changeUndone: "Ongedaan gemaakt",
     undoFailed: "Die wijziging kon niet ongedaan worden gemaakt",
@@ -1835,6 +1863,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    showMoreLines: "Показать больше",
+    rename: "Переименовать",
+    emptyFolder: "Пусто",
+    chooseFile: "Выберите файл, чтобы увидеть его",
     undoChange: "Отменить",
     changeUndone: "Отменено",
     undoFailed: "Не удалось отменить это изменение",
@@ -2095,6 +2127,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    showMoreLines: "显示更多",
+    rename: "重命名",
+    emptyFolder: "空",
+    chooseFile: "选择一个文件来查看",
     undoChange: "撤销",
     changeUndone: "已撤销",
     undoFailed: "无法撤销该更改",
@@ -2355,6 +2391,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    showMoreLines: "さらに表示",
+    rename: "名前を変更",
+    emptyFolder: "空です",
+    chooseFile: "ファイルを選ぶと表示されます",
     undoChange: "元に戻す",
     changeUndone: "元に戻しました",
     undoFailed: "その変更は元に戻せませんでした",
@@ -2615,6 +2655,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    showMoreLines: "더 보기",
+    rename: "이름 바꾸기",
+    emptyFolder: "비어 있음",
+    chooseFile: "파일을 선택하면 표시됩니다",
     undoChange: "실행 취소",
     changeUndone: "취소됨",
     undoFailed: "해당 변경을 취소할 수 없습니다",
@@ -2875,6 +2919,10 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    showMoreLines: "عرض المزيد",
+    rename: "إعادة التسمية",
+    emptyFolder: "فارغ",
+    chooseFile: "اختر ملفًا لعرضه",
     undoChange: "تراجع",
     changeUndone: "تم التراجع",
     undoFailed: "تعذّر التراجع عن هذا التغيير",

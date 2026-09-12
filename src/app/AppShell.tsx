@@ -15,7 +15,7 @@ import SettingsPage from "../SettingsPage";
 import type { SettingsTab } from "../SettingsPage";
 import ChatHistory from "../ChatHistory";
 import TalkScreen from "../TalkScreen";
-import CreatedFiles from "../CreatedFiles";
+import Explorer from "../files/Explorer";
 import { useTranslator } from "../i18n";
 import { generateId } from "../utils";
 import { chatToMarkdown, exportFilename } from "../chat/export";
@@ -461,7 +461,7 @@ export default function AppShell({
             settings={settings}
           />
         ) : viewMode === "files" ? (
-          <CreatedFiles settings={settings} />
+          <Explorer settings={settings} workspace={active} />
         ) : viewMode === "talk" ? (
           <TalkScreen settings={settings} />
         ) : currentChatId ? (
