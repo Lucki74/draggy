@@ -492,8 +492,23 @@ function commandFor(entry, config = {}) {
   };
 }
 
+/**
+ * Whether a field a server asks for is a credential. The catalogue says so for
+ * the servers it ships; for anything else the name is the only evidence there
+ * is, and the cautious reading is the right one.
+ */
+function isSecretField(id, field) {
+  const entry = findEntry(String(id));
+  const declared = (entry?.env || []).find((one) => one.key === field);
+
+  if (declared) return Boolean(declared.secret);
+
+  return /token|key|secret|password|credential/i.test(String(field));
+}
+
 module.exports = {
   CATALOGUE,
+  isSecretField,
   listCatalogue,
   findEntry,
   searchCatalogue,

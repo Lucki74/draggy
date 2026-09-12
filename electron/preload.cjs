@@ -127,6 +127,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     stop: (id) => ipcRenderer.invoke("mcp:stop", id),
     running: () => ipcRenderer.invoke("mcp:running"),
     startEnabled: () => ipcRenderer.invoke("mcp:start-enabled"),
+    signIn: (id) => ipcRenderer.invoke("mcp:sign-in", id),
+    signOut: (id) => ipcRenderer.invoke("mcp:sign-out", id),
     call: (serverId, toolName, args) =>
       ipcRenderer.invoke("mcp:call", serverId, toolName, args),
     onState: (callback) => subscribe("mcp-state", callback),

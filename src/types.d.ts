@@ -752,6 +752,10 @@ declare global {
         stop: (id: string) => Promise<{ success: boolean }>;
         running: () => Promise<{ success: boolean; servers: McpServerState[] }>;
         startEnabled: () => Promise<{ success: boolean; servers: McpServerState[] }>;
+        signIn: (
+          id: string,
+        ) => Promise<{ success: boolean; error?: string }>;
+        signOut: (id: string) => Promise<{ success: boolean }>;
         call: (
           serverId: string,
           toolName: string,

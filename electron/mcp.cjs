@@ -3,6 +3,9 @@ const platform = require("./platform.cjs");
 const fs = require("fs");
 const path = require("path");
 const catalogue = require("./mcpCatalogue.cjs");
+const secrets = require("./secrets.cjs");
+const { createHttpTransport } = require("./mcpHttp.cjs");
+const oauth = require("./mcpOauth.cjs");
 
 /**
  * Talking to MCP servers: a spawned program, JSON-RPC over stdio, one message a
@@ -223,9 +226,103 @@ function stateOf(entry) {
       name: tool.name,
       qualifiedName: qualifiedName(entry.id, tool.name),
       description: tool.description || "",
+      // The server's own risk hints, passed straight through: the permission
+      // engine reads them, so a tool that calls itself read-only is trusted to
+      // that extent and no further.
+      annotations: tool.annotations || undefined,
       inputSchema: tool.inputSchema || { type: "object", properties: {} },
     })),
   };
+}
+
+/** Whether a server is one Draggy reaches over the network. */
+function isRemote(id, config) {
+  const definition = definitionFor(id, config);
+  return definition?.transport === "http";
+}
+
+/**
+ * Signs in to a remote server: discovery, registration if it is offered, then
+ * the usual round trip through the user's own browser. Nothing is stored until
+ * a token actually comes back.
+ */
+async function signIn(id, url, openExternal) {
+  const listener = oauth.listenForCode();
+
+  try {
+    const redirectUri = await listener.ready;
+    const metadata = await oauth.discover(url);
+
+    const existing = secrets.get(`oauth:${id}`);
+    const registered =
+      existing?.client_id && existing?.redirect_uri === redirectUri
+        ? existing
+        : await oauth.register(metadata, redirectUri);
+
+    const clientId = registered?.client_id || existing?.client_id;
+    if (!clientId) {
+      listener.close();
+      return {
+        success: false,
+        error:
+          "That server does not offer registration, so Draggy has no client id to sign in with.",
+      };
+    }
+
+    const { verifier, challenge } = oauth.pkce();
+    const state = Math.random().toString(36).slice(2);
+
+    await openExternal(
+      oauth.authorizeUrl({
+        metadata,
+        clientId,
+        redirectUri,
+        challenge,
+        state,
+        scope: (metadata.scopes_supported || []).join(" ") || undefined,
+        resource: url,
+      }),
+    );
+
+    const answer = await listener.waitForCode;
+
+    // The state is the only thing tying the callback to the request Draggy
+    // made; a mismatch means the code came from somewhere else.
+    if (answer.state !== state) {
+      return { success: false, error: "That sign-in did not match this request." };
+    }
+
+    const tokens = await oauth.exchange({
+      metadata,
+      clientId,
+      clientSecret: registered?.client_secret,
+      code: answer.code,
+      verifier,
+      redirectUri,
+      resource: url,
+    });
+
+    secrets.set(`oauth:${id}`, {
+      ...tokens,
+      client_id: clientId,
+      client_secret: registered?.client_secret ?? "",
+      redirect_uri: redirectUri,
+      expiresAt: oauth.expiryOf(tokens) ?? "",
+    });
+
+    log.info("mcp", `signed in to ${id}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  } finally {
+    listener.close();
+  }
+}
+
+function signOut(id) {
+  secrets.remove(`oauth:${id}`);
+  stopServer(id);
+  return { success: true };
 }
 
 function listRunning() {
@@ -240,13 +337,132 @@ function isRunning(id) {
  * Starts a server and completes the handshake. Never throws: a server that will
  * not run is a message in the interface, not a broken app.
  */
+/**
+ * A server Draggy was told about rather than one it ships: a URL the user
+ * pasted in. Remote servers are the only ones that can be described this way,
+ * because a local one would mean running an arbitrary command.
+ */
+function remoteDefinition(id, config) {
+  if (!config?.url) return null;
+
+  return {
+    id,
+    name: config.name || id,
+    transport: "http",
+    url: String(config.url),
+    remote: true,
+  };
+}
+
+function definitionFor(id, config) {
+  return catalogue.findEntry(id) || remoteDefinition(id, config);
+}
+
+/** The token a remote server is called with, and the way to renew it. */
+async function tokensFor(id) {
+  const stored = secrets.get(`oauth:${id}`);
+  if (!stored?.access_token) return null;
+
+  return {
+    ...stored,
+    expiresAt: stored.expiresAt ? Number(stored.expiresAt) : null,
+  };
+}
+
+async function refreshTokens(id, url) {
+  const stored = await tokensFor(id);
+  if (!stored?.refresh_token) return false;
+
+  try {
+    const metadata = await oauth.discover(url);
+    const next = await oauth.refresh({
+      metadata,
+      clientId: stored.client_id,
+      clientSecret: stored.client_secret,
+      refreshToken: stored.refresh_token,
+      resource: url,
+    });
+
+    secrets.set(`oauth:${id}`, {
+      ...stored,
+      ...next,
+      // A server that does not send a new refresh token means keep the old one.
+      refresh_token: next.refresh_token || stored.refresh_token,
+      expiresAt: oauth.expiryOf(next) ?? "",
+    });
+
+    log.info("mcp", `refreshed the sign-in for ${id}`);
+    return true;
+  } catch (error) {
+    log.warn("mcp", `could not refresh the sign-in for ${id}: ${error.message}`);
+    return false;
+  }
+}
+
+/** Brings a remote server up: no process, one handshake over HTTP. */
+async function startRemote(id, definition) {
+  const transport = createHttpTransport({
+    url: definition.url,
+    getToken: async () => (await tokensFor(id))?.access_token ?? null,
+    onUnauthorized: () => refreshTokens(id, definition.url),
+  });
+
+  const entry = {
+    id,
+    child: null,
+    remote: true,
+    url: definition.url,
+    status: "starting",
+    error: null,
+    tools: [],
+    pending: new Map(),
+    nextId: 1,
+    stderr: "",
+    send: (method, params) => transport.send(method, params),
+    close: () => transport.close(),
+  };
+
+  running.set(id, entry);
+
+  try {
+    await transport.send("initialize", {
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: {},
+      clientInfo: { name: "Draggy", version: "2.0.0" },
+    });
+
+    await transport.notify("notifications/initialized", {});
+
+    const listed = await transport.send("tools/list", {});
+    entry.tools = Array.isArray(listed?.tools) ? listed.tools : [];
+    entry.status = "ready";
+
+    log.info("mcp", `${id} connected with ${entry.tools.length} tools`);
+    return stateOf(entry);
+  } catch (error) {
+    running.delete(id);
+    log.warn("mcp", `${id} could not be reached: ${error.message}`);
+
+    return {
+      id,
+      status: "error",
+      error: /401|403/.test(error.message)
+        ? "That server wants you to sign in first."
+        : error.message,
+      tools: [],
+    };
+  }
+}
+
 async function startServer(id, config = {}) {
   if (running.has(id)) return stateOf(running.get(id));
 
-  const definition = catalogue.findEntry(id);
+  const definition = definitionFor(id, config);
   if (!definition) {
     return { id, status: "error", error: `There is no server called "${id}".`, tools: [] };
   }
+
+  if (definition.transport === "http") return startRemote(id, definition);
 
   const missing = catalogue.missingRequirements(definition, config);
   if (missing.length > 0) {
@@ -287,7 +503,7 @@ async function startServer(id, config = {}) {
       env: {
         ...platform.defaultShellEnv(),
         ELECTRON_RUN_AS_NODE: "1",
-        ...spec.env,
+        ...secrets.withSecrets(id, spec.env),
       },
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -429,6 +645,12 @@ function stopServer(id, now = false) {
 
   running.delete(id);
 
+  if (entry.remote) {
+    // Nothing to kill: say goodbye to the session and let it go.
+    void entry.close?.();
+    return { success: true };
+  }
+
   try {
     // Ending stdin is how the protocol says goodbye; the tree kill is for the
     // server that ignores it, and for anything the server started itself.
@@ -480,6 +702,10 @@ async function callTool(serverId, toolName, args) {
 
 module.exports = {
   init,
+  definitionFor,
+  signIn,
+  signOut,
+  isRemote,
   entryPointFor,
   PROTOCOL_VERSION,
   createLineReader,

@@ -6,6 +6,7 @@ const {
   dialog,
   ipcMain,
   Menu,
+  safeStorage,
   shell,
   protocol,
   session,
@@ -24,6 +25,7 @@ const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
 const fsGuard = require("./fsGuard.cjs");
 const checkpoints = require("./checkpoints.cjs");
+const secrets = require("./secrets.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
@@ -753,6 +755,11 @@ app.whenReady().then(() => {
   }
 
   mcp.init(app.getPath("userData"));
+
+  // Credentials into the operating system's keystore, and out of the database
+  // where earlier versions kept them in the clear.
+  secrets.init(app.getPath("userData"), safeStorage);
+  adoptStoredCredentials();
 
   // Draggy's own storage is out of bounds to the file tools, whatever folder
   // the user has opened. The database is not a document.
@@ -2083,20 +2090,82 @@ ipcMain.handle("mcp:catalogue", () => ({
   servers: mcpCatalogue.listCatalogue(),
 }));
 
+/**
+ * Credentials written before there was anywhere safe to put them. Moved into
+ * the encrypted store on first launch and taken out of the database, which is
+ * an ordinary file that backups and support bundles both copy.
+ */
+function adoptStoredCredentials() {
+  try {
+    const config = mcpConfig();
+    const { moved, records } = secrets.adopt(config, (field, id) =>
+      mcpCatalogue.isSecretField(id, field),
+    );
+
+    if (moved > 0) saveMcpConfig(records);
+  } catch (error) {
+    log.warn("mcp", `could not move credentials into the store: ${error.message}`);
+  }
+}
+
+ipcMain.handle("mcp:sign-in", wrap("mcp", async (event, id) => {
+  const config = mcpConfig();
+  const entry = config[String(id)];
+
+  if (!entry?.url) {
+    return { success: false, error: "That server is not a remote one." };
+  }
+
+  return mcp.signIn(String(id), entry.url, (target) => shell.openExternal(target));
+}));
+
+ipcMain.handle("mcp:sign-out", wrap("mcp", async (event, id) => {
+  const result = mcp.signOut(String(id));
+  broadcast("mcp-state", { servers: mcp.listRunning() });
+  return result;
+}));
+
 ipcMain.handle("mcp:config", () => ({ success: true, config: mcpConfig() }));
 
 ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
   const config = mcpConfig();
 
-  if (!mcpCatalogue.findEntry(String(id))) {
+  const url = typeof entry?.url === "string" ? entry.url.trim() : "";
+
+  if (!mcpCatalogue.findEntry(String(id)) && !url) {
     return { success: false, error: `There is no server called "${id}".` };
   }
 
+  // A remote server is the one thing here that leaves the machine, so the
+  // address has to be one that cannot be read on the way: https, or this
+  // computer itself.
+  if (url && !/^https:\/\//i.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)/i.test(url)) {
+    return {
+      success: false,
+      error: "A remote server has to be an https address, or a local one.",
+    };
+  }
+
+  const secretFields = url
+    ? {}
+    : Object.fromEntries(
+        Object.entries(entry?.env || {}).filter(([field]) =>
+          mcpCatalogue.isSecretField(String(id), field),
+        ),
+      );
+
+  if (Object.keys(secretFields).length > 0) secrets.set(String(id), secretFields);
+
   config[String(id)] = {
     enabled: Boolean(entry?.enabled),
-    env: entry?.env && typeof entry.env === "object" ? entry.env : {},
+    env: Object.fromEntries(
+      Object.entries(entry?.env && typeof entry.env === "object" ? entry.env : {}).filter(
+        ([field]) => !(field in secretFields),
+      ),
+    ),
     arguments:
       entry?.arguments && typeof entry.arguments === "object" ? entry.arguments : {},
+    ...(url ? { url, name: String(entry?.name || id) } : {}),
   };
 
   saveMcpConfig(config);
@@ -2140,6 +2209,11 @@ ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
 
   for (const [id, entry] of Object.entries(config)) {
     if (!entry?.enabled) continue;
+
+    // A remote server reaches the network, so it waits to be asked rather than
+    // connecting itself every time Draggy opens.
+    if (entry.url) continue;
+
     states.push(await mcp.startServer(id, entry));
   }
 

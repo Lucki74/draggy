@@ -8,6 +8,7 @@ const {
   qualifiedName,
   splitQualifiedName,
 } = require("./mcp.cjs");
+const mcp = require("./mcp.cjs");
 const catalogue = require("./mcpCatalogue.cjs");
 
 describe("reading JSON-RPC off a pipe", () => {
@@ -370,5 +371,42 @@ describe("launching npx", () => {
 
   it("runs the launcher as plain Node", () => {
     expect(platform.resolveNpx().asNode).toBe(true);
+  });
+});
+
+describe("a server that is a URL rather than a program", () => {
+  it("is recognised from the address it was saved with", () => {
+    expect(mcp.definitionFor("custom", { url: "https://tools.example/mcp" })).toEqual({
+      id: "custom",
+      name: "custom",
+      transport: "http",
+      url: "https://tools.example/mcp",
+      remote: true,
+    });
+  });
+
+  it("takes the name the user gave it", () => {
+    const definition = mcp.definitionFor("custom", {
+      url: "https://tools.example/mcp",
+      name: "Our tools",
+    });
+
+    expect(definition.name).toBe("Our tools");
+  });
+
+  it("is not invented for a config with no address", () => {
+    expect(mcp.definitionFor("nonsense", {})).toBeNull();
+  });
+
+  it("does not shadow a server Draggy ships", () => {
+    const definition = mcp.definitionFor("github", { url: "https://evil.example" });
+
+    expect(definition.transport).toBeUndefined();
+    expect(definition.package).toBe("@modelcontextprotocol/server-github");
+  });
+
+  it("says which servers reach the network", () => {
+    expect(mcp.isRemote("custom", { url: "https://tools.example/mcp" })).toBe(true);
+    expect(mcp.isRemote("github", {})).toBe(false);
   });
 });
