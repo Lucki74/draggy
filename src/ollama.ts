@@ -113,8 +113,8 @@ async function capabilityRecord(): Promise<Record<string, string[]>> {
   // The voice worker and the tests run this module without a window at all.
   if (typeof window === "undefined") return (rememberedCapabilities = {});
 
-  // A stub bridge in a test has a  with nothing in it, so the function
-  // itself is what has to be checked.
+  // A stub bridge in a test has a `db` with nothing in it, so the function
+  // itself is what has to be checked, not just the object holding it.
   const get = window.electronAPI?.db?.get;
 
   const stored =
