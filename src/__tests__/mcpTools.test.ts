@@ -271,3 +271,47 @@ describe("keeping the registry in step with the running servers", () => {
     expect(result).toContain("missing required argument");
   });
 });
+
+describe("the risk hints a server sends with its tools", () => {
+  const described = (annotations?: Record<string, boolean>) =>
+    describeMcpTool(
+      "tickets",
+      {
+        name: "close",
+        qualifiedName: "tickets__close",
+        description: "Close a ticket.",
+        annotations,
+        inputSchema: { type: "object", properties: {} },
+      },
+      async () => ({ success: true, text: "done" }),
+    );
+
+  it("takes a tool at its word when it says it only reads", () => {
+    const spec = described({ readOnlyHint: true });
+
+    expect(spec.annotations?.readOnly).toBe(true);
+    expect(spec.annotations?.destructive).toBe(false);
+  });
+
+  it("assumes the worst of a tool that says nothing", () => {
+    // The specification's own default, and the safe way to be wrong: an
+    // unknown tool asks before it runs rather than after.
+    const spec = described();
+
+    expect(spec.annotations?.readOnly).toBe(false);
+    expect(spec.annotations?.destructive).toBe(true);
+  });
+
+  it("believes a tool that says it is not destructive", () => {
+    const spec = described({ destructiveHint: false });
+
+    expect(spec.annotations?.destructive).toBe(false);
+  });
+
+  it("carries the idempotent and open-world hints through", () => {
+    const spec = described({ idempotentHint: true, openWorldHint: false });
+
+    expect(spec.annotations?.idempotent).toBe(true);
+    expect(spec.annotations?.openWorld).toBe(false);
+  });
+});

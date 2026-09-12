@@ -33,6 +33,7 @@ import { chatToMarkdown, exportFilename } from "../chat/export";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
+import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
 import { useAgentRuns } from "./useAgentRuns";
 import { useUpdateDialog } from "./useUpdateDialog";
@@ -97,6 +98,7 @@ export default function AppShell({
     if (!window.electronAPI?.mcp) return;
 
     const api = window.electronAPI.mcp;
+    const workspaceId = active.id;
 
     const call = (
       serverId: string,
@@ -104,18 +106,35 @@ export default function AppShell({
       args: Record<string, unknown>,
     ) => api.call(serverId, toolName, args);
 
-    const stopWatching = api.onState((state) => syncMcpTools(state.servers, call));
+    // Which of the running servers this workspace asked for. A server another
+    // workspace switched on keeps running; its tools simply are not offered
+    // here.
+    let allowed: string[] | null = null;
+
+    const sync = (servers: McpServerState[]) =>
+      syncMcpTools(
+        allowed === null
+          ? servers
+          : servers.filter((server) => allowed?.includes(server.id)),
+        call,
+      );
+
+    const stopWatching = api.onState((state) => sync(state.servers));
 
     api
-      .startEnabled()
-      .then((result) => syncMcpTools(result.servers ?? [], call))
+      .enabled(workspaceId)
+      .then((result) => {
+        allowed = result?.ids ?? null;
+        return api.startEnabled(workspaceId);
+      })
+      .then((result) => sync(result.servers ?? []))
       .catch(() => undefined);
 
     return () => {
       stopWatching();
       unregisterGroup("external");
     };
-  }, []);
+  }, [active.id]);
 
   const refreshLibraryReadiness = useCallback(() => {
     const library = window.electronAPI?.library;

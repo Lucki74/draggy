@@ -26,6 +26,7 @@ const storage = require("./storage.cjs");
 const fsGuard = require("./fsGuard.cjs");
 const checkpoints = require("./checkpoints.cjs");
 const secrets = require("./secrets.cjs");
+const mcpRegistry = require("./mcpRegistry.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
@@ -758,6 +759,7 @@ app.whenReady().then(() => {
 
   // Credentials into the operating system's keystore, and out of the database
   // where earlier versions kept them in the clear.
+  mcpRegistry.init(app.getPath("userData"));
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
 
@@ -2125,6 +2127,84 @@ ipcMain.handle("mcp:sign-out", wrap("mcp", async (event, id) => {
   return result;
 }));
 
+const MCP_ENABLED_KEY = "mcpEnabledByWorkspace";
+
+function enabledByWorkspace() {
+  try {
+    const raw = storage.getValue(MCP_ENABLED_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveEnabledByWorkspace(record) {
+  storage.setValue(MCP_ENABLED_KEY, JSON.stringify(record));
+}
+
+/**
+ * What a workspace has switched on. A project that needs the ticket system
+ * should not turn it on for the conversation about dinner, so the list belongs
+ * to the workspace rather than to the app.
+ */
+function enabledFor(workspaceId) {
+  const record = enabledByWorkspace();
+  const ids = record[String(workspaceId)];
+
+  if (Array.isArray(ids)) return ids;
+
+  // Nothing recorded yet: what the app-wide switches said, which is what every
+  // version before this one meant.
+  return Object.entries(mcpConfig())
+    .filter(([, entry]) => entry?.enabled)
+    .map(([id]) => id);
+}
+
+function setEnabledFor(workspaceId, id, enabled) {
+  const record = enabledByWorkspace();
+  const current = new Set(enabledFor(workspaceId));
+
+  if (enabled) current.add(String(id));
+  else current.delete(String(id));
+
+  record[String(workspaceId)] = [...current];
+  saveEnabledByWorkspace(record);
+
+  return [...current];
+}
+
+ipcMain.handle("mcp:enabled", wrap("mcp", async (event, workspaceId) => ({
+  success: true,
+  ids: enabledFor(String(workspaceId || storage.DEFAULT_WORKSPACE_ID)),
+})));
+
+ipcMain.handle(
+  "mcp:set-enabled",
+  wrap("mcp", async (event, workspaceId, id, enabled) => {
+    const workspace = String(workspaceId || storage.DEFAULT_WORKSPACE_ID);
+    const ids = setEnabledFor(workspace, id, Boolean(enabled));
+
+    const config = mcpConfig();
+    const entry = config[String(id)] || {};
+
+    if (enabled) {
+      // A remote server still waits to be asked: switching it on says the user
+      // wants it, not that Draggy should reach the network right now.
+      if (!entry.url) await mcp.startServer(String(id), entry);
+    } else {
+      mcp.stopServer(String(id));
+    }
+
+    broadcast("mcp-state", { servers: mcp.listRunning() });
+    return { success: true, ids };
+  }),
+);
+
+ipcMain.handle("registry:search", wrap("mcp", async (event, query) =>
+  mcpRegistry.search(String(query || "")),
+));
+
 ipcMain.handle("mcp:config", () => ({ success: true, config: mcpConfig() }));
 
 ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
@@ -2203,12 +2283,13 @@ ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) =
  * Starts what the user switched on, once the window is up. A ten-second npx
  * install should not hold the splash screen, and no tool is needed yet.
  */
-ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
+ipcMain.handle("mcp:start-enabled", wrap("mcp", async (event, workspaceId) => {
   const config = mcpConfig();
   const states = [];
 
-  for (const [id, entry] of Object.entries(config)) {
-    if (!entry?.enabled) continue;
+  for (const id of enabledFor(String(workspaceId || storage.DEFAULT_WORKSPACE_ID))) {
+    const entry = config[id];
+    if (!entry) continue;
 
     // A remote server reaches the network, so it waits to be asked rather than
     // connecting itself every time Draggy opens.

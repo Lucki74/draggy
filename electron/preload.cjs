@@ -126,7 +126,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     start: (id) => ipcRenderer.invoke("mcp:start", id),
     stop: (id) => ipcRenderer.invoke("mcp:stop", id),
     running: () => ipcRenderer.invoke("mcp:running"),
-    startEnabled: () => ipcRenderer.invoke("mcp:start-enabled"),
+    startEnabled: (workspaceId) =>
+      ipcRenderer.invoke("mcp:start-enabled", workspaceId),
+    enabled: (workspaceId) => ipcRenderer.invoke("mcp:enabled", workspaceId),
+    setEnabled: (workspaceId, id, enabled) =>
+      ipcRenderer.invoke("mcp:set-enabled", workspaceId, id, enabled),
+    search: (query) => ipcRenderer.invoke("registry:search", query),
     signIn: (id) => ipcRenderer.invoke("mcp:sign-in", id),
     signOut: (id) => ipcRenderer.invoke("mcp:sign-out", id),
     call: (serverId, toolName, args) =>

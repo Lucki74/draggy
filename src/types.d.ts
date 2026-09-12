@@ -351,6 +351,19 @@ export interface McpCatalogueEntry {
   caution?: string;
 }
 
+/** A server found in the registry rather than one Draggy ships. */
+export interface RegistryEntry {
+  id: string;
+  name: string;
+  description: string;
+  source: "registry";
+  docs?: string;
+  package?: string;
+  url?: string;
+  transport?: "http";
+  remote?: boolean;
+}
+
 export interface McpServerConfig {
   enabled: boolean;
   env: Record<string, string>;
@@ -751,7 +764,22 @@ declare global {
         ) => Promise<{ success: boolean; state: McpServerState; error?: string }>;
         stop: (id: string) => Promise<{ success: boolean }>;
         running: () => Promise<{ success: boolean; servers: McpServerState[] }>;
-        startEnabled: () => Promise<{ success: boolean; servers: McpServerState[] }>;
+        enabled: (
+          workspaceId: string,
+        ) => Promise<{ success: boolean; ids?: string[] }>;
+        setEnabled: (
+          workspaceId: string,
+          id: string,
+          enabled: boolean,
+        ) => Promise<{ success: boolean; ids?: string[] }>;
+        search: (query: string) => Promise<{
+          success: boolean;
+          entries?: RegistryEntry[];
+          cached?: boolean;
+          stale?: boolean;
+          error?: string;
+        }>;
+        startEnabled: (workspaceId?: string) => Promise<{ success: boolean; servers: McpServerState[] }>;
         signIn: (
           id: string,
         ) => Promise<{ success: boolean; error?: string }>;
