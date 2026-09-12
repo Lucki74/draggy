@@ -9,6 +9,7 @@ import {
   mergeMetrics,
   noteModelInUse,
   readMetrics,
+  recalledCapabilities,
 } from "../ollama";
 import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
@@ -26,7 +27,15 @@ import {
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { annotationsFor, runTool, toolDefinitions } from "../tools/registry";
-import type { ToolContext, ToolEnvironment } from "../tools/registry";
+import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
+import {
+  chooseChannel,
+  looksLikeCall,
+  readRepair,
+  repairPrompt,
+  repairSchema,
+} from "./toolChannel";
+import type { RepairedCall } from "./toolChannel";
 import {
   addGrant,
   decide,
@@ -344,10 +353,67 @@ export async function runAgentTurn(
     return runTool(name, args, toolContext, environment);
   }
 
+  /**
+   * One repair pass per turn for a model that meant to call a tool and got the
+   * shape wrong. The same question is asked again with Ollama's `format` set to
+   * a schema, so the sampler cannot produce anything but a valid call. Costs
+   * one short request, and only on the calls that would otherwise be lost.
+   */
+  let repairsLeft = 1;
+
+  async function repairCall(
+    broken: string,
+    definitions: ToolDefinition[],
+    numCtx: number,
+    abort: AbortSignal,
+  ): Promise<RepairedCall> {
+    if (repairsLeft <= 0) return {};
+    repairsLeft--;
+
+    try {
+      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          keep_alive: KEEP_ALIVE,
+          options: { num_ctx: numCtx, num_predict: 500 },
+          format: repairSchema(definitions),
+          messages: [
+            ...wire,
+            { role: "user", content: repairPrompt(broken) },
+          ],
+        }),
+        signal: abort,
+      });
+
+      if (!response.ok) return {};
+
+      const body = safeJsonParse<{ message?: { content?: string } }>(
+        await response.text(),
+      );
+
+      return readRepair(body?.message?.content ?? "");
+    } catch {
+      // A repair that fails leaves the turn exactly as it was: the reply is
+      // shown as written, which is what happened before this existed.
+      return {};
+    }
+  }
+
   const info = await getModelInfo(model);
   noteModelInUse(model);
 
-  const nativeTools = hasCapability(info, "tools");
+  // A probe that failed is not proof a model cannot call tools: Ollama may
+  // have been busy. What it said last time stands in.
+  const capabilities = info
+    ? info.capabilities
+    : await recalledCapabilities(model);
+
+  const nativeTools = info
+    ? hasCapability(info, "tools")
+    : chooseChannel(capabilities) === "native";
   const nativeVision = hasCapability(info, "vision");
   const hasThinkingCapability = hasCapability(info, "thinking");
   const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low";
@@ -716,6 +782,27 @@ ${currentTimeNote()}`,
       if (!nativeTools && !toolMatch) toolMatch = detectToolCall(rawChunk);
       textContent = cleanText(rawChunk);
 
+      // A reply that was trying to be a tool call and came out mangled: worth
+      // one constrained retry before it is shown to the user as prose.
+      if (
+        !nativeTools &&
+        toolMatch === null &&
+        looksLikeCall(rawChunk, definitions.map((one) => one.function.name))
+      ) {
+        const repaired = await repairCall(
+          rawChunk,
+          definitions,
+          numCtx,
+          loopController.signal,
+        );
+        if (repaired.name) {
+          toolMatch = JSON.stringify({
+            name: repaired.name,
+            args: repaired.args ?? {},
+          });
+        }
+      }
+
       const pendingCalls = nativeTools ? nativeCalls : [];
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
@@ -799,7 +886,19 @@ ${currentTimeNote()}`,
         }
       } else {
         wire.push({ role: "assistant", content: rawChunk, ...kept });
-        const { name, args } = parseToolCall(toolMatch as string);
+        let { name, args } = parseToolCall(toolMatch as string);
+
+        if (!name) {
+          const repaired = await repairCall(
+            toolMatch as string,
+            definitions,
+            numCtx,
+            loopController.signal,
+          );
+          name = repaired.name;
+          args = repaired.args;
+        }
+
         const result = await runGuardedTool(name || "", args || {});
         wire.push({ role: "user", content: result });
       }

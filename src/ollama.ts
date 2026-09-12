@@ -98,14 +98,70 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
   }
 }
 
+/**
+ * What a model could do the last time Draggy asked, kept in the database. The
+ * probe is what decides how tools are called, so a launch where Ollama is slow
+ * to answer would otherwise drop a capable model into text mode for a turn.
+ */
+const CAPABILITY_KEY = "modelCapabilities";
+
+let rememberedCapabilities: Record<string, string[]> | null = null;
+
+async function capabilityRecord(): Promise<Record<string, string[]>> {
+  if (rememberedCapabilities) return rememberedCapabilities;
+
+  // The voice worker and the tests run this module without a window at all.
+  if (typeof window === "undefined") return (rememberedCapabilities = {});
+
+  // A stub bridge in a test has a  with nothing in it, so the function
+  // itself is what has to be checked.
+  const get = window.electronAPI?.db?.get;
+
+  const stored =
+    typeof get === "function"
+      ? await get(CAPABILITY_KEY).catch(() => undefined)
+      : undefined;
+
+  rememberedCapabilities =
+    (stored?.value ? safeJsonParse<Record<string, string[]>>(stored.value) : null) ??
+    {};
+
+  return rememberedCapabilities;
+}
+
+async function rememberCapabilities(model: string, capabilities: string[]) {
+  const record = await capabilityRecord();
+
+  const known = record[model];
+  if (known && known.join() === capabilities.join()) return;
+
+  record[model] = capabilities;
+  if (typeof window === "undefined") return;
+
+  const set = window.electronAPI?.db?.set;
+  if (typeof set !== "function") return;
+
+  await set(CAPABILITY_KEY, JSON.stringify(record)).catch(() => undefined);
+}
+
+export async function recalledCapabilities(model: string): Promise<string[]> {
+  return (await capabilityRecord())[model] ?? [];
+}
+
 export function getModelInfo(model: string): Promise<ModelInfo | null> {
   const cached = modelInfoCache.get(model);
   if (cached) return cached;
 
-  const pending = fetchModelInfo(model).then((value) => {
-    if (value === null) modelInfoCache.delete(model);
+  const pending = fetchModelInfo(model).then(async (value) => {
+    if (value === null) {
+      modelInfoCache.delete(model);
+      return value;
+    }
+
+    await rememberCapabilities(model, value.capabilities);
     return value;
   });
+
   modelInfoCache.set(model, pending);
   return pending;
 }

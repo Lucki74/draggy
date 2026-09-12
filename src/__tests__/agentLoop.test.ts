@@ -89,8 +89,11 @@ function installFetch(
   turns: Turn[],
   capabilities: string[],
   loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80 }],
+  /** What a constrained repair pass answers, when the loop asks for one. */
+  repair?: string,
 ) {
   const requests: Record<string, unknown>[] = [];
+  const repairs: Record<string, unknown>[] = [];
   let turnIndex = 0;
 
   const impl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -117,6 +120,17 @@ function installFetch(
 
     if (url.endsWith("/api/chat")) {
       const body = JSON.parse(String(init?.body));
+
+      // A repair is the one request that is not streamed, and the only one
+      // that carries a schema.
+      if (body.format) {
+        repairs.push(body);
+        return new Response(
+          JSON.stringify({ message: { content: repair ?? "" } }),
+          { status: 200 },
+        );
+      }
+
       requests.push(body);
 
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
@@ -140,7 +154,7 @@ function installFetch(
   });
 
   vi.stubGlobal("fetch", impl);
-  return { requests };
+  return { requests, repairs };
 }
 
 function makeHost() {
@@ -1587,5 +1601,108 @@ describe("working to a plan", () => {
 
     expect(live.items?.[0].status).toBe("done");
     expect(said(requests, 1).join("\n")).not.toMatch(/user edited/i);
+  });
+});
+
+describe("a tool call the model got wrong", () => {
+  const GOOD = '{"name": "search_web", "args": {"query": "paris"}}';
+
+  it("is asked for again against a schema, and then runs", async () => {
+    // A small model that opened the tag and never closed it. Before the repair
+    // this reached the user as a wall of JSON.
+    const { repairs } = installFetch(
+      [
+        { content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] },
+        { content: ["Paris is the capital."] },
+      ],
+      [],
+      undefined,
+      GOOD,
+    );
+
+    await run([userMessage("where is Paris")]).promise;
+
+    expect(repairs).toHaveLength(1);
+    expect(toolCalls).toEqual([{ name: "search_web", args: { query: "paris" } }]);
+  });
+
+  it("constrains the repair to the tools that exist", async () => {
+    const { repairs } = installFetch(
+      [
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ["Done."] },
+      ],
+      [],
+      undefined,
+      GOOD,
+    );
+
+    await run([userMessage("go")]).promise;
+
+    const schema = repairs[0].format as {
+      properties: { name: { enum: string[] } };
+    };
+    expect(schema.properties.name.enum).toEqual(["search_web"]);
+  });
+
+  it("only tries once in a turn", async () => {
+    const { repairs } = installFetch(
+      [
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ["Giving up."] },
+      ],
+      [],
+      undefined,
+      "not a call at all",
+    );
+
+    await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(1);
+  });
+
+  it("leaves an ordinary answer alone", async () => {
+    const { repairs } = installFetch(
+      [{ content: ["Paris is the capital of France."] }],
+      [],
+      undefined,
+      GOOD,
+    );
+
+    const result = await run([userMessage("where is Paris")]).promise;
+
+    expect(repairs).toHaveLength(0);
+    expect(result.textContent).toContain("Paris is the capital");
+  });
+
+  it("hands back the reply as written when the repair fails too", async () => {
+    const { repairs } = installFetch(
+      [{ content: ['<tool>{"name": "search_web", "args": {'] }],
+      [],
+      undefined,
+      "still not a call",
+    );
+
+    const result = await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(1);
+    expect(toolCalls).toHaveLength(0);
+    // The turn ends rather than looping, and the half-written call is not put
+    // in front of the user as though it were an answer.
+    expect(result.textContent).not.toContain("search_web");
+  });
+
+  it("does not repair for a model with a real tool interface", async () => {
+    const { repairs } = installFetch(
+      [{ content: ['<tool>{"name": "search_web"'] }],
+      ["tools"],
+      undefined,
+      GOOD,
+    );
+
+    await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(0);
   });
 });
