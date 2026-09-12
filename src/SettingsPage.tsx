@@ -24,7 +24,7 @@ import {
   Blocks,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import McpPanel from "./settings/McpPanel";
+import ExtensionsPanel from "./extensions/ExtensionsPanel";
 import { Field, Section, Stat, Toggle } from "./settings/Controls";
 import { translations, languages } from "./translations";
 import {
@@ -127,6 +127,8 @@ interface SettingsPageProps {
   onSelectModel: (name: string) => void;
   onClearChats: () => void;
   onLibraryChange?: () => void;
+  /** The workspace whose extensions the panel is showing. */
+  workspaceId: string;
 }
 
 export type SettingsTab =
@@ -163,6 +165,7 @@ export default function SettingsPage({
   onSelectModel,
   onClearChats,
   onLibraryChange,
+  workspaceId,
 }: SettingsPageProps) {
   const t = useCallback(
     (key: string) =>
@@ -1109,7 +1112,7 @@ export default function SettingsPage({
 
           {tab === "extensions" && (
             <Section title={t("extensions")}>
-              <McpPanel t={t} />
+              <ExtensionsPanel t={t} workspaceId={workspaceId} />
             </Section>
           )}
 

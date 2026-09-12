@@ -3,6 +3,7 @@ import { ChevronDown, ExternalLink, Loader2, Search } from "lucide-react";
 import { Toggle } from "./Controls";
 import { hostnameOf, hueFor, siteLabel } from "./../utils";
 import type {
+  RegistryEntry,
   McpCatalogueEntry,
   McpServerConfig,
   McpServerState,
@@ -51,7 +52,14 @@ function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
   );
 }
 
-export default function McpPanel({ t }: { t: (key: string) => string }) {
+export default function McpPanel({
+  t,
+  workspaceId,
+}: {
+  t: (key: string) => string;
+  /** Which workspace the switches belong to. */
+  workspaceId: string;
+}) {
   const [catalogue, setCatalogue] = useState<McpCatalogueEntry[]>([]);
   const [config, setConfig] = useState<Record<string, McpServerConfig>>({});
   const [running, setRunning] = useState<McpServerState[]>([]);
@@ -59,6 +67,10 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [shown, setShown] = useState<Shown>("all");
+  /** The servers this workspace has switched on, which is not an app-wide list. */
+  const [enabled, setEnabled] = useState<string[]>([]);
+  const [found, setFound] = useState<RegistryEntry[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const api = window.electronAPI?.mcp;
 
@@ -68,7 +80,8 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
     api.catalogue().then((result) => setCatalogue(result.servers || []));
     api.config().then((result) => setConfig(result.config || {}));
     api.running().then((result) => setRunning(result.servers || []));
-  }, [api]);
+    api.enabled(workspaceId).then((result) => setEnabled(result.ids || []));
+  }, [api, workspaceId]);
 
   const stateOf = (id: string) => running.find((server) => server.id === id) || null;
 
@@ -104,6 +117,13 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
     const next = { ...entryConfig(entry.id), enabled: on };
     await persist(entry.id, next);
 
+    setEnabled((previous) =>
+      on
+        ? [...new Set([...previous, entry.id])]
+        : previous.filter((id) => id !== entry.id),
+    );
+    await api?.setEnabled(workspaceId, entry.id, on);
+
     setBusy(entry.id);
     try {
       // Only servers that are actually running come back from `running()`, so a
@@ -134,7 +154,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   const wanted = filter.trim().toLowerCase();
 
   const visible = catalogue.filter((entry) => {
-    if (shown !== "all" && entryConfig(entry.id).enabled !== (shown === "on")) {
+    if (shown !== "all" && enabled.includes(entry.id) !== (shown === "on")) {
       return false;
     }
     if (!wanted) return true;
@@ -188,6 +208,73 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
         <p className="text-sm text-[var(--text-muted)] py-6 text-center">
           {t("mcpNoMatches")}
         </p>
+      )}
+
+      {/*
+        The registry, asked only when the user asks: everything above this line
+        works with no network at all, and that is the default Draggy keeps.
+      */}
+      {wanted.length > 1 && (
+        <div className="space-y-2">
+          <button
+            onClick={async () => {
+              setSearching(true);
+              try {
+                const result = await api?.search(wanted);
+                setFound(result?.entries ?? []);
+              } finally {
+                setSearching(false);
+              }
+            }}
+            disabled={searching}
+            className="w-full rounded-xl border-[3px] border-[var(--border-light)] px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-main)] disabled:opacity-50"
+          >
+            {searching ? t("loading") : t("searchRegistry")}
+          </button>
+
+          {found?.map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-center gap-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold tracking-tight">
+                  {entry.name}
+                  {entry.remote && (
+                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      {t("remote")}
+                    </span>
+                  )}
+                </p>
+                <p className="truncate text-xs text-[var(--text-muted)]">
+                  {entry.description}
+                </p>
+              </div>
+
+              <button
+                onClick={async () => {
+                  await api?.save(entry.id, {
+                    enabled: false,
+                    env: {},
+                    arguments: {},
+                    ...(entry.url ? { url: entry.url, name: entry.name } : {}),
+                  });
+                  const saved = await api?.config();
+                  setConfig(saved?.config ?? {});
+                }}
+                className="flex-shrink-0 rounded-xl bg-[var(--bg-inverted)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-inverted)]"
+              >
+                {t("addServer")}
+              </button>
+            </div>
+          ))}
+
+          {found?.length === 0 && (
+            <p className="text-center text-xs text-[var(--text-muted)]">
+              {t("mcpNoMatches")}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="space-y-2">

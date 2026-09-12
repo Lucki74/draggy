@@ -777,6 +777,7 @@ export default function AppShell({
             onSelectModel={onSelectModel}
             onClearChats={handleClearChats}
             onLibraryChange={refreshLibraryReadiness}
+            workspaceId={active.id}
           />
         </div>
       </div>

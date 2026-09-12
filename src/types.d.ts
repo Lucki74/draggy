@@ -385,6 +385,9 @@ export interface McpServerConfig {
   enabled: boolean;
   env: Record<string, string>;
   arguments: Record<string, string | string[]>;
+  /** Set when the server is somewhere else rather than a program on this machine. */
+  url?: string;
+  name?: string;
 }
 
 export interface McpToolDescription {

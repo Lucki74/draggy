@@ -43,6 +43,7 @@ function renderUpdates() {
       onSelectModel={() => {}}
       onClearChats={() => {}}
       onLibraryChange={() => {}}
+      workspaceId="default"
     />,
   );
 }
