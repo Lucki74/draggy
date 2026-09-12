@@ -8,6 +8,7 @@ import {
   Download,
   File,
   FileCode,
+  FilePen,
   FileText,
   Film,
   Globe,
@@ -69,6 +70,7 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   library: Library,
   run_code: Terminal,
   extension: Blocks,
+  edit_file: FilePen,
 };
 
 const formatTokens = (value: number) =>
@@ -382,6 +384,8 @@ interface MessageItemProps {
   onEditMessage: (messageIndex: number, newContent: string) => void;
   /** Answers a tool call the model is waiting on the user for. */
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** Puts a file back the way it was before Draggy changed it. */
+  onRevert?: (checkpointId: number) => Promise<boolean>;
 }
 
 const MessageItem = memo(
@@ -397,9 +401,22 @@ const MessageItem = memo(
     settings,
     onEditMessage,
     onApproval,
+    onRevert,
   }: MessageItemProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
+
+    /**
+     * Changes put back, this session. The message itself is left as it was
+     * written: it is a record of what happened, undo included.
+     */
+    const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
+
+    const revert = async (checkpointId: number) => {
+      if (!onRevert || reverted.has(checkpointId)) return;
+      const undone = await onRevert(checkpointId);
+      if (undone) setReverted((prev) => new Set(prev).add(checkpointId));
+    };
     const t = (key: string) => {
       return (
         translations[settings.language]?.[key] || translations["en"][key] || key
@@ -766,6 +783,18 @@ const MessageItem = memo(
                               )}
                           </ReactMarkdown>
                         </span>
+
+                        {step.checkpointId !== undefined && onRevert && (
+                          <button
+                            onClick={() => revert(step.checkpointId as number)}
+                            disabled={reverted.has(step.checkpointId)}
+                            className="text-[10px] font-bold uppercase tracking-wider opacity-60 hover:opacity-100 disabled:opacity-40"
+                          >
+                            {reverted.has(step.checkpointId)
+                              ? t("changeUndone")
+                              : t("undoChange")}
+                          </button>
+                        )}
                       </div>
                       {payload}
                       </div>

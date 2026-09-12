@@ -127,6 +127,24 @@ Run code to check arithmetic and data transformations, and to verify that any no
 
 The program runs in a scratch directory with no network access and is stopped after twenty seconds. Do not use it to touch the user's files or to run anything destructive.`;
 
+/**
+ * What the model is told when the conversation has a folder. The path is in the
+ * prompt because a model that does not know where it is guesses, and a guess
+ * here is a refusal from the guard rather than a file.
+ */
+export function buildProjectPrompt(root: string): string {
+  return `PROJECT FOLDER
+
+This conversation is about a folder on the user's computer:
+${root}
+
+Paths given to the file tools are read against that folder, so "src/App.tsx" means the one in this project. Nothing outside the folder can be reached, and credentials such as .env files are refused even inside it.
+
+Read a file before changing it, and pass edit_file the exact lines you read rather than what you remember. edit_file changes part of a file; write_file replaces the whole thing, so use it for new files and deliberate rewrites. Moving and deleting ask the user first, and everything you change can be undone from the timeline.
+
+When you are done, say which files you changed rather than repeating their contents.`;
+}
+
 export const VOICE_SEARCH_MARKER = /^\s*SEARCH\s*:\s*(.*)/i;
 
 /**
@@ -187,6 +205,10 @@ export function buildSystemPrompt(
   } else {
     const catalogue = describeToolsForPrompt(environment);
     if (catalogue) parts.push(catalogue);
+  }
+
+  if (environment.hasFolder && environment.projectRoot) {
+    parts.push(buildProjectPrompt(environment.projectRoot));
   }
 
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);

@@ -288,6 +288,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           seed,
           compaction: host.getSession(chatId)?.compaction,
           permission: host.getPermission(),
+          workspaceId: host.getWorkspaceId(),
+          chatId,
           signal: controller.signal,
         },
         {

@@ -57,6 +57,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
     stats: () => ipcRenderer.invoke("db:stats"),
   },
 
+  files: {
+    list: (workspaceId, path) => ipcRenderer.invoke("fs:list", workspaceId, path),
+    read: (workspaceId, path) => ipcRenderer.invoke("fs:read", workspaceId, path),
+    write: (workspaceId, path, contents, chatId) =>
+      ipcRenderer.invoke("fs:write", workspaceId, path, contents, chatId),
+    edit: (workspaceId, path, find, replace, expected, chatId) =>
+      ipcRenderer.invoke("fs:edit", workspaceId, path, find, replace, expected, chatId),
+    move: (workspaceId, from, to, chatId) =>
+      ipcRenderer.invoke("fs:move", workspaceId, from, to, chatId),
+    remove: (workspaceId, path, chatId) =>
+      ipcRenderer.invoke("fs:delete", workspaceId, path, chatId),
+    search: (workspaceId, query) =>
+      ipcRenderer.invoke("fs:search", workspaceId, query),
+    checkpoints: (workspaceId) =>
+      ipcRenderer.invoke("checkpoint:list", workspaceId),
+    revert: (id) => ipcRenderer.invoke("checkpoint:revert", id),
+  },
+
   workspaces: {
     list: () => ipcRenderer.invoke("workspace:list"),
     save: (workspace) => ipcRenderer.invoke("workspace:save", workspace),

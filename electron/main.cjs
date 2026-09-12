@@ -22,6 +22,9 @@ const { log } = logger;
 const platform = require("./platform.cjs");
 const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
+const fsGuard = require("./fsGuard.cjs");
+const checkpoints = require("./checkpoints.cjs");
+const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const updater = require("./updater.cjs");
@@ -750,6 +753,11 @@ app.whenReady().then(() => {
   }
 
   mcp.init(app.getPath("userData"));
+
+  // Draggy's own storage is out of bounds to the file tools, whatever folder
+  // the user has opened. The database is not a document.
+  fsGuard.setProtectedPaths([app.getPath("userData")]);
+  checkpoints.init(app.getPath("userData"));
 
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
@@ -1843,6 +1851,58 @@ const wrap = (scope, handler) => async (...args) => {
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * The folders a conversation may reach: the ones its workspace was given, and
+ * nothing else. The renderer names a workspace rather than a folder, so it
+ * cannot widen its own reach by asking for one it was never granted.
+ */
+function rootsFor(workspaceId) {
+  const workspace = storage.getWorkspace(workspaceId);
+  return workspace && workspace.rootPath ? [workspace.rootPath] : [];
+}
+
+const fileOps = fileOperations.create({
+  roots: rootsFor,
+  storage,
+  checkpoints,
+  trash: (target) => shell.trashItem(target),
+});
+
+ipcMain.handle("fs:list", wrap("fs", async (event, workspaceId, target) =>
+  fileOps.list(workspaceId, target),
+));
+
+ipcMain.handle("fs:read", wrap("fs", async (event, workspaceId, target) =>
+  fileOps.read(workspaceId, target),
+));
+
+ipcMain.handle("fs:write", wrap("fs", async (event, workspaceId, target, contents, chatId) =>
+  fileOps.write(workspaceId, target, contents, chatId),
+));
+
+ipcMain.handle("fs:edit", wrap("fs", async (event, workspaceId, target, find, replace, expected, chatId) =>
+  fileOps.edit(workspaceId, target, find, replace, expected, chatId),
+));
+
+ipcMain.handle("fs:move", wrap("fs", async (event, workspaceId, from, to, chatId) =>
+  fileOps.move(workspaceId, from, to, chatId),
+));
+
+ipcMain.handle("fs:delete", wrap("fs", async (event, workspaceId, target, chatId) =>
+  fileOps.remove(workspaceId, target, chatId),
+));
+
+ipcMain.handle("fs:search", wrap("fs", async (event, workspaceId, query) =>
+  fileOps.search(workspaceId, query),
+));
+
+ipcMain.handle("checkpoint:list", wrap("fs", async (event, workspaceId) => ({
+  success: true,
+  checkpoints: storage.listCheckpoints(String(workspaceId || "")),
+})));
+
+ipcMain.handle("checkpoint:revert", wrap("fs", async (event, id) => fileOps.revert(id)));
 
 ipcMain.handle("db:load-chats", wrap("db", async () => ({
   success: true,

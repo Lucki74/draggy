@@ -12,11 +12,19 @@ export interface ToolEnvironment {
   webMode: AppSettings["webMode"];
   codeExecution: boolean;
   libraryReady: boolean;
+  /** Whether this conversation has a folder of the user's to work in. */
+  hasFolder?: boolean;
+  /** That folder, for the system prompt. Absent in a plain chat. */
+  projectRoot?: string;
 }
 
 export interface ToolContext {
   t: (key: string) => string;
   settings: AppSettings;
+  /** Which workspace the call belongs to. The main process resolves it to a folder. */
+  workspaceId?: string;
+  /** The conversation, so a change to a file can be traced back to it. */
+  chatId?: string;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
   syncSteps: () => void;

@@ -160,6 +160,9 @@ export interface AgentRequest {
   seed?: AgentSeed | null;
   /** The older part of this conversation, already folded into notes. */
   compaction?: CompactionState | null;
+  /** Which workspace this turn belongs to, and which conversation in it. */
+  workspaceId?: string;
+  chatId?: string;
   /**
    * How much this turn may do on its own, and what the user has already
    * allowed. Left out, the turn runs unguarded, which is what a plain chat with
@@ -240,6 +243,8 @@ export async function runAgentTurn(
   const toolContext: ToolContext = {
     t: host.t,
     settings,
+    workspaceId: request.workspaceId,
+    chatId: request.chatId,
     pushStep,
     patchStep,
     syncSteps,

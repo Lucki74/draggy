@@ -160,6 +160,44 @@ export interface ChatSearchHit {
 }
 
 /** A file the model wrote, as it exists on disk right now. */
+export interface DirectoryEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modified: number;
+}
+
+export interface FileWriteResult {
+  success: boolean;
+  path?: string;
+  /** What to pass to a revert, if the user wants the change undone. */
+  checkpointId?: number;
+  created?: boolean;
+  error?: string;
+}
+
+export interface FileSearchHit {
+  path: string;
+  name: string;
+  /** Set when the search was for text rather than a file name. */
+  line?: number;
+  text?: string;
+}
+
+/** One change Draggy made to a file, and what it looked like beforehand. */
+export interface Checkpoint {
+  id: number;
+  workspaceId: string;
+  chatId: string | null;
+  path: string;
+  action: "write" | "delete" | "move";
+  detail: string | null;
+  beforeHash: string | null;
+  afterHash: string | null;
+  createdAt: number;
+}
+
 export interface CreatedFile {
   name: string;
   path: string;
@@ -197,6 +235,8 @@ export interface SearchStep {
     | "loaded"
     | "scanned"
     | "create_file"
+    /** A change to a file of the user's, which can be undone. */
+    | "edit_file"
     | "library"
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */
@@ -214,6 +254,10 @@ export interface SearchStep {
   language?: string;
   stdout?: string;
   stderr?: string;
+  /** On an "edit_file" step: what to hand a revert, and what changed. */
+  checkpointId?: number;
+  before?: string;
+  after?: string;
   /** On an "approval" step: the call the user is being asked about. */
   approval?: {
     id: string;
@@ -534,6 +578,72 @@ declare global {
         set: (key: string, value: string) => Promise<{ success: boolean }>;
         importSessions: (sessions: unknown[]) => Promise<{ success: boolean; imported?: number }>;
         stats: () => Promise<{ success: boolean; stats?: StorageStats }>;
+      };
+
+      files: {
+        list: (
+          workspaceId: string,
+          path?: string,
+        ) => Promise<{
+          success: boolean;
+          path?: string;
+          entries?: DirectoryEntry[];
+          truncated?: boolean;
+          error?: string;
+        }>;
+        read: (
+          workspaceId: string,
+          path: string,
+        ) => Promise<{
+          success: boolean;
+          path?: string;
+          text?: string;
+          bytes?: number;
+          error?: string;
+        }>;
+        write: (
+          workspaceId: string,
+          path: string,
+          contents: string,
+          chatId?: string,
+        ) => Promise<FileWriteResult>;
+        edit: (
+          workspaceId: string,
+          path: string,
+          find: string,
+          replace: string,
+          expected?: number,
+          chatId?: string,
+        ) => Promise<
+          FileWriteResult & { replaced?: number; before?: string; after?: string }
+        >;
+        move: (
+          workspaceId: string,
+          from: string,
+          to: string,
+          chatId?: string,
+        ) => Promise<FileWriteResult & { from?: string }>;
+        remove: (
+          workspaceId: string,
+          path: string,
+          chatId?: string,
+        ) => Promise<FileWriteResult>;
+        search: (
+          workspaceId: string,
+          query: { name?: string; text?: string; limit?: number },
+        ) => Promise<{
+          success: boolean;
+          hits?: FileSearchHit[];
+          truncated?: boolean;
+          error?: string;
+        }>;
+        checkpoints: (workspaceId: string) => Promise<{
+          success: boolean;
+          checkpoints?: Checkpoint[];
+        }>;
+        revert: (
+          id: number,
+        ) => Promise<{ success: boolean; path?: string; error?: string }>;
       };
 
       workspaces: {

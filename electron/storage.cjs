@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { log } = require("./logger.cjs");
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /**
  * The workspace every chat belongs to until it is put somewhere else. It is a
@@ -73,6 +73,21 @@ const SCHEMA = `
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS checkpoints (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id TEXT NOT NULL,
+    chat_id      TEXT,
+    path         TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    detail       TEXT,
+    before_hash  TEXT,
+    after_hash   TEXT,
+    created_at   INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS checkpoints_by_workspace
+    ON checkpoints(workspace_id, created_at DESC);
 
   CREATE VIRTUAL TABLE IF NOT EXISTS message_search
     USING fts5(chat_id UNINDEXED, message_id UNINDEXED, body);
@@ -443,6 +458,17 @@ function listWorkspaces() {
     .map(rowToWorkspace);
 }
 
+function getWorkspace(id) {
+  const row = db
+    .prepare(
+      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
+       FROM workspaces WHERE id = ?`,
+    )
+    .get(String(id || ""));
+
+  return row ? rowToWorkspace(row) : null;
+}
+
 function saveWorkspace(workspace) {
   const id = String(workspace?.id || "").trim();
   if (!id) return { success: false, error: "A workspace needs an id." };
@@ -504,6 +530,79 @@ function deleteWorkspace(id) {
   db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
 
   return { success: true, moved: moved.changes };
+}
+
+/**
+ * A file Draggy changed, and what it looked like before. The row is the record;
+ * the bytes live in the checkpoint store next to the attachment blobs.
+ */
+function addCheckpoint(entry) {
+  const result = db
+    .prepare(
+      `INSERT INTO checkpoints (workspace_id, chat_id, path, action, before_hash, after_hash, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      String(entry.workspaceId || DEFAULT_WORKSPACE_ID),
+      entry.chatId ? String(entry.chatId) : null,
+      String(entry.path || ""),
+      String(entry.action || "write"),
+      entry.detail ? String(entry.detail) : null,
+      entry.beforeHash || null,
+      entry.afterHash || null,
+      Number(entry.createdAt) || Date.now(),
+    );
+
+  return { success: true, id: Number(result.lastInsertRowid) };
+}
+
+function rowToCheckpoint(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    chatId: row.chat_id || null,
+    path: row.path,
+    action: row.action,
+    detail: row.detail || null,
+    beforeHash: row.before_hash || null,
+    afterHash: row.after_hash || null,
+    createdAt: row.created_at,
+  };
+}
+
+function getCheckpoint(id) {
+  return rowToCheckpoint(
+    db.prepare("SELECT * FROM checkpoints WHERE id = ?").get(Number(id)),
+  );
+}
+
+function listCheckpoints(workspaceId, limit = 100) {
+  return db
+    .prepare(
+      `SELECT * FROM checkpoints WHERE workspace_id = ?
+       ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(String(workspaceId), Number(limit) || 100)
+    .map(rowToCheckpoint);
+}
+
+function dropCheckpoint(id) {
+  db.prepare("DELETE FROM checkpoints WHERE id = ?").run(Number(id));
+  return { success: true };
+}
+
+/** Every blob any checkpoint still points at, for the store's own cleanup. */
+function checkpointHashes() {
+  const rows = db
+    .prepare(
+      `SELECT before_hash AS hash FROM checkpoints WHERE before_hash IS NOT NULL
+       UNION SELECT after_hash FROM checkpoints WHERE after_hash IS NOT NULL`,
+    )
+    .all();
+
+  return rows.map((row) => row.hash);
 }
 
 function searchBody(message) {
@@ -772,8 +871,14 @@ module.exports = {
   DEFAULT_WORKSPACE_ID,
   init,
   listWorkspaces,
+  getWorkspace,
   saveWorkspace,
   deleteWorkspace,
+  addCheckpoint,
+  getCheckpoint,
+  listCheckpoints,
+  dropCheckpoint,
+  checkpointHashes,
   saveChat,
   loadChats,
   loadChatSummaries,

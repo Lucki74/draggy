@@ -130,6 +130,8 @@ interface ChatScreenProps {
   onUpdateSettings: (settings: AppSettings) => void;
   /** Answers a tool call the model is waiting on the user for. */
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** Puts a file back the way it was before Draggy changed it. */
+  onRevert?: (checkpointId: number) => Promise<boolean>;
 }
 
 export default function ChatScreen({
@@ -148,6 +150,7 @@ export default function ChatScreen({
   settings,
   onUpdateSettings,
   onApproval,
+  onRevert,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -716,6 +719,7 @@ export default function ChatScreen({
               settings={settings}
               onEditMessage={onEditMessage}
               onApproval={onApproval}
+              onRevert={onRevert}
             />
           </ErrorBoundary>
         ))}

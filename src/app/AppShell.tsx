@@ -121,6 +121,8 @@ export default function AppShell({
     codeExecution:
       effectiveSettings.codeExecution && Boolean(window.electronAPI?.runner),
     libraryReady: libraryReady && effectiveSettings.libraryEnabled,
+    hasFolder: Boolean(active.rootPath),
+    projectRoot: active.rootPath ?? undefined,
   };
 
   const runs = useAgentRuns({
@@ -172,6 +174,18 @@ export default function AppShell({
       setSelectedChatId((current) => (current === chatId ? null : current));
     },
     [runs, store],
+  );
+
+  /** Puts a file back the way it was, from the step that changed it. */
+  const handleRevert = useCallback(
+    async (checkpointId: number) => {
+      const result = await window.electronAPI?.files?.revert(checkpointId);
+      if (result?.success) return true;
+
+      store.setStorageWarning(result?.error || t("undoFailed"));
+      return false;
+    },
+    [store, t],
   );
 
   const handleNewChat = useCallback(() => {
@@ -472,6 +486,7 @@ export default function AppShell({
             onContinueGeneration={() => runs.continueGeneration(currentChatId)}
             onDismissOutOfContext={() => runs.dismissOutOfContext(currentChatId)}
             onApproval={runs.answerApproval}
+            onRevert={handleRevert}
             onSelectModel={onSelectModel}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}
