@@ -25,6 +25,8 @@ export interface ToolContext {
   workspaceId?: string;
   /** The conversation, so a change to a file can be traced back to it. */
   chatId?: string;
+  /** The project folder, for the rules a folder deeper in may carry. */
+  projectRoot?: string;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
   syncSteps: () => void;

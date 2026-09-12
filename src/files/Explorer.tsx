@@ -9,6 +9,8 @@ import type { AppSettings, DirectoryEntry, Workspace } from "../types";
 interface ExplorerProps {
   settings: AppSettings;
   workspace: Workspace;
+  /** A file picked somewhere else, which this screen should open on. */
+  initialPath?: string | null;
 }
 
 /**
@@ -17,16 +19,23 @@ interface ExplorerProps {
  * and a preview. The two are one screen because "where did that file go" is
  * one question either way.
  */
-export default function Explorer({ settings, workspace }: ExplorerProps) {
+export default function Explorer({
+  settings,
+  workspace,
+  initialPath,
+}: ExplorerProps) {
   const t = useTranslator(settings.language);
 
   if (!workspace.rootPath) return <CreatedFiles settings={settings} />;
 
   return (
     <ProjectFiles
-      key={workspace.id}
+      // A file chosen elsewhere opens a fresh screen rather than being pushed
+      // into the one already showing something else.
+      key={`${workspace.id}:${initialPath ?? ""}`}
       workspaceId={workspace.id}
       root={workspace.rootPath}
+      initialPath={initialPath ?? null}
       t={t}
     />
   );
@@ -35,13 +44,25 @@ export default function Explorer({ settings, workspace }: ExplorerProps) {
 function ProjectFiles({
   workspaceId,
   root,
+  initialPath,
   t,
 }: {
   workspaceId: string;
   root: string;
+  initialPath: string | null;
   t: (key: string) => string;
 }) {
-  const [selected, setSelected] = useState<DirectoryEntry | null>(null);
+  const [selected, setSelected] = useState<DirectoryEntry | null>(
+    initialPath
+      ? {
+          name: baseName(initialPath),
+          path: initialPath,
+          isDirectory: false,
+          size: 0,
+          modified: 0,
+        }
+      : null,
+  );
   const [revision, setRevision] = useState(0);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);

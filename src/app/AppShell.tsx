@@ -8,6 +8,8 @@ import {
   Folder,
   FolderPlus,
   MessagesSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
 } from "lucide-react";
 import ChatScreen from "../ChatScreen";
@@ -16,6 +18,11 @@ import type { SettingsTab } from "../SettingsPage";
 import ChatHistory from "../ChatHistory";
 import TalkScreen from "../TalkScreen";
 import Explorer from "../files/Explorer";
+import FileTree from "../files/FileTree";
+import MemoryEditor from "../project/MemoryEditor";
+import { loadProjectMemory } from "../project/load";
+import { MEMORY_NAMES } from "../project/memory";
+import { draftProjectMemory } from "../project/scan";
 import { useTranslator } from "../i18n";
 import { generateId } from "../utils";
 import { chatToMarkdown, exportFilename } from "../chat/export";
@@ -62,6 +69,9 @@ export default function AppShell({
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [libraryReady, setLibraryReady] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(true);
+  /** Which file the files screen opens on, when one was picked in the chat. */
+  const [openedFile, setOpenedFile] = useState<string | null>(null);
 
   const store = useSessions();
   const update = useUpdateDialog();
@@ -174,6 +184,61 @@ export default function AppShell({
       setSelectedChatId((current) => (current === chatId ? null : current));
     },
     [runs, store],
+  );
+
+  /**
+   * The project's instruction file, opened from `/memory`, or drafted from what
+   * is in the folder by `/init`. Nothing is written until the user saves.
+   */
+  const [memoryDraft, setMemoryDraft] = useState<{
+    path: string;
+    text: string;
+  } | null>(null);
+
+  const openProjectMemory = useCallback(async () => {
+    if (!active.rootPath) return;
+
+    const existing = await loadProjectMemory(active.id, active.rootPath);
+    setMemoryDraft({
+      path: existing?.path ?? MEMORY_NAMES[0],
+      text: existing?.text ?? "",
+    });
+  }, [active]);
+
+  const draftProject = useCallback(async () => {
+    if (!active.rootPath) return;
+
+    const existing = await loadProjectMemory(active.id, active.rootPath);
+    const drafted = await draftProjectMemory(
+      active.id,
+      active.rootPath,
+      workspaceLabel(active, t),
+    );
+
+    // A project that already says something keeps it: the draft goes under it
+    // rather than over it.
+    setMemoryDraft({
+      path: existing?.path ?? MEMORY_NAMES[0],
+      text: existing?.text ? `${existing.text}\n\n${drafted}` : drafted,
+    });
+  }, [active, t]);
+
+  const saveProjectMemory = useCallback(
+    async (text: string) => {
+      if (!memoryDraft) return false;
+
+      const result = await window.electronAPI?.files?.write(
+        active.id,
+        memoryDraft.path,
+        text,
+      );
+
+      if (result?.success) return true;
+
+      store.setStorageWarning(result?.error || t("undoFailed"));
+      return false;
+    },
+    [active.id, memoryDraft, store, t],
   );
 
   /** Puts a file back the way it was, from the step that changed it. */
@@ -327,6 +392,16 @@ export default function AppShell({
         </div>
       )}
 
+      {memoryDraft && (
+        <MemoryEditor
+          path={memoryDraft.path}
+          initial={memoryDraft.text}
+          t={t}
+          onSave={saveProjectMemory}
+          onClose={() => setMemoryDraft(null)}
+        />
+      )}
+
       {store.storageWarning && (
         <div
           role="alert"
@@ -461,11 +536,69 @@ export default function AppShell({
             settings={settings}
           />
         ) : viewMode === "files" ? (
-          <Explorer settings={settings} workspace={active} />
+          <Explorer
+            settings={settings}
+            workspace={active}
+            initialPath={openedFile}
+          />
         ) : viewMode === "talk" ? (
           <TalkScreen settings={settings} />
         ) : currentChatId ? (
-          <ChatScreen
+          <div className="flex-1 flex min-h-0">
+            {active.rootPath &&
+              (treeOpen ? (
+                <div
+                  className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-r-[3px]"
+                  style={{ borderColor: "var(--border-light)" }}
+                >
+                  <div
+                    className="flex items-center gap-1 px-2 py-2 border-b-[3px]"
+                    style={{ borderColor: "var(--border-light)" }}
+                  >
+                    <button
+                      onClick={() => void openProjectMemory()}
+                      title={t("projectMemory")}
+                      className="flex-1 min-w-0 truncate rounded-lg px-2 py-1 text-left text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+                    >
+                      {t("projectMemory")}
+                    </button>
+
+                    <button
+                      onClick={() => setTreeOpen(false)}
+                      aria-label={t("hideFiles")}
+                      title={t("hideFiles")}
+                      className="p-1 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    <FileTree
+                      workspaceId={active.id}
+                      root={active.rootPath}
+                      selected={null}
+                      onSelect={(entry) => {
+                        setOpenedFile(entry.path);
+                        setViewMode("files");
+                      }}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setTreeOpen(true)}
+                  aria-label={t("showFiles")}
+                  title={t("showFiles")}
+                  className="w-8 flex-shrink-0 flex items-start justify-center pt-3 border-r-[3px] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  style={{ borderColor: "var(--border-light)" }}
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                </button>
+              ))}
+
+            <ChatScreen
             model={model}
             chat={
               currentSession || {
@@ -487,12 +620,15 @@ export default function AppShell({
             onDismissOutOfContext={() => runs.dismissOutOfContext(currentChatId)}
             onApproval={runs.answerApproval}
             onRevert={handleRevert}
+            onProjectMemory={active.rootPath ? openProjectMemory : undefined}
+            onInitProject={active.rootPath ? draftProject : undefined}
             onSelectModel={onSelectModel}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}
             settings={settings}
             onUpdateSettings={onUpdateSettings}
-          />
+            />
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />
         )}

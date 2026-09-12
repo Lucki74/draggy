@@ -1,6 +1,8 @@
 import type { AppSettings } from "./types";
 import type { ToolEnvironment } from "./tools/registry";
 import { describeToolsForPrompt } from "./tools/registry";
+import { renderMemory } from "./project/memory";
+import type { ProjectMemory } from "./project/memory";
 
 export const BASE_PROMPT = `The assistant is Draggy, an AI assistant that runs entirely on the user's own computer.
 
@@ -197,6 +199,7 @@ export function buildSystemPrompt(
   settings: AppSettings,
   mode: PromptMode,
   environment: ToolEnvironment,
+  memory?: ProjectMemory | null,
 ) {
   const parts = [BASE_PROMPT, `Today's date: ${new Date().toLocaleDateString()}`];
 
@@ -210,6 +213,10 @@ export function buildSystemPrompt(
   if (environment.hasFolder && environment.projectRoot) {
     parts.push(buildProjectPrompt(environment.projectRoot));
   }
+
+  // After the folder it belongs to, and before anything Draggy says about how
+  // to work: the project's own rules are the ones that win.
+  if (memory) parts.push(renderMemory(memory));
 
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);

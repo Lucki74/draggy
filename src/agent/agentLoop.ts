@@ -12,6 +12,7 @@ import {
 } from "../ollama";
 import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
+import { loadProjectMemory } from "../project/load";
 import { renderCompactionBlock } from "./compaction";
 import {
   MAX_TOOL_LOOPS,
@@ -245,6 +246,7 @@ export async function runAgentTurn(
     settings,
     workspaceId: request.workspaceId,
     chatId: request.chatId,
+    projectRoot: environment.projectRoot,
     pushStep,
     patchStep,
     syncSteps,
@@ -337,10 +339,18 @@ export async function runAgentTurn(
   const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low";
   const cleanStream = nativeTools && nativeThinking;
 
+  // Read every turn rather than once: a project whose rules changed halfway
+  // through a conversation should be followed from the next message.
+  const memory =
+    environment.hasFolder && environment.projectRoot && request.workspaceId
+      ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
+      : null;
+
   const systemPrompt = buildSystemPrompt(
     settings,
     { nativeTools, nativeThinking },
     environment,
+    memory,
   );
   const definitions = toolDefinitions(environment);
 

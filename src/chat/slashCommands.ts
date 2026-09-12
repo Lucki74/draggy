@@ -5,6 +5,8 @@
 export interface SlashCommand {
   id: string;
   label: string;
+  /** Only offered in a workspace with a folder of its own. */
+  requiresProject?: boolean;
 }
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -16,6 +18,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "code", label: "runCode" },
   { id: "files", label: "addFiles" },
   { id: "settings", label: "settings" },
+  { id: "memory", label: "projectMemory", requiresProject: true },
+  { id: "init", label: "initProject", requiresProject: true },
 ];
 
 /**
@@ -28,10 +32,18 @@ export function slashQueryFor(input: string): string | null {
   return input.slice(1).toLowerCase();
 }
 
-export function matchSlashCommands(input: string): SlashCommand[] {
+export function matchSlashCommands(
+  input: string,
+  options: { project?: boolean } = {},
+): SlashCommand[] {
   const query = slashQueryFor(input);
   if (query === null) return [];
-  return SLASH_COMMANDS.filter((command) => command.id.startsWith(query));
+
+  return SLASH_COMMANDS.filter(
+    (command) =>
+      (options.project || !command.requiresProject) &&
+      command.id.startsWith(query),
+  );
 }
 
 /** Keeps a highlighted row inside the list as the list shrinks under it. */

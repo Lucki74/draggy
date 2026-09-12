@@ -15,6 +15,11 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    projectMemory: "Project memory",
+    initProject: "Draft project memory",
+    memoryHint: "Draggy reads this before every reply",
+    hideFiles: "Hide files",
+    showFiles: "Show files",
     showMoreLines: "Show more",
     rename: "Rename",
     emptyFolder: "Empty",
@@ -279,6 +284,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    projectMemory: "Mémoire du projet",
+    initProject: "Rédiger la mémoire du projet",
+    memoryHint: "Draggy le lit avant chaque réponse",
+    hideFiles: "Masquer les fichiers",
+    showFiles: "Afficher les fichiers",
     showMoreLines: "Afficher plus",
     rename: "Renommer",
     emptyFolder: "Vide",
@@ -543,6 +553,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    projectMemory: "Memoria del proyecto",
+    initProject: "Redactar la memoria del proyecto",
+    memoryHint: "Draggy lo lee antes de cada respuesta",
+    hideFiles: "Ocultar archivos",
+    showFiles: "Mostrar archivos",
     showMoreLines: "Mostrar más",
     rename: "Cambiar nombre",
     emptyFolder: "Vacío",
@@ -807,6 +822,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    projectMemory: "Projektgedächtnis",
+    initProject: "Projektgedächtnis entwerfen",
+    memoryHint: "Draggy liest das vor jeder Antwort",
+    hideFiles: "Dateien ausblenden",
+    showFiles: "Dateien anzeigen",
     showMoreLines: "Mehr anzeigen",
     rename: "Umbenennen",
     emptyFolder: "Leer",
@@ -1071,6 +1091,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    projectMemory: "Memoria del progetto",
+    initProject: "Scrivi la memoria del progetto",
+    memoryHint: "Draggy la legge prima di ogni risposta",
+    hideFiles: "Nascondi i file",
+    showFiles: "Mostra i file",
     showMoreLines: "Mostra altro",
     rename: "Rinomina",
     emptyFolder: "Vuota",
@@ -1335,6 +1360,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    projectMemory: "Memória do projeto",
+    initProject: "Redigir a memória do projeto",
+    memoryHint: "O Draggy lê isto antes de cada resposta",
+    hideFiles: "Ocultar ficheiros",
+    showFiles: "Mostrar ficheiros",
     showMoreLines: "Mostrar mais",
     rename: "Mudar o nome",
     emptyFolder: "Vazia",
@@ -1599,6 +1629,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    projectMemory: "Projectgeheugen",
+    initProject: "Projectgeheugen opstellen",
+    memoryHint: "Draggy leest dit voor elk antwoord",
+    hideFiles: "Bestanden verbergen",
+    showFiles: "Bestanden tonen",
     showMoreLines: "Meer tonen",
     rename: "Naam wijzigen",
     emptyFolder: "Leeg",
@@ -1863,6 +1898,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    projectMemory: "Память проекта",
+    initProject: "Составить память проекта",
+    memoryHint: "Draggy читает это перед каждым ответом",
+    hideFiles: "Скрыть файлы",
+    showFiles: "Показать файлы",
     showMoreLines: "Показать больше",
     rename: "Переименовать",
     emptyFolder: "Пусто",
@@ -2127,6 +2167,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    projectMemory: "项目记忆",
+    initProject: "起草项目记忆",
+    memoryHint: "Draggy 在每次回复前都会读取",
+    hideFiles: "隐藏文件",
+    showFiles: "显示文件",
     showMoreLines: "显示更多",
     rename: "重命名",
     emptyFolder: "空",
@@ -2391,6 +2436,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    projectMemory: "プロジェクトメモリ",
+    initProject: "プロジェクトメモリを下書き",
+    memoryHint: "Draggy は返信のたびに読みます",
+    hideFiles: "ファイルを隠す",
+    showFiles: "ファイルを表示",
     showMoreLines: "さらに表示",
     rename: "名前を変更",
     emptyFolder: "空です",
@@ -2655,6 +2705,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    projectMemory: "프로젝트 메모리",
+    initProject: "프로젝트 메모리 초안",
+    memoryHint: "Draggy가 답변할 때마다 읽습니다",
+    hideFiles: "파일 숨기기",
+    showFiles: "파일 표시",
     showMoreLines: "더 보기",
     rename: "이름 바꾸기",
     emptyFolder: "비어 있음",
@@ -2919,6 +2974,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    projectMemory: "ذاكرة المشروع",
+    initProject: "صياغة ذاكرة المشروع",
+    memoryHint: "يقرأها Draggy قبل كل رد",
+    hideFiles: "إخفاء الملفات",
+    showFiles: "إظهار الملفات",
     showMoreLines: "عرض المزيد",
     rename: "إعادة التسمية",
     emptyFolder: "فارغ",

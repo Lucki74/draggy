@@ -1,5 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolContext, ToolSpec } from "./registry";
+import { loadProjectMemory } from "../project/load";
+import { renderFolderRules } from "../project/memory";
 
 /**
  * The file tools. Everything here names a path and hands it to the main
@@ -19,6 +21,31 @@ function nameOf(filePath: string): string {
 
 function workspaceOf(ctx: ToolContext): string {
   return ctx.workspaceId || "default";
+}
+
+/**
+ * The rules a folder deeper in the project carries, handed over the first time
+ * something in it is touched. The root file is already in the system prompt, so
+ * only a closer one is worth saying, and only once per turn.
+ */
+async function folderRules(ctx: ToolContext, target: string): Promise<string> {
+  if (!ctx.projectRoot) return "";
+
+  const folder = target.replace(/[^\\/]*$/, "");
+  const key = `rules:${folder.toLowerCase()}`;
+  if (ctx.memo.has(key)) return "";
+  ctx.memo.set(key, true);
+
+  const memory = await loadProjectMemory(
+    workspaceOf(ctx),
+    ctx.projectRoot,
+    target,
+  );
+
+  // A path with no separator in it is the root file, already in the prompt.
+  if (!memory || !memory.path.includes("/")) return "";
+
+  return renderFolderRules(memory);
 }
 
 const readFile: ToolSpec = {
@@ -60,7 +87,9 @@ const readFile: ToolSpec = {
     ctx.patchStep(stepId, { isComplete: true, filepath: result.path });
     ctx.syncSteps();
 
-    return `TOOL RESULT (read_file) ${result.path}:\n${result.text}`;
+    const rules = await folderRules(ctx, result.path || target);
+
+    return `TOOL RESULT (read_file) ${result.path}:\n${result.text}${rules}`;
   },
 };
 
@@ -234,7 +263,9 @@ const editFile: ToolSpec = {
     });
     ctx.syncSteps();
 
-    return `TOOL RESULT (edit_file): Replaced ${result.replaced} occurrence(s) in ${result.path}.`;
+    const rules = await folderRules(ctx, result.path || target);
+
+    return `TOOL RESULT (edit_file): Replaced ${result.replaced} occurrence(s) in ${result.path}.${rules}`;
   },
 };
 
@@ -286,7 +317,9 @@ const writeFile: ToolSpec = {
     });
     ctx.syncSteps();
 
-    return `TOOL RESULT (write_file): ${result.created ? "Created" : "Replaced"} ${result.path}.`;
+    const rules = await folderRules(ctx, result.path || target);
+
+    return `TOOL RESULT (write_file): ${result.created ? "Created" : "Replaced"} ${result.path}.${rules}`;
   },
 };
 

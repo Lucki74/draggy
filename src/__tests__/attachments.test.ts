@@ -157,7 +157,33 @@ describe("planning what to do with a dropped file", () => {
 describe("slash commands", () => {
   it("opens on a slash", () => {
     expect(slashQueryFor("/")).toBe("");
-    expect(matchSlashCommands("/")).toHaveLength(SLASH_COMMANDS.length);
+    expect(matchSlashCommands("/", { project: true })).toHaveLength(
+      SLASH_COMMANDS.length,
+    );
+  });
+
+  it("keeps the project commands out of a plain chat", () => {
+    const everywhere = matchSlashCommands("/").map((command) => command.id);
+
+    expect(everywhere).not.toContain("memory");
+    expect(everywhere).not.toContain("init");
+    expect(everywhere).toContain("new");
+  });
+
+  it("offers them once the conversation has a folder", () => {
+    const inProject = matchSlashCommands("/", { project: true }).map(
+      (command) => command.id,
+    );
+
+    expect(inProject).toContain("memory");
+    expect(inProject).toContain("init");
+  });
+
+  it("narrows to a project command as it is typed", () => {
+    expect(matchSlashCommands("/mem", { project: true }).map((c) => c.id)).toEqual([
+      "memory",
+    ]);
+    expect(matchSlashCommands("/mem")).toEqual([]);
   });
 
   it("narrows as the command is typed", () => {

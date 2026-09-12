@@ -132,6 +132,10 @@ interface ChatScreenProps {
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Puts a file back the way it was before Draggy changed it. */
   onRevert?: (checkpointId: number) => Promise<boolean>;
+  /** Opens the project's instruction file. Absent outside a project. */
+  onProjectMemory?: () => void;
+  /** Writes a first draft of that file from what is in the folder. */
+  onInitProject?: () => void;
 }
 
 export default function ChatScreen({
@@ -151,6 +155,8 @@ export default function ChatScreen({
   onUpdateSettings,
   onApproval,
   onRevert,
+  onProjectMemory,
+  onInitProject,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -488,7 +494,8 @@ export default function ChatScreen({
       });
     } else if (id === "code") {
       onUpdateSettings({ ...settings, codeExecution: !settings.codeExecution });
-    }
+    } else if (id === "memory") onProjectMemory?.();
+    else if (id === "init") onInitProject?.();
   };
 
   useEffect(() => {
@@ -637,7 +644,9 @@ export default function ChatScreen({
     .join(",");
 
   const slashQuery = slashQueryFor(input);
-  const slashMatches = matchSlashCommands(input);
+  const slashMatches = matchSlashCommands(input, {
+    project: Boolean(onProjectMemory),
+  });
 
   if (lastSlashQuery !== slashQuery) {
     setLastSlashQuery(slashQuery);
