@@ -1979,9 +1979,9 @@ ipcMain.handle("db:stats", wrap("db", async () => ({
   stats: storage.stats(),
 })));
 
-ipcMain.handle("library:list", wrap("library", async () => ({
+ipcMain.handle("library:list", wrap("library", async (event, workspaceId) => ({
   success: true,
-  sources: library.listSources(),
+  sources: library.listSources(workspaceId ? String(workspaceId) : undefined),
 })));
 
 ipcMain.handle("library:stats", wrap("library", async () => ({
@@ -2004,15 +2004,20 @@ ipcMain.handle("library:pick-folder", wrap("library", async () => {
 
 let indexingRun = null;
 
-ipcMain.handle("library:index", wrap("library", async (event, sourcePath, model) => {
+ipcMain.handle(
+  "library:index",
+  wrap("library", async (event, sourcePath, model, workspaceId) => {
   if (indexingRun) return { success: false, error: "An index run is already in progress." };
 
   const embedModel = String(model || library.DEFAULT_EMBED_MODEL);
   library.setMeta("embed_model", embedModel);
 
   indexingRun = library
-    .indexSource(String(sourcePath), embedModel, (progress) =>
-      broadcast("library-progress", progress),
+    .indexSource(
+      String(sourcePath),
+      embedModel,
+      (progress) => broadcast("library-progress", progress),
+      workspaceId ? String(workspaceId) : undefined,
     )
     .finally(() => {
       indexingRun = null;

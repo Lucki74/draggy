@@ -1,5 +1,9 @@
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const library = require("./library.cjs");
@@ -410,5 +414,54 @@ describe("fusing the two arms of the search", () => {
   it("never lists the same passage twice", () => {
     const fused = fuse(vectorHits, [1, 2, 3], 10);
     expect(new Set(fused.map((hit) => hit.id)).size).toBe(fused.length);
+  });
+});
+
+describe("keeping one workspace's documents out of another's answers", () => {
+  let workdir;
+
+  beforeEach(() => {
+    workdir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-library-"));
+    library.init(workdir);
+  });
+
+  afterEach(() => {
+    library.close();
+
+    try {
+      fs.rmSync(workdir, { recursive: true, force: true });
+    } catch {
+      // Windows sometimes holds the write-ahead log a moment longer than the
+      // handle that wrote it. The temp folder is the operating system's problem.
+    }
+  });
+
+  /** A folder row written the way a version before workspaces wrote it. */
+  function addLegacySource(dbPath, folder) {
+    const db = new DatabaseSync(dbPath);
+    db.prepare(
+      "INSERT INTO library_sources (path, added_at) VALUES (?, ?)",
+    ).run(folder, Date.now());
+    db.close();
+  }
+
+  it("gives a folder indexed before workspaces existed to the default one", () => {
+    addLegacySource(path.join(workdir, "library.db"), "C:\docs\old");
+
+    // What an upgrade from 1.x finds: a row with no workspace at all.
+    library.init(workdir);
+
+    expect(library.listSources()[0].workspaceId).toBe("default");
+  });
+
+  it("shows a project its own folders and the shared ones", () => {
+    addLegacySource(path.join(workdir, "library.db"), "C:\docs\shared");
+    library.init(workdir);
+
+    const mine = library.listSources("project-7");
+
+    // The default workspace's folders stay visible everywhere; another
+    // project's do not.
+    expect(mine.map((one) => one.path)).toEqual(["C:\docs\shared"]);
   });
 });

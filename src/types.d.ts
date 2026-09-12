@@ -57,6 +57,8 @@ export interface LibraryHit {
 export interface LibrarySource {
   id: number;
   path: string;
+  /** Which workspace indexed it. The default one's folders are shared. */
+  workspaceId?: string;
   addedAt: number;
   files: number;
   chunks: number;
@@ -720,17 +722,23 @@ declare global {
       };
 
       library: {
-        list: () => Promise<{ success: boolean; sources?: LibrarySource[]; error?: string }>;
+        list: (
+          workspaceId?: string,
+        ) => Promise<{ success: boolean; sources?: LibrarySource[]; error?: string }>;
         stats: () => Promise<{ success: boolean; stats?: LibraryStats; error?: string }>;
         pickFolder: () => Promise<{ success: boolean; path?: string; cancelled?: boolean }>;
-        index: (path: string, model: string) => Promise<IndexResult>;
+        index: (
+          path: string,
+          model: string,
+          workspaceId?: string,
+        ) => Promise<IndexResult>;
         remove: (id: number) => Promise<{ success: boolean }>;
         clear: () => Promise<{ success: boolean }>;
         search: (
           query: string,
           limit?: number,
           model?: string,
-          options?: { source?: string },
+          options?: { source?: string; workspaceId?: string },
         ) => Promise<{
           success: boolean;
           results?: LibraryHit[];

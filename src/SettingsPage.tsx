@@ -304,12 +304,17 @@ export default function SettingsPage({
     const api = window.electronAPI?.library;
     if (!api) return null;
 
-    const [list, stats] = await Promise.all([api.list(), api.stats()]);
+    // Only this workspace's folders, plus the ones kept for everything: a
+    // project's documents are not another project's business.
+    const [list, stats] = await Promise.all([
+      api.list(workspaceId),
+      api.stats(),
+    ]);
     return {
       sources: list?.success ? (list.sources ?? []) : [],
       stats: stats?.success ? (stats.stats ?? null) : null,
     };
-  }, []);
+  }, [workspaceId]);
 
   const refreshLibrary = useCallback(async () => {
     const data = await loadLibrary();
@@ -393,7 +398,7 @@ export default function SettingsPage({
 
     setLibraryProgress({ phase: "indexing", current: 0, total: 0, file: "" });
 
-    const result = await api.index(picked.path, model);
+    const result = await api.index(picked.path, model, workspaceId);
     setLibraryProgress(null);
 
     if (!result?.success) {
@@ -417,7 +422,7 @@ export default function SettingsPage({
 
     setLibraryProgress({ phase: "indexing", current: 0, total: 0, file: "" });
 
-    const result = await api.index(path, model);
+    const result = await api.index(path, model, workspaceId);
     setLibraryProgress(null);
 
     if (!result?.success) setLibraryError(result?.error || "Indexing failed.");

@@ -89,10 +89,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   library: {
-    list: () => ipcRenderer.invoke("library:list"),
+    list: (workspaceId) => ipcRenderer.invoke("library:list", workspaceId),
     stats: () => ipcRenderer.invoke("library:stats"),
     pickFolder: () => ipcRenderer.invoke("library:pick-folder"),
-    index: (path, model) => ipcRenderer.invoke("library:index", path, model),
+    index: (path, model, workspaceId) =>
+      ipcRenderer.invoke("library:index", path, model, workspaceId),
     remove: (id) => ipcRenderer.invoke("library:remove", id),
     clear: () => ipcRenderer.invoke("library:clear"),
     search: (query, limit, model, options) =>

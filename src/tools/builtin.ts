@@ -520,7 +520,10 @@ const searchLibrary: ToolSpec = {
       isComplete: false,
     });
 
-    const result = await api()?.library.search(query, 6, undefined, { source });
+    const result = await api()?.library.search(query, 6, undefined, {
+      source,
+      workspaceId: ctx.workspaceId,
+    });
 
     // A folder the user named that is not indexed is worth saying plainly:
     // searching everything instead would quietly answer a different question.

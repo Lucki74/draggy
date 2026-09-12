@@ -39,9 +39,10 @@ const SCHEMA = `
   PRAGMA foreign_keys = ON;
 
   CREATE TABLE IF NOT EXISTS library_sources (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    path     TEXT NOT NULL UNIQUE,
-    added_at INTEGER NOT NULL
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    path         TEXT NOT NULL UNIQUE,
+    added_at     INTEGER NOT NULL,
+    workspace_id TEXT
   );
 
   CREATE TABLE IF NOT EXISTS library_files (
@@ -77,11 +78,55 @@ const SCHEMA = `
 let db = null;
 let matrixCache = null;
 
+const DEFAULT_WORKSPACE_ID = "default";
+
 function init(userDataPath) {
   db = new DatabaseSync(path.join(userDataPath, "library.db"));
   db.exec(SCHEMA);
+  adoptSources();
   syncSearchIndex();
   log.info("library", "index opened");
+}
+
+/**
+ * Gives every folder indexed before workspaces existed to the default one, and
+ * adds the column to a database written by a version that had none.
+ */
+function adoptSources() {
+  try {
+    const columns = db.prepare("PRAGMA table_info(library_sources)").all();
+
+    if (!columns.some((column) => column.name === "workspace_id")) {
+      db.exec("ALTER TABLE library_sources ADD COLUMN workspace_id TEXT");
+    }
+
+    const adopted = db
+      .prepare("UPDATE library_sources SET workspace_id = ? WHERE workspace_id IS NULL")
+      .run(DEFAULT_WORKSPACE_ID);
+
+    if (adopted.changes > 0) {
+      log.info("library", `moved ${adopted.changes} folder(s) into the default workspace`);
+    }
+  } catch (error) {
+    log.warn("library", `could not prepare the workspace column: ${error.message}`);
+  }
+}
+
+/** The sources a workspace may search: its own, and the ones kept for everything. */
+function scopeIds(workspaceId) {
+  if (!workspaceId || workspaceId === DEFAULT_WORKSPACE_ID) {
+    return db
+      .prepare("SELECT id FROM library_sources WHERE workspace_id = ? OR workspace_id IS NULL")
+      .all(DEFAULT_WORKSPACE_ID)
+      .map((row) => row.id);
+  }
+
+  return db
+    .prepare(
+      "SELECT id FROM library_sources WHERE workspace_id = ? OR workspace_id = ? OR workspace_id IS NULL",
+    )
+    .all(String(workspaceId), DEFAULT_WORKSPACE_ID)
+    .map((row) => row.id);
 }
 
 /**
@@ -406,15 +451,15 @@ function removeFileRows(fileId) {
   db.prepare("DELETE FROM library_files WHERE id = ?").run(fileId);
 }
 
-async function indexSource(sourcePath, model, onProgress) {
+async function indexSource(sourcePath, model, onProgress, workspaceId) {
   const resolved = path.resolve(sourcePath);
   if (!fs.existsSync(resolved)) {
     return { success: false, error: "That folder no longer exists." };
   }
 
   db.prepare(
-    "INSERT INTO library_sources (path, added_at) VALUES (?, ?) ON CONFLICT(path) DO NOTHING",
-  ).run(resolved, Date.now());
+    "INSERT INTO library_sources (path, added_at, workspace_id) VALUES (?, ?, ?) ON CONFLICT(path) DO NOTHING",
+  ).run(resolved, Date.now(), String(workspaceId || DEFAULT_WORKSPACE_ID));
 
   const sourceId = db.prepare("SELECT id FROM library_sources WHERE path = ?").get(resolved).id;
   const files = walk(resolved);
@@ -640,7 +685,7 @@ function hydrateChunks(ranked) {
   const placeholders = ranked.map(() => "?").join(", ");
   const rows = db
     .prepare(
-      `SELECT c.id, c.heading, c.text, f.path
+      `SELECT c.id, c.heading, c.text, f.path, f.source_id
        FROM library_chunks c JOIN library_files f ON f.id = c.file_id
        WHERE c.id IN (${placeholders})`,
     )
@@ -658,6 +703,7 @@ function hydrateChunks(ranked) {
         heading: row.heading,
         text: row.text,
         path: row.path,
+        sourceId: row.source_id,
         name: path.basename(row.path),
         score: Number((entry.similarity ?? entry.score).toFixed(4)),
       };
@@ -720,22 +766,40 @@ async function search(query, limit, model, options = {}) {
   const vectorHits = vectorCandidates(queryVector, sourceId, CANDIDATE_DEPTH);
   const keywordIds = keywordCandidates(term, sourceId, CANDIDATE_DEPTH);
 
-  return { success: true, results: hydrateChunks(fuse(vectorHits, keywordIds, wanted)) };
+  const fused = fuse(vectorHits, keywordIds, wanted * 3);
+  const results = hydrateChunks(fused);
+
+  // A project must not answer with another project's documents, so the scope
+  // is applied to what came back rather than trusted to the caller.
+  const allowed = new Set(scopeIds(options.workspaceId));
+
+  return {
+    success: true,
+    results: results
+      .filter((hit) => hit.sourceId === undefined || allowed.has(hit.sourceId))
+      .slice(0, wanted),
+  };
 }
 
-function listSources() {
+function listSources(workspaceId) {
+  // Its own, the shared ones, and anything indexed before workspaces existed.
+  const scoped = workspaceId
+    ? "WHERE s.workspace_id = ? OR s.workspace_id = 'default' OR s.workspace_id IS NULL"
+    : "";
+
   return db
     .prepare(
-      `SELECT s.id, s.path, s.added_at,
+      `SELECT s.id, s.path, s.added_at, s.workspace_id,
               (SELECT COUNT(*) FROM library_files f WHERE f.source_id = s.id) AS files,
               (SELECT COALESCE(SUM(f.chunks), 0) FROM library_files f WHERE f.source_id = s.id) AS chunks
-       FROM library_sources s ORDER BY s.added_at ASC`,
+       FROM library_sources s ${scoped} ORDER BY s.added_at ASC`,
     )
-    .all()
+    .all(...(workspaceId ? [String(workspaceId)] : []))
     .map((row) => ({
       id: row.id,
       path: row.path,
       addedAt: row.added_at,
+      workspaceId: row.workspace_id || DEFAULT_WORKSPACE_ID,
       files: row.files,
       chunks: row.chunks,
     }));
