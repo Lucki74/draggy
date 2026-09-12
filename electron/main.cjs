@@ -36,6 +36,7 @@ const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
+const widgets = require("./widgets.cjs");
 const mcpCatalogue = require("./mcpCatalogue.cjs");
 const pdfWriter = require("./pdfWriter.cjs");
 
@@ -92,6 +93,12 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: true,
       stream: true,
     },
+  },
+  {
+    // Extension widgets. Standard so each one gets an origin from its token,
+    // and nothing else: no fetch, no CORS, and no way past the app's policy.
+    scheme: "widget",
+    privileges: { standard: true, secure: true },
   },
 ]);
 
@@ -235,7 +242,7 @@ const CSP_DIRECTIVES = [
   "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11434 ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
   "object-src 'none'",
-  "frame-src 'none'",
+  "frame-src widget:",
   "base-uri 'self'",
   "form-action 'none'",
 ].join("; ");
@@ -250,6 +257,13 @@ function applyContentSecurityPolicy(ses, packaged) {
 
   ses.webRequest.onHeadersReceived((details, callback) => {
     if (details.resourceType !== "mainFrame" && details.resourceType !== "subFrame") {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
+    // A widget document arrives with a policy of its own, stricter than this
+    // one. Overwriting it with the app's would hand it the app's allowances.
+    if (String(details.url || "").startsWith("widget://")) {
       callback({ responseHeaders: details.responseHeaders });
       return;
     }
@@ -772,6 +786,7 @@ app.whenReady().then(() => {
 
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
+  protocol.handle("widget", widgets.serve);
 
   // The renderer's own policy, and deliberately only the renderer's: the web
   // session below is left with whatever policy each site sends for itself.
@@ -2268,6 +2283,7 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
     arguments:
       entry?.arguments && typeof entry.arguments === "object" ? entry.arguments : {},
     ...(url ? { url, name: String(entry?.name || id) } : {}),
+    ...(entry?.apps ? { apps: true } : {}),
   };
 
   saveMcpConfig(config);
@@ -2297,9 +2313,26 @@ ipcMain.handle("mcp:stop", wrap("mcp", async (event, id) => {
 
 ipcMain.handle("mcp:running", () => ({ success: true, servers: mcp.listRunning() }));
 
-ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) =>
-  mcp.callTool(String(serverId), String(toolName), args || {}),
-));
+ipcMain.handle("widget:stage", wrap("widget", async (event, html) => {
+  const staged = widgets.stage(String(html || ""));
+
+  if (!staged) return { success: false };
+
+  return { success: true, token: staged.token, url: staged.url };
+}));
+
+ipcMain.handle("widget:release", wrap("widget", async (event, token) => ({
+  success: widgets.release(String(token || "")),
+})));
+
+ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) => {
+  // Widgets are per server and off until the user says otherwise.
+  const entry = mcpConfig()[String(serverId)];
+
+  return mcp.callTool(String(serverId), String(toolName), args || {}, {
+    widgets: Boolean(entry?.apps),
+  });
+}));
 
 /**
  * Starts what the user switched on, once the window is up. A ten-second npx

@@ -146,6 +146,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onState: (callback) => subscribe("mcp-state", callback),
   },
 
+  widgets: {
+    stage: (html) => ipcRenderer.invoke("widget:stage", html),
+    release: (token) => ipcRenderer.invoke("widget:release", token),
+  },
+
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
   readLogs: () => ipcRenderer.invoke("logs:tail"),

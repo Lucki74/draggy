@@ -70,6 +70,7 @@ function renderToolResult(result) {
     if (block.type === "audio") return `[audio returned, ${block.mimeType || "unknown type"}]`;
     if (block.type === "resource") {
       const resource = block.resource || {};
+      if (isWidget(resource.uri)) return `[interface: ${resource.uri}]`;
       if (typeof resource.text === "string") return resource.text;
       return `[resource: ${resource.uri || "unnamed"}]`;
     }
@@ -669,11 +670,63 @@ function stopAll() {
   for (const id of [...running.keys()]) stopServer(id, true);
 }
 
+/** How much markup a widget may be before it is treated as a mistake. */
+const MAX_WIDGET_CHARS = 256 * 1024;
+
+/** Whether a uri names an interface rather than a document. */
+function isWidget(uri) {
+  return typeof uri === "string" && uri.startsWith("ui://");
+}
+
+/** The ui:// resource a tool pointed at, if it pointed at one. */
+function widgetUri(result) {
+  const blocks = Array.isArray(result?.content) ? result.content : [];
+
+  for (const block of blocks) {
+    if (isWidget(block?.resource?.uri)) return block.resource.uri;
+    if (block?.type === "resource_link" && isWidget(block.uri)) return block.uri;
+  }
+
+  return null;
+}
+
 /**
- * Calls a tool on a running server. Errors come back as text, because the
- * registry puts whatever it gets in front of the model.
+ * Reads a widget's HTML from the server that offered it. Only called when the
+ * user has switched widgets on for that server: an interface written by
+ * somebody else is a bigger step than a line of text, so it is asked for.
  */
-async function callTool(serverId, toolName, args) {
+async function readWidget(entry, uri) {
+  try {
+    const resource = await entry.send("resources/read", { uri }, CALL_TIMEOUT_MS);
+    const contents = Array.isArray(resource?.contents) ? resource.contents : [];
+
+    // Prefer the part that says it is HTML; fall back to the first thing
+    // with any text in it, since not every server sets a mime type.
+    const withText = contents.filter(
+      (one) => typeof one?.text === "string" && one.text.trim(),
+    );
+
+    const html =
+      withText.find((one) => String(one.mimeType || "").includes("html")) ||
+      withText[0];
+
+    if (!html) return null;
+
+    const markup = String(html.text);
+
+    if (markup.length > MAX_WIDGET_CHARS) {
+      log.warn("mcp", `${uri} is too large to show (${markup.length} characters)`);
+      return null;
+    }
+
+    return markup;
+  } catch (error) {
+    log.warn("mcp", `could not read ${uri}: ${error.message}`);
+    return null;
+  }
+}
+
+async function callTool(serverId, toolName, args, options = {}) {
   const entry = running.get(serverId);
   if (!entry) {
     return { success: false, error: `The ${serverId} server is not running.` };
@@ -694,7 +747,14 @@ async function callTool(serverId, toolName, args) {
       return { success: false, error: text || "The tool reported an error." };
     }
 
-    return { success: true, text: text || "(the tool returned nothing)" };
+    const uri = options.widgets ? widgetUri(result) : null;
+    const html = uri ? await readWidget(entry, uri) : null;
+
+    return {
+      success: true,
+      text: text || (html ? "(the tool answered with a widget)" : "(the tool returned nothing)"),
+      ...(html ? { app: { uri, html } } : {}),
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -712,6 +772,8 @@ module.exports = {
   renderToolResult,
   qualifiedName,
   splitQualifiedName,
+  widgetUri,
+  MAX_WIDGET_CHARS,
   startServer,
   stopServer,
   stopAll,

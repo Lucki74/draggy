@@ -44,6 +44,7 @@ import {
   REHYPE_PLUGINS,
   REMARK_PLUGINS,
 } from "./markdown";
+import AppFrame from "./AppFrame";
 import ApprovalCard from "./ApprovalCard";
 import DiffBlock from "./DiffBlock";
 import type {
@@ -715,6 +716,17 @@ const MessageItem = memo(
                           step={step}
                           t={t}
                           onAnswer={onApproval}
+                        />
+                      );
+                    }
+
+                    if (step.type === "app" && step.app) {
+                      return (
+                        <AppFrame
+                          key={step.id}
+                          serverId={step.app.serverId}
+                          html={step.app.html}
+                          t={t}
                         />
                       );
                     }

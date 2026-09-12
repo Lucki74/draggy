@@ -247,6 +247,8 @@ export interface SearchStep {
     | "plan"
     /** The model reaching for something the user wrote down for it. */
     | "skill"
+    /** An extension answering with a small interface of its own. */
+    | "app"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -264,6 +266,8 @@ export interface SearchStep {
   checkpointId?: number;
   before?: string;
   after?: string;
+  /** On an "app" step: the widget an extension returned, and who sent it. */
+  app?: { serverId: string; html: string };
   /** On an "approval" step: the call the user is being asked about. */
   approval?: {
     id: string;
@@ -390,6 +394,8 @@ export interface McpServerConfig {
   /** Set when the server is somewhere else rather than a program on this machine. */
   url?: string;
   name?: string;
+  /** Whether this server may answer with an interface rather than with text. */
+  apps?: boolean;
 }
 
 export interface McpToolDescription {
@@ -827,10 +833,25 @@ declare global {
           serverId: string,
           toolName: string,
           args: Record<string, unknown>,
-        ) => Promise<{ success: boolean; text?: string; error?: string }>;
+        ) => Promise<{
+          success: boolean;
+          text?: string;
+          error?: string;
+          app?: { uri: string; html: string };
+        }>;
         onState: (
           callback: (state: { servers: McpServerState[] }) => void,
         ) => Unsubscribe;
+      };
+
+      widgets: {
+        /** Puts a widget's markup where a frame can load it, once. */
+        stage: (html: string) => Promise<{
+          success: boolean;
+          token?: string;
+          url?: string;
+        }>;
+        release: (token: string) => Promise<{ success: boolean }>;
       };
 
       appInfo: () => Promise<AppInfo>;

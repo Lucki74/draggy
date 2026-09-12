@@ -86,7 +86,13 @@ export function describeMcpTool(
   serverId: string,
   tool: McpToolDescription,
   call: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<
-    { success: boolean; text?: string; error?: string } | undefined
+    | {
+        success: boolean;
+        text?: string;
+        error?: string;
+        app?: { uri: string; html: string };
+      }
+    | undefined
   >,
 ): ToolSpec {
   const properties = tool.inputSchema?.properties || {};
@@ -142,6 +148,19 @@ export function describeMcpTool(
       }
 
       ctx.patchStep(stepId, { isComplete: true });
+
+      // A widget is shown, never described to the model: the markup came from
+      // somebody else's server and has no business in the context window.
+      if (result.app?.html) {
+        ctx.pushStep({
+          id: ctx.newId(),
+          type: "app",
+          content: serverId,
+          isComplete: true,
+          app: { serverId, html: result.app.html },
+        });
+      }
+
       ctx.syncSteps();
 
       return `TOOL RESULT (${tool.qualifiedName}):\n${result.text}`;
@@ -156,7 +175,13 @@ export function describeMcpTool(
 export function syncMcpTools(
   servers: McpServerState[],
   call: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<
-    { success: boolean; text?: string; error?: string } | undefined
+    | {
+        success: boolean;
+        text?: string;
+        error?: string;
+        app?: { uri: string; html: string };
+      }
+    | undefined
   >,
 ): number {
   unregisterGroup("external");
