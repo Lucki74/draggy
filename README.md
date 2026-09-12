@@ -33,6 +33,7 @@
 > [draggy.org](https://draggy.org). Nothing is code signed, so a re-upload
 > elsewhere is indistinguishable from a tampered build.
 
+# UPCOMING 2.0 version on the [v2 branch](https://github.com/Lucki74/draggy/tree/v2). 
 Draggy is a desktop AI assistant that talks, browses and works with your files,
 all on models running on your own computer.
 
