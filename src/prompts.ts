@@ -1,6 +1,6 @@
 import type { AppSettings } from "./types";
 import type { ToolEnvironment } from "./tools/registry";
-import { describeToolsForPrompt } from "./tools/registry";
+import { availableTools, describeToolsForPrompt } from "./tools/registry";
 import { renderMemory } from "./project/memory";
 import type { ProjectMemory } from "./project/memory";
 
@@ -147,6 +147,10 @@ Read a file before changing it, and pass edit_file the exact lines you read rath
 When you are done, say which files you changed rather than repeating their contents.`;
 }
 
+export const PLAN_PROMPT = `Work that takes several steps gets a plan: call update_plan with the whole checklist before you start, then call it again with the same list as each step changes, so the user can watch and change it. A single question or a one-step job gets no plan at all.
+
+The user may edit the plan while you work. When they do, the new list is given to you; follow it rather than the one you wrote.`;
+
 export const VOICE_SEARCH_MARKER = /^\s*SEARCH\s*:\s*(.*)/i;
 
 /**
@@ -218,6 +222,12 @@ export function buildSystemPrompt(
   // to work: the project's own rules are the ones that win.
   if (memory) parts.push(renderMemory(memory));
 
+  // Only when the tool is actually there: a build without it would be told to
+  // call something that does not exist.
+  const hasPlanTool = availableTools(environment).some(
+    (tool) => tool.group === "plan",
+  );
+  if (hasPlanTool) parts.push(PLAN_PROMPT);
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 

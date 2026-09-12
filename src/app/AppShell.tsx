@@ -7,6 +7,8 @@ import {
   FolderOpen,
   Folder,
   FolderPlus,
+  Check,
+  Loader2,
   MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
@@ -20,6 +22,8 @@ import TalkScreen from "../TalkScreen";
 import Explorer from "../files/Explorer";
 import FileTree from "../files/FileTree";
 import MemoryEditor from "../project/MemoryEditor";
+import PlanPanel from "../plan/PlanPanel";
+import type { PlanItem } from "../plan/plan";
 import { loadProjectMemory } from "../project/load";
 import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
@@ -70,6 +74,8 @@ export default function AppShell({
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [libraryReady, setLibraryReady] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
+  /** A background conversation that finished while the user was elsewhere. */
+  const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
   /** Which file the files screen opens on, when one was picked in the chat. */
   const [openedFile, setOpenedFile] = useState<string | null>(null);
 
@@ -142,6 +148,12 @@ export default function AppShell({
     workspaceId: active.id,
     permission: { mode: active.permissionMode, grants: active.grants },
     onGrant: workspaces.addGrant,
+    onFinished: (chatId) => {
+      // Only worth saying for a conversation the user is not looking at.
+      if (chatId === selectedChatId) return;
+      setFinishedChatId(chatId);
+      setTimeout(() => setFinishedChatId((current) => (current === chatId ? null : current)), 8000);
+    },
     t,
     getSession: store.getSession,
     addSession: store.addSession,
@@ -402,6 +414,24 @@ export default function AppShell({
         />
       )}
 
+      {finishedChatId && (
+        <button
+          onClick={() => {
+            selectChat(finishedChatId);
+            setFinishedChatId(null);
+          }}
+          className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] px-4 py-3 shadow-lg"
+        >
+          <Check className="h-4 w-4 text-[var(--text-muted)]" />
+          <span className="text-xs font-bold tracking-tight">
+            {t("taskFinished")}
+            <span className="ml-2 font-normal text-[var(--text-muted)]">
+              {store.sessions.find((one) => one.id === finishedChatId)?.title}
+            </span>
+          </span>
+        </button>
+      )}
+
       {store.storageWarning && (
         <div
           role="alert"
@@ -512,6 +542,35 @@ export default function AppShell({
                 )}
               </div>
             ))}
+
+            {runs.running.length > 0 && (
+              <div
+                className="mt-2 flex flex-col gap-1 border-t-[3px] pt-2"
+                style={{ borderColor: "var(--border-light)" }}
+              >
+                <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  {t("working")}
+                </span>
+
+                {runs.running.map((id) => {
+                  const session = store.sessions.find((one) => one.id === id);
+
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => selectChat(id)}
+                      title={session?.title || t("newDiscussion")}
+                      className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
+                    >
+                      <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin text-[var(--text-muted)]" />
+                      <span className="ml-4 text-xs font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        {session?.title || t("newDiscussion")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <button
               onClick={handleNewProject}
@@ -628,6 +687,26 @@ export default function AppShell({
             settings={settings}
             onUpdateSettings={onUpdateSettings}
             />
+
+            {currentSession?.plan && currentSession.plan.length > 0 && (
+              <div
+                className="w-64 flex-shrink-0 border-l-[3px]"
+                style={{ borderColor: "var(--border-light)" }}
+              >
+                <PlanPanel
+                  items={currentSession.plan}
+                  running={runs.running.includes(currentChatId)}
+                  onChange={(items: PlanItem[]) =>
+                    store.updateSession(currentChatId, (session) => ({
+                      ...session,
+                      plan: items,
+                    }))
+                  }
+                  onContinue={() => runs.send(currentChatId, t("continuePlan"))}
+                  t={t}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />

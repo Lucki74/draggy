@@ -35,6 +35,8 @@ import {
   targetFromArgs,
 } from "./permissions";
 import type { Grant } from "./permissions";
+import { describeEdit, describePlan, samePlan } from "../plan/plan";
+import type { PlanItem } from "../plan/plan";
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import type {
   AppSettings,
@@ -200,6 +202,9 @@ export interface AgentHost {
   requestApproval?: (request: ApprovalRequest) => Promise<ApprovalAnswer>;
   /** A permission the user wants kept for this workspace, not just this task. */
   onGrant?: (grant: Grant) => void;
+  /** Where a plan the model writes goes, and where the live one comes from. */
+  onPlan?: (items: PlanItem[]) => void;
+  getPlan?: () => PlanItem[] | null;
 }
 
 export interface AgentResult {
@@ -247,6 +252,12 @@ export async function runAgentTurn(
     workspaceId: request.workspaceId,
     chatId: request.chatId,
     projectRoot: environment.projectRoot,
+    // The model knows what it just wrote, so a plan it sets itself is not an
+    // edit to be told about on the next pass.
+    onPlan: (items) => {
+      lastSeenPlan = items;
+      host.onPlan?.(items);
+    },
     pushStep,
     patchStep,
     syncSteps,
@@ -254,6 +265,9 @@ export async function runAgentTurn(
     signal,
     memo: new Map<string, unknown>(),
   };
+
+  /** The plan as the model last saw it, so only the user's edits are reported. */
+  let lastSeenPlan: PlanItem[] | null = null;
 
   const mode: PermissionMode = request.permission?.mode ?? "auto";
   let grants: Grant[] = [...(request.permission?.grants ?? [])];
@@ -443,6 +457,23 @@ ${currentTimeNote()}`,
 
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
     loopCount++;
+
+    /**
+     * The plan, if this conversation has one. On the first pass it is the model
+     * catching up with where the task stands, which is also how a task resumed
+     * after a restart picks itself up. After that it only appears when the user
+     * has changed something, since the model's own updates go through the tool.
+     */
+    const livePlan = host.getPlan?.() ?? null;
+
+    if (livePlan && livePlan.length > 0 && !samePlan(lastSeenPlan ?? [], livePlan)) {
+      wire.push({
+        role: "user",
+        content:
+          lastSeenPlan === null ? describePlan(livePlan) : describeEdit(livePlan),
+      });
+      lastSeenPlan = livePlan;
+    }
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();

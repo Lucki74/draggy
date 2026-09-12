@@ -1,7 +1,15 @@
 import type { AppSettings, SearchStep } from "../types";
 import type { ToolAnnotations } from "../agent/permissions";
+import type { PlanItem } from "../plan/plan";
 
-export type ToolGroup = "web" | "browser" | "files" | "code" | "library" | "external";
+export type ToolGroup =
+  | "web"
+  | "browser"
+  | "files"
+  | "code"
+  | "library"
+  | "plan"
+  | "external";
 
 export interface ToolParameter {
   type: "string" | "integer" | "number" | "boolean";
@@ -27,6 +35,8 @@ export interface ToolContext {
   chatId?: string;
   /** The project folder, for the rules a folder deeper in may carry. */
   projectRoot?: string;
+  /** Where a plan the model writes goes. */
+  onPlan?: (items: PlanItem[]) => void;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
   syncSteps: () => void;

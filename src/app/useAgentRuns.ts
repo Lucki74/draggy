@@ -20,6 +20,8 @@ interface AgentRunsInput {
   permission: { mode: PermissionMode; grants: Grant[] };
   /** Keeps a permission for the workspace, past the task that asked for it. */
   onGrant: (grant: Grant) => void;
+  /** A turn that finished on its own, so the window can say so. */
+  onFinished: (chatId: string) => void;
   t: (key: string) => string;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
@@ -65,6 +67,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     getWorkspaceId: () => input.workspaceId,
     getPermission: () => input.permission,
     onGrant: (grant) => input.onGrant(grant),
+    onFinished: (chatId) => input.onFinished(chatId),
     getSession: input.getSession,
     addSession: input.addSession,
     updateSession: input.updateSession,

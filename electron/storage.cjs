@@ -38,7 +38,8 @@ const SCHEMA = `
     updated_at        INTEGER NOT NULL,
     is_out_of_context INTEGER NOT NULL DEFAULT 0,
     compaction        TEXT,
-    workspace_id      TEXT
+    workspace_id      TEXT,
+    plan              TEXT
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -271,6 +272,7 @@ function init(userDataPath) {
     migrate();
     ensureColumn("chats", "compaction", "TEXT");
     ensureColumn("chats", "workspace_id", "TEXT");
+    ensureColumn("chats", "plan", "TEXT");
     ensureColumn("workspaces", "grants", "TEXT");
     healthy = isUsable(db);
   } catch (error) {
@@ -614,14 +616,15 @@ function searchBody(message) {
 function saveChat(session) {
   const transaction = () => {
     db.prepare(
-      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction, workspace_id)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction, workspace_id, plan)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          updated_at = excluded.updated_at,
          is_out_of_context = excluded.is_out_of_context,
          compaction = excluded.compaction,
-         workspace_id = excluded.workspace_id`,
+         workspace_id = excluded.workspace_id,
+         plan = excluded.plan`,
     ).run(
       session.id,
       String(session.title || ""),
@@ -629,6 +632,9 @@ function saveChat(session) {
       session.isOutOfContext ? 1 : 0,
       session.compaction ? JSON.stringify(session.compaction) : null,
       String(session.workspaceId || DEFAULT_WORKSPACE_ID),
+      Array.isArray(session.plan) && session.plan.length > 0
+        ? JSON.stringify(session.plan)
+        : null,
     );
 
     db.prepare("DELETE FROM messages WHERE chat_id = ?").run(session.id);
@@ -733,6 +739,7 @@ function hydrateChat(chatRow) {
     title: chatRow.title,
     updatedAt: chatRow.updated_at,
     workspaceId: chatRow.workspace_id || DEFAULT_WORKSPACE_ID,
+    plan: parseJson(chatRow.plan, null),
     isOutOfContext: Boolean(chatRow.is_out_of_context),
     isGenerating: false,
     // Losing a summary costs one idle generation to rebuild, so an unparseable
@@ -745,7 +752,7 @@ function hydrateChat(chatRow) {
 function loadChats() {
   const rows = db
     .prepare(
-      `SELECT id, title, updated_at, is_out_of_context, compaction, workspace_id
+      `SELECT id, title, updated_at, is_out_of_context, compaction, workspace_id, plan
        FROM chats ORDER BY updated_at DESC`,
     )
     .all();

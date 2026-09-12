@@ -5,10 +5,12 @@ import { useSettings } from "./app/settings";
 import { isCloudModel, warmModel } from "./ollama";
 import { registerBuiltinTools } from "./tools/builtin";
 import { registerFileTools } from "./tools/files";
+import { registerPlanTools } from "./tools/plan";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 
 registerBuiltinTools();
 registerFileTools();
+registerPlanTools();
 
 /**
  * The composition root: which model is running, and therefore whether the user

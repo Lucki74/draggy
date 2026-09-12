@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
+import { parsePlan } from "../plan/plan";
+import { registerPlanTools } from "../tools/plan";
+import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
@@ -1457,5 +1460,132 @@ describe("asking the user before a tool runs", () => {
     );
 
     expect(toolCalls).toHaveLength(0);
+  });
+});
+
+describe("working to a plan", () => {
+  function withPlan(plan: PlanItem[] | null, turns = 1) {
+    const call = {
+      toolCalls: [
+        { function: { name: "search_web", arguments: { query: "paris" } } },
+      ],
+    };
+
+    const { requests } = installFetch(
+      [...Array.from({ length: turns }, () => call), { content: ["Done."] }],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const live = { items: plan };
+    const written: PlanItem[][] = [];
+
+    const host: AgentHost = {
+      ...base.host,
+      getPlan: () => live.items,
+      onPlan: (items) => {
+        live.items = items;
+        written.push(items);
+      },
+    };
+
+    return { host, live, written, requests };
+  }
+
+  const run = (host: AgentHost) =>
+    runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("carry on")],
+        signal: new AbortController().signal,
+      },
+      host,
+    );
+
+  /** Every user message the model was sent, in order. */
+  const said = (requests: Record<string, unknown>[], index: number) =>
+    (requests[index] as { messages: { role: string; content: string }[] }).messages
+      .filter((message) => message.role === "user")
+      .map((message) => message.content);
+
+  it("says nothing when the conversation has no plan", async () => {
+    const { host, requests } = withPlan(null);
+    await run(host);
+
+    expect(said(requests, 0).join("\n")).not.toMatch(/plan/i);
+  });
+
+  it("catches the model up on a plan it left unfinished", async () => {
+    // The same path a task resumed after a restart takes: the plan comes back
+    // from the database and the model is told where it had got to.
+    const { host, requests } = withPlan(parsePlan("[x] Read it\n[ ] Fix it"));
+    await run(host);
+
+    const opening = said(requests, 0).join("\n");
+    expect(opening).toContain("[x] Read it");
+    expect(opening).toContain("[ ] Fix it");
+    expect(opening).toMatch(/carry on/i);
+  });
+
+  it("tells the model when the user changes it mid-run", async () => {
+    const { host, live, requests } = withPlan(parsePlan("[ ] First"), 2);
+
+    // The panel writes straight to the conversation while the turn is running.
+    const original = host.getPlan;
+    let pass = 0;
+    host.getPlan = () => {
+      pass++;
+      if (pass === 2) live.items = parsePlan("[ ] First\n[ ] Second");
+      return original ? original() : null;
+    };
+
+    await run(host);
+
+    const second = said(requests, 1).join("\n");
+    expect(second).toMatch(/user edited/i);
+    expect(second).toContain("[ ] Second");
+  });
+
+  it("does not report the model's own update as the user's doing", async () => {
+    // The real tool this time, called by the model, through the context the
+    // loop builds for it.
+    registerPlanTools();
+
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [
+            {
+              function: {
+                name: "update_plan",
+                arguments: { steps: "[x] First\n[>] Second" },
+              },
+            },
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const live: { items: PlanItem[] | null } = {
+      items: parsePlan("[ ] First\n[ ] Second"),
+    };
+
+    const host: AgentHost = {
+      ...base.host,
+      getPlan: () => live.items,
+      onPlan: (items) => {
+        live.items = items;
+      },
+    };
+
+    await run(host);
+
+    expect(live.items?.[0].status).toBe("done");
+    expect(said(requests, 1).join("\n")).not.toMatch(/user edited/i);
   });
 });

@@ -780,3 +780,40 @@ describe("what a workspace is allowed to do", () => {
     expect(saved.permissionMode).toBe("ask");
   });
 });
+
+describe("a plan the model is working through", () => {
+  const plan = [
+    { id: "step-1", text: "Read the config", status: "done" },
+    { id: "step-2", text: "Change the port", status: "doing" },
+  ];
+
+  it("comes back with the conversation", () => {
+    storage.saveChat(session("a", [message("m1", "user", "do it")], { plan }));
+
+    expect(storage.loadChats()[0].plan).toEqual(plan);
+  });
+
+  it("is absent for a conversation that never had one", () => {
+    storage.saveChat(session("b", [message("m1", "user", "hi")]));
+
+    expect(storage.loadChats()[0].plan).toBeNull();
+  });
+
+  it("survives the app being closed mid-task", () => {
+    // What resume rests on: the plan is part of the chat, so a restart finds
+    // it without a second place to look.
+    storage.saveChat(session("c", [message("m1", "user", "do it")], { plan }));
+    storage.close();
+    storage.init(workdir);
+
+    expect(storage.loadChats()[0].plan[1].text).toBe("Change the port");
+  });
+
+  it("is dropped when the plan is cleared", () => {
+    const chat = session("d", [message("m1", "user", "do it")], { plan });
+    storage.saveChat(chat);
+    storage.saveChat({ ...chat, plan: [] });
+
+    expect(storage.loadChats()[0].plan).toBeNull();
+  });
+});

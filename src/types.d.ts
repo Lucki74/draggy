@@ -241,6 +241,8 @@ export interface SearchStep {
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */
     | "approval"
+    /** The model writing down what it is going to do. */
+    | "plan"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -421,6 +423,8 @@ export interface Workspace {
   updatedAt: number;
 }
 
+import type { PlanItem } from "./plan/plan";
+
 export interface ChatSession {
   id: string;
   title: string;
@@ -428,6 +432,8 @@ export interface ChatSession {
   updatedAt: number;
   /** Which workspace it belongs to. Missing means the default one. */
   workspaceId?: string;
+  /** What the model is working through, if it wrote a plan. */
+  plan?: PlanItem[] | null;
   isGenerating: boolean;
   isOutOfContext?: boolean;
   compaction?: CompactionState | null;

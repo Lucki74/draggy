@@ -38,6 +38,8 @@ export interface TaskHost {
   getPermission: () => { mode: PermissionMode; grants: Grant[] };
   /** A permission to keep for this workspace, beyond the task that asked. */
   onGrant: (grant: Grant) => void;
+  /** A turn that ended on its own, for a conversation nobody may be watching. */
+  onFinished?: (chatId: string) => void;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -294,6 +296,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         },
         {
           t: host.t,
+          getPlan: () => host.getSession(chatId)?.plan ?? null,
+          onPlan: (items) =>
+            host.updateSession(chatId, (session) => ({ ...session, plan: items })),
           requestApproval: (approval) =>
             new Promise<ApprovalAnswer>((resolve) => {
               waiting.set(approval.id, { chatId, answer: resolve });
@@ -354,7 +359,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
         // The user is now reading rather than waiting, which is the only
         // moment folding is free.
-        if (!controller.signal.aborted) void maybeCompact(chatId);
+        if (!controller.signal.aborted) {
+          host.onFinished?.(chatId);
+          void maybeCompact(chatId);
+        }
       }
     }
   }
