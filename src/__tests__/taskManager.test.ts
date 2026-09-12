@@ -41,7 +41,7 @@ function finished(): AgentResult {
   } as unknown as AgentResult;
 }
 
-function createHost() {
+function createHost(workspaceId = "default") {
   const sessions = new Map<string, ChatSession>();
 
   const host: TaskHost = {
@@ -52,6 +52,7 @@ function createHost() {
       codeExecution: false,
       libraryReady: false,
     }),
+    getWorkspaceId: () => workspaceId,
     getSession: (chatId) => sessions.get(chatId),
     addSession: (session) => sessions.set(session.id, session),
     updateSession: (chatId, updater) => {
@@ -99,6 +100,15 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")).toBeTruthy();
     expect(sessions.get("chat-1")?.isGenerating).toBe(true);
     expect(pending).toHaveLength(1);
+  });
+
+  it("starts it in the workspace that is open", () => {
+    const { sessions, host } = createHost("project-7");
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "hello");
+
+    expect(sessions.get("chat-1")?.workspaceId).toBe("project-7");
   });
 
   it("keeps two conversations generating at the same time", () => {

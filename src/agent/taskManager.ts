@@ -29,6 +29,8 @@ export interface TaskHost {
   getModel: () => string | null;
   getSettings: () => AppSettings;
   getEnvironment: () => ToolEnvironment;
+  /** The workspace a conversation started now belongs to. */
+  getWorkspaceId: () => string;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -328,6 +330,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (!existing) {
       host.addSession({
         id: chatId,
+        workspaceId: host.getWorkspaceId(),
         title: content.trim()
           ? titleFromContent(content, host.t("newDiscussion"))
           : attachments && attachments.length > 0

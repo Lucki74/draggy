@@ -4,7 +4,14 @@ const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { log } = require("./logger.cjs");
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+
+/**
+ * The workspace every chat belongs to until it is put somewhere else. It is a
+ * real row rather than a null: one place for the settings that used to be
+ * global, and nothing downstream has to special-case "no workspace".
+ */
+const DEFAULT_WORKSPACE_ID = "default";
 
 let db = null;
 let blobDir = null;
@@ -13,12 +20,24 @@ const SCHEMA = `
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
+  CREATE TABLE IF NOT EXISTS workspaces (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    kind            TEXT NOT NULL DEFAULT 'chat',
+    root_path       TEXT,
+    permission_mode TEXT NOT NULL DEFAULT 'ask',
+    settings        TEXT,
+    created_at      INTEGER NOT NULL,
+    updated_at      INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS chats (
     id                TEXT PRIMARY KEY,
     title             TEXT NOT NULL,
     updated_at        INTEGER NOT NULL,
     is_out_of_context INTEGER NOT NULL DEFAULT 0,
-    compaction        TEXT
+    compaction        TEXT,
+    workspace_id      TEXT
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -129,7 +148,14 @@ function isUsable(database) {
 }
 
 function salvage(damagedPath, fresh) {
+  // Chats are rescued without their workspace: the damaged database may predate
+  // the column, and an insert that names it would fail for every chat rather
+  // than for the one thing worth losing. They land in the default workspace.
   const tables = [
+    [
+      "workspaces",
+      "id, name, kind, root_path, permission_mode, settings, created_at, updated_at",
+    ],
     ["chats", "id, title, updated_at, is_out_of_context"],
     ["messages", "id, chat_id, position, role, payload"],
     ["attachments", "message_row_id, position, name, type, blob_hash"],
@@ -228,6 +254,7 @@ function init(userDataPath) {
     db.exec(SCHEMA);
     migrate();
     ensureColumn("chats", "compaction", "TEXT");
+    ensureColumn("chats", "workspace_id", "TEXT");
     healthy = isUsable(db);
   } catch (error) {
     log.warn("storage", `could not open the database: ${error.message}`);
@@ -235,6 +262,10 @@ function init(userDataPath) {
   }
 
   if (!healthy) rebuild(dbPath);
+
+  // After either path: a rebuilt database has the table but no rows, and a
+  // rescued chat comes back without the workspace it was in.
+  ensureDefaultWorkspace();
 
   log.info("storage", `opened ${dbPath}`);
   return dbPath;
@@ -338,6 +369,130 @@ function migrate() {
   }
 }
 
+/**
+ * The default workspace, and any chat that has never been in one. Runs on
+ * every launch: it is two statements, and it is what stands between a database
+ * written by 1.x and a window that shows no conversations at all.
+ */
+function ensureDefaultWorkspace() {
+  try {
+    const now = Date.now();
+
+    db.prepare(
+      `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, created_at, updated_at)
+       VALUES (?, '', 'chat', NULL, 'ask', NULL, ?, ?)
+       ON CONFLICT(id) DO NOTHING`,
+    ).run(DEFAULT_WORKSPACE_ID, now, now);
+
+    const adopted = db
+      .prepare("UPDATE chats SET workspace_id = ? WHERE workspace_id IS NULL")
+      .run(DEFAULT_WORKSPACE_ID);
+
+    if (adopted.changes > 0) {
+      log.info(
+        "storage",
+        `moved ${adopted.changes} chat(s) into the default workspace`,
+      );
+    }
+  } catch (error) {
+    log.warn("storage", `could not prepare the default workspace: ${error.message}`);
+  }
+}
+
+function rowToWorkspace(row) {
+  let settings = null;
+
+  if (row.settings) {
+    try {
+      const parsed = JSON.parse(row.settings);
+      if (parsed && typeof parsed === "object") settings = parsed;
+    } catch {
+      // An unreadable override is the global setting, which is what the user
+      // had before they opened this workspace anyway.
+    }
+  }
+
+  return {
+    id: row.id,
+    name: row.name || "",
+    kind: row.kind === "project" ? "project" : "chat",
+    rootPath: row.root_path || null,
+    permissionMode: row.permission_mode || "ask",
+    settings: settings || {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function listWorkspaces() {
+  return db
+    .prepare(
+      `SELECT id, name, kind, root_path, permission_mode, settings, created_at, updated_at
+       FROM workspaces ORDER BY created_at ASC`,
+    )
+    .all()
+    .map(rowToWorkspace);
+}
+
+function saveWorkspace(workspace) {
+  const id = String(workspace?.id || "").trim();
+  if (!id) return { success: false, error: "A workspace needs an id." };
+
+  const now = Date.now();
+  const kind = workspace.kind === "project" ? "project" : "chat";
+
+  db.prepare(
+    `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       kind = excluded.kind,
+       root_path = excluded.root_path,
+       permission_mode = excluded.permission_mode,
+       settings = excluded.settings,
+       updated_at = excluded.updated_at`,
+  ).run(
+    id,
+    String(workspace.name || ""),
+    kind,
+    workspace.rootPath ? String(workspace.rootPath) : null,
+    String(workspace.permissionMode || "ask"),
+    workspace.settings && Object.keys(workspace.settings).length > 0
+      ? JSON.stringify(workspace.settings)
+      : null,
+    Number(workspace.createdAt) || now,
+    now,
+  );
+
+  const row = db
+    .prepare(
+      `SELECT id, name, kind, root_path, permission_mode, settings, created_at, updated_at
+       FROM workspaces WHERE id = ?`,
+    )
+    .get(id);
+
+  return { success: true, workspace: rowToWorkspace(row) };
+}
+
+/**
+ * Removing a workspace keeps its conversations: they move back to the default
+ * one. Deleting someone's chats because they closed a project would be a
+ * surprise, and the folder on disk is never touched either way.
+ */
+function deleteWorkspace(id) {
+  if (id === DEFAULT_WORKSPACE_ID) {
+    return { success: false, error: "The default workspace cannot be removed." };
+  }
+
+  const moved = db
+    .prepare("UPDATE chats SET workspace_id = ? WHERE workspace_id = ?")
+    .run(DEFAULT_WORKSPACE_ID, id);
+
+  db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
+
+  return { success: true, moved: moved.changes };
+}
+
 function searchBody(message) {
   const parts = [message.content || "", message.textContent || ""];
   for (const attachment of message.attachments || []) parts.push(attachment.name);
@@ -347,19 +502,21 @@ function searchBody(message) {
 function saveChat(session) {
   const transaction = () => {
     db.prepare(
-      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          updated_at = excluded.updated_at,
          is_out_of_context = excluded.is_out_of_context,
-         compaction = excluded.compaction`,
+         compaction = excluded.compaction,
+         workspace_id = excluded.workspace_id`,
     ).run(
       session.id,
       String(session.title || ""),
       Number(session.updatedAt) || Date.now(),
       session.isOutOfContext ? 1 : 0,
       session.compaction ? JSON.stringify(session.compaction) : null,
+      String(session.workspaceId || DEFAULT_WORKSPACE_ID),
     );
 
     db.prepare("DELETE FROM messages WHERE chat_id = ?").run(session.id);
@@ -463,6 +620,7 @@ function hydrateChat(chatRow) {
     id: chatRow.id,
     title: chatRow.title,
     updatedAt: chatRow.updated_at,
+    workspaceId: chatRow.workspace_id || DEFAULT_WORKSPACE_ID,
     isOutOfContext: Boolean(chatRow.is_out_of_context),
     isGenerating: false,
     // Losing a summary costs one idle generation to rebuild, so an unparseable
@@ -475,7 +633,8 @@ function hydrateChat(chatRow) {
 function loadChats() {
   const rows = db
     .prepare(
-      "SELECT id, title, updated_at, is_out_of_context, compaction FROM chats ORDER BY updated_at DESC",
+      `SELECT id, title, updated_at, is_out_of_context, compaction, workspace_id
+       FROM chats ORDER BY updated_at DESC`,
     )
     .all();
   return rows.map(hydrateChat);
@@ -484,7 +643,7 @@ function loadChats() {
 function loadChatSummaries() {
   return db
     .prepare(
-      `SELECT c.id, c.title, c.updated_at, c.is_out_of_context,
+      `SELECT c.id, c.title, c.updated_at, c.is_out_of_context, c.workspace_id,
               (SELECT COUNT(*) FROM messages m WHERE m.chat_id = c.id) AS message_count
        FROM chats c ORDER BY c.updated_at DESC`,
     )
@@ -493,6 +652,7 @@ function loadChatSummaries() {
       id: row.id,
       title: row.title,
       updatedAt: row.updated_at,
+      workspaceId: row.workspace_id || DEFAULT_WORKSPACE_ID,
       isOutOfContext: Boolean(row.is_out_of_context),
       messageCount: row.message_count,
     }));
@@ -560,6 +720,7 @@ function importSessions(sessions) {
         id: session.id,
         title: session.title || "",
         updatedAt: session.updatedAt || Date.now(),
+        workspaceId: session.workspaceId || DEFAULT_WORKSPACE_ID,
         isOutOfContext: Boolean(session.isOutOfContext),
         messages: Array.isArray(session.messages) ? session.messages : [],
       });
@@ -595,7 +756,11 @@ function close() {
 }
 
 module.exports = {
+  DEFAULT_WORKSPACE_ID,
   init,
+  listWorkspaces,
+  saveWorkspace,
+  deleteWorkspace,
   saveChat,
   loadChats,
   loadChatSummaries,

@@ -7,6 +7,7 @@ import {
   queueSessionSave,
   storageBackend,
 } from "../storage";
+import { workspaceIdOf } from "../workspaces";
 
 /**
  * The conversations and their persistence. Everything here is about state on
@@ -30,6 +31,8 @@ export interface SessionStore {
   ) => void;
   deleteSession: (chatId: string) => void;
   clearSessions: () => void;
+  /** After a workspace is removed: the database has already moved its chats. */
+  reassign: (fromWorkspaceId: string, toWorkspaceId: string) => void;
 }
 
 export function useSessions(): SessionStore {
@@ -158,6 +161,16 @@ export function useSessions(): SessionStore {
       .catch(() => undefined);
   }, []);
 
+  const reassign = useCallback((fromWorkspaceId: string, toWorkspaceId: string) => {
+    setSessions((prev) =>
+      prev.map((session) =>
+        workspaceIdOf(session) === fromWorkspaceId
+          ? { ...session, workspaceId: toWorkspaceId }
+          : session,
+      ),
+    );
+  }, []);
+
   return {
     sessions,
     hydrated,
@@ -169,5 +182,6 @@ export function useSessions(): SessionStore {
     patchActiveMessage,
     deleteSession,
     clearSessions,
+    reassign,
   };
 }

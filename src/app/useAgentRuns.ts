@@ -13,6 +13,7 @@ interface AgentRunsInput {
   model: string | null;
   settings: AppSettings;
   environment: ToolEnvironment;
+  workspaceId: string;
   t: (key: string) => string;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
@@ -54,6 +55,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     getModel: () => input.model,
     getSettings: () => input.settings,
     getEnvironment: () => input.environment,
+    getWorkspaceId: () => input.workspaceId,
     getSession: input.getSession,
     addSession: input.addSession,
     updateSession: input.updateSession,

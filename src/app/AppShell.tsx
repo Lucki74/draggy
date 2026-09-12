@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-import { Plus, MessageSquare, Settings, AudioLines, FolderOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Plus,
+  MessageSquare,
+  Settings,
+  AudioLines,
+  FolderOpen,
+  Folder,
+  FolderPlus,
+  MessagesSquare,
+  X,
+} from "lucide-react";
 import ChatScreen from "../ChatScreen";
 import SettingsPage from "../SettingsPage";
 import type { SettingsTab } from "../SettingsPage";
@@ -15,6 +25,14 @@ import { syncMcpTools } from "../tools/mcp";
 import { useSessions } from "./useSessions";
 import { useAgentRuns } from "./useAgentRuns";
 import { useUpdateDialog } from "./useUpdateDialog";
+import { useWorkspaces } from "./useWorkspaces";
+import {
+  DEFAULT_WORKSPACE_ID,
+  isDefault,
+  resolveSettings,
+  sessionsIn,
+  workspaceLabel,
+} from "../workspaces";
 import type { AppSettings } from "../types";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
@@ -40,8 +58,6 @@ export default function AppShell({
   const t = useTranslator(settings.language);
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-  /** The id an untouched first conversation gets, before anything is saved. */
-  const [blankChatId] = useState(generateId);
   const [openedAt] = useState(() => Date.now());
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
@@ -49,6 +65,10 @@ export default function AppShell({
 
   const store = useSessions();
   const update = useUpdateDialog();
+  const workspaces = useWorkspaces();
+
+  const active = workspaces.active;
+  const effectiveSettings = resolveSettings(settings, active);
 
   const openSettings = useCallback((tab: SettingsTab) => {
     setSettingsTab(tab);
@@ -97,15 +117,17 @@ export default function AppShell({
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
   const environment: ToolEnvironment = {
-    webMode: settings.webMode,
-    codeExecution: settings.codeExecution && Boolean(window.electronAPI?.runner),
-    libraryReady: libraryReady && settings.libraryEnabled,
+    webMode: effectiveSettings.webMode,
+    codeExecution:
+      effectiveSettings.codeExecution && Boolean(window.electronAPI?.runner),
+    libraryReady: libraryReady && effectiveSettings.libraryEnabled,
   };
 
   const runs = useAgentRuns({
     model,
-    settings,
+    settings: effectiveSettings,
     environment,
+    workspaceId: active.id,
     t,
     getSession: store.getSession,
     addSession: store.addSession,
@@ -166,37 +188,83 @@ export default function AppShell({
     setSelectedChatId(null);
   }, [runs, store]);
 
+  const handleSelectWorkspace = useCallback(
+    (id: string) => {
+      workspaces.select(id);
+      // Its own most recent conversation, rather than one from somewhere else.
+      setSelectedChatId(null);
+      setViewMode("chat");
+    },
+    [workspaces],
+  );
+
+  const handleNewProject = useCallback(async () => {
+    const created = await workspaces.addProject();
+    if (!created) return;
+
+    setSelectedChatId(null);
+    setViewMode("chat");
+  }, [workspaces]);
+
+  const handleRemoveWorkspace = useCallback(
+    async (event: React.MouseEvent, id: string) => {
+      event.stopPropagation();
+
+      const { moved } = await workspaces.remove(id);
+      // The database has already moved them; the window has not heard yet.
+      if (moved > 0) store.reassign(id, DEFAULT_WORKSPACE_ID);
+      setSelectedChatId(null);
+    },
+    [workspaces, store],
+  );
+
+  /** Only this workspace's conversations, everywhere the app lists them. */
+  const visibleSessions = useMemo(
+    () => sessionsIn(store.sessions, active.id),
+    [store.sessions, active.id],
+  );
+
+  /**
+   * The id an untouched first conversation gets, one per workspace: two of them
+   * sharing an id would have the second write into the first one's messages.
+   */
+  const blankChatId = `blank-${active.id}`;
+
   /**
    * What the chat screen is showing: the user's choice, or the conversation
    * they left off in, or an empty one. Derived rather than restored in an
    * effect, which would paint once with nothing before correcting itself.
    */
   const currentChatId = store.hydrated
-    ? (selectedChatId ?? store.sessions[0]?.id ?? blankChatId)
+    ? (selectedChatId ?? visibleSessions[0]?.id ?? blankChatId)
     : selectedChatId;
 
   // Stable identities so MessageItem's memo() actually skips unchanged
-  // messages; an inline arrow would hand each a new prop on every render.
+  // messages; an inline arrow would hand each a new prop on every render. The
+  // manager's own handlers never change, so only the conversation id does.
+  const { regenerate, switchVersion, editMessage } = runs;
+  const chatId = currentChatId ?? "";
+
   const onRegenerateChat = useCallback(
     (idx: number) => {
-      if (currentChatId) runs.regenerate(currentChatId, idx);
+      if (chatId) regenerate(chatId, idx);
     },
-    [currentChatId, runs],
+    [chatId, regenerate],
   );
   const onSwitchVersionChat = useCallback(
     (mIdx: number, vIdx: number) => {
-      if (currentChatId) runs.switchVersion(currentChatId, mIdx, vIdx);
+      if (chatId) switchVersion(chatId, mIdx, vIdx);
     },
-    [currentChatId, runs],
+    [chatId, switchVersion],
   );
   const onEditMessageChat = useCallback(
     (mIdx: number, content: string) => {
-      if (currentChatId) runs.editMessage(currentChatId, mIdx, content);
+      if (chatId) editMessage(chatId, mIdx, content);
     },
-    [currentChatId, runs],
+    [chatId, editMessage],
   );
 
-  const currentSession = store.sessions.find((s) => s.id === currentChatId);
+  const currentSession = visibleSessions.find((s) => s.id === currentChatId);
 
   return (
     <div
@@ -307,13 +375,70 @@ export default function AppShell({
               </span>
             </button>
           </div>
+
+          <div
+            className="mt-2 flex flex-col gap-1 px-[14px] py-3 no-drag border-t-[3px] overflow-y-auto"
+            style={{ borderColor: "var(--border-light)" }}
+          >
+            <span className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              {t("workspaces")}
+            </span>
+
+            {workspaces.workspaces.map((one) => (
+              <div
+                key={one.id}
+                className={
+                  one.id === active.id
+                    ? "flex items-center w-full rounded-lg bg-[var(--hover-bg)]"
+                    : "flex items-center w-full rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                }
+              >
+                <button
+                  onClick={() => handleSelectWorkspace(one.id)}
+                  title={one.rootPath || undefined}
+                  aria-current={one.id === active.id}
+                  className="flex items-center flex-1 min-w-0 p-2 overflow-hidden"
+                >
+                  {isDefault(one) ? (
+                    <MessagesSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+                  ) : (
+                    <Folder className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+                  )}
+                  <span className="ml-4 font-bold tracking-wider text-sm truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                    {workspaceLabel(one, t)}
+                  </span>
+                </button>
+
+                {!isDefault(one) && (
+                  <button
+                    onClick={(event) => handleRemoveWorkspace(event, one.id)}
+                    aria-label={t("removeProject")}
+                    title={t("removeProject")}
+                    className="mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-4 h-4 text-[var(--text-muted)]" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <button
+              onClick={handleNewProject}
+              className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
+            >
+              <FolderPlus className="w-6 h-6 flex-shrink-0 text-[var(--text-muted)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("newProject")}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
         {viewMode === "history" ? (
           <ChatHistory
-            sessions={store.sessions}
+            sessions={visibleSessions}
             onSelectChat={selectChat}
             onDeleteChat={handleDeleteChat}
             onExportChat={handleExportChat}

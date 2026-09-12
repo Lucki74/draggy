@@ -15,6 +15,11 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    workspaces: "Workspaces",
+    defaultWorkspace: "Chats",
+    newProject: "New project",
+    removeProject: "Remove project",
+    untitledProject: "Untitled project",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "This model turns text into vectors for the library. It cannot hold a conversation.",
     createdFiles: "Created files",
@@ -252,6 +257,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    workspaces: "Espaces",
+    defaultWorkspace: "Discussions",
+    newProject: "Nouveau projet",
+    removeProject: "Retirer le projet",
+    untitledProject: "Projet sans nom",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Ce modèle transforme le texte en vecteurs pour la bibliothèque. Il ne peut pas discuter.",
     createdFiles: "Fichiers créés",
@@ -489,6 +499,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    workspaces: "Espacios",
+    defaultWorkspace: "Chats",
+    newProject: "Nuevo proyecto",
+    removeProject: "Quitar proyecto",
+    untitledProject: "Proyecto sin título",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Este modelo convierte texto en vectores para la biblioteca. No puede conversar.",
     createdFiles: "Archivos creados",
@@ -726,6 +741,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    workspaces: "Arbeitsbereiche",
+    defaultWorkspace: "Unterhaltungen",
+    newProject: "Neues Projekt",
+    removeProject: "Projekt entfernen",
+    untitledProject: "Unbenanntes Projekt",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Dieses Modell wandelt Text in Vektoren für die Bibliothek um. Es kann sich nicht unterhalten.",
     createdFiles: "Erstellte Dateien",
@@ -963,6 +983,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    workspaces: "Spazi",
+    defaultWorkspace: "Conversazioni",
+    newProject: "Nuovo progetto",
+    removeProject: "Rimuovi progetto",
+    untitledProject: "Progetto senza nome",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Questo modello trasforma il testo in vettori per la libreria. Non può conversare.",
     createdFiles: "File creati",
@@ -1200,6 +1225,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    workspaces: "Espaços",
+    defaultWorkspace: "Conversas",
+    newProject: "Novo projeto",
+    removeProject: "Remover projeto",
+    untitledProject: "Projeto sem título",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Este modelo converte texto em vetores para a biblioteca. Não consegue conversar.",
     createdFiles: "Ficheiros criados",
@@ -1437,6 +1467,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    workspaces: "Werkruimtes",
+    defaultWorkspace: "Gesprekken",
+    newProject: "Nieuw project",
+    removeProject: "Project verwijderen",
+    untitledProject: "Naamloos project",
     embeddingOnly: "Embedding",
     embeddingOnlyHint: "Dit model zet tekst om in vectoren voor de bibliotheek. Het kan geen gesprek voeren.",
     createdFiles: "Gemaakte bestanden",
@@ -1674,6 +1709,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    workspaces: "Пространства",
+    defaultWorkspace: "Чаты",
+    newProject: "Новый проект",
+    removeProject: "Удалить проект",
+    untitledProject: "Проект без названия",
     embeddingOnly: "Эмбеддинг",
     embeddingOnlyHint: "Эта модель превращает текст в векторы для библиотеки. Она не умеет вести диалог.",
     createdFiles: "Созданные файлы",
@@ -1911,6 +1951,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    workspaces: "工作区",
+    defaultWorkspace: "对话",
+    newProject: "新建项目",
+    removeProject: "移除项目",
+    untitledProject: "未命名项目",
     embeddingOnly: "嵌入",
     embeddingOnlyHint: "该模型只把文本转成向量供知识库使用，无法进行对话。",
     createdFiles: "已创建文件",
@@ -2148,6 +2193,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    workspaces: "ワークスペース",
+    defaultWorkspace: "チャット",
+    newProject: "新しいプロジェクト",
+    removeProject: "プロジェクトを削除",
+    untitledProject: "名称未設定のプロジェクト",
     embeddingOnly: "埋め込み",
     embeddingOnlyHint: "このモデルはライブラリ用にテキストをベクトル化するだけで、会話はできません。",
     createdFiles: "作成したファイル",
@@ -2385,6 +2435,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    workspaces: "작업 공간",
+    defaultWorkspace: "채팅",
+    newProject: "새 프로젝트",
+    removeProject: "프로젝트 제거",
+    untitledProject: "이름 없는 프로젝트",
     embeddingOnly: "임베딩",
     embeddingOnlyHint: "이 모델은 라이브러리용으로 텍스트를 벡터로 바꿀 뿐, 대화를 할 수 없습니다.",
     createdFiles: "생성된 파일",
@@ -2622,6 +2677,11 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    workspaces: "مساحات العمل",
+    defaultWorkspace: "المحادثات",
+    newProject: "مشروع جديد",
+    removeProject: "إزالة المشروع",
+    untitledProject: "مشروع بلا عنوان",
     embeddingOnly: "تضمين",
     embeddingOnlyHint: "يحوّل هذا النموذج النص إلى متجهات للمكتبة فقط، ولا يمكنه إجراء محادثة.",
     createdFiles: "الملفات المنشأة",

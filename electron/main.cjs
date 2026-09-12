@@ -1864,6 +1864,32 @@ ipcMain.handle("db:search-chats", wrap("db", async (event, query) => ({
   results: storage.searchChats(query),
 })));
 
+ipcMain.handle("workspace:list", wrap("workspace", async () => ({
+  success: true,
+  workspaces: storage.listWorkspaces(),
+})));
+
+ipcMain.handle("workspace:save", wrap("workspace", async (event, workspace) =>
+  storage.saveWorkspace(workspace),
+));
+
+ipcMain.handle("workspace:delete", wrap("workspace", async (event, id) =>
+  storage.deleteWorkspace(String(id)),
+));
+
+ipcMain.handle("workspace:pick-folder", wrap("workspace", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+    title: "Choose a project folder",
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, cancelled: true };
+  }
+
+  return { success: true, path: result.filePaths[0] };
+}));
+
 ipcMain.handle("db:get", wrap("db", async (event, key) => ({
   success: true,
   value: storage.getValue(String(key)),

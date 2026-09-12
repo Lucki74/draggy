@@ -57,6 +57,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     stats: () => ipcRenderer.invoke("db:stats"),
   },
 
+  workspaces: {
+    list: () => ipcRenderer.invoke("workspace:list"),
+    save: (workspace) => ipcRenderer.invoke("workspace:save", workspace),
+    remove: (id) => ipcRenderer.invoke("workspace:delete", id),
+    pickFolder: () => ipcRenderer.invoke("workspace:pick-folder"),
+  },
+
   library: {
     list: () => ipcRenderer.invoke("library:list"),
     stats: () => ipcRenderer.invoke("library:stats"),

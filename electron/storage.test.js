@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const storage = require("./storage.cjs");
+const { DatabaseSync } = require("node:sqlite");
 
 let workdir;
 
@@ -552,5 +553,191 @@ describe("carrying a folded conversation across restarts", () => {
     );
 
     expect(storage.loadChats()[0].compaction).toBeNull();
+  });
+});
+
+describe("workspaces", () => {
+  const workspace = (id, extra = {}) => ({
+    id,
+    name: `Workspace ${id}`,
+    kind: "project",
+    rootPath: "C:\projects\thing",
+    permissionMode: "acceptEdits",
+    settings: {},
+    ...extra,
+  });
+
+  it("has a default workspace from the first launch", () => {
+    const all = storage.listWorkspaces();
+
+    expect(all).toHaveLength(1);
+    expect(all[0].id).toBe(storage.DEFAULT_WORKSPACE_ID);
+    expect(all[0].kind).toBe("chat");
+  });
+
+  it("puts a chat with no workspace of its own in the default one", () => {
+    storage.saveChat(session("a", [message("m1", "user", "hi")]));
+
+    expect(storage.loadChats()[0].workspaceId).toBe(storage.DEFAULT_WORKSPACE_ID);
+    expect(storage.loadChatSummaries()[0].workspaceId).toBe(
+      storage.DEFAULT_WORKSPACE_ID,
+    );
+  });
+
+  it("keeps a chat in the workspace it was saved in", () => {
+    storage.saveWorkspace(workspace("w1"));
+    storage.saveChat(
+      session("a", [message("m1", "user", "hi")], { workspaceId: "w1" }),
+    );
+
+    expect(storage.loadChats()[0].workspaceId).toBe("w1");
+  });
+
+  it("reads back everything a workspace was given", () => {
+    storage.saveWorkspace(
+      workspace("w1", { settings: { webMode: "off", codeExecution: true } }),
+    );
+
+    const saved = storage.listWorkspaces().find((one) => one.id === "w1");
+
+    expect(saved.name).toBe("Workspace w1");
+    expect(saved.kind).toBe("project");
+    expect(saved.rootPath).toBe("C:\projects\thing");
+    expect(saved.permissionMode).toBe("acceptEdits");
+    expect(saved.settings).toEqual({ webMode: "off", codeExecution: true });
+  });
+
+  it("edits a workspace in place, keeping the day it was made", () => {
+    storage.saveWorkspace(workspace("w1", { createdAt: 500 }));
+    storage.saveWorkspace(workspace("w1", { name: "Renamed" }));
+
+    const all = storage.listWorkspaces().filter((one) => one.id === "w1");
+
+    expect(all).toHaveLength(1);
+    expect(all[0].name).toBe("Renamed");
+    expect(all[0].createdAt).toBe(500);
+  });
+
+  it("keeps the conversations of a workspace that is removed", () => {
+    storage.saveWorkspace(workspace("w1"));
+    storage.saveChat(
+      session("a", [message("m1", "user", "hi")], { workspaceId: "w1" }),
+    );
+
+    const result = storage.deleteWorkspace("w1");
+
+    expect(result.success).toBe(true);
+    expect(result.moved).toBe(1);
+    expect(storage.listWorkspaces().some((one) => one.id === "w1")).toBe(false);
+
+    const chat = storage.loadChats()[0];
+    expect(chat.workspaceId).toBe(storage.DEFAULT_WORKSPACE_ID);
+    expect(chat.messages[0].content).toBe("hi");
+  });
+
+  it("refuses to remove the default workspace", () => {
+    const result = storage.deleteWorkspace(storage.DEFAULT_WORKSPACE_ID);
+
+    expect(result.success).toBe(false);
+    expect(storage.listWorkspaces()).toHaveLength(1);
+  });
+
+  it("needs an id to save one", () => {
+    expect(storage.saveWorkspace({ name: "nameless" }).success).toBe(false);
+  });
+});
+
+describe("opening a database written by 1.x", () => {
+  /** The schema as 1.2.7 left it: no workspaces, and no column to put one in. */
+  function writeVersionTwo(dir) {
+    const legacy = new DatabaseSync(path.join(dir, "draggy.db"));
+
+    legacy.exec(`
+      CREATE TABLE chats (
+        id                TEXT PRIMARY KEY,
+        title             TEXT NOT NULL,
+        updated_at        INTEGER NOT NULL,
+        is_out_of_context INTEGER NOT NULL DEFAULT 0,
+        compaction        TEXT
+      );
+      CREATE TABLE messages (
+        row_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        id       TEXT NOT NULL,
+        chat_id  TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        role     TEXT NOT NULL,
+        payload  TEXT NOT NULL,
+        UNIQUE (chat_id, id)
+      );
+      CREATE TABLE attachments (
+        message_row_id INTEGER NOT NULL REFERENCES messages(row_id) ON DELETE CASCADE,
+        position       INTEGER NOT NULL,
+        name           TEXT NOT NULL,
+        type           TEXT NOT NULL,
+        blob_hash      TEXT NOT NULL,
+        PRIMARY KEY (message_row_id, position)
+      );
+      CREATE TABLE blobs (hash TEXT PRIMARY KEY, bytes INTEGER NOT NULL);
+      CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE VIRTUAL TABLE message_search
+        USING fts5(chat_id UNINDEXED, message_id UNINDEXED, body);
+
+      INSERT INTO kv (key, value) VALUES ('schema_version', '2');
+      INSERT INTO chats (id, title, updated_at, is_out_of_context)
+        VALUES ('old', 'Made in 1.2.7', 1000, 0);
+      INSERT INTO messages (id, chat_id, position, role, payload)
+        VALUES ('m1', 'old', 0, 'user',
+                '{"id":"m1","role":"user","content":"hello from 1.x"}');
+    `);
+
+    legacy.close();
+  }
+
+  function withLegacyDatabase(check) {
+    storage.close();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-v2-test-"));
+
+    try {
+      writeVersionTwo(dir);
+      storage.init(dir);
+      check();
+    } finally {
+      storage.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+      // The suite's own database, so the teardown has something to close.
+      storage.init(workdir);
+    }
+  }
+
+  it("keeps every conversation it finds", () => {
+    withLegacyDatabase(() => {
+      const chats = storage.loadChats();
+
+      expect(chats).toHaveLength(1);
+      expect(chats[0].title).toBe("Made in 1.2.7");
+      expect(chats[0].messages[0].content).toBe("hello from 1.x");
+    });
+  });
+
+  it("adopts them into the default workspace", () => {
+    withLegacyDatabase(() => {
+      expect(storage.listWorkspaces()).toHaveLength(1);
+      expect(storage.loadChats()[0].workspaceId).toBe(
+        storage.DEFAULT_WORKSPACE_ID,
+      );
+    });
+  });
+
+  it("can still save into it afterwards", () => {
+    withLegacyDatabase(() => {
+      storage.saveChat(
+        session("new", [message("m1", "user", "written by 2.0")], {
+          workspaceId: storage.DEFAULT_WORKSPACE_ID,
+        }),
+      );
+
+      expect(storage.loadChats()).toHaveLength(2);
+      expect(storage.searchChats("written").length).toBeGreaterThan(0);
+    });
   });
 });

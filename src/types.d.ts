@@ -315,11 +315,50 @@ export interface McpServerState {
   tools: McpToolDescription[];
 }
 
+/**
+ * How much a turn may do on its own. A workspace holds one of these, and every
+ * tool call is measured against it.
+ */
+export type PermissionMode = "plan" | "ask" | "acceptEdits" | "auto";
+
+export type WorkspaceKind = "chat" | "project";
+
+/**
+ * The settings a workspace may override. Everything else (the theme, the
+ * voice, the update schedule) stays a property of the app, not of the work.
+ */
+export type WorkspaceOverrides = Partial<
+  Pick<
+    AppSettings,
+    | "modelName"
+    | "customInstructions"
+    | "thinkingMode"
+    | "webMode"
+    | "codeExecution"
+    | "libraryEnabled"
+  >
+>;
+
+export interface Workspace {
+  id: string;
+  /** Empty for the default workspace, which the interface names itself. */
+  name: string;
+  kind: WorkspaceKind;
+  /** The folder a project is about. Null for an ordinary chat workspace. */
+  rootPath: string | null;
+  permissionMode: PermissionMode;
+  settings: WorkspaceOverrides;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ChatSession {
   id: string;
   title: string;
   messages: Message[];
   updatedAt: number;
+  /** Which workspace it belongs to. Missing means the default one. */
+  workspaceId?: string;
   isGenerating: boolean;
   isOutOfContext?: boolean;
   compaction?: CompactionState | null;
@@ -470,6 +509,29 @@ declare global {
         set: (key: string, value: string) => Promise<{ success: boolean }>;
         importSessions: (sessions: unknown[]) => Promise<{ success: boolean; imported?: number }>;
         stats: () => Promise<{ success: boolean; stats?: StorageStats }>;
+      };
+
+      workspaces: {
+        list: () => Promise<{
+          success: boolean;
+          workspaces?: Workspace[];
+          error?: string;
+        }>;
+        save: (workspace: Workspace) => Promise<{
+          success: boolean;
+          workspace?: Workspace;
+          error?: string;
+        }>;
+        remove: (id: string) => Promise<{
+          success: boolean;
+          moved?: number;
+          error?: string;
+        }>;
+        pickFolder: () => Promise<{
+          success: boolean;
+          path?: string;
+          cancelled?: boolean;
+        }>;
       };
 
       library: {
