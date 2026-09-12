@@ -15,6 +15,7 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    usingSkill: "Using",
     plan: "Plan",
     planned: "Planned",
     addStep: "Add a step",
@@ -293,6 +294,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    usingSkill: "Utilise",
     plan: "Plan",
     planned: "Plan établi",
     addStep: "Ajouter une étape",
@@ -571,6 +573,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    usingSkill: "Usando",
     plan: "Plan",
     planned: "Plan trazado",
     addStep: "Añadir un paso",
@@ -849,6 +852,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    usingSkill: "Verwendet",
     plan: "Plan",
     planned: "Plan erstellt",
     addStep: "Schritt hinzufügen",
@@ -1127,6 +1131,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    usingSkill: "Usa",
     plan: "Piano",
     planned: "Piano definito",
     addStep: "Aggiungi un passo",
@@ -1405,6 +1410,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    usingSkill: "A usar",
     plan: "Plano",
     planned: "Plano traçado",
     addStep: "Adicionar um passo",
@@ -1683,6 +1689,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    usingSkill: "Gebruikt",
     plan: "Plan",
     planned: "Plan gemaakt",
     addStep: "Stap toevoegen",
@@ -1961,6 +1968,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    usingSkill: "Использует",
     plan: "План",
     planned: "План составлен",
     addStep: "Добавить шаг",
@@ -2239,6 +2247,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    usingSkill: "正在使用",
     plan: "计划",
     planned: "已制定计划",
     addStep: "添加步骤",
@@ -2517,6 +2526,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    usingSkill: "使用中",
     plan: "計画",
     planned: "計画を立てました",
     addStep: "手順を追加",
@@ -2795,6 +2805,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    usingSkill: "사용 중",
     plan: "계획",
     planned: "계획 세움",
     addStep: "단계 추가",
@@ -3073,6 +3084,7 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    usingSkill: "يستخدم",
     plan: "الخطة",
     planned: "تم وضع خطة",
     addStep: "إضافة خطوة",

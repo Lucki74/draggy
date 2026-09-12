@@ -27,6 +27,7 @@ const fsGuard = require("./fsGuard.cjs");
 const checkpoints = require("./checkpoints.cjs");
 const secrets = require("./secrets.cjs");
 const mcpRegistry = require("./mcpRegistry.cjs");
+const skills = require("./skills.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
@@ -760,6 +761,7 @@ app.whenReady().then(() => {
   // Credentials into the operating system's keystore, and out of the database
   // where earlier versions kept them in the clear.
   mcpRegistry.init(app.getPath("userData"));
+  skills.init(app.getPath("userData"));
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
 
@@ -2204,6 +2206,21 @@ ipcMain.handle(
 ipcMain.handle("registry:search", wrap("mcp", async (event, query) =>
   mcpRegistry.search(String(query || "")),
 ));
+
+ipcMain.handle("skills:list", wrap("skills", async (event, workspaceId) => ({
+  success: true,
+  skills: skills.listSkills(rootsFor(workspaceId)[0]),
+})));
+
+ipcMain.handle("skills:read", wrap("skills", async (event, workspaceId, id) =>
+  skills.readSkill(String(id), rootsFor(workspaceId)[0]),
+));
+
+ipcMain.handle("skills:open", wrap("skills", async () => {
+  const folder = skills.init(app.getPath("userData"));
+  fs.mkdirSync(folder, { recursive: true });
+  return shell.openPath(folder);
+}));
 
 ipcMain.handle("mcp:config", () => ({ success: true, config: mcpConfig() }));
 

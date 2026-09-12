@@ -9,6 +9,7 @@ export type ToolGroup =
   | "code"
   | "library"
   | "plan"
+  | "skill"
   | "external";
 
 export interface ToolParameter {
@@ -24,6 +25,8 @@ export interface ToolEnvironment {
   hasFolder?: boolean;
   /** That folder, for the system prompt. Absent in a plain chat. */
   projectRoot?: string;
+  /** Whether the user has written any skills down for this workspace. */
+  hasSkills?: boolean;
 }
 
 export interface ToolContext {

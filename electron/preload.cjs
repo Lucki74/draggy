@@ -75,6 +75,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     revert: (id) => ipcRenderer.invoke("checkpoint:revert", id),
   },
 
+  skills: {
+    list: (workspaceId) => ipcRenderer.invoke("skills:list", workspaceId),
+    read: (workspaceId, id) => ipcRenderer.invoke("skills:read", workspaceId, id),
+    openFolder: () => ipcRenderer.invoke("skills:open"),
+  },
+
   workspaces: {
     list: () => ipcRenderer.invoke("workspace:list"),
     save: (workspace) => ipcRenderer.invoke("workspace:save", workspace),

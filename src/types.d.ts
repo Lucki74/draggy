@@ -243,6 +243,8 @@ export interface SearchStep {
     | "approval"
     /** The model writing down what it is going to do. */
     | "plan"
+    /** The model reaching for something the user wrote down for it. */
+    | "skill"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -349,6 +351,21 @@ export interface McpCatalogueEntry {
   env: McpRequirement[];
   /** Shown next to the switch when a server can do something irreversible. */
   caution?: string;
+}
+
+/** A skill on disk, as it appears in the prompt: no body, just the offer. */
+export interface InstalledSkill {
+  id: string;
+  name: string;
+  description: string;
+  path: string;
+  source: "user" | "project";
+}
+
+export interface LoadedSkill extends InstalledSkill {
+  body: string;
+  /** Anything else in the skill's folder: templates, scripts, examples. */
+  files: string[];
 }
 
 /** A server found in the registry rather than one Draggy ships. */
@@ -663,6 +680,17 @@ declare global {
         revert: (
           id: number,
         ) => Promise<{ success: boolean; path?: string; error?: string }>;
+      };
+
+      skills: {
+        list: (
+          workspaceId: string,
+        ) => Promise<{ success: boolean; skills?: InstalledSkill[] }>;
+        read: (
+          workspaceId: string,
+          id: string,
+        ) => Promise<{ success: boolean; skill?: LoadedSkill; error?: string }>;
+        openFolder: () => Promise<string>;
       };
 
       workspaces: {

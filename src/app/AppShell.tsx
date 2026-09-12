@@ -75,6 +75,8 @@ export default function AppShell({
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [libraryReady, setLibraryReady] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
+  /** How many skills this workspace can reach, which decides whether to offer any. */
+  const [skillCount, setSkillCount] = useState(0);
   /** A background conversation that finished while the user was elsewhere. */
   const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
   /** Which file the files screen opens on, when one was picked in the chat. */
@@ -151,6 +153,27 @@ export default function AppShell({
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
+  // Counted rather than listed here: the loop reads the skills themselves when
+  // it builds a prompt, and the window only needs to know whether to offer the
+  // tool at all.
+  useEffect(() => {
+    const api = window.electronAPI?.skills;
+    if (!api) return;
+
+    let cancelled = false;
+
+    api
+      .list(active.id)
+      .then((result) => {
+        if (!cancelled) setSkillCount(result?.skills?.length ?? 0);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [active.id, viewMode]);
+
   const environment: ToolEnvironment = {
     webMode: effectiveSettings.webMode,
     codeExecution:
@@ -158,6 +181,7 @@ export default function AppShell({
     libraryReady: libraryReady && effectiveSettings.libraryEnabled,
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
+    hasSkills: skillCount > 0,
   };
 
   const runs = useAgentRuns({

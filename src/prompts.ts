@@ -2,6 +2,8 @@ import type { AppSettings } from "./types";
 import type { ToolEnvironment } from "./tools/registry";
 import { availableTools, describeToolsForPrompt } from "./tools/registry";
 import { renderMemory } from "./project/memory";
+import { describeSkills } from "./skills/skills";
+import type { InstalledSkill } from "./types";
 import type { ProjectMemory } from "./project/memory";
 
 export const BASE_PROMPT = `The assistant is Draggy, an AI assistant that runs entirely on the user's own computer.
@@ -204,6 +206,7 @@ export function buildSystemPrompt(
   mode: PromptMode,
   environment: ToolEnvironment,
   memory?: ProjectMemory | null,
+  skills: InstalledSkill[] = [],
 ) {
   const parts = [BASE_PROMPT, `Today's date: ${new Date().toLocaleDateString()}`];
 
@@ -228,6 +231,9 @@ export function buildSystemPrompt(
     (tool) => tool.group === "plan",
   );
   if (hasPlanTool) parts.push(PLAN_PROMPT);
+  const skillList = describeSkills(skills);
+  if (skillList) parts.push(skillList);
+
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
   if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 

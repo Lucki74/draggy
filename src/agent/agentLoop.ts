@@ -14,6 +14,7 @@ import {
 import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
+import { loadSkills } from "../skills/skills";
 import { renderCompactionBlock } from "./compaction";
 import {
   MAX_TOOL_LOOPS,
@@ -426,11 +427,16 @@ export async function runAgentTurn(
       ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
       : null;
 
+  const skills = environment.hasSkills
+    ? await loadSkills(request.workspaceId || "default")
+    : [];
+
   const systemPrompt = buildSystemPrompt(
     settings,
     { nativeTools, nativeThinking },
     environment,
     memory,
+    skills,
   );
   const definitions = toolDefinitions(environment);
 
