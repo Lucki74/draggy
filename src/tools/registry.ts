@@ -10,6 +10,7 @@ export type ToolGroup =
   | "library"
   | "plan"
   | "skill"
+  | "agent"
   | "external";
 
 export interface ToolParameter {
@@ -27,6 +28,11 @@ export interface ToolEnvironment {
   projectRoot?: string;
   /** Whether the user has written any skills down for this workspace. */
   hasSkills?: boolean;
+  /**
+   * Only tools that change nothing. Set for a nested exploration, which reads
+   * the project on the conversation's behalf and must not act on it.
+   */
+  readOnlyTools?: boolean;
 }
 
 export interface ToolContext {
@@ -38,6 +44,8 @@ export interface ToolContext {
   chatId?: string;
   /** The project folder, for the rules a folder deeper in may carry. */
   projectRoot?: string;
+  /** What this turn was given, for a tool that starts a turn of its own. */
+  environment?: ToolEnvironment;
   /** Where a plan the model writes goes. */
   onPlan?: (items: PlanItem[]) => void;
   pushStep: (step: SearchStep) => void;
@@ -129,9 +137,14 @@ export function allToolNames(): string[] {
 }
 
 export function availableTools(environment: ToolEnvironment): ToolSpec[] {
-  return allTools().filter(
-    (spec) => !spec.available || spec.available(environment),
-  );
+  return allTools().filter((spec) => {
+    // A read-only run gets the tools that say so and nothing else: an
+    // annotation missing is treated as "not safe", which is the cautious way
+    // round.
+    if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
+
+    return !spec.available || spec.available(environment);
+  });
 }
 
 export function annotationsFor(name: string): ToolAnnotations {

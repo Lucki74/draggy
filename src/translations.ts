@@ -15,6 +15,8 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    exploring: "Looking up",
+    explored: "Looked up",
     extensionServers: "Servers",
     extensionRemote: "Remote",
     extensionSkills: "Skills",
@@ -309,6 +311,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    exploring: "Recherche de",
+    explored: "Trouvé",
     extensionServers: "Serveurs",
     extensionRemote: "À distance",
     extensionSkills: "Compétences",
@@ -603,6 +607,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    exploring: "Buscando",
+    explored: "Encontrado",
     extensionServers: "Servidores",
     extensionRemote: "Remoto",
     extensionSkills: "Habilidades",
@@ -897,6 +903,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    exploring: "Sucht nach",
+    explored: "Gefunden",
     extensionServers: "Server",
     extensionRemote: "Extern",
     extensionSkills: "Fähigkeiten",
@@ -1191,6 +1199,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    exploring: "Cerca",
+    explored: "Trovato",
     extensionServers: "Server",
     extensionRemote: "Remoto",
     extensionSkills: "Competenze",
@@ -1485,6 +1495,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    exploring: "A procurar",
+    explored: "Encontrado",
     extensionServers: "Servidores",
     extensionRemote: "Remoto",
     extensionSkills: "Competências",
@@ -1779,6 +1791,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    exploring: "Zoekt naar",
+    explored: "Gevonden",
     extensionServers: "Servers",
     extensionRemote: "Extern",
     extensionSkills: "Vaardigheden",
@@ -2073,6 +2087,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    exploring: "Ищет",
+    explored: "Найдено",
     extensionServers: "Серверы",
     extensionRemote: "Удалённые",
     extensionSkills: "Навыки",
@@ -2367,6 +2383,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    exploring: "正在查找",
+    explored: "已查到",
     extensionServers: "服务器",
     extensionRemote: "远程",
     extensionSkills: "技能",
@@ -2661,6 +2679,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    exploring: "調べています",
+    explored: "調べました",
     extensionServers: "サーバー",
     extensionRemote: "リモート",
     extensionSkills: "スキル",
@@ -2955,6 +2975,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    exploring: "찾는 중",
+    explored: "찾음",
     extensionServers: "서버",
     extensionRemote: "원격",
     extensionSkills: "스킬",
@@ -3249,6 +3271,8 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    exploring: "يبحث عن",
+    explored: "تم العثور",
     extensionServers: "الخوادم",
     extensionRemote: "عن بُعد",
     extensionSkills: "المهارات",

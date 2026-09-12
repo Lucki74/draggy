@@ -262,6 +262,7 @@ export async function runAgentTurn(
     workspaceId: request.workspaceId,
     chatId: request.chatId,
     projectRoot: environment.projectRoot,
+    environment,
     // The model knows what it just wrote, so a plan it sets itself is not an
     // edit to be told about on the next pass.
     onPlan: (items) => {
