@@ -1,0 +1,384 @@
+import { useCallback, useEffect, useState } from "react";
+import { Plus, MessageSquare, Settings, AudioLines, FolderOpen } from "lucide-react";
+import ChatScreen from "../ChatScreen";
+import SettingsPage from "../SettingsPage";
+import type { SettingsTab } from "../SettingsPage";
+import ChatHistory from "../ChatHistory";
+import TalkScreen from "../TalkScreen";
+import CreatedFiles from "../CreatedFiles";
+import { useTranslator } from "../i18n";
+import { generateId } from "../utils";
+import { chatToMarkdown, exportFilename } from "../chat/export";
+import { unregisterGroup } from "../tools/registry";
+import type { ToolEnvironment } from "../tools/registry";
+import { syncMcpTools } from "../tools/mcp";
+import { useSessions } from "./useSessions";
+import { useAgentRuns } from "./useAgentRuns";
+import { useUpdateDialog } from "./useUpdateDialog";
+import type { AppSettings } from "../types";
+
+export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
+
+interface AppShellProps {
+  model: string;
+  settings: AppSettings;
+  onUpdateSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  onSelectModel: (name: string) => void;
+}
+
+/**
+ * The window around the screens: the sidebar, whichever surface is showing,
+ * and the two things that can interrupt any of them (a finished update, and a
+ * conversation that could not be saved).
+ */
+export default function AppShell({
+  model,
+  settings,
+  onUpdateSettings,
+  onSelectModel,
+}: AppShellProps) {
+  const t = useTranslator(settings.language);
+
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  /** The id an untouched first conversation gets, before anything is saved. */
+  const [blankChatId] = useState(generateId);
+  const [openedAt] = useState(() => Date.now());
+  const [viewMode, setViewMode] = useState<ViewMode>("chat");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
+  const [libraryReady, setLibraryReady] = useState(false);
+
+  const store = useSessions();
+  const update = useUpdateDialog();
+
+  const openSettings = useCallback((tab: SettingsTab) => {
+    setSettingsTab(tab);
+    setViewMode("settings");
+  }, []);
+
+  // MCP servers start after the window is up: `npx` may fetch a package, and
+  // none of those tools are needed until the first message is sent.
+  useEffect(() => {
+    if (!window.electronAPI?.mcp) return;
+
+    const api = window.electronAPI.mcp;
+
+    const call = (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ) => api.call(serverId, toolName, args);
+
+    const stopWatching = api.onState((state) => syncMcpTools(state.servers, call));
+
+    api
+      .startEnabled()
+      .then((result) => syncMcpTools(result.servers ?? [], call))
+      .catch(() => undefined);
+
+    return () => {
+      stopWatching();
+      unregisterGroup("external");
+    };
+  }, []);
+
+  const refreshLibraryReadiness = useCallback(() => {
+    const library = window.electronAPI?.library;
+
+    // No state write on this path: the environment below already ANDs with the
+    // setting, and a synchronous write here would cascade out of the effect.
+    if (!settings.libraryEnabled || !library) return;
+
+    library
+      .stats()
+      .then((result) => setLibraryReady(Boolean(result?.stats && result.stats.chunks > 0)))
+      .catch(() => setLibraryReady(false));
+  }, [settings.libraryEnabled]);
+
+  useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
+
+  const environment: ToolEnvironment = {
+    webMode: settings.webMode,
+    codeExecution: settings.codeExecution && Boolean(window.electronAPI?.runner),
+    libraryReady: libraryReady && settings.libraryEnabled,
+  };
+
+  const runs = useAgentRuns({
+    model,
+    settings,
+    environment,
+    t,
+    getSession: store.getSession,
+    addSession: store.addSession,
+    updateSession: store.updateSession,
+    patchActiveMessage: store.patchActiveMessage,
+  });
+
+  /**
+   * Writes the conversation into the app's own files folder, the same place
+   * the model puts what it makes, and shows it.
+   */
+  const handleExportChat = useCallback(
+    async (event: React.MouseEvent, chatId: string) => {
+      event.stopPropagation();
+
+      const chat = store.getSession(chatId);
+      if (!chat || !window.electronAPI) return;
+
+      const markdown = chatToMarkdown(chat, { assistantName: model || "Assistant" });
+      const result = await window.electronAPI.createFile(
+        exportFilename(chat),
+        markdown,
+      );
+
+      if (result?.success && result.filepath) {
+        window.electronAPI.revealCreatedFile(result.filepath);
+      } else {
+        store.setStorageWarning(result?.error || t("chatExportFailed"));
+      }
+    },
+    [model, t, store],
+  );
+
+  const handleDeleteChat = useCallback(
+    (e: React.MouseEvent, chatId: string) => {
+      e.stopPropagation();
+      runs.stop(chatId);
+      store.deleteSession(chatId);
+      // Back to no choice, which reads as the most recent conversation left.
+      setSelectedChatId((current) => (current === chatId ? null : current));
+    },
+    [runs, store],
+  );
+
+  const handleNewChat = useCallback(() => {
+    setSelectedChatId(generateId());
+    setViewMode("chat");
+  }, []);
+
+  const selectChat = useCallback((id: string) => {
+    setSelectedChatId(id);
+    setViewMode("chat");
+  }, []);
+
+  const handleClearChats = useCallback(() => {
+    runs.stopAll();
+    store.clearSessions();
+    setSelectedChatId(null);
+  }, [runs, store]);
+
+  /**
+   * What the chat screen is showing: the user's choice, or the conversation
+   * they left off in, or an empty one. Derived rather than restored in an
+   * effect, which would paint once with nothing before correcting itself.
+   */
+  const currentChatId = store.hydrated
+    ? (selectedChatId ?? store.sessions[0]?.id ?? blankChatId)
+    : selectedChatId;
+
+  // Stable identities so MessageItem's memo() actually skips unchanged
+  // messages; an inline arrow would hand each a new prop on every render.
+  const onRegenerateChat = useCallback(
+    (idx: number) => {
+      if (currentChatId) runs.regenerate(currentChatId, idx);
+    },
+    [currentChatId, runs],
+  );
+  const onSwitchVersionChat = useCallback(
+    (mIdx: number, vIdx: number) => {
+      if (currentChatId) runs.switchVersion(currentChatId, mIdx, vIdx);
+    },
+    [currentChatId, runs],
+  );
+  const onEditMessageChat = useCallback(
+    (mIdx: number, content: string) => {
+      if (currentChatId) runs.editMessage(currentChatId, mIdx, content);
+    },
+    [currentChatId, runs],
+  );
+
+  const currentSession = store.sessions.find((s) => s.id === currentChatId);
+
+  return (
+    <div
+      className="w-screen h-screen overflow-hidden flex transition-colors duration-300"
+      style={{ backgroundColor: "var(--bg-base)", color: "var(--text-main)" }}
+    >
+      {update.ready !== null && !update.dismissed && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="update-ready-title"
+        >
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-6 shadow-xl">
+            <h2
+              id="update-ready-title"
+              className="text-base font-bold tracking-wide"
+            >
+              {t("updateReadyTitle")}
+            </h2>
+
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+              {update.ready
+                ? `${t("updateReadyBody")} (${update.ready})`
+                : t("updateReadyBody")}
+            </p>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => window.electronAPI?.updater.install()}
+                className="flex-1 rounded-xl bg-[var(--bg-inverted)] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-inverted)] transition-opacity hover:opacity-90"
+              >
+                {t("updateInstallNow")}
+              </button>
+
+              <button
+                onClick={update.dismiss}
+                className="flex-1 rounded-xl border-[3px] border-[var(--border-light)] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] transition-colors hover:text-[var(--text-main)]"
+              >
+                {t("updateLater")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {store.storageWarning && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-4 py-3 rounded-xl border-[3px] border-red-500 bg-[var(--bg-panel)] shadow-lg"
+        >
+          <span className="text-xs font-bold text-red-500">{store.storageWarning}</span>
+          <button
+            onClick={() => store.setStorageWarning(null)}
+            className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          >
+            {t("dismiss")}
+          </button>
+        </div>
+      )}
+
+      <div
+        className="group w-[68px] hover:w-[260px] transition-all duration-300 relative z-50 h-full flex flex-col flex-shrink-0 overflow-hidden border-r-[3px]"
+        style={{
+          backgroundColor: "var(--bg-panel)",
+          borderColor: "var(--border-light)",
+        }}
+      >
+        <div className="w-[260px] h-full flex flex-col flex-shrink-0 relative">
+          <div className="pt-2 drag-region h-6 flex-shrink-0 w-full" />
+
+          <div className="flex flex-col gap-3 px-[14px] py-3 mt-0 no-drag">
+            <button onClick={handleNewChat} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+              <Plus className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("newDiscussion")}
+              </span>
+            </button>
+
+            <button onClick={() => setViewMode("history")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+              <MessageSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("chatHistory")}
+              </span>
+            </button>
+
+            <button onClick={() => setViewMode("files")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+              <FolderOpen className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("createdFiles")}
+              </span>
+            </button>
+
+            <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+              <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("talk")}
+              </span>
+              <span className="ml-2 px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("beta")}
+              </span>
+            </button>
+
+            <button onClick={() => openSettings("appearance")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+              <Settings className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {t("settings")}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {viewMode === "history" ? (
+          <ChatHistory
+            sessions={store.sessions}
+            onSelectChat={selectChat}
+            onDeleteChat={handleDeleteChat}
+            onExportChat={handleExportChat}
+            settings={settings}
+          />
+        ) : viewMode === "files" ? (
+          <CreatedFiles settings={settings} />
+        ) : viewMode === "talk" ? (
+          <TalkScreen settings={settings} />
+        ) : currentChatId ? (
+          <ChatScreen
+            model={model}
+            chat={
+              currentSession || {
+                id: currentChatId,
+                title: "New Chat",
+                messages: [],
+                updatedAt: openedAt,
+                isGenerating: false,
+              }
+            }
+            onSendMessage={(content, attachments) =>
+              runs.send(currentChatId, content, attachments)
+            }
+            onRegenerate={onRegenerateChat}
+            onSwitchVersion={onSwitchVersionChat}
+            onEditMessage={onEditMessageChat}
+            onStopGeneration={() => runs.stop(currentChatId)}
+            onContinueGeneration={() => runs.continueGeneration(currentChatId)}
+            onDismissOutOfContext={() => runs.dismissOutOfContext(currentChatId)}
+            onSelectModel={onSelectModel}
+            onOpenSettings={openSettings}
+            onNewChat={handleNewChat}
+            settings={settings}
+            onUpdateSettings={onUpdateSettings}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />
+        )}
+
+        {/*
+          Mounted for the life of the app rather than only while it is open. A
+          model download lives in this component, and unmounting it aborted the
+          pull the moment the user looked at anything else.
+        */}
+        <div
+          className={
+            viewMode === "settings"
+              ? // Opaque, or the chat's composer shows through underneath it.
+                "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)]"
+              : "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)] invisible pointer-events-none"
+          }
+          aria-hidden={viewMode !== "settings"}
+        >
+          <SettingsPage
+            settings={settings}
+            activeModel={model}
+            initialTab={settingsTab}
+            onUpdate={onUpdateSettings}
+            onSelectModel={onSelectModel}
+            onClearChats={handleClearChats}
+            onLibraryChange={refreshLibraryReadiness}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
