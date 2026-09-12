@@ -24,10 +24,25 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
-import { runTool, toolDefinitions } from "../tools/registry";
+import { annotationsFor, runTool, toolDefinitions } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
+import {
+  addGrant,
+  decide,
+  deniedByUser,
+  refusalFor,
+  targetFromArgs,
+} from "./permissions";
+import type { Grant } from "./permissions";
 import { generateId, isBinary, safeJsonParse } from "../utils";
-import type { AppSettings, CompactionState, Message, SearchStep } from "../types";
+import type {
+  AppSettings,
+  ApprovalAnswer,
+  CompactionState,
+  Message,
+  PermissionMode,
+  SearchStep,
+} from "../types";
 
 // Re-exported for the screens that warm the model with the same value.
 export { KEEP_ALIVE };
@@ -145,7 +160,21 @@ export interface AgentRequest {
   seed?: AgentSeed | null;
   /** The older part of this conversation, already folded into notes. */
   compaction?: CompactionState | null;
+  /**
+   * How much this turn may do on its own, and what the user has already
+   * allowed. Left out, the turn runs unguarded, which is what a plain chat with
+   * no folder of its own has always done.
+   */
+  permission?: { mode: PermissionMode; grants?: Grant[] };
   signal: AbortSignal;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  tool: string;
+  target: string | null;
+  /** Why this needs an answer, in the permission engine's words. */
+  reason: string;
 }
 
 export interface AgentPatch {
@@ -160,6 +189,13 @@ export interface AgentHost {
   onSteps: (steps: SearchStep[]) => void;
   onOutOfContext: (outOfContext: boolean) => void;
   onMetrics?: (metrics: GenerationMetrics | null) => void;
+  /**
+   * Puts a call to the user and waits. Without it a turn that needs an answer
+   * has no one to ask, and the call is refused rather than run unasked.
+   */
+  requestApproval?: (request: ApprovalRequest) => Promise<ApprovalAnswer>;
+  /** A permission the user wants kept for this workspace, not just this task. */
+  onGrant?: (grant: Grant) => void;
 }
 
 export interface AgentResult {
@@ -211,6 +247,81 @@ export async function runAgentTurn(
     signal,
     memo: new Map<string, unknown>(),
   };
+
+  const mode: PermissionMode = request.permission?.mode ?? "auto";
+  let grants: Grant[] = [...(request.permission?.grants ?? [])];
+
+  /**
+   * Every tool call goes through here. What the mode allows runs; what it
+   * forbids comes back as an ordinary tool result, because a model handed an
+   * exception stops working while a model handed a refusal carries on.
+   */
+  async function runGuardedTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<string> {
+    const target = targetFromArgs(args);
+    const verdict = decide({
+      mode,
+      tool: name,
+      annotations: annotationsFor(name),
+      target,
+      grants,
+    });
+
+    if (verdict.decision === "allow") {
+      return runTool(name, args, toolContext, environment);
+    }
+
+    const stepId = generateId();
+
+    if (verdict.decision === "deny") {
+      pushStep({
+        id: stepId,
+        type: "approval",
+        content: host.t("toolRefused"),
+        isComplete: true,
+        answer: "no",
+        approval: { id: stepId, tool: name, target, reason: verdict.reason },
+      });
+      return refusalFor(name, verdict);
+    }
+
+    // Nobody to ask, or the user has already stopped the turn.
+    if (!host.requestApproval || signal.aborted) {
+      return refusalFor(name, verdict);
+    }
+
+    pushStep({
+      id: stepId,
+      type: "approval",
+      content: host.t("approvalNeeded"),
+      isComplete: false,
+      approval: { id: stepId, tool: name, target, reason: verdict.reason },
+    });
+
+    const answer = await host.requestApproval({
+      id: stepId,
+      tool: name,
+      target,
+      reason: verdict.reason,
+    });
+
+    patchStep(stepId, { answer, isComplete: true });
+    syncSteps();
+
+    if (answer === "no") return deniedByUser(name);
+
+    const grant: Grant = { tool: name, ...(target ? { target } : {}) };
+
+    // "once" leaves nothing behind: the next call of the same tool asks again.
+    if (answer === "task" || answer === "workspace") {
+      grants = addGrant(grants, grant);
+    }
+    if (answer === "workspace") host.onGrant?.(grant);
+
+    return runTool(name, args, toolContext, environment);
+  }
 
   const info = await getModelInfo(model);
   noteModelInUse(model);
@@ -630,11 +741,9 @@ ${currentTimeNote()}`,
         wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
 
         for (const call of pendingCalls) {
-          const result = await runTool(
+          const result = await runGuardedTool(
             call.function?.name || "",
             call.function?.arguments || {},
-            toolContext,
-            environment,
           );
           wire.push({
             role: "tool",
@@ -645,7 +754,7 @@ ${currentTimeNote()}`,
       } else {
         wire.push({ role: "assistant", content: rawChunk, ...kept });
         const { name, args } = parseToolCall(toolMatch as string);
-        const result = await runTool(name || "", args || {}, toolContext, environment);
+        const result = await runGuardedTool(name || "", args || {});
         wire.push({ role: "user", content: result });
       }
     } finally {

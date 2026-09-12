@@ -1,4 +1,5 @@
 import type { AppSettings, SearchStep } from "../types";
+import type { ToolAnnotations } from "../agent/permissions";
 
 export type ToolGroup = "web" | "browser" | "files" | "code" | "library" | "external";
 
@@ -35,6 +36,12 @@ export interface ToolSpec {
   parameters: Record<string, ToolParameter>;
   required: string[];
   usage: string;
+  /**
+   * What this tool can do to the world, which is what the permission engine
+   * decides on. Every tool declares it; a missing one is treated as the most
+   * cautious reading, so forgetting it costs a prompt rather than a mistake.
+   */
+  annotations?: ToolAnnotations;
   available?: (environment: ToolEnvironment) => boolean;
   run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
 }
@@ -102,6 +109,10 @@ export function availableTools(environment: ToolEnvironment): ToolSpec[] {
   return allTools().filter(
     (spec) => !spec.available || spec.available(environment),
   );
+}
+
+export function annotationsFor(name: string): ToolAnnotations {
+  return registry.get(name)?.annotations ?? {};
 }
 
 export function isBrowsingTool(name: string): boolean {

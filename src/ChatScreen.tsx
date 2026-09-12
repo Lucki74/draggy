@@ -107,6 +107,7 @@ const MODEL_CAPABILITIES = [
 
 
 import type {
+  ApprovalAnswer,
   ChatSession,
   AppSettings,
   Attachment,
@@ -127,6 +128,8 @@ interface ChatScreenProps {
   onNewChat: () => void;
   settings: AppSettings;
   onUpdateSettings: (settings: AppSettings) => void;
+  /** Answers a tool call the model is waiting on the user for. */
+  onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
 }
 
 export default function ChatScreen({
@@ -144,6 +147,7 @@ export default function ChatScreen({
   onNewChat,
   settings,
   onUpdateSettings,
+  onApproval,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -711,6 +715,7 @@ export default function ChatScreen({
               copyToClipboard={copyToClipboard}
               settings={settings}
               onEditMessage={onEditMessage}
+              onApproval={onApproval}
             />
           </ErrorBoundary>
         ))}

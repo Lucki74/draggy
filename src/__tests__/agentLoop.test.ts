@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
-import type { AgentHost } from "../agent/agentLoop";
+import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
+import type { Grant } from "../agent/permissions";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
 import type {
+  ApprovalAnswer,
   AppSettings,
   CompactionState,
+  PermissionMode,
   Message,
   SearchStep,
   TurnMetrics,
@@ -1292,5 +1295,167 @@ describe("carrying a folded conversation", () => {
     const wire = body.messages.map((entry) => entry.content).join(" | ");
 
     expect(wire).toContain("first answer");
+  });
+});
+
+describe("asking the user before a tool runs", () => {
+  function guarded(
+    mode: PermissionMode,
+    answer: ApprovalAnswer,
+    { grants = [], turns = 1 }: { grants?: Grant[]; turns?: number } = {},
+  ) {
+    const call = {
+      toolCalls: [
+        { function: { name: "search_web", arguments: { query: "paris" } } },
+      ],
+    };
+
+    const { requests } = installFetch(
+      [...Array.from({ length: turns }, () => call), { content: ["Done."] }],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const asked: ApprovalRequest[] = [];
+    const granted: Grant[] = [];
+
+    const host: AgentHost = {
+      ...base.host,
+      requestApproval: async (request) => {
+        asked.push(request);
+        return answer;
+      },
+      onGrant: (grant) => {
+        granted.push(grant);
+      },
+    };
+
+    const promise = runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("where is Paris")],
+        permission: { mode, grants },
+        signal: new AbortController().signal,
+      },
+      host,
+    );
+
+    return { promise, asked, granted, requests, steps: () => base.steps };
+  }
+
+  it("asks before a tool it has no reason to trust", async () => {
+    const { promise, asked } = guarded("ask", "once");
+    await promise;
+
+    expect(asked).toHaveLength(1);
+    expect(asked[0].tool).toBe("search_web");
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("does not run it when the user says no", async () => {
+    const { promise, requests } = guarded("ask", "no");
+    await promise;
+
+    expect(toolCalls).toHaveLength(0);
+
+    // The turn carries on: the model is told, in the shape a tool answers in.
+    const secondTurn = requests[1] as { messages: { content: string }[] };
+    const last = secondTurn.messages[secondTurn.messages.length - 1];
+    expect(last.content).toMatch(/declined/i);
+  });
+
+  it("shows the answer in the timeline either way", async () => {
+    const { promise, steps } = guarded("ask", "no");
+    await promise;
+
+    const approval = steps().find((step) => step.type === "approval");
+    expect(approval?.answer).toBe("no");
+    expect(approval?.approval?.tool).toBe("search_web");
+  });
+
+  it("stops asking for the rest of the task once allowed", async () => {
+    const { promise, asked } = guarded("ask", "task", { turns: 2 });
+    await promise;
+
+    expect(asked).toHaveLength(1);
+    expect(toolCalls).toHaveLength(2);
+  });
+
+  it("asks again for the next call when allowed only once", async () => {
+    const { promise, asked } = guarded("ask", "once", { turns: 2 });
+    await promise;
+
+    expect(asked).toHaveLength(2);
+    expect(toolCalls).toHaveLength(2);
+  });
+
+  it("hands a lasting permission back to be kept", async () => {
+    const { promise, granted } = guarded("ask", "workspace");
+    await promise;
+
+    expect(granted).toEqual([{ tool: "search_web" }]);
+  });
+
+  it("does not ask when the user has already allowed it", async () => {
+    const { promise, asked } = guarded("ask", "no", {
+      grants: [{ tool: "search_web" }],
+    });
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("does not ask when the workspace runs without asking", async () => {
+    const { promise, asked } = guarded("auto", "no");
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("refuses in plan mode without asking anyone", async () => {
+    const { promise, asked, requests, steps } = guarded("plan", "once");
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(0);
+    expect(steps().find((step) => step.type === "approval")?.answer).toBe("no");
+
+    const secondTurn = requests[1] as { messages: { content: string }[] };
+    const last = secondTurn.messages[secondTurn.messages.length - 1];
+    expect(last.content).toMatch(/plan mode/i);
+  });
+
+  it("refuses rather than running unasked when there is nobody to ask", async () => {
+    installFetch(
+      [
+        {
+          toolCalls: [
+            { function: { name: "search_web", arguments: { query: "paris" } } },
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const base = makeHost();
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("where is Paris")],
+        permission: { mode: "ask", grants: [] },
+        signal: new AbortController().signal,
+      },
+      base.host,
+    );
+
+    expect(toolCalls).toHaveLength(0);
   });
 });

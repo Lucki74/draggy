@@ -1,15 +1,25 @@
 import { registerTools, unregisterGroup } from "./registry";
 import type { ToolParameter, ToolSpec } from "./registry";
+import type { ToolAnnotations } from "../agent/permissions";
 
 /**
  * Turns an MCP server's tools into tools Draggy can call. The registry already
  * had an unused "external" group, so this side is only a translation.
  */
 
+/** The hints a server may attach to a tool, straight from the MCP schema. */
+export interface McpToolHints {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface McpToolDescription {
   name: string;
   qualifiedName: string;
   description: string;
+  annotations?: McpToolHints;
   inputSchema: {
     type?: string;
     properties?: Record<
@@ -56,6 +66,22 @@ function toParameter(schema: {
   return { type, description: `${described}${options}${shape}`.trim() || "No description." };
 }
 
+/**
+ * A server's hints, read the way the MCP specification defines them: a tool
+ * that says nothing is assumed to change things and to be able to lose them,
+ * because the alternative is trusting silence.
+ */
+export function toAnnotations(hints?: McpToolHints): ToolAnnotations {
+  const readOnly = hints?.readOnlyHint === true;
+
+  return {
+    readOnly,
+    destructive: readOnly ? false : hints?.destructiveHint !== false,
+    idempotent: hints?.idempotentHint === true,
+    openWorld: hints?.openWorldHint !== false,
+  };
+}
+
 export function describeMcpTool(
   serverId: string,
   tool: McpToolDescription,
@@ -82,6 +108,7 @@ export function describeMcpTool(
     description: summary,
     parameters,
     required,
+    annotations: toAnnotations(tool.annotations),
     usage: `${JSON.stringify(
       Object.fromEntries(required.map((key) => [key, "..."])),
     )} → ${summary}`,

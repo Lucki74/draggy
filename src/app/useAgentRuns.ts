@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createTaskManager } from "../agent/taskManager";
 import type { TaskHost, TaskManager } from "../agent/taskManager";
 import type { ToolEnvironment } from "../tools/registry";
+import type { Grant } from "../agent/permissions";
 import type {
+  ApprovalAnswer,
   AppSettings,
   Attachment,
   ChatSession,
   MessageVersion,
+  PermissionMode,
 } from "../types";
 
 interface AgentRunsInput {
@@ -14,6 +17,9 @@ interface AgentRunsInput {
   settings: AppSettings;
   environment: ToolEnvironment;
   workspaceId: string;
+  permission: { mode: PermissionMode; grants: Grant[] };
+  /** Keeps a permission for the workspace, past the task that asked for it. */
+  onGrant: (grant: Grant) => void;
   t: (key: string) => string;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
@@ -41,6 +47,7 @@ export interface AgentRuns {
   ) => void;
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
+  answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   stop: (chatId: string) => void;
   stopAll: () => void;
 }
@@ -56,6 +63,8 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     getSettings: () => input.settings,
     getEnvironment: () => input.environment,
     getWorkspaceId: () => input.workspaceId,
+    getPermission: () => input.permission,
+    onGrant: (grant) => input.onGrant(grant),
     getSession: input.getSession,
     addSession: input.addSession,
     updateSession: input.updateSession,
@@ -80,6 +89,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       switchVersion: manager.switchVersion,
       continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
+      answerApproval: manager.answerApproval,
       stop: manager.stop,
       stopAll: manager.stopAll,
     }),

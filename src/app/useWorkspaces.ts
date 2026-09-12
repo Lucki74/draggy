@@ -4,6 +4,8 @@ import {
   createProject,
   fallbackWorkspace,
 } from "../workspaces";
+import { addGrant as withGrant } from "../agent/permissions";
+import type { Grant } from "../agent/permissions";
 import { writeLocalStorage } from "../utils";
 import type { Workspace } from "../types";
 
@@ -18,6 +20,8 @@ export interface WorkspaceStore {
   /** Removes a project. Its conversations move back to the default workspace. */
   remove: (id: string) => Promise<{ moved: number }>;
   rename: (id: string, name: string) => Promise<void>;
+  /** Keeps a permission the user granted for good, on the open workspace. */
+  addGrant: (grant: Grant) => void;
 }
 
 /**
@@ -114,5 +118,21 @@ export function useWorkspaces(): WorkspaceStore {
     workspaces[0] ??
     fallbackWorkspace();
 
-  return { workspaces, active, select, addProject, remove, rename };
+  const addGrant = useCallback(
+    (grant: Grant) => {
+      const next: Workspace = {
+        ...active,
+        grants: withGrant(active.grants, grant),
+      };
+
+      setWorkspaces((prev) =>
+        prev.map((one) => (one.id === next.id ? next : one)),
+      );
+
+      void window.electronAPI?.workspaces?.save(next).catch(() => undefined);
+    },
+    [active],
+  );
+
+  return { workspaces, active, select, addProject, remove, rename, addGrant };
 }

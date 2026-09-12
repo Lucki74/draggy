@@ -8,12 +8,15 @@ import {
 } from "./compaction";
 import { runAgentTurn } from "./agentLoop";
 import type { ToolEnvironment } from "../tools/registry";
+import type { Grant } from "./permissions";
 import type {
+  ApprovalAnswer,
   AppSettings,
   Attachment,
   ChatSession,
   Message,
   MessageVersion,
+  PermissionMode,
   SearchStep,
   TurnMetrics,
 } from "../types";
@@ -31,6 +34,10 @@ export interface TaskHost {
   getEnvironment: () => ToolEnvironment;
   /** The workspace a conversation started now belongs to. */
   getWorkspaceId: () => string;
+  /** How much a turn may do here, and what the user has already allowed. */
+  getPermission: () => { mode: PermissionMode; grants: Grant[] };
+  /** A permission to keep for this workspace, beyond the task that asked. */
+  onGrant: (grant: Grant) => void;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -74,6 +81,8 @@ export interface TaskManager {
   ) => void;
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
+  /** The user's answer to a call that was waiting on them. */
+  answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   stop: (chatId: string) => void;
   stopAll: () => void;
   isRunning: (chatId: string) => boolean;
@@ -87,6 +96,32 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   const runs = new Map<string, AbortController>();
   const folds = new Map<string, AbortController>();
   const listeners = new Set<(running: string[]) => void>();
+
+  /**
+   * Calls waiting on the user. A turn is parked inside `runAgentTurn` until one
+   * of these is answered, so stopping a conversation has to answer them too or
+   * the turn never ends.
+   */
+  const waiting = new Map<
+    string,
+    { chatId: string; answer: (answer: ApprovalAnswer) => void }
+  >();
+
+  function answerApproval(approvalId: string, answer: ApprovalAnswer) {
+    const pending = waiting.get(approvalId);
+    if (!pending) return;
+
+    waiting.delete(approvalId);
+    pending.answer(answer);
+  }
+
+  function refuseWaiting(chatId: string) {
+    for (const [id, pending] of [...waiting]) {
+      if (pending.chatId !== chatId) continue;
+      waiting.delete(id);
+      pending.answer("no");
+    }
+  }
 
   /**
    * Cached rather than rebuilt per call: this is what a subscriber compares
@@ -252,10 +287,16 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           isContinuation: Boolean(options.isContinuation),
           seed,
           compaction: host.getSession(chatId)?.compaction,
+          permission: host.getPermission(),
           signal: controller.signal,
         },
         {
           t: host.t,
+          requestApproval: (approval) =>
+            new Promise<ApprovalAnswer>((resolve) => {
+              waiting.set(approval.id, { chatId, answer: resolve });
+            }),
+          onGrant: (grant) => host.onGrant(grant),
           onSteps: (steps: SearchStep[]) =>
             host.patchActiveMessage(chatId, { steps }),
           onPatch: (patch) =>
@@ -427,6 +468,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   function stop(chatId: string) {
+    // A turn parked on a question cannot notice the abort until the question is
+    // answered, so stopping answers it.
+    refuseWaiting(chatId);
+
     const controller = runs.get(chatId);
     if (controller) {
       controller.abort();
@@ -441,6 +486,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   function stopAll() {
+    for (const chatId of runs.keys()) refuseWaiting(chatId);
     for (const controller of runs.values()) controller.abort();
     runs.clear();
     for (const controller of folds.values()) controller.abort();
@@ -459,6 +505,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     switchVersion,
     continueGeneration,
     dismissOutOfContext,
+    answerApproval,
     stop,
     stopAll,
     isRunning: (chatId: string) => runs.has(chatId),

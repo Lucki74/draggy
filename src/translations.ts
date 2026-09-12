@@ -15,6 +15,14 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    approvalNeeded: "Needs your approval",
+    toolRefused: "Refused",
+    allowOnce: "Allow once",
+    allowForTask: "Allow for this task",
+    allowAlways: "Always allow here",
+    approvalNo: "Don't",
+    approvalAllowed: "Allowed",
+    approvalDeclined: "Declined",
     workspaces: "Workspaces",
     defaultWorkspace: "Chats",
     newProject: "New project",
@@ -257,6 +265,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
+    approvalNeeded: "Demande votre accord",
+    toolRefused: "Refusé",
+    allowOnce: "Autoriser une fois",
+    allowForTask: "Autoriser pour cette tâche",
+    allowAlways: "Toujours autoriser ici",
+    approvalNo: "Non",
+    approvalAllowed: "Autorisé",
+    approvalDeclined: "Refusé",
     workspaces: "Espaces",
     defaultWorkspace: "Discussions",
     newProject: "Nouveau projet",
@@ -499,6 +515,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
+    approvalNeeded: "Necesita tu permiso",
+    toolRefused: "Rechazado",
+    allowOnce: "Permitir una vez",
+    allowForTask: "Permitir en esta tarea",
+    allowAlways: "Permitir siempre aquí",
+    approvalNo: "No",
+    approvalAllowed: "Permitido",
+    approvalDeclined: "Rechazado",
     workspaces: "Espacios",
     defaultWorkspace: "Chats",
     newProject: "Nuevo proyecto",
@@ -741,6 +765,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
+    approvalNeeded: "Braucht deine Zustimmung",
+    toolRefused: "Abgelehnt",
+    allowOnce: "Einmal erlauben",
+    allowForTask: "Für diese Aufgabe erlauben",
+    allowAlways: "Hier immer erlauben",
+    approvalNo: "Nein",
+    approvalAllowed: "Erlaubt",
+    approvalDeclined: "Abgelehnt",
     workspaces: "Arbeitsbereiche",
     defaultWorkspace: "Unterhaltungen",
     newProject: "Neues Projekt",
@@ -983,6 +1015,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
+    approvalNeeded: "Richiede la tua approvazione",
+    toolRefused: "Rifiutato",
+    allowOnce: "Consenti una volta",
+    allowForTask: "Consenti per questa attività",
+    allowAlways: "Consenti sempre qui",
+    approvalNo: "No",
+    approvalAllowed: "Consentito",
+    approvalDeclined: "Rifiutato",
     workspaces: "Spazi",
     defaultWorkspace: "Conversazioni",
     newProject: "Nuovo progetto",
@@ -1225,6 +1265,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
+    approvalNeeded: "Precisa da sua aprovação",
+    toolRefused: "Recusado",
+    allowOnce: "Permitir uma vez",
+    allowForTask: "Permitir nesta tarefa",
+    allowAlways: "Permitir sempre aqui",
+    approvalNo: "Não",
+    approvalAllowed: "Permitido",
+    approvalDeclined: "Recusado",
     workspaces: "Espaços",
     defaultWorkspace: "Conversas",
     newProject: "Novo projeto",
@@ -1467,6 +1515,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
+    approvalNeeded: "Heeft je goedkeuring nodig",
+    toolRefused: "Geweigerd",
+    allowOnce: "Eén keer toestaan",
+    allowForTask: "Toestaan voor deze taak",
+    allowAlways: "Hier altijd toestaan",
+    approvalNo: "Nee",
+    approvalAllowed: "Toegestaan",
+    approvalDeclined: "Geweigerd",
     workspaces: "Werkruimtes",
     defaultWorkspace: "Gesprekken",
     newProject: "Nieuw project",
@@ -1709,6 +1765,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
+    approvalNeeded: "Нужно ваше разрешение",
+    toolRefused: "Отклонено",
+    allowOnce: "Разрешить один раз",
+    allowForTask: "Разрешить для этой задачи",
+    allowAlways: "Всегда разрешать здесь",
+    approvalNo: "Нет",
+    approvalAllowed: "Разрешено",
+    approvalDeclined: "Отклонено",
     workspaces: "Пространства",
     defaultWorkspace: "Чаты",
     newProject: "Новый проект",
@@ -1951,6 +2015,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
+    approvalNeeded: "需要你的许可",
+    toolRefused: "已拒绝",
+    allowOnce: "允许一次",
+    allowForTask: "本次任务允许",
+    allowAlways: "在此始终允许",
+    approvalNo: "不允许",
+    approvalAllowed: "已允许",
+    approvalDeclined: "已拒绝",
     workspaces: "工作区",
     defaultWorkspace: "对话",
     newProject: "新建项目",
@@ -2193,6 +2265,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
+    approvalNeeded: "許可が必要です",
+    toolRefused: "拒否しました",
+    allowOnce: "一度だけ許可",
+    allowForTask: "このタスクで許可",
+    allowAlways: "ここでは常に許可",
+    approvalNo: "許可しない",
+    approvalAllowed: "許可しました",
+    approvalDeclined: "拒否しました",
     workspaces: "ワークスペース",
     defaultWorkspace: "チャット",
     newProject: "新しいプロジェクト",
@@ -2435,6 +2515,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
+    approvalNeeded: "승인이 필요합니다",
+    toolRefused: "거부됨",
+    allowOnce: "한 번만 허용",
+    allowForTask: "이 작업에서 허용",
+    allowAlways: "여기서 항상 허용",
+    approvalNo: "허용 안 함",
+    approvalAllowed: "허용됨",
+    approvalDeclined: "거부됨",
     workspaces: "작업 공간",
     defaultWorkspace: "채팅",
     newProject: "새 프로젝트",
@@ -2677,6 +2765,14 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
+    approvalNeeded: "يحتاج إلى موافقتك",
+    toolRefused: "مرفوض",
+    allowOnce: "السماح مرة واحدة",
+    allowForTask: "السماح لهذه المهمة",
+    allowAlways: "السماح دائمًا هنا",
+    approvalNo: "لا",
+    approvalAllowed: "مسموح",
+    approvalDeclined: "مرفوض",
     workspaces: "مساحات العمل",
     defaultWorkspace: "المحادثات",
     newProject: "مشروع جديد",

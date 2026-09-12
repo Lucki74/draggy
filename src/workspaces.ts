@@ -17,8 +17,10 @@ export function fallbackWorkspace(): Workspace {
     name: "",
     kind: "chat",
     rootPath: null,
-    permissionMode: "ask",
+    // What 1.x did, and a plain chat has nothing of the user's to reach for.
+    permissionMode: "auto",
     settings: {},
+    grants: [],
     createdAt: 0,
     updatedAt: 0,
   };
@@ -36,6 +38,7 @@ export function createProject(name: string, rootPath: string): Workspace {
     // happens outside it, and anything destructive, is still asked about.
     permissionMode: "acceptEdits",
     settings: {},
+    grants: [],
     createdAt: now,
     updatedAt: now,
   };

@@ -30,6 +30,7 @@ function normaliseQuery(query: string): string {
 
 const searchWeb: ToolSpec = {
   name: "search_web",
+  annotations: { readOnly: true, idempotent: true, openWorld: true },
   group: "web",
   description:
     "Search the web and return a list of results with titles, URLs and snippets.",
@@ -131,6 +132,7 @@ Read the most relevant URL(s) with read_url when you need the full text. If you 
 
 const readUrl: ToolSpec = {
   name: "read_url",
+  annotations: { readOnly: true, idempotent: true, openWorld: true },
   group: "web",
   description: "Read the readable text content of a web page.",
   parameters: {
@@ -200,6 +202,7 @@ const readUrl: ToolSpec = {
 
 const browserNavigate: ToolSpec = {
   name: "browser_navigate",
+  annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description:
     "Open a URL in an interactive browser session that keeps its state between calls.",
@@ -240,6 +243,7 @@ const browserNavigate: ToolSpec = {
 
 const browserGetElements: ToolSpec = {
   name: "browser_get_elements",
+  annotations: { readOnly: true, sandboxed: true },
   group: "browser",
   description:
     "List the clickable elements, links and inputs on the current browser page with their index numbers.",
@@ -286,6 +290,7 @@ const browserGetElements: ToolSpec = {
 
 const browserClick: ToolSpec = {
   name: "browser_click",
+  annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Click an element on the current browser page by its index.",
   parameters: {
@@ -323,6 +328,7 @@ const browserClick: ToolSpec = {
 
 const browserType: ToolSpec = {
   name: "browser_type",
+  annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Type text into an input on the current browser page by its index.",
   parameters: {
@@ -357,6 +363,7 @@ const browserType: ToolSpec = {
 
 const browserPressKey: ToolSpec = {
   name: "browser_press_key",
+  annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Press a key in the browser session, such as Enter, Tab or Escape.",
   parameters: { key: { type: "string", description: "Key name to press." } },
@@ -375,6 +382,7 @@ const browserPressKey: ToolSpec = {
 
 const browserGetText: ToolSpec = {
   name: "browser_get_text",
+  annotations: { readOnly: true, sandboxed: true },
   group: "browser",
   description: "Read the text content of the current browser page.",
   parameters: {},
@@ -407,6 +415,7 @@ const browserGetText: ToolSpec = {
 
 const browserClose: ToolSpec = {
   name: "browser_close",
+  annotations: { sandboxed: true, idempotent: true },
   group: "browser",
   description: "Close the interactive browser session.",
   parameters: {},
@@ -422,6 +431,7 @@ const browserClose: ToolSpec = {
 
 const createFile: ToolSpec = {
   name: "create_file",
+  annotations: { sandboxed: true },
   group: "files",
   description: "Create a file for the user and save it to disk.",
   parameters: {
@@ -479,6 +489,7 @@ const createFile: ToolSpec = {
 
 const searchLibrary: ToolSpec = {
   name: "search_library",
+  annotations: { readOnly: true, idempotent: true },
   group: "library",
   description:
     "Search the user's own indexed documents and return the most relevant passages. Use this before searching the web whenever the question could be about the user's own files, notes or projects.",
@@ -562,6 +573,7 @@ const RUN_CODE_TIMEOUT_MS = 20000;
 
 const runCode: ToolSpec = {
   name: "run_code",
+  annotations: { sandboxed: true },
   group: "code",
   description:
     "Run a short Python or JavaScript program on this machine and return its output. Use it to check calculations and verify that code you wrote actually works before presenting it.",

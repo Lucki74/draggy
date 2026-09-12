@@ -43,7 +43,9 @@ import {
   REHYPE_PLUGINS,
   REMARK_PLUGINS,
 } from "./markdown";
+import ApprovalCard from "./ApprovalCard";
 import type {
+  ApprovalAnswer,
   AppSettings,
   Message,
   SearchStep,
@@ -378,6 +380,8 @@ interface MessageItemProps {
   copyToClipboard: (text: string, idx: number) => void;
   settings: AppSettings;
   onEditMessage: (messageIndex: number, newContent: string) => void;
+  /** Answers a tool call the model is waiting on the user for. */
+  onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
 }
 
 const MessageItem = memo(
@@ -392,6 +396,7 @@ const MessageItem = memo(
     copyToClipboard,
     settings,
     onEditMessage,
+    onApproval,
   }: MessageItemProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
@@ -682,6 +687,17 @@ const MessageItem = memo(
                             })}
                           </div>
                         </details>
+                      );
+                    }
+
+                    if (step.type === "approval") {
+                      return (
+                        <ApprovalCard
+                          key={step.id}
+                          step={step}
+                          t={t}
+                          onAnswer={onApproval}
+                        />
                       );
                     }
 

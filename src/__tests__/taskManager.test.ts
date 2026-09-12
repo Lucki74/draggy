@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentRequest, AgentResult } from "../agent/agentLoop";
+import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, MessageVersion } from "../types";
+import type { Grant } from "../agent/permissions";
 
 /**
  * Turns belong to a conversation, not to whatever is on screen. These are the
@@ -12,6 +13,7 @@ import type { AppSettings, ChatSession, MessageVersion } from "../types";
 const pending = vi.hoisted(() => {
   const turns: {
     request: AgentRequest;
+    host: AgentHost;
     resolve: (result: AgentResult) => void;
     reject: (error: Error) => void;
   }[] = [];
@@ -20,9 +22,9 @@ const pending = vi.hoisted(() => {
 
 vi.mock("../agent/agentLoop", () => ({
   KEEP_ALIVE: "30m",
-  runAgentTurn: (request: AgentRequest) =>
+  runAgentTurn: (request: AgentRequest, host: AgentHost) =>
     new Promise<AgentResult>((resolve, reject) => {
-      pending.push({ request, resolve, reject });
+      pending.push({ request, host, resolve, reject });
     }),
 }));
 
@@ -43,6 +45,7 @@ function finished(): AgentResult {
 
 function createHost(workspaceId = "default") {
   const sessions = new Map<string, ChatSession>();
+  const granted: Grant[] = [];
 
   const host: TaskHost = {
     getModel: () => "qwen3:8b",
@@ -53,6 +56,8 @@ function createHost(workspaceId = "default") {
       libraryReady: false,
     }),
     getWorkspaceId: () => workspaceId,
+    getPermission: () => ({ mode: "auto" as const, grants: [] }),
+    onGrant: (grant) => granted.push(grant),
     getSession: (chatId) => sessions.get(chatId),
     addSession: (session) => sessions.set(session.id, session),
     updateSession: (chatId, updater) => {
@@ -71,7 +76,7 @@ function createHost(workspaceId = "default") {
     t: (key) => key,
   };
 
-  return { sessions, host };
+  return { sessions, granted, host };
 }
 
 function seed(sessions: Map<string, ChatSession>, id: string): ChatSession {
@@ -244,5 +249,73 @@ describe("the task manager", () => {
 
     expect(second.sessions.get("chat-1")).toBeTruthy();
     expect(first.sessions.get("chat-1")).toBeUndefined();
+  });
+});
+
+describe("a turn waiting on the user", () => {
+  const ask = (chatId: string) =>
+    pending[pending.length - 1].host.requestApproval!({
+      id: `approval-${chatId}`,
+      tool: "write_file",
+      target: "C:\\projects\\thing\\notes.md",
+      reason: "This changes something outside Draggy.",
+    });
+
+  it("carries on with the answer the user gives", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write it");
+    const answered = ask("chat-1");
+
+    manager.answerApproval("approval-chat-1", "once");
+
+    expect(await answered).toBe("once");
+  });
+
+  it("is refused when the conversation is stopped", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write it");
+    const answered = ask("chat-1");
+
+    // Otherwise the turn sits on a question nobody is looking at any more.
+    manager.stop("chat-1");
+
+    expect(await answered).toBe("no");
+  });
+
+  it("is refused for every conversation when everything stops", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write it");
+    const first = ask("chat-1");
+    manager.send("chat-2", "write it too");
+    const second = ask("chat-2");
+
+    manager.stopAll();
+
+    expect(await first).toBe("no");
+    expect(await second).toBe("no");
+  });
+
+  it("ignores an answer to something nobody asked", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    expect(() => manager.answerApproval("not-a-real-id", "once")).not.toThrow();
+  });
+
+  it("keeps a lasting permission through the host", () => {
+    const { host, granted } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write it");
+    const turn = pending[pending.length - 1];
+    turn.host.onGrant!({ tool: "write_file", target: "C:\\projects" });
+
+    expect(granted).toEqual([{ tool: "write_file", target: "C:\\projects" }]);
   });
 });

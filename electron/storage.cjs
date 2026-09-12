@@ -27,6 +27,7 @@ const SCHEMA = `
     root_path       TEXT,
     permission_mode TEXT NOT NULL DEFAULT 'ask',
     settings        TEXT,
+    grants          TEXT,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL
   );
@@ -255,6 +256,7 @@ function init(userDataPath) {
     migrate();
     ensureColumn("chats", "compaction", "TEXT");
     ensureColumn("chats", "workspace_id", "TEXT");
+    ensureColumn("workspaces", "grants", "TEXT");
     healthy = isUsable(db);
   } catch (error) {
     log.warn("storage", `could not open the database: ${error.message}`);
@@ -379,8 +381,8 @@ function ensureDefaultWorkspace() {
     const now = Date.now();
 
     db.prepare(
-      `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, created_at, updated_at)
-       VALUES (?, '', 'chat', NULL, 'ask', NULL, ?, ?)
+      `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at)
+       VALUES (?, '', 'chat', NULL, 'auto', NULL, NULL, ?, ?)
        ON CONFLICT(id) DO NOTHING`,
     ).run(DEFAULT_WORKSPACE_ID, now, now);
 
@@ -399,18 +401,24 @@ function ensureDefaultWorkspace() {
   }
 }
 
-function rowToWorkspace(row) {
-  let settings = null;
+/**
+ * JSON written by an older or a newer version, so nothing in it is assumed. An
+ * unreadable override is the global setting, and an unreadable list of
+ * permissions is no permissions, which is the safe way to be wrong.
+ */
+function parseJson(value, fallback) {
+  if (!value) return fallback;
 
-  if (row.settings) {
-    try {
-      const parsed = JSON.parse(row.settings);
-      if (parsed && typeof parsed === "object") settings = parsed;
-    } catch {
-      // An unreadable override is the global setting, which is what the user
-      // had before they opened this workspace anyway.
-    }
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
   }
+}
+
+function rowToWorkspace(row) {
+  const grants = parseJson(row.grants, []);
 
   return {
     id: row.id,
@@ -418,7 +426,8 @@ function rowToWorkspace(row) {
     kind: row.kind === "project" ? "project" : "chat",
     rootPath: row.root_path || null,
     permissionMode: row.permission_mode || "ask",
-    settings: settings || {},
+    settings: parseJson(row.settings, {}),
+    grants: Array.isArray(grants) ? grants : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -427,7 +436,7 @@ function rowToWorkspace(row) {
 function listWorkspaces() {
   return db
     .prepare(
-      `SELECT id, name, kind, root_path, permission_mode, settings, created_at, updated_at
+      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
        FROM workspaces ORDER BY created_at ASC`,
     )
     .all()
@@ -442,14 +451,15 @@ function saveWorkspace(workspace) {
   const kind = workspace.kind === "project" ? "project" : "chat";
 
   db.prepare(
-    `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        kind = excluded.kind,
        root_path = excluded.root_path,
        permission_mode = excluded.permission_mode,
        settings = excluded.settings,
+       grants = excluded.grants,
        updated_at = excluded.updated_at`,
   ).run(
     id,
@@ -460,13 +470,16 @@ function saveWorkspace(workspace) {
     workspace.settings && Object.keys(workspace.settings).length > 0
       ? JSON.stringify(workspace.settings)
       : null,
+    Array.isArray(workspace.grants) && workspace.grants.length > 0
+      ? JSON.stringify(workspace.grants)
+      : null,
     Number(workspace.createdAt) || now,
     now,
   );
 
   const row = db
     .prepare(
-      `SELECT id, name, kind, root_path, permission_mode, settings, created_at, updated_at
+      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
        FROM workspaces WHERE id = ?`,
     )
     .get(id);

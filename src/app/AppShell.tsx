@@ -128,6 +128,8 @@ export default function AppShell({
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,
+    permission: { mode: active.permissionMode, grants: active.grants },
+    onGrant: workspaces.addGrant,
     t,
     getSession: store.getSession,
     addSession: store.addSession,
@@ -469,6 +471,7 @@ export default function AppShell({
             onStopGeneration={() => runs.stop(currentChatId)}
             onContinueGeneration={() => runs.continueGeneration(currentChatId)}
             onDismissOutOfContext={() => runs.dismissOutOfContext(currentChatId)}
+            onApproval={runs.answerApproval}
             onSelectModel={onSelectModel}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}

@@ -741,3 +741,42 @@ describe("opening a database written by 1.x", () => {
     });
   });
 });
+
+describe("what a workspace is allowed to do", () => {
+  it("lets the default one run the way 1.x did", () => {
+    // Nothing in a plain chat reaches the user's files, and every prompt this
+    // mode avoided in 1.2.7 is a prompt 2.0 must not start showing.
+    const [first] = storage.listWorkspaces();
+
+    expect(first.permissionMode).toBe("auto");
+    expect(first.grants).toEqual([]);
+  });
+
+  it("remembers what the user allowed, and where", () => {
+    storage.saveWorkspace({
+      id: "w1",
+      name: "Thing",
+      kind: "project",
+      rootPath: "C:\projects\thing",
+      permissionMode: "acceptEdits",
+      settings: {},
+      grants: [{ tool: "write_file", target: "C:\projects\thing" }],
+    });
+
+    const saved = storage.listWorkspaces().find((one) => one.id === "w1");
+
+    expect(saved.grants).toEqual([
+      { tool: "write_file", target: "C:\projects\thing" },
+    ]);
+  });
+
+  it("treats permissions it cannot read as none at all", () => {
+    storage.saveWorkspace({ id: "w2", name: "x", kind: "project", settings: {} });
+    storage.setValue("unused", "");
+
+    const saved = storage.listWorkspaces().find((one) => one.id === "w2");
+
+    expect(saved.grants).toEqual([]);
+    expect(saved.permissionMode).toBe("ask");
+  });
+});

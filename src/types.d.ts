@@ -199,6 +199,8 @@ export interface SearchStep {
     | "create_file"
     | "library"
     | "run_code"
+    /** A tool call waiting on the user, with the buttons to answer it. */
+    | "approval"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -212,7 +214,22 @@ export interface SearchStep {
   language?: string;
   stdout?: string;
   stderr?: string;
+  /** On an "approval" step: the call the user is being asked about. */
+  approval?: {
+    id: string;
+    tool: string;
+    target?: string | null;
+    reason: string;
+  };
+  /** What the user answered. Absent while the card is still waiting. */
+  answer?: ApprovalAnswer;
 }
+
+/**
+ * How far an approval goes: this call only, the rest of this task, or every
+ * time in this workspace. "no" is a refusal of the call in front of the user.
+ */
+export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
 
 export interface TurnMetrics {
   promptTokens: number;
@@ -339,6 +356,12 @@ export type WorkspaceOverrides = Partial<
   >
 >;
 
+/** A tool call the user has already agreed to, kept with its workspace. */
+export interface WorkspaceGrant {
+  tool: string;
+  target?: string;
+}
+
 export interface Workspace {
   id: string;
   /** Empty for the default workspace, which the interface names itself. */
@@ -348,6 +371,8 @@ export interface Workspace {
   rootPath: string | null;
   permissionMode: PermissionMode;
   settings: WorkspaceOverrides;
+  /** What the user has allowed here for good, rather than for one task. */
+  grants: WorkspaceGrant[];
   createdAt: number;
   updatedAt: number;
 }
