@@ -325,16 +325,26 @@ async function run() {
   }
 }
 
+// A normal quit runs Draggy's own shutdown, which stops an Ollama it started; then the data goes.
+process.on("exit", () => {
+  try {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  } catch {
+    // Windows may still hold a file for a moment; the folder is in temp either way.
+  }
+});
+
 app.whenReady().then(() => {
   run()
     .then(() => {
       log("done");
-      app.exit(0);
+      app.quit();
     })
     .catch(async (error) => {
       console.error("[shots] failed:", error);
+      process.exitCode = 1;
       const win = appWindow();
       if (win) await capture(win, "failure").catch(() => undefined);
-      app.exit(1);
+      app.quit();
     });
 });
