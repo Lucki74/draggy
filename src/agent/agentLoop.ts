@@ -234,6 +234,8 @@ export interface AgentResult {
   loops: number;
   exhausted: boolean;
   aborted: boolean;
+  /** How many times the model reached for each tool, refused calls included. */
+  toolCalls: Record<string, number>;
 }
 
 const EXHAUSTED_MESSAGE =
@@ -291,6 +293,9 @@ export async function runAgentTurn(
   const mode: PermissionMode = request.permission?.mode ?? "auto";
   let grants: Grant[] = [...(request.permission?.grants ?? [])];
 
+  /** For the statistics page: which tools this turn reached for, and how often. */
+  const toolCalls: Record<string, number> = {};
+
   /**
    * Every tool call goes through here. What the mode allows runs; what it
    * forbids comes back as an ordinary tool result, because a model handed an
@@ -300,6 +305,8 @@ export async function runAgentTurn(
     name: string,
     args: Record<string, unknown>,
   ): Promise<string> {
+    toolCalls[name] = (toolCalls[name] ?? 0) + 1;
+
     const target = targetFromArgs(args);
     const verdict = decide({
       mode,
@@ -849,6 +856,7 @@ ${currentTimeNote()}`,
           loops: loopCount,
           exhausted: false,
           aborted: true,
+          toolCalls,
         };
       }
 
@@ -968,5 +976,6 @@ ${currentTimeNote()}`,
     loops: loopCount,
     exhausted,
     aborted: signal.aborted,
+    toolCalls,
   };
 }

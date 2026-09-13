@@ -728,6 +728,15 @@ describe("opening a database written by 1.x", () => {
     });
   });
 
+  it("gains the statistics table without losing anything", () => {
+    withLegacyDatabase(() => {
+      storage.recordMetric({ recordedAt: 1, model: "m", promptTokens: 1, responseTokens: 1, responseMs: 1, taskMs: 1, loops: 1, tools: {} });
+
+      expect(storage.listMetrics()).toHaveLength(1);
+      expect(storage.loadChats()).toHaveLength(1);
+    });
+  });
+
   it("can still save into it afterwards", () => {
     withLegacyDatabase(() => {
       storage.saveChat(
@@ -739,6 +748,73 @@ describe("opening a database written by 1.x", () => {
       expect(storage.loadChats()).toHaveLength(2);
       expect(storage.searchChats("written").length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe("statistics", () => {
+  const turn = (extra = {}) => ({
+    recordedAt: 5000,
+    workspaceId: "default",
+    chatId: "c1",
+    model: "qwen3:8b",
+    promptTokens: 1200,
+    responseTokens: 300,
+    responseMs: 6000,
+    firstTokenMs: 450,
+    loadMs: 0,
+    taskMs: 9000,
+    loops: 2,
+    tools: { search_web: 2, read_url: 1 },
+    ...extra,
+  });
+
+  it("keeps a finished turn and gives it back", () => {
+    storage.recordMetric(turn());
+
+    expect(storage.listMetrics()).toEqual([turn()]);
+  });
+
+  it("lists newest first, and only since a given time", () => {
+    storage.recordMetric(turn({ recordedAt: 1000, chatId: "old" }));
+    storage.recordMetric(turn({ recordedAt: 9000, chatId: "new" }));
+
+    expect(storage.listMetrics().map((row) => row.chatId)).toEqual(["new", "old"]);
+    expect(storage.listMetrics(5000).map((row) => row.chatId)).toEqual(["new"]);
+  });
+
+  it("stores nothing it cannot trust as a number", () => {
+    storage.recordMetric(
+      turn({ responseTokens: -5, responseMs: Number.NaN, firstTokenMs: "soon", loops: 0, tools: { x: -1, y: "2" } }),
+    );
+
+    const [row] = storage.listMetrics();
+    expect(row.responseTokens).toBe(0);
+    expect(row.responseMs).toBe(0);
+    expect(row.firstTokenMs).toBeNull();
+    expect(row.loops).toBe(1);
+    expect(row.tools).toEqual({ y: 2 });
+  });
+
+  it("refuses a turn with no model", () => {
+    expect(storage.recordMetric(turn({ model: "" })).success).toBe(false);
+    expect(storage.listMetrics()).toEqual([]);
+  });
+
+  it("forgets every turn when cleared", () => {
+    storage.recordMetric(turn());
+    storage.recordMetric(turn({ chatId: "c2" }));
+
+    expect(storage.clearMetrics()).toEqual({ success: true, removed: 2 });
+    expect(storage.listMetrics()).toEqual([]);
+  });
+
+  it("keeps the numbers when a conversation is deleted", () => {
+    storage.saveChat(session("c1", [message("m1", "user", "hi")], { workspaceId: storage.DEFAULT_WORKSPACE_ID }));
+    storage.recordMetric(turn());
+
+    storage.deleteChat("c1");
+
+    expect(storage.listMetrics()).toHaveLength(1);
   });
 });
 

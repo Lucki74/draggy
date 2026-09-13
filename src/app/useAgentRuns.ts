@@ -74,6 +74,9 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     addSession: input.addSession,
     updateSession: input.updateSession,
     patchActiveMessage: input.patchActiveMessage,
+    recordMetrics: (row) => {
+      void window.electronAPI?.metrics?.record(row).catch(() => undefined);
+    },
     t: input.t,
   };
 

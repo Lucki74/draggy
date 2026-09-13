@@ -1986,6 +1986,17 @@ ipcMain.handle("fs:search", wrap("fs", async (event, workspaceId, query) =>
   fileOps.search(workspaceId, query),
 ));
 
+ipcMain.handle("metrics:record", wrap("metrics", async (event, row) =>
+  storage.recordMetric(row),
+));
+
+ipcMain.handle("metrics:list", wrap("metrics", async (event, since) => ({
+  success: true,
+  rows: storage.listMetrics(Number(since) || 0),
+})));
+
+ipcMain.handle("metrics:clear", wrap("metrics", async () => storage.clearMetrics()));
+
 ipcMain.handle("checkpoint:list", wrap("fs", async (event, workspaceId) => ({
   success: true,
   checkpoints: storage.listCheckpoints(String(workspaceId || "")),

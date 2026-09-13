@@ -1,3 +1,4 @@
+import StatsPanel from "./stats/StatsPanel";
 import CompactLimitField from "./settings/CompactLimitField";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   Library,
   Wrench,
   DownloadCloud,
+  BarChart3,
   FolderPlus,
   RefreshCw,
   FileText,
@@ -141,6 +143,7 @@ export type SettingsTab =
   | "personalization"
   | "language"
   | "data"
+  | "stats"
   | "updates";
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
@@ -152,6 +155,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: "personalization", label: "personalization", icon: Sliders },
   { id: "language", label: "language", icon: Globe },
   { id: "data", label: "data", icon: Database },
+  { id: "stats", label: "statistics", icon: BarChart3 },
   { id: "updates", label: "updates", icon: DownloadCloud },
 ];
 
@@ -1128,6 +1132,12 @@ export default function SettingsPage({
           {tab === "extensions" && (
             <Section title={t("extensions")}>
               <ExtensionsPanel t={t} workspaceId={workspaceId} />
+            </Section>
+          )}
+
+          {tab === "stats" && (
+            <Section title={t("statistics")}>
+              <StatsPanel t={t} />
             </Section>
           )}
 

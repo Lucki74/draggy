@@ -29,6 +29,7 @@ vi.mock("../agent/agentLoop", () => ({
 }));
 
 const { createTaskManager } = await import("../agent/taskManager");
+import type { MetricRow } from "../types";
 import type { TaskHost } from "../agent/taskManager";
 
 const settings = { customInstructions: [] } as unknown as AppSettings;
@@ -317,5 +318,92 @@ describe("a turn waiting on the user", () => {
     turn.host.onGrant!({ tool: "write_file", target: "C:\\projects" });
 
     expect(granted).toEqual([{ tool: "write_file", target: "C:\\projects" }]);
+  });
+});
+
+describe("recording a finished turn for the statistics page", () => {
+  beforeEach(() => {
+    pending.length = 0;
+  });
+
+  const measured = (extra: Partial<AgentResult> = {}) =>
+    ({
+      ...finished(),
+      loops: 3,
+      aborted: false,
+      toolCalls: { read_file: 2, git_status: 1 },
+      metrics: {
+        promptTokens: 2000,
+        responseTokens: 400,
+        promptMs: 100,
+        responseMs: 8000,
+        loadMs: 0,
+        totalMs: 8100,
+        tokensPerSecond: 50,
+        timeToFirstTokenMs: 300,
+        contextWindow: 16384,
+        model: "qwen3:8b",
+        gpuPercent: 100,
+      },
+      ...extra,
+    }) as unknown as AgentResult;
+
+  it("hands over speed, tokens, tools and how long the task took", async () => {
+    const { sessions, host } = createHost();
+    const recorded: MetricRow[] = [];
+    host.recordMetrics = (row) => recorded.push(row);
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await Promise.resolve();
+
+    pending[0].resolve(measured());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({
+      chatId: "a",
+      model: "qwen3:8b",
+      promptTokens: 2000,
+      responseTokens: 400,
+      responseMs: 8000,
+      firstTokenMs: 300,
+      loops: 3,
+      tools: { read_file: 2, git_status: 1 },
+    });
+    expect(recorded[0].taskMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("records nothing for a turn the user stopped", async () => {
+    const { sessions, host } = createHost();
+    const recorded: MetricRow[] = [];
+    host.recordMetrics = (row) => recorded.push(row);
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await Promise.resolve();
+
+    pending[0].resolve(measured({ aborted: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  it("records nothing for a turn that produced no measurement", async () => {
+    const { sessions, host } = createHost();
+    const recorded: MetricRow[] = [];
+    host.recordMetrics = (row) => recorded.push(row);
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await Promise.resolve();
+
+    pending[0].resolve(measured({ metrics: null }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(recorded).toHaveLength(0);
   });
 });

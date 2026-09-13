@@ -303,6 +303,24 @@ export interface TurnMetrics {
   breakdown?: ContextBreakdown;
 }
 
+/** One finished turn, as the statistics page counts it. Never leaves this machine. */
+export interface MetricRow {
+  recordedAt: number;
+  workspaceId?: string | null;
+  chatId?: string | null;
+  model: string;
+  promptTokens: number;
+  responseTokens: number;
+  /** Time spent generating, from Ollama's own count. */
+  responseMs: number;
+  firstTokenMs: number | null;
+  loadMs: number;
+  /** Wall-clock time from sending to the reply being done, tools included. */
+  taskMs: number;
+  loops: number;
+  tools: Record<string, number>;
+}
+
 export type GitChangeKind =
   | "modified"
   | "added"
@@ -763,6 +781,13 @@ declare global {
         onChanged: (
           callback: (change: { workspaceId: string; path: string; from?: string }) => void,
         ) => Unsubscribe;
+      };
+
+      metrics: {
+        record: (row: MetricRow) => Promise<{ success: boolean }>;
+        /** Turns recorded since a time, newest first. */
+        list: (since?: number) => Promise<{ success: boolean; rows?: MetricRow[] }>;
+        clear: () => Promise<{ success: boolean; removed?: number }>;
       };
 
       git: {

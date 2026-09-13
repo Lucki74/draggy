@@ -20,6 +20,7 @@ import type {
   FoldMarker,
   Message,
   MessageVersion,
+  MetricRow,
   PermissionMode,
   SearchStep,
   TurnMetrics,
@@ -55,6 +56,8 @@ export interface TaskHost {
     patch: Partial<MessageVersion>,
     sessionPatch?: Partial<ChatSession>,
   ) => void;
+  /** A finished turn, for the statistics page. Kept on this machine. */
+  recordMetrics?: (row: MetricRow) => void;
   t: (key: string) => string;
 }
 
@@ -404,6 +407,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         host.patchActiveMessage(chatId, { steps: [] });
       }
 
+      // Timed from here, so a fold the turn waited on is not counted as the turn.
+      const startedAt = Date.now();
+
       const result = await runAgentTurn(
         {
           model,
@@ -450,6 +456,24 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             host.patchActiveMessage(chatId, { metrics }),
         },
       );
+
+      // A turn the user stopped is not a measurement of anything.
+      if (result.metrics && !result.aborted) {
+        host.recordMetrics?.({
+          recordedAt: Date.now(),
+          workspaceId: host.getSession(chatId)?.workspaceId ?? host.getWorkspaceId(),
+          chatId,
+          model: result.metrics.model || model,
+          promptTokens: result.metrics.promptTokens,
+          responseTokens: result.metrics.responseTokens,
+          responseMs: result.metrics.responseMs,
+          firstTokenMs: result.metrics.timeToFirstTokenMs,
+          loadMs: result.metrics.loadMs,
+          taskMs: Date.now() - startedAt,
+          loops: result.loops,
+          tools: result.toolCalls ?? {},
+        });
+      }
 
       if (result.exhausted) {
         host.patchActiveMessage(

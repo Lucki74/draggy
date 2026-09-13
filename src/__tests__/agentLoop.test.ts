@@ -475,6 +475,20 @@ describe("native tool calling", () => {
     expect(result.steps.some((step) => step.type === "searching")).toBe(true);
   });
 
+  it("counts each tool the turn reached for", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }] },
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "y" } } }] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("q")]).promise;
+    expect(result.toolCalls).toEqual({ search_web: 2 });
+  });
+
   it("adds up metrics across both requests", async () => {
     installFetch(
       [

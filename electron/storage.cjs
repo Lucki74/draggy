@@ -90,6 +90,24 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS checkpoints_by_workspace
     ON checkpoints(workspace_id, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS metrics (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    recorded_at     INTEGER NOT NULL,
+    workspace_id    TEXT,
+    chat_id         TEXT,
+    model           TEXT NOT NULL,
+    prompt_tokens   INTEGER NOT NULL DEFAULT 0,
+    response_tokens INTEGER NOT NULL DEFAULT 0,
+    response_ms     REAL NOT NULL DEFAULT 0,
+    first_token_ms  REAL,
+    load_ms         REAL NOT NULL DEFAULT 0,
+    task_ms         REAL NOT NULL DEFAULT 0,
+    loops           INTEGER NOT NULL DEFAULT 1,
+    tools           TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS metrics_by_time ON metrics(recorded_at DESC);
+
   CREATE VIRTUAL TABLE IF NOT EXISTS message_search
     USING fts5(chat_id UNINDEXED, message_id UNINDEXED, body);
 `;
@@ -874,8 +892,109 @@ function close() {
   }
 }
 
+/** A number fit to store: finite, and not below zero. */
+const measure = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+};
+
+/** Most distinct tools one turn can report, and the longest name kept. */
+const MAX_TOOLS_PER_TURN = 50;
+const MAX_TOOL_NAME = 120;
+
+/**
+ * One finished turn, for the statistics page. Everything here stays on this
+ * machine; the table exists only so the user can see how their models perform.
+ */
+function recordMetric(row) {
+  if (!row || typeof row !== "object") return { success: false };
+
+  const model = String(row.model || "").slice(0, 200);
+  if (!model) return { success: false };
+
+  const tools = {};
+  if (row.tools && typeof row.tools === "object") {
+    for (const [name, count] of Object.entries(row.tools).slice(0, MAX_TOOLS_PER_TURN)) {
+      const times = Math.floor(measure(count));
+      if (times > 0) tools[String(name).slice(0, MAX_TOOL_NAME)] = times;
+    }
+  }
+
+  const firstToken = Number(row.firstTokenMs);
+
+  db.prepare(
+    `INSERT INTO metrics (
+      recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
+      response_ms, first_token_ms, load_ms, task_ms, loops, tools
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    Math.floor(measure(row.recordedAt)) || Date.now(),
+    row.workspaceId ? String(row.workspaceId) : null,
+    row.chatId ? String(row.chatId) : null,
+    model,
+    Math.floor(measure(row.promptTokens)),
+    Math.floor(measure(row.responseTokens)),
+    measure(row.responseMs),
+    Number.isFinite(firstToken) && firstToken >= 0 ? firstToken : null,
+    measure(row.loadMs),
+    measure(row.taskMs),
+    Math.max(1, Math.floor(measure(row.loops))),
+    Object.keys(tools).length > 0 ? JSON.stringify(tools) : null,
+  );
+
+  return { success: true };
+}
+
+/** The most rows one listing returns, newest first. */
+const MAX_METRIC_ROWS = 20_000;
+
+function listMetrics(since = 0) {
+  const rows = db
+    .prepare(
+      `SELECT recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
+              response_ms, first_token_ms, load_ms, task_ms, loops, tools
+         FROM metrics
+        WHERE recorded_at >= ?
+        ORDER BY recorded_at DESC
+        LIMIT ?`,
+    )
+    .all(Math.floor(measure(since)), MAX_METRIC_ROWS);
+
+  return rows.map((row) => {
+    let tools;
+    try {
+      tools = row.tools ? JSON.parse(row.tools) : {};
+    } catch {
+      tools = {};
+    }
+
+    return {
+      recordedAt: row.recorded_at,
+      workspaceId: row.workspace_id,
+      chatId: row.chat_id,
+      model: row.model,
+      promptTokens: row.prompt_tokens,
+      responseTokens: row.response_tokens,
+      responseMs: row.response_ms,
+      firstTokenMs: row.first_token_ms,
+      loadMs: row.load_ms,
+      taskMs: row.task_ms,
+      loops: row.loops,
+      tools,
+    };
+  });
+}
+
+function clearMetrics() {
+  const result = db.prepare("DELETE FROM metrics").run();
+  return { success: true, removed: Number(result.changes) || 0 };
+}
+
 module.exports = {
   DEFAULT_WORKSPACE_ID,
+  recordMetric,
+  listMetrics,
+  clearMetrics,
   init,
   listWorkspaces,
   getWorkspace,
