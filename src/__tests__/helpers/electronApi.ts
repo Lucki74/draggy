@@ -97,6 +97,7 @@ export function installFakeElectronApi(): FakeApi {
     // returns, and the catch-all below answers with a promise.
     onBootModel: () => () => {},
     onDownloadProgress: () => () => {},
+    onBeforeQuit: () => () => {},
     appInfo: async () => ({ version: "1.2.4", packaged: true }),
     apiServer: {
       status: async () => ({

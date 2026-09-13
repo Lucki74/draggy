@@ -8,6 +8,14 @@ const subscribe = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, listener);
 };
 
+/** What the window runs before Draggy quits. It answers with none registered too, so a quit from
+ * the startup screen does not sit out the timeout. */
+const beforeQuit = new Set();
+ipcRenderer.on("app:flush-saves", async () => {
+  await Promise.allSettled([...beforeQuit].map(async (handler) => handler()));
+  ipcRenderer.send("app:saves-flushed");
+});
+
 contextBridge.exposeInMainWorld("electronAPI", {
   getSystemSpecs: () => ipcRenderer.invoke("get-system-specs"),
   checkOllama: () => ipcRenderer.invoke("check-ollama"),
@@ -186,4 +194,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onBootModel: (callback) => subscribe("boot-model", callback),
   bootFinished: (model) => ipcRenderer.send("boot-finished", model),
   quitApp: () => ipcRenderer.send("quit-app"),
+  onBeforeQuit: (handler) => {
+    beforeQuit.add(handler);
+    return () => {
+      beforeQuit.delete(handler);
+    };
+  },
 });

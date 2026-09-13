@@ -1023,6 +1023,8 @@ declare global {
       onBootModel: (callback: (model: string) => void) => Unsubscribe;
       bootFinished: (model: string) => void;
       quitApp: () => void;
+      /** Runs before Draggy quits and storage closes; the quit waits for it, up to a few seconds. */
+      onBeforeQuit: (handler: () => Promise<void> | void) => Unsubscribe;
     };
   }
 }

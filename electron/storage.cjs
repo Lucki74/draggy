@@ -977,31 +977,43 @@ function clearMetrics() {
   return { success: true, removed: Number(result.changes) || 0 };
 }
 
+/** Without an open database a call answers as refused or empty, never with a throw: a save from
+ * the window can still arrive once quitting has closed it. */
+const CLOSED_ERROR = "The chat database is not open.";
+const refused = () => ({ success: false, error: CLOSED_ERROR });
+const empty = () => [];
+const missing = () => null;
+
+function whenOpen(fn, closed) {
+  return (...args) => (db ? fn(...args) : closed());
+}
+
 module.exports = {
   DEFAULT_WORKSPACE_ID,
-  recordMetric,
-  listMetrics,
-  clearMetrics,
+  CLOSED_ERROR,
+  recordMetric: whenOpen(recordMetric, refused),
+  listMetrics: whenOpen(listMetrics, empty),
+  clearMetrics: whenOpen(clearMetrics, () => ({ ...refused(), removed: 0 })),
   init,
-  listWorkspaces,
-  getWorkspace,
-  saveWorkspace,
-  deleteWorkspace,
-  addCheckpoint,
-  getCheckpoint,
-  listCheckpoints,
-  dropCheckpoint,
-  checkpointHashes,
-  saveChat,
-  loadChats,
-  loadChatSummaries,
-  deleteChat,
-  clearChats,
-  searchChats,
-  getValue,
-  setValue,
-  importSessions,
-  stats,
-  collectGarbage,
+  listWorkspaces: whenOpen(listWorkspaces, empty),
+  getWorkspace: whenOpen(getWorkspace, missing),
+  saveWorkspace: whenOpen(saveWorkspace, refused),
+  deleteWorkspace: whenOpen(deleteWorkspace, () => ({ ...refused(), deleted: 0 })),
+  addCheckpoint: whenOpen(addCheckpoint, refused),
+  getCheckpoint: whenOpen(getCheckpoint, missing),
+  listCheckpoints: whenOpen(listCheckpoints, empty),
+  dropCheckpoint: whenOpen(dropCheckpoint, refused),
+  checkpointHashes: whenOpen(checkpointHashes, empty),
+  saveChat: whenOpen(saveChat, refused),
+  loadChats: whenOpen(loadChats, empty),
+  loadChatSummaries: whenOpen(loadChatSummaries, empty),
+  deleteChat: whenOpen(deleteChat, refused),
+  clearChats: whenOpen(clearChats, refused),
+  searchChats: whenOpen(searchChats, empty),
+  getValue: whenOpen(getValue, missing),
+  setValue: whenOpen(setValue, refused),
+  importSessions: whenOpen(importSessions, () => ({ ...refused(), imported: 0 })),
+  stats: whenOpen(stats, missing),
+  collectGarbage: whenOpen(collectGarbage, () => 0),
   close,
 };

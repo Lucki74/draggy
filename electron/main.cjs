@@ -35,6 +35,7 @@ const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
+const { flushWindow } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
@@ -727,6 +728,18 @@ function createWindow() {
   // left open kept Draggy running with its own window already gone.
   mainWindow.on("closed", closeBrowserWindows);
 
+  // Closing the window saves first as well, or its last writes race the quit that follows.
+  const win = mainWindow;
+  let flushedForClose = false;
+  win.on("close", (event) => {
+    if (quitting || flushedForClose) return;
+    flushedForClose = true;
+    event.preventDefault();
+    flushWindow(win, ipcMain).then(() => {
+      if (!win.isDestroyed()) win.close();
+    });
+  });
+
   logger.attachWindow(mainWindow, "main");
 
   if (isDevelopment()) {
@@ -881,15 +894,13 @@ let quitting = false;
 app.on("before-quit", (event) => {
   if (quitting) return;
   quitting = true;
-
-  // One Draggy started goes whole in shutdown, models and all.
-  if (ollamaStartedHere || modelsInUse.size === 0) {
-    shutdown();
-    return;
-  }
-
   event.preventDefault();
-  releaseModels().finally(() => {
+
+  // The window writes its pending saves before storage closes under them. An Ollama Draggy
+  // started goes whole in shutdown, models and all.
+  const released = ollamaStartedHere ? null : releaseModels();
+
+  Promise.allSettled([flushWindow(mainWindow, ipcMain), released]).then(() => {
     shutdown();
     app.quit();
   });

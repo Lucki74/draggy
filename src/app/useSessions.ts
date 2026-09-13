@@ -3,6 +3,7 @@ import type { ChatSession, MessageVersion } from "../types";
 import {
   cancelSessionSave,
   flushSessionSaves,
+  markSessionsSaved,
   migrateFromLocalStorage,
   queueSessionSave,
   storageBackend,
@@ -54,6 +55,7 @@ export function useSessions(): SessionStore {
       const restored = await storageBackend().loadSessions();
       if (cancelled) return;
 
+      markSessionsSaved(restored);
       setSessions(restored);
       setHydrated(true);
     })();
@@ -74,12 +76,16 @@ export function useSessions(): SessionStore {
   }, []);
 
   useEffect(() => {
-    const flush = () => {
-      void flushSessionSaves(sessionsRef.current);
-    };
+    const flush = () => flushSessionSaves(sessionsRef.current);
+    const onUnload = () => void flush();
 
-    window.addEventListener("beforeunload", flush);
-    return () => window.removeEventListener("beforeunload", flush);
+    // Main waits for this before it closes storage; beforeunload alone is not waited for.
+    const stopQuit = window.electronAPI?.onBeforeQuit?.(flush);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      stopQuit?.();
+      window.removeEventListener("beforeunload", onUnload);
+    };
   }, []);
 
   const getSession = useCallback(
@@ -95,8 +101,6 @@ export function useSessions(): SessionStore {
 
   const updateSession = useCallback(
     (chatId: string, updater: (session: ChatSession) => ChatSession) => {
-      let changed: ChatSession | null = null;
-
       setSessions((prev) => {
         const idx = prev.findIndex((s) => s.id === chatId);
         if (idx === -1) return prev;
@@ -106,11 +110,10 @@ export function useSessions(): SessionStore {
 
         const next = prev.slice();
         next[idx] = updated;
-        changed = updated;
+        // Queued here: React runs a batched updater only at render, after this call has returned.
+        persistSession(updated);
         return next;
       });
-
-      if (changed) persistSession(changed);
     },
     [persistSession],
   );
@@ -177,6 +180,10 @@ export function useSessions(): SessionStore {
   );
 
   const forgetWorkspace = useCallback((workspaceId: string) => {
+    // A save still queued would write a removed session back.
+    for (const session of sessionsRef.current) {
+      if (workspaceIdOf(session) === workspaceId) cancelSessionSave(session.id);
+    }
     setSessions((prev) => prev.filter((session) => workspaceIdOf(session) !== workspaceId));
   }, []);
 

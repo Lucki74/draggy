@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
  * channel listeners it registered. */
 function loadPreload() {
   const listeners = new Map();
+  const sent = [];
 
   const ipcRenderer = {
     on(channel, listener) {
@@ -23,7 +24,7 @@ function loadPreload() {
       listeners.set(channel, []);
     },
     invoke: async () => undefined,
-    send: () => undefined,
+    send: (channel) => sent.push(channel),
   };
 
   let api = null;
@@ -53,7 +54,7 @@ function loadPreload() {
     for (const listener of [...(listeners.get(channel) || [])]) listener({}, payload);
   };
 
-  return { api, emit, count: (channel) => (listeners.get(channel) || []).length };
+  return { api, emit, sent, count: (channel) => (listeners.get(channel) || []).length };
 }
 
 describe("preload channel subscriptions", () => {
@@ -97,6 +98,7 @@ describe("preload channel subscriptions", () => {
       () => api.browserBar.onState(() => {}),
       () => api.onDownloadProgress(() => {}),
       () => api.onBootModel(() => {}),
+      () => api.onBeforeQuit(() => {}),
     ];
 
     for (const subscribe of subscriptions) {
@@ -113,5 +115,38 @@ describe("preload channel subscriptions", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("saving before a quit", () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("answers only once every handler has finished", async () => {
+    const { api, emit, sent } = loadPreload();
+
+    let release;
+    api.onBeforeQuit(() => new Promise((resolve) => (release = resolve)));
+    emit("app:flush-saves");
+    await settle();
+    expect(sent).not.toContain("app:saves-flushed");
+
+    release();
+    await settle();
+    expect(sent).toEqual(["app:saves-flushed"]);
+  });
+
+  it("answers straight away with nothing to save, or when a handler fails", async () => {
+    const { api, emit, sent } = loadPreload();
+
+    emit("app:flush-saves");
+    await settle();
+    expect(sent).toEqual(["app:saves-flushed"]);
+
+    api.onBeforeQuit(() => {
+      throw new Error("boom");
+    });
+    emit("app:flush-saves");
+    await settle();
+    expect(sent).toEqual(["app:saves-flushed", "app:saves-flushed"]);
   });
 });

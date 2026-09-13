@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const runner = require("./runner.cjs");
 const platform = require("./platform.cjs");
+const { EventEmitter } = require("node:events");
+const { FLUSH_CHANNEL, FLUSHED_CHANNEL, flushWindow } = require("./quitFlush.cjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -156,6 +158,15 @@ describe("shutdown covers every module that starts a process", () => {
     expect(handler.slice(0, handler.indexOf("\n});"))).toContain("shutdown();");
   });
 
+  it("lets the window flush its saves before storage closes", () => {
+    const handler = main.slice(main.indexOf('app.on("before-quit"'));
+    const body = handler.slice(0, handler.indexOf("\n});"));
+
+    expect(body).toContain("event.preventDefault()");
+    expect(body.indexOf("flushWindow(mainWindow, ipcMain)")).toBeGreaterThan(-1);
+    expect(body.indexOf("flushWindow(")).toBeLessThan(body.indexOf("shutdown();"));
+  });
+
   it("unloads its models from an Ollama it leaves running", () => {
     // Kept warm for half an hour otherwise, each one a llama-server.
     expect(main).toContain('ipcMain.on("model-in-use"');
@@ -193,5 +204,67 @@ describe("shutdown covers every module that starts a process", () => {
     expect(mcp).toContain("platform.killTree(entry.child)");
     expect(mcp).not.toContain("entry.child.kill()");
     expect(typeof platform.killTree).toBe("function");
+  });
+});
+
+describe("waiting for the window to save before quitting", () => {
+  function fakeWindow({ answer = true } = {}) {
+    const ipcMain = new EventEmitter();
+    const contents = new EventEmitter();
+    const sent = [];
+
+    Object.assign(contents, {
+      isDestroyed: () => false,
+      isCrashed: () => false,
+      send(channel) {
+        sent.push(channel);
+        if (answer) setTimeout(() => ipcMain.emit(FLUSHED_CHANNEL, { sender: contents }), 20);
+      },
+    });
+
+    const win = { isDestroyed: () => false, webContents: contents };
+    return { win, ipcMain, contents, sent };
+  }
+
+  it("asks the window and resolves once it has saved", async () => {
+    const { win, ipcMain, sent } = fakeWindow();
+
+    await expect(flushWindow(win, ipcMain, 2000)).resolves.toBe(true);
+    expect(sent).toEqual([FLUSH_CHANNEL]);
+    expect(ipcMain.listenerCount(FLUSHED_CHANNEL)).toBe(0);
+  });
+
+  it("gives up after the timeout when the window never answers", async () => {
+    const { win, ipcMain } = fakeWindow({ answer: false });
+    const started = Date.now();
+
+    await expect(flushWindow(win, ipcMain, 100)).resolves.toBe(false);
+    expect(Date.now() - started).toBeLessThan(1500);
+    expect(ipcMain.listenerCount(FLUSHED_CHANNEL)).toBe(0);
+  });
+
+  it("ignores an answer from another window", async () => {
+    const { win, ipcMain } = fakeWindow({ answer: false });
+
+    const flushed = flushWindow(win, ipcMain, 150);
+    ipcMain.emit(FLUSHED_CHANNEL, { sender: new EventEmitter() });
+
+    await expect(flushed).resolves.toBe(false);
+  });
+
+  it("stops waiting when the window goes away", async () => {
+    const { win, ipcMain, contents } = fakeWindow({ answer: false });
+
+    const flushed = flushWindow(win, ipcMain, 5000);
+    contents.emit("destroyed");
+
+    await expect(flushed).resolves.toBe(false);
+  });
+
+  it("does not wait at all without a window", async () => {
+    const ipcMain = new EventEmitter();
+
+    await expect(flushWindow(null, ipcMain)).resolves.toBe(false);
+    await expect(flushWindow({ isDestroyed: () => true }, ipcMain)).resolves.toBe(false);
   });
 });

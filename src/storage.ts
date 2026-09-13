@@ -229,60 +229,87 @@ export async function migrateFromLocalStorage(): Promise<MigrationReport> {
 
 const SAVE_DEBOUNCE_MS = 700;
 
-const pending = new Map<string, ReturnType<typeof setTimeout>>();
-const inFlight = new Map<string, Promise<boolean>>();
+type SaveFailure = (session: ChatSession, reason: string) => void;
 
-export function queueSessionSave(
-  session: ChatSession,
-  onFailure?: (session: ChatSession, reason: string) => void,
-): void {
-  const existing = pending.get(session.id);
-  if (existing) clearTimeout(existing);
-
-  pending.set(
-    session.id,
-    setTimeout(() => {
-      pending.delete(session.id);
-
-      const write = backend
-        .saveSession(session)
-        .then((result) => {
-          if (!result.ok) {
-            console.error("[storage] save failed:", result.reason);
-            onFailure?.(session, result.reason);
-          }
-          return result.ok;
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
-          console.error("[storage] save threw:", reason);
-          onFailure?.(session, reason);
-          return false;
-        })
-        .finally(() => {
-          inFlight.delete(session.id);
-        });
-
-      inFlight.set(session.id, write);
-    }, SAVE_DEBOUNCE_MS),
-  );
+interface QueuedSave {
+  session: ChatSession;
+  onFailure?: SaveFailure;
 }
 
-export async function flushSessionSaves(sessions: ChatSession[]): Promise<void> {
-  for (const timer of pending.values()) clearTimeout(timer);
+const pending = new Map<string, QueuedSave & { timer: ReturnType<typeof setTimeout> }>();
+const inFlight = new Map<string, { session: ChatSession; write: Promise<boolean> }>();
+/** The version of each conversation known to be on disk, so a flush skips it. */
+const written = new Map<string, ChatSession>();
+
+function writeSession({ session, onFailure }: QueuedSave): Promise<boolean> {
+  const write: Promise<boolean> = backend
+    .saveSession(session)
+    .then((result) => {
+      if (result.ok) {
+        written.set(session.id, session);
+      } else {
+        console.error("[storage] save failed:", result.reason);
+        onFailure?.(session, result.reason);
+      }
+      return result.ok;
+    })
+    .catch((error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error("[storage] save threw:", reason);
+      onFailure?.(session, reason);
+      return false;
+    })
+    .finally(() => {
+      if (inFlight.get(session.id)?.write === write) inFlight.delete(session.id);
+    });
+
+  inFlight.set(session.id, { session, write });
+  return write;
+}
+
+export function queueSessionSave(session: ChatSession, onFailure?: SaveFailure): void {
+  const existing = pending.get(session.id);
+  if (existing) clearTimeout(existing.timer);
+
+  const timer = setTimeout(() => {
+    pending.delete(session.id);
+    void writeSession({ session, onFailure });
+  }, SAVE_DEBOUNCE_MS);
+
+  pending.set(session.id, { session, onFailure, timer });
+}
+
+/** Conversations as they were loaded from disk, which a flush has no need to write back. */
+export function markSessionsSaved(sessions: ChatSession[]): void {
+  for (const session of sessions) written.set(session.id, session);
+}
+
+/** Writes every queued save now, and any of `sessions` never written, then waits for the writes
+ * still under way. A queued save wins over `sessions`, which can lag a render behind. */
+export async function flushSessionSaves(sessions: ChatSession[] = []): Promise<void> {
+  const due = new Map<string, QueuedSave>();
+
+  for (const [id, { session, onFailure, timer }] of pending) {
+    clearTimeout(timer);
+    due.set(id, { session, onFailure });
+  }
   pending.clear();
 
-  await Promise.all(
-    sessions.map((session) =>
-      backend.saveSession(session).catch(() => ({ ok: false, reason: "" })),
-    ),
-  );
+  for (const session of sessions) {
+    const known =
+      due.has(session.id) ||
+      written.get(session.id) === session ||
+      inFlight.get(session.id)?.session === session;
+    if (!known) due.set(session.id, { session });
+  }
 
-  await Promise.all([...inFlight.values()]);
+  const under = [...inFlight.values()].map(({ write }) => write);
+  await Promise.all([...[...due.values()].map(writeSession), ...under]);
 }
 
 export function cancelSessionSave(id: string): void {
-  const timer = pending.get(id);
-  if (timer) clearTimeout(timer);
+  const queued = pending.get(id);
+  if (queued) clearTimeout(queued.timer);
   pending.delete(id);
+  written.delete(id);
 }

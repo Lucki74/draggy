@@ -895,3 +895,38 @@ describe("a plan the model is working through", () => {
     expect(storage.loadChats()[0].plan).toBeNull();
   });
 });
+
+describe("a call that arrives after quitting closed the database", () => {
+  it("refuses a save instead of throwing", () => {
+    // The window's last debounced save can land after shutdown closed storage.
+    storage.saveChat(session("kept", [message("m1", "user", "before the quit")]));
+    storage.close();
+
+    let result;
+    expect(() => {
+      result = storage.saveChat(session("late", [message("m2", "user", "after the quit")]));
+    }).not.toThrow();
+    expect(result).toEqual({ success: false, error: storage.CLOSED_ERROR });
+
+    storage.init(workdir);
+    expect(storage.loadChats().map((chat) => chat.id)).toEqual(["kept"]);
+  });
+
+  it("answers every other call as refused or empty", () => {
+    storage.close();
+
+    expect(storage.setValue("k", "v")).toMatchObject({ success: false });
+    expect(storage.deleteChat("a")).toMatchObject({ success: false });
+    expect(storage.importSessions([{ id: "x" }])).toMatchObject({ success: false, imported: 0 });
+    expect(storage.recordMetric({ model: "m" })).toMatchObject({ success: false });
+    expect(storage.loadChats()).toEqual([]);
+    expect(storage.searchChats("anything")).toEqual([]);
+    expect(storage.listWorkspaces()).toEqual([]);
+    expect(storage.getValue("k")).toBeNull();
+    expect(storage.stats()).toBeNull();
+    expect(storage.collectGarbage()).toBe(0);
+    expect(() => storage.close()).not.toThrow();
+
+    storage.init(workdir);
+  });
+});
