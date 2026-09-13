@@ -297,6 +297,9 @@ export interface SearchStep {
   };
   /** What the user answered. Absent while the card is still waiting. */
   answer?: ApprovalAnswer;
+  /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
+  model?: string;
+  startedAt?: number;
 }
 
 /** How far an approval goes: this call only, the rest of this task, or every time in this

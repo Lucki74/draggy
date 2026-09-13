@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, File, Folder, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, EyeOff, File, Folder, Loader2 } from "lucide-react";
 import { joinPath, partitionEntries } from "./tree";
 import type { DirectoryEntry } from "../types";
 
@@ -170,10 +170,14 @@ export default function FileTree({
         {folded.length > 0 && !showFolded.has(folder) && (
           <button
             onClick={() => setShowFolded((prev) => new Set(prev).add(folder))}
-            className="py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            // Folders like .git and node_modules: counted, not listed, until asked for.
+            title={folded.map((entry) => entry.name).join(", ")}
+            className="flex w-full items-center gap-1.5 py-1 pr-2 text-left text-[11px] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
             style={{ paddingLeft: depth * 12 + 8 }}
           >
-            {`+${folded.length}`}
+            <span className="w-3 flex-shrink-0" />
+            <EyeOff className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+            {t("hiddenEntries").replace("{count}", String(folded.length))}
           </button>
         )}
       </>

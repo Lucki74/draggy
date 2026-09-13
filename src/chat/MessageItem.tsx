@@ -49,6 +49,7 @@ import {
   REMARK_PLUGINS,
 } from "./markdown";
 import AppFrame from "./AppFrame";
+import StreamingMarkdown from "./StreamingMarkdown";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import { formatTokenCount } from "../agent/contextBreakdown";
@@ -352,6 +353,31 @@ function FileCard({
   );
 }
 
+/** A model being loaded, with the seconds it has taken so far. A large model on a small card takes
+ * long enough that a line standing still looks stuck. */
+function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if (step.startedAt === undefined) return;
+    const startedAt = step.startedAt;
+    const count = () => setSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    const timer = setInterval(count, 250);
+    return () => clearInterval(timer);
+  }, [step.startedAt]);
+
+  const label = step.model
+    ? t("loadingModel").replace("{model}", step.model).replace("{seconds}", String(seconds))
+    : step.content;
+
+  return (
+    <div className="flex items-center space-x-3 mb-3 text-[var(--text-muted)]">
+      <Loader2 className="w-4 h-4 animate-spin opacity-60 flex-shrink-0" />
+      <span className="text-sm font-bold tracking-tight opacity-60 tabular-nums">{label}</span>
+    </div>
+  );
+}
+
 /** The badge beside a search result, drawn from the site name rather than fetched, so nobody else
  * learns which pages the user is looking at. */
 /** The site's icon, over `draggy://` since the renderer may not load remote images. No icon or no
@@ -475,6 +501,17 @@ const MessageItem = memo(
 
     const text = displayMsg.textContent ?? displayMsg.content;
     const steps = displayMsg.steps || [];
+    // Only the newest reply can be streaming, so only it pays for a reveal.
+    const live = isLast && msg.role === "assistant";
+
+    // Prose being written sits in the timeline until its pass ends, then becomes the reply body.
+    // Both carry its key, so React keeps the one reveal going instead of starting another.
+    const lastStep = steps[steps.length - 1];
+    const writingId = live && lastStep?.type === "text" && !lastStep.isComplete ? lastStep.id : null;
+    const [proseId, setProseId] = useState<string | null>(null);
+    if (writingId && writingId !== proseId) setProseId(writingId);
+    const bodyKey =
+      proseId && !steps.some((step) => step.id === proseId) ? `prose-${proseId}` : "prose-body";
 
     return (
       <motion.div
@@ -629,21 +666,31 @@ const MessageItem = memo(
                 </div>
               ) : (
                 <>
-                  {steps.map((step) => {
+                  {[
+                  ...steps.map((step) => {
                     // Prose the model wrote before a tool call. It is rendered
                     // exactly like the reply body, in the place it was written.
                     if (step.type === "text") {
                       if (!step.content.trim()) return null;
 
                       return (
-                        <div key={step.id} className="mb-5">
-                          <ReactMarkdown
-                            remarkPlugins={REMARK_PLUGINS}
-                            rehypePlugins={REHYPE_PLUGINS}
-                            components={MARKDOWN_COMPONENTS}
-                          >
-                            {normalizeMath(sanitizeContent(step.content))}
-                          </ReactMarkdown>
+                        <div key={`prose-${step.id}`} className="mb-5">
+                          {live ? (
+                            <StreamingMarkdown
+                              source={normalizeMath(sanitizeContent(step.content))}
+                              streaming={isGenerating && !step.isComplete}
+                              animateOnMount={isGenerating && !step.isComplete}
+                              components={MARKDOWN_COMPONENTS}
+                            />
+                          ) : (
+                            <ReactMarkdown
+                              remarkPlugins={REMARK_PLUGINS}
+                              rehypePlugins={REHYPE_PLUGINS}
+                              components={MARKDOWN_COMPONENTS}
+                            >
+                              {normalizeMath(sanitizeContent(step.content))}
+                            </ReactMarkdown>
+                          )}
                         </div>
                       );
                     }
@@ -675,12 +722,20 @@ const MessageItem = memo(
                             )}
                           </summary>
                           <div className="pl-5 pr-2 mb-6 text-[var(--text-muted)] text-[0.95em] leading-relaxed border-l-2 border-[var(--border-light)] italic opacity-80 markdown-body">
-                            <ReactMarkdown
-                              remarkPlugins={REMARK_PLUGINS}
-                              rehypePlugins={REHYPE_PLUGINS}
-                            >
-                              {normalizeMath(step.content)}
-                            </ReactMarkdown>
+                            {live ? (
+                              <StreamingMarkdown
+                                source={normalizeMath(step.content)}
+                                streaming={isGenerating && isCurrentlyThinking}
+                                animateOnMount={isGenerating && isCurrentlyThinking}
+                              />
+                            ) : (
+                              <ReactMarkdown
+                                remarkPlugins={REMARK_PLUGINS}
+                                rehypePlugins={REHYPE_PLUGINS}
+                              >
+                                {normalizeMath(step.content)}
+                              </ReactMarkdown>
+                            )}
                           </div>
                         </details>
                       );
@@ -768,6 +823,10 @@ const MessageItem = memo(
                       );
                     }
 
+                    if (step.type === "loading" && !step.isComplete) {
+                      return <LoadingStep key={step.id} step={step} t={t} />;
+                    }
+
                     if (step.type === "create_file") {
                       return (
                         <FileCard
@@ -850,15 +909,26 @@ const MessageItem = memo(
                       {payload}
                       </div>
                     );
-                  })}
-
-                  <ReactMarkdown
-                    remarkPlugins={REMARK_PLUGINS}
-                    rehypePlugins={REHYPE_PLUGINS}
-                    components={MARKDOWN_COMPONENTS}
-                  >
-                    {normalizeMath(text)}
-                  </ReactMarkdown>
+                  }),
+                  <div key={bodyKey}>
+                    {live ? (
+                      <StreamingMarkdown
+                        source={normalizeMath(text)}
+                        streaming={isGenerating}
+                        animateOnMount={false}
+                        components={MARKDOWN_COMPONENTS}
+                      />
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={REMARK_PLUGINS}
+                        rehypePlugins={REHYPE_PLUGINS}
+                        components={MARKDOWN_COMPONENTS}
+                      >
+                        {normalizeMath(text)}
+                      </ReactMarkdown>
+                    )}
+                  </div>,
+                  ]}
                 </>
               )}
               {msg.role === "assistant" &&
@@ -971,7 +1041,9 @@ const MessageItem = memo(
       prev.isGenerating === next.isGenerating &&
       prev.isLast === next.isLast &&
       prev.copiedIndex === next.copiedIndex &&
-      prev.settings === next.settings
+      // Only what a message reads, so a settings object rebuilt elsewhere cannot re-render history.
+      prev.settings.language === next.settings.language &&
+      prev.settings.showMetrics === next.settings.showMetrics
     );
   },
 );

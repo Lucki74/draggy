@@ -605,8 +605,10 @@ ${currentTimeNote()}`,
       pushStep({
         id: loadStepId,
         type: "loading",
-        content: host.t("warmingUpModel"),
+        content: host.t("loadingModel").replace("{model}", model).replace("{seconds}", "0"),
         isComplete: false,
+        model,
+        startedAt: Date.now(),
       });
     }
 

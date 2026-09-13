@@ -75,6 +75,12 @@ import type { AppSettings, ChatSession, Workspace } from "../types";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
 
+/** Widths, in CSS pixels, that decide whether the file tree fits beside the chat and an open file. */
+const TREE_WIDTH = 224;
+const MIN_SIDE_WIDTH = 280;
+/** The chat never gets narrower than 340, but the tree already steps aside below this. */
+const CHAT_WIDTH_BESIDE_TREE = 460;
+
 interface AppShellProps {
   model: string;
   settings: AppSettings;
@@ -103,6 +109,16 @@ export default function AppShell({
   const [removingProjectId, setRemovingProjectId] = useState<string | null>(null);
   const [libraryReady, setLibraryReady] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
+
+  // How wide the chat area is. The file tree steps aside when it, the chat and an open file
+  // cannot all fit, rather than squeezing the chat down to a sliver.
+  const [workAreaWidth, setWorkAreaWidth] = useState(Infinity);
+  const observeWorkArea = useCallback((area: HTMLDivElement | null) => {
+    if (!area || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setWorkAreaWidth(Math.round(entry.contentRect.width)));
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, []);
   /** How many skills this workspace can reach, which decides whether to offer any. */
   const [skillCount, setSkillCount] = useState(0);
   /** A background conversation that finished while the user was elsewhere. */
@@ -145,6 +161,9 @@ export default function AppShell({
         : workspaces.active;
 
   const canvasPath = canvas && canvas.workspaceId === active.id ? canvas.path : null;
+
+  const treeFits =
+    workAreaWidth >= TREE_WIDTH + CHAT_WIDTH_BESIDE_TREE + (canvasPath ? MIN_SIDE_WIDTH : 0);
   const gitStatus = useGitStatus(active.id, active.rootPath ?? null);
   const closeCanvas = useCallback(() => setCanvas(null), []);
   const followCanvas = useCallback(
@@ -153,7 +172,11 @@ export default function AppShell({
     [],
   );
   // Each side runs with its own settings: Code reads its own model, instructions, thinking and web.
-  const effectiveSettings = resolveSettings(settingsForMode(settings, mode), active);
+  // Kept as one object between renders: a new one on every streamed chunk re-rendered every message.
+  const effectiveSettings = useMemo(
+    () => resolveSettings(settingsForMode(settings, mode), active),
+    [settings, mode, active],
+  );
   const turnModel = mode === "code" ? effectiveSettings.modelName || model : model;
 
   const openSettings = useCallback((tab: SettingsTab) => {
@@ -851,9 +874,9 @@ export default function AppShell({
         ) : viewMode === "talk" && mode === "chat" ? (
           <TalkScreen settings={settings} />
         ) : currentChatId ? (
-          <div className="flex-1 flex min-h-0">
+          <div ref={observeWorkArea} className="flex-1 flex min-h-0 min-w-0">
             {active.rootPath &&
-              (treeOpen ? (
+              (treeOpen && treeFits ? (
                 <div
                   className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-r-[3px]"
                   style={{ borderColor: "var(--border-light)" }}
@@ -914,7 +937,7 @@ export default function AppShell({
                 </button>
               ))}
 
-            <div className="flex-1 min-w-0 flex">
+            <div className="flex-1 min-w-[340px] flex">
             <ChatScreen
             key={mode}
             model={turnModel}
@@ -960,8 +983,8 @@ export default function AppShell({
                 canvas and plan side by side do not fit a laptop screen. */}
             {(canvasPath || hasPlan) && (
               <div
-                className={`flex-shrink-0 flex flex-col border-l-[3px] ${
-                  canvasPath ? "w-[42%] min-w-[300px] max-w-[640px]" : "w-64"
+                className={`flex flex-col border-l-[3px] ${
+                  canvasPath ? "w-[42%] min-w-[280px] max-w-[640px]" : "w-64 min-w-[200px]"
                 }`}
                 style={{ borderColor: "var(--border-light)" }}
               >

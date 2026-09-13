@@ -287,11 +287,52 @@ export default function ChatScreen({
     field.style.height = `${Math.min(field.scrollHeight, MAX_INPUT_HEIGHT)}px`;
   }, [input]);
 
+  // The toolbar is sized to the composer, not the window: with a panel open beside the chat, a
+  // wide window still leaves it narrow, and the pills ran out past its border.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarWidth, setToolbarWidth] = useState(Infinity);
+
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setToolbarWidth(Math.round(entry.contentRect.width)));
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, []);
+
+  const compactToolbar = toolbarWidth < 640;
+  const tightToolbar = toolbarWidth < 420;
+
+  const lastScrollTop = useRef(0);
+  const draggingScroll = useRef(false);
+
+  // Only the user lets go of the bottom. Scrolls the app makes itself, and layout shifts, fire
+  // events far from it too, and used to stop the view following a new reply.
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } =
       scrollContainerRef.current;
-    isAtBottom.current = scrollHeight - scrollTop - clientHeight < 100;
+    if (scrollHeight - scrollTop - clientHeight < 100) isAtBottom.current = true;
+    else if (draggingScroll.current && scrollTop < lastScrollTop.current) isAtBottom.current = false;
+    lastScrollTop.current = scrollTop;
+  };
+
+  const scrollInput = {
+    onWheel: (event: React.WheelEvent) => {
+      if (event.deltaY < 0) isAtBottom.current = false;
+    },
+    onPointerDown: () => {
+      draggingScroll.current = true;
+    },
+    onPointerUp: () => {
+      draggingScroll.current = false;
+    },
+    onTouchStart: () => {
+      draggingScroll.current = true;
+    },
+    onTouchEnd: () => {
+      draggingScroll.current = false;
+    },
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
@@ -301,8 +342,27 @@ export default function ChatScreen({
   };
 
   useEffect(() => {
-    scrollToBottom(chat.isGenerating ? "auto" : "smooth");
+    if (chat.isGenerating) return;
+    scrollToBottom("smooth");
   }, [chat.messages, chat.isGenerating]);
+
+  // Words are revealed between updates, so while a reply streams, and briefly after, the view
+  // follows every frame rather than every update.
+  useEffect(() => {
+    let frame = 0;
+    const until = chat.isGenerating ? Infinity : performance.now() + 1200;
+
+    const follow = (now: number) => {
+      const box = scrollContainerRef.current;
+      if (box && isAtBottom.current && box.scrollHeight - box.scrollTop - box.clientHeight > 1) {
+        box.scrollTop = box.scrollHeight;
+      }
+      if (now < until) frame = requestAnimationFrame(follow);
+    };
+
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [chat.isGenerating]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -755,6 +815,7 @@ export default function ChatScreen({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
+        {...scrollInput}
         className="flex-1 overflow-y-auto p-6 space-y-6 pt-10"
       >
         {chat.messages.length === 0 && (
@@ -892,7 +953,7 @@ export default function ChatScreen({
                   handleSubmit();
                 }
               }}
-              placeholder={`${t("messageModel")} ${model}...`}
+              placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${model}...`}
               className="w-full bg-transparent px-5 pt-4 pb-2 text-[var(--text-main)] placeholder-[var(--text-muted)] font-bold resize-none overflow-y-auto focus:outline-none"
               rows={1}
               style={{ minHeight: "56px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
@@ -949,7 +1010,7 @@ export default function ChatScreen({
               </div>
             )}
 
-            <div className="flex items-center gap-1 px-3 pb-3 pt-1">
+            <div ref={toolbarRef} className="flex flex-wrap items-center gap-1 px-3 pb-3 pt-1 min-w-0">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -986,10 +1047,11 @@ export default function ChatScreen({
                   ) : (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   )}
-                  {micState === "recording" && t("listening")}
-                  {micState === "loading" &&
+                  {!compactToolbar && micState === "recording" && t("listening")}
+                  {!compactToolbar &&
+                    micState === "loading" &&
                     `${t("loadingSpeechModel")} ${micDetail}`}
-                  {micState === "transcribing" && t("transcribing")}
+                  {!compactToolbar && micState === "transcribing" && t("transcribing")}
                 </button>
               )}
 
@@ -999,14 +1061,14 @@ export default function ChatScreen({
                   onPatchSettings({ thinkingMode: nextThinkingMode(settings.thinkingMode) })
                 }
                 className="composer-pill"
-                title={
+                title={`${
                   supportsNativeThinking
                     ? t("thinkingMode")
                     : `${t("thinkingMode")} (${t("promptBased")})`
-                }
+                }: ${t(settings.thinkingMode)}`}
               >
                 <Brain className="w-3.5 h-3.5 flex-shrink-0" />
-                {t(settings.thinkingMode)}
+                {!compactToolbar && t(settings.thinkingMode)}
               </button>
 
               <button
@@ -1022,7 +1084,7 @@ export default function ChatScreen({
                 title={
                   toolWarning && settings.webMode !== "off"
                     ? `${t("webSearch")}: ${toolWarning}`
-                    : t("webSearch")
+                    : `${t("webSearch")}: ${t(WEB_MODE_LABELS[settings.webMode])}`
                 }
               >
                 {settings.webMode !== "off" && toolsAreGuesswork ? (
@@ -1030,7 +1092,7 @@ export default function ChatScreen({
                 ) : (
                   <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
-                {t(WEB_MODE_LABELS[settings.webMode])}
+                {!compactToolbar && t(WEB_MODE_LABELS[settings.webMode])}
               </button>
 
               {surface === "code" && permissionMode && onPermissionMode && (
@@ -1040,19 +1102,20 @@ export default function ChatScreen({
                   onOpenChange={setPermissionMenuOpen}
                   onPick={onPermissionMode}
                   t={t}
+                  compact={compactToolbar}
                 />
               )}
 
-              <div className="flex-1" />
-
-              <div className="relative" ref={modelMenuRef}>
+              <div className="ml-auto flex items-center gap-1 min-w-0">
+              <div className="relative min-w-0" ref={modelMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                  className="composer-pill max-w-[190px]"
+                  title={model}
+                  className={`composer-pill min-w-0 ${compactToolbar ? "max-w-[130px]" : "max-w-[190px]"}`}
                 >
                   <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">{model}</span>
+                  {!tightToolbar && <span className="truncate">{model}</span>}
                   <ChevronRight
                     className={`w-3 h-3 flex-shrink-0 transition-transform ${
                       isModelMenuOpen ? "rotate-90" : "-rotate-90"
@@ -1159,6 +1222,7 @@ export default function ChatScreen({
                   <Send className="w-4 h-4" />
                 )}
               </button>
+              </div>
             </div>
           </form>
         </div>

@@ -295,7 +295,9 @@ describe("a model Ollama has to load first", () => {
 
     const result = await run([userMessage("hi")], undefined, host).promise;
 
-    expect(loadingSteps(seen)[0]?.content).toBe("warmingUpModel");
+    expect(loadingSteps(seen)[0]?.content).toBe("loadingModel");
+    expect(loadingSteps(seen)[0]?.model).toBe(MODEL);
+    expect(typeof loadingSteps(seen)[0]?.startedAt).toBe("number");
     expect(result.steps.some((step) => step.type === "loading")).toBe(false);
   });
 

@@ -9,6 +9,7 @@ const {
   safeStorage,
   shell,
   protocol,
+  screen,
   session,
 } = require("electron");
 const path = require("path");
@@ -658,10 +659,19 @@ function createSplashWindow() {
   }
 }
 
+/** The smallest the window goes. Below it the rail, the chat and the composer crush each other
+ * into something unusable. A screen smaller than this still gets a window that fits. */
+const MIN_WINDOW_WIDTH = 760;
+const MIN_WINDOW_HEIGHT = 480;
+
 function createWindow() {
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: Math.min(MIN_WINDOW_WIDTH, screenWidth),
+    minHeight: Math.min(MIN_WINDOW_HEIGHT, screenHeight),
     show: false,
     backgroundColor: "#1E1E1E",
     title: APP_NAME,

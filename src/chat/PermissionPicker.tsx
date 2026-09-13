@@ -9,10 +9,19 @@ interface PermissionPickerProps {
   onOpenChange: (open: boolean) => void;
   onPick: (mode: PermissionMode) => void;
   t: (key: string) => string;
+  /** Icon only, for a composer too narrow for the label. */
+  compact?: boolean;
 }
 
 // The Code composer's permission pill: how much the model may do in this project without asking.
-export default function PermissionPicker({ mode, open, onOpenChange, onPick, t }: PermissionPickerProps) {
+export default function PermissionPicker({
+  mode,
+  open,
+  onOpenChange,
+  onPick,
+  t,
+  compact = false,
+}: PermissionPickerProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const current = PERMISSION_MODES.find((one) => one.id === mode) ?? PERMISSION_MODES[1];
 
@@ -41,11 +50,11 @@ export default function PermissionPicker({ mode, open, onOpenChange, onPick, t }
         onClick={() => onOpenChange(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={t("permissionMode")}
+        title={`${t("permissionMode")}: ${t(current.label)}`}
         className={`composer-pill ${mode === "auto" ? "!text-amber-600" : ""}`}
       >
         <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
-        {t(current.label)}
+        {!compact && t(current.label)}
         <ChevronRight
           className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
