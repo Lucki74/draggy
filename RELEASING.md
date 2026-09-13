@@ -52,6 +52,29 @@ but `1.2.5-fix` is **older** than `1.2.5` and is never offered to anyone
 already on it. Tag from the version you are heading for, not the one you are
 on. `npm version 1.2.6-fix` writes it, the same as `patch` does.
 
+## Getting 1.x installs onto 2.0
+
+Copies on 1.2.6 and 1.2.7 set `channel = "latest"` with `allowPrerelease` on. In
+electron-updater's GitHub provider that combination only accepts a release whose
+tag carries the prerelease id `latest`: `v2.0.0-latest` is offered to them, a
+plain `v2.0.0` never is. Copies on 1.2.5 and older have no channel set and take
+the newest release as usual.
+
+So 2.0 goes out twice. The normal `v2.0.0` release for everyone else, and a
+second release tagged `v2.0.0-latest` carrying the same installers and a
+`latest.yml` that says `2.0.0`. The version inside is what gets compared, so a
+1.2.7 copy moves to 2.0.0 and never sees the word `latest` again.
+
+Two things to settle before that release:
+
+- **2.x still pins the same channel.** `electron/updater.cjs` on v2 keeps
+  `channel = "latest"`, so every 2.x release would need its `-latest` twin too.
+  Changing it is safe for 2.x but needs testing against a real install first.
+- **Test the path on a real machine.** Install 1.2.7, point it at a test release
+  with both tags, and watch it take `v2.0.0-latest` and come back on 2.0.0 with
+  every chat, setting and library index intact. The unit tests cover the data;
+  only a real install covers the updater.
+
 ## Releasing from your own machine instead
 
 If you would rather not use the workflow, build and publish locally. This needs

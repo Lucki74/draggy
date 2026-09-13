@@ -37,13 +37,13 @@ or more makes this pleasant; less works, with smaller models.
 npm run check
 ```
 
-Typecheck, lint and the full test suite. There are around 990 tests and they run
-in about two seconds, so there is no reason to skip them.
+Typecheck, lint and the full test suite. There are around 1,700 tests and they
+run in about six seconds, so there is no reason to skip them.
 
 CI runs that same command on every push and pull request
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), so a mistake will be
 caught. It is caught faster on your own machine, though, and the suite takes
-about two seconds. GitHub also scans the repository with CodeQL, which looks
+about six seconds. GitHub also scans the repository with CodeQL, which looks
 for security issues rather than broken tests, and the release workflow fires
 only on a version tag.
 
@@ -56,15 +56,23 @@ data folder without touching one. Follow that shape and your change is testable.
 ## How the code is laid out
 
 ```
-electron/     main process: windows, IPC, SQLite, search, the embedded
-              browser, code execution, MCP servers, updates
-src/          the React app
-src/agent/    the streaming tool-calling loop, and conversation compaction
-src/chat/     the message list and the rules for what can be attached
-src/settings/ the settings panels
-src/tools/    tool definitions and the registry they live in
-src/voice/    capture, voice activity detection, turn-taking, speech
-src/__tests__ everything that can be tested without a GPU
+electron/       main process: windows, IPC, SQLite, the file guard and
+                checkpoints, git, search, the embedded browser, code
+                execution, MCP servers and widgets, the local API, updates
+src/            the React app
+src/app/        the shell: sidebar, routing, sessions, running tasks
+src/agent/      the tool-calling loop, permissions, compaction, subagents
+src/chat/       the message list, diffs, approvals, the context wheel
+src/canvas/     the editor beside the chat
+src/files/      the file explorer and tree
+src/project/    project memory, the git strip
+src/plan/       the editable plan
+src/extensions/ MCP servers, remote servers and skills on one screen
+src/settings/   the settings panels
+src/stats/      the statistics page
+src/tools/      tool definitions and the registry they live in
+src/voice/      capture, voice activity detection, turn-taking, speech
+src/__tests__   everything that can be tested without a GPU
 ```
 
 Two boundaries matter more than the rest:
@@ -77,6 +85,16 @@ request.
 The session split is the other. Draggy's own window runs under a strict Content
 Security Policy; every external page runs on a separate partition with no policy
 of ours imposed on it. Do not merge the two.
+
+Two more checks sit behind the preload. `electron/fsGuard.cjs` is the only way to
+a user's file: a new file tool resolves its path there, or it is a way around it.
+And every tool declares what it can do (`readOnly`, `destructive` and so on) so
+`src/agent/permissions.ts` can decide whether to run it, ask, or refuse. A tool
+without that declaration is treated as the most dangerous kind.
+
+`electron/mainLoad.test.js` loads the whole main process against a fake Electron.
+If you register a handler, add a module or move a block in `main.cjs`, that test
+is what tells you the app still starts.
 
 ## House style
 
