@@ -618,21 +618,23 @@ describe("workspaces", () => {
     expect(all[0].createdAt).toBe(500);
   });
 
-  it("keeps the conversations of a workspace that is removed", () => {
+  it("deletes a removed project's sessions rather than moving them into Chat", () => {
     storage.saveWorkspace(workspace("w1"));
     storage.saveChat(
-      session("a", [message("m1", "user", "hi")], { workspaceId: "w1" }),
+      session("a", [message("m1", "user", "fix the build")], { workspaceId: "w1" }),
     );
+    storage.saveChat(session("b", [message("m2", "user", "hi")]));
 
     const result = storage.deleteWorkspace("w1");
 
     expect(result.success).toBe(true);
-    expect(result.moved).toBe(1);
+    expect(result.deleted).toBe(1);
     expect(storage.listWorkspaces().some((one) => one.id === "w1")).toBe(false);
 
-    const chat = storage.loadChats()[0];
-    expect(chat.workspaceId).toBe(storage.DEFAULT_WORKSPACE_ID);
-    expect(chat.messages[0].content).toBe("hi");
+    // Chat keeps its own conversation and gains nothing from the project.
+    const left = storage.loadChats();
+    expect(left.map((chat) => chat.id)).toEqual(["b"]);
+    expect(storage.searchChats("build")).toEqual([]);
   });
 
   it("refuses to remove the default workspace", () => {

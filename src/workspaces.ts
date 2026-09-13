@@ -85,10 +85,6 @@ export function resolveSettings(
   if (overrides.thinkingMode) resolved.thinkingMode = overrides.thinkingMode;
   if (overrides.webMode) resolved.webMode = overrides.webMode;
 
-  if (typeof overrides.codeExecution === "boolean") {
-    resolved.codeExecution = overrides.codeExecution;
-  }
-
   if (typeof overrides.libraryEnabled === "boolean") {
     resolved.libraryEnabled = overrides.libraryEnabled;
   }

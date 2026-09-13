@@ -1,4 +1,4 @@
-import { Check, ShieldAlert, X } from "lucide-react";
+import { Check, ShieldAlert, SquareTerminal, X } from "lucide-react";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 interface ApprovalCardProps {
@@ -19,6 +19,10 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
   const approval = step.approval;
   if (!approval) return null;
 
+  const command = approval.kind === "command";
+  // A command that cannot be read safely is never remembered, so only "once" is offered for it.
+  const remembers = !command || Boolean(approval.allows?.length);
+
   if (step.answer) {
     const allowed = step.answer !== "no";
 
@@ -29,13 +33,21 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
         ) : (
           <X className="w-4 h-4 opacity-60 flex-shrink-0" />
         )}
-        <span className="text-sm font-bold tracking-tight">
+        <span className="min-w-0 text-sm font-bold tracking-tight truncate">
           {allowed ? t("approvalAllowed") : t("approvalDeclined")}
-          <span className="opacity-60"> · {approval.tool}</span>
+          <span className={`opacity-60 ${command ? "font-mono" : ""}`}>
+            {" "}
+            · {command && approval.target ? approval.target : approval.tool}
+          </span>
         </span>
       </div>
     );
   }
+
+  const labelFor = (choice: (typeof CHOICES)[number]) =>
+    command && choice.answer === "workspace"
+      ? t("allowAlwaysCommand").replace("{command}", (approval.allows ?? []).join(", "))
+      : t(choice.label);
 
   return (
     <div className="mb-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-4">
@@ -46,21 +58,35 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
         </span>
       </div>
 
-      <p className="mt-2 text-sm font-bold tracking-tight text-[var(--text-main)]">
-        {approval.tool}
-      </p>
+      {command ? (
+        <>
+          <p className="mt-2 flex items-center gap-2 text-sm font-bold tracking-tight text-[var(--text-main)]">
+            <SquareTerminal className="w-4 h-4 flex-shrink-0 opacity-70" />
+            {t("approvalRunCommand")}
+          </p>
+          <pre className="mt-2 max-h-40 overflow-auto rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-base)] px-3 py-2 font-mono text-xs whitespace-pre-wrap break-all text-[var(--text-main)]">
+            {approval.target}
+          </pre>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-sm font-bold tracking-tight text-[var(--text-main)]">
+            {approval.tool}
+          </p>
 
-      {approval.target && (
-        <p
-          className="mt-1 text-xs text-[var(--text-muted)] break-all"
-          title={approval.target}
-        >
-          {approval.target}
-        </p>
+          {approval.target && (
+            <p
+              className="mt-1 text-xs text-[var(--text-muted)] break-all"
+              title={approval.target}
+            >
+              {approval.target}
+            </p>
+          )}
+        </>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {CHOICES.map((choice) => (
+        {CHOICES.filter((choice) => remembers || choice.answer === "once").map((choice) => (
           <button
             key={choice.answer}
             onClick={() => onAnswer?.(approval.id, choice.answer)}
@@ -70,7 +96,7 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
                 : "rounded-xl border-[3px] border-[var(--border-light)] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] transition-colors hover:text-[var(--text-main)]"
             }
           >
-            {t(choice.label)}
+            {labelFor(choice)}
           </button>
         ))}
 

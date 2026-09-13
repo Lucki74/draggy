@@ -23,6 +23,8 @@ const updatePlan: ToolSpec = {
   // It changes the conversation, not the world, so it runs in every mode
   // including plan mode, where writing the plan is the whole point.
   annotations: { readOnly: true, idempotent: true },
+  // Plans are for work on a project; a chat answers instead.
+  available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const items = parsePlan(String(args.steps ?? ""));
 

@@ -12,6 +12,7 @@ export type ToolGroup =
   | "skill"
   | "agent"
   | "git"
+  | "shell"
   | "external";
 
 export interface ToolParameter {
@@ -31,6 +32,8 @@ export interface ToolEnvironment {
   hasSkills?: boolean;
   /** Whether that folder is a git repository and git is installed to read it. */
   hasGit?: boolean;
+  /** Whether commands can run in that folder. Code only. */
+  canRunCommands?: boolean;
   /** The only groups this turn may use, when set. A request from the local API gets the web and
    * nothing else: not the user's extensions, not their files. */
   allowedGroups?: ToolGroup[];

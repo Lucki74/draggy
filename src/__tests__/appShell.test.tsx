@@ -143,7 +143,8 @@ describe("the chat and code switch", () => {
     expect(chat.getAttribute("aria-checked")).toBe("true");
     expect(screen.getByRole("radio", { name: "Code" }).getAttribute("aria-checked")).toBe("false");
     expect(screen.getByRole("button", { name: /talk/i })).toBeTruthy();
-    expect(screen.queryByText("Projects")).toBeNull();
+    // The settings menu names Projects too, so the sidebar is checked by its own button.
+    expect(screen.queryByRole("button", { name: /new project/i })).toBeNull();
   });
 
   it("switches to Code, which asks for a folder when there is no project", async () => {
@@ -155,10 +156,75 @@ describe("the chat and code switch", () => {
     expect(code.getAttribute("aria-checked")).toBe("true");
     expect(screen.getByText("Open a project")).toBeTruthy();
     expect(screen.getByRole("button", { name: /open a folder/i })).toBeTruthy();
-    expect(screen.getByText("Projects")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /new project/i })).toBeTruthy();
     // Talk belongs to plain conversations, and never shows beside project work.
     expect(screen.queryByRole("button", { name: /talk/i })).toBeNull();
     expect(localStorage.getItem("draggy_mode")).toBe("code");
+  });
+
+  const chats = {
+    id: "default",
+    name: "",
+    kind: "chat",
+    rootPath: null,
+    permissionMode: "auto",
+    settings: {},
+    grants: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const weather = {
+    ...chats,
+    id: "weather",
+    name: "weather-cli",
+    kind: "project",
+    rootPath: "C:\\projects\\weather-cli",
+    permissionMode: "acceptEdits",
+  };
+
+  /** Opens the app on a project in Code. */
+  async function openProject(api: FakeApi) {
+    api.workspaces = [chats, weather];
+    localStorage.setItem("draggy_mode", "code");
+    localStorage.setItem("draggy_workspace", "weather");
+    render(<App />);
+    return screen.findByRole("button", { name: /accept edits/i });
+  }
+
+  it("keeps running code and permissions out of the Chat composer", async () => {
+    render(<App />);
+    await screen.findByRole("radio", { name: "Chat" });
+
+    expect(screen.queryByRole("button", { name: /run code/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /accept edits/i })).toBeNull();
+  });
+
+  it("gives the Code composer the project's permissions, with no switch for running code", async () => {
+    const api = installFakeElectronApi();
+    const picker = await openProject(api);
+
+    expect(picker).toBeTruthy();
+    // Running code and commands are always on in Code; the permission mode governs them.
+    expect(screen.queryByRole("button", { name: /run code/i })).toBeNull();
+
+    await act(async () => picker.click());
+    const plan = screen.getByRole("menuitemradio", { name: /plan only/i });
+    await act(async () => plan.click());
+
+    // Saved on the project, not on the app.
+    expect(api.savedWorkspaces.at(-1)).toMatchObject({ id: "weather", permissionMode: "plan" });
+  });
+
+  it("writes a Code composer toggle to Code's settings and leaves Chat's alone", async () => {
+    const api = installFakeElectronApi();
+    await openProject(api);
+
+    const thinking = screen.getByRole("button", { name: /balanced/i });
+    await act(async () => thinking.click());
+
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+    expect(saved.codeThinkingMode).toBe("high");
+    expect(saved.thinkingMode ?? "medium").toBe("medium");
   });
 
   it("comes back in the mode it was left in", async () => {

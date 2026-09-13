@@ -36,7 +36,11 @@ const SETTINGS = {
   searchProvider: "auto",
   searxngUrl: "",
   braveApiKey: "",
-  codeExecution: true,
+  codeModel: "",
+  codeInstructions: [],
+  codeThinkingMode: "medium",
+  codeWebMode: "auto",
+  codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "nomic-embed-text",
   showMetrics: true,
@@ -1521,12 +1525,13 @@ describe("working to a plan", () => {
     return { host, live, written, requests };
   }
 
+  // Plans belong to work on a project, so these turns have a folder.
   const run = (host: AgentHost) =>
     runAgentTurn(
       {
         model: MODEL,
         settings: SETTINGS,
-        environment: ENVIRONMENT,
+        environment: { ...ENVIRONMENT, hasFolder: true },
         messages: [userMessage("carry on")],
         signal: new AbortController().signal,
       },

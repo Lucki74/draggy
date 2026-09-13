@@ -5,15 +5,14 @@ import SkillsTab from "./SkillsTab";
 import type { McpServerConfig } from "../types";
 
 interface ExtensionsPanelProps {
-  workspaceId: string;
   t: (key: string) => string;
 }
 
 type Tab = "servers" | "remote" | "skills";
 
-/** One screen for extending Draggy: catalogue servers, remote servers, and skills, since all three
- * answer what else it can do. */
-export default function ExtensionsPanel({ workspaceId, t }: ExtensionsPanelProps) {
+/** One screen for extending Draggy: catalogue servers, remote servers, and skills. They are global,
+ * so Chat and every project get the same ones. */
+export default function ExtensionsPanel({ t }: ExtensionsPanelProps) {
   const [tab, setTab] = useState<Tab>("servers");
   const [config, setConfig] = useState<Record<string, McpServerConfig>>({});
   const [enabled, setEnabled] = useState<string[]>([]);
@@ -26,7 +25,7 @@ export default function ExtensionsPanel({ workspaceId, t }: ExtensionsPanelProps
 
     let cancelled = false;
 
-    Promise.all([api.config(), api.enabled(workspaceId)])
+    Promise.all([api.config(), api.enabled()])
       .then(([saved, on]) => {
         if (cancelled) return;
         setConfig(saved?.config ?? {});
@@ -37,7 +36,7 @@ export default function ExtensionsPanel({ workspaceId, t }: ExtensionsPanelProps
     return () => {
       cancelled = true;
     };
-  }, [api, workspaceId, revision]);
+  }, [api, revision]);
 
   const refresh = useCallback(() => setRevision((count) => count + 1), []);
 
@@ -70,19 +69,18 @@ export default function ExtensionsPanel({ workspaceId, t }: ExtensionsPanelProps
         ))}
       </div>
 
-      {tab === "servers" && <McpPanel t={t} workspaceId={workspaceId} />}
+      {tab === "servers" && <McpPanel t={t} />}
 
       {tab === "remote" && (
         <RemoteServers
           config={config}
           enabled={enabled}
-          workspaceId={workspaceId}
           t={t}
           onChanged={refresh}
         />
       )}
 
-      {tab === "skills" && <SkillsTab workspaceId={workspaceId} t={t} />}
+      {tab === "skills" && <SkillsTab t={t} />}
     </div>
   );
 }

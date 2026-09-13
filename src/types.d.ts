@@ -57,7 +57,7 @@ export interface LibraryHit {
 export interface LibrarySource {
   id: number;
   path: string;
-  /** Which workspace indexed it. The default one's folders are shared. */
+  /** Which workspace indexed it, and the only one that searches it. */
   workspaceId?: string;
   addedAt: number;
   files: number;
@@ -101,6 +101,20 @@ export interface RunCodeResult {
   truncated?: boolean;
   durationMs?: number;
   files?: string[];
+}
+
+export interface CommandResult {
+  success: boolean;
+  error?: string;
+  exitCode?: number | null;
+  signal?: string | null;
+  timedOut?: boolean;
+  cancelled?: boolean;
+  /** What it printed, errors included, in order. The middle of a long output is cut. */
+  output?: string;
+  truncated?: boolean;
+  durationMs?: number;
+  shell?: string;
 }
 
 export interface RunnerProbe {
@@ -249,6 +263,8 @@ export interface SearchStep {
     | "app"
     /** A look at the project's git repository. */
     | "git"
+    /** A command run in the project's folder, with what it printed. */
+    | "command"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -274,6 +290,10 @@ export interface SearchStep {
     tool: string;
     target?: string | null;
     reason: string;
+    /** "command" for a shell command, shown as the command itself. */
+    kind?: "command";
+    /** For a command: what "always allow" would remember. Empty when it cannot be remembered. */
+    allows?: string[];
   };
   /** What the user answered. Absent while the card is still waiting. */
   answer?: ApprovalAnswer;
@@ -530,7 +550,6 @@ export type WorkspaceOverrides = Partial<
     | "customInstructions"
     | "thinkingMode"
     | "webMode"
-    | "codeExecution"
     | "libraryEnabled"
   >
 >;
@@ -599,7 +618,14 @@ export interface AppSettings {
   searchProvider: SearchProvider;
   searxngUrl: string;
   braveApiKey: string;
-  codeExecution: boolean;
+  /** The model Code runs. Empty uses the chat model. */
+  codeModel: string;
+  /** Instructions for every project, kept apart from the chat ones. */
+  codeInstructions: string[];
+  codeThinkingMode: "low" | "medium" | "high";
+  codeWebMode: "auto" | "on" | "off";
+  /** What a new project starts at. */
+  codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
   embedModel: string;
   showMetrics: boolean;
@@ -821,8 +847,9 @@ declare global {
       };
 
       skills: {
+        /** The user's skills, plus a project's own when one is named. */
         list: (
-          workspaceId: string,
+          workspaceId?: string,
         ) => Promise<{ success: boolean; skills?: InstalledSkill[] }>;
         read: (
           workspaceId: string,
@@ -844,7 +871,8 @@ declare global {
         }>;
         remove: (id: string) => Promise<{
           success: boolean;
-          moved?: number;
+          /** How many sessions went with the project. */
+          deleted?: number;
           error?: string;
         }>;
         pickFolder: () => Promise<{
@@ -883,6 +911,17 @@ declare global {
           error?: string;
         }>;
         onProgress: (callback: (progress: LibraryProgress) => void) => Unsubscribe;
+      };
+
+      commands: {
+        /** Runs a command in the workspace's own folder. The id lets it be stopped. */
+        run: (
+          workspaceId: string,
+          runId: string,
+          command: string,
+          options?: { shell?: string; timeoutMs?: number },
+        ) => Promise<CommandResult>;
+        cancel: (runId: string) => Promise<{ success: boolean }>;
       };
 
       runner: {
@@ -934,14 +973,9 @@ declare global {
         ) => Promise<{ success: boolean; state: McpServerState; error?: string }>;
         stop: (id: string) => Promise<{ success: boolean }>;
         running: () => Promise<{ success: boolean; servers: McpServerState[] }>;
-        enabled: (
-          workspaceId: string,
-        ) => Promise<{ success: boolean; ids?: string[] }>;
-        setEnabled: (
-          workspaceId: string,
-          id: string,
-          enabled: boolean,
-        ) => Promise<{ success: boolean; ids?: string[] }>;
+        /** The servers switched on, for the whole app. */
+        enabled: () => Promise<{ success: boolean; ids?: string[] }>;
+        setEnabled: (id: string, enabled: boolean) => Promise<{ success: boolean; ids?: string[] }>;
         search: (query: string) => Promise<{
           success: boolean;
           entries?: RegistryEntry[];
@@ -949,7 +983,7 @@ declare global {
           stale?: boolean;
           error?: string;
         }>;
-        startEnabled: (workspaceId?: string) => Promise<{ success: boolean; servers: McpServerState[] }>;
+        startEnabled: () => Promise<{ success: boolean; servers: McpServerState[] }>;
         signIn: (
           id: string,
         ) => Promise<{ success: boolean; error?: string }>;

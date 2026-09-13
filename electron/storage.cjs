@@ -521,20 +521,26 @@ function saveWorkspace(workspace) {
   return { success: true, workspace: rowToWorkspace(row) };
 }
 
-/** Removing a workspace moves its chats to the default one. Closing a project should never delete
- * conversations, and the folder is never touched. */
+/** Removing a project deletes its sessions with it: Code's work never moves into Chat. The user is
+ * asked first, and the folder on disk is never touched. */
 function deleteWorkspace(id) {
   if (id === DEFAULT_WORKSPACE_ID) {
     return { success: false, error: "The default workspace cannot be removed." };
   }
 
-  const moved = db
-    .prepare("UPDATE chats SET workspace_id = ? WHERE workspace_id = ?")
-    .run(DEFAULT_WORKSPACE_ID, id);
+  const chats = db.prepare("SELECT id FROM chats WHERE workspace_id = ?").all(id);
+  const removeChat = db.prepare("DELETE FROM chats WHERE id = ?");
+  const removeSearch = db.prepare("DELETE FROM message_search WHERE chat_id = ?");
+
+  for (const chat of chats) {
+    removeChat.run(chat.id);
+    removeSearch.run(chat.id);
+  }
 
   db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
+  if (chats.length > 0) collectGarbage();
 
-  return { success: true, moved: moved.changes };
+  return { success: true, deleted: chats.length };
 }
 
 /** A file Draggy changed, and what it looked like before. The row is the record; the bytes live in

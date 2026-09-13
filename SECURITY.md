@@ -46,7 +46,12 @@ Specifically:
 - A web page, document or extension making Draggy run a tool on its own say-so.
 - Getting past a project's permission mode: a change or a command that runs
   without the approval the mode asks for, or a remembered permission that covers
-  more than the folder or tool it was given for.
+  more than the folder or tool it was given for. An "always allow" for a command
+  covers the start of that command only, so a chained, substituted or redirected
+  command slipping through under one is a bug.
+- A command starting anywhere but the project folder, or outliving the turn
+  that was stopped or the app that quit. Once approved, a command can do what
+  you can, which is why it is shown to you first.
 - A change Draggy made that cannot be undone, or an undo that writes somewhere
   other than the file it came from.
 - A repository that makes Draggy run a program just by being looked at. Git

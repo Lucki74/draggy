@@ -33,6 +33,9 @@ export interface FakeApi {
   install: ReturnType<typeof vi.fn>;
   check: ReturnType<typeof vi.fn>;
   created: { filename: string; content: string }[];
+  /** What workspaces.list answers. Empty leaves the app on its stand-in default workspace. */
+  workspaces: Record<string, unknown>[];
+  savedWorkspaces: Record<string, unknown>[];
 }
 
 /** Anything not spelled out below answers with an empty result rather than throwing, so a component
@@ -57,6 +60,8 @@ export function installFakeElectronApi(): FakeApi {
     install: vi.fn(async () => ({})),
     check: vi.fn(async () => ({})),
     created: [],
+    workspaces: [],
+    savedWorkspaces: [],
   };
 
   const api = {
@@ -113,7 +118,27 @@ export function installFakeElectronApi(): FakeApi {
       done: () => {},
       failed: () => {},
     },
-    library: { stats: async () => ({ stats: null }), onProgress: () => () => {} },
+    files: {
+      list: async () => ({ success: true, entries: [] }),
+      onChanged: () => () => {},
+    },
+    git: {
+      status: async () => ({ success: true, available: false, isRepo: false }),
+    },
+    workspaces: {
+      list: async () => ({ success: true, workspaces: fake.workspaces }),
+      save: async (workspace: Record<string, unknown>) => {
+        fake.savedWorkspaces.push(workspace);
+        return { success: true, workspace };
+      },
+      remove: async () => ({ success: true, deleted: 0 }),
+      pickFolder: async () => ({ success: false, cancelled: true }),
+    },
+    library: {
+      stats: async () => ({ stats: null }),
+      list: async () => ({ success: true, sources: [] }),
+      onProgress: () => () => {},
+    },
     db: { stats: async () => ({ stats: null }) },
   };
 

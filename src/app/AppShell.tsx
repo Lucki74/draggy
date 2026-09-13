@@ -19,8 +19,10 @@ import GitStrip from "../project/GitStrip";
 import { useApiBridge } from "../api/useApiBridge";
 import { useGitStatus } from "../project/useGitStatus";
 import { shouldShowStrip } from "../project/gitView";
-import SettingsPage from "../SettingsPage";
-import type { SettingsTab } from "../SettingsPage";
+import SettingsPage from "../settings/SettingsPage";
+import type { SettingsRequest } from "../settings/SettingsPage";
+import type { SettingsTab } from "../settings/pages";
+import { ConfirmDialog } from "../settings/Controls";
 import ChatHistory from "../ChatHistory";
 import TalkScreen from "../TalkScreen";
 import Explorer from "../files/Explorer";
@@ -33,6 +35,8 @@ import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { useTranslator } from "../i18n";
 import { generateId } from "../utils";
+import { isCloudModel, warmModel } from "../ollama";
+import { KEEP_ALIVE } from "../agent/agentLoop";
 import { chatToMarkdown, exportFilename } from "../chat/export";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
@@ -50,22 +54,24 @@ import {
   initialMode,
   isProject,
   modeOf,
+  patchForMode,
   projectsOf,
   runningInMode,
+  settingsForMode,
   workspaceForMode,
   workspaceOfChat,
 } from "./modes";
 import type { AppMode } from "./modes";
 import {
-  DEFAULT_WORKSPACE_ID,
   fallbackWorkspace,
   isDefault,
   resolveSettings,
   sessionsIn,
+  workspaceIdOf,
   workspaceLabel,
 } from "../workspaces";
 import { writeLocalStorage } from "../utils";
-import type { AppSettings } from "../types";
+import type { AppSettings, ChatSession, Workspace } from "../types";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
 
@@ -89,7 +95,12 @@ export default function AppShell({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
+  const [settingsRequest, setSettingsRequest] = useState<SettingsRequest>({
+    tab: "general",
+    id: 0,
+  });
+  /** A project the user asked to remove, waiting on their confirmation. */
+  const [removingProjectId, setRemovingProjectId] = useState<string | null>(null);
   const [libraryReady, setLibraryReady] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
   /** How many skills this workspace can reach, which decides whether to offer any. */
@@ -101,6 +112,14 @@ export default function AppShell({
   /** The file open in the canvas, with the workspace it belongs to. Switching workspace hides it
    * rather than trying to open one project's file in another. */
   const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
+
+  const pinSidebar = useCallback((node: HTMLDivElement | null) => {
+    const rail = node?.parentElement;
+    if (!rail) return;
+    rail.addEventListener("scroll", () => {
+      if (rail.scrollLeft !== 0) rail.scrollLeft = 0;
+    });
+  }, []);
 
   const store = useSessions();
   const update = useUpdateDialog();
@@ -133,12 +152,39 @@ export default function AppShell({
       setCanvas((previous) => (previous ? { ...previous, path } : previous)),
     [],
   );
-  const effectiveSettings = resolveSettings(settings, active);
+  // Each side runs with its own settings: Code reads its own model, instructions, thinking and web.
+  const effectiveSettings = resolveSettings(settingsForMode(settings, mode), active);
+  const turnModel = mode === "code" ? effectiveSettings.modelName || model : model;
 
   const openSettings = useCallback((tab: SettingsTab) => {
-    setSettingsTab(tab);
+    setSettingsRequest((current) => ({ tab, id: current.id + 1 }));
     setViewMode("settings");
   }, []);
+
+  /** A change to settings, merged into the latest ones rather than a copy from an older render. */
+  const updateSettings = useCallback(
+    (patch: Partial<AppSettings>) => onUpdateSettings((current) => ({ ...current, ...patch })),
+    [onUpdateSettings],
+  );
+
+  /** A change from the composer, written to the fields of the side it was made on. */
+  const patchFromComposer = useCallback(
+    (patch: Partial<AppSettings>) => updateSettings(patchForMode(mode, patch)),
+    [mode, updateSettings],
+  );
+
+  const selectModelHere = useCallback(
+    (name: string) => {
+      if (mode === "chat") {
+        onSelectModel(name);
+        return;
+      }
+
+      updateSettings({ codeModel: name });
+      if (!isCloudModel(name)) warmModel(name, KEEP_ALIVE).catch(() => undefined);
+    },
+    [mode, onSelectModel, updateSettings],
+  );
 
   // MCP servers start after the window is up: `npx` may fetch a package, and
   // none of those tools are needed until the first message is sent.
@@ -146,7 +192,6 @@ export default function AppShell({
     if (!window.electronAPI?.mcp) return;
 
     const api = window.electronAPI.mcp;
-    const workspaceId = active.id;
 
     const call = (
       serverId: string,
@@ -154,8 +199,7 @@ export default function AppShell({
       args: Record<string, unknown>,
     ) => api.call(serverId, toolName, args);
 
-    // Which of the running servers this workspace asked for. A server another workspace switched on
-    // keeps running; its tools simply are not offered here.
+    // The servers switched on. Extensions are global, so Chat and every project share them.
     let allowed: string[] | null = null;
 
     const sync = (servers: McpServerState[]) =>
@@ -169,10 +213,10 @@ export default function AppShell({
     const stopWatching = api.onState((state) => sync(state.servers));
 
     api
-      .enabled(workspaceId)
+      .enabled()
       .then((result) => {
         allowed = result?.ids ?? null;
-        return api.startEnabled(workspaceId);
+        return api.startEnabled();
       })
       .then((result) => sync(result.servers ?? []))
       .catch(() => undefined);
@@ -181,20 +225,21 @@ export default function AppShell({
       stopWatching();
       unregisterGroup("external");
     };
-  }, [active.id]);
+  }, []);
 
+  // Whether this workspace has indexed anything of its own. Chat's folders never count for a
+  // project, and a project's never count for Chat.
   const refreshLibraryReadiness = useCallback(() => {
     const library = window.electronAPI?.library;
-
-    // No state write on this path: the environment below already ANDs with the
-    // setting, and a synchronous write here would cascade out of the effect.
-    if (!settings.libraryEnabled || !library) return;
+    if (!library) return;
 
     library
-      .stats()
-      .then((result) => setLibraryReady(Boolean(result?.stats && result.stats.chunks > 0)))
+      .list(active.id)
+      .then((result) =>
+        setLibraryReady(Boolean(result?.sources?.some((source) => source.chunks > 0))),
+      )
       .catch(() => setLibraryReady(false));
-  }, [settings.libraryEnabled]);
+  }, [active.id]);
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
@@ -220,9 +265,12 @@ export default function AppShell({
 
   const environment: ToolEnvironment = {
     webMode: effectiveSettings.webMode,
-    codeExecution:
-      effectiveSettings.codeExecution && Boolean(window.electronAPI?.runner),
-    libraryReady: libraryReady && effectiveSettings.libraryEnabled,
+    // Running code and commands belong to Code, always on there and governed by the project's
+    // permission mode. Chat has neither.
+    codeExecution: mode === "code" && Boolean(window.electronAPI?.runner),
+    canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
+    // Chat has a switch for its library; a project searches its own folders whenever it has some.
+    libraryReady: libraryReady && (mode === "code" || effectiveSettings.libraryEnabled),
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
     hasSkills: skillCount > 0,
@@ -231,10 +279,10 @@ export default function AppShell({
 
   // Requests to the local API, when the user has turned it on, are answered
   // by this window with the model and settings it has right now.
-  useApiBridge({ model, settings: effectiveSettings, t });
+  useApiBridge({ model, settings: settingsForMode(settings, "chat"), t });
 
   const runs = useAgentRuns({
-    model,
+    model: turnModel,
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,
@@ -291,19 +339,23 @@ export default function AppShell({
   /** The project's instruction file, opened from `/memory`, or drafted from what is in the folder
    * by `/init`. Nothing is written until the user saves. */
   const [memoryDraft, setMemoryDraft] = useState<{
+    workspaceId: string;
     path: string;
     text: string;
   } | null>(null);
 
-  const openProjectMemory = useCallback(async () => {
-    if (!active.rootPath) return;
+  const openMemoryOf = useCallback(async (workspace: Workspace | undefined) => {
+    if (!workspace?.rootPath) return;
 
-    const existing = await loadProjectMemory(active.id, active.rootPath);
+    const existing = await loadProjectMemory(workspace.id, workspace.rootPath);
     setMemoryDraft({
+      workspaceId: workspace.id,
       path: existing?.path ?? MEMORY_NAMES[0],
       text: existing?.text ?? "",
     });
-  }, [active]);
+  }, []);
+
+  const openProjectMemory = useCallback(() => openMemoryOf(active), [openMemoryOf, active]);
 
   const draftProject = useCallback(async () => {
     if (!active.rootPath) return;
@@ -318,6 +370,7 @@ export default function AppShell({
     // A project that already says something keeps it: the draft goes under it
     // rather than over it.
     setMemoryDraft({
+      workspaceId: active.id,
       path: existing?.path ?? MEMORY_NAMES[0],
       text: existing?.text ? `${existing.text}\n\n${drafted}` : drafted,
     });
@@ -328,7 +381,7 @@ export default function AppShell({
       if (!memoryDraft) return false;
 
       const result = await window.electronAPI?.files?.write(
-        active.id,
+        memoryDraft.workspaceId,
         memoryDraft.path,
         text,
       );
@@ -338,7 +391,7 @@ export default function AppShell({
       store.setStorageWarning(result?.error || t("undoFailed"));
       return false;
     },
-    [active.id, memoryDraft, store, t],
+    [memoryDraft, store, t],
   );
 
   /** Puts a file back the way it was, from the step that changed it. */
@@ -363,11 +416,20 @@ export default function AppShell({
     setViewMode("chat");
   }, []);
 
-  const handleClearChats = useCallback(() => {
-    runs.stopAll();
-    store.clearSessions();
-    setSelectedChatId(null);
-  }, [runs, store]);
+  /** Clears one side's conversations and leaves the other's alone. */
+  const clearSide = useCallback(
+    (side: AppMode) => {
+      const inSide = (session: ChatSession) =>
+        (workspaceIdOf(session) === defaultWorkspace.id) === (side === "chat");
+
+      for (const session of store.sessions) {
+        if (inSide(session)) runs.stop(session.id);
+      }
+      store.deleteSessionsWhere(inSide);
+      setSelectedChatId(null);
+    },
+    [runs, store, defaultWorkspace.id],
+  );
 
   const enterMode = useCallback((next: AppMode) => {
     setMode(next);
@@ -402,15 +464,20 @@ export default function AppShell({
     [workspaces, enterMode],
   );
 
+  const addProject = useCallback(async () => {
+    const created = await workspaces.addProject(settings.codePermissionMode);
+    if (created) writeLocalStorage(LAST_PROJECT_KEY, created.id);
+    return created;
+  }, [workspaces, settings.codePermissionMode]);
+
   const handleNewProject = useCallback(async () => {
-    const created = await workspaces.addProject();
+    const created = await addProject();
     if (!created) return;
 
-    writeLocalStorage(LAST_PROJECT_KEY, created.id);
     enterMode("code");
     setSelectedChatId(null);
     setViewMode("chat");
-  }, [workspaces, enterMode]);
+  }, [addProject, enterMode]);
 
   /** Opens a conversation wherever it lives, switching workspace and mode first. Opening it from
    * the wrong workspace showed an empty chat under its id. */
@@ -431,17 +498,23 @@ export default function AppShell({
     [store.sessions, workspaces, enterMode],
   );
 
-  const handleRemoveWorkspace = useCallback(
-    async (event: React.MouseEvent, id: string) => {
-      event.stopPropagation();
+  /** Removes a project once the user has confirmed, with its sessions. The folder stays. */
+  const removeProject = useCallback(
+    async (id: string) => {
+      for (const session of sessionsIn(store.sessions, id)) runs.stop(session.id);
 
-      const { moved } = await workspaces.remove(id);
-      // The database has already moved them; the window has not heard yet.
-      if (moved > 0) store.reassign(id, DEFAULT_WORKSPACE_ID);
+      const { removed } = await workspaces.remove(id);
+      // The database has already deleted them; the window has not heard yet.
+      if (removed) store.forgetWorkspace(id);
       setSelectedChatId(null);
     },
-    [workspaces, store],
+    [workspaces, store, runs],
   );
+
+  const handleRemoveWorkspace = useCallback((event: React.MouseEvent, id: string) => {
+    event.stopPropagation();
+    setRemovingProjectId(id);
+  }, []);
 
   /** Only this workspace's conversations, everywhere the app lists them. */
   const visibleSessions = useMemo(
@@ -546,6 +619,27 @@ export default function AppShell({
         />
       )}
 
+      {removingProjectId && (
+        <ConfirmDialog
+          title={t("removeProject")}
+          body={t("confirmRemoveProject").replace(
+            "{name}",
+            workspaceLabel(
+              workspaces.workspaces.find((one) => one.id === removingProjectId),
+              t,
+            ),
+          )}
+          confirmLabel={t("removeProject")}
+          cancelLabel={t("cancel")}
+          onCancel={() => setRemovingProjectId(null)}
+          onConfirm={() => {
+            const id = removingProjectId;
+            setRemovingProjectId(null);
+            void removeProject(id);
+          }}
+        />
+      )}
+
       {finishedChatId && (
         <button
           onClick={() => {
@@ -586,7 +680,12 @@ export default function AppShell({
           borderColor: "var(--border-light)",
         }}
       >
-        <div className="w-[260px] h-full flex flex-col flex-shrink-0 relative">
+        {/* Focus or a script can scroll a clipped box sideways, which shifted the rail's contents
+            out of view; it is pinned back at once. */}
+        <div
+          className="w-[260px] h-full flex flex-col flex-shrink-0 relative"
+          ref={pinSidebar}
+        >
           <div className="pt-2 drag-region h-6 flex-shrink-0 w-full" />
 
           {/* Chat and Code are separate places; the switch sits first, above everything they differ in. */}
@@ -630,7 +729,7 @@ export default function AppShell({
               </button>
             )}
 
-            <button onClick={() => openSettings("appearance")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+            <button onClick={() => openSettings("general")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <Settings className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
               <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {t("settings")}
@@ -650,13 +749,15 @@ export default function AppShell({
                   </span>
 
                   {projects.map((one) => (
+                    // Icon-wide while the rail is collapsed, so the open project's highlight is a whole
+                    // rounded box rather than a row cut off at the rail's edge.
                     <div
                       key={one.id}
-                      className={
+                      className={`flex items-center w-10 group-hover:w-full overflow-hidden rounded-lg transition-all ${
                         one.id === active.id && !codeHome
-                          ? "flex items-center w-full rounded-lg bg-[var(--hover-bg)]"
-                          : "flex items-center w-full rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
-                      }
+                          ? "bg-[var(--hover-bg)]"
+                          : "hover:bg-[var(--hover-bg)]"
+                      }`}
                     >
                       <button
                         onClick={() => handleSelectWorkspace(one.id)}
@@ -674,7 +775,7 @@ export default function AppShell({
                         onClick={(event) => handleRemoveWorkspace(event, one.id)}
                         aria-label={t("removeProject")}
                         title={t("removeProject")}
-                        className="mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                        className="hidden group-hover:block flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
                       >
                         <X className="w-4 h-4 text-[var(--text-muted)]" />
                       </button>
@@ -739,9 +840,9 @@ export default function AppShell({
             sessions={visibleSessions}
             onSelectChat={selectChat}
             onDeleteChat={handleDeleteChat}
-            onExportChat={handleExportChat}
+            onExportChat={mode === "chat" ? handleExportChat : undefined}
             settings={settings}
-            title={mode === "code" ? t("sessions") : t("chatHistory")}
+            surface={mode}
           />
         ) : viewMode === "files" ? (
           <Explorer
@@ -817,7 +918,8 @@ export default function AppShell({
 
             <div className="flex-1 min-w-0 flex">
             <ChatScreen
-            model={model}
+            key={mode}
+            model={turnModel}
             chat={
               currentSession || {
                 id: currentChatId,
@@ -841,11 +943,18 @@ export default function AppShell({
             onProjectMemory={active.rootPath ? openProjectMemory : undefined}
             onInitProject={active.rootPath ? draftProject : undefined}
             onCompact={() => runs.compact(currentChatId)}
-            onSelectModel={onSelectModel}
+            onSelectModel={selectModelHere}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}
-            settings={settings}
-            onUpdateSettings={onUpdateSettings}
+            surface={mode}
+            settings={effectiveSettings}
+            onPatchSettings={patchFromComposer}
+            permissionMode={mode === "code" ? active.permissionMode : undefined}
+            onPermissionMode={
+              mode === "code"
+                ? (next) => workspaces.setPermissionMode(active.id, next)
+                : undefined
+            }
             />
             </div>
 
@@ -914,13 +1023,23 @@ export default function AppShell({
         >
           <SettingsPage
             settings={settings}
-            activeModel={model}
-            initialTab={settingsTab}
-            onUpdate={onUpdateSettings}
-            onSelectModel={onSelectModel}
-            onClearChats={handleClearChats}
+            chatModel={model}
+            request={settingsRequest}
+            onUpdate={updateSettings}
+            onSelectChatModel={onSelectModel}
+            projects={projects}
+            activeProjectId={mode === "code" && !codeHome ? active.id : null}
+            onAddProject={addProject}
+            onRenameProject={(id, name) => void workspaces.rename(id, name)}
+            onSetPermissionMode={workspaces.setPermissionMode}
+            onRevokeGrant={workspaces.revokeGrant}
+            onRemoveProject={(id) => void removeProject(id)}
+            onEditProjectMemory={(id) =>
+              void openMemoryOf(workspaces.workspaces.find((one) => one.id === id))
+            }
+            onClearChats={() => clearSide("chat")}
+            onClearSessions={() => clearSide("code")}
             onLibraryChange={refreshLibraryReadiness}
-            workspaceId={active.id}
           />
         </div>
       </div>

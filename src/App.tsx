@@ -9,6 +9,7 @@ import { registerPlanTools } from "./tools/plan";
 import { registerSkillTools } from "./tools/skills";
 import { registerExploreTools } from "./tools/explore";
 import { registerGitTools } from "./tools/git";
+import { registerCommandTools } from "./tools/commands";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 
 registerBuiltinTools();
@@ -17,6 +18,7 @@ registerPlanTools();
 registerSkillTools();
 registerExploreTools();
 registerGitTools();
+registerCommandTools();
 
 /** The composition root: which model is running, and therefore whether the user sees the startup
  * screen or the app. Everything else lives in `app/`. */

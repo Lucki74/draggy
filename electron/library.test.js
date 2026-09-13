@@ -452,14 +452,12 @@ describe("keeping one workspace's documents out of another's answers", () => {
     expect(library.listSources()[0].workspaceId).toBe("default");
   });
 
-  it("shows a project its own folders and the shared ones", () => {
+  it("keeps Chat's folders out of a project", () => {
     addLegacySource(path.join(workdir, "library.db"), "C:\docs\shared");
     library.init(workdir);
 
-    const mine = library.listSources("project-7");
-
-    // The default workspace's folders stay visible everywhere; another
-    // project's do not.
-    expect(mine.map((one) => one.path)).toEqual(["C:\docs\shared"]);
+    // Chat and Code are separate: the chat library answers in Chat only.
+    expect(library.listSources("default").map((one) => one.path)).toEqual(["C:\docs\shared"]);
+    expect(library.listSources("project-7")).toEqual([]);
   });
 });

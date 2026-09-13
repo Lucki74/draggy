@@ -110,7 +110,8 @@ function adoptSources() {
   }
 }
 
-/** The sources a workspace may search: its own, and the ones kept for everything. */
+/** The sources a workspace may search. Chat has its own and anything from before workspaces; a
+ * project has only its own, so Chat's documents never answer in Code. */
 function scopeIds(workspaceId) {
   if (!workspaceId || workspaceId === DEFAULT_WORKSPACE_ID) {
     return db
@@ -120,10 +121,8 @@ function scopeIds(workspaceId) {
   }
 
   return db
-    .prepare(
-      "SELECT id FROM library_sources WHERE workspace_id = ? OR workspace_id = ? OR workspace_id IS NULL",
-    )
-    .all(String(workspaceId), DEFAULT_WORKSPACE_ID)
+    .prepare("SELECT id FROM library_sources WHERE workspace_id = ?")
+    .all(String(workspaceId))
     .map((row) => row.id);
 }
 
@@ -762,10 +761,12 @@ async function search(query, limit, model, options = {}) {
 }
 
 function listSources(workspaceId) {
-  // Its own, the shared ones, and anything indexed before workspaces existed.
-  const scoped = workspaceId
-    ? "WHERE s.workspace_id = ? OR s.workspace_id = 'default' OR s.workspace_id IS NULL"
-    : "";
+  // The same scope search uses: Chat's folders for Chat, a project's own for that project.
+  const scoped = !workspaceId
+    ? ""
+    : String(workspaceId) === DEFAULT_WORKSPACE_ID
+      ? "WHERE s.workspace_id = ? OR s.workspace_id IS NULL"
+      : "WHERE s.workspace_id = ?";
 
   return db
     .prepare(

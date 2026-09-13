@@ -34,6 +34,7 @@ const skills = require("./skills.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
+const commands = require("./commands.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
@@ -822,6 +823,7 @@ function shutdown() {
     ["api", () => void apiServer?.stop()],
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
+    ["commands", () => commands.stopAll()],
     ["ollama", stopOllama],
     ["storage", () => storage.close()],
     ["library", () => library.close()],
@@ -2304,6 +2306,29 @@ ipcMain.handle("library:search", wrap("library", async (event, query, limit, mod
   ),
 ));
 
+// A command runs in the conversation's own project folder, which the main process looks up; the
+// renderer names a workspace and cannot pick a folder.
+ipcMain.handle(
+  "commands:run",
+  wrap("commands", async (event, workspaceId, runId, command, options) => {
+    const root = rootsFor(workspaceId)[0];
+    if (!root) {
+      return { success: false, error: "Commands run inside a project, and this conversation has none." };
+    }
+    return commands.run({
+      id: runId,
+      cwd: root,
+      command,
+      shell: options?.shell,
+      timeoutMs: options?.timeoutMs,
+    });
+  }),
+);
+
+ipcMain.handle("commands:cancel", wrap("commands", async (event, runId) => ({
+  success: commands.cancel(String(runId || "")),
+})));
+
 ipcMain.handle("runner:probe", wrap("runner", async () => ({
   success: true,
   ...(await runner.probe()),
@@ -2408,44 +2433,41 @@ function saveEnabledByWorkspace(record) {
   storage.setValue(MCP_ENABLED_KEY, JSON.stringify(record));
 }
 
-/** What a workspace has switched on. The list is per workspace, so a project's ticket system stays
- * out of the chat about dinner. */
-function enabledFor(workspaceId) {
+/** What is switched on. Extensions are global: Chat and every project get the same servers. Kept
+ * under the default workspace's entry, where earlier 2.0 builds wrote Chat's list. */
+function enabledServers() {
   const record = enabledByWorkspace();
-  const ids = record[String(workspaceId)];
+  const ids = record[storage.DEFAULT_WORKSPACE_ID];
 
   if (Array.isArray(ids)) return ids;
 
-  // Nothing recorded yet: what the app-wide switches said, which is what every
-  // version before this one meant.
+  // Nothing recorded yet: what the app-wide switches of 1.x said.
   return Object.entries(mcpConfig())
     .filter(([, entry]) => entry?.enabled)
     .map(([id]) => id);
 }
 
-function setEnabledFor(workspaceId, id, enabled) {
-  const record = enabledByWorkspace();
-  const current = new Set(enabledFor(workspaceId));
+function setServerEnabled(id, enabled) {
+  const current = new Set(enabledServers());
 
   if (enabled) current.add(String(id));
   else current.delete(String(id));
 
-  record[String(workspaceId)] = [...current];
-  saveEnabledByWorkspace(record);
+  // Lists earlier builds kept per project are dropped, so nothing reads them by mistake.
+  saveEnabledByWorkspace({ [storage.DEFAULT_WORKSPACE_ID]: [...current] });
 
   return [...current];
 }
 
-ipcMain.handle("mcp:enabled", wrap("mcp", async (event, workspaceId) => ({
+ipcMain.handle("mcp:enabled", wrap("mcp", async () => ({
   success: true,
-  ids: enabledFor(String(workspaceId || storage.DEFAULT_WORKSPACE_ID)),
+  ids: enabledServers(),
 })));
 
 ipcMain.handle(
   "mcp:set-enabled",
-  wrap("mcp", async (event, workspaceId, id, enabled) => {
-    const workspace = String(workspaceId || storage.DEFAULT_WORKSPACE_ID);
-    const ids = setEnabledFor(workspace, id, Boolean(enabled));
+  wrap("mcp", async (event, id, enabled) => {
+    const ids = setServerEnabled(id, Boolean(enabled));
 
     const config = mcpConfig();
     const entry = config[String(id)] || {};
@@ -2575,11 +2597,11 @@ ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) =
 
 /** Starts what the user switched on, once the window is up. A ten-second npx install should not
  * hold the splash screen, and no tool is needed yet. */
-ipcMain.handle("mcp:start-enabled", wrap("mcp", async (event, workspaceId) => {
+ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
   const config = mcpConfig();
   const states = [];
 
-  for (const id of enabledFor(String(workspaceId || storage.DEFAULT_WORKSPACE_ID))) {
+  for (const id of enabledServers()) {
     const entry = config[id];
     if (!entry) continue;
 

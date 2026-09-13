@@ -127,3 +127,37 @@ describe("the answers it can give", () => {
     expect(given).toEqual(["once", "task", "workspace", "no"]);
   });
 });
+
+describe("a command waiting on the user", () => {
+  const command: SearchStep = {
+    ...waiting,
+    approval: {
+      id: "step-1",
+      tool: "run_command",
+      target: "npm test -- --run",
+      reason: "This runs a command on the user's computer, so the user is asked first.",
+      kind: "command",
+      allows: ["npm test"],
+    },
+  };
+
+  it("shows the command itself, and what always allowing it would remember", () => {
+    render(<ApprovalCard step={command} t={t} />);
+
+    expect(screen.getByText("Run a command")).toBeTruthy();
+    expect(screen.getByText("npm test -- --run")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Always allow npm test" })).toBeTruthy();
+  });
+
+  it("offers only once for a command that cannot be remembered safely", () => {
+    const unreadable: SearchStep = {
+      ...command,
+      approval: { ...command.approval!, target: "echo $(whoami)", allows: [] },
+    };
+    render(<ApprovalCard step={unreadable} t={t} />);
+
+    expect(screen.getByRole("button", { name: "Allow once" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /allow for this task/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /always allow/i })).toBeNull();
+  });
+});

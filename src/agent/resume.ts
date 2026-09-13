@@ -59,6 +59,17 @@ function lineFor(step: SearchStep): Line | null {
       };
     }
 
+    case "command": {
+      const output = step.stdout ? head(step.stdout, OUTPUT_BUDGET) : "";
+      return {
+        priority: 0,
+        text:
+          `${label}.` +
+          (output ? ` Output: ${output}` : "") +
+          " Do not run it again unless something has changed.",
+      };
+    }
+
     case "results": {
       const titles = (step.results ?? [])
         .slice(0, 4)

@@ -3,7 +3,8 @@ import { BookOpen, FolderOpen, RefreshCw } from "lucide-react";
 import type { InstalledSkill } from "../types";
 
 interface SkillsTabProps {
-  workspaceId: string;
+  /** A project whose own skills folder is listed too. Left out, only the user's skills show. */
+  workspaceId?: string;
   t: (key: string) => string;
 }
 

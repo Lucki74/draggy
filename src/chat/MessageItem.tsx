@@ -25,6 +25,7 @@ import {
   Search,
   Send,
   Terminal,
+  SquareTerminal,
   Type,
   User,
 } from "lucide-react";
@@ -76,6 +77,7 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   typing: Type,
   library: Library,
   run_code: Terminal,
+  command: SquareTerminal,
   extension: Blocks,
   edit_file: FilePen,
   git: GitBranch,
@@ -786,7 +788,7 @@ const MessageItem = memo(
                     const payload =
                       step.type === "library" && step.libraryHits?.length ? (
                         <LibraryHits hits={step.libraryHits} t={t} />
-                      ) : step.type === "run_code" ? (
+                      ) : step.type === "run_code" || step.type === "command" ? (
                         <CodeRunOutput step={step} t={t} />
                       ) : step.type === "git" && step.fileContent ? (
                         <GitDiffOutput diff={step.fileContent} t={t} />

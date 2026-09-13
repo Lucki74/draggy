@@ -155,32 +155,36 @@ describe("planning what to do with a dropped file", () => {
 });
 
 describe("slash commands", () => {
-  it("opens on a slash", () => {
+  it("opens on a slash, with every command one side or the other offers", () => {
     expect(slashQueryFor("/")).toBe("");
-    expect(matchSlashCommands("/", { project: true })).toHaveLength(
-      SLASH_COMMANDS.length,
-    );
+
+    const chat = matchSlashCommands("/", { surface: "chat" });
+    const code = matchSlashCommands("/", { surface: "code" });
+    const offered = new Set([...chat, ...code].map((command) => command.id));
+
+    expect(offered.size).toBe(SLASH_COMMANDS.length);
   });
 
-  it("keeps the project commands out of a plain chat", () => {
-    const everywhere = matchSlashCommands("/").map((command) => command.id);
+  it("keeps the code commands out of Chat", () => {
+    const chat = matchSlashCommands("/", { surface: "chat" }).map((command) => command.id);
 
-    expect(everywhere).not.toContain("memory");
-    expect(everywhere).not.toContain("init");
-    expect(everywhere).toContain("new");
+    for (const id of ["memory", "init", "permissions"]) {
+      expect(chat).not.toContain(id);
+    }
+    expect(chat).toContain("new");
+    expect(chat).toContain("web");
   });
 
-  it("offers them once the conversation has a folder", () => {
-    const inProject = matchSlashCommands("/", { project: true }).map(
-      (command) => command.id,
-    );
+  it("offers them in Code", () => {
+    const code = matchSlashCommands("/", { surface: "code" }).map((command) => command.id);
 
-    expect(inProject).toContain("memory");
-    expect(inProject).toContain("init");
+    for (const id of ["memory", "init", "permissions", "new"]) {
+      expect(code).toContain(id);
+    }
   });
 
-  it("narrows to a project command as it is typed", () => {
-    expect(matchSlashCommands("/mem", { project: true }).map((c) => c.id)).toEqual([
+  it("narrows to a code command as it is typed", () => {
+    expect(matchSlashCommands("/mem", { surface: "code" }).map((c) => c.id)).toEqual([
       "memory",
     ]);
     expect(matchSlashCommands("/mem")).toEqual([]);

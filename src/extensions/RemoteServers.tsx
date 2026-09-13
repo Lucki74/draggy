@@ -6,7 +6,6 @@ interface RemoteServersProps {
   /** Every saved server, of which the ones with a url are shown here. */
   config: Record<string, McpServerConfig>;
   enabled: string[];
-  workspaceId: string;
   t: (key: string) => string;
   onChanged: () => void;
 }
@@ -27,7 +26,6 @@ const idFrom = (name: string, url: string) => {
 export default function RemoteServers({
   config,
   enabled,
-  workspaceId,
   t,
   onChanged,
 }: RemoteServersProps) {
@@ -118,7 +116,7 @@ export default function RemoteServers({
               checked={enabled.includes(id)}
               onChange={(event) =>
                 void act(id, () =>
-                  api.setEnabled(workspaceId, id, event.target.checked),
+                  api.setEnabled(id, event.target.checked),
                 )
               }
               aria-label={entry.name || id}

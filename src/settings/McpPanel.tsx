@@ -48,14 +48,7 @@ function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
   );
 }
 
-export default function McpPanel({
-  t,
-  workspaceId,
-}: {
-  t: (key: string) => string;
-  /** Which workspace the switches belong to. */
-  workspaceId: string;
-}) {
+export default function McpPanel({ t }: { t: (key: string) => string }) {
   const [catalogue, setCatalogue] = useState<McpCatalogueEntry[]>([]);
   const [config, setConfig] = useState<Record<string, McpServerConfig>>({});
   const [running, setRunning] = useState<McpServerState[]>([]);
@@ -63,7 +56,7 @@ export default function McpPanel({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [shown, setShown] = useState<Shown>("all");
-  /** The servers this workspace has switched on, which is not an app-wide list. */
+  /** The servers switched on, the same for Chat and every project. */
   const [enabled, setEnabled] = useState<string[]>([]);
   const [found, setFound] = useState<RegistryEntry[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -76,8 +69,8 @@ export default function McpPanel({
     api.catalogue().then((result) => setCatalogue(result.servers || []));
     api.config().then((result) => setConfig(result.config || {}));
     api.running().then((result) => setRunning(result.servers || []));
-    api.enabled(workspaceId).then((result) => setEnabled(result.ids || []));
-  }, [api, workspaceId]);
+    api.enabled().then((result) => setEnabled(result.ids || []));
+  }, [api]);
 
   const stateOf = (id: string) => running.find((server) => server.id === id) || null;
 
@@ -118,7 +111,7 @@ export default function McpPanel({
         ? [...new Set([...previous, entry.id])]
         : previous.filter((id) => id !== entry.id),
     );
-    await api?.setEnabled(workspaceId, entry.id, on);
+    await api?.setEnabled(entry.id, on);
 
     setBusy(entry.id);
     try {

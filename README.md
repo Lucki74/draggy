@@ -47,14 +47,22 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   first launch and downloads it. Three answering modes, swappable models.
 - **Keep chats and code apart.** A Chat and Code switch at the top of the
   sidebar moves between plain conversations and project folders. Each side has
-  its own history, files and running tasks.
+  its own history, files, running tasks, tools, model and preferences, so
+  nothing set in one reaches the other.
 - **Work in a project.** Switch to Code, open a folder and Draggy can read,
   edit, move and delete files in it, and only in it. Every change shows as a
   diff, and every one can be undone, whether or not the folder is a git
   repository.
-- **Decide how much it may do.** Each project has a permission mode: plan (it
-  only proposes), ask, accept edits, or auto. Anything outside the mode stops
-  and asks you in the conversation, with the change shown before you allow it.
+- **Run commands.** In Code the model runs commands in the project folder, in
+  PowerShell, cmd, bash or sh: git, gh, package managers, tests and builds. A
+  stopped turn stops the command and everything it started.
+- **Decide how much it may do.** Each project has a permission mode, picked
+  from the composer or the project's settings: plan (it only proposes), ask,
+  accept edits, or auto. Anything outside the mode stops and asks you in the
+  conversation, with the change or the command shown before you allow it.
+  Commands ask in every mode but auto. "Always allow" remembers only the start
+  of a command, never one chained after it, and the project's settings list
+  everything allowed so it can be taken back.
 - **Follow the project's own rules.** An `AGENTS.md` in the folder is read into
   every turn. `/init` drafts one from what is in the project, `/memory` opens it.
 - **Steer a plan while it runs.** The model writes its plan as a checklist you
@@ -64,18 +72,20 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   model's edits land in it as they happen. A strip under the file tree shows the
   branch and what changed, and the model can read git status and diffs.
 - **Use tools.** Web search, reading a page, and driving a real browser session.
-  It writes Word, PowerPoint, Excel, PDF, code and text files, reads them back
-  when you attach one, and runs short Python and JavaScript in a sandbox. A
-  smaller model can be sent to explore a project and report back.
+  In Chat it writes Word, PowerPoint, Excel, PDF, code and text files and reads
+  them back when you attach one. In Code it runs short Python and JavaScript in
+  a sandbox, and a smaller model can be sent to explore a project and report
+  back.
 - **Browse without ads.** Links open in a browser window inside the app, with
   uBlock Origin's filter lists on Ghostery's engine, YouTube adverts and
   anti-adblock walls included.
 - **Search your own documents.** Point it at a folder and it indexes the
-  contents locally, on meaning and keywords at once, per project if you like.
+  contents locally, on meaning and keywords at once. Chat's library and each
+  project's are kept apart.
 - **Extend it.** Thirty-four Model Context Protocol servers in a catalogue, a
   search of the official MCP registry, remote servers with OAuth sign-in, and
-  skills you write down once. All of it is off until you switch it on, per
-  project, and a server can answer with a small sandboxed interface.
+  skills you write down once. All of it is off until you switch it on, once
+  for the whole app, and a server can answer with a small sandboxed interface.
 - **See where the context goes.** A wheel beside the model picker breaks the
   window down into conversation, instructions, tools and memory. `/compact`
   folds the conversation into notes now, `/compact-limit` sets when it happens.
@@ -153,7 +163,7 @@ src/files/      the file explorer and tree
 src/project/    project memory, the git strip
 src/plan/       the editable plan
 src/extensions/ MCP servers, remote servers and skills on one screen
-src/settings/   the settings panels
+src/settings/   settings: the app, Chat and Code pages
 src/stats/      the statistics page
 src/tools/      tool definitions and the registry they live in
 src/voice/      capture, voice activity detection, turn-taking, speech

@@ -124,6 +124,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onProgress: (callback) => subscribe("library-progress", callback),
   },
 
+  commands: {
+    run: (workspaceId, runId, command, options) =>
+      ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
+    cancel: (runId) => ipcRenderer.invoke("commands:cancel", runId),
+  },
+
   runner: {
     probe: () => ipcRenderer.invoke("runner:probe"),
     run: (language, source, timeoutMs) =>
@@ -156,11 +162,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     start: (id) => ipcRenderer.invoke("mcp:start", id),
     stop: (id) => ipcRenderer.invoke("mcp:stop", id),
     running: () => ipcRenderer.invoke("mcp:running"),
-    startEnabled: (workspaceId) =>
-      ipcRenderer.invoke("mcp:start-enabled", workspaceId),
-    enabled: (workspaceId) => ipcRenderer.invoke("mcp:enabled", workspaceId),
-    setEnabled: (workspaceId, id, enabled) =>
-      ipcRenderer.invoke("mcp:set-enabled", workspaceId, id, enabled),
+    startEnabled: () => ipcRenderer.invoke("mcp:start-enabled"),
+    enabled: () => ipcRenderer.invoke("mcp:enabled"),
+    setEnabled: (id, enabled) => ipcRenderer.invoke("mcp:set-enabled", id, enabled),
     search: (query) => ipcRenderer.invoke("registry:search", query),
     signIn: (id) => ipcRenderer.invoke("mcp:sign-in", id),
     signOut: (id) => ipcRenderer.invoke("mcp:sign-out", id),

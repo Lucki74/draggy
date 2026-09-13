@@ -6,8 +6,8 @@ import SkillsTab from "../extensions/SkillsTab";
 import RemoteServers from "../extensions/RemoteServers";
 import { translations } from "../translations";
 
-/** The extensions screen: a remote server is labelled before it is switched on, and switches belong
- * to the workspace, not the app. */
+/** The extensions screen: a remote server is labelled before it is switched on, and switches are
+ * global, the same for Chat and every project. */
 
 const t = (key: string) => translations.en[key] || key;
 
@@ -56,7 +56,7 @@ afterEach(() => {
 describe("the three lists", () => {
   it("opens on the servers Draggy ships", async () => {
     stubBridge();
-    render(<ExtensionsPanel workspaceId="w1" t={t} />);
+    render(<ExtensionsPanel t={t} />);
 
     expect(screen.getByRole("tab", { name: "Servers" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Remote" })).toBeTruthy();
@@ -65,7 +65,7 @@ describe("the three lists", () => {
 
   it("switches to the skills it knows about", async () => {
     stubBridge();
-    render(<ExtensionsPanel workspaceId="w1" t={t} />);
+    render(<ExtensionsPanel t={t} />);
 
     await act(async () => screen.getByRole("tab", { name: "Skills" }).click());
 
@@ -129,7 +129,6 @@ describe("a server somewhere else", () => {
       <RemoteServers
         config={config}
         enabled={[]}
-        workspaceId="w1"
         t={t}
         onChanged={() => {}}
       />,
@@ -139,24 +138,13 @@ describe("a server somewhere else", () => {
     expect(screen.getByText("https://tickets.example/mcp")).toBeTruthy();
   });
 
-  it("switches on for this workspace, not for the app", async () => {
+  it("switches on for the whole app, not for one workspace", async () => {
     const calls = stubBridge();
-    render(
-      <RemoteServers
-        config={config}
-        enabled={[]}
-        workspaceId="w1"
-        t={t}
-        onChanged={() => {}}
-      />,
-    );
+    render(<RemoteServers config={config} enabled={[]} t={t} onChanged={() => {}} />);
 
     await act(async () => screen.getByRole("checkbox", { name: "Tickets" }).click());
 
-    expect(calls).toContainEqual({
-      method: "setEnabled",
-      args: ["w1", "tickets", true],
-    });
+    expect(calls).toContainEqual({ method: "setEnabled", args: ["tickets", true] });
   });
 
   it("signs in through the server it was given", async () => {
@@ -165,7 +153,6 @@ describe("a server somewhere else", () => {
       <RemoteServers
         config={config}
         enabled={[]}
-        workspaceId="w1"
         t={t}
         onChanged={() => {}}
       />,
@@ -182,7 +169,6 @@ describe("a server somewhere else", () => {
       <RemoteServers
         config={{}}
         enabled={[]}
-        workspaceId="w1"
         t={t}
         onChanged={() => {}}
       />,

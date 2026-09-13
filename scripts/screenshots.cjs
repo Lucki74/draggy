@@ -183,6 +183,22 @@ async function click(win, match, { exact = false } = {}) {
   await sleep(500);
 }
 
+// Types a message and sends it, without waiting for the reply.
+async function submit(win, text) {
+  await inPage(
+    win,
+    (message) => {
+      const box = document.querySelector("form.composer textarea");
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+      setter.call(box, message);
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    text,
+  );
+  await sleep(300);
+  await inPage(win, () => document.querySelector("form.composer").requestSubmit());
+}
+
 async function send(win, text) {
   await inPage(
     win,
@@ -254,6 +270,28 @@ async function openWorkspace(win, id) {
 // The sidebar opens on hover; an injected pointer reaches the page even with real input ignored.
 async function hoverSidebar(win, on) {
   win.webContents.sendInputEvent({ type: "mouseMove", x: on ? 30 : WIDTH - 200, y: on ? 420 : 420 });
+  await sleep(900);
+}
+
+// Opens a settings page by its group and label, since Chat and Code both have a Preferences page.
+async function openSettingsPage(win, group, label) {
+  const opened = await inPage(
+    win,
+    (groupTitle, pageLabel) => {
+      const menu = document.querySelector("nav[aria-label]");
+      const section = [...(menu?.querySelectorAll(":scope > div") ?? [])].find(
+        (one) => one.querySelector("p")?.textContent.trim() === groupTitle,
+      );
+      const button = [...(section?.querySelectorAll("button") ?? [])].find(
+        (one) => one.textContent.trim() === pageLabel,
+      );
+      button?.click();
+      return Boolean(button);
+    },
+    group,
+    label,
+  );
+  if (!opened) throw new Error(`no settings page ${group} / ${label}`);
   await sleep(900);
 }
 
@@ -344,8 +382,93 @@ async function run() {
     await shoot(win, "app-mode-code");
     await hoverSidebar(win, false);
     await capture(win, "app-mode-rail");
+    await setDark(win, true);
+    await capture(win, "app-mode-rail-dark");
+    await setDark(win, false);
     await click(win, "Chat", { exact: true });
     await sleep(1500);
+  }
+
+  if (wanted("settings")) {
+    await openWorkspace(win, "weather");
+    await click(win, "Settings", { exact: true });
+    await sleep(800);
+
+    const pages = [
+      ["App", "General", "app-settings-general"],
+      ["App", "Models", "app-settings-models"],
+      ["App", "Extensions", "app-settings-extensions"],
+      ["App", "Data", "app-settings-data"],
+      ["Chat", "Preferences", "app-settings-chat"],
+      ["Chat", "Talk", "app-settings-talk"],
+      ["Code", "Preferences", "app-settings-code"],
+      ["Code", "Projects", "app-settings-projects"],
+    ];
+
+    for (const [group, label, name] of pages) {
+      await openSettingsPage(win, group, label);
+      await capture(win, name);
+    }
+
+    await setDark(win, true);
+    await openSettingsPage(win, "Code", "Projects");
+    await capture(win, "app-settings-projects-dark");
+    await setDark(win, false);
+  }
+
+  if (wanted("command")) {
+    await openWorkspace(win, "weather");
+    await submit(
+      win,
+      "Use run_command to run git log --oneline in this project, then tell me the latest commit message.",
+    );
+
+    await waitFor(
+      () => inPage(win, () => Boolean(document.querySelector("form.composer button[type=submit] .lucide-square"))),
+      { timeout: 30_000, label: "the turn to start" },
+    );
+    log("waiting for the command approval");
+    // The approval, or a reply that ended without one; either way the screen says what happened.
+    const outcome = await waitFor(
+      () =>
+        inPage(win, () => {
+          if (document.body.innerText.includes("Run a command")) return "approval";
+          const busy = document.querySelector("form.composer button[type=submit] .lucide-square");
+          return busy ? null : "replied";
+        }),
+      { timeout: 420_000, every: 1000, label: "the command approval card" },
+    ).catch(async (error) => {
+      await capture(win, "app-command-stuck");
+      throw error;
+    });
+    log("outcome", outcome);
+    if (outcome !== "approval") {
+      await capture(win, "app-command-no-approval");
+      return;
+    }
+    await sleep(800);
+    await inPage(win, () => {
+      const cards = [...document.querySelectorAll("pre")];
+      cards.at(-1)?.scrollIntoView({ block: "center" });
+    });
+    await shoot(win, "app-command-approval");
+
+    await click(win, "Allow once", { exact: true });
+    log("waiting for the reply after the command");
+    await waitFor(
+      () =>
+        inPage(win, () => {
+          const stop = document.querySelector("form.composer button[type=submit] .lucide-square");
+          return !stop;
+        }),
+      { timeout: 600_000, every: 1000, label: "the reply after the command" },
+    );
+    await sleep(1500);
+    await inPage(win, () => {
+      const steps = [...document.querySelectorAll("pre")];
+      steps.at(-1)?.scrollIntoView({ block: "center" });
+    });
+    await shoot(win, "app-command-ran");
   }
 
   if (wanted("talk")) {

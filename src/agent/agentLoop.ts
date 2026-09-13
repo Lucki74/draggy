@@ -50,6 +50,7 @@ import {
   decide,
   deniedByUser,
   refusalFor,
+  grantsFor,
   targetFromArgs,
 } from "./permissions";
 import type { Grant } from "./permissions";
@@ -297,13 +298,11 @@ export async function runAgentTurn(
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
     const target = targetFromArgs(args);
-    const verdict = decide({
-      mode,
-      tool: name,
-      annotations: annotationsFor(name),
-      target,
-      grants,
-    });
+    const annotations = annotationsFor(name);
+    const verdict = decide({ mode, tool: name, annotations, target, grants });
+    const kind = annotations.executes ? ("command" as const) : undefined;
+    // What "always" would remember, shown on the card so the user knows before choosing.
+    const remembered = grantsFor(name, target, annotations);
 
     if (verdict.decision === "allow") {
       return runTool(name, args, toolContext, environment);
@@ -318,7 +317,7 @@ export async function runAgentTurn(
         content: host.t("toolRefused"),
         isComplete: true,
         answer: "no",
-        approval: { id: stepId, tool: name, target, reason: verdict.reason },
+        approval: { id: stepId, tool: name, target, reason: verdict.reason, kind },
       });
       return refusalFor(name, verdict);
     }
@@ -333,7 +332,14 @@ export async function runAgentTurn(
       type: "approval",
       content: host.t("approvalNeeded"),
       isComplete: false,
-      approval: { id: stepId, tool: name, target, reason: verdict.reason },
+      approval: {
+        id: stepId,
+        tool: name,
+        target,
+        reason: verdict.reason,
+        kind,
+        allows: kind ? remembered.map((grant) => grant.target ?? "") : undefined,
+      },
     });
 
     const answer = await host.requestApproval({
@@ -348,13 +354,13 @@ export async function runAgentTurn(
 
     if (answer === "no") return deniedByUser(name);
 
-    const grant: Grant = { tool: name, ...(target ? { target } : {}) };
-
     // "once" leaves nothing behind: the next call of the same tool asks again.
     if (answer === "task" || answer === "workspace") {
-      grants = addGrant(grants, grant);
+      for (const grant of remembered) grants = addGrant(grants, grant);
     }
-    if (answer === "workspace") host.onGrant?.(grant);
+    if (answer === "workspace") {
+      for (const grant of remembered) host.onGrant?.(grant);
+    }
 
     return runTool(name, args, toolContext, environment);
   }

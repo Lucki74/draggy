@@ -19,13 +19,13 @@ import {
   AlertTriangle,
   Mic,
   MicOff,
-  Terminal,
 } from "lucide-react";
 import Logo from "./Logo";
 import { pickGreeting } from "./greetings";
 import TypedGreeting from "./TypedGreeting";
 import MessageItem from "./chat/MessageItem";
 import ContextWheel from "./chat/ContextWheel";
+import PermissionPicker from "./chat/PermissionPicker";
 import {
   MIN_COMPACT_LIMIT,
   describeContextWindow,
@@ -37,7 +37,7 @@ import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import {
 } from "./chat/markdown";
 import { selectableModels } from "./modelKinds";
-import type { SettingsTab } from "./SettingsPage";
+import type { SettingsTab } from "./settings/pages";
 import { translations } from "./translations";
 import {
   isBinary,
@@ -120,6 +120,7 @@ import type {
   ChatSession,
   AppSettings,
   Attachment,
+  PermissionMode,
 } from "./types";
 
 interface ChatScreenProps {
@@ -135,8 +136,15 @@ interface ChatScreenProps {
   onSelectModel: (name: string) => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onNewChat: () => void;
+  /** Which side this is. Code adds the permission picker, running code and the project commands. */
+  surface: "chat" | "code";
+  /** The settings this side runs with. */
   settings: AppSettings;
-  onUpdateSettings: (settings: AppSettings) => void;
+  /** A change from the composer, which the shell writes to this side's own settings. */
+  onPatchSettings: (patch: Partial<AppSettings>) => void;
+  /** The project's permission mode. Code only. */
+  permissionMode?: PermissionMode;
+  onPermissionMode?: (mode: PermissionMode) => void;
   /** Answers a tool call the model is waiting on the user for. */
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Puts a file back the way it was before Draggy changed it. */
@@ -162,8 +170,11 @@ export default function ChatScreen({
   onSelectModel,
   onOpenSettings,
   onNewChat,
+  surface,
   settings,
-  onUpdateSettings,
+  onPatchSettings,
+  permissionMode,
+  onPermissionMode,
   onApproval,
   onRevert,
   onProjectMemory,
@@ -196,6 +207,7 @@ export default function ChatScreen({
 
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [permissionMenuOpen, setPermissionMenuOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   /** A short confirmation, like a limit that was just set. Clears itself. */
@@ -511,7 +523,7 @@ export default function ChatScreen({
       return false;
     }
 
-    onUpdateSettings({ ...settings, compactLimit: limit });
+    onPatchSettings({ compactLimit: limit });
     setNotice(
       limit === null
         ? t("compactLimitCleared")
@@ -532,19 +544,15 @@ export default function ChatScreen({
     if (id === "new") onNewChat();
     else if (id === "compact") void runCompact();
     else if (id === "model") setIsModelMenuOpen(true);
-    else if (id === "settings") onOpenSettings("appearance");
+    else if (id === "settings") onOpenSettings(surface);
     else if (id === "files") fileInputRef.current?.click();
     else if (id === "voice") handleMicClick();
     else if (id === "web") {
-      onUpdateSettings({ ...settings, webMode: nextWebMode(settings.webMode) });
+      onPatchSettings({ webMode: nextWebMode(settings.webMode) });
     } else if (id === "think") {
-      onUpdateSettings({
-        ...settings,
-        thinkingMode: nextThinkingMode(settings.thinkingMode),
-      });
-    } else if (id === "code") {
-      onUpdateSettings({ ...settings, codeExecution: !settings.codeExecution });
-    } else if (id === "memory") onProjectMemory?.();
+      onPatchSettings({ thinkingMode: nextThinkingMode(settings.thinkingMode) });
+    } else if (id === "permissions") setPermissionMenuOpen(true);
+    else if (id === "memory") onProjectMemory?.();
     else if (id === "init") onInitProject?.();
   };
 
@@ -694,7 +702,6 @@ export default function ChatScreen({
     : "";
   const speechSupported = isSpeechSupported();
   const documentsSupported = Boolean(window.electronAPI);
-  const codeExecutionSupported = Boolean(window.electronAPI?.runner);
   const visionSupported =
     modelInfo === null || modelInfo.capabilities.includes("vision");
 
@@ -708,9 +715,7 @@ export default function ChatScreen({
     .join(",");
 
   const slashQuery = slashQueryFor(input);
-  const slashMatches = matchSlashCommands(input, {
-    project: Boolean(onProjectMemory),
-  });
+  const slashMatches = matchSlashCommands(input, { surface });
 
   if (lastSlashQuery !== slashQuery) {
     setLastSlashQuery(slashQuery);
@@ -990,10 +995,7 @@ export default function ChatScreen({
               <button
                 type="button"
                 onClick={() =>
-                  onUpdateSettings({
-                    ...settings,
-                    thinkingMode: nextThinkingMode(settings.thinkingMode),
-                  })
+                  onPatchSettings({ thinkingMode: nextThinkingMode(settings.thinkingMode) })
                 }
                 className="composer-pill"
                 title={
@@ -1008,12 +1010,7 @@ export default function ChatScreen({
 
               <button
                 type="button"
-                onClick={() =>
-                  onUpdateSettings({
-                    ...settings,
-                    webMode: nextWebMode(settings.webMode),
-                  })
-                }
+                onClick={() => onPatchSettings({ webMode: nextWebMode(settings.webMode) })}
                 className={`composer-pill ${
                   settings.webMode === "on"
                     ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
@@ -1035,33 +1032,14 @@ export default function ChatScreen({
                 {t(WEB_MODE_LABELS[settings.webMode])}
               </button>
 
-              {codeExecutionSupported && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onUpdateSettings({
-                      ...settings,
-                      codeExecution: !settings.codeExecution,
-                    })
-                  }
-                  className={`composer-pill ${
-                    settings.codeExecution
-                      ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
-                      : "opacity-50"
-                  }`}
-                  title={
-                    toolWarning
-                      ? `${t("codeExecution")}: ${toolWarning}`
-                      : t("codeExecution")
-                  }
-                >
-                  {settings.codeExecution && toolsAreGuesswork ? (
-                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
-                  ) : (
-                    <Terminal className="w-3.5 h-3.5 flex-shrink-0" />
-                  )}
-                  {t("runCode")}
-                </button>
+              {surface === "code" && permissionMode && onPermissionMode && (
+                <PermissionPicker
+                  mode={permissionMode}
+                  open={permissionMenuOpen}
+                  onOpenChange={setPermissionMenuOpen}
+                  onPick={onPermissionMode}
+                  t={t}
+                />
               )}
 
               <div className="flex-1" />

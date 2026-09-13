@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
-import SettingsPage from "../SettingsPage";
+import SettingsPage from "../settings/SettingsPage";
 import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
 import type { FakeApi } from "./helpers/electronApi";
 import type { AppSettings } from "../types";
@@ -35,13 +35,21 @@ function renderUpdates() {
   return render(
     <SettingsPage
       settings={settings}
-      activeModel="qwen3:8b"
-      initialTab="updates"
+      chatModel="qwen3:8b"
+      request={{ tab: "updates", id: 0 }}
       onUpdate={() => {}}
-      onSelectModel={() => {}}
+      onSelectChatModel={() => {}}
+      projects={[]}
+      activeProjectId={null}
+      onAddProject={async () => null}
+      onRenameProject={() => {}}
+      onSetPermissionMode={() => {}}
+      onRevokeGrant={() => {}}
+      onRemoveProject={() => {}}
+      onEditProjectMemory={() => {}}
       onClearChats={() => {}}
+      onClearSessions={() => {}}
       onLibraryChange={() => {}}
-      workspaceId="default"
     />,
   );
 }

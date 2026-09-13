@@ -3,8 +3,8 @@
 export interface SlashCommand {
   id: string;
   label: string;
-  /** Only offered in a workspace with a folder of its own. */
-  requiresProject?: boolean;
+  /** The side it belongs to. Missing means both Chat and Code offer it. */
+  only?: "chat" | "code";
   /** Written with a value after it, like "/compact-limit 20k". Picking it from the menu fills in
    * the command and leaves the value to be typed. */
   takesArgument?: boolean;
@@ -16,13 +16,13 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "web", label: "webSearch" },
   { id: "think", label: "thinkingMode" },
   { id: "voice", label: "voiceInput" },
-  { id: "code", label: "runCode" },
   { id: "files", label: "addFiles" },
   { id: "compact", label: "compactConversation" },
   { id: "compact-limit", label: "compactLimitCommand", takesArgument: true },
   { id: "settings", label: "settings" },
-  { id: "memory", label: "projectMemory", requiresProject: true },
-  { id: "init", label: "initProject", requiresProject: true },
+  { id: "permissions", label: "permissionMode", only: "code" },
+  { id: "memory", label: "projectMemory", only: "code" },
+  { id: "init", label: "initProject", only: "code" },
 ];
 
 /** What the composer is asking for. A space closes the menu: "/dev/null is not a file" is a
@@ -35,15 +35,15 @@ export function slashQueryFor(input: string): string | null {
 
 export function matchSlashCommands(
   input: string,
-  options: { project?: boolean } = {},
+  options: { surface?: "chat" | "code" } = {},
 ): SlashCommand[] {
   const query = slashQueryFor(input);
   if (query === null) return [];
 
+  const surface = options.surface ?? "chat";
+
   return SLASH_COMMANDS.filter(
-    (command) =>
-      (options.project || !command.requiresProject) &&
-      command.id.startsWith(query),
+    (command) => (!command.only || command.only === surface) && command.id.startsWith(query),
   );
 }
 

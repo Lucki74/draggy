@@ -463,6 +463,8 @@ const createFile: ToolSpec = {
   required: ["filename", "content"],
   usage:
     '{"filename": "report.docx", "content": "# Title\\n\\nBody"} → writes a file the user can open',
+  // Chat makes files for the user; Code writes into the project with write_file instead.
+  available: (environment) => !environment.hasFolder,
   run: async (args, ctx) => {
     const filename = String(args.filename);
     const content = String(args.content);

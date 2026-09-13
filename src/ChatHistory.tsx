@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Download, Search, MessageSquare, Trash } from "lucide-react";
+import { CodeXml, Download, Search, MessageSquare, Trash } from "lucide-react";
 import type { ChatSession, AppSettings } from "./types";
 import { translations } from "./translations";
 import { plainPreview } from "./utils";
@@ -8,10 +8,11 @@ interface ChatHistoryProps {
   sessions: ChatSession[];
   onSelectChat: (id: string) => void;
   onDeleteChat: (e: React.MouseEvent, id: string) => void;
-  onExportChat: (e: React.MouseEvent, id: string) => void;
+  /** Saving a conversation as Markdown, which Chat offers and Code does not. */
+  onExportChat?: (e: React.MouseEvent, id: string) => void;
   settings: AppSettings;
-  /** The heading: chats in Chat mode, a project's sessions in Code. */
-  title?: string;
+  /** Chat lists conversations; Code lists the open project's sessions. */
+  surface?: "chat" | "code";
 }
 
 const THINK_BLOCK_RE =
@@ -23,7 +24,7 @@ export default function ChatHistory({
   onDeleteChat,
   onExportChat,
   settings,
-  title,
+  surface = "chat",
 }: ChatHistoryProps) {
   const t = (key: string) =>
     translations[settings.language]?.[key] || translations["en"][key] || key;
@@ -54,7 +55,7 @@ export default function ChatHistory({
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-base)] p-6 overflow-y-auto">
       <div className="max-w-4xl w-full mx-auto flex flex-col h-full space-y-4">
         <h1 className="text-2xl font-bold tracking-wider text-[var(--text-main)] uppercase">
-          {title ?? t("chatHistory")}
+          {surface === "code" ? t("sessions") : t("chatHistory")}
         </h1>
 
         <div className="relative w-full">
@@ -64,7 +65,7 @@ export default function ChatHistory({
           />
           <input
             type="text"
-            placeholder={t("searchAllChats")}
+            placeholder={surface === "code" ? t("searchSessions") : t("searchAllChats")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full border-[3px] rounded-xl py-3 pl-10 pr-4 text-base font-bold focus:outline-none transition-colors"
@@ -79,7 +80,7 @@ export default function ChatHistory({
         <div className="flex-1 flex flex-col space-y-2">
           {filteredSessions.length === 0 ? (
             <div className="text-[var(--text-muted)] font-bold mt-4">
-              {t("noChatsFound")}
+              {surface === "code" ? t("noSessionsFound") : t("noChatsFound")}
             </div>
           ) : (
             filteredSessions.map((session) => (
@@ -90,7 +91,11 @@ export default function ChatHistory({
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center space-x-3">
-                    <MessageSquare className="w-4 h-4 text-[var(--text-main)]" />
+                    {surface === "code" ? (
+                      <CodeXml className="w-4 h-4 text-[var(--text-main)]" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4 text-[var(--text-main)]" />
+                    )}
                     <h2 className="text-base font-bold text-[var(--text-main)] truncate">
                       {session.title}
                     </h2>
@@ -101,14 +106,16 @@ export default function ChatHistory({
                     className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      onClick={(e) => onExportChat(e, session.id)}
-                      title={t("exportChat")}
-                      aria-label={t("exportChat")}
-                      className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
+                    {onExportChat && (
+                      <button
+                        onClick={(e) => onExportChat(e, session.id)}
+                        title={t("exportChat")}
+                        aria-label={t("exportChat")}
+                        className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={(e) => onDeleteChat(e, session.id)}
                       title={t("delete")}

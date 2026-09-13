@@ -29,8 +29,10 @@ export interface SessionStore {
   ) => void;
   deleteSession: (chatId: string) => void;
   clearSessions: () => void;
-  /** After a workspace is removed: the database has already moved its chats. */
-  reassign: (fromWorkspaceId: string, toWorkspaceId: string) => void;
+  /** Deletes the conversations that match, and keeps the rest. */
+  deleteSessionsWhere: (matches: (session: ChatSession) => boolean) => void;
+  /** After a project is removed: the database has already deleted its sessions. */
+  forgetWorkspace: (workspaceId: string) => void;
 }
 
 export function useSessions(): SessionStore {
@@ -159,14 +161,23 @@ export function useSessions(): SessionStore {
       .catch(() => undefined);
   }, []);
 
-  const reassign = useCallback((fromWorkspaceId: string, toWorkspaceId: string) => {
-    setSessions((prev) =>
-      prev.map((session) =>
-        workspaceIdOf(session) === fromWorkspaceId
-          ? { ...session, workspaceId: toWorkspaceId }
-          : session,
-      ),
-    );
+  const deleteSessionsWhere = useCallback(
+    (matches: (session: ChatSession) => boolean) => {
+      const doomed = sessionsRef.current.filter(matches);
+      if (doomed.length === 0) return;
+
+      if (doomed.length === sessionsRef.current.length) {
+        clearSessions();
+        return;
+      }
+
+      for (const session of doomed) deleteSession(session.id);
+    },
+    [clearSessions, deleteSession],
+  );
+
+  const forgetWorkspace = useCallback((workspaceId: string) => {
+    setSessions((prev) => prev.filter((session) => workspaceIdOf(session) !== workspaceId));
   }, []);
 
   return {
@@ -180,6 +191,7 @@ export function useSessions(): SessionStore {
     patchActiveMessage,
     deleteSession,
     clearSessions,
-    reassign,
+    deleteSessionsWhere,
+    forgetWorkspace,
   };
 }

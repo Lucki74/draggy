@@ -16,7 +16,6 @@ const global = {
   customInstructions: ["be brief"],
   thinkingMode: "medium",
   webMode: "auto",
-  codeExecution: false,
   libraryEnabled: true,
   theme: "dark",
 } as unknown as AppSettings;
@@ -119,9 +118,6 @@ describe("resolving settings", () => {
     expect(resolveSettings(global, project({ libraryEnabled: false })).libraryEnabled).toBe(
       false,
     );
-    expect(resolveSettings(global, project({ codeExecution: true })).codeExecution).toBe(
-      true,
-    );
   });
 
   it("ignores an empty model name, which means the app's model", () => {
@@ -140,13 +136,13 @@ describe("resolving settings", () => {
 
   it("ignores a value of the wrong shape", () => {
     const broken = project({
-      codeExecution: "yes",
+      libraryEnabled: "yes",
       customInstructions: "be brief",
     } as unknown as Workspace["settings"]);
 
     const resolved = resolveSettings(global, broken);
 
-    expect(resolved.codeExecution).toBe(false);
+    expect(resolved.libraryEnabled).toBe(true);
     expect(resolved.customInstructions).toEqual(["be brief"]);
   });
 });

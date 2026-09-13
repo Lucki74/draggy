@@ -1,4 +1,5 @@
 import type { PermissionMode } from "../types";
+import { commandCovered, commandGrantTargets } from "./commandRules";
 
 /** Whether a tool call may run. One pure function for built-in and MCP tools, with flags mirroring
  * MCP's own annotations, so there is one answer everywhere. */
@@ -14,6 +15,9 @@ export interface ToolAnnotations {
   /** Its effects stay inside Draggy's own storage: the output folder, the scratch directory, the
    * embedded browser. Nothing of the user's is at stake. */
   sandboxed?: boolean;
+  /** Runs a command on the user's computer, which can do anything the user can. Asked about in
+   * every mode but auto, unless each command in it was allowed before. */
+  executes?: boolean;
 }
 
 /** Something the user has already agreed to. A grant with no target covers every call of that tool;
@@ -41,7 +45,7 @@ export interface PermissionQuery {
 }
 
 const PLAN_REFUSAL =
-  "This conversation is in plan mode, which cannot change anything. Describe what you would do instead, and the user will decide.";
+  "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide.";
 
 /** Compares paths and addresses the way the file system does on this platform. */
 function sameOrInside(grantTarget: string, target: string): boolean {
@@ -97,6 +101,23 @@ export function decide(query: PermissionQuery): Verdict {
     };
   }
 
+  // A command can do anything, so accepting edits does not cover it; only an earlier "always"
+  // for every command in the line does.
+  if (annotations.executes) {
+    const allowed = grants
+      .filter((grant) => grant.tool === tool && grant.target)
+      .map((grant) => grant.target as string);
+
+    if (commandCovered(allowed, target)) {
+      return { decision: "allow", reason: "The user has already allowed this command." };
+    }
+
+    return {
+      decision: "ask",
+      reason: "This runs a command on the user's computer, so the user is asked first.",
+    };
+  }
+
   // Writing a file Draggy made, running code in the scratch directory, driving
   // the embedded browser: nothing here is the user's to lose.
   if (annotations.sandboxed && !annotations.destructive) {
@@ -125,6 +146,19 @@ export function decide(query: PermissionQuery): Verdict {
   };
 }
 
+/** What an approval remembers. A command keeps the start of each command in it, so "always" for
+ * "npm test --watch" allows "npm test" again but not anything chained after it. */
+export function grantsFor(
+  tool: string,
+  target: string | null | undefined,
+  annotations: ToolAnnotations = {},
+): Grant[] {
+  if (annotations.executes) {
+    return commandGrantTargets(target).map((prefix) => ({ tool, target: prefix }));
+  }
+  return [{ tool, ...(target ? { target } : {}) }];
+}
+
 /** What the user is being asked about: the path, file or address in the call. */
 const TARGET_KEYS = [
   "path",
@@ -136,6 +170,7 @@ const TARGET_KEYS = [
   "folder",
   "source",
   "url",
+  "command",
 ];
 
 export function targetFromArgs(args: Record<string, unknown>): string | null {
