@@ -632,6 +632,9 @@ export interface AppSettings {
   libraryEnabled: boolean;
   embedModel: string;
   showMetrics: boolean;
+  /** Set once the user has flipped the speed line themselves. Until then it stays off, whatever an
+   * older version saved. */
+  metricsChosen?: boolean;
   autoUpdate: boolean;
   /** Tokens of conversation before it is folded into notes. Null leaves it to Draggy, which folds
    * at a share of the window the model is loaded at. */

@@ -5,7 +5,6 @@ import {
   PULL_PHASE_KEYS,
   contextSizeFor,
   createPullTracker,
-  describeContextUse,
   forgetContextSize,
   forgetModelInfo,
   getModelInfo,
@@ -189,86 +188,6 @@ describe("knowing when tool calls will be guesswork", () => {
   });
 });
 
-describe("the context meter", () => {
-  const base = { measuredTokens: null, draftChars: 0, historyChars: 0, maxContext: 131072 };
-
-  it("falls back to a character estimate before the first reply", () => {
-    const use = describeContextUse({ ...base, historyChars: 4000 });
-
-    expect(use.measured).toBe(false);
-    expect(use.usedTokens).toBe(1000);
-  });
-
-  it("prefers Ollama's real token count once a reply has arrived", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 1807, historyChars: 999999 });
-
-    expect(use.measured).toBe(true);
-    expect(use.usedTokens).toBe(1807);
-  });
-
-  it("adds the unsent draft on top of the measured count", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 1000, draftChars: 400 });
-    expect(use.usedTokens).toBe(1100);
-  });
-
-  it("measures against the model's full context, not the per-turn window", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 1807 });
-
-    expect(use.windowTokens).toBe(131072);
-    expect(use.percent).toBeLessThan(2);
-  });
-
-  it("uses the same real token count the metrics footer reports", () => {
-    // The footer reported 1780 prompt + 27 response for this turn.
-    const use = describeContextUse({ ...base, measuredTokens: 1780 + 27 });
-    expect(use.usedTokens).toBe(1807);
-  });
-
-  it("reports the ceiling of whichever model is loaded", () => {
-    expect(describeContextUse({ ...base, maxContext: 8192 }).windowTokens).toBe(8192);
-    expect(describeContextUse({ ...base, maxContext: 262144 }).windowTokens).toBe(262144);
-  });
-
-  it("does not change the ceiling as the conversation grows", () => {
-    const windows = [500, 3000, 40000, 120000].map(
-      (tokens) => describeContextUse({ ...base, measuredTokens: tokens }).windowTokens,
-    );
-
-    expect(new Set(windows).size).toBe(1);
-  });
-
-  it("rises towards a hundred percent as the chat fills the model", () => {
-    const quarter = describeContextUse({ ...base, measuredTokens: 32768 });
-    const half = describeContextUse({ ...base, measuredTokens: 65536 });
-
-    expect(Math.round(quarter.percent)).toBe(25);
-    expect(Math.round(half.percent)).toBe(50);
-  });
-
-  it("can exceed a hundred percent when the chat outgrows the model", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 9000, maxContext: 8192 });
-    expect(use.percent).toBeGreaterThan(100);
-  });
-
-  it("handles an empty chat without dividing by zero", () => {
-    const use = describeContextUse(base);
-
-    expect(use.usedTokens).toBe(0);
-    expect(Number.isFinite(use.percent)).toBe(true);
-  });
-
-  it("treats a zero measurement as not yet measured", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 0, historyChars: 800 });
-
-    expect(use.measured).toBe(false);
-    expect(use.usedTokens).toBe(200);
-  });
-
-  it("falls back to a known ceiling when the model reports no context length", () => {
-    const use = describeContextUse({ ...base, measuredTokens: 100, maxContext: null });
-    expect(use.windowTokens).toBe(FALLBACK_CONTEXT_LENGTH);
-  });
-});
 /** Copied from a real `POST /api/pull` against Ollama 0.33.1. Nothing in the stream says
  * "downloading", which the startup screen used to wait for. */
 const BLOB = "sha256:a3de86cd1c1354b0e7d2ce1e4a1e6f0e0d0c0b0a09080706050403020100ffee";

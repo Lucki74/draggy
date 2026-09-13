@@ -30,8 +30,11 @@ import {
   MIN_COMPACT_LIMIT,
   describeContextWindow,
   formatTokenCount,
+  measureBreakdown,
   parseTokenCount,
 } from "./agent/contextBreakdown";
+import type { ContextBreakdown } from "./agent/contextBreakdown";
+import { useLiveTurn } from "./agent/liveTurn";
 import type { CompactOutcome } from "./agent/taskManager";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import {
@@ -45,7 +48,7 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
-  describeContextUse,
+  FALLBACK_CONTEXT_LENGTH,
   getModelInfo,
   isCloudModel,
   listInstalledModels,
@@ -53,6 +56,7 @@ import {
   warmModel,
 } from "./ollama";
 import { KEEP_ALIVE } from "./agent/agentLoop";
+import type { ContextMeasurement } from "./agent/agentLoop";
 import {
   ACCEPTED_EXTENSIONS,
   DOCUMENT_EXTENSIONS,
@@ -70,6 +74,9 @@ import type { Recorder } from "./speech";
 import type { InstalledModel, ModelInfo } from "./ollama";
 
 const MAX_INPUT_HEIGHT = 150;
+
+/** How long typing pauses before the model is asked how big the next turn would be. */
+const MEASURE_DELAY_MS = 400;
 
 const THINKING_ORDER: AppSettings["thinkingMode"][] = ["low", "medium", "high"];
 const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
@@ -156,6 +163,12 @@ interface ChatScreenProps {
   onInitProject?: () => void;
   /** Folds the older conversation into notes now. */
   onCompact?: () => Promise<CompactOutcome>;
+  /** Asks the model how many tokens the next turn takes, draft included. */
+  onMeasureContext?: (
+    draft: string,
+    attachments: Attachment[],
+    options: { signal: AbortSignal; allowLoad: boolean },
+  ) => Promise<ContextMeasurement | null>;
 }
 
 export default function ChatScreen({
@@ -181,6 +194,7 @@ export default function ChatScreen({
   onProjectMemory,
   onInitProject,
   onCompact,
+  onMeasureContext,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -676,19 +690,7 @@ export default function ChatScreen({
     [settings.language, chat.id],
   );
 
-  const messageChars = useMemo(
-    () =>
-      chat.messages.reduce((acc, m) => {
-        const msgLen = Math.max(
-          m.content?.length || 0,
-          m.textContent?.length || 0,
-        );
-        return acc + msgLen + (m.attachments?.length || 0) * 4000;
-      }, 0),
-    [chat.messages],
-  );
-
-  /** The last turn that was measured, which is what the context view starts from. */
+  /** The last turn's figures, counted by the model. */
   const lastMetrics = useMemo(() => {
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const message = chat.messages[i];
@@ -705,24 +707,63 @@ export default function ChatScreen({
     return null;
   }, [chat.messages]);
 
-  const measuredTokens = lastMetrics
-    ? lastMetrics.promptTokens + lastMetrics.responseTokens
-    : null;
-
   /** A fold under way in this conversation, shown on the wheel. */
   const compacting = chat.messages.some((message) => message.fold?.status === "running");
 
-  const draftChars = input.length + attachedFiles.length * 4000;
+  const live = useLiveTurn(chat.id);
+  const drafting = input.trim().length > 0 || attachedFiles.length > 0;
+  const lastMessage = chat.messages[chat.messages.length - 1];
 
-  const contextUse = describeContextUse({
-    measuredTokens,
-    draftChars,
-    historyChars: messageChars,
-    maxContext: modelInfo?.contextLength ?? null,
-  });
+  // What a count is for: the model, the conversation as it stands, and the draft on top.
+  const historyKey = [
+    model,
+    chat.id,
+    chat.messages.length,
+    lastMessage?.id ?? "",
+    lastMessage?.content.length ?? 0,
+    settings.thinkingMode,
+    settings.webMode,
+    chat.compaction?.throughIndex ?? -1,
+  ].join("|");
+  const measureKey = `${historyKey}|${input}|${attachedFiles.map((file) => file.name).join(",")}`;
 
-  // Warming on the first keystroke hides the load behind composing time, and
-  // is re-armed when the box empties. Sized to match the window the turn wants.
+  const [measured, setMeasured] = useState<{
+    key: string;
+    historyKey: string;
+    drafted: boolean;
+    value: ContextMeasurement;
+  } | null>(null);
+  const [undrafted, setUndrafted] = useState<{ historyKey: string; tokens: number } | null>(null);
+
+  // No guessing: the meter shows what the model counts for the exact prompt the next turn sends.
+  // Asked only when that costs a reply nothing, and given up the moment one starts.
+  useEffect(() => {
+    if (!onMeasureContext || chat.isGenerating) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => {
+        onMeasureContext(input, attachedFiles, { signal: controller.signal, allowLoad: drafting })
+          .then((value) => {
+            if (!value || controller.signal.aborted) return;
+            setMeasured({ key: measureKey, historyKey, drafted: drafting, value });
+            if (!drafting) setUndrafted({ historyKey, tokens: value.tokens });
+          })
+          .catch(() => undefined);
+      },
+      drafting ? MEASURE_DELAY_MS : 0,
+    );
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+    // The key stands for the draft, the attachments and the conversation it was taken from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measureKey, chat.isGenerating, onMeasureContext]);
+
+  // Loading on the first keystroke hides the load behind composing time. Loading through a count
+  // sizes the window exactly as the turn will and fills the cache it reads from.
   const warmedForModelRef = useRef<string | null>(null);
   useEffect(() => {
     if (!input.trim()) {
@@ -731,25 +772,67 @@ export default function ChatScreen({
     }
     if (warmedForModelRef.current === model || isCloudModel(model)) return;
     warmedForModelRef.current = model;
-    warmModel(model, KEEP_ALIVE, messageChars + draftChars).catch(
-      () => undefined,
-    );
-    // Listing the counts here would re-run this on every character.
+
+    if (onMeasureContext) {
+      void onMeasureContext(input, attachedFiles, {
+        signal: new AbortController().signal,
+        allowLoad: true,
+      }).catch(() => undefined);
+    } else {
+      warmModel(model, KEEP_ALIVE).catch(() => undefined);
+    }
+    // Only the first keystroke for a model loads it; later ones are counted above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
 
-  // A turn measured before breakdowns existed still has its total: all of it
-  // is shown as conversation, which is most of what it was.
+  const current = measured?.key === measureKey ? measured : null;
+  const lastTotal = lastMetrics ? lastMetrics.promptTokens + lastMetrics.responseTokens : null;
+
+  let usedTokens: number | null = null;
+  let exactFigure = true;
+  let loadedTokens = lastMetrics?.contextWindow ?? null;
+  let draftTokens = 0;
+
+  if (chat.isGenerating && live) {
+    usedTokens = live.contextTokens;
+    exactFigure = live.contextExact;
+    loadedTokens = live.contextWindow;
+  } else if (chat.isGenerating && measured?.drafted) {
+    // The count taken of the draft just sent, until the turn reports its own.
+    usedTokens = measured.value.tokens;
+    loadedTokens = measured.value.window;
+  } else if (current) {
+    usedTokens = current.value.tokens;
+    loadedTokens = current.value.window;
+    if (current.drafted && undrafted?.historyKey === historyKey) {
+      draftTokens = Math.max(0, current.value.tokens - undrafted.tokens);
+    }
+  } else if (measured?.historyKey === historyKey) {
+    // The draft changed and its count is on the way: the last one stands in, marked as such.
+    usedTokens = measured.value.tokens;
+    exactFigure = false;
+    loadedTokens = measured.value.window;
+  } else if (!chat.isGenerating && lastTotal !== null && lastMessage?.role === "assistant") {
+    usedTokens = lastTotal;
+  }
+
+  // The total is the model's; the parts are its prompt pieces measured out of that total.
+  const parts = measured?.value.parts ?? null;
+  const contextBreakdown: ContextBreakdown | null =
+    usedTokens === null
+      ? null
+      : parts
+        ? measureBreakdown(parts, usedTokens)
+        : lastMetrics?.breakdown && usedTokens === lastTotal
+          ? lastMetrics.breakdown
+          : { messages: usedTokens, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 };
+
   const contextView = describeContextWindow({
-    breakdown:
-      lastMetrics?.breakdown ??
-      (measuredTokens
-        ? { messages: measuredTokens, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 }
-        : null),
-    historyChars: messageChars,
-    draftChars,
-    windowTokens: contextUse.windowTokens,
-    loadedTokens: lastMetrics?.contextWindow ?? null,
+    breakdown: contextBreakdown,
+    draftTokens,
+    exact: exactFigure,
+    windowTokens: modelInfo?.contextLength ?? loadedTokens ?? FALLBACK_CONTEXT_LENGTH,
+    loadedTokens,
     limitTokens: settings.compactLimit ?? null,
   });
   const supportsNativeThinking = Boolean(
@@ -843,6 +926,7 @@ export default function ChatScreen({
               </div>
             )}
             <MessageItem
+              chatId={chat.id}
               msg={msg}
               idx={idx}
               isGenerating={chat.isGenerating}

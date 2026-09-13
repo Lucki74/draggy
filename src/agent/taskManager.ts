@@ -9,7 +9,9 @@ import {
   runCompaction,
 } from "./compaction";
 import { compactThreshold } from "./contextBreakdown";
-import { runAgentTurn } from "./agentLoop";
+import { measureTurn, runAgentTurn } from "./agentLoop";
+import type { ContextMeasurement } from "./agentLoop";
+import { setLiveTurn } from "./liveTurn";
 import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "./permissions";
 import type {
@@ -97,6 +99,14 @@ export interface TaskManager {
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Folds the older conversation into notes now, rather than waiting for the limit. */
   compact: (chatId: string) => Promise<CompactOutcome>;
+  /** Asks the model how many tokens the next turn would take, draft included. Null when that
+   * cannot be asked without cost; `allowLoad` lets it load the model, as typing does. */
+  measure: (
+    chatId: string,
+    draft: string,
+    attachments: Attachment[],
+    options: { signal: AbortSignal; allowLoad: boolean },
+  ) => Promise<ContextMeasurement | null>;
   stop: (chatId: string) => void;
   stopAll: () => void;
   isRunning: (chatId: string) => boolean;
@@ -104,8 +114,17 @@ export interface TaskManager {
   subscribe: (listener: (running: string[]) => void) => () => void;
 }
 
+/** Which conversation, model and messages a measurement was for, so a turn sending exactly those
+ * can start from it. */
+const measuredFor = (model: string, messages: Message[]) => {
+  const last = messages[messages.length - 1];
+  const files = (last?.attachments ?? []).map((file) => `${file.name}:${file.content.length}`);
+  return [model, messages.length, last?.role ?? "", last?.content ?? "", ...files].join("\n");
+};
+
 export function createTaskManager(initialHost: TaskHost): TaskManager {
   let host = initialHost;
+  let lastMeasurement: { chatId: string; key: string; measurement: ContextMeasurement } | null = null;
 
   const runs = new Map<string, AbortController>();
   /** Folds in flight. `started` flips once there is actually something being folded, which is when
@@ -401,6 +420,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           permission: host.getPermission(),
           workspaceId: host.getWorkspaceId(),
           chatId,
+          contextBase:
+            !options.isContinuation &&
+            lastMeasurement?.chatId === chatId &&
+            lastMeasurement.key === measuredFor(model, contextMessages)
+              ? lastMeasurement.measurement
+              : null,
           signal: controller.signal,
         },
         {
@@ -433,6 +458,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             ),
           onMetrics: (metrics: TurnMetrics | null) =>
             host.patchActiveMessage(chatId, { metrics }),
+          onLive: (live) => setLiveTurn(chatId, live),
         },
       );
 
@@ -478,6 +504,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     } finally {
       if (runs.get(chatId) === controller) {
         runs.delete(chatId);
+        setLiveTurn(chatId, null);
         notify();
 
         host.updateSession(chatId, (s) =>
@@ -606,6 +633,37 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     void run(chatId, session.messages, { isContinuation: true });
   }
 
+  async function measure(
+    chatId: string,
+    draft: string,
+    attachments: Attachment[],
+    options: { signal: AbortSignal; allowLoad: boolean },
+  ): Promise<ContextMeasurement | null> {
+    const model = host.getModel();
+    const session = host.getSession(chatId);
+    if (!model || runs.has(chatId)) return null;
+
+    const messages: Message[] = [...(session?.messages ?? [])];
+    if (draft.trim() || attachments.length > 0) {
+      messages.push({ id: "draft", role: "user", content: draft, attachments });
+    }
+
+    const measurement = await measureTurn(
+      {
+        model,
+        settings: host.getSettings(),
+        environment: host.getEnvironment(),
+        messages,
+        compaction: session?.compaction,
+        workspaceId: session?.workspaceId ?? host.getWorkspaceId(),
+      },
+      options,
+    );
+
+    if (measurement) lastMeasurement = { chatId, key: measuredFor(model, messages), measurement };
+    return measurement;
+  }
+
   function stop(chatId: string) {
     // A turn parked on a question cannot notice the abort until the question is
     // answered, so stopping answers it.
@@ -615,6 +673,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (controller) {
       controller.abort();
       runs.delete(chatId);
+      setLiveTurn(chatId, null);
       notify();
     }
 
@@ -627,6 +686,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   function stopAll() {
     for (const chatId of runs.keys()) refuseWaiting(chatId);
     for (const controller of runs.values()) controller.abort();
+    for (const chatId of runs.keys()) setLiveTurn(chatId, null);
     runs.clear();
     for (const fold of folds.values()) fold.controller.abort();
     folds.clear();
@@ -646,6 +706,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     dismissOutOfContext,
     answerApproval,
     compact: (chatId: string) => compactChat(chatId, true),
+    measure,
     stop,
     stopAll,
     isRunning: (chatId: string) => runs.has(chatId),

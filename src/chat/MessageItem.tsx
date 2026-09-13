@@ -50,6 +50,7 @@ import {
 } from "./markdown";
 import AppFrame from "./AppFrame";
 import StreamingMarkdown from "./StreamingMarkdown";
+import { useLiveTurn } from "../agent/liveTurn";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import { formatTokenCount } from "../agent/contextBreakdown";
@@ -132,6 +133,36 @@ function MetricsFooter({
     >
       {cells.map((cell, index) => (
         <Fragment key={cell}>
+          {index > 0 && (
+            <span aria-hidden="true" className="opacity-40">
+              ·
+            </span>
+          )}
+          <span className="whitespace-nowrap">{cell}</span>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** The speed line while a reply is written. Counted from the stream, so close rather than exact, and
+ * replaced by Ollama's own figures the moment the reply ends. */
+function LiveSpeed({ chatId, t }: { chatId: string; t: (key: string) => string }) {
+  const live = useLiveTurn(chatId);
+  if (!live || live.responseTokens === 0) return null;
+
+  const cells = [
+    `${live.tokensPerSecond.toFixed(1)} ${t("tokensPerSecond")}`,
+    `${formatTokens(live.responseTokens)} ${t("tokensOut")}`,
+  ];
+
+  return (
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] tabular-nums"
+    >
+      {cells.map((cell, index) => (
+        <Fragment key={index}>
           {index > 0 && (
             <span aria-hidden="true" className="opacity-40">
               ·
@@ -356,18 +387,19 @@ function FileCard({
 /** A model being loaded, with the seconds it has taken so far. A large model on a small card takes
  * long enough that a line standing still looks stuck. */
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
-  const [seconds, setSeconds] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
 
   useEffect(() => {
     if (step.startedAt === undefined) return;
     const startedAt = step.startedAt;
-    const count = () => setSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
-    const timer = setInterval(count, 250);
+    const timer = setInterval(() => setElapsedMs(Math.max(0, Date.now() - startedAt)), 100);
     return () => clearInterval(timer);
   }, [step.startedAt]);
 
   const label = step.model
-    ? t("loadingModel").replace("{model}", step.model).replace("{seconds}", String(seconds))
+    ? t("loadingModel")
+        .replace("{model}", step.model)
+        .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
     : step.content;
 
   return (
@@ -432,6 +464,8 @@ interface MessageItemProps {
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Puts a file back the way it was before Draggy changed it. */
   onRevert?: (checkpointId: number) => Promise<boolean>;
+  /** The conversation this belongs to, for the speed line of a reply being written. */
+  chatId?: string;
 }
 
 /** Where the older conversation went. Under the reply it followed: spinning while the notes are
@@ -471,6 +505,7 @@ const MessageItem = memo(
     onEditMessage,
     onApproval,
     onRevert,
+    chatId,
   }: MessageItemProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
@@ -948,6 +983,12 @@ const MessageItem = memo(
             </div>
           )}
 
+          {msg.role === "assistant" && isGenerating && isLast && settings.showMetrics && chatId && (
+            <div className="w-full mt-2 px-1">
+              <LiveSpeed chatId={chatId} t={t} />
+            </div>
+          )}
+
           {msg.role === "assistant" && !isGenerating && (
             <div className="w-full mt-2 px-1 space-y-2">
               <div className="flex items-center space-x-2">
@@ -1041,6 +1082,7 @@ const MessageItem = memo(
       prev.isGenerating === next.isGenerating &&
       prev.isLast === next.isLast &&
       prev.copiedIndex === next.copiedIndex &&
+      prev.chatId === next.chatId &&
       // Only what a message reads, so a settings object rebuilt elsewhere cannot re-render history.
       prev.settings.language === next.settings.language &&
       prev.settings.showMetrics === next.settings.showMetrics

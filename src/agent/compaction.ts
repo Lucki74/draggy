@@ -1,4 +1,4 @@
-import { CONTEXT_BUCKETS, KEEP_ALIVE, OLLAMA_HOST } from "../ollama";
+import { CONTEXT_BUCKETS, KEEP_ALIVE, OLLAMA_HOST, beginOllamaWork } from "../ollama";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
 
@@ -249,6 +249,15 @@ export interface CompactionRequest {
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
+  const end = beginOllamaWork();
+  try {
+    return await fold(request);
+  } finally {
+    end();
+  }
+}
+
+async function fold(request: CompactionRequest): Promise<CompactionState | null> {
   const { model, numCtx, messages, plan, existing = null, signal } = request;
 
   const slice = messages.slice(plan.foldFrom, plan.foldThrough);

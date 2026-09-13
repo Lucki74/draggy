@@ -82,6 +82,10 @@ export interface ContextRow {
 }
 
 export interface ContextWindowView {
+  /** Whether anything has been measured yet. Before that there is nothing honest to show. */
+  measured: boolean;
+  /** False while a reply streams and the figure is an estimate between two counts. */
+  exact: boolean;
   usedTokens: number;
   windowTokens: number;
   percent: number;
@@ -94,12 +98,12 @@ export interface ContextWindowView {
 }
 
 export interface ContextWindowInput {
-  /** From the last finished turn, if there has been one. */
+  /** The parts, adding up to what the model counted. Null when nothing has been measured. */
   breakdown: ContextBreakdown | null;
-  /** The conversation as it stands, for before any turn has been measured. */
-  historyChars: number;
-  /** What is typed but not yet sent, attachments included. */
-  draftChars: number;
+  /** How much of the conversation part is the message not yet sent, when that was measured. */
+  draftTokens: number;
+  /** False for an estimate made while a reply streams. */
+  exact: boolean;
   /** The most the model can take. */
   windowTokens: number;
   /** The window the model is loaded at, which is what automatic folding uses. */
@@ -136,7 +140,7 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
   const share = (tokens: number) => (tokens / windowTokens) * 100;
 
   const breakdown: ContextBreakdown = input.breakdown ?? {
-    messages: tokensOf(input.historyChars),
+    messages: 0,
     system: 0,
     tools: 0,
     memory: 0,
@@ -144,12 +148,13 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
     summary: 0,
   };
 
-  const draft = tokensOf(input.draftChars);
+  // The draft was counted as part of the conversation; it is shown on a row of its own.
+  const draft = Math.max(0, Math.min(Math.round(input.draftTokens), breakdown.messages));
 
   const rows: ContextRow[] = [];
 
   for (const id of CATEGORY_ORDER) {
-    const tokens = breakdown[id];
+    const tokens = id === "messages" ? breakdown.messages - draft : breakdown[id];
     if (tokens > 0) rows.push({ id, tokens, percent: share(tokens) });
   }
 
@@ -163,6 +168,8 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
   const threshold = compactThreshold(windowTokens, input.loadedTokens, input.limitTokens);
 
   return {
+    measured: input.breakdown !== null,
+    exact: input.exact,
     usedTokens,
     windowTokens,
     percent: share(usedTokens),

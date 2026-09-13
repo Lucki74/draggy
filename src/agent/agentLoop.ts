@@ -1,13 +1,18 @@
 import {
   KEEP_ALIVE,
   OLLAMA_HOST,
+  beginOllamaWork,
   contextSizeFor,
   getModelInfo,
   gpuShareFor,
   hasCapability,
+  isCloudModel,
   isLoadedAt,
   mergeMetrics,
   noteModelInUse,
+  ollamaIsBusy,
+  onOllamaWork,
+  peekContextSize,
   readMetrics,
   recalledCapabilities,
 } from "../ollama";
@@ -16,7 +21,8 @@ import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
 import { describeSkills, loadSkills } from "../skills/skills";
 import { renderMemory } from "../project/memory";
-import { renderCompactionBlock } from "./compaction";
+import { CHARS_PER_TOKEN, renderCompactionBlock } from "./compaction";
+import type { LiveTurn } from "./liveTurn";
 import { measureBreakdown } from "./contextBreakdown";
 import type { PromptParts } from "./contextBreakdown";
 import {
@@ -185,6 +191,9 @@ export interface AgentRequest {
   /** How much this turn may do on its own, and what the user has already allowed. Left out, the
    * turn runs unguarded, which is what a plain chat with no folder of its own has always done. */
   permission?: { mode: PermissionMode; grants?: Grant[] };
+  /** What the model counted for this very prompt, measured just before, and the wire it was for.
+   * The context meter starts from it instead of an estimate. */
+  contextBase?: { tokens: number; chars: number } | null;
   signal: AbortSignal;
 }
 
@@ -216,6 +225,8 @@ export interface AgentHost {
   /** Where a plan the model writes goes, and where the live one comes from. */
   onPlan?: (items: PlanItem[]) => void;
   getPlan?: () => PlanItem[] | null;
+  /** Speed and context as the turn runs, a few times a second. */
+  onLive?: (live: LiveTurn) => void;
 }
 
 export interface AgentResult {
@@ -234,11 +245,230 @@ export interface AgentResult {
 const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
-export async function runAgentTurn(
-  request: AgentRequest,
-  host: AgentHost,
-): Promise<AgentResult> {
-  const { model, settings, environment, messages, signal } = request;
+export type TurnInput = Pick<
+  AgentRequest,
+  "model" | "settings" | "environment" | "messages" | "isContinuation" | "seed" | "compaction" | "workspaceId"
+>;
+
+/** Everything a turn sends before the model says a word: the prompt, the tools, the wire. Shared
+ * with the context meter, so what it measures is exactly what a turn would send. */
+export interface PreparedTurn {
+  info: Awaited<ReturnType<typeof getModelInfo>>;
+  nativeTools: boolean;
+  nativeVision: boolean;
+  hasThinkingCapability: boolean;
+  nativeThinking: boolean;
+  cleanStream: boolean;
+  definitions: ToolDefinition[];
+  promptParts: PromptParts;
+  wire: WireMessage[];
+}
+
+export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
+  const { model, settings, environment, messages } = request;
+
+  const info = await getModelInfo(model);
+
+  // A probe that failed is not proof a model cannot call tools: Ollama may
+  // have been busy. What it said last time stands in.
+  const capabilities = info
+    ? info.capabilities
+    : await recalledCapabilities(model);
+
+  const nativeTools = info
+    ? hasCapability(info, "tools")
+    : chooseChannel(capabilities) === "native";
+  const nativeVision = hasCapability(info, "vision");
+  const hasThinkingCapability = hasCapability(info, "thinking");
+  const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low";
+  const cleanStream = nativeTools && nativeThinking;
+
+  // Read every turn rather than once: a project whose rules changed halfway
+  // through a conversation should be followed from the next message.
+  const memory =
+    environment.hasFolder && environment.projectRoot && request.workspaceId
+      ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
+      : null;
+
+  const skills = environment.hasSkills
+    ? await loadSkills(request.workspaceId || "default")
+    : [];
+
+  const systemPrompt = buildSystemPrompt(
+    settings,
+    { nativeTools, nativeThinking },
+    environment,
+    memory,
+    skills,
+  );
+  const definitions = toolDefinitions(environment);
+
+  const prefill = request.isContinuation
+    ? (request.seed?.textContent ?? "")
+    : "";
+
+  // On a continuation the half-written reply moves to the very end: a model
+  // completes a trailing assistant message but starts afresh after a user one.
+  const history =
+    request.isContinuation &&
+    messages.length > 0 &&
+    messages[messages.length - 1].role === "assistant"
+      ? messages.slice(0, -1)
+      : messages;
+
+  // Messages the summary covers are not sent again, unless the summary no
+  // longer fits: a record of messages that are gone is worse than nothing.
+  const compaction =
+    request.compaction && request.compaction.throughIndex < history.length
+      ? request.compaction
+      : null;
+
+  const carried = compaction ? history.slice(compaction.throughIndex) : history;
+
+  // What the fixed parts of the prompt cost, so the context view can say where
+  // the window went rather than only how full it is.
+  const memoryChars = memory ? renderMemory(memory).length : 0;
+  const skillChars = describeSkills(skills).length;
+  const catalogueChars = nativeTools ? 0 : describeToolsForPrompt(environment).length;
+
+  const promptParts: PromptParts = {
+    systemChars: Math.max(0, systemPrompt.length - memoryChars - skillChars - catalogueChars),
+    toolChars: nativeTools ? JSON.stringify(definitions).length : catalogueChars,
+    memoryChars,
+    skillChars,
+    summaryChars: compaction ? renderCompactionBlock(compaction).length : 0,
+  };
+
+  const wire: WireMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...(compaction
+      ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
+      : []),
+    ...carried.map((message) => toWireMessage(message, nativeVision, nativeThinking)),
+  ];
+
+  if (request.isContinuation) {
+    // Tool results only ever existed inside the turn that was cut off, so what
+    // was actually done has to be rebuilt from the steps that survived.
+    const resume = buildResumeMessage(request.seed?.steps ?? []);
+    if (resume) wire.push({ role: "user", content: resume });
+
+    wire.push({
+      role: "user",
+      content:
+        "Your previous reply was cut off. Carry straight on from the exact character it stopped at, even if that is in the middle of a word or a sentence. Write only what comes next: no greeting, no preamble, no repetition of what you already wrote, and no repeating work you already finished.",
+    });
+
+    if (prefill) {
+      wire.push({ role: "assistant", content: prefill });
+    }
+  }
+
+  // The clock goes at the tail, where changing it costs nothing. In the system
+  // prompt it ended the cached prefix, re-evaluating the chat every turn.
+  const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
+  if (lastUserIndex !== -1) {
+    wire[lastUserIndex] = {
+      ...wire[lastUserIndex],
+      content: `${wire[lastUserIndex].content}
+
+${currentTimeNote()}`,
+    };
+  }
+
+  return {
+    info,
+    nativeTools,
+    nativeVision,
+    hasThinkingCapability,
+    nativeThinking,
+    cleanStream,
+    definitions,
+    promptParts,
+    wire,
+  };
+}
+
+export interface ContextMeasurement {
+  /** What the model counted for the prompt: exact, not estimated. */
+  tokens: number;
+  /** The size of the wire it was counted for, to tell how much has been added since. */
+  chars: number;
+  window: number;
+  parts: PromptParts;
+}
+
+/** How many tokens the model reads for this turn, asked of the model itself: a one-token reply to
+ * the exact prompt a turn would send. Null whenever asking would cost a reply anything. */
+export async function measureTurn(
+  input: TurnInput,
+  options: { signal: AbortSignal; allowLoad: boolean },
+): Promise<ContextMeasurement | null> {
+  if (isCloudModel(input.model) || ollamaIsBusy()) return null;
+
+  const turn = await prepareTurn(input);
+  const chars = estimateChars(turn.wire);
+  const maxContext = turn.info?.contextLength ?? null;
+
+  // A look that may not load the model must not grow the window either, or a later turn reloads.
+  const numCtx = options.allowLoad
+    ? contextSizeFor(input.model, chars, maxContext)
+    : peekContextSize(input.model, chars, maxContext);
+
+  if (!options.allowLoad && (await isLoadedAt(input.model, numCtx)) !== true) return null;
+  if (options.signal.aborted || ollamaIsBusy()) return null;
+  if (options.allowLoad) noteModelInUse(input.model);
+
+  // Gives way the moment a reply starts. What it evaluated stays cached, so that reply loses nothing.
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal.addEventListener("abort", abort);
+  const stopWatching = onOllamaWork(() => {
+    if (ollamaIsBusy()) controller.abort();
+  });
+
+  try {
+    const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: input.model,
+        stream: false,
+        keep_alive: KEEP_ALIVE,
+        options: { num_ctx: numCtx, num_predict: 1 },
+        messages: turn.wire,
+        ...(turn.hasThinkingCapability ? { think: turn.nativeThinking } : {}),
+        ...(turn.nativeTools ? { tools: turn.definitions } : {}),
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+
+    const body = safeJsonParse<{ prompt_eval_count?: number }>(await response.text());
+    const tokens = Number(body?.prompt_eval_count) || 0;
+    return tokens > 0 ? { tokens, chars, window: numCtx, parts: turn.promptParts } : null;
+  } catch {
+    return null;
+  } finally {
+    stopWatching();
+    options.signal.removeEventListener("abort", abort);
+  }
+}
+
+/** How often the speed line and the meter hear from a running turn. */
+const LIVE_INTERVAL_MS = 250;
+
+export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
+  const end = beginOllamaWork();
+  try {
+    return await runTurn(request, host);
+  } finally {
+    end();
+  }
+}
+
+async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
+  const { model, settings, environment, signal } = request;
 
   const steps: SearchStep[] = [...(request.seed?.steps ?? [])];
 
@@ -410,115 +640,18 @@ export async function runAgentTurn(
     }
   }
 
-  const info = await getModelInfo(model);
   noteModelInUse(model);
 
-  // A probe that failed is not proof a model cannot call tools: Ollama may
-  // have been busy. What it said last time stands in.
-  const capabilities = info
-    ? info.capabilities
-    : await recalledCapabilities(model);
-
-  const nativeTools = info
-    ? hasCapability(info, "tools")
-    : chooseChannel(capabilities) === "native";
-  const nativeVision = hasCapability(info, "vision");
-  const hasThinkingCapability = hasCapability(info, "thinking");
-  const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low";
-  const cleanStream = nativeTools && nativeThinking;
-
-  // Read every turn rather than once: a project whose rules changed halfway
-  // through a conversation should be followed from the next message.
-  const memory =
-    environment.hasFolder && environment.projectRoot && request.workspaceId
-      ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
-      : null;
-
-  const skills = environment.hasSkills
-    ? await loadSkills(request.workspaceId || "default")
-    : [];
-
-  const systemPrompt = buildSystemPrompt(
-    settings,
-    { nativeTools, nativeThinking },
-    environment,
-    memory,
-    skills,
-  );
-  const definitions = toolDefinitions(environment);
-
-  const prefill = request.isContinuation
-    ? (request.seed?.textContent ?? "")
-    : "";
-
-  // On a continuation the half-written reply moves to the very end: a model
-  // completes a trailing assistant message but starts afresh after a user one.
-  const history =
-    request.isContinuation &&
-    messages.length > 0 &&
-    messages[messages.length - 1].role === "assistant"
-      ? messages.slice(0, -1)
-      : messages;
-
-  // Messages the summary covers are not sent again, unless the summary no
-  // longer fits: a record of messages that are gone is worse than nothing.
-  const compaction =
-    request.compaction && request.compaction.throughIndex < history.length
-      ? request.compaction
-      : null;
-
-  const carried = compaction ? history.slice(compaction.throughIndex) : history;
-
-  // What the fixed parts of the prompt cost, so the context view can say where
-  // the window went rather than only how full it is.
-  const memoryChars = memory ? renderMemory(memory).length : 0;
-  const skillChars = describeSkills(skills).length;
-  const catalogueChars = nativeTools ? 0 : describeToolsForPrompt(environment).length;
-
-  const promptParts: PromptParts = {
-    systemChars: Math.max(0, systemPrompt.length - memoryChars - skillChars - catalogueChars),
-    toolChars: nativeTools ? JSON.stringify(definitions).length : catalogueChars,
-    memoryChars,
-    skillChars,
-    summaryChars: compaction ? renderCompactionBlock(compaction).length : 0,
-  };
-
-  const wire: WireMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...(compaction
-      ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
-      : []),
-    ...carried.map((message) => toWireMessage(message, nativeVision, nativeThinking)),
-  ];
-
-  if (request.isContinuation) {
-    // Tool results only ever existed inside the turn that was cut off, so what
-    // was actually done has to be rebuilt from the steps that survived.
-    const resume = buildResumeMessage(request.seed?.steps ?? []);
-    if (resume) wire.push({ role: "user", content: resume });
-
-    wire.push({
-      role: "user",
-      content:
-        "Your previous reply was cut off. Carry straight on from the exact character it stopped at, even if that is in the middle of a word or a sentence. Write only what comes next: no greeting, no preamble, no repetition of what you already wrote, and no repeating work you already finished.",
-    });
-
-    if (prefill) {
-      wire.push({ role: "assistant", content: prefill });
-    }
-  }
-
-  // The clock goes at the tail, where changing it costs nothing. In the system
-  // prompt it ended the cached prefix, re-evaluating the chat every turn.
-  const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
-  if (lastUserIndex !== -1) {
-    wire[lastUserIndex] = {
-      ...wire[lastUserIndex],
-      content: `${wire[lastUserIndex].content}
-
-${currentTimeNote()}`,
-    };
-  }
+  const {
+    info,
+    nativeTools,
+    hasThinkingCapability,
+    nativeThinking,
+    cleanStream,
+    definitions,
+    promptParts,
+    wire,
+  } = await prepareTurn(request);
 
   let loopCount = 0;
   let isFinished = false;
@@ -526,6 +659,43 @@ ${currentTimeNote()}`,
   // Assigned on the first pass of the loop below, which always runs.
   let numCtx: number;
   let metrics: GenerationMetrics | null = null;
+
+  // Stream chunks stand in for tokens until a pass ends and Ollama gives the real counts. Chunks
+  // run a little under tokens, so each pass corrects the ratio for the next.
+  let contextCheckpoint = request.contextBase ?? null;
+  let finishedTokens = 0;
+  let tokensPerChunk = 1;
+  let liveRate = 0;
+  let liveAt = 0;
+
+  const emitLive = (passChunks: number, passStartedAt: number | null, exact = false) => {
+    if (!host.onLive) return;
+    const now = performance.now();
+    if (!exact && now - liveAt < LIVE_INTERVAL_MS) return;
+    liveAt = now;
+
+    const streamed = passChunks * tokensPerChunk;
+    if (passStartedAt !== null && passChunks > 1 && now > passStartedAt) {
+      liveRate = streamed / ((now - passStartedAt) / 1000);
+    }
+
+    const wireChars = estimateChars(wire);
+    // Nothing added since the model last counted: that count still stands exactly.
+    const unchanged = contextCheckpoint !== null && passChunks === 0 && wireChars === contextCheckpoint.chars;
+    const known = contextCheckpoint
+      ? contextCheckpoint.tokens + Math.max(0, wireChars - contextCheckpoint.chars) / CHARS_PER_TOKEN
+      : wireChars / CHARS_PER_TOKEN;
+
+    host.onLive({
+      responseTokens: Math.round(finishedTokens + streamed),
+      tokensPerSecond: liveRate,
+      contextTokens: Math.round(
+        (exact || unchanged) && contextCheckpoint ? contextCheckpoint.tokens : known + streamed,
+      ),
+      contextExact: (exact || unchanged) && contextCheckpoint !== null,
+      contextWindow: numCtx,
+    });
+  };
 
   let fullFinalContent = request.seed?.content ?? "";
   let fullFinalTextContent = request.seed?.textContent ?? "";
@@ -596,6 +766,8 @@ ${currentTimeNote()}`,
       estimateChars(wire),
       info?.contextLength ?? null,
     );
+    // The meter has a figure from the start of each pass, not only once tokens arrive.
+    emitLive(0, null);
 
     // A load is the long silence before the first token, and all it used to
     // show was the typing dots: 15 to 26 s for a 20 GB model on an 8 GB card.
@@ -605,7 +777,7 @@ ${currentTimeNote()}`,
       pushStep({
         id: loadStepId,
         type: "loading",
-        content: host.t("loadingModel").replace("{model}", model).replace("{seconds}", "0"),
+        content: host.t("loadingModel").replace("{model}", model).replace("{seconds}", "0.0"),
         isComplete: false,
         model,
         startedAt: Date.now(),
@@ -664,6 +836,7 @@ ${currentTimeNote()}`,
       let lastEmittedLength = -1;
 
       const nativeCalls: OllamaToolCall[] = [];
+      let passChunks = 0;
       let finalChunk: Record<string, unknown> | null = null;
 
       const readChunk = (parsed: OllamaChunk) => {
@@ -694,6 +867,7 @@ ${currentTimeNote()}`,
             doneLoading();
             if (parsed.message?.content) added += parsed.message.content;
             if (parsed.message?.thinking) thinkingAdded += parsed.message.thinking;
+            if (parsed.message?.content || parsed.message?.thinking) passChunks++;
             readChunk(parsed);
           }
 
@@ -772,6 +946,7 @@ ${currentTimeNote()}`,
             // finished; whatever is being written now belongs to the timeline.
             showText(textContent);
             host.onPatch(combine("", ""));
+            emitLive(passChunks, firstTokenAt);
           }
         }
       } catch (error: unknown) {
@@ -795,6 +970,23 @@ ${currentTimeNote()}`,
           firstTokenAt === null ? null : firstTokenAt - requestStart,
         );
         metrics = mergeMetrics(metrics, turnMetrics);
+
+        // The real counts for this pass: the checkpoint the meter and the speed line snap to.
+        const counts = finalChunk as Record<string, unknown>;
+        const promptTokens = Number(counts.prompt_eval_count) || 0;
+        const writtenTokens = Number(counts.eval_count) || 0;
+        if (passChunks > 0 && writtenTokens > 0) {
+          tokensPerChunk = Math.min(1.5, Math.max(1, writtenTokens / passChunks));
+        }
+        finishedTokens += writtenTokens || passChunks;
+        if (turnMetrics && turnMetrics.tokensPerSecond > 0) liveRate = turnMetrics.tokensPerSecond;
+        if (promptTokens > 0) {
+          contextCheckpoint = {
+            tokens: promptTokens + writtenTokens,
+            chars: estimateChars(wire) + rawChunk.length + thinkingText.length,
+          };
+        }
+        emitLive(0, null, true);
       }
 
       currentThought = nativeThinking
@@ -924,6 +1116,9 @@ ${currentTimeNote()}`,
         const result = await runGuardedTool(name || "", args || {});
         wire.push({ role: "user", content: result });
       }
+
+      // Tool results went in after the last count, so until the next pass ends this is an estimate.
+      emitLive(0, null);
     } finally {
       doneLoading();
       signal.removeEventListener("abort", abortHandler);

@@ -28,7 +28,7 @@ export const defaultSettings: AppSettings = {
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "",
-  showMetrics: true,
+  showMetrics: false,
   autoUpdate: true,
   compactLimit: null,
 };
@@ -40,7 +40,10 @@ export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
 export function loadSettings(): AppSettings {
   const saved = localStorage.getItem(SETTINGS_KEY);
   const parsed = saved ? safeJsonParse<Partial<AppSettings>>(saved) : null;
-  return parsed ? { ...defaultSettings, ...parsed } : defaultSettings;
+  if (!parsed) return defaultSettings;
+
+  // Earlier versions saved the speed line switched on without anyone asking for it.
+  return parsed.metricsChosen ? { ...defaultSettings, ...parsed } : { ...defaultSettings, ...parsed, showMetrics: false };
 }
 
 /** The settings object and everything that has to happen when it changes: saved in both places,

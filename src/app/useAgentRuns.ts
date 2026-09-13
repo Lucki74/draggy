@@ -52,6 +52,8 @@ export interface AgentRuns {
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Folds the older conversation into notes now. */
   compact: (chatId: string) => Promise<CompactOutcome>;
+  /** What the model counts for the next turn of a conversation, draft included. */
+  measure: TaskManager["measure"];
   stop: (chatId: string) => void;
   stopAll: () => void;
 }
@@ -96,6 +98,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
       compact: manager.compact,
+      measure: manager.measure,
       stop: manager.stop,
       stopAll: manager.stopAll,
     }),

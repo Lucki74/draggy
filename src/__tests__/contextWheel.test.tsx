@@ -16,8 +16,8 @@ const view = (overrides: Partial<Parameters<typeof describeContextWindow>[0]> = 
       { systemChars: 4000, toolChars: 2000, memoryChars: 800, skillChars: 0, summaryChars: 0 },
       27_600,
     ),
-    historyChars: 0,
-    draftChars: 0,
+    draftTokens: 0,
+    exact: true,
     windowTokens: 203_000,
     loadedTokens: 32_768,
     limitTokens: null,
@@ -43,6 +43,18 @@ describe("the wheel", () => {
     const offset = Number(ring.getAttribute("stroke-dashoffset"));
 
     expect(1 - offset / circumference).toBeCloseTo(0.136, 2);
+  });
+
+  it("marks a figure estimated while a reply streams", () => {
+    render(<ContextWheel view={view({ exact: false })} t={t} />);
+
+    expect(screen.getByRole("button", { name: "Context window: ~27.6k / 203k (13.6%)" })).toBeTruthy();
+  });
+
+  it("claims nothing before anything has been counted", () => {
+    render(<ContextWheel view={view({ breakdown: null })} t={t} />);
+
+    expect(screen.getByRole("button", { name: "Context window: - / 203k" })).toBeTruthy();
   });
 
   it("spins instead while the conversation is being compacted", () => {

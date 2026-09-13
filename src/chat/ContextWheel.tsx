@@ -52,7 +52,10 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
 
   const filled = Math.max(0, Math.min(100, view.percent));
   const tone = toneFor(view.percent);
-  const summary = `${formatTokenCount(view.usedTokens)} / ${formatTokenCount(view.windowTokens)} (${formatPercent(view.percent)})`;
+  // "~" marks the estimate between two counts while a reply streams; a dash, nothing counted yet.
+  const summary = view.measured
+    ? `${view.exact ? "" : "~"}${formatTokenCount(view.usedTokens)} / ${formatTokenCount(view.windowTokens)} (${formatPercent(view.percent)})`
+    : `- / ${formatTokenCount(view.windowTokens)}`;
 
   const parts = view.rows.filter((row) => row.id !== "free");
 

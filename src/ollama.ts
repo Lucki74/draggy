@@ -204,38 +204,44 @@ export function contextSizeFor(
   return size;
 }
 
+/** The window a turn would ask for, without committing to it. For a look that must not grow the
+ * tally, and with it force a reload later. */
+export function peekContextSize(
+  model: string,
+  charEstimate: number,
+  maxContext: number | null,
+): number {
+  return Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext));
+}
+
+/** Requests generating right now, anywhere in the app. A measurement waits for none of them and
+ * gives way to all of them, so it never slows a reply. */
+let generating = 0;
+const workListeners = new Set<() => void>();
+
+export function beginOllamaWork(): () => void {
+  generating++;
+  for (const listener of workListeners) listener();
+  let ended = false;
+  return () => {
+    if (ended) return;
+    ended = true;
+    generating--;
+    for (const listener of workListeners) listener();
+  };
+}
+
+export const ollamaIsBusy = () => generating > 0;
+
+export function onOllamaWork(listener: () => void): () => void {
+  workListeners.add(listener);
+  return () => {
+    workListeners.delete(listener);
+  };
+}
+
 export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
-}
-
-export interface ContextUse {
-  usedTokens: number;
-  windowTokens: number;
-  percent: number;
-  measured: boolean;
-}
-
-export function describeContextUse(input: {
-  measuredTokens: number | null;
-  draftChars: number;
-  historyChars: number;
-  maxContext: number | null;
-}): ContextUse {
-  const draftTokens = Math.ceil(Math.max(0, input.draftChars) / 4);
-
-  const usedTokens =
-    input.measuredTokens !== null && input.measuredTokens > 0
-      ? input.measuredTokens + draftTokens
-      : Math.ceil(Math.max(0, input.historyChars + input.draftChars) / 4);
-
-  const windowTokens = input.maxContext ?? FALLBACK_CONTEXT_LENGTH;
-
-  return {
-    usedTokens,
-    windowTokens,
-    percent: windowTokens > 0 ? (usedTokens / windowTokens) * 100 : 0,
-    measured: input.measuredTokens !== null && input.measuredTokens > 0,
-  };
 }
 
 export function isCloudModel(name: string): boolean {

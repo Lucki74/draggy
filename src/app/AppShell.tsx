@@ -71,7 +71,7 @@ import {
   workspaceLabel,
 } from "../workspaces";
 import { writeLocalStorage } from "../utils";
-import type { AppSettings, ChatSession, Workspace } from "../types";
+import type { AppSettings, Attachment, ChatSession, Workspace } from "../types";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
 
@@ -553,6 +553,20 @@ export default function AppShell({
     ? (selectedChatId ?? visibleSessions[0]?.id ?? blankChatId)
     : selectedChatId;
 
+  // One identity per conversation: the composer counts again whenever this changes.
+  const measureConversation = runs.measure;
+  const measureContext = useCallback(
+    (
+      draft: string,
+      attachments: Attachment[],
+      options: { signal: AbortSignal; allowLoad: boolean },
+    ) =>
+      currentChatId
+        ? measureConversation(currentChatId, draft, attachments, options)
+        : Promise.resolve(null),
+    [measureConversation, currentChatId],
+  );
+
   useEffect(() => {
     watchingRef.current = viewMode === "chat" ? currentChatId : null;
   });
@@ -964,6 +978,7 @@ export default function AppShell({
             onProjectMemory={active.rootPath ? openProjectMemory : undefined}
             onInitProject={active.rootPath ? draftProject : undefined}
             onCompact={() => runs.compact(currentChatId)}
+            onMeasureContext={measureContext}
             onSelectModel={selectModelHere}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}

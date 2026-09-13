@@ -65,9 +65,9 @@ describe("splitting a measured prompt into its parts", () => {
 
 describe("the window as the user sees it", () => {
   const view = describeContextWindow({
-    breakdown: measureBreakdown(PARTS, 5000),
-    historyChars: 0,
-    draftChars: 400,
+    breakdown: measureBreakdown(PARTS, 5100),
+    draftTokens: 100,
+    exact: true,
     windowTokens: 100_000,
     loadedTokens: 16_384,
     limitTokens: null,
@@ -85,9 +85,10 @@ describe("the window as the user sees it", () => {
     ]);
   });
 
-  it("counts what is being typed as used", () => {
+  it("shows the measured draft on its own row, out of the conversation's share", () => {
     expect(view.usedTokens).toBe(5100);
     expect(view.rows.find((row) => row.id === "draft")?.tokens).toBe(100);
+    expect(view.rows.find((row) => row.id === "messages")?.tokens).toBe(measureBreakdown(PARTS, 5100).messages - 100);
   });
 
   it("gives each part its share of the whole window", () => {
@@ -105,9 +106,9 @@ describe("the window as the user sees it", () => {
 
   it("never reports negative free space when the window is overfull", () => {
     const full = describeContextWindow({
-      breakdown: null,
-      historyChars: 800_000,
-      draftChars: 0,
+      breakdown: { messages: 200_000, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 },
+      draftTokens: 0,
+      exact: true,
       windowTokens: 100_000,
       loadedTokens: null,
       limitTokens: null,
@@ -116,18 +117,19 @@ describe("the window as the user sees it", () => {
     expect(full.rows.at(-1)?.tokens).toBe(0);
   });
 
-  it("estimates from the conversation before any turn has been measured", () => {
+  it("guesses nothing before the model has counted anything", () => {
     const fresh = describeContextWindow({
       breakdown: null,
-      historyChars: 2000,
-      draftChars: 0,
+      draftTokens: 0,
+      exact: true,
       windowTokens: 8192,
       loadedTokens: null,
       limitTokens: null,
     });
 
-    expect(fresh.rows.map((row) => row.id)).toEqual(["messages", "free"]);
-    expect(fresh.usedTokens).toBe(500);
+    expect(fresh.measured).toBe(false);
+    expect(fresh.rows.map((row) => row.id)).toEqual(["free"]);
+    expect(fresh.usedTokens).toBe(0);
   });
 });
 
@@ -151,8 +153,8 @@ describe("where the conversation gets folded", () => {
   it("is reported with the view", () => {
     const view = describeContextWindow({
       breakdown: null,
-      historyChars: 0,
-      draftChars: 0,
+      draftTokens: 0,
+      exact: true,
       windowTokens: 128_000,
       loadedTokens: 16_384,
       limitTokens: 20_000,

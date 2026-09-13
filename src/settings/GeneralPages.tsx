@@ -57,7 +57,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
           <Toggle
             label={t("showMetrics")}
             checked={settings.showMetrics}
-            onChange={(showMetrics) => onUpdate({ showMetrics })}
+            onChange={(showMetrics) => onUpdate({ showMetrics, metricsChosen: true })}
           />
         </Row>
       </Group>
