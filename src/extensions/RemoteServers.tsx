@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Cloud, LogIn, LogOut, Plus, Trash2 } from "lucide-react";
+import { LogIn, LogOut, Plus, Trash2 } from "lucide-react";
 import type { McpServerConfig } from "../types";
 
 interface RemoteServersProps {
@@ -75,11 +75,6 @@ export default function RemoteServers({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-3">
-        <Cloud className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
-        <p className="text-xs text-[var(--text-muted)]">{t("remoteHint")}</p>
-      </div>
-
       {remotes.map(([id, entry]) => (
         <div
           key={id}

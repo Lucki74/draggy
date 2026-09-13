@@ -59,12 +59,6 @@ describe("the statistics page", () => {
     expect(screen.getAllByText("12 s").length).toBeGreaterThan(0);
   });
 
-  it("says it keeps everything on this computer", async () => {
-    await show();
-
-    expect(screen.getByText(t("statsPrivacy"))).toBeTruthy();
-  });
-
   it("asks for the last 30 days first, and another range on request", async () => {
     await show();
     const firstSince = (list.mock.calls[0] as unknown as [number])[0];

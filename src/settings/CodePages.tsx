@@ -2,7 +2,6 @@ import { useState } from "react";
 import { FileText, FolderPlus, SquareTerminal, Trash2, X } from "lucide-react";
 import { Block, Button, ConfirmDialog, Group, Page, Row, Segmented, Select } from "./Controls";
 import InstructionsEditor from "./InstructionsEditor";
-import LibraryPanel from "./LibraryPanel";
 import PermissionChoice from "./PermissionChoice";
 import { selectableModels } from "../modelKinds";
 import { thinkingOptions, webOptions } from "./pages";
@@ -13,7 +12,7 @@ import type { AppSettings, PermissionMode, Workspace, WorkspaceGrant } from "../
 type Translate = (key: string) => string;
 
 /** The Code pages. Code keeps its own model, instructions and defaults, and each project its own
- * permissions and documents, so nothing here reaches Chat. */
+ * permissions, so nothing here reaches Chat. */
 
 interface CodePreferencesProps {
   settings: AppSettings;
@@ -25,9 +24,9 @@ interface CodePreferencesProps {
 
 export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t }: CodePreferencesProps) {
   return (
-    <Page title={t("preferences")} description={t("codePreferencesHint")}>
+    <Page title={t("preferences")}>
       <Group>
-        <Row label={t("model")} description={t("codeModelHint")}>
+        <Row label={t("model")}>
           <Select
             label={t("model")}
             value={settings.codeModel}
@@ -42,7 +41,7 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
             onChange={(codeModel) => onUpdate({ codeModel })}
           />
         </Row>
-        <Row label={t("thinking")} description={t("thinkingHint")}>
+        <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
             value={settings.codeThinkingMode}
@@ -50,7 +49,7 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
             onChange={(codeThinkingMode) => onUpdate({ codeThinkingMode })}
           />
         </Row>
-        <Row label={t("webAccess")} description={t("webAccessHint")}>
+        <Row label={t("webAccess")}>
           <Segmented
             label={t("webAccess")}
             value={settings.codeWebMode}
@@ -60,7 +59,7 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         </Row>
       </Group>
 
-      <Group title={t("defaultPermission")} description={t("defaultPermissionHint")}>
+      <Group title={t("defaultPermission")}>
         <Block>
           <PermissionChoice
             label={t("defaultPermission")}
@@ -71,7 +70,7 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         </Block>
       </Group>
 
-      <Group title={t("customInstructions")} description={t("codeInstructionsHint")}>
+      <Group title={t("customInstructions")}>
         <Block>
           <InstructionsEditor
             instructions={settings.codeInstructions}
@@ -88,30 +87,24 @@ interface ProjectsPageProps {
   projects: Workspace[];
   /** The project to show first: the one open in Code, when there is one. */
   initialProjectId: string | null;
-  settings: AppSettings;
-  manager: ModelManager;
   onAddProject: () => Promise<Workspace | null>;
   onRename: (id: string, name: string) => void;
   onSetPermissionMode: (id: string, mode: PermissionMode) => void;
   onRevokeGrant: (id: string, grant: WorkspaceGrant) => void;
   onRemove: (id: string) => void;
   onEditMemory: (id: string) => void;
-  onLibraryChange?: () => void;
   t: Translate;
 }
 
 export function ProjectsPage({
   projects,
   initialProjectId,
-  settings,
-  manager,
   onAddProject,
   onRename,
   onSetPermissionMode,
   onRevokeGrant,
   onRemove,
   onEditMemory,
-  onLibraryChange,
   t,
 }: ProjectsPageProps) {
   const [chosenId, setChosenId] = useState<string | null>(initialProjectId);
@@ -130,7 +123,7 @@ export function ProjectsPage({
 
   if (!project) {
     return (
-      <Page title={t("projects")} description={t("projectsHint")}>
+      <Page title={t("projects")}>
         <Group>
           <Row label={t("noProjectsYet")} description={t("codeHomeBody")}>
             <Button tone="primary" onClick={() => void addProject()}>
@@ -144,7 +137,7 @@ export function ProjectsPage({
   }
 
   return (
-    <Page title={t("projects")} description={t("projectsHint")}>
+    <Page title={t("projects")}>
       <div className="flex flex-wrap items-center gap-2">
         <Select
           label={t("projects")}
@@ -179,7 +172,7 @@ export function ProjectsPage({
         </Row>
       </Group>
 
-      <Group title={t("permissionMode")} description={t("projectPermissionHint")}>
+      <Group title={t("permissionMode")}>
         <Block>
           <PermissionChoice
             label={t("permissionMode")}
@@ -190,7 +183,7 @@ export function ProjectsPage({
         </Block>
       </Group>
 
-      <Group title={t("alwaysAllowed")} description={t("alwaysAllowedHint")}>
+      <Group title={t("alwaysAllowed")}>
         {project.grants.length === 0 ? (
           <Row label={t("nothingAllowedYet")} />
         ) : (
@@ -230,21 +223,8 @@ export function ProjectsPage({
         )}
       </Group>
 
-      <Group title={t("library")} description={t("projectLibraryHint")}>
-        <Block>
-          <LibraryPanel
-            key={project.id}
-            workspaceId={project.id}
-            manager={manager}
-            embedModel={settings.embedModel}
-            onChange={onLibraryChange}
-            t={t}
-          />
-        </Block>
-      </Group>
-
       <Group danger>
-        <Row label={t("removeProject")} description={t("removeProjectHint")}>
+        <Row label={t("removeProject")}>
           <Button tone="danger" onClick={() => setConfirmingRemove(true)}>
             <Trash2 className="w-4 h-4" />
             {t("removeProject")}

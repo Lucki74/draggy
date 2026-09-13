@@ -123,7 +123,7 @@ describe("a server somewhere else", () => {
     },
   };
 
-  it("says plainly that it leaves the machine", () => {
+  it("lists a saved remote server by its address", () => {
     stubBridge();
     render(
       <RemoteServers
@@ -134,7 +134,6 @@ describe("a server somewhere else", () => {
       />,
     );
 
-    expect(screen.getByText(/leaves this machine/i)).toBeTruthy();
     expect(screen.getByText("https://tickets.example/mcp")).toBeTruthy();
   });
 

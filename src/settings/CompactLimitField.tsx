@@ -65,11 +65,7 @@ export default function CompactLimitField({ limit, onChange, t }: CompactLimitFi
         />
       )}
 
-      <p
-        className={`text-xs font-medium ${invalid ? "text-red-500" : "text-[var(--text-muted)]"}`}
-      >
-        {invalid ? t("compactLimitInvalid") : t("compactLimitHint")}
-      </p>
+      {invalid && <p className="text-xs font-medium text-red-500">{t("compactLimitInvalid")}</p>}
     </div>
   );
 }

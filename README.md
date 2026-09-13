@@ -79,9 +79,9 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
 - **Browse without ads.** Links open in a browser window inside the app, with
   uBlock Origin's filter lists on Ghostery's engine, YouTube adverts and
   anti-adblock walls included.
-- **Search your own documents.** Point it at a folder and it indexes the
-  contents locally, on meaning and keywords at once. Chat's library and each
-  project's are kept apart.
+- **Search your own documents.** Point Chat at a folder and it indexes the
+  contents locally, on meaning and keywords at once. In Code the project itself
+  is what Draggy searches.
 - **Extend it.** Thirty-four Model Context Protocol servers in a catalogue, a
   search of the official MCP registry, remote servers with OAuth sign-in, and
   skills you write down once. All of it is off until you switch it on, once

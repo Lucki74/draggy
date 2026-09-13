@@ -72,7 +72,6 @@ describe("the local API setting", () => {
     expect(configure).toHaveBeenCalledWith({ enabled: true });
     expect(screen.getByText(ON.baseUrl)).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe(t("apiServerListening"));
-    expect(screen.getByText(t("apiServerWarning"))).toBeTruthy();
   });
 
   it("keeps the key hidden until asked", async () => {

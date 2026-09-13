@@ -87,7 +87,6 @@ export default function StatsPanel({ t }: StatsPanelProps) {
           ))}
         </div>
 
-        <p className="text-xs font-medium text-[var(--text-muted)]">{t("statsPrivacy")}</p>
       </div>
 
       {!summary ? (

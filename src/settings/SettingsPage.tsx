@@ -180,15 +180,12 @@ export default function SettingsPage(props: SettingsPageProps) {
               <ProjectsPage
                 projects={props.projects}
                 initialProjectId={props.activeProjectId}
-                settings={settings}
-                manager={manager}
                 onAddProject={props.onAddProject}
                 onRename={props.onRenameProject}
                 onSetPermissionMode={props.onSetPermissionMode}
                 onRevokeGrant={props.onRevokeGrant}
                 onRemove={props.onRemoveProject}
                 onEditMemory={props.onEditProjectMemory}
-                onLibraryChange={libraryChanged}
                 t={t}
               />
             )}

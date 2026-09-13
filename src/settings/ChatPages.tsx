@@ -32,9 +32,9 @@ export function ChatPreferencesPage({
   t,
 }: ChatPageProps & { chatModel: string; onSelectChatModel: (name: string) => void }) {
   return (
-    <Page title={t("preferences")} description={t("chatPreferencesHint")}>
+    <Page title={t("preferences")}>
       <Group>
-        <Row label={t("model")} description={t("chatModelHint")}>
+        <Row label={t("model")}>
           <Select
             label={t("model")}
             value={chatModel}
@@ -46,7 +46,7 @@ export function ChatPreferencesPage({
             onChange={onSelectChatModel}
           />
         </Row>
-        <Row label={t("thinking")} description={t("thinkingHint")}>
+        <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
             value={settings.thinkingMode}
@@ -54,7 +54,7 @@ export function ChatPreferencesPage({
             onChange={(thinkingMode) => onUpdate({ thinkingMode })}
           />
         </Row>
-        <Row label={t("webAccess")} description={t("webAccessHint")}>
+        <Row label={t("webAccess")}>
           <Segmented
             label={t("webAccess")}
             value={settings.webMode}
@@ -64,7 +64,7 @@ export function ChatPreferencesPage({
         </Row>
       </Group>
 
-      <Group title={t("customInstructions")} description={t("chatInstructionsHint")}>
+      <Group title={t("customInstructions")}>
         <Block>
           <InstructionsEditor
             instructions={settings.customInstructions}
@@ -103,9 +103,9 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
     : systemVoices.map((voice) => ({ id: voice.name, label: voice.name, hint: voice.lang }));
 
   return (
-    <Page title={t("talk")} description={t("talkHint")}>
+    <Page title={t("talk")}>
       <Group>
-        <Row label={t("talkModel")} description={t("talkModelHint")}>
+        <Row label={t("talkModel")}>
           <Select
             label={t("talkModel")}
             value={settings.voiceModel}
@@ -122,10 +122,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
       </Group>
 
       <Group title={t("voiceLabel")}>
-        <Row
-          label={t("voiceEngine")}
-          description={neuralPossible ? t("naturalVoiceHint") : t("naturalVoiceEnglishOnly")}
-        >
+        <Row label={t("voiceEngine")}>
           <div role="radiogroup" aria-label={t("voiceEngine")} className="inline-flex rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-base)] p-[3px]">
             <EngineButton
               selected={!neural}
@@ -135,6 +132,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
             <EngineButton
               selected={neural}
               disabled={!neuralPossible}
+              title={neuralPossible ? undefined : t("naturalVoiceEnglishOnly")}
               onClick={() => onUpdate({ voiceEngine: "neural" })}
               label={t("naturalVoice")}
               icon
@@ -166,12 +164,14 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
 function EngineButton({
   selected,
   disabled,
+  title,
   onClick,
   label,
   icon,
 }: {
   selected: boolean;
   disabled?: boolean;
+  title?: string;
   onClick: () => void;
   label: string;
   icon?: boolean;
@@ -182,6 +182,7 @@ function EngineButton({
       role="radio"
       aria-checked={selected}
       disabled={disabled}
+      title={title}
       onClick={onClick}
       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         selected
@@ -203,7 +204,7 @@ export function LibraryPage({
   t,
 }: ChatPageProps & { onLibraryChange?: () => void }) {
   return (
-    <Page title={t("library")} description={t("libraryHint")}>
+    <Page title={t("library")}>
       <Group>
         <Row label={t("enableLibrary")} description={t("enableLibraryHint")}>
           <Toggle

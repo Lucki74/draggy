@@ -17,7 +17,7 @@ interface SettingsProps {
 
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   return (
-    <Page title={t("settingsGeneral")} description={t("settingsGeneralHint")}>
+    <Page title={t("settingsGeneral")}>
       <Group title={t("appearance")}>
         <Row label={t("theme")}>
           <Segmented
@@ -30,7 +30,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             onChange={(theme) => onUpdate({ theme })}
           />
         </Row>
-        <Row label={t("textSize")} description={t("textSizeHint")}>
+        <Row label={t("textSize")}>
           <Segmented
             label={t("textSize")}
             value={settings.fontSize}
@@ -45,7 +45,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
       </Group>
 
       <Group>
-        <Row label={t("language")} description={t("languageHint")}>
+        <Row label={t("language")}>
           <Select
             label={t("language")}
             value={settings.language}
@@ -53,7 +53,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             onChange={(language) => onUpdate({ language })}
           />
         </Row>
-        <Row label={t("showMetrics")} description={t("showMetricsHint")}>
+        <Row label={t("showMetrics")}>
           <Toggle
             label={t("showMetrics")}
             checked={settings.showMetrics}
@@ -71,7 +71,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
   const provider = settings.searchProvider;
 
   return (
-    <Page title={t("webSearchPage")} description={t("webSearchHint")}>
+    <Page title={t("webSearchPage")}>
       <Group>
         <Row label={t("searchProvider")} description={t("searchProviderHint")}>
           <Select
@@ -83,7 +83,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
         </Row>
 
         {(provider === "auto" || provider === "searxng") && (
-          <Row label={t("searxngUrl")} description={t("searxngUrlHint")}>
+          <Row label={t("searxngUrl")}>
             <input
               type="text"
               value={settings.searxngUrl}
@@ -97,7 +97,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
         )}
 
         {(provider === "auto" || provider === "brave") && (
-          <Row label={t("braveApiKey")} description={t("braveApiKeyHint")}>
+          <Row label={t("braveApiKey")}>
             <input
               type="password"
               value={settings.braveApiKey}
@@ -116,7 +116,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
 
 export function ExtensionsPage({ t }: { t: Translate }) {
   return (
-    <Page title={t("extensions")} description={t("extensionsHint")}>
+    <Page title={t("extensions")}>
       <ExtensionsPanel t={t} />
     </Page>
   );
@@ -146,7 +146,7 @@ export function DataPage({ t, onClearChats, onClearSessions }: DataPageProps) {
   }, [confirming]);
 
   return (
-    <Page title={t("data")} description={t("dataHint")}>
+    <Page title={t("data")}>
       {stats && (
         <section className="space-y-2">
           <h3 className="px-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
@@ -262,7 +262,7 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
             )}
           </p>
         </Row>
-        <Row label={t("automaticUpdates")} description={t("automaticUpdatesHint")}>
+        <Row label={t("automaticUpdates")}>
           <Toggle
             label={t("automaticUpdates")}
             checked={settings.autoUpdate}

@@ -227,19 +227,18 @@ export default function AppShell({
     };
   }, []);
 
-  // Whether this workspace has indexed anything of its own. Chat's folders never count for a
-  // project, and a project's never count for Chat.
+  // Whether Chat's library has anything indexed. Code has no library: the project is what it searches.
   const refreshLibraryReadiness = useCallback(() => {
     const library = window.electronAPI?.library;
     if (!library) return;
 
     library
-      .list(active.id)
+      .list(defaultWorkspace.id)
       .then((result) =>
         setLibraryReady(Boolean(result?.sources?.some((source) => source.chunks > 0))),
       )
       .catch(() => setLibraryReady(false));
-  }, [active.id]);
+  }, [defaultWorkspace.id]);
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
@@ -269,8 +268,7 @@ export default function AppShell({
     // permission mode. Chat has neither.
     codeExecution: mode === "code" && Boolean(window.electronAPI?.runner),
     canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
-    // Chat has a switch for its library; a project searches its own folders whenever it has some.
-    libraryReady: libraryReady && (mode === "code" || effectiveSettings.libraryEnabled),
+    libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
     hasSkills: skillCount > 0,

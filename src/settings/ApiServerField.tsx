@@ -156,9 +156,6 @@ export default function ApiServerField({ t }: ApiServerFieldProps) {
             </label>
           )}
 
-          <p className="text-[11px] font-medium text-amber-600 dark:text-amber-500">
-            {t("apiServerWarning")}
-          </p>
         </div>
       )}
     </div>

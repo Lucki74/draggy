@@ -133,11 +133,13 @@ describe("Code's preferences", () => {
 });
 
 describe("a project's settings", () => {
-  it("has permissions and documents, and no extensions of its own", () => {
+  it("has permissions, and no extensions or library of its own", () => {
     renderSettings("projects");
 
     expect(screen.getByRole("radiogroup", { name: "Permissions" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Extensions" })).toBeNull();
+    // The project folder is what Code searches, so it has no library to index.
+    expect(screen.queryByRole("heading", { name: "Library" })).toBeNull();
   });
 
   it("changes the permission mode of that project", async () => {
