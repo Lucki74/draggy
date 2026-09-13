@@ -691,6 +691,10 @@ declare global {
         revert: (
           id: number,
         ) => Promise<{ success: boolean; path?: string; error?: string }>;
+        /** Something wrote, moved, removed or restored a file in a workspace. */
+        onChanged: (
+          callback: (change: { workspaceId: string; path: string; from?: string }) => void,
+        ) => Unsubscribe;
       };
 
       skills: {

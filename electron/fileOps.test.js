@@ -249,6 +249,24 @@ describe("undoing what Draggy did", () => {
     expect(fs.existsSync(path.join(root, "docs", "notes.md"))).toBe(false);
   });
 
+  it("says which workspace an undo touched, so an open editor can follow", async () => {
+    const edit = ops.edit("w1", "notes.md", "second", "third");
+
+    const undone = await ops.revert(edit.checkpointId);
+
+    expect(undone.workspaceId).toBe("w1");
+    expect(undone.path).toBe(path.join(root, "notes.md"));
+  });
+
+  it("says where a moved file came back from", async () => {
+    const moved = ops.move("w1", "notes.md", "docs/notes.md");
+
+    const undone = await ops.revert(moved.checkpointId);
+
+    expect(undone.from).toBe(path.join(root, "docs", "notes.md"));
+    expect(undone.path).toBe(path.join(root, "notes.md"));
+  });
+
   it("forgets the change once it has been undone", async () => {
     const edit = ops.edit("w1", "notes.md", "second", "third");
 

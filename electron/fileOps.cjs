@@ -340,7 +340,12 @@ function create({ roots, storage, checkpoints, trash }) {
       fs.renameSync(current.path, back.path);
       storage.dropCheckpoint(entry.id);
 
-      return { success: true, path: back.path };
+      return {
+        success: true,
+        path: back.path,
+        from: current.path,
+        workspaceId: entry.workspaceId,
+      };
     }
 
     const resolved = resolve(entry.workspaceId, entry.path, {
@@ -363,7 +368,7 @@ function create({ roots, storage, checkpoints, trash }) {
 
     storage.dropCheckpoint(entry.id);
 
-    return { success: true, path: resolved.path };
+    return { success: true, path: resolved.path, workspaceId: entry.workspaceId };
   }
 
   return { list, read, write, edit, move, remove, search, revert };

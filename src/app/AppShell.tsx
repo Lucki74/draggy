@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import ChatScreen from "../ChatScreen";
+import Canvas from "../canvas/Canvas";
 import SettingsPage from "../SettingsPage";
 import type { SettingsTab } from "../SettingsPage";
 import ChatHistory from "../ChatHistory";
@@ -79,14 +80,25 @@ export default function AppShell({
   const [skillCount, setSkillCount] = useState(0);
   /** A background conversation that finished while the user was elsewhere. */
   const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
-  /** Which file the files screen opens on, when one was picked in the chat. */
-  const [openedFile, setOpenedFile] = useState<string | null>(null);
+  /**
+   * The file open in the canvas, with the workspace it belongs to. Switching
+   * workspace hides it rather than trying to open one project's file in another.
+   */
+  const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
 
   const store = useSessions();
   const update = useUpdateDialog();
   const workspaces = useWorkspaces();
 
   const active = workspaces.active;
+
+  const canvasPath = canvas && canvas.workspaceId === active.id ? canvas.path : null;
+  const closeCanvas = useCallback(() => setCanvas(null), []);
+  const followCanvas = useCallback(
+    (path: string) =>
+      setCanvas((previous) => (previous ? { ...previous, path } : previous)),
+    [],
+  );
   const effectiveSettings = resolveSettings(settings, active);
 
   const openSettings = useCallback((tab: SettingsTab) => {
@@ -641,7 +653,7 @@ export default function AppShell({
           <Explorer
             settings={settings}
             workspace={active}
-            initialPath={openedFile}
+            initialPath={canvasPath}
           />
         ) : viewMode === "talk" ? (
           <TalkScreen settings={settings} />
@@ -679,11 +691,10 @@ export default function AppShell({
                     <FileTree
                       workspaceId={active.id}
                       root={active.rootPath}
-                      selected={null}
-                      onSelect={(entry) => {
-                        setOpenedFile(entry.path);
-                        setViewMode("files");
-                      }}
+                      selected={canvasPath}
+                      onSelect={(entry) =>
+                        setCanvas({ workspaceId: active.id, path: entry.path })
+                      }
                       t={t}
                     />
                   </div>
@@ -730,6 +741,22 @@ export default function AppShell({
             settings={settings}
             onUpdateSettings={onUpdateSettings}
             />
+
+            {canvasPath && (
+              <div
+                className="w-[45%] min-w-[320px] flex-shrink-0 border-l-[3px]"
+                style={{ borderColor: "var(--border-light)" }}
+              >
+                <Canvas
+                  key={canvasPath}
+                  workspaceId={active.id}
+                  path={canvasPath}
+                  t={t}
+                  onClose={closeCanvas}
+                  onMoved={followCanvas}
+                />
+              </div>
+            )}
 
             {currentSession?.plan && currentSession.plan.length > 0 && (
               <div

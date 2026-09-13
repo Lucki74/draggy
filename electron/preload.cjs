@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     checkpoints: (workspaceId) =>
       ipcRenderer.invoke("checkpoint:list", workspaceId),
     revert: (id) => ipcRenderer.invoke("checkpoint:revert", id),
+    onChanged: (callback) => subscribe("file-changed", callback),
   },
 
   skills: {

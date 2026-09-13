@@ -1903,20 +1903,40 @@ ipcMain.handle("fs:read", wrap("fs", async (event, workspaceId, target) =>
   fileOps.read(workspaceId, target),
 ));
 
+/**
+ * Says a file moved under somebody's feet. The canvas listens so that an edit
+ * the model just made appears in the editor the user is looking at, rather
+ * than being discovered later by reopening the file.
+ */
+function announceChange(workspaceId, result) {
+  if (!result?.success || !result.path) return result;
+
+  broadcast("file-changed", {
+    workspaceId: String(workspaceId || ""),
+    path: String(result.path),
+    ...(result.from ? { from: String(result.from) } : {}),
+  });
+
+  return result;
+}
+
 ipcMain.handle("fs:write", wrap("fs", async (event, workspaceId, target, contents, chatId) =>
-  fileOps.write(workspaceId, target, contents, chatId),
+  announceChange(workspaceId, await fileOps.write(workspaceId, target, contents, chatId)),
 ));
 
 ipcMain.handle("fs:edit", wrap("fs", async (event, workspaceId, target, find, replace, expected, chatId) =>
-  fileOps.edit(workspaceId, target, find, replace, expected, chatId),
+  announceChange(
+    workspaceId,
+    await fileOps.edit(workspaceId, target, find, replace, expected, chatId),
+  ),
 ));
 
 ipcMain.handle("fs:move", wrap("fs", async (event, workspaceId, from, to, chatId) =>
-  fileOps.move(workspaceId, from, to, chatId),
+  announceChange(workspaceId, await fileOps.move(workspaceId, from, to, chatId)),
 ));
 
 ipcMain.handle("fs:delete", wrap("fs", async (event, workspaceId, target, chatId) =>
-  fileOps.remove(workspaceId, target, chatId),
+  announceChange(workspaceId, await fileOps.remove(workspaceId, target, chatId)),
 ));
 
 ipcMain.handle("fs:search", wrap("fs", async (event, workspaceId, query) =>
@@ -1928,7 +1948,11 @@ ipcMain.handle("checkpoint:list", wrap("fs", async (event, workspaceId) => ({
   checkpoints: storage.listCheckpoints(String(workspaceId || "")),
 })));
 
-ipcMain.handle("checkpoint:revert", wrap("fs", async (event, id) => fileOps.revert(id)));
+ipcMain.handle("checkpoint:revert", wrap("fs", async (event, id) => {
+  const result = await fileOps.revert(id);
+
+  return announceChange(result?.workspaceId, result);
+}));
 
 ipcMain.handle("db:load-chats", wrap("db", async () => ({
   success: true,
