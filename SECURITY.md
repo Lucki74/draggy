@@ -41,8 +41,22 @@ Specifically:
   with context isolation and `electron/preload.cjs` is the only bridge, so a way
   around that is the most serious thing you could find.
 - Writing or reading outside the folders Draggy is supposed to touch, including
-  through symlinks or crafted file names.
+  through symlinks or crafted file names, or reading a credentials file (`.env`,
+  `.ssh` and the like) that the file tools are meant to refuse.
 - A web page, document or extension making Draggy run a tool on its own say-so.
+- Getting past a project's permission mode: a change or a command that runs
+  without the approval the mode asks for, or a remembered permission that covers
+  more than the folder or tool it was given for.
+- A change Draggy made that cannot be undone, or an undo that writes somewhere
+  other than the file it came from.
+- A repository that makes Draggy run a program just by being looked at. Git
+  status and diffs are read with fsmonitor, filters and external tools switched
+  off; a way to get one to run anyway is exactly what I want to hear about.
+- An extension widget reaching the app's window, the network, or any tool that
+  is not read-only.
+- The local API, when someone has turned it on, answering anything other than a
+  local client with the key, or letting that client reach files, extensions or
+  code.
 - The code execution tool escaping its scratch directory, reaching the network,
   or outliving the timeout.
 - Credentials for an extension server leaking somewhere they should not be:
