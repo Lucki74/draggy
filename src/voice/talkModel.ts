@@ -1,10 +1,8 @@
 import { pullModel, warmModel } from "../ollama";
 import { KEEP_ALIVE } from "./constants";
 
-/**
- * The model that does the talking, on its own VRAM-sized ladder. It stops early:
- * past four billion parameters a spoken answer is no better and costs a turn.
- */
+/** The model that does the talking, on its own VRAM-sized ladder. It stops early: past four billion
+ * parameters a spoken answer is no better and costs a turn. */
 
 export interface TalkTier {
   /** Least VRAM, in gigabytes, that this rung is meant for. */
@@ -16,10 +14,8 @@ export interface TalkTier {
   downloadGB: number;
 }
 
-/**
- * Every rung answers immediately. Reasoning models are absent: asked to say
- * hello, Qwen 3 4B writes six hundred characters first, and cannot be stopped.
- */
+/** Every rung answers immediately. Reasoning models are absent: asked to say hello, Qwen 3 4B
+ * writes six hundred characters first, and cannot be stopped. */
 export const TALK_TIERS: readonly TalkTier[] = [
   // The floor is for machines with no usable graphics memory at all, where the
   // reply is generated on the processor and size is the whole latency budget.
@@ -41,10 +37,8 @@ export function tierOf(model: string): TalkTier | null {
   return TALK_TIERS.find((tier) => tier.model === model) ?? null;
 }
 
-/**
- * Whether something on disk counts as the model wanted. A re-quantised build is
- * the same model here, and calling it a miss re-downloads the weights.
- */
+/** Whether something on disk counts as the model wanted. A re-quantised build is the same model
+ * here, and calling it a miss re-downloads the weights. */
 export function installedMatch(
   wanted: string,
   installed: readonly string[],
@@ -83,10 +77,8 @@ export interface TalkPlanInput {
   vram: number;
 }
 
-/**
- * What Talk runs, and what it must fetch. A pinned model that is gone reverts
- * to automatic: removing it was not a request to download it again.
- */
+/** What Talk runs, and what it must fetch. A pinned model that is gone reverts to automatic:
+ * removing it was not a request to download it again. */
 export function planTalkModel(input: TalkPlanInput): TalkPlan {
   const pinned = input.override?.trim() ?? "";
   const owned = pinned ? installedMatch(pinned, input.installed) : null;
@@ -125,10 +117,8 @@ export interface ProvidedModel {
   substituted: boolean;
 }
 
-/**
- * Puts the planned model on the machine. A failed download falls back to the
- * chat model, which is installed by definition, and the interface says so.
- */
+/** Puts the planned model on the machine. A failed download falls back to the chat model, which is
+ * installed by definition, and the interface says so. */
 export async function provideTalkModel(
   plan: TalkPlan,
   options: ProvideOptions,
@@ -153,10 +143,8 @@ export async function provideTalkModel(
   }
 }
 
-/**
- * Loads the weights before the first question, or the user pays seconds inside
- * their first spoken turn. Failing is harmless; it loads on the real request.
- */
+/** Loads the weights before the first question, or the user pays seconds inside their first spoken
+ * turn. Failing is harmless; it loads on the real request. */
 export async function warmTalkModel(model: string): Promise<void> {
   try {
     await warmModel(model, KEEP_ALIVE);

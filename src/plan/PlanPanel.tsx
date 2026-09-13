@@ -19,11 +19,8 @@ interface PlanPanelProps {
   t: (key: string) => string;
 }
 
-/**
- * What the model said it would do, and where it has got to. The user can tick,
- * add, remove and reorder while it works: the loop is told on its next pass,
- * which is the difference between a plan and a progress bar.
- */
+/** The model's plan and progress. The user can tick, add, remove and reorder while it works, and
+ * the loop is told on its next pass. */
 export default function PlanPanel({
   items,
   onChange,

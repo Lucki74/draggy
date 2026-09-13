@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import { CONTEXT_LINES, describeDiff, diffLines } from "../chat/diff";
 import type { DiffLine } from "../chat/diff";
 
-/**
- * What the timeline shows after an edit. The rule these tests hold to: the
- * lines that changed are the ones marked, and nothing that did not change is
- * ever shown as a change.
- */
+/** What the timeline shows after an edit. The rule these tests hold to: the lines that changed are
+ * the ones marked, and nothing that did not change is ever shown as a change. */
 
 const flat = (before: string, after: string): DiffLine[] =>
   diffLines(before, after).hunks.flatMap((hunk) => hunk.lines);

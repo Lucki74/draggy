@@ -8,11 +8,8 @@ import {
 } from "../stats/summary";
 import type { MetricRow } from "../types";
 
-/**
- * The numbers on the statistics page. Speed is the one most easily got wrong:
- * averaging each turn's tokens per second lets a ten-token reply count as much
- * as a thousand-token one, so it is measured over all the tokens instead.
- */
+/** Statistics page numbers. Speed is measured over all tokens, since averaging per turn lets a
+ * ten-token reply weigh as much as a thousand-token one. */
 
 const row = (extra: Partial<MetricRow> = {}): MetricRow => ({
   recordedAt: 1000,

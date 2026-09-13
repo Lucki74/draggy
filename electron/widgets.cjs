@@ -1,17 +1,7 @@
 const crypto = require("node:crypto");
 
-/**
- * MCP Apps: a tool that answers with a small interface instead of a line of
- * text. The markup is written by whoever wrote the server, so Draggy treats it
- * the way it treats a web page rather than the way it treats its own code.
- *
- * The isolation is an origin, not a sandbox flag. A frame sandboxed into an
- * opaque origin inherits the embedder's content policy, which would leave the
- * widget unable to run its own script in a packaged build while giving it the
- * app's policy in exchange. So each widget is served from widget://<token>/,
- * an origin of its own that shares nothing with the app, under a policy of its
- * own that forbids it from reaching the network at all.
- */
+/** MCP Apps widgets are someone else's markup, isolated by origin: each is served from
+ * widget://<token>/ under its own no-network policy, since opaque sandboxes inherit ours. */
 
 /** How much markup a widget may be before it is treated as a mistake. */
 const MAX_WIDGET_CHARS = 256 * 1024;
@@ -19,11 +9,8 @@ const MAX_WIDGET_CHARS = 256 * 1024;
 /** How many widgets stay reachable at once. Oldest goes when the room runs out. */
 const MAX_STAGED = 32;
 
-/**
- * The policy a widget document is served under. `default-src 'none'` is the
- * important line: no fetch, no socket, no image from a tracker, nothing that
- * could carry what the widget was shown out of the machine.
- */
+/** A widget's content policy. `default-src 'none'` is the key line: no fetch, socket or tracker
+ * image can carry what it was shown off the machine. */
 const WIDGET_BODY_POLICY =
   "default-src 'none'; " +
   "script-src 'unsafe-inline'; " +
@@ -33,11 +20,8 @@ const WIDGET_BODY_POLICY =
   "form-action 'none'; " +
   "base-uri 'none'";
 
-/**
- * The header adds the one rule a meta tag cannot carry: only Draggy itself may
- * put a widget in a frame. The rest is repeated in the document so the policy
- * still holds if the response is ever read some other way.
- */
+/** The header adds what a meta tag cannot, that only Draggy may frame a widget; the rest repeats in
+ * the document in case it is read another way. */
 const WIDGET_POLICY =
   `${WIDGET_BODY_POLICY}; frame-ancestors app: draggy: http://127.0.0.1:5173`;
 
@@ -74,11 +58,8 @@ ${String(html || "")}
 /** token -> the document served at widget://token/ */
 const staged = new Map();
 
-/**
- * Puts a widget somewhere the frame can load it from and returns its address.
- * The token is the host, so two widgets never share an origin and therefore
- * never share storage either.
- */
+/** Puts a widget somewhere the frame can load it from and returns its address. The token is the
+ * host, so two widgets never share an origin and therefore never share storage either. */
 function stage(html) {
   const markup = String(html || "");
 

@@ -7,12 +7,8 @@ interface ApiServerFieldProps {
   t: (key: string) => string;
 }
 
-/**
- * The local API, off unless the user turns it on. When it is on, this is the
- * whole of what a client needs: the address, the key, and whether it is
- * actually listening. The warning is not small print: anything on this
- * computer holding the key can use the user's models through Draggy.
- */
+/** The local API switch, off by default. When on it shows the address, the key and whether it
+ * listens, with the warning that the key grants model use. */
 export default function ApiServerField({ t }: ApiServerFieldProps) {
   const [status, setStatus] = useState<ApiServerStatus | null>(null);
   const [portDraft, setPortDraft] = useState<string | null>(null);

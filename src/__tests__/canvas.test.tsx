@@ -4,10 +4,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import Canvas from "../canvas/Canvas";
 import { translations } from "../translations";
 
-/**
- * The canvas as the user meets it: a file beside the chat that saves through
- * the guarded write, and that notices when the model changes it.
- */
+/** The canvas as the user meets it: a file beside the chat that saves through the guarded write,
+ * and that notices when the model changes it. */
 
 const t = (key: string) => translations.en[key] || key;
 

@@ -1,7 +1,5 @@
-/**
- * The line greeting an empty chat, picked from the chat's id so it holds still.
- * Keep them short: large uppercase type, and a long sentence wraps badly.
- */
+/** The line greeting an empty chat, picked from the chat's id so it holds still. Keep them short:
+ * large uppercase type, and a long sentence wraps badly. */
 
 export const GREETINGS: Record<string, string[]> = {
   en: [
@@ -329,10 +327,8 @@ export function greetingsFor(language: string): string[] {
   return pool && pool.length > 0 ? pool : GREETINGS[FALLBACK];
 }
 
-/**
- * Spreads similar seeds across the set. Chat ids differ by only a character or
- * two, so taking the first of them would land on the same greeting every time.
- */
+/** Spreads similar seeds across the set. Chat ids differ by only a character or two, so taking the
+ * first of them would land on the same greeting every time. */
 function scatter(seed: string): number {
   let value = 5381;
   for (let index = 0; index < seed.length; index++) {
@@ -341,10 +337,8 @@ function scatter(seed: string): number {
   return value >>> 0;
 }
 
-/**
- * The greeting for one chat. The same chat always gets the same line, so it
- * does not change under the reader; a different chat gets a different one.
- */
+/** The greeting for one chat. The same chat always gets the same line, so it does not change under
+ * the reader; a different chat gets a different one. */
 export function pickGreeting(language: string, seed: string): string {
   const pool = greetingsFor(language);
   return pool[scatter(seed ?? "") % pool.length];

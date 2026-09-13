@@ -37,10 +37,8 @@ function usedKeys(): Map<string, string> {
   return found;
 }
 
-/**
- * Every bare word the interface could pass to `t()`. Keys are not always
- * inline, so any quoted identifier in the source counts as a possible one.
- */
+/** Every bare word the interface could pass to `t()`. Keys are not always inline, so any quoted
+ * identifier in the source counts as a possible one. */
 function referencedWords(): Set<string> {
   const words = new Set<string>();
   const pattern = /["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]/g;
@@ -54,10 +52,8 @@ function referencedWords(): Set<string> {
   return words;
 }
 
-/**
- * Prefixes of keys built at the call site, as in t(`provider_${id}`). These are
- * reachable even though the full name is never written down.
- */
+/** Prefixes of keys built at the call site, as in t(`provider_${id}`). These are reachable even
+ * though the full name is never written down. */
 function dynamicPrefixes(): string[] {
   const prefixes = new Set<string>();
   const pattern = /\bt\(\s*`([A-Za-z_][A-Za-z0-9_]*)\$\{/g;

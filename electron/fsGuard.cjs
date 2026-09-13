@@ -1,15 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-/**
- * The only way Draggy reaches a file of the user's. Every path a model asks for
- * comes through here first: resolved, followed through symlinks, and checked
- * against the folders the conversation was actually given.
- *
- * The model is not the attacker. A web page it read, a document it opened or an
- * extension it called might be, and any of those can end up choosing the string
- * that lands in `requested`.
- */
+/** The only route to a user's file: resolved, symlinks followed, checked against the conversation's
+ * folders. A page or document the model read may choose the path. */
 
 /** Folders that are never opened, even when they sit inside a granted root. */
 const DENIED_SEGMENTS = new Set([
@@ -61,10 +54,8 @@ function realpathOrNull(target) {
   }
 }
 
-/**
- * Is `target` the folder itself or something under it? Compared after both have
- * been resolved, so `..` and a symlink out of the tree are already gone.
- */
+/** Is `target` the folder itself or something under it? Compared after both have been resolved, so
+ * `..` and a symlink out of the tree are already gone. */
 function isInside(folder, target) {
   const relative = path.relative(folder, target);
   return (
@@ -73,12 +64,8 @@ function isInside(folder, target) {
   );
 }
 
-/**
- * A single file or folder name that is never opened. Exported because a walk
- * over a folder has to make the same decision as a path that was asked for by
- * name: a search that read what `resolveWithin` refuses would be a way around
- * this whole module.
- */
+/** A name that is never opened. Exported so folder walks refuse what `resolveWithin` refuses, or a
+ * search would get around this module. */
 function isDeniedName(name) {
   const part = String(name || "");
 
@@ -112,11 +99,8 @@ function nearestExisting(target) {
   }
 }
 
-/**
- * Turns what a model asked for into a path Draggy may touch, or an explanation
- * of why not. A relative path is read against the first root, which is how a
- * model that says "src/App.tsx" means the project it is working in.
- */
+/** Turns a requested path into one Draggy may touch, or a reason why not. Relative paths resolve
+ * against the first root, the project. */
 function resolveWithin(roots, requested, options = {}) {
   const { mustExist = false, createParents = false } = options;
 
@@ -144,9 +128,8 @@ function resolveWithin(roots, requested, options = {}) {
   const exists = fs.existsSync(absolute);
   if (mustExist && !exists) return refuse(`There is no ${path.basename(absolute)}.`);
 
-  // For something that is not there yet, the folder it lands in is what has to
-  // be real: a new file inherits where it is written. `createParents` lets the
-  // check reach further up, for a write that will make the folders on its way.
+  // A new file inherits its folder, so the folder is what must be real. `createParents` lets the
+  // check reach up for folders a write will make.
   const parent = path.dirname(absolute);
   const anchor = exists
     ? absolute

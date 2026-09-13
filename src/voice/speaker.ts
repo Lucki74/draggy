@@ -2,10 +2,8 @@ import { createSentenceChunker, speakableText } from "./chunker";
 import type { SentenceChunker } from "./chunker";
 import type { VoiceEngine, VoiceEngineId } from "./voiceEngine";
 
-/**
- * What the assistant says, and when. Text arrives a token at a time and a
- * synthesiser wants clauses, so this cuts at the earliest phrase-shaped point.
- */
+/** What the assistant says, and when. Text arrives a token at a time and a synthesiser wants
+ * clauses, so this cuts at the earliest phrase-shaped point. */
 
 export interface Speaker {
   engineId: VoiceEngineId;
@@ -15,10 +13,8 @@ export interface Speaker {
   flush: () => void;
   /** Say something at once, ahead of the queue's remaining text. */
   say: (text: string) => void;
-  /**
-   * Stop talking but keep buffering, the instant a barge-in is detected. If
-   * the user only said "mhm", resume() picks up without repeating.
-   */
+  /** Stop talking but keep buffering, the instant a barge-in is detected. If the user only said
+   * "mhm", resume() picks up without repeating. */
   suspend: () => void;
   resume: () => void;
   /** Stop talking now and forget the rest. */

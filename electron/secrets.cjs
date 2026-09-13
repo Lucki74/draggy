@@ -2,16 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { log } = require("./logger.cjs");
 
-/**
- * Credentials, kept out of the database. Extension tokens used to sit in the
- * `mcpServers` row in plain text, where a backup, a support log or anything
- * that could read the file could read them too. They live here instead,
- * encrypted by the operating system's own keystore.
- *
- * safeStorage is Electron's wrapper over DPAPI on Windows, the Keychain on
- * macOS and libsecret on Linux. Where none of those is available it refuses,
- * and so does this: a secret Draggy cannot protect is one it does not keep.
- */
+/** Credentials encrypted by the OS keystore (DPAPI, Keychain, libsecret) instead of plain text in
+ * the database. Without a keystore it refuses to keep them. */
 
 let storePath = null;
 let cache = null;
@@ -45,9 +37,8 @@ function read() {
     const parsed = JSON.parse(decrypted);
     if (parsed && typeof parsed === "object") cache = parsed;
   } catch (error) {
-    // A store written by another machine, another user, or a different install
-    // cannot be read back. Losing it means entering the credentials again,
-    // which is better than refusing to start.
+    // A store written by another machine, another user, or a different install cannot be read back.
+    // Losing it means entering the credentials again, which is better than refusing to start.
     log.warn("secrets", `could not read the store: ${error.message}`);
   }
 
@@ -98,15 +89,8 @@ function owners() {
   return Object.keys(read());
 }
 
-/**
- * Moves credentials out of wherever they were kept before. Returns what the
- * caller should write back in their place: the same records with the secret
- * fields gone.
- *
- * `isSecret` decides field by field, because a server's configuration holds
- * both a token and the folder it is pointed at, and only one of those is worth
- * protecting.
- */
+/** Moves credentials out of old records and returns them without the secret fields. `isSecret`
+ * decides per field, since a token and a folder share a config. */
 function adopt(records, isSecret) {
   if (!available()) return { moved: 0, records };
 

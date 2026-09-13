@@ -1,9 +1,7 @@
 import type { ChatSession, Message } from "../types";
 
-/**
- * A conversation as Markdown. Pure on purpose: the file writing lives in the
- * main process, and everything worth getting right is decided here.
- */
+/** A conversation as Markdown. Pure on purpose: the file writing lives in the main process, and
+ * everything worth getting right is decided here. */
 
 /** Windows refuses these outright, and the rest travel badly. */
 // Control characters are exactly what has to go: no filesystem takes them.
@@ -38,10 +36,8 @@ function heading(message: Message, assistantName: string): string {
   return assistantName;
 }
 
-/**
- * Thinking, tool steps and metrics are left out. They are the workings, not
- * the conversation, and none of it means anything outside the app.
- */
+/** Thinking, tool steps and metrics are left out. They are the workings, not the conversation, and
+ * none of it means anything outside the app. */
 export function chatToMarkdown(
   session: ChatSession,
   options: { assistantName?: string; now?: Date } = {},

@@ -2,10 +2,8 @@ import { registerTools, unregisterGroup } from "./registry";
 import type { ToolParameter, ToolSpec } from "./registry";
 import type { ToolAnnotations } from "../agent/permissions";
 
-/**
- * Turns an MCP server's tools into tools Draggy can call. The registry already
- * had an unused "external" group, so this side is only a translation.
- */
+/** Turns an MCP server's tools into tools Draggy can call. The registry already had an unused
+ * "external" group, so this side is only a translation. */
 
 /** The hints a server may attach to a tool, straight from the MCP schema. */
 export interface McpToolHints {
@@ -37,10 +35,8 @@ export interface McpServerState {
   tools: McpToolDescription[];
 }
 
-/**
- * JSON Schema is richer than a registry parameter. Anything not scalar is
- * described as a string and passed through; the server validates it anyway.
- */
+/** JSON Schema is richer than a registry parameter. Anything not scalar is described as a string
+ * and passed through; the server validates it anyway. */
 function toParameter(schema: {
   type?: string;
   description?: string;
@@ -66,11 +62,8 @@ function toParameter(schema: {
   return { type, description: `${described}${options}${shape}`.trim() || "No description." };
 }
 
-/**
- * A server's hints, read the way the MCP specification defines them: a tool
- * that says nothing is assumed to change things and to be able to lose them,
- * because the alternative is trusting silence.
- */
+/** A server's hints read as the MCP specification defines them: a tool that says nothing is assumed
+ * able to change and lose things. */
 export function toAnnotations(hints?: McpToolHints): ToolAnnotations {
   const readOnly = hints?.readOnlyHint === true;
 
@@ -171,10 +164,8 @@ export function describeMcpTool(
   };
 }
 
-/**
- * Replaces every external tool wholesale. A stopped server must not leave its
- * tools in the catalogue, having been offered as available.
- */
+/** Replaces every external tool wholesale. A stopped server must not leave its tools in the
+ * catalogue, having been offered as available. */
 export function syncMcpTools(
   servers: McpServerState[],
   call: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<

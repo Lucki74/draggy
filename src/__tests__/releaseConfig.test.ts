@@ -1,10 +1,8 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-/**
- * The release workflow and the scripts it calls, which nothing else checks:
- * a typo here is only found when a tag has already been pushed.
- */
+/** The release workflow and the scripts it calls, which nothing else checks: a typo here is only
+ * found when a tag has already been pushed. */
 
 const workflow = fs.readFileSync(".github/workflows/release.yml", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));

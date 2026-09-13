@@ -7,11 +7,8 @@ const REFRESH_MS = 30_000;
 /** A burst of writes is one refresh, not one per file. */
 const SETTLE_MS = 400;
 
-/**
- * The project's git status, kept current: on opening, whenever a file in the
- * workspace changes, when the window comes back into focus (the user may have
- * committed in a terminal), and every half minute in case nothing else said.
- */
+/** Git status kept current: on open, on any file change in the workspace, on window focus (a
+ * terminal commit), and every half minute otherwise. */
 export function useGitStatus(workspaceId: string, root: string | null): GitStatus | null {
   const [state, setState] = useState<{ key: string; status: GitStatus } | null>(null);
   const key = `${workspaceId}:${root ?? ""}`;

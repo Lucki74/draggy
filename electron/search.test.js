@@ -8,10 +8,8 @@ const AUTO = { searchProvider: "auto", searxngUrl: "", braveApiKey: "" };
 
 const ids = (chain) => chain.map((provider) => provider.id);
 
-/**
- * Pacing and the cache both live in module state, so every test starts from a
- * clean slate and drives its own clock rather than sleeping for real.
- */
+/** Pacing and the cache both live in module state, so every test starts from a clean slate and
+ * drives its own clock rather than sleeping for real. */
 let clock = 0;
 const deps = (extra) => ({
   now: () => clock,

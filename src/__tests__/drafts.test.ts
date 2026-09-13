@@ -12,10 +12,8 @@ import {
   takeTheirs,
 } from "../canvas/drafts";
 
-/**
- * Two authors, one file. The rule these tests hold the canvas to: nobody's
- * work disappears without the user having chosen that it should.
- */
+/** Two authors, one file. The rule these tests hold the canvas to: nobody's work disappears without
+ * the user having chosen that it should. */
 
 describe("a file with nothing unsaved", () => {
   it("is clean when it opens", () => {

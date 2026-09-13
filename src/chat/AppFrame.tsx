@@ -21,12 +21,8 @@ interface AppFrameProps {
   ) => Promise<WidgetToolResult>;
 }
 
-/**
- * A widget an extension returned instead of text. The main process serves it
- * from an origin of its own, so it shares nothing with the app and cannot
- * reach the network. From in there it can ask for exactly two things: a
- * different height, and a read-only tool call on the server that sent it.
- */
+/** A widget served from its own origin, with no network and nothing shared with the app. It may
+ * only ask to resize and to run read-only tools on its server. */
 export default function AppFrame({ serverId, html, t, onCall }: AppFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [source, setSource] = useState<string | null>(null);
@@ -112,10 +108,8 @@ export default function AppFrame({ serverId, html, t, onCall }: AppFrameProps) {
       {source && (
         <iframe
           ref={frameRef}
-          // allow-same-origin keeps the widget on its own widget:// origin
-          // rather than an opaque one. That origin is not the app's, so it
-          // still reaches nothing here, and it means the widget is judged by
-          // its own content policy instead of inheriting the app's.
+          // allow-same-origin keeps the widget on its widget:// origin, not an opaque one, so it
+          // follows its own policy instead of inheriting ours.
           sandbox="allow-scripts allow-same-origin"
           src={source}
           title={`${serverId} widget`}

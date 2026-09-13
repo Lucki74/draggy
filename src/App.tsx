@@ -18,10 +18,8 @@ registerSkillTools();
 registerExploreTools();
 registerGitTools();
 
-/**
- * The composition root: which model is running, and therefore whether the user
- * sees the startup screen or the app. Everything else lives in `app/`.
- */
+/** The composition root: which model is running, and therefore whether the user sees the startup
+ * screen or the app. Everything else lives in `app/`. */
 export default function App() {
   const isSplashMode = window.location.search.includes("splash=true");
   const [settings, setSettings] = useSettings(isSplashMode);

@@ -6,15 +6,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 
-/**
- * Loads the main process the way Electron would, against a stand-in for
- * Electron itself. Everything main.cjs does at the top level runs: every
- * require, every handler registration, every constant. A handler registered
- * above the helper it uses, a module that fails to load, a typo in a name, all
- * throw here instead of on a user's machine as a window that never opens.
- *
- * The ready event never fires, so no window, database or server is started.
- */
+/** Loads main.cjs against a fake Electron, so a handler above its helper or a broken require fails
+ * here, not as a window that never opens. */
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-main-load-"));
 

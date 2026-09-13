@@ -1,10 +1,7 @@
 import type { DirectoryEntry } from "../types";
 
-/**
- * Paths for the explorer, kept out of the components so they can be tested
- * without rendering anything. Everything here works on whichever separator the
- * platform handed back, since the main process answers in its own.
- */
+/** Explorer path helpers, kept out of components for testing. They accept either separator, since
+ * the main process answers in its own. */
 
 export const SEPARATOR = /[\\/]/;
 
@@ -47,10 +44,8 @@ export interface Crumb {
   path: string;
 }
 
-/**
- * The trail from the project folder down to what is open. The first crumb is
- * the project itself, named after its folder rather than its whole path.
- */
+/** The trail from the project folder down to what is open. The first crumb is the project itself,
+ * named after its folder rather than its whole path. */
 export function breadcrumbs(root: string, target: string): Crumb[] {
   if (!root) return [];
   if (!target || !isInsideRoot(root, target)) {
@@ -81,10 +76,8 @@ export function sortEntries(entries: DirectoryEntry[]): DirectoryEntry[] {
   });
 }
 
-/**
- * Generated and hidden things, folded away by default. The user can still ask
- * for them; this only decides what the tree opens with.
- */
+/** Generated and hidden things, folded away by default. The user can still ask for them; this only
+ * decides what the tree opens with. */
 const NOISE = new Set([
   "node_modules",
   "dist",

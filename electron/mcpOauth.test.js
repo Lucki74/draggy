@@ -6,11 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const oauth = require("./mcpOauth.cjs");
 
-/**
- * Signing in to a remote extension. The parts worth pinning down: the code is
- * bound to this machine by PKCE, the token is asked for the one server it is
- * meant for, and a desktop app never has to hold a client secret.
- */
+/** Signing in to a remote extension: PKCE binds the code to this machine, the token is scoped to
+ * its server, and no client secret is needed. */
 
 let server;
 let origin;

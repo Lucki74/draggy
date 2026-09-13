@@ -1,19 +1,8 @@
 const path = require("node:path");
 const { execFileHidden } = require("./platform.cjs");
 
-/**
- * Git, read-only. Draggy asks the system's own git what state a project is in
- * and shows it; it never commits, stages, checks out or fetches, because those
- * are decisions about the user's history and stay the user's to make.
- *
- * A repository is somebody else's configuration as much as it is files, and
- * some of that configuration can run programs: an fsmonitor hook on status, a
- * clean filter on diff, an external diff tool, a textconv driver. A cloned repo
- * with any of those would otherwise run them the moment Draggy looked at it,
- * and the model can ask it to look. Every call here turns them off, leaves
- * submodules alone, and takes no optional locks, so a status in the background
- * never gets in the way of the user's own git in a terminal.
- */
+/** Read-only git: never commits, stages or fetches. Repo config can run programs (fsmonitor,
+ * filters, diff tools), so every call disables them and takes no locks. */
 
 /** How long one git call may take before it is treated as hung. */
 const GIT_TIMEOUT_MS = 10_000;
@@ -85,11 +74,8 @@ function kindOf(type, xy) {
   return "modified";
 }
 
-/**
- * Reads `git status --porcelain=v2 --branch -z`. Entries are separated by NUL
- * rather than newlines and paths are never quoted, so a file called "a b\nc"
- * parses the same as any other.
- */
+/** Reads `git status --porcelain=v2 --branch -z`. Entries are separated by NUL rather than newlines
+ * and paths are never quoted, so a file called "a b\nc" parses the same as any other. */
 function parseStatus(output, prefix = "") {
   const tokens = String(output || "").split("\0");
   const result = {
@@ -189,12 +175,8 @@ function createGit({ run = defaultRun } = {}) {
 
   const git = (root, args) => run([...SAFE_FLAGS, ...args], root);
 
-  /**
-   * Flags that switch off every filter driver the repository defines. A
-   * driver's clean command runs on diff and on status, so each one found is
-   * given empty commands, which git reads as no filter at all. Null when a
-   * driver's name cannot be overridden safely, in which case nothing runs.
-   */
+  /** Blanks every filter driver the repo defines, since clean runs on status and diff. Null when a
+   * name cannot be overridden safely, so nothing runs. */
   async function disarmFilters(root) {
     const listed = await git(root, [
       "config",
@@ -233,10 +215,8 @@ function createGit({ run = defaultRun } = {}) {
   const REFUSED_CONFIG =
     "This repository's configuration could run programs, so Draggy will not read it.";
 
-  /**
-   * Where the project folder sits inside its repository, as git writes paths.
-   * Empty when the folder is the top of the repository.
-   */
+  /** Where the project folder sits inside its repository, as git writes paths. Empty when the
+   * folder is the top of the repository. */
   async function prefixOf(root) {
     const result = await git(root, ["rev-parse", "--show-prefix"]);
     if (result.code !== 0) return null;
@@ -281,16 +261,8 @@ function createGit({ run = defaultRun } = {}) {
     };
   }
 
-  /**
-   * The diff of the working tree, or of what is staged, for the whole project
-   * or one file in it. `relative` has already been checked to be inside the
-   * project by the caller; here it is only ever a path after `--`.
-   *
-   * `allow` is the file guard. A diff prints file contents, so a tracked .env
-   * would otherwise come out of a whole-project diff that no read_file could
-   * have reached. The changed files are listed first and anything the guard
-   * refuses is left out by name, never by contents.
-   */
+  /** Working tree or staged diff, for the project or one path already checked by the caller.
+   * `allow` drops guarded files by name so a tracked .env never prints. */
   async function diff(root, { relative = ".", staged = false, allow = () => true } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
 
@@ -347,10 +319,8 @@ function firstLine(text) {
   return String(text || "").trim().split(/\r?\n/)[0] || "Git did not say what went wrong.";
 }
 
-/**
- * A path the renderer named, as git should see it: relative to the project,
- * with forward slashes. Null when it is not inside the project at all.
- */
+/** A path the renderer named, as git should see it: relative to the project, with forward slashes.
+ * Null when it is not inside the project at all. */
 function toPathspec(root, absolute) {
   const relative = path.relative(root, absolute);
   if (relative.startsWith("..") || path.isAbsolute(relative)) return null;

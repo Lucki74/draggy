@@ -9,10 +9,8 @@ import {
 } from "../storage";
 import { workspaceIdOf } from "../workspaces";
 
-/**
- * The conversations and their persistence. Everything here is about state on
- * disk; what a running turn does to a conversation lives in the task manager.
- */
+/** The conversations and their persistence. Everything here is about state on disk; what a running
+ * turn does to a conversation lives in the task manager. */
 export interface SessionStore {
   sessions: ChatSession[];
   hydrated: boolean;

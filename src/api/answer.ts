@@ -9,13 +9,8 @@ import type {
   Message,
 } from "../types";
 
-/**
- * A request that came in through the local API, answered by the same loop the
- * chat window uses. What differs is only what the caller is trusted with: the
- * web, and nothing else. No project folder, no code execution, not the user's
- * indexed documents, not their extensions, and nothing that would need the
- * user's approval, because nobody is at the window to give it.
- */
+/** A local API request, answered by the chat's loop but trusted only with the web: no folder, code,
+ * documents, extensions, or anything needing approval. */
 
 export interface AnswerDependencies {
   /** The model Draggy is using, for a request that names none it has. */
@@ -32,10 +27,8 @@ export interface AnswerDependencies {
   run?: (request: AgentRequest, host: AgentHost) => Promise<AgentResult>;
 }
 
-/**
- * The model a request gets. A client configured for OpenAI sends "gpt-4o" by
- * default; that means "whatever you have", not a download.
- */
+/** The model a request gets. A client configured for OpenAI sends "gpt-4o" by default; that means
+ * "whatever you have", not a download. */
 export function pickModel(
   requested: string,
   current: string | null,
@@ -46,12 +39,8 @@ export function pickModel(
   return current;
 }
 
-/**
- * What to send next, given everything sent so far and the text as it now
- * stands. A reply only grows; if the loop rewrote what was already sent (a
- * tool call it had started to write, say), nothing more is sent until the
- * text grows past it again, because a stream cannot take words back.
- */
+/** The next streamed piece. A stream cannot take words back, so if the loop rewrote sent text
+ * nothing more goes until it grows past it again. */
 export function nextDelta(sent: string, text: string): string {
   if (!text.startsWith(sent)) return "";
   return text.slice(sent.length);

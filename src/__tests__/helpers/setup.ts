@@ -1,7 +1,5 @@
-/**
- * Node 25 exposes its own `localStorage` global, unusable without a file, and
- * it shadows the one jsdom installs. Component tests get a working one here.
- */
+/** Node 25 exposes its own `localStorage` global, unusable without a file, and it shadows the one
+ * jsdom installs. Component tests get a working one here. */
 class MemoryStorage implements Storage {
   private entries = new Map<string, string>();
 
@@ -45,10 +43,8 @@ if (broken) {
   }
 }
 
-/**
- * The handful of browser APIs jsdom leaves out that the interface calls
- * without checking. Each is a no-op: none of them decide anything under test.
- */
+/** The handful of browser APIs jsdom leaves out that the interface calls without checking. Each is
+ * a no-op: none of them decide anything under test. */
 if (typeof window !== "undefined") {
   Element.prototype.scrollIntoView ??= () => {};
 

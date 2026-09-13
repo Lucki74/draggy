@@ -7,11 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const secrets = require("./secrets.cjs");
 
-/**
- * The credential store. What it has to guarantee: a token never lands on disk
- * in a form anything else can read, and a store that cannot be decrypted costs
- * the user a re-entry rather than a broken app.
- */
+/** The credential store: a token never lands on disk readable, and a store that cannot be decrypted
+ * costs a re-entry, not a broken app. */
 
 let workdir;
 

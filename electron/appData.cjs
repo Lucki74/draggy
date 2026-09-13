@@ -1,27 +1,19 @@
 const fsDefault = require("fs");
 const pathDefault = require("path");
 
-/**
- * Carrying a data folder over when the app is renamed. Pointing at a folder
- * that does not exist yet looks exactly like having lost everything.
- */
+/** Carrying a data folder over when the app is renamed. Pointing at a folder that does not exist
+ * yet looks exactly like having lost everything. */
 
-/**
- * The file proving the app stored something. Emptiness is no test: Electron
- * writes its own profile scaffolding into the folder as it starts.
- */
+/** The file proving the app stored something. Emptiness is no test: Electron writes its own profile
+ * scaffolding into the folder as it starts. */
 const MARKER = "draggy.db";
 
-/**
- * The marker under the app's previous name. It must arrive renamed, or it sits
- * beside a fresh empty database, which is the same as having lost it.
- */
+/** The marker under the app's previous name. It must arrive renamed, or it sits beside a fresh
+ * empty database, which is the same as having lost it. */
 const LEGACY_MARKER = "localai.db";
 
-/**
- * Only the database is renamed, and its `-wal` and `-shm` travel with it:
- * SQLite finds those by the main file's name. Everything else keeps its name.
- */
+/** Only the database is renamed, and its `-wal` and `-shm` travel with it: SQLite finds those by
+ * the main file's name. Everything else keeps its name. */
 function arrivalName(entry, marker, legacyMarker) {
   if (!legacyMarker || !entry.startsWith(legacyMarker)) return entry;
   if (entry === legacyMarker) return marker;
@@ -31,10 +23,8 @@ function arrivalName(entry, marker, legacyMarker) {
   return entry;
 }
 
-/**
- * Decides what to do without touching anything: "adopt" carries the old folder
- * over, "keep-new" leaves both alone, "none" has nothing to carry.
- */
+/** Decides what to do without touching anything: "adopt" carries the old folder over, "keep-new"
+ * leaves both alone, "none" has nothing to carry. */
 function planAdoption({
   fs = fsDefault,
   path = pathDefault,
@@ -57,10 +47,8 @@ function planAdoption({
   return "adopt";
 }
 
-/**
- * Carries the folder over entry by entry, never overwriting. Never throws:
- * failing to move old data is not a reason to refuse to start.
- */
+/** Carries the folder over entry by entry, never overwriting. Never throws: failing to move old
+ * data is not a reason to refuse to start. */
 function adoptFolder({
   fs = fsDefault,
   path = pathDefault,

@@ -1,7 +1,5 @@
-/**
- * Builds every icon from the drawings in build/, so they cannot drift apart.
- * The silhouette sits on a dark tile, or it vanishes on a light taskbar.
- */
+/** Builds every icon from the drawings in build/, so they cannot drift apart. The silhouette sits
+ * on a dark tile, or it vanishes on a light taskbar. */
 import sharp from "sharp";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -9,10 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/**
- * The white fill, since it sits on a dark tile. build/icon_dark.png is the
- * same drawing filled black, for anywhere a light background is guaranteed.
- */
+/** The white fill, since it sits on a dark tile. build/icon_dark.png is the same drawing filled
+ * black, for anywhere a light background is guaranteed. */
 const SOURCE = path.join(ROOT, "build", "icon_light.png");
 
 /** The app's own dark surface, so the icon belongs to the app it opens. */
@@ -21,16 +17,12 @@ const TILE = "#1e1e1e";
 /** Corner rounding, as a share of the icon's width. */
 const RADIUS = 0.2;
 
-/**
- * How much of the tile the drawing occupies. Small icons need the margin
- * trimmed or the dragon smudges; large ones can afford to breathe.
- */
+/** How much of the tile the drawing occupies. Small icons need the margin trimmed or the dragon
+ * smudges; large ones can afford to breathe. */
 const artShare = (size) => (size <= 32 ? 0.86 : size <= 64 ? 0.8 : 0.74);
 
-/**
- * Windows draws the icon at every one of these, picking by context: 16 in the
- * title bar, 32 in the taskbar, 256 in large-icon views.
- */
+/** Windows draws the icon at every one of these, picking by context: 16 in the title bar, 32 in the
+ * taskbar, 256 in large-icon views. */
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 
 /** Beyond this, an entry goes in as a PNG; below it, as a bitmap. */
@@ -52,10 +44,8 @@ const ICNS_TYPES = [
   { type: "ic14", size: 512 },
 ];
 
-/**
- * The drawing sits in a wide transparent margin. Scaling the whole canvas would
- * halve the dragon, so the margin is measured and cut away first.
- */
+/** The drawing sits in a wide transparent margin. Scaling the whole canvas would halve the dragon,
+ * so the margin is measured and cut away first. */
 async function readArtwork() {
   const { data, info } = await sharp(SOURCE)
     .ensureAlpha()
@@ -119,10 +109,8 @@ const png = async (artwork, size) => (await compose(artwork, size)).toBuffer();
 const raw = async (artwork, size) =>
   (await compose(artwork, size)).ensureAlpha().raw().toBuffer();
 
-/**
- * One image inside an .ico. The header doubles the height because the format
- * expects a one-bit mask; transparency comes from alpha, so it is left empty.
- */
+/** One image inside an .ico. The header doubles the height because the format expects a one-bit
+ * mask; transparency comes from alpha, so it is left empty. */
 function bitmapEntry(rgba, size) {
   const header = Buffer.alloc(40);
   header.writeUInt32LE(40, 0);

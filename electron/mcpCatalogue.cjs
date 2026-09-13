@@ -1,17 +1,11 @@
-/**
- * The servers offered, each naming the package it fetches. Every one was
- * checked against npm; Python servers need `uvx` and are left out on purpose.
- */
+/** The servers offered, each naming the package it fetches. Every one was checked against npm;
+ * Python servers need `uvx` and are left out on purpose. */
 
-/**
- * Nothing here duplicates a built-in feature. Draggy has Brave, DuckDuckGo and a
- * browser of its own, so those are out; a service it cannot do is not a duplicate.
- */
+/** Nothing here duplicates a built-in feature. Draggy has Brave, DuckDuckGo and a browser of its
+ * own, so those are out; a service it cannot do is not a duplicate. */
 
-/**
- * What a server needs before it runs. `secret: true` marks a credential, which
- * the interface masks and never logs.
- */
+/** What a server needs before it runs. `secret: true` marks a credential, which the interface masks
+ * and never logs. */
 
 const CATALOGUE = [
   {
@@ -405,10 +399,8 @@ const CATALOGUE = [
   },
 ];
 
-/**
- * The package's page on npm, which renders its README. Derived rather than
- * stored, so the link can never drift out of step with the package name.
- */
+/** The package's page on npm, which renders its README. Derived rather than stored, so the link can
+ * never drift out of step with the package name. */
 function docsUrl(entry) {
   if (!entry) return null;
   return `https://www.npmjs.com/package/${entry.package}`;
@@ -436,10 +428,8 @@ function searchCatalogue(term) {
   );
 }
 
-/**
- * What is still missing before a server can start. Returned, not thrown, so the
- * interface can open the setup fields rather than starting something doomed.
- */
+/** What is still missing before a server can start. Returned, not thrown, so the interface can open
+ * the setup fields rather than starting something doomed. */
 function missingRequirements(entry, config = {}) {
   if (!entry) return ["unknown server"];
 
@@ -465,10 +455,8 @@ function missingRequirements(entry, config = {}) {
   return missing;
 }
 
-/**
- * The arguments a server is started with: its own, then anything the user
- * supplied. The package itself is installed separately and run directly.
- */
+/** The arguments a server is started with: its own, then anything the user supplied. The package
+ * itself is installed separately and run directly. */
 function commandFor(entry, config = {}) {
   if (!entry) return null;
 
@@ -492,11 +480,8 @@ function commandFor(entry, config = {}) {
   };
 }
 
-/**
- * Whether a field a server asks for is a credential. The catalogue says so for
- * the servers it ships; for anything else the name is the only evidence there
- * is, and the cautious reading is the right one.
- */
+/** Whether a field is a credential. The catalogue says for its own servers; otherwise only the name
+ * is evidence, so it is read cautiously. */
 function isSecretField(id, field) {
   const entry = findEntry(String(id));
   const declared = (entry?.env || []).find((one) => one.key === field);

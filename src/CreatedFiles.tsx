@@ -17,10 +17,8 @@ import { formatSize, groupFiles, kindOf, matchesQuery } from "./fileList";
 import type { FileKind } from "./fileList";
 import type { AppSettings, CreatedFile } from "./types";
 
-/**
- * Everything the model wrote, read from the folder rather than a list in the
- * app: a file deleted from the desktop simply stops appearing here.
- */
+/** Everything the model wrote, read from the folder rather than a list in the app: a file deleted
+ * from the desktop simply stops appearing here. */
 
 interface CreatedFilesProps {
   settings: AppSettings;

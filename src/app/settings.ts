@@ -31,20 +31,16 @@ export const defaultSettings: AppSettings = {
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
 
-/**
- * Read synchronously from localStorage rather than awaited from sqlite: the
- * first paint needs the theme and the language before any IPC can answer.
- */
+/** Read synchronously from localStorage rather than awaited from sqlite: the first paint needs the
+ * theme and the language before any IPC can answer. */
 export function loadSettings(): AppSettings {
   const saved = localStorage.getItem(SETTINGS_KEY);
   const parsed = saved ? safeJsonParse<Partial<AppSettings>>(saved) : null;
   return parsed ? { ...defaultSettings, ...parsed } : defaultSettings;
 }
 
-/**
- * The settings object and everything that has to happen when it changes: saved
- * in both places, pushed to the main process, and applied to the document.
- */
+/** The settings object and everything that has to happen when it changes: saved in both places,
+ * pushed to the main process, and applied to the document. */
 export function useSettings(isSplashMode: boolean) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
 

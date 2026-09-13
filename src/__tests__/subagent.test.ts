@@ -5,11 +5,8 @@ import { availableTools, resetRegistry, registerTool } from "../tools/registry";
 import type { InstalledModel } from "../ollama";
 import type { ToolEnvironment } from "../tools/registry";
 
-/**
- * The second model. Its whole reason for existing is context: the reading
- * happens elsewhere and only the answer comes back, so what matters is that it
- * is smaller, that it cannot act, and that it cannot start another one.
- */
+/** The second model exists to save context, so what matters: it is smaller, it cannot act, and it
+ * cannot start another one. */
 
 const model = (
   name: string,

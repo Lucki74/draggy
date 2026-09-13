@@ -1,11 +1,8 @@
 import { findMemory } from "./memory";
 import type { ProjectMemory } from "./memory";
 
-/**
- * Reading the project's instructions through the same guarded bridge as every
- * other file. A file that is not there comes back as null rather than an error,
- * because most projects have no memory file and that is not a problem.
- */
+/** Reads project instructions through the guarded bridge. A missing file is null, not an error,
+ * since most projects have none. */
 export function projectFileReader(workspaceId: string) {
   return async (path: string): Promise<string | null> => {
     const result = await window.electronAPI?.files

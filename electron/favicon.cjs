@@ -1,20 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 
-/**
- * Site icons, asked of the site itself rather than Google's service, which
- * would learn every domain the user looks at. Served back over `draggy://`.
- */
+/** Site icons, asked of the site itself rather than Google's service, which would learn every
+ * domain the user looks at. Served back over `draggy://`. */
 
 const HOSTNAME_RE = /^[a-z0-9][a-z0-9.-]{0,253}$/i;
 
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_ICON_BYTES = 256 * 1024;
 
-/**
- * The formats a favicon arrives in, sniffed rather than trusted from
- * Content-Type: an HTML error page should not be cached as an icon.
- */
+/** The formats a favicon arrives in, sniffed rather than trusted from Content-Type: an HTML error
+ * page should not be cached as an icon. */
 function sniffImageType(bytes) {
   if (bytes.length < 4) return null;
   if (bytes[0] === 0x89 && bytes[1] === 0x50) return "image/png";
@@ -50,10 +46,8 @@ async function fetchIcon(url, deps) {
   }
 }
 
-/**
- * Every icon a page declares, for sites without /favicon.ico. Values match
- * quoted or bare, since minified pages drop the quotes.
- */
+/** Every icon a page declares, for sites without /favicon.ico. Values match quoted or bare, since
+ * minified pages drop the quotes. */
 const LINK_ICON_RE =
   /<link\b[^>]*\brel\s*=\s*(?:"[^"]*\bicon\b[^"]*"|'[^']*\bicon\b[^']*'|[^\s"'>]*icon[^\s>]*)[^>]*>/gi;
 
@@ -94,10 +88,8 @@ async function declaredIconUrls(origin, deps) {
   }
 }
 
-/**
- * The icon bytes for a host, from disk when asked before. A host with none is
- * remembered as an empty file, so ten results do not re-ask a dead endpoint.
- */
+/** The icon bytes for a host, from disk when asked before. A host with none is remembered as an
+ * empty file, so ten results do not re-ask a dead endpoint. */
 async function loadFavicon(cacheDir, hostname, deps = { fetch }) {
   if (!isValidHostname(hostname)) return null;
 

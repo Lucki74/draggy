@@ -1,16 +1,12 @@
-/**
- * The slash commands. `label` is a translation key, so the menu reads in the
- * user's language while "/new" stays "/new" whatever the interface is set to.
- */
+/** The slash commands. `label` is a translation key, so the menu reads in the user's language while
+ * "/new" stays "/new" whatever the interface is set to. */
 export interface SlashCommand {
   id: string;
   label: string;
   /** Only offered in a workspace with a folder of its own. */
   requiresProject?: boolean;
-  /**
-   * Written with a value after it, like "/compact-limit 20k". Picking it from
-   * the menu fills in the command and leaves the value to be typed.
-   */
+  /** Written with a value after it, like "/compact-limit 20k". Picking it from the menu fills in
+   * the command and leaves the value to be typed. */
   takesArgument?: boolean;
 }
 
@@ -29,10 +25,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "init", label: "initProject", requiresProject: true },
 ];
 
-/**
- * What the composer is asking for. A space closes the menu: "/dev/null is not a
- * file" is a sentence, and Enter must send it rather than run a command.
- */
+/** What the composer is asking for. A space closes the menu: "/dev/null is not a file" is a
+ * sentence, and Enter must send it rather than run a command. */
 export function slashQueryFor(input: string): string | null {
   if (!input.startsWith("/")) return null;
   if (/\s/.test(input)) return null;
@@ -53,11 +47,8 @@ export function matchSlashCommands(
   );
 }
 
-/**
- * A command typed with its value, like "/compact-limit 20k", which the menu
- * has already closed on because of the space. Only commands that take a value
- * are read this way; anything else starting with a slash is a message.
- */
+/** A command typed with a value, like "/compact-limit 20k", read after the space closed the menu.
+ * Other text starting with a slash is a message. */
 export function parseSlashArgument(
   input: string,
 ): { id: string; argument: string } | null {

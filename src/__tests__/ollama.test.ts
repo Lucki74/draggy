@@ -269,10 +269,8 @@ describe("the context meter", () => {
     expect(use.windowTokens).toBe(FALLBACK_CONTEXT_LENGTH);
   });
 });
-/**
- * Copied from a real `POST /api/pull` against Ollama 0.33.1. Nothing in the
- * stream says "downloading", which the startup screen used to wait for.
- */
+/** Copied from a real `POST /api/pull` against Ollama 0.33.1. Nothing in the stream says
+ * "downloading", which the startup screen used to wait for. */
 const BLOB = "sha256:a3de86cd1c1354b0e7d2ce1e4a1e6f0e0d0c0b0a09080706050403020100ffee";
 const CONFIG = "sha256:966de95ca8a62200913e3f8bfbf84c8494536f1b94b49166851e766445e96639";
 

@@ -3,11 +3,8 @@ import type { ToolSpec } from "./registry";
 import { explore, pickExploreModel } from "../agent/subagent";
 import { listInstalledModels } from "../ollama";
 
-/**
- * Sending a smaller model to look something up. The point is context: a search
- * through twenty files costs the conversation nothing but the answer, because
- * the reading happens somewhere else and only the summary comes back.
- */
+/** Sends a smaller model to look something up, so twenty files of reading cost the conversation
+ * only the summary that comes back. */
 
 const exploreTool: ToolSpec = {
   name: "explore",

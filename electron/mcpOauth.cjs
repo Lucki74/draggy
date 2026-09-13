@@ -1,16 +1,8 @@
 const crypto = require("crypto");
 const http = require("http");
 
-/**
- * Signing in to a remote MCP server. OAuth 2.1 as the MCP specification asks
- * for it: metadata discovered rather than configured, a client registered on
- * the spot when the server allows it, and PKCE on every authorisation so the
- * code is useless to anything but the request that asked for it.
- *
- * Draggy is a desktop app, so there is no secret worth keeping in the client
- * and no server of ours in the loop: the redirect lands on a port on this
- * machine, open for the seconds it takes and closed again.
- */
+/** OAuth 2.1 for remote MCP: discovered metadata, dynamic registration, PKCE on every code, and a
+ * loopback redirect open only while signing in. No client secret. */
 
 const CLIENT_NAME = "Draggy";
 
@@ -49,12 +41,8 @@ async function readJson(fetchImpl, url) {
   }
 }
 
-/**
- * Where to send the user, and where to swap the code for a token. Asked of the
- * server itself first, since the MCP specification has it point at whichever
- * authorisation server it trusts; the well-known path on its own origin is the
- * fallback, and the conventional endpoints are the last resort.
- */
+/** Where to authorise and exchange the code. Asks the server first, then its origin's well-known
+ * path, then the conventional endpoints. */
 async function discover(serverUrl, fetchImpl = fetch) {
   const origin = new URL(serverUrl).origin;
 
@@ -89,10 +77,8 @@ async function discover(serverUrl, fetchImpl = fetch) {
   };
 }
 
-/**
- * Registers Draggy with the authorisation server, which is how a desktop app
- * gets a client id without the user copying one out of a dashboard.
- */
+/** Registers Draggy with the authorisation server, which is how a desktop app gets a client id
+ * without the user copying one out of a dashboard. */
 async function register(metadata, redirectUri, fetchImpl = fetch) {
   if (!metadata.registration_endpoint) return null;
 
@@ -197,11 +183,8 @@ function isExpired(stored, now = Date.now()) {
   return typeof stored?.expiresAt === "number" && stored.expiresAt <= now;
 }
 
-/**
- * A port on this machine, open only while the user is signing in. The page the
- * browser lands on says one sentence and nothing else: whatever the server put
- * in the query string is not put back into the response.
- */
+/** A loopback port open only while signing in. The landing page says one sentence and never echoes
+ * the query string back. */
 function listenForCode({ timeoutMs = SIGN_IN_TIMEOUT_MS } = {}) {
   let settle;
   let fail;

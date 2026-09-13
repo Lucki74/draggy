@@ -373,10 +373,8 @@ export default function SettingsPage({
     window.electronAPI?.updater.check({ silent: true }).catch(() => undefined);
   }, [tab, settings.autoUpdate]);
 
-  /**
-   * The concrete model indexing will run with, pulling the VRAM-sized rung
-   * first if "automatic" has never been fetched on this machine before.
-   */
+  /** The concrete model indexing will run with, pulling the VRAM-sized rung first if "automatic"
+   * has never been fetched on this machine before. */
   const resolveEmbedModel = async (): Promise<string | null> => {
     const plan = planEmbedModel({
       override: settings.embedModel,
@@ -1235,10 +1233,8 @@ export default function SettingsPage({
   );
 }
 
-/**
- * The extensions panel. Turning a server on runs someone else's program with
- * the credentials typed into it, so the panel says so rather than hiding it.
- */
+/** The extensions panel. Turning a server on runs someone else's program with the credentials typed
+ * into it, so the panel says so rather than hiding it. */
 function PullProgressBar({
   state,
   onCancel,
@@ -1281,10 +1277,8 @@ function PullProgressBar({
   );
 }
 
-/**
- * Picks an installed model. Whatever is set is always offered, even if missing,
- * or a removed model would be silently swapped the moment this renders.
- */
+/** Picks an installed model. Whatever is set is always offered, even if missing, or a removed model
+ * would be silently swapped the moment this renders. */
 function ModelSelect({
   value,
   models,

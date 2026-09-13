@@ -8,11 +8,8 @@ import {
 } from "../agent/toolChannel";
 import type { ToolDefinition } from "../tools/registry";
 
-/**
- * How a model is asked for a tool call, and what happens when it gets the shape
- * wrong. The README's own known rough edge is that this varies by model, so the
- * rules here are the ones that decide how well a small model does.
- */
+/** How a model is asked for tool calls and what happens when the shape is wrong, the rules that
+ * decide how well a small model does. */
 
 const definitions: ToolDefinition[] = [
   {

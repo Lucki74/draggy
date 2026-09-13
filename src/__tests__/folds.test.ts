@@ -2,12 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, CompactionState, Message, MessageVersion } from "../types";
 
-/**
- * Folding the conversation into notes, as the user sees it happen: a marker
- * under the last reply while it runs, "Compacted N tokens" once it is done,
- * and a message sent in the meantime saying it waits on the fold rather than
- * on the model warming up.
- */
+/** Compaction as the user sees it: a running marker under the last reply, then "Compacted N
+ * tokens", and a waiting message that says so. */
 
 const turns = vi.hoisted(
   () =>

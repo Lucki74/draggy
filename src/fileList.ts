@@ -1,7 +1,5 @@
-/**
- * Pure helpers for the created-files list, kept out of the component so they
- * can be tested without rendering anything.
- */
+/** Pure helpers for the created-files list, kept out of the component so they can be tested without
+ * rendering anything. */
 
 export const CODE_EXTENSIONS = new Set([
   "js", "jsx", "ts", "tsx", "py", "html", "css", "scss", "json", "yml", "yaml",
@@ -50,10 +48,8 @@ export const FILE_GROUPS: FileGroup[] = [
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Buckets a file by calendar day rather than by elapsed hours, so something
- * written last night reads as "yesterday" and not as "today" until noon.
- */
+/** Buckets a file by calendar day rather than by elapsed hours, so something written last night
+ * reads as "yesterday" and not as "today" until noon. */
 export function groupFor(modified: number, now: number): FileGroup {
   const startOfToday = new Date(now).setHours(0, 0, 0, 0);
 

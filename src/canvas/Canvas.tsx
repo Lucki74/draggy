@@ -24,12 +24,8 @@ interface CanvasProps {
   onMoved?: (path: string) => void;
 }
 
-/**
- * A file from the project, open beside the conversation. The user types into
- * it; the model's edits land in it as they happen; saving goes through the
- * same guarded write as everything else, so it is checkpointed and can be
- * undone like any other change.
- */
+/** A project file beside the chat that both the user and the model edit. Saves use the guarded
+ * write, so every save is checkpointed and undoable. */
 export default function Canvas({ workspaceId, path, t, onClose, onMoved }: CanvasProps) {
   const [state, setState] = useState<CanvasState | null>(null);
   const [problem, setProblem] = useState<string | null>(null);

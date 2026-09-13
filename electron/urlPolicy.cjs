@@ -1,15 +1,11 @@
-/**
- * Which URLs the model may make the app fetch. Chromium will render
- * `file:///…/.aws/credentials` as text, so the reachable surface is an allowlist.
- */
+/** Which URLs the model may make the app fetch. Chromium will render `file:///…/.aws/credentials`
+ * as text, so the reachable surface is an allowlist. */
 
 /** The only two schemes anything on the web is actually served over. */
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
-/**
- * Hosts on this machine or its network: a router panel, a staging box, Ollama
- * itself. Checked literally, so a name resolving to 127.0.0.1 still gets through.
- */
+/** Hosts on this machine or its network: a router panel, a staging box, Ollama itself. Checked
+ * literally, so a name resolving to 127.0.0.1 still gets through. */
 const PRIVATE_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 
 function isPrivateHostname(hostname) {
@@ -42,10 +38,8 @@ function isPrivateHostname(hostname) {
   return false;
 }
 
-/**
- * Whether a URL may be fetched. `allowPrivate` separates the user, who may ask
- * for their own dev server, from the model, which may not.
- */
+/** Whether a URL may be fetched. `allowPrivate` separates the user, who may ask for their own dev
+ * server, from the model, which may not. */
 function isFetchableUrl(value, { allowPrivate = false } = {}) {
   const raw = String(value ?? "").trim();
   if (!raw) return false;
@@ -68,10 +62,8 @@ function isFetchableUrl(value, { allowPrivate = false } = {}) {
   return true;
 }
 
-/**
- * Why a URL was refused, worded for the model. A refusal it cannot interpret
- * reads as a transient failure worth retrying five more ways.
- */
+/** Why a URL was refused, worded for the model. A refusal it cannot interpret reads as a transient
+ * failure worth retrying five more ways. */
 function refusalFor(value) {
   const raw = String(value ?? "").trim();
 

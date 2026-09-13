@@ -11,10 +11,8 @@ import {
 } from "../files/tree";
 import type { DirectoryEntry } from "../types";
 
-/**
- * Paths for the explorer. The main process answers in whichever separator the
- * platform uses, so everything here has to read both without caring.
- */
+/** Paths for the explorer. The main process answers in whichever separator the platform uses, so
+ * everything here has to read both without caring. */
 
 const entry = (name: string, isDirectory = false): DirectoryEntry => ({
   name,

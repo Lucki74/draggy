@@ -6,10 +6,8 @@ const { BrowserWindow } = require("electron");
 const { log } = require("./logger.cjs");
 const { buildDocument } = require("./markdownHtml.cjs");
 
-/**
- * Writes a PDF by laying it out in Chromium, which already paginates and finds
- * fonts. The window is sandboxed with no Node, no JavaScript and no network.
- */
+/** Writes a PDF by laying it out in Chromium, which already paginates and finds fonts. The window
+ * is sandboxed with no Node, no JavaScript and no network. */
 
 /** How long Chromium is given to lay out and print one document. */
 const PRINT_TIMEOUT_MS = 30000;
@@ -31,10 +29,8 @@ function withTimeout(promise, milliseconds, message) {
   });
 }
 
-/**
- * The page number at the foot of every page. Chromium renders this in its own
- * context, so the styling is inline and the classes are the ones it knows.
- */
+/** The page number at the foot of every page. Chromium renders this in its own context, so the
+ * styling is inline and the classes are the ones it knows. */
 const FOOTER_TEMPLATE = `
   <div style="width:100%; font-family:sans-serif; font-size:8px; color:#888; text-align:center; margin:0 12mm;">
     <span class="pageNumber"></span> / <span class="totalPages"></span>

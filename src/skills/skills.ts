@@ -1,10 +1,7 @@
 import type { InstalledSkill, LoadedSkill } from "../types";
 
-/**
- * Skills as the model meets them. Only the names and the descriptions go into
- * the prompt, which is what keeps a shelf full of them affordable; the body of
- * one arrives when the model decides it is the one it needs.
- */
+/** Skills as the model meets them: only names and descriptions in the prompt, keeping many
+ * affordable; a body arrives when the model picks one. */
 
 /** Anything longer than this in the prompt is a skill list nobody reads. */
 export const MAX_LISTED_SKILLS = 40;

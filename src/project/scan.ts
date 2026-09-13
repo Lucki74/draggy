@@ -2,11 +2,8 @@ import { initialMemory } from "./memory";
 import type { ProjectScan } from "./memory";
 import { safeJsonParse } from "../utils";
 
-/**
- * What `/init` knows about a project: the top of the folder and its
- * package.json if it has one. Nothing deeper, because a first draft the user
- * will read and correct is more useful than a slow one.
- */
+/** What `/init` reads: the top of the folder and package.json. Nothing deeper, since a quick draft
+ * the user corrects beats a slow one. */
 export async function scanProject(
   workspaceId: string,
   root: string,

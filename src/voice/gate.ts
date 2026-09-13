@@ -13,18 +13,14 @@ import {
   framesFor,
 } from "./constants";
 
-/**
- * Turns speech probabilities into conversation events. A pure function of the
- * frames pushed in, so turn-taking is testable without a microphone.
- */
+/** Turns speech probabilities into conversation events. A pure function of the frames pushed in, so
+ * turn-taking is testable without a microphone. */
 
 export interface GateEvents {
   /** The user has started talking. */
   onSpeechStart: () => void;
-  /**
-   * A pause worth transcribing, but not yet the end of the turn. Transcribing
-   * now and discarding it if talking resumes removes the endpoint wait.
-   */
+  /** A pause worth transcribing, but not yet the end of the turn. Transcribing now and discarding
+   * it if talking resumes removes the endpoint wait. */
   onSpeculate: (samples: Float32Array) => void;
   /** The turn is over. */
   onSpeechEnd: (samples: Float32Array, durationMs: number) => void;

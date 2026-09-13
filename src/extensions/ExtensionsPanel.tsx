@@ -11,12 +11,8 @@ interface ExtensionsPanelProps {
 
 type Tab = "servers" | "remote" | "skills";
 
-/**
- * One screen for everything that extends Draggy: the servers it can connect to,
- * the ones somewhere else that the user pasted in, and the skills they wrote.
- * They are three lists rather than three settings pages because the question
- * behind all of them is the same: what else can this thing do.
- */
+/** One screen for extending Draggy: catalogue servers, remote servers, and skills, since all three
+ * answer what else it can do. */
 export default function ExtensionsPanel({ workspaceId, t }: ExtensionsPanelProps) {
   const [tab, setTab] = useState<Tab>("servers");
   const [config, setConfig] = useState<Record<string, McpServerConfig>>({});

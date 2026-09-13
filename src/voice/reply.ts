@@ -9,10 +9,8 @@ import {
   VOICE_TOP_P,
 } from "./constants";
 
-/**
- * Turns a question into words to say, handing text on the instant it can. Only
- * the first seven characters wait, in case they become a "SEARCH:" marker.
- */
+/** Turns a question into words to say, handing text on the instant it can. Only the first seven
+ * characters wait, in case they become a "SEARCH:" marker. */
 
 export interface VoiceTurn {
   role: "user" | "assistant";
@@ -26,10 +24,8 @@ function probe(head: string): string {
   return head.replace(/\s+/g, "").toUpperCase();
 }
 
-/**
- * Whether the reply could still be a search request. True holds the text back;
- * false sends every character straight to the synthesiser.
- */
+/** Whether the reply could still be a search request. True holds the text back; false sends every
+ * character straight to the synthesiser. */
 export function markerPending(head: string): boolean {
   const seen = probe(head);
   if (seen.length === 0) return true;
@@ -57,10 +53,8 @@ function queryTail(head: string): string {
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 
-/**
- * Drops private reasoning out of speech. A template that writes `<think>` into
- * the reply would otherwise have every word of it read out loud.
- */
+/** Drops private reasoning out of speech. A template that writes `<think>` into the reply would
+ * otherwise have every word of it read out loud. */
 export function createThinkFilter(): (delta: string) => string {
   let buffer = "";
   let thinking = false;
@@ -158,10 +152,8 @@ export interface ReplyRequest {
   turns: VoiceTurn[];
   searchEnabled: boolean;
   signal: AbortSignal;
-  /**
-   * Runs a web search and returns something the model can read. Injected so
-   * this module never reaches for the Electron bridge itself.
-   */
+  /** Runs a web search and returns something the model can read. Injected so this module never
+   * reaches for the Electron bridge itself. */
   search: (query: string) => Promise<string>;
 }
 
@@ -181,10 +173,8 @@ export interface ReplyResult {
 
 type Mode = "sniff" | "speak" | "query" | "drop";
 
-/**
- * One spoken answer, with the web round trip if asked. The second pass may not
- * search again: a model handed results will otherwise ask for more of them.
- */
+/** One spoken answer, with the web round trip if asked. The second pass may not search again: a
+ * model handed results will otherwise ask for more of them. */
 export async function generateReply(
   request: ReplyRequest,
   events: ReplyEvents,

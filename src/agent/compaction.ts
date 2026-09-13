@@ -2,30 +2,22 @@ import { CONTEXT_BUCKETS, KEEP_ALIVE, OLLAMA_HOST } from "../ollama";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
 
-/**
- * Folds the older part of a chat into notes, so it never hits the context wall.
- * Appends rather than rewrites, triggers off the bucket, and runs after a turn.
- */
+/** Folds the older part of a chat into notes, so it never hits the context wall. Appends rather
+ * than rewrites, triggers off the bucket, and runs after a turn. */
 
 /** Roughly how many characters a token is worth, for budget arithmetic. */
 export const CHARS_PER_TOKEN = 4;
 
-/**
- * How full the window may get before folding. Higher and the reply stops
- * fitting; lower and the folds cost more than they save.
- */
+/** How full the window may get before folding. Higher and the reply stops fitting; lower and the
+ * folds cost more than they save. */
 export const COMPACT_AT = 0.6;
 
-/**
- * Messages kept verbatim at the end, about three turns. Recency is what "it"
- * and "the second one" refer to, and a summary is the wrong shape for that.
- */
+/** Messages kept verbatim at the end, about three turns. Recency is what "it" and "the second one"
+ * refer to, and a summary is the wrong shape for that. */
 export const KEEP_RECENT_MESSAGES = 6;
 
-/**
- * The smallest fold worth doing. Folding two messages saves nothing and still
- * invalidates the cached prefix.
- */
+/** The smallest fold worth doing. Folding two messages saves nothing and still invalidates the
+ * cached prefix. */
 export const MIN_FOLD_MESSAGES = 4;
 
 /** How long a summary may run, so folding cannot itself fill the window. */
@@ -75,10 +67,8 @@ export function foldedTokens(messages: Message[], plan: CompactionPlan): number 
   return Math.ceil(chars / CHARS_PER_TOKEN);
 }
 
-/**
- * The fold the user asked for. Everything but the last exchange goes into the
- * notes, however far under the limit the conversation is.
- */
+/** The fold the user asked for. Everything but the last exchange goes into the notes, however far
+ * under the limit the conversation is. */
 export function planManualCompaction(
   messages: Message[],
   existing?: CompactionState | null,
@@ -106,18 +96,14 @@ export function conversationChars(
   return total;
 }
 
-/**
- * How much conversation fits the window now loaded. Asked of the bucket, not
- * the maximum: a 128k model sitting in a 16k bucket should fold at 16k.
- */
+/** How much conversation fits the window now loaded. Asked of the bucket, not the maximum: a 128k
+ * model sitting in a 16k bucket should fold at 16k. */
 export function budgetForWindow(numCtx: number): number {
   return Math.max(0, Math.floor(numCtx * CHARS_PER_TOKEN * COMPACT_AT));
 }
 
-/**
- * The bucket a conversation of this size will be loaded at, which is what the
- * budget is measured against.
- */
+/** The bucket a conversation of this size will be loaded at, which is what the budget is measured
+ * against. */
 export function bucketFor(numCtx: number): number {
   for (const bucket of CONTEXT_BUCKETS) {
     if (bucket >= numCtx) return bucket;
@@ -125,10 +111,8 @@ export function bucketFor(numCtx: number): number {
   return numCtx;
 }
 
-/**
- * Decides whether to fold, and where. Null when it still fits, when there is
- * too little new material, or when there is no clean boundary.
- */
+/** Decides whether to fold, and where. Null when it still fits, when there is too little new
+ * material, or when there is no clean boundary. */
 export function planCompaction(
   messages: Message[],
   options: PlanOptions,
@@ -166,10 +150,8 @@ export function planCompaction(
   return { foldFrom, foldThrough };
 }
 
-/**
- * The messages of a fold, for the summariser. Attachments are named but not
- * included: 50 KB of spreadsheet would consume the whole summary.
- */
+/** The messages of a fold, for the summariser. Attachments are named but not included: 50 KB of
+ * spreadsheet would consume the whole summary. */
 export function renderTranscript(messages: Message[]): string {
   return messages
     .map((message) => {
@@ -196,10 +178,8 @@ Drop: pleasantries, restatements, your own reasoning, anything already supersede
 
 Write plain prose or short dashed lines. No headings, no preamble, no closing remark. Do not address the user. Do not say "the conversation" or "in summary". Start with the first fact.`;
 
-/**
- * Extends a summary rather than rewriting it. A rewrite changes the front of
- * the wire, throwing away the cached prefix on every fold.
- */
+/** Extends a summary rather than rewriting it. A rewrite changes the front of the wire, throwing
+ * away the cached prefix on every fold. */
 export function buildSummaryMessages(
   previous: string | null,
   slice: Message[],
@@ -224,10 +204,8 @@ ${transcript}`;
   ];
 }
 
-/**
- * How the summary appears on the wire, framed as a record: a bare block of
- * facts in the user role gets answered rather than absorbed.
- */
+/** How the summary appears on the wire, framed as a record: a bare block of facts in the user role
+ * gets answered rather than absorbed. */
 export function renderCompactionBlock(state: CompactionState): string {
   return `[Record of the earlier part of this conversation, condensed to save space. These are established facts, not a new question. Continue from the messages that follow.]
 
@@ -244,10 +222,8 @@ export function appendSummary(previous: string | null, addition: string): string
   return `${previous}\n\n${next}`;
 }
 
-/**
- * Trims an oversized summary, oldest first. The one operation that disturbs the
- * prefix, and only when the notes themselves have become the problem.
- */
+/** Trims an oversized summary, oldest first. The one operation that disturbs the prefix, and only
+ * when the notes themselves have become the problem. */
 export function trimSummary(summary: string, budget = SUMMARY_CHAR_BUDGET): string {
   if (summary.length <= budget) return summary;
 
@@ -268,10 +244,8 @@ export interface CompactionRequest {
   signal?: AbortSignal;
 }
 
-/**
- * Runs the fold, the only impure thing here. `numCtx` must pass through
- * unchanged, or Ollama reloads the weights and the fold stops being invisible.
- */
+/** Runs the fold, the only impure thing here. `numCtx` must pass through unchanged, or Ollama
+ * reloads the weights and the fold stops being invisible. */
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
@@ -320,10 +294,8 @@ export async function runCompaction(
   };
 }
 
-/**
- * Whether a summary still describes this conversation. Editing inside the
- * folded range rewrites what it claims, so it goes and is rebuilt when idle.
- */
+/** Whether a summary still describes this conversation. Editing inside the folded range rewrites
+ * what it claims, so it goes and is rebuilt when idle. */
 export function compactionSurvives(
   state: CompactionState | null | undefined,
   messages: Message[],

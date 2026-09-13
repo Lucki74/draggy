@@ -4,17 +4,13 @@ import {
   ENDPOINT_SLOW_MS,
 } from "./constants";
 
-/**
- * Deciding when someone has finished talking. Fixed silence is wrong both ways,
- * so this reads the last word instead: most of the benefit, and no download.
- */
+/** Deciding when someone has finished talking. Fixed silence is wrong both ways, so this reads the
+ * last word instead: most of the benefit, and no download. */
 
 export type Completeness = "complete" | "unfinished" | "unclear";
 
-/**
- * Languages written without spaces between words, where the trailing-word rules
- * below cannot apply and punctuation has to carry the decision alone.
- */
+/** Languages written without spaces between words, where the trailing-word rules below cannot apply
+ * and punctuation has to carry the decision alone. */
 const UNSPACED = new Set(["zh", "ja", "ko"]);
 
 /** Sounds people make while still deciding what to say. */
@@ -30,10 +26,8 @@ const HESITATION: Record<string, string[]> = {
   ar: ["يعني", "اه", "امم"],
 };
 
-/**
- * Words that cannot end a sentence: conjunctions, prepositions, articles and
- * the like. If the transcript stops on one of these the speaker is mid-clause.
- */
+/** Words that cannot end a sentence: conjunctions, prepositions, articles and the like. If the
+ * transcript stops on one of these the speaker is mid-clause. */
 const CONNECTOR: Record<string, string[]> = {
   en: [
     "and", "but", "or", "so", "because", "that", "which", "who", "if", "when",
@@ -86,10 +80,8 @@ const CONNECTOR: Record<string, string[]> = {
 
 const TERMINAL = /[.!?。！？…]["'”’)\]]?$/;
 
-/**
- * Nobody trails off into a question mark. These end a turn even after a word
- * that usually means more is coming: "Quelle heure est-il ?"
- */
+/** Nobody trails off into a question mark. These end a turn even after a word that usually means
+ * more is coming: "Quelle heure est-il ?" */
 const STRONG_TERMINAL = /[!?！？]["'”’)\]]?$/;
 const MID_SENTENCE = /[,;:،、，:-]["'”’)\]]?$/;
 
@@ -105,10 +97,8 @@ function listFor(table: Record<string, string[]>, language: string): string[] {
   return table[language] ?? table.en ?? [];
 }
 
-/**
- * Reads the tail of a transcript for whether the speaker sounds finished.
- * "unclear" is the honest answer for a bare fragment with no punctuation.
- */
+/** Reads the tail of a transcript for whether the speaker sounds finished. "unclear" is the honest
+ * answer for a bare fragment with no punctuation. */
 export function judgeCompleteness(
   text: string,
   language: string,
@@ -145,9 +135,7 @@ export function judgeCompleteness(
   return spoken.length <= 2 ? "unfinished" : "unclear";
 }
 
-/**
- * How much silence to require before handing this turn to the model.
- */
+/** How much silence to require before handing this turn to the model. */
 export function endpointDelay(text: string, language: string): number {
   switch (judgeCompleteness(text, language)) {
     case "complete":

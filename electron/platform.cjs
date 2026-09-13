@@ -7,13 +7,8 @@ const IS_WINDOWS = process.platform === "win32";
 const IS_MAC = process.platform === "darwin";
 const IS_LINUX = process.platform === "linux";
 
-/**
- * Every child process the app starts, with its console window suppressed.
- *
- * A packaged Draggy is a GUI binary with no console of its own, so a console
- * program started without this gets a brand new window that flashes at the user.
- * Going through here means the flag cannot be forgotten at one call site.
- */
+/** Every child process, console window hidden. A GUI app starting a console program otherwise
+ * flashes a new window; one call site means it cannot be forgotten. */
 function spawnHidden(file, args, options = {}) {
   return spawn(file, args, { ...options, windowsHide: true });
 }
@@ -245,26 +240,14 @@ function defaultShellEnv() {
   return { ...process.env, PATH: merged.join(path.delimiter) };
 }
 
-/**
- * Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder.
- * Windows ships `npx.cmd`; the real program is this file next to it.
- */
+/** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder. Windows ships
+ * `npx.cmd`; the real program is this file next to it. */
 function npmCliFrom(dir, tool) {
   return path.join(dir, "node_modules", "npm", "bin", `${tool}-cli.js`);
 }
 
-/**
- * How to run npx without going through its shell script.
- *
- * Node has refused to spawn a `.cmd` since the CVE-2024-27980 fix, so
- * `spawn("npx.cmd")` fails outright with EINVAL on Windows. Running the shim
- * through a shell would work and would put user-supplied paths and connection
- * strings on a command line, so instead the JavaScript behind the shim is run
- * directly by the binary already running this code.
- *
- * Returns null when npm cannot be found, which means MCP servers cannot start
- * and the caller should say so plainly.
- */
+/** Runs npx's JavaScript directly: Node refuses to spawn a .cmd since CVE-2024-27980, and a shell
+ * would put user paths on a command line. Null when npm is missing. */
 function resolveNpmTool(tool) {
   const candidates = [path.dirname(process.execPath)];
 
@@ -312,10 +295,8 @@ function pythonCandidates() {
   return IS_WINDOWS ? ["python", "py"] : ["python3", "python"];
 }
 
-/**
- * Kills a child and everything it started. Signalling the child alone leaves
- * whatever it spawned running, with nobody left to notice.
- */
+/** Kills a child and everything it started. Signalling the child alone leaves whatever it spawned
+ * running, with nobody left to notice. */
 function killTree(child) {
   if (!child || child.pid === undefined) return;
   if (child.exitCode !== null || child.signalCode !== null) return;
@@ -337,12 +318,8 @@ function killTree(child) {
   }
 }
 
-/**
- * The same, finished before it returns, for quitting. A taskkill started in
- * the background is a child of Draggy too, so it died with Draggy before it
- * had walked the tree, and every llama-server Ollama had started ran on.
- * Signals elsewhere are already synchronous.
- */
+/** The synchronous version, for quitting. A background taskkill died with Draggy before walking the
+ * tree, leaving llama-server processes running. */
 function killTreeSync(child) {
   if (!IS_WINDOWS) return killTree(child);
   if (!child || child.pid === undefined) return;

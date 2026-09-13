@@ -5,10 +5,8 @@ export interface ModelRecommendation {
   params: string;
 }
 
-/**
- * Enough about the machine to pick a ladder, and nothing else. Kept as plain
- * data so the choice can be tested without a Mac, a card or a running Ollama.
- */
+/** Enough about the machine to pick a ladder, and nothing else. Kept as plain data so the choice
+ * can be tested without a Mac, a card or a running Ollama. */
 export interface RuntimeTarget {
   platform?: string;
   arch?: string;
@@ -54,10 +52,8 @@ function atLeast(version: string | null | undefined, minimum: number[]): boolean
   return true;
 }
 
-/**
- * MLX is Apple's framework and needs Apple's silicon: an Intel Mac has no
- * unified memory and runs the same GGUF builds a PC does.
- */
+/** MLX is Apple's framework and needs Apple's silicon: an Intel Mac has no unified memory and runs
+ * the same GGUF builds a PC does. */
 export function supportsMlx(target: RuntimeTarget = {}): boolean {
   return (
     target.platform === "darwin" &&

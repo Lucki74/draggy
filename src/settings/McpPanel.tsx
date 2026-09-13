@@ -9,17 +9,13 @@ import type {
   McpServerState,
 } from "./../types";
 
-/**
- * The extensions panel. Turning a server on runs someone else's program with
- * the credentials typed into it, so every entry names the package it fetches.
- */
+/** The extensions panel. Turning a server on runs someone else's program with the credentials typed
+ * into it, so every entry names the package it fetches. */
 
 type Shown = "all" | "on" | "off";
 
-/**
- * The service's own icon, fetched and cached by the main process and served
- * over `draggy://`, since the renderer may not load remote images.
- */
+/** The service's own icon, fetched and cached by the main process and served over `draggy://`,
+ * since the renderer may not load remote images. */
 function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
   const [failed, setFailed] = useState(false);
   const hostname = entry.site ? hostnameOf(entry.site) : "";
@@ -126,9 +122,8 @@ export default function McpPanel({
 
     setBusy(entry.id);
     try {
-      // Only servers that are actually running come back from `running()`, so a
-      // server that failed to start would lose its own reason on the way here.
-      // The reply from `start` carries it, so that one is kept.
+      // `running()` only lists live servers, so a failed start would lose its reason; the reply
+      // from `start` carries it, so keep that one.
       let failed: McpServerState | null = null;
 
       if (on) {

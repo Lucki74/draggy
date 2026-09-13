@@ -5,16 +5,12 @@ const DESKTOP_USER_AGENT =
 
 const RESULT_LIMIT = 10;
 
-/**
- * The smallest gap between two requests to one provider. Firing five at once
- * returns empty pages, which the model reads as "nothing exists".
- */
+/** The smallest gap between two requests to one provider. Firing five at once returns empty pages,
+ * which the model reads as "nothing exists". */
 const PROVIDER_GAP_MS = 900;
 
-/**
- * Models rephrase the same question several times in a row. Answering the
- * repeats from memory keeps that from counting against the rate limit.
- */
+/** Models rephrase the same question several times in a row. Answering the repeats from memory
+ * keeps that from counting against the rate limit. */
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_LIMIT = 80;
 
@@ -34,10 +30,8 @@ const DUCKDUCKGO_EXTRACT = `
   })();
 `;
 
-/**
- * The lite endpoint is a plain table of link and snippet rows. Different
- * infrastructure to the html one, so it answers when that starts refusing.
- */
+/** The lite endpoint is a plain table of link and snippet rows. Different infrastructure to the
+ * html one, so it answers when that starts refusing. */
 const DUCKDUCKGO_LITE_EXTRACT = `
   (() => {
     const results = [];
@@ -97,10 +91,8 @@ const BRAVE_HTML_EXTRACT = `
   })();
 `;
 
-/**
- * DuckDuckGo hands out links through a redirector; the destination is in the
- * uddg parameter. A redirector URL tells the model nothing about the source.
- */
+/** DuckDuckGo hands out links through a redirector; the destination is in the uddg parameter. A
+ * redirector URL tells the model nothing about the source. */
 function unwrapRedirect(url) {
   try {
     const parsed = new URL(url);
@@ -255,10 +247,8 @@ const brave = {
   },
 };
 
-/**
- * Ordered by how reliably each answers. Bing was removed: it returns nothing to
- * a scraper, and its RSS feed answers some queries with the wrong question.
- */
+/** Ordered by how reliably each answers. Bing was removed: it returns nothing to a scraper, and its
+ * RSS feed answers some queries with the wrong question. */
 const PROVIDERS = [searxng, brave, duckduckgo, startpage, duckduckgoLite, braveHtml];
 
 const PROVIDER_IDS = PROVIDERS.map((provider) => provider.id);
@@ -313,10 +303,8 @@ function clearCache() {
   lastCallAt.clear();
 }
 
-/**
- * Runs the chain until something answers. "empty" means the web had nothing;
- * "unavailable" means nobody answered, which is temporary, not a fact.
- */
+/** Runs the chain until something answers. "empty" means the web had nothing; "unavailable" means
+ * nobody answered, which is temporary, not a fact. */
 async function runSearch(query, config, deps) {
   const term = String(query || "").trim();
   if (!term) return { results: [], provider: null, tried: [], status: "empty" };

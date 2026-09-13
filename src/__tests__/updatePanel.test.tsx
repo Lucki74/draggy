@@ -6,10 +6,8 @@ import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electron
 import type { FakeApi } from "./helpers/electronApi";
 import type { AppSettings } from "../types";
 
-/**
- * The panel that sat on "Not checked yet." for a whole release because App
- * subscribed to the same channel and the preload dropped the first listener.
- */
+/** The panel that sat on "Not checked yet." for a whole release because App subscribed to the same
+ * channel and the preload dropped the first listener. */
 
 const settings = {
   theme: "light",

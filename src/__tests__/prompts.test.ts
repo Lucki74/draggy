@@ -3,11 +3,8 @@ import { buildSystemPrompt } from "../prompts";
 import type { ToolEnvironment } from "../tools/registry";
 import type { AppSettings } from "../types";
 
-/**
- * What the model is told before a turn. The project's own file is the part
- * worth holding still: it has to be there when the folder has one, absent when
- * it does not, and never quietly outranked by Draggy's own instructions.
- */
+/** What the model is told before a turn: the project's own file is present when it exists, absent
+ * when not, and never outranked by Draggy's. */
 
 const SETTINGS = {
   thinkingMode: "medium",

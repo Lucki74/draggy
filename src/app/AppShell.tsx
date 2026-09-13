@@ -61,11 +61,8 @@ interface AppShellProps {
   onSelectModel: (name: string) => void;
 }
 
-/**
- * The window around the screens: the sidebar, whichever surface is showing,
- * and the two things that can interrupt any of them (a finished update, and a
- * conversation that could not be saved).
- */
+/** The window around the screens: the sidebar, the current surface, and the two interruptions any
+ * of them can get (an update, a failed save). */
 export default function AppShell({
   model,
   settings,
@@ -84,10 +81,8 @@ export default function AppShell({
   const [skillCount, setSkillCount] = useState(0);
   /** A background conversation that finished while the user was elsewhere. */
   const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
-  /**
-   * The file open in the canvas, with the workspace it belongs to. Switching
-   * workspace hides it rather than trying to open one project's file in another.
-   */
+  /** The file open in the canvas, with the workspace it belongs to. Switching workspace hides it
+   * rather than trying to open one project's file in another. */
   const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
 
   const store = useSessions();
@@ -125,9 +120,8 @@ export default function AppShell({
       args: Record<string, unknown>,
     ) => api.call(serverId, toolName, args);
 
-    // Which of the running servers this workspace asked for. A server another
-    // workspace switched on keeps running; its tools simply are not offered
-    // here.
+    // Which of the running servers this workspace asked for. A server another workspace switched on
+    // keeps running; its tools simply are not offered here.
     let allowed: string[] | null = null;
 
     const sync = (servers: McpServerState[]) =>
@@ -170,9 +164,8 @@ export default function AppShell({
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
-  // Counted rather than listed here: the loop reads the skills themselves when
-  // it builds a prompt, and the window only needs to know whether to offer the
-  // tool at all.
+  // Counted rather than listed here: the loop reads the skills themselves when it builds a prompt,
+  // and the window only needs to know whether to offer the tool at all.
   useEffect(() => {
     const api = window.electronAPI?.skills;
     if (!api) return;
@@ -226,10 +219,8 @@ export default function AppShell({
     patchActiveMessage: store.patchActiveMessage,
   });
 
-  /**
-   * Writes the conversation into the app's own files folder, the same place
-   * the model puts what it makes, and shows it.
-   */
+  /** Writes the conversation into the app's own files folder, the same place the model puts what it
+   * makes, and shows it. */
   const handleExportChat = useCallback(
     async (event: React.MouseEvent, chatId: string) => {
       event.stopPropagation();
@@ -263,10 +254,8 @@ export default function AppShell({
     [runs, store],
   );
 
-  /**
-   * The project's instruction file, opened from `/memory`, or drafted from what
-   * is in the folder by `/init`. Nothing is written until the user saves.
-   */
+  /** The project's instruction file, opened from `/memory`, or drafted from what is in the folder
+   * by `/init`. Nothing is written until the user saves. */
   const [memoryDraft, setMemoryDraft] = useState<{
     path: string;
     text: string;
@@ -382,24 +371,18 @@ export default function AppShell({
     [store.sessions, active.id],
   );
 
-  /**
-   * The id an untouched first conversation gets, one per workspace: two of them
-   * sharing an id would have the second write into the first one's messages.
-   */
+  /** The id an untouched first conversation gets, one per workspace: two of them sharing an id
+   * would have the second write into the first one's messages. */
   const blankChatId = `blank-${active.id}`;
 
-  /**
-   * What the chat screen is showing: the user's choice, or the conversation
-   * they left off in, or an empty one. Derived rather than restored in an
-   * effect, which would paint once with nothing before correcting itself.
-   */
+  /** What the chat screen shows: the user's choice, the conversation they left, or a new one.
+   * Derived, since an effect would paint empty first. */
   const currentChatId = store.hydrated
     ? (selectedChatId ?? visibleSessions[0]?.id ?? blankChatId)
     : selectedChatId;
 
-  // Stable identities so MessageItem's memo() actually skips unchanged
-  // messages; an inline arrow would hand each a new prop on every render. The
-  // manager's own handlers never change, so only the conversation id does.
+  // Stable identities so MessageItem's memo() skips unchanged messages; an inline arrow would be a
+  // new prop every render.
   const { regenerate, switchVersion, editMessage } = runs;
   const chatId = currentChatId ?? "";
 

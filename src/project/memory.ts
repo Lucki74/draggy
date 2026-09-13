@@ -1,12 +1,5 @@
-/**
- * The project's own instructions: an `AGENTS.md` at the root of the folder,
- * read into the system prompt every turn. The name is the one the rest of the
- * ecosystem settled on, so a repository that already has one works with Draggy
- * without anybody writing a second file.
- *
- * Folders deeper in may have their own, and the closest one wins, which is how
- * a monorepo says something different about one package.
- */
+/** Project instructions from AGENTS.md, the ecosystem's shared name, read into the prompt each
+ * turn. The closest file wins, so a monorepo package can differ. */
 
 export const MEMORY_NAMES = ["AGENTS.md", "DRAGGY.md"];
 
@@ -31,10 +24,8 @@ function segmentsBetween(root: string, target: string): string[] {
   return to.slice(from.length).split("/").filter(Boolean);
 }
 
-/**
- * Every place a memory file could be for something being worked on, closest
- * first. The file's own folder, then each folder above it, ending at the root.
- */
+/** Every place a memory file could be for something being worked on, closest first. The file's own
+ * folder, then each folder above it, ending at the root. */
 export function memoryCandidates(root: string, target?: string): string[] {
   const folders: string[] = [""];
 
@@ -156,11 +147,8 @@ export function guessStack(scan: ProjectScan): string[] {
   return stack;
 }
 
-/**
- * The first draft of a memory file. Deliberately written from what is actually
- * in the folder and nothing else: a file full of confident guesses would be
- * worse than no file, because the model would follow it.
- */
+/** A first draft of the memory file, written only from what is in the folder: confident guesses
+ * would be worse than nothing, as the model follows them. */
 export function initialMemory(scan: ProjectScan): string {
   const title = scan.packageJson?.name || scan.name;
   const stack = guessStack(scan);

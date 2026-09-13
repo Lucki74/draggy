@@ -5,10 +5,8 @@ interface LogoProps {
   className?: string;
 }
 
-/**
- * The dragon, drawn in the colour of the text around it. A flat silhouette used
- * as a mask, so one file serves both themes and every weight.
- */
+/** The dragon, drawn in the colour of the text around it. A flat silhouette used as a mask, so one
+ * file serves both themes and every weight. */
 export default function Logo({ className = "" }: LogoProps) {
   return (
     <span

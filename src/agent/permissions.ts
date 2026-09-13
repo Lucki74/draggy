@@ -1,13 +1,7 @@
 import type { PermissionMode } from "../types";
 
-/**
- * Whether a tool call may run. One pure function decides for built-in tools and
- * for anything an MCP server offers, so there is a single answer to "is Draggy
- * allowed to do this" rather than one per subsystem.
- *
- * The flags mirror MCP's own tool annotations, so a server that describes
- * itself honestly needs no translation layer.
- */
+/** Whether a tool call may run. One pure function for built-in and MCP tools, with flags mirroring
+ * MCP's own annotations, so there is one answer everywhere. */
 export interface ToolAnnotations {
   /** Reads or searches. Changes nothing, anywhere. */
   readOnly?: boolean;
@@ -17,18 +11,13 @@ export interface ToolAnnotations {
   idempotent?: boolean;
   /** Reaches the network, or drives a browser at a real site. */
   openWorld?: boolean;
-  /**
-   * Its effects stay inside Draggy's own storage: the output folder, the
-   * scratch directory, the embedded browser. Nothing of the user's is at stake.
-   */
+  /** Its effects stay inside Draggy's own storage: the output folder, the scratch directory, the
+   * embedded browser. Nothing of the user's is at stake. */
   sandboxed?: boolean;
 }
 
-/**
- * Something the user has already agreed to. A grant with no target covers every
- * call of that tool; one with a target covers that path or address and anything
- * under it.
- */
+/** Something the user has already agreed to. A grant with no target covers every call of that tool;
+ * one with a target covers that path or address and anything under it. */
 export interface Grant {
   tool: string;
   target?: string;

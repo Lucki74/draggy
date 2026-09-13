@@ -1,18 +1,8 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 
-/**
- * A local OpenAI-compatible endpoint: /v1/chat/completions and /v1/models, so
- * an editor plugin or a script can talk to Draggy the way it would talk to any
- * other OpenAI-shaped server, and get the same loop the chat window uses.
- *
- * It is the only part of Draggy that opens a port, so it is careful about who
- * gets in. Off until the user turns it on. Bound to 127.0.0.1, never to every
- * interface. Every request needs the key Draggy generated. A request that
- * names another host is refused, which is what stops a web page from reaching
- * it through DNS rebinding, and a request a browser sent on a page's behalf is
- * refused outright, key or not.
- */
+/** Local OpenAI-compatible endpoint, the one port Draggy opens: off by default, 127.0.0.1 only, key
+ * required, and other hosts or browser pages refused to stop DNS rebinding. */
 
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 11500;
@@ -36,10 +26,8 @@ function sameKey(given, expected) {
   return crypto.timingSafeEqual(a, b);
 }
 
-/**
- * Whether a request may be answered at all. Returns null when it may, or the
- * status and message to refuse it with. Pure, so every refusal is tested.
- */
+/** Whether a request may be answered at all. Returns null when it may, or the status and message to
+ * refuse it with. Pure, so every refusal is tested. */
 function checkRequest({ headers = {}, port, key }) {
   // A browser always sends Origin on a cross-site fetch. Nothing legitimate
   // that talks to this endpoint is a web page.
@@ -67,12 +55,8 @@ function errorBody(message, type = "invalid_request_error") {
   return JSON.stringify({ error: { message, type } });
 }
 
-/**
- * Reads a chat completion request into what Draggy's loop needs, or explains
- * what is wrong with it. Content given as parts keeps its text parts only:
- * images through this endpoint are not supported yet, and saying so beats
- * silently dropping them.
- */
+/** Reads a chat completion request, or says what is wrong. Non-text parts are refused rather than
+ * silently dropped. */
 function readCompletionRequest(body) {
   if (!body || typeof body !== "object") return { error: "The body must be a JSON object." };
 
@@ -160,12 +144,8 @@ function modelsBody(names, created = Math.floor(Date.now() / 1000)) {
   });
 }
 
-/**
- * The server. `generate` is the loop: it takes a request and a way to send
- * text as it arrives, and resolves with the finished reply. `listModels` names
- * what can be asked for. Both are supplied by main.cjs, which forwards them to
- * the window where the loop actually runs.
- */
+/** The server. `generate` runs the loop in the window, streaming through onText; `listModels` names
+ * what can be asked for. main.cjs supplies both. */
 function createApiServer({ port = DEFAULT_PORT, getKey, generate, listModels, log }) {
   let server = null;
   let active = 0;

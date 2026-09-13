@@ -2,15 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { log } = require("./logger.cjs");
 
-/**
- * Skills: procedural knowledge the user writes down once. A skill is a folder
- * with a SKILL.md in it, the format the wider ecosystem settled on, so one
- * written for another tool works here unchanged.
- *
- * What makes them cheap is that only the name and the description are ever in
- * the prompt. The body is read when the model asks for it, which is why a
- * hundred skills cost about as much as one.
- */
+/** Skills: folders with a SKILL.md, the shared format. Only name and description sit in the prompt;
+ * the body loads on request, so a hundred cost about one. */
 
 const SKILL_FILE = "SKILL.md";
 
@@ -24,11 +17,8 @@ function init(userDataPath) {
   return userSkillRoot;
 }
 
-/**
- * The YAML front matter at the top of a skill, read without a YAML parser: the
- * format only asks for flat `key: value` lines, and a skill that needs more
- * than that is doing something the loader should not encourage.
- */
+/** Front matter read without a YAML parser: the format only needs flat `key: value` lines, and more
+ * than that should not be encouraged. */
 function parseSkill(text) {
   // A byte order mark, which an editor on Windows may well have put there.
   const source = String(text || "").replace(/^\uFEFF/, "");
@@ -102,11 +92,8 @@ function listIn(root, source) {
     .filter(Boolean);
 }
 
-/**
- * Every skill available to a workspace: the ones the user keeps for everything,
- * and the ones that live in the project itself. A project skill with the same
- * name wins, because it is the more specific of the two.
- */
+/** Every skill a workspace can use, from the user and from the project. A project skill with the
+ * same name wins as the more specific one. */
 function listSkills(projectRoot) {
   const mine = listIn(userSkillRoot, "user");
   const theirs = projectRoot

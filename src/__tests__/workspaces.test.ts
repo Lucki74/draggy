@@ -130,10 +130,8 @@ describe("resolving settings", () => {
     );
   });
 
-  /**
-   * The row is JSON written by an older or newer version, so it is not to be
-   * trusted with anything but the settings a workspace is allowed to have.
-   */
+  /** The row is JSON written by an older or newer version, so it is not to be trusted with anything
+   * but the settings a workspace is allowed to have. */
   it("refuses to change a setting that is the app's, not the workspace's", () => {
     const rogue = project({ theme: "light" } as Workspace["settings"]);
 

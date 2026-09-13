@@ -1,9 +1,7 @@
 import type { SearchStep } from "../types";
 
-/**
- * Rebuilds what a cut-off reply already did, from the steps, since tool results
- * do not survive the turn. Side effects are kept; repeating a write is not free.
- */
+/** Rebuilds what a cut-off reply already did, from the steps, since tool results do not survive the
+ * turn. Side effects are kept; repeating a write is not free. */
 
 /** Total characters the recap may occupy. */
 export const RESUME_BUDGET = 2000;
@@ -109,9 +107,7 @@ function lineFor(step: SearchStep): Line | null {
   }
 }
 
-/**
- * A plain account of the work already done, or null when there was none.
- */
+/** A plain account of the work already done, or null when there was none. */
 export function describeCompletedWork(
   steps: SearchStep[],
   budget: number = RESUME_BUDGET,
@@ -150,9 +146,7 @@ export function describeCompletedWork(
   return kept.map((line) => `- ${line.text}`).join("\n");
 }
 
-/**
- * The message that goes on the wire ahead of the instruction to carry on.
- */
+/** The message that goes on the wire ahead of the instruction to carry on. */
 export function buildResumeMessage(steps: SearchStep[]): string | null {
   const work = describeCompletedWork(steps);
   if (!work) return null;
@@ -160,24 +154,18 @@ export function buildResumeMessage(steps: SearchStep[]): string | null {
   return `You were part-way through this reply when it was cut short. This is what you had already done:\n\n${work}\n\nEverything above has really happened. Carry on from there rather than starting again.`;
 }
 
-/**
- * The longest repeat worth looking for where two halves of a reply meet.
- */
+/** The longest repeat worth looking for where two halves of a reply meet. */
 const MAX_OVERLAP = 120;
 
-/**
- * Short matches are coincidence, not repetition: plenty of sentences happen to
- * end and begin with the same few characters.
- */
+/** Short matches are coincidence, not repetition: plenty of sentences happen to end and begin with
+ * the same few characters. */
 const MIN_OVERLAP = 12;
 
 /** Enough of the opening to recognise the model starting over. */
 const RESTART_SIGNATURE = 60;
 
-/**
- * Joins a continued reply to what was written, with no separator: "salt" and
- * "water" must become "saltwater". Repetition is removed rather than trusted.
- */
+/** Joins a continued reply to what was written, with no separator: "salt" and "water" must become
+ * "saltwater". Repetition is removed rather than trusted. */
 export function joinContinuation(before: string, after: string): string {
   if (!before) return after;
   if (!after) return before;

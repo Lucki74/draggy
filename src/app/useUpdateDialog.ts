@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-/**
- * An update that finished downloading, offered once per launch. The install
- * itself is silent, so "Install now" is a restart rather than a wizard.
- */
+/** An update that finished downloading, offered once per launch. The install itself is silent, so
+ * "Install now" is a restart rather than a wizard. */
 export function useUpdateDialog() {
   const [ready, setReady] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);

@@ -91,10 +91,8 @@ export default function ChatHistory({
                       {session.title}
                     </h2>
                   </div>
-                  {/*
-                    The row itself opens the conversation, so an action on it
-                    has to keep its click rather than doing both things at once.
-                  */}
+                  {/* The row itself opens the conversation, so an action on it has to keep its
+                    * click rather than doing both things at once. */}
                   <div
                     className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.stopPropagation()}

@@ -1,7 +1,5 @@
-/**
- * What to do with a dropped file. The rules need no FileReader, so they live
- * here and are tested; the order of the checks is the part that goes wrong.
- */
+/** What to do with a dropped file. The rules need no FileReader, so they live here and are tested;
+ * the order of the checks is the part that goes wrong. */
 
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 
@@ -50,10 +48,8 @@ export function looksLikeImage(file: FileFacts): boolean {
   );
 }
 
-/**
- * What happens to this file, before anything is read. Reasons are translation
- * keys: a plan carrying English is a bug only somebody else would see.
- */
+/** What happens to this file, before anything is read. Reasons are translation keys: a plan
+ * carrying English is a bug only somebody else would see. */
 export function planAttachment(
   file: FileFacts,
   options: { visionSupported: boolean },

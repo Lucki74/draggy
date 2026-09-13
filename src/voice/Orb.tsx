@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { Activity } from "./conversation";
 
-/**
- * The thing you look at while you talk: one circle, speaking through size, so
- * it reads across a room. Level is written to the DOM, not through React.
- */
+/** The thing you look at while you talk: one circle, speaking through size, so it reads across a
+ * room. Level is written to the DOM, not through React. */
 
 interface OrbProps {
   activity: Activity;

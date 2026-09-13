@@ -13,11 +13,8 @@ const CHOICES: { answer: ApprovalAnswer; label: string; primary?: boolean }[] = 
   { answer: "workspace", label: "allowAlways" },
 ];
 
-/**
- * A tool call the conversation's permission mode does not cover, put to the
- * user in the timeline where the call would have happened. The turn is parked
- * on this card until one of the buttons is pressed.
- */
+/** A tool call the permission mode does not cover, asked where the call happens. The turn waits on
+ * this card until a button is pressed. */
 export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
   const approval = step.approval;
   if (!approval) return null;

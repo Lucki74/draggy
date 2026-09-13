@@ -5,10 +5,8 @@ import { availableTools, resetRegistry, runTool } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import type { InstalledSkill, SearchStep } from "../types";
 
-/**
- * The prompt side of skills. The whole idea rests on one number: what a shelf
- * of skills costs when none of them is being used.
- */
+/** The prompt side of skills. The whole idea rests on one number: what a shelf of skills costs when
+ * none of them is being used. */
 
 const skill = (id: string, name: string, description: string): InstalledSkill => ({
   id,

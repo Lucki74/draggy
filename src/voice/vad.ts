@@ -1,9 +1,7 @@
 import { VAD_FRAME } from "./constants";
 
-/**
- * Speech detection, neural where possible and energy-based otherwise: a
- * conversation that will not start is worse than one that mishears a fan.
- */
+/** Speech detection, neural where possible and energy-based otherwise: a conversation that will not
+ * start is worse than one that mishears a fan. */
 
 const MODEL_PATH =
   "onnx-community/silero-vad/resolve/main/onnx/model.onnx";
@@ -31,10 +29,8 @@ function modelUrl(): string {
   return host + MODEL_PATH;
 }
 
-/**
- * Root mean square, mapped onto the same 0..1 scale the neural model reports.
- * The noise floor tracks the room while nobody is speaking.
- */
+/** Root mean square, mapped onto the same 0..1 scale the neural model reports. The noise floor
+ * tracks the room while nobody is speaking. */
 export function createEnergyDetector(onScore: ScoreHandler): Detector {
   const MINIMUM_FLOOR = 0.006;
   let floor = MINIMUM_FLOOR;

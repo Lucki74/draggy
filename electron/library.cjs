@@ -88,10 +88,8 @@ function init(userDataPath) {
   log.info("library", "index opened");
 }
 
-/**
- * Gives every folder indexed before workspaces existed to the default one, and
- * adds the column to a database written by a version that had none.
- */
+/** Gives every folder indexed before workspaces existed to the default one, and adds the column to
+ * a database written by a version that had none. */
 function adoptSources() {
   try {
     const columns = db.prepare("PRAGMA table_info(library_sources)").all();
@@ -129,10 +127,8 @@ function scopeIds(workspaceId) {
     .map((row) => row.id);
 }
 
-/**
- * Brings the keyword index back in line with the chunks. FTS5 has no foreign
- * keys, so it repairs itself on start rather than needing a one-shot migration.
- */
+/** Brings the keyword index back in line with the chunks. FTS5 has no foreign keys, so it repairs
+ * itself on start rather than needing a one-shot migration. */
 function syncSearchIndex() {
   try {
     db.exec(
@@ -440,10 +436,8 @@ async function indexFile(sourceId, file, model, existing) {
   return { skipped: false, chunks: chunks.length };
 }
 
-/**
- * Drops a file and all that points at it. Chunks go by cascade; keyword rows do
- * not, and match by chunk so reindexing one file leaves the rest alone.
- */
+/** Drops a file and all that points at it. Chunks go by cascade; keyword rows do not, and match by
+ * chunk so reindexing one file leaves the rest alone. */
 function removeFileRows(fileId) {
   db.prepare(
     "DELETE FROM library_search WHERE chunk_id IN (SELECT id FROM library_chunks WHERE file_id = ?)",
@@ -523,22 +517,16 @@ async function indexSource(sourcePath, model, onProgress, workspaceId) {
   return { success: true, indexed, skipped, failed, chunks, files: files.length };
 }
 
-/**
- * How many candidates each arm contributes before fusion. Deeper than the
- * result count: a keyword hit at rank 30 the vectors missed is the whole point.
- */
+/** How many candidates each arm contributes before fusion. Deeper than the result count: a keyword
+ * hit at rank 30 the vectors missed is the whole point. */
 const CANDIDATE_DEPTH = 40;
 
-/**
- * The reciprocal-rank-fusion constant, from the paper. At 60 a strong hit in
- * one list beats a mediocre showing in both, without either arm winning.
- */
+/** The reciprocal-rank-fusion constant, from the paper. At 60 a strong hit in one list beats a
+ * mediocre showing in both, without either arm winning. */
 const RRF_K = 60;
 
-/**
- * Every vector in one flat array, with no passage text. The old shape held a
- * few hundred megabytes resident to answer a question touching six passages.
- */
+/** Every vector in one flat array, with no passage text. The old shape held a few hundred megabytes
+ * resident to answer a question touching six passages. */
 function buildMatrix() {
   if (matrixCache) return matrixCache;
 
@@ -585,10 +573,8 @@ function scoreAgainst(data, offset, query, dim) {
   return total;
 }
 
-/**
- * Ranks every passage against the query. Pure, and given the matrix rather than
- * reaching for the cache, so ordering is testable without a database.
- */
+/** Ranks every passage against the query. Pure, and given the matrix rather than reaching for the
+ * cache, so ordering is testable without a database. */
 function rankChunks(queryVector, matrix, limit, sourceId = null) {
   const { ids, sources, data, dim } = matrix;
   if (!ids || ids.length === 0 || !dim) return [];
@@ -612,10 +598,8 @@ function vectorCandidates(queryVector, sourceId, depth) {
   return rankChunks(queryVector, buildMatrix(), depth, sourceId);
 }
 
-/**
- * The query as FTS5 will accept it. A typed question is not valid syntax, so
- * each word is quoted and joined with OR; BM25 ranks the partial matches.
- */
+/** The query as FTS5 will accept it. A typed question is not valid syntax, so each word is quoted
+ * and joined with OR; BM25 ranks the partial matches. */
 function toSearchQuery(term) {
   const words = String(term).toLowerCase().match(/[\p{L}\p{N}_]+/gu) || [];
   const useful = words.filter((word) => word.length > 1).slice(0, 24);
@@ -650,10 +634,8 @@ function keywordCandidates(term, sourceId, depth) {
   }
 }
 
-/**
- * Reciprocal rank fusion. A cosine score and a BM25 rank cannot be compared, so
- * this fuses on position: high in either list counts, high in both counts more.
- */
+/** Reciprocal rank fusion. A cosine score and a BM25 rank cannot be compared, so this fuses on
+ * position: high in either list counts, high in both counts more. */
 function fuse(vectorHits, keywordIds, limit) {
   const scores = new Map();
 
@@ -711,10 +693,8 @@ function hydrateChunks(ranked) {
     .filter(Boolean);
 }
 
-/**
- * Finds a source by folder name or path, since people name folders and the
- * index stores paths. An ambiguous name matches nothing rather than guessing.
- */
+/** Finds a source by folder name or path, since people name folders and the index stores paths. An
+ * ambiguous name matches nothing rather than guessing. */
 function resolveSource(name) {
   const wanted = String(name || "").trim().toLowerCase();
   if (!wanted) return null;

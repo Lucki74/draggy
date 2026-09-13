@@ -4,10 +4,8 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const { readPdf, pageText, extractText } = require("./documents.cjs");
 
-/**
- * A minimal but genuinely valid PDF, offsets and all. Hand-writing one means
- * hand-computing the xref table, which any edit to the text invalidates.
- */
+/** A minimal but genuinely valid PDF, offsets and all. Hand-writing one means hand-computing the
+ * xref table, which any edit to the text invalidates. */
 function makePdf(pages, { corruptXref = false } = {}) {
   const objects = [];
   const kids = pages.map((_, index) => `${4 + index * 2} 0 R`).join(" ");

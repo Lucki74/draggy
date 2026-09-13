@@ -61,10 +61,8 @@ import type {
   TurnMetrics,
 } from "./../types";
 
-/**
- * One message and all that hangs off it: steps, metrics, files, sites. The
- * `memo` is load-bearing, or every streamed token re-renders the whole chat.
- */
+/** One message and all that hangs off it: steps, metrics, files, sites. The `memo` is load-bearing,
+ * or every streamed token re-renders the whole chat. */
 
 const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   searching: Search,
@@ -217,17 +215,13 @@ const CODE_EXTENSIONS = new Set([
   "sql", "toml", "xml", "swift", "kt", "lua", "r",
 ]);
 
-/**
- * How long the reveal takes, whatever the size: a note types out, a document
- * scrolls past. Either way it ends together, so nobody is left watching.
- */
+/** How long the reveal takes, whatever the size: a note types out, a document scrolls past. Either
+ * way it ends together, so nobody is left watching. */
 const FILE_REVEAL_MS = 1600;
 const FILE_FRAME_MS = 1000 / 60;
 
-/**
- * A file the model wrote, typed into the card. A tool call arrives whole, so
- * revealing it here is what turns a stuck-looking spinner into something read.
- */
+/** A file the model wrote, typed into the card. A tool call arrives whole, so revealing it here is
+ * what turns a stuck-looking spinner into something read. */
 function FileCard({
   step,
   animate,
@@ -355,14 +349,10 @@ function FileCard({
   );
 }
 
-/**
- * The badge beside a search result, drawn from the site name rather than
- * fetched, so nobody else learns which pages the user is looking at.
- */
-/**
- * The site's icon, over `draggy://` since the renderer may not load remote
- * images. No icon or no network keeps the coloured letter rather than a gap.
- */
+/** The badge beside a search result, drawn from the site name rather than fetched, so nobody else
+ * learns which pages the user is looking at. */
+/** The site's icon, over `draggy://` since the renderer may not load remote images. No icon or no
+ * network keeps the coloured letter rather than a gap. */
 function SiteBadge({ hostname }: { hostname: string }) {
   const label = siteLabel(hostname);
   const hue = hueFor(label);
@@ -415,10 +405,8 @@ interface MessageItemProps {
   onRevert?: (checkpointId: number) => Promise<boolean>;
 }
 
-/**
- * Where the older conversation went. Under the reply it followed: spinning
- * while the notes are written, then a plain line that stays.
- */
+/** Where the older conversation went. Under the reply it followed: spinning while the notes are
+ * written, then a plain line that stays. */
 function FoldLine({ fold, t }: { fold: FoldMarker; t: (key: string) => string }) {
   const running = fold.status === "running";
 
@@ -458,10 +446,8 @@ const MessageItem = memo(
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
 
-    /**
-     * Changes put back, this session. The message itself is left as it was
-     * written: it is a record of what happened, undo included.
-     */
+    /** Changes put back, this session. The message itself is left as it was written: it is a record
+     * of what happened, undo included. */
     const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
 
     const revert = async (checkpointId: number) => {
@@ -578,10 +564,8 @@ const MessageItem = memo(
               </div>
             </div>
           ) : (
-            /**
-             * wrap-anywhere, not break-words: only `anywhere` reduces
-             * min-content, so one enormous word cannot widen the whole chat.
-             */
+            /** wrap-anywhere, not break-words: only `anywhere` reduces min-content, so one enormous
+             * word cannot widen the whole chat. */
             <div
               className={
                 msg.role === "user"

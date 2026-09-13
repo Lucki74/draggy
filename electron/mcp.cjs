@@ -7,10 +7,8 @@ const secrets = require("./secrets.cjs");
 const { createHttpTransport } = require("./mcpHttp.cjs");
 const oauth = require("./mcpOauth.cjs");
 
-/**
- * Talking to MCP servers: a spawned program, JSON-RPC over stdio, one message a
- * line. Enabling one runs someone else's code, so nothing starts on its own.
- */
+/** Talking to MCP servers: a spawned program, JSON-RPC over stdio, one message a line. Enabling one
+ * runs someone else's code, so nothing starts on its own. */
 
 /** How long to wait for a server to answer `initialize` before giving up. */
 const HANDSHAKE_TIMEOUT_MS = 60000;
@@ -18,19 +16,15 @@ const HANDSHAKE_TIMEOUT_MS = 60000;
 /** How long any single tool call may take. */
 const CALL_TIMEOUT_MS = 120000;
 
-/**
- * The protocol version Draggy speaks. Servers negotiate down if they are older;
- * one that cannot agree says so in its initialize response.
- */
+/** The protocol version Draggy speaks. Servers negotiate down if they are older; one that cannot
+ * agree says so in its initialize response. */
 const PROTOCOL_VERSION = "2025-06-18";
 
 /** Stops one runaway server filling the log or memory with output. */
 const MAX_STDERR_CHARS = 8000;
 
-/**
- * Splits a byte stream into whole JSON-RPC messages. A chunk from a pipe can
- * end anywhere, so the tail waits for the newline that completes it.
- */
+/** Splits a byte stream into whole JSON-RPC messages. A chunk from a pipe can end anywhere, so the
+ * tail waits for the newline that completes it. */
 function createLineReader(onMessage) {
   let buffer = "";
 
@@ -54,10 +48,8 @@ function createLineReader(onMessage) {
   };
 }
 
-/**
- * Flattens a tool result into text. Images and audio are named rather than
- * dropped: a model told nothing came back calls the tool again.
- */
+/** Flattens a tool result into text. Images and audio are named rather than dropped: a model told
+ * nothing came back calls the tool again. */
 function renderToolResult(result) {
   if (!result || typeof result !== "object") return "";
 
@@ -86,10 +78,8 @@ function renderToolResult(result) {
   return text;
 }
 
-/**
- * A tool name unique across servers, since two may both offer `search`. The
- * prefix also tells an MCP tool from a built-in one.
- */
+/** A tool name unique across servers, since two may both offer `search`. The prefix also tells an
+ * MCP tool from a built-in one. */
 function qualifiedName(serverId, toolName) {
   const clean = (value) => String(value).replace(/[^a-zA-Z0-9_]/g, "_");
   return `${clean(serverId)}__${clean(toolName)}`;
@@ -114,10 +104,8 @@ function init(userDataPath) {
   serverRoot = path.join(userDataPath, "mcp-servers");
 }
 
-/**
- * Runs npm to completion, hidden, and resolves with what it wrote to stderr.
- * Scripts are refused: an MCP server has no business running one on install.
- */
+/** Runs npm to completion, hidden, and resolves with what it wrote to stderr. Scripts are refused:
+ * an MCP server has no business running one on install. */
 function npmInstall(pkg) {
   const npm = platform.resolveNpm();
   if (!npm) return Promise.resolve({ ok: false, detail: "npm could not be found" });
@@ -164,13 +152,8 @@ function npmInstall(pkg) {
   });
 }
 
-/**
- * The JavaScript a package says to run, as an absolute path.
- *
- * Running it directly is what keeps a console window off the screen: npx starts
- * a package through a `cmd.exe` shim, and Electron is a GUI binary with no
- * console, so that shim gets a brand new visible one.
- */
+/** The absolute path of a package's JavaScript. Run directly, because npx goes through a cmd.exe
+ * shim that pops a console window from a GUI app. */
 function entryPointFor(pkg) {
   const dir = path.join(serverRoot, "node_modules", ...pkg.split("/"));
   const manifestPath = path.join(dir, "package.json");
@@ -227,9 +210,8 @@ function stateOf(entry) {
       name: tool.name,
       qualifiedName: qualifiedName(entry.id, tool.name),
       description: tool.description || "",
-      // The server's own risk hints, passed straight through: the permission
-      // engine reads them, so a tool that calls itself read-only is trusted to
-      // that extent and no further.
+      // The server's own risk hints, passed straight through: the permission engine reads them, so
+      // a tool that calls itself read-only is trusted to that extent and no further.
       annotations: tool.annotations || undefined,
       inputSchema: tool.inputSchema || { type: "object", properties: {} },
     })),
@@ -242,11 +224,8 @@ function isRemote(id, config) {
   return definition?.transport === "http";
 }
 
-/**
- * Signs in to a remote server: discovery, registration if it is offered, then
- * the usual round trip through the user's own browser. Nothing is stored until
- * a token actually comes back.
- */
+/** Signs in to a remote server: discovery, registration if it is offered, then the usual round trip
+ * through the user's own browser. Nothing is stored until a token actually comes back. */
 async function signIn(id, url, openExternal) {
   const listener = oauth.listenForCode();
 
@@ -334,15 +313,10 @@ function isRunning(id) {
   return running.has(id);
 }
 
-/**
- * Starts a server and completes the handshake. Never throws: a server that will
- * not run is a message in the interface, not a broken app.
- */
-/**
- * A server Draggy was told about rather than one it ships: a URL the user
- * pasted in. Remote servers are the only ones that can be described this way,
- * because a local one would mean running an arbitrary command.
- */
+/** Starts a server and completes the handshake. Never throws: a server that will not run is a
+ * message in the interface, not a broken app. */
+/** A server the user pasted as a URL. Only remote servers can be described like this; a local one
+ * would mean running an arbitrary command. */
 function remoteDefinition(id, config) {
   if (!config?.url) return null;
 
@@ -690,11 +664,8 @@ function widgetUri(result) {
   return null;
 }
 
-/**
- * Reads a widget's HTML from the server that offered it. Only called when the
- * user has switched widgets on for that server: an interface written by
- * somebody else is a bigger step than a line of text, so it is asked for.
- */
+/** Reads a widget's HTML from its server, only when the user switched widgets on for it: someone
+ * else's interface is a bigger step than text. */
 async function readWidget(entry, uri) {
   try {
     const resource = await entry.send("resources/read", { uri }, CALL_TIMEOUT_MS);

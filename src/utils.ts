@@ -43,10 +43,8 @@ export interface FileProgressEvent {
   total?: number;
 }
 
-/**
- * One figure for a multi-file download. Per-file counts make a tokenizer hit
- * 100% then fall back to nought, so files are summed by name instead.
- */
+/** One figure for a multi-file download. Per-file counts make a tokenizer hit 100% then fall back
+ * to nought, so files are summed by name instead. */
 export function createFileProgressTracker(): (event: FileProgressEvent) => number {
   const files = new Map<string, { loaded: number; total: number }>();
   let total = 0;
@@ -105,10 +103,8 @@ export function hostnameOf(url: string): string {
   }
 }
 
-/**
- * The part of a hostname a person would actually name it by: "bbc" for
- * "www.bbc.co.uk". Used for the little site badge on a search result.
- */
+/** The part of a hostname a person would actually name it by: "bbc" for "www.bbc.co.uk". Used for
+ * the little site badge on a search result. */
 export function siteLabel(hostname: string): string {
   const clean = hostname.replace(/^www\./i, "").toLowerCase();
   if (!clean) return "?";
@@ -128,10 +124,8 @@ export function siteLabel(hostname: string): string {
   return name || clean;
 }
 
-/**
- * A stable colour for a site badge, derived from the name. Fetching favicons
- * from Google announced every domain the user looked at, and was blocked.
- */
+/** A stable colour for a site badge, derived from the name. Fetching favicons from Google announced
+ * every domain the user looked at, and was blocked. */
 export function hueFor(text: string): number {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -143,10 +137,8 @@ export function hueFor(text: string): number {
 /** How much of the first message is used to name a chat. */
 export const TITLE_LENGTH = 40;
 
-/**
- * Names a chat after the message that started it. Asking a model was slow and
- * sometimes titled the chat with its own refusal; a wrong title is worse.
- */
+/** Names a chat after the message that started it. Asking a model was slow and sometimes titled the
+ * chat with its own refusal; a wrong title is worse. */
 export function titleFromContent(content: string, fallback: string): string {
   const trimmed = content.trim().replace(/\s+/g, " ");
   if (!trimmed) return fallback;

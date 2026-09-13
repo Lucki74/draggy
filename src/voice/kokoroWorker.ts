@@ -2,10 +2,8 @@
 
 import { createFileProgressTracker } from "../utils";
 
-/**
- * Kokoro, an 82M speech synthesiser running locally, so the assistant sounds
- * like a person. Optional: 90 MB, English only, others keep the system voice.
- */
+/** Kokoro, an 82M speech synthesiser running locally, so the assistant sounds like a person.
+ * Optional: 90 MB, English only, others keep the system voice. */
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 const WARMUP_TEXT = "Ready.";

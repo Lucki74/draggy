@@ -86,10 +86,8 @@ User said hi. I will greet them concisely and warmly.
 Hello! How can I help you today?`;
 
 
-/**
- * Fast mode for a model that reasons in plain text. Without the `think` switch
- * a reasoning model writes its scratchpad into the reply regardless.
- */
+/** Fast mode for a model that reasons in plain text. Without the `think` switch a reasoning model
+ * writes its scratchpad into the reply regardless. */
 export const FAST_PROMPT = `Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself.`;
 
 export const THINKING_PROMPTS: Record<
@@ -131,11 +129,8 @@ Run code to check arithmetic and data transformations, and to verify that any no
 
 The program runs in a scratch directory with no network access and is stopped after twenty seconds. Do not use it to touch the user's files or to run anything destructive.`;
 
-/**
- * What the model is told when the conversation has a folder. The path is in the
- * prompt because a model that does not know where it is guesses, and a guess
- * here is a refusal from the guard rather than a file.
- */
+/** What the model is told when there is a folder. The path is included, because a model that
+ * guesses where it is gets refused by the guard. */
 export function buildProjectPrompt(root: string): string {
   return `PROJECT FOLDER
 
@@ -155,10 +150,8 @@ The user may edit the plan while you work. When they do, the new list is given t
 
 export const VOICE_SEARCH_MARKER = /^\s*SEARCH\s*:\s*(.*)/i;
 
-/**
- * What the speaking model is told. Talk runs a small model, so short concrete
- * rules survive where a long list of preferences does not.
- */
+/** What the speaking model is told. Talk runs a small model, so short concrete rules survive where
+ * a long list of preferences does not. */
 const VOICE_BASE_PROMPT = `You are Draggy, talking out loud with the user. A speech synthesiser reads every word you write, so write what a person would say, not what a person would type.
 
 Answer in one or two spoken sentences, forty words at most. Lead with the answer, and give the single most useful one instead of listing options.
@@ -173,10 +166,8 @@ If you cannot know something, say so in a few words. If you did not catch what w
 
 Reply in the language the user is speaking.`;
 
-/**
- * How a spoken turn asks to search. It must be the whole reply: there is no
- * tool channel, and no second pass to strip a marker already spoken aloud.
- */
+/** How a spoken turn asks to search. It must be the whole reply: there is no tool channel, and no
+ * second pass to strip a marker already spoken aloud. */
 const VOICE_SEARCH_PROMPT = `If answering needs something that changes (weather, news, prices, sport, timetables, opening hours, or the current version of something) then your entire reply is exactly this line:
 SEARCH: a few plain keywords
 
@@ -193,10 +184,8 @@ export interface PromptMode {
   nativeThinking: boolean;
 }
 
-/**
- * The clock, at the tail rather than in the system prompt. A timestamp at the
- * front ends the cached prefix, re-evaluating the whole chat every turn.
- */
+/** The clock, at the tail rather than in the system prompt. A timestamp at the front ends the
+ * cached prefix, re-evaluating the whole chat every turn. */
 export function currentTimeNote(): string {
   return `[Current time: ${new Date().toLocaleTimeString()}]`;
 }

@@ -1,7 +1,5 @@
-/**
- * The model that turns a file into vectors. Every rung is picked to index the
- * largest chunkable file in ten seconds; a passage is one forward pass.
- */
+/** The model that turns a file into vectors. Every rung is picked to index the largest chunkable
+ * file in ten seconds; a passage is one forward pass. */
 
 export interface EmbedTier {
   /** Least VRAM, in gigabytes, that this rung is meant for. */
@@ -35,10 +33,8 @@ export function tierOfEmbed(model: string): EmbedTier | null {
   return EMBED_TIERS.find((tier) => tier.model === model) ?? null;
 }
 
-/**
- * Whether something on disk counts as the model wanted. A re-quantised build
- * is the same model here, and treating it as a miss re-downloads the weights.
- */
+/** Whether something on disk counts as the model wanted. A re-quantised build is the same model
+ * here, and treating it as a miss re-downloads the weights. */
 function installedMatch(wanted: string, installed: readonly string[]): string | null {
   const target = wanted.trim().toLowerCase();
   if (!target) return null;
@@ -74,10 +70,8 @@ export interface EmbedPlanInput {
   vram: number;
 }
 
-/**
- * What indexing runs with, and what it must fetch. A pinned model that is gone
- * reverts to automatic: removing it was not a request to download it again.
- */
+/** What indexing runs with, and what it must fetch. A pinned model that is gone reverts to
+ * automatic: removing it was not a request to download it again. */
 export function planEmbedModel(input: EmbedPlanInput): EmbedPlan {
   const pinned = input.override?.trim() ?? "";
   const owned = pinned ? installedMatch(pinned, input.installed) : null;

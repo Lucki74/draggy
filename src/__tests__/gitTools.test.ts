@@ -5,10 +5,8 @@ import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import type { GitStatus, SearchStep } from "../types";
 import { changePath, classifyDiff, diffStats, shouldShowStrip } from "../project/gitView";
 
-/**
- * Git as the model meets it: two tools that only look, offered only where
- * there is a repository to look at.
- */
+/** Git as the model meets it: two tools that only look, offered only where there is a repository to
+ * look at. */
 
 const REPO: ToolEnvironment = {
   webMode: "off",

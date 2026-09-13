@@ -8,12 +8,8 @@ const require = createRequire(import.meta.url);
 const fileOperations = require("./fileOps.cjs");
 const checkpoints = require("./checkpoints.cjs");
 
-/**
- * What the file tools do once they are past the guard. The part worth testing
- * hardest is the undo: a change Draggy makes has to be reversible, or the
- * permission model is the only thing standing between a model and someone's
- * work.
- */
+/** The file tools past the guard. Undo is tested hardest: without it the permission model is all
+ * that protects someone's work. */
 
 let root;
 let userData;

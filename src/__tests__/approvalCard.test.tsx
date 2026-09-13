@@ -5,11 +5,8 @@ import ApprovalCard from "../chat/ApprovalCard";
 import { translations } from "../translations";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
-/**
- * The card a turn parks on. Everything about it is a promise to the user: the
- * buttons say how far the permission goes, and once it is answered it stops
- * being a question.
- */
+/** The card a turn parks on. Everything about it is a promise to the user: the buttons say how far
+ * the permission goes, and once it is answered it stops being a question. */
 
 const t = (key: string) => translations.en[key] || key;
 

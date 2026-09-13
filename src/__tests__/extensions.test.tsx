@@ -6,11 +6,8 @@ import SkillsTab from "../extensions/SkillsTab";
 import RemoteServers from "../extensions/RemoteServers";
 import { translations } from "../translations";
 
-/**
- * The one screen for everything that extends Draggy. What the tests hold to:
- * a remote server is labelled as one before it is switched on, and a switch
- * belongs to the workspace rather than to the app.
- */
+/** The extensions screen: a remote server is labelled before it is switched on, and switches belong
+ * to the workspace, not the app. */
 
 const t = (key: string) => translations.en[key] || key;
 

@@ -6,10 +6,8 @@ const { pathToFileURL } = require("url");
 const DOCUMENT_TEXT_LIMIT = 200000;
 const SLIDE_BODY_LINES = 12;
 
-/**
- * How many pages of a PDF are read. A thousand-page scan produces almost no
- * text and would otherwise be read to the end to discover that.
- */
+/** How many pages of a PDF are read. A thousand-page scan produces almost no text and would
+ * otherwise be read to the end to discover that. */
 const MAX_PDF_PAGES = 500;
 
 const EXECUTABLE_EXTENSIONS = new Set([
@@ -369,16 +367,12 @@ async function readXlsx(buffer) {
   return parts.join("\n");
 }
 
-/**
- * pdf.js, loaded on first use rather than at startup. Sixteen megabytes of
- * JavaScript, and most sessions never open a PDF at all.
- */
+/** pdf.js, loaded on first use rather than at startup. Sixteen megabytes of JavaScript, and most
+ * sessions never open a PDF at all. */
 let pdfjsPromise = null;
 
-/**
- * Where the package lives once packaged. Node cannot import ES modules from
- * inside asar, so it is left unpacked and the path redirected to match.
- */
+/** Where the package lives once packaged. Node cannot import ES modules from inside asar, so it is
+ * left unpacked and the path redirected to match. */
 function pdfjsDir() {
   const root = path.dirname(require.resolve("pdfjs-dist/package.json"));
   return root.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
@@ -409,10 +403,8 @@ function loadPdfjs() {
   return pdfjsPromise;
 }
 
-/**
- * The text of a page, in the order pdf.js reports it. Items carry their own
- * end-of-line flag, which beats inferring breaks from coordinates.
- */
+/** The text of a page, in the order pdf.js reports it. Items carry their own end-of-line flag,
+ * which beats inferring breaks from coordinates. */
 function pageText(items) {
   let out = "";
   for (const item of items) {
@@ -423,10 +415,8 @@ function pageText(items) {
   return out.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-/**
- * Reads a PDF into text, one marked section per page. The markers match what
- * readPptx uses, so the library chunker treats them as headings.
- */
+/** Reads a PDF into text, one marked section per page. The markers match what readPptx uses, so the
+ * library chunker treats them as headings. */
 async function readPdf(buffer) {
   const { pdfjs, dir } = await loadPdfjs();
 

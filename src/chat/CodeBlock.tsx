@@ -3,10 +3,8 @@ import { Check, Copy } from "lucide-react";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-/**
- * A fenced code block: language, copy button, highlighted source. Its own file
- * because fast refresh wants components or constants exported, not both.
- */
+/** A fenced code block: language, copy button, highlighted source. Its own file because fast
+ * refresh wants components or constants exported, not both. */
 
 interface CodeBlockProps {
   language: string;

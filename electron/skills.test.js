@@ -7,11 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const skills = require("./skills.cjs");
 
-/**
- * Skills. The promise they make is that a hundred of them cost what one does,
- * because only the name and the description are ever in the prompt, and that a
- * broken one is skipped rather than fatal.
- */
+/** Skills: a hundred cost what one does, since only name and description are in the prompt, and a
+ * broken one is skipped rather than fatal. */
 
 let workdir;
 let userData;

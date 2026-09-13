@@ -6,10 +6,8 @@ import { SETTINGS_KEY } from "../storage";
 import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
 import type { FakeApi } from "./helpers/electronApi";
 
-/**
- * The shell around every screen: the settings overlay that has to stay mounted
- * and opaque, and the dialog offering an update that finished downloading.
- */
+/** The shell around every screen: the settings overlay that has to stay mounted and opaque, and the
+ * dialog offering an update that finished downloading. */
 
 describe("the app shell", () => {
   let api: FakeApi;
@@ -28,10 +26,8 @@ describe("the app shell", () => {
     localStorage.clear();
   });
 
-  /**
-   * The overlay wrapping the settings page, found from inside it: icons carry
-   * aria-hidden of their own, so the attribute alone is not enough.
-   */
+  /** The overlay wrapping the settings page, found from inside it: icons carry aria-hidden of their
+   * own, so the attribute alone is not enough. */
   async function settingsOverlay() {
     const inside = (await screen.findAllByText("Appearance"))[0];
     return inside.closest("[aria-hidden]");

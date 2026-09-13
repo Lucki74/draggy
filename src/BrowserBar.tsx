@@ -10,10 +10,8 @@ import {
 } from "lucide-react";
 import { translations } from "./translations";
 
-/**
- * The chrome above an opened page, a separate view so the toolbar keeps our
- * policy and the page gets none of it. Everything below goes through IPC.
- */
+/** The chrome above an opened page, a separate view so the toolbar keeps our policy and the page
+ * gets none of it. Everything below goes through IPC. */
 
 interface BrowserState {
   url: string;
@@ -47,10 +45,8 @@ export default function BrowserBar({ language }: { language: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Whether the address bar belongs to the user now. A ref, because the
-   * subscription is registered once and would close over the first value.
-   */
+  /** Whether the address bar belongs to the user now. A ref, because the subscription is registered
+   * once and would close over the first value. */
   const editingRef = useRef(false);
 
   useEffect(() => {
@@ -64,10 +60,8 @@ export default function BrowserBar({ language }: { language: string }) {
     });
   }, []);
 
-  /**
-   * Opening the menu also asks for room to draw it, since the view clips its
-   * own bounds. Every path goes through here so the two cannot disagree.
-   */
+  /** Opening the menu also asks for room to draw it, since the view clips its own bounds. Every
+   * path goes through here so the two cannot disagree. */
   const showMenu = useCallback((open: boolean) => {
     setMenuOpen(open);
     window.electronAPI?.browserBar.setMenuOpen(open);

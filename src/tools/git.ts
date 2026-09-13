@@ -2,12 +2,8 @@ import { registerTools } from "./registry";
 import type { ToolContext, ToolSpec } from "./registry";
 import type { GitChange, GitStatus } from "../types";
 
-/**
- * Git, as the model sees it: where the project stands and what changed. Both
- * tools only look. Nothing here commits, stages or switches branches, and the
- * descriptions say so, so a model asked to "commit this" tells the user how
- * instead of hunting for a tool that is not there.
- */
+/** Git for the model: status and diffs, look only. The descriptions say it cannot commit, so a
+ * model asked to commit tells the user how. */
 
 const api = () => window.electronAPI?.git;
 

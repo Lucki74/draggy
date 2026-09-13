@@ -8,10 +8,8 @@ import { visit } from "unist-util-visit";
 import type { Node as UnistNode, Parent as UnistParent } from "unist";
 import { MarkdownCode } from "./CodeBlock";
 
-/**
- * How a reply is rendered. `rehypeSanitize` sits between `rehypeRaw` and the
- * page, and that order is all that stops HTML a model wrote from running.
- */
+/** How a reply is rendered. `rehypeSanitize` sits between `rehypeRaw` and the page, and that order
+ * is all that stops HTML a model wrote from running. */
 
 interface InlineMathNode extends UnistNode {
   value: string;

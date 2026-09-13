@@ -7,11 +7,8 @@ interface SkillsTabProps {
   t: (key: string) => string;
 }
 
-/**
- * The other half of extending Draggy. An MCP server connects it to something;
- * a skill tells it how the user wants a job done. Both are folders on disk that
- * the user owns, which is why they share one screen.
- */
+/** Skills tell Draggy how the user wants a job done, as servers connect it to things. Both are
+ * user-owned folders, hence one screen. */
 export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
   const [skills, setSkills] = useState<InstalledSkill[]>([]);
   const [revision, setRevision] = useState(0);

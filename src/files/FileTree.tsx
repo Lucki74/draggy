@@ -15,11 +15,8 @@ interface FileTreeProps {
 
 type Loaded = Record<string, DirectoryEntry[]>;
 
-/**
- * The project folder, a level at a time. Folders are read when they are opened
- * rather than up front: a repository with a deep tree would otherwise spend the
- * first second of the screen listing files nobody asked for.
- */
+/** The project folder a level at a time. Folders are read when opened, so a deep repository does
+ * not spend a second listing files nobody asked for. */
 export default function FileTree({
   workspaceId,
   root,
@@ -28,12 +25,8 @@ export default function FileTree({
   t,
   revision = 0,
 }: FileTreeProps) {
-  /**
-   * Folders already read, stamped with the state of the disk they were read
-   * for. Stamping rather than clearing: emptying the cache when something
-   * changes would be a write during render's own effect, and the stamp says the
-   * same thing without one.
-   */
+  /** Folders already read, stamped with the disk revision they match. A stamp avoids clearing the
+   * cache, which would be a write during render. */
   const [cache, setCache] = useState<{ revision: number; dirs: Loaded }>({
     revision,
     dirs: {},
@@ -68,10 +61,8 @@ export default function FileTree({
     [workspaceId, revision],
   );
 
-  // The root again whenever the disk changed under it: `load` is rebuilt with
-  // the new revision, so this runs itself. Queued rather than called straight
-  // from the effect: the listing is a round trip to the main process, and
-  // nothing it sets belongs to this render.
+  // Reloads the root when the disk changed, since `load` is rebuilt per revision. Queued, because
+  // the listing is an IPC round trip outside this render.
   useEffect(() => {
     let cancelled = false;
 

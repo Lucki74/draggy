@@ -5,11 +5,8 @@ import PlanPanel from "../plan/PlanPanel";
 import { parsePlan } from "../plan/plan";
 import { translations } from "../translations";
 
-/**
- * The panel is the steering wheel: whatever the model wrote, the user can
- * change it here and the loop is told. Every control has to hand back a new
- * list rather than quietly editing the one it was given.
- */
+/** The panel steers the plan: the user changes it and the loop is told. Every control returns a new
+ * list instead of editing the one it got. */
 
 const t = (key: string) => translations.en[key] || key;
 

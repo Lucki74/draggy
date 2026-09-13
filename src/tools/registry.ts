@@ -31,15 +31,11 @@ export interface ToolEnvironment {
   hasSkills?: boolean;
   /** Whether that folder is a git repository and git is installed to read it. */
   hasGit?: boolean;
-  /**
-   * The only groups this turn may use, when set. A request from the local API
-   * gets the web and nothing else: not the user's extensions, not their files.
-   */
+  /** The only groups this turn may use, when set. A request from the local API gets the web and
+   * nothing else: not the user's extensions, not their files. */
   allowedGroups?: ToolGroup[];
-  /**
-   * Only tools that change nothing. Set for a nested exploration, which reads
-   * the project on the conversation's behalf and must not act on it.
-   */
+  /** Only tools that change nothing. Set for a nested exploration, which reads the project on the
+   * conversation's behalf and must not act on it. */
   readOnlyTools?: boolean;
 }
 
@@ -61,10 +57,8 @@ export interface ToolContext {
   syncSteps: () => void;
   newId: () => string;
   signal: AbortSignal;
-  /**
-   * Scratch space shared by every tool call in one turn and thrown away after
-   * it. Tools use it to notice that they are being asked the same thing twice.
-   */
+  /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to
+   * notice that they are being asked the same thing twice. */
   memo: Map<string, unknown>;
 }
 
@@ -75,11 +69,8 @@ export interface ToolSpec {
   parameters: Record<string, ToolParameter>;
   required: string[];
   usage: string;
-  /**
-   * What this tool can do to the world, which is what the permission engine
-   * decides on. Every tool declares it; a missing one is treated as the most
-   * cautious reading, so forgetting it costs a prompt rather than a mistake.
-   */
+  /** What this tool can do to the world, for the permission engine. A missing declaration reads as
+   * the most cautious one, costing a prompt, not a mistake. */
   annotations?: ToolAnnotations;
   available?: (environment: ToolEnvironment) => boolean;
   run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
@@ -146,9 +137,8 @@ export function allToolNames(): string[] {
 
 export function availableTools(environment: ToolEnvironment): ToolSpec[] {
   return allTools().filter((spec) => {
-    // A read-only run gets the tools that say so and nothing else: an
-    // annotation missing is treated as "not safe", which is the cautious way
-    // round.
+    // A read-only run gets the tools that say so and nothing else: an annotation missing is treated
+    // as "not safe", which is the cautious way round.
     if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
     if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) return false;
 

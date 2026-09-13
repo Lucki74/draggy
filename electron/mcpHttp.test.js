@@ -5,11 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const { createHttpTransport } = require("./mcpHttp.cjs");
 
-/**
- * The remote transport, against a real server on a real socket. Mocking fetch
- * would prove the code calls fetch; this proves it can hold a conversation
- * with something that answers the way the specification says.
- */
+/** The remote transport against a real server on a real socket, which proves it can hold a
+ * conversation rather than merely call fetch. */
 
 let server;
 let url;

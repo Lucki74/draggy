@@ -56,11 +56,8 @@ export interface AgentRuns {
   stopAll: () => void;
 }
 
-/**
- * The task manager, wired to React. The manager is created once and pointed at
- * the current state after every render, so every handler it hands back keeps
- * one identity for the life of the window while never reading a stale model.
- */
+/** The task manager wired to React: created once and re-pointed each render, so its handlers keep
+ * one identity yet never read a stale model. */
 export function useAgentRuns(input: AgentRunsInput): AgentRuns {
   const host: TaskHost = {
     getModel: () => input.model,

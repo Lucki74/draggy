@@ -1,10 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-/**
- * Two parts of the app may want the same channel: Settings shows an update's
- * progress while the window waits for one to finish. Returns a disposer that
- * removes this listener alone, so neither can silence the other.
- */
+/** Several parts of the app can share a channel, so the disposer removes only this listener and
+ * neither can silence the other. */
 const subscribe = (channel, callback) => {
   const listener = (_event, value) => callback(value);
   ipcRenderer.on(channel, listener);

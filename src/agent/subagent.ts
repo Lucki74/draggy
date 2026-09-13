@@ -4,14 +4,8 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { InstalledModel } from "../ollama";
 import type { AppSettings, Message } from "../types";
 
-/**
- * A second, smaller model sent to look something up. Exploring a project means
- * reading a dozen files to use two of them, and doing that in the main
- * conversation spends the context the answer needs on the search for it.
- *
- * What comes back is a summary. What it can do is read: the nested turn runs in
- * plan mode, which the permission engine already defines as "changes nothing".
- */
+/** A smaller model sent to explore, so reading a dozen files does not spend the main conversation's
+ * context. It runs in plan mode and returns a summary. */
 
 /** How long an exploration may run before the answer stops being worth it. */
 export const EXPLORE_TIMEOUT_MS = 120000;
@@ -22,12 +16,8 @@ Read what you need with the tools you have, then answer in at most fifteen lines
 
 If the project does not contain what was asked about, say exactly that.`;
 
-/**
- * The model that does the looking. A smaller one reads a directory listing as
- * well as a large one and returns in a third of the time, so the smallest
- * installed model that can still call tools wins. Ties go to the one already
- * running, which costs no load at all.
- */
+/** The explorer model: the smallest installed one that can call tools, since it reads a listing as
+ * well in a third of the time. Ties go to the loaded one. */
 export function pickExploreModel(
   installed: InstalledModel[],
   current: string,
@@ -62,11 +52,8 @@ export interface ExploreRequest {
   signal: AbortSignal;
 }
 
-/**
- * Runs the nested turn. The environment it is handed is the parent's with two
- * changes: read-only tools, and no way to start another exploration from
- * inside this one.
- */
+/** Runs the nested turn. The environment it is handed is the parent's with two changes: read-only
+ * tools, and no way to start another exploration from inside this one. */
 export async function explore(request: ExploreRequest): Promise<string> {
   const environment: ToolEnvironment = {
     ...request.environment,

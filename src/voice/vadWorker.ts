@@ -1,10 +1,8 @@
 /// <reference lib="webworker" />
 import * as ort from "onnxruntime-web";
 
-/**
- * Silero VAD off the main thread: a 2 MB classifier scoring each 32 ms frame.
- * Energy thresholds missed quiet speech and answered the room instead.
- */
+/** Silero VAD off the main thread: a 2 MB classifier scoring each 32 ms frame. Energy thresholds
+ * missed quiet speech and answered the room instead. */
 
 const FRAME = 512;
 const SAMPLE_RATE = 16000;

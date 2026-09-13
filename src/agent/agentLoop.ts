@@ -94,11 +94,8 @@ export interface WireMessage {
   tool_name?: string;
 }
 
-/**
- * `keepThinking` sends a reply's reasoning back with it. A model that sees
- * none in the history takes the hint: Laguna wrote no thinking at all with
- * the reasoning dropped, and 400 characters of it with the reasoning kept.
- */
+/** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
+ * Laguna wrote none at all; kept, it wrote 400 characters. */
 export function toWireMessage(
   message: Message,
   allowImages: boolean,
@@ -184,11 +181,8 @@ export interface AgentRequest {
   /** Which workspace this turn belongs to, and which conversation in it. */
   workspaceId?: string;
   chatId?: string;
-  /**
-   * How much this turn may do on its own, and what the user has already
-   * allowed. Left out, the turn runs unguarded, which is what a plain chat with
-   * no folder of its own has always done.
-   */
+  /** How much this turn may do on its own, and what the user has already allowed. Left out, the
+   * turn runs unguarded, which is what a plain chat with no folder of its own has always done. */
   permission?: { mode: PermissionMode; grants?: Grant[] };
   signal: AbortSignal;
 }
@@ -213,10 +207,8 @@ export interface AgentHost {
   onSteps: (steps: SearchStep[]) => void;
   onOutOfContext: (outOfContext: boolean) => void;
   onMetrics?: (metrics: GenerationMetrics | null) => void;
-  /**
-   * Puts a call to the user and waits. Without it a turn that needs an answer
-   * has no one to ask, and the call is refused rather than run unasked.
-   */
+  /** Puts a call to the user and waits. Without it a turn that needs an answer has no one to ask,
+   * and the call is refused rather than run unasked. */
   requestApproval?: (request: ApprovalRequest) => Promise<ApprovalAnswer>;
   /** A permission the user wants kept for this workspace, not just this task. */
   onGrant?: (grant: Grant) => void;
@@ -296,11 +288,8 @@ export async function runAgentTurn(
   /** For the statistics page: which tools this turn reached for, and how often. */
   const toolCalls: Record<string, number> = {};
 
-  /**
-   * Every tool call goes through here. What the mode allows runs; what it
-   * forbids comes back as an ordinary tool result, because a model handed an
-   * exception stops working while a model handed a refusal carries on.
-   */
+  /** Every tool call goes through here. A forbidden call returns an ordinary result, because a
+   * refused model carries on and a model handed an exception stops. */
   async function runGuardedTool(
     name: string,
     args: Record<string, unknown>,
@@ -370,12 +359,8 @@ export async function runAgentTurn(
     return runTool(name, args, toolContext, environment);
   }
 
-  /**
-   * One repair pass per turn for a model that meant to call a tool and got the
-   * shape wrong. The same question is asked again with Ollama's `format` set to
-   * a schema, so the sampler cannot produce anything but a valid call. Costs
-   * one short request, and only on the calls that would otherwise be lost.
-   */
+  /** One repair per turn for a malformed call: asked again with a `format` schema, so the sampler
+   * can only produce a valid call. Costs one short request. */
   let repairsLeft = 1;
 
   async function repairCall(
@@ -539,10 +524,8 @@ ${currentTimeNote()}`,
   let fullFinalContent = request.seed?.content ?? "";
   let fullFinalTextContent = request.seed?.textContent ?? "";
 
-  /**
-   * Trimming is right for a fresh reply and wrong for a continued one: that
-   * space is the only thing keeping the joined words apart.
-   */
+  /** Trimming is right for a fresh reply and wrong for a continued one: that space is the only
+   * thing keeping the joined words apart. */
   const cleanText = (raw: string): string => {
     const cleaned = cleanStream ? raw.trim() : stripToolSyntax(raw);
     if (!cleaned || !request.isContinuation) return cleaned;
@@ -560,12 +543,8 @@ ${currentTimeNote()}`,
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
     loopCount++;
 
-    /**
-     * The plan, if this conversation has one. On the first pass it is the model
-     * catching up with where the task stands, which is also how a task resumed
-     * after a restart picks itself up. After that it only appears when the user
-     * has changed something, since the model's own updates go through the tool.
-     */
+    /** The plan, if any. First pass it catches the model up, which is also how a resumed task
+     * restarts; after that only the user's edits are sent. */
     const livePlan = host.getPlan?.() ?? null;
 
     if (livePlan && livePlan.length > 0 && !samePlan(lastSeenPlan ?? [], livePlan)) {
@@ -588,10 +567,8 @@ ${currentTimeNote()}`,
 
     pushStep({ id: thinkStepId, type: "thinking", content: "", isComplete: false });
 
-    /**
-     * Prose from this pass, shown as a step among the tool activity. On the
-     * last pass the step is removed and the text becomes the reply.
-     */
+    /** Prose from this pass, shown as a step among the tool activity. On the last pass the step is
+     * removed and the text becomes the reply. */
     let textStepId: string | null = null;
 
     const showText = (value: string) => {

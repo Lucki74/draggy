@@ -2,11 +2,8 @@ import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { renderSkill } from "../skills/skills";
 
-/**
- * Reaching for a skill. The list in the prompt is names and descriptions only,
- * so this is how the instructions themselves arrive: asked for by id, once the
- * model has decided which one the job needs.
- */
+/** Fetches a skill's instructions by id, once the model has picked one from the names and
+ * descriptions in the prompt. */
 
 const useSkill: ToolSpec = {
   name: "use_skill",

@@ -9,14 +9,8 @@ interface BridgeInput {
   t: (key: string) => string;
 }
 
-/**
- * Where requests to the local API are answered. The server lives in the main
- * process, but the loop lives here, so the main process forwards each request
- * to this window and this hands the text back as it is written.
- *
- * Mounted once for the life of the window. The model and settings are read at
- * the moment a request arrives, not when the listener was set up.
- */
+/** Answers local API requests the main process forwards here, where the loop lives, streaming text
+ * back. Model and settings are read when a request arrives. */
 export function useApiBridge(input: BridgeInput): void {
   const latest = useRef(input);
 

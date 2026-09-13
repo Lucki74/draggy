@@ -3,11 +3,8 @@ import type { ToolContext, ToolSpec } from "./registry";
 import { loadProjectMemory } from "../project/load";
 import { renderFolderRules } from "../project/memory";
 
-/**
- * The file tools. Everything here names a path and hands it to the main
- * process, which is the only side that knows which folders this conversation
- * was given. Nothing in the renderer decides what is in reach.
- */
+/** The file tools. Each hands a path to the main process, the only side that knows which folders
+ * this conversation was given. */
 
 const api = () => window.electronAPI?.files;
 
@@ -23,11 +20,8 @@ function workspaceOf(ctx: ToolContext): string {
   return ctx.workspaceId || "default";
 }
 
-/**
- * The rules a folder deeper in the project carries, handed over the first time
- * something in it is touched. The root file is already in the system prompt, so
- * only a closer one is worth saying, and only once per turn.
- */
+/** A deeper folder's rules, given the first time something in it is touched. The root file is
+ * already in the prompt, so only closer ones, once per turn. */
 async function folderRules(ctx: ToolContext, target: string): Promise<string> {
   if (!ctx.projectRoot) return "";
 

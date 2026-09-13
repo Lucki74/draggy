@@ -1,7 +1,5 @@
-/**
- * Markdown to HTML for the PDF writer, covering what the Word writer covers.
- * Raw HTML is escaped: a remote image would report that the document was made.
- */
+/** Markdown to HTML for the PDF writer, covering what the Word writer covers. Raw HTML is escaped:
+ * a remote image would report that the document was made. */
 
 const ESCAPES = {
   "&": "&amp;",
@@ -15,10 +13,8 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ESCAPES[character]);
 }
 
-/**
- * Emphasis, code spans and links. Code spans come out first and go back last,
- * so a document about Markdown can show the syntax it is describing.
- */
+/** Emphasis, code spans and links. Code spans come out first and go back last, so a document about
+ * Markdown can show the syntax it is describing. */
 function inlineHtml(text) {
   const spans = [];
 
@@ -66,10 +62,8 @@ function isTableRow(line) {
   return line.includes("|") && line.trim().length > 0;
 }
 
-/**
- * Turns a document into HTML, one block at a time. A line walk, not a parser:
- * the only state carried is whether a list or fence is open.
- */
+/** Turns a document into HTML, one block at a time. A line walk, not a parser: the only state
+ * carried is whether a list or fence is open. */
 function markdownToHtml(markdown) {
   const lines = String(markdown ?? "").replace(/\r\n/g, "\n").split("\n");
   const out = [];
@@ -199,10 +193,8 @@ function markdownToHtml(markdown) {
   return out.join("\n");
 }
 
-/**
- * The stylesheet the PDF is laid out with. Aimed at print: page breaks kept out
- * of headings and code, and tables that repeat their header across pages.
- */
+/** The stylesheet the PDF is laid out with. Aimed at print: page breaks kept out of headings and
+ * code, and tables that repeat their header across pages. */
 const PRINT_STYLES = `
   @page { size: A4; margin: 18mm 16mm 16mm 16mm; }
 
@@ -288,10 +280,8 @@ const PRINT_STYLES = `
   tr { break-inside: avoid; page-break-inside: avoid; }
 `;
 
-/**
- * The complete page handed to Chromium. The content policy is belt to the
- * escaping's braces: markup that got through still cannot fetch anything.
- */
+/** The complete page handed to Chromium. The content policy is belt to the escaping's braces:
+ * markup that got through still cannot fetch anything. */
 function buildDocument(markdown, title) {
   return `<!doctype html>
 <html>

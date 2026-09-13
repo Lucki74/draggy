@@ -1,12 +1,5 @@
-/**
- * Line diffs for the timeline. Draggy shows what a change did rather than what
- * the file now says, because a reply that rewrites a file is unreadable and a
- * handful of marked lines is not.
- *
- * The shape is the usual one: trim what both sides share at each end, then work
- * out the middle properly. An edit almost always leaves a middle of a few
- * lines, so the expensive part rarely runs.
- */
+/** Line diffs for the timeline, since marked lines read better than a rewritten file. Trims the
+ * shared ends first, so the costly middle is usually tiny. */
 
 export type DiffKind = "context" | "added" | "removed";
 
@@ -43,10 +36,8 @@ function split(text: string): string[] {
   return text.replace(/\r\n/g, "\n").split("\n");
 }
 
-/**
- * The longest common subsequence of two line lists, as a table walked
- * backwards. Only ever called on the middle, after the shared ends are gone.
- */
+/** The longest common subsequence of two line lists, as a table walked backwards. Only ever called
+ * on the middle, after the shared ends are gone. */
 function alignMiddle(before: string[], after: string[]): DiffLine[] {
   const rows = before.length;
   const columns = after.length;

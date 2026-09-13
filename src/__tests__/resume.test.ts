@@ -98,10 +98,8 @@ describe("telling a cut-off reply what it already did", () => {
 });
 
 describe("staying small enough not to overflow again", () => {
-  /**
-   * The reply was cut off for running out of room, so the recap has to fit in
-   * a budget rather than growing with the work.
-   */
+  /** The reply was cut off for running out of room, so the recap has to fit in a budget rather than
+   * growing with the work. */
   const noisy: SearchStep[] = [
     ...Array.from({ length: 40 }, (_, i) =>
       step({ type: "thinking", content: `Long deliberation number ${i}. `.repeat(20) }),

@@ -221,10 +221,8 @@ export interface SearchStep {
     | "thinking"
     /** Ollama loading the weights, gone again at the first token. */
     | "loading"
-    /**
-     * Prose written between two tool calls. In the step list so it stays where
-     * it was written, rather than collected up after the tool activity.
-     */
+    /** Prose written between two tool calls. In the step list so it stays where it was written,
+     * rather than collected up after the tool activity. */
     | "text"
     | "searching"
     | "results"
@@ -281,10 +279,8 @@ export interface SearchStep {
   answer?: ApprovalAnswer;
 }
 
-/**
- * How far an approval goes: this call only, the rest of this task, or every
- * time in this workspace. "no" is a refusal of the call in front of the user.
- */
+/** How far an approval goes: this call only, the rest of this task, or every time in this
+ * workspace. "no" is a refusal of the call in front of the user. */
 export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
 
 export interface TurnMetrics {
@@ -391,10 +387,8 @@ export interface GitDiff {
   error?: string;
 }
 
-/**
- * The conversation being folded into notes, shown after the reply it followed.
- * Kept once done, so the user can see where the older messages went.
- */
+/** The conversation being folded into notes, shown after the reply it followed. Kept once done, so
+ * the user can see where the older messages went. */
 export interface FoldMarker {
   status: "running" | "done";
   /** Roughly how many tokens of conversation went into the notes. */
@@ -426,10 +420,8 @@ export interface Message {
   fold?: FoldMarker;
 }
 
-/**
- * The older conversation, folded into notes. `throughIndex` is exclusive, and
- * this describes what goes on the wire, not what the conversation is.
- */
+/** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what
+ * goes on the wire, not what the conversation is. */
 export interface CompactionState {
   throughIndex: number;
   summary: string;
@@ -523,18 +515,14 @@ export interface McpServerState {
   tools: McpToolDescription[];
 }
 
-/**
- * How much a turn may do on its own. A workspace holds one of these, and every
- * tool call is measured against it.
- */
+/** How much a turn may do on its own. A workspace holds one of these, and every tool call is
+ * measured against it. */
 export type PermissionMode = "plan" | "ask" | "acceptEdits" | "auto";
 
 export type WorkspaceKind = "chat" | "project";
 
-/**
- * The settings a workspace may override. Everything else (the theme, the
- * voice, the update schedule) stays a property of the app, not of the work.
- */
+/** The settings a workspace may override. Everything else (the theme, the voice, the update
+ * schedule) stays a property of the app, not of the work. */
 export type WorkspaceOverrides = Partial<
   Pick<
     AppSettings,
@@ -602,10 +590,8 @@ export interface AppSettings {
   thinkingMode: "low" | "medium" | "high";
   webMode: "auto" | "on" | "off";
   voiceName: string;
-  /**
-   * Model that answers in Talk. Empty means automatic, which sizes a small
-   * conversational model to the graphics card and downloads it on first use.
-   */
+  /** Model that answers in Talk. Empty means automatic, which sizes a small conversational model to
+   * the graphics card and downloads it on first use. */
   voiceModel: string;
   voiceEngine: "system" | "neural";
   neuralVoice: string;
@@ -618,10 +604,8 @@ export interface AppSettings {
   embedModel: string;
   showMetrics: boolean;
   autoUpdate: boolean;
-  /**
-   * Tokens of conversation before it is folded into notes. Null leaves it to
-   * Draggy, which folds at a share of the window the model is loaded at.
-   */
+  /** Tokens of conversation before it is folded into notes. Null leaves it to Draggy, which folds
+   * at a share of the window the model is loaded at. */
   compactLimit: number | null;
 }
 
@@ -642,10 +626,8 @@ declare global {
         results: SearchResult[];
         provider: string | null;
         tried: string[];
-        /**
-         * "empty" means the web had nothing; "unavailable" means no provider
-         * answered, which is temporary and says nothing about the subject.
-         */
+        /** "empty" means the web had nothing; "unavailable" means no provider answered, which is
+         * temporary and says nothing about the subject. */
         status: "ok" | "empty" | "unavailable";
         cached?: boolean;
       }>;
@@ -914,10 +896,8 @@ declare global {
 
       updater: {
         state: () => Promise<UpdaterState>;
-        /**
-         * Turns background checking and downloading on or off. Sent whenever
-         * the automatic-updates setting changes, and once at startup.
-         */
+        /** Turns background checking and downloading on or off. Sent whenever the automatic-updates
+         * setting changes, and once at startup. */
         configure: (options: { automatic: boolean }) => Promise<UpdaterState>;
         check: (options?: { silent?: boolean }) => Promise<UpdaterState>;
         download: () => Promise<UpdaterState>;

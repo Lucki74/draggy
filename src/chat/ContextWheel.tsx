@@ -30,11 +30,8 @@ const STROKE = 2.5;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-/**
- * How full the context window is, as a ring beside the model picker. Opened,
- * it says what the window is spent on: the conversation, the instructions,
- * the tools, the project's memory, and what is left.
- */
+/** Context use as a ring beside the model picker. Opened, it breaks the window down: conversation,
+ * instructions, tools, memory, and what is left. */
 export default function ContextWheel({ view, t, onCompact, compacting }: ContextWheelProps) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);

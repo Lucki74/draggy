@@ -9,12 +9,8 @@ const fileOperations = require("./fileOps.cjs");
 const checkpoints = require("./checkpoints.cjs");
 const storage = require("./storage.cjs");
 
-/**
- * The file tools wired the way main.cjs wires them: the real database and the
- * real checkpoint store, not the fakes the unit tests use. A mismatch between
- * the SQL and the values bound to it only shows up here, which is exactly how
- * a checkpoint insert with one column missing went unnoticed.
- */
+/** File tools on the real database and checkpoint store, where a mismatch between SQL and bound
+ * values shows up. A checkpoint insert once hid one here. */
 
 let base;
 let root;

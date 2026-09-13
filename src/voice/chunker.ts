@@ -1,19 +1,13 @@
-/**
- * Cuts generated tokens into things worth saying aloud. The first cut is eager,
- * because until it lands the user hears silence; the rest are patient.
- */
+/** Cuts generated tokens into things worth saying aloud. The first cut is eager, because until it
+ * lands the user hears silence; the rest are patient. */
 
-/**
- * A complete sentence is safe at any length: "Yes." should be heard while the
- * rest is still being written. A comma is riskier and needs words behind it.
- */
+/** A complete sentence is safe at any length: "Yes." should be heard while the rest is still being
+ * written. A comma is riskier and needs words behind it. */
 const FIRST_CLAUSE_MIN = 6;
 const FIRST_CHUNK_MAX = 90;
 
-/**
- * Fragments after the first wait for enough text to carry their own rhythm: a
- * synthesiser given whole sentences beats one fed three words at a time.
- */
+/** Fragments after the first wait for enough text to carry their own rhythm: a synthesiser given
+ * whole sentences beats one fed three words at a time. */
 const CHUNK_MIN = 70;
 
 /** Web Speech stalls or truncates on very long utterances, so cap them. */
@@ -22,10 +16,8 @@ const CHUNK_MAX = 220;
 const SENTENCE_END = /[.!?。！？]["'”’)\]]?(\s|$)/;
 const CLAUSE_END = /[,;:—–]["'”’)\]]?\s/;
 
-/**
- * Full stops that are not the end of a sentence. Splitting on these produces
- * "doctor" and "Smith" as separate utterances, with a breath between them.
- */
+/** Full stops that are not the end of a sentence. Splitting on these produces "doctor" and "Smith"
+ * as separate utterances, with a breath between them. */
 const ABBREVIATION =
   /(?:^|\s)(?:[A-Za-z]|mr|mrs|ms|dr|prof|st|vs|etc|e\.g|i\.e|approx|fig|no|inc|ltd|jr|sr|dept|univ|al)\.$/i;
 
@@ -35,10 +27,8 @@ const INLINE_CODE = /`([^`\n]*)`/g;
 const URL = /\bhttps?:\/\/\S+/g;
 const MARKUP = /[*_~#>|]|\p{Extended_Pictographic}|️/gu;
 
-/**
- * Strips everything a synthesiser would either read out as punctuation noise or
- * silently mangle. Link text survives, link targets do not.
- */
+/** Strips everything a synthesiser would either read out as punctuation noise or silently mangle.
+ * Link text survives, link targets do not. */
 export function speakableText(text: string): string {
   return text
     .replace(CODE_FENCE, " ")
@@ -57,10 +47,8 @@ function endsOnAbbreviation(text: string): boolean {
   return ABBREVIATION.test(text) || /\d\.$/.test(text);
 }
 
-/**
- * Finds where to cut, or -1 to keep waiting. `eager` relaxes the rules for the
- * opening fragment.
- */
+/** Finds where to cut, or -1 to keep waiting.
+ * `eager` relaxes the rules for the opening fragment. */
 export function findCut(buffer: string, eager: boolean): number {
   const minimum = eager ? 0 : CHUNK_MIN;
 

@@ -16,12 +16,8 @@ interface CompactLimitFieldProps {
 /** What a limit starts at when the user first turns automatic off. */
 const STARTING_LIMIT = 32_000;
 
-/**
- * When the conversation gets folded into notes. Automatic is a share of the
- * window the model is loaded at; a number is the user's own ceiling, the same
- * one `/compact-limit` sets. The text is only applied once it reads as a count,
- * so typing "2" on the way to "20k" does not fold everything straight away.
- */
+/** When conversations fold: automatic, or the user's own ceiling as `/compact-limit` sets it.
+ * Applied only once the text reads as a count. */
 export default function CompactLimitField({ limit, onChange, t }: CompactLimitFieldProps) {
   const [draft, setDraft] = useState(limit === null ? "" : formatTokenCount(limit));
   const [invalid, setInvalid] = useState(false);

@@ -1,10 +1,7 @@
 import type { MetricRow } from "../types";
 
-/**
- * The statistics page, as arithmetic. Every number the page shows is worked out
- * here from the rows the main process kept, so the page itself only lays them
- * out and this is where they are tested.
- */
+/** The statistics as arithmetic, worked out here from stored rows so the page only lays numbers out
+ * and this is where they are tested. */
 
 export type StatsRange = "7d" | "30d" | "all";
 

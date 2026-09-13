@@ -1,10 +1,8 @@
 import { DUCK_GAIN } from "./voiceEngine";
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
-/**
- * Playback for the neural voice. Fragments are scheduled back to back on the
- * audio clock, so each seam is sample-accurate rather than timer-accurate.
- */
+/** Playback for the neural voice. Fragments are scheduled back to back on the audio clock, so each
+ * seam is sample-accurate rather than timer-accurate. */
 
 const ORT_ASSET_DIR = "ort/";
 const CACHE_HOST = "draggy://models/";

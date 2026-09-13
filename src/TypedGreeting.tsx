@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 
-/**
- * How long each character waits its turn. Slow enough to read as typing
- * rather than a flicker, quick enough not to keep anyone waiting.
- */
+/** How long each character waits its turn. Slow enough to read as typing rather than a flicker,
+ * quick enough not to keep anyone waiting. */
 const CHARACTER_MS = 45;
 
 interface TypedGreetingProps {
@@ -11,10 +9,8 @@ interface TypedGreetingProps {
   className?: string;
 }
 
-/**
- * Types a line out a character at a time. Keyed by the line, so a new greeting
- * restarts it; screen readers are given the whole line at once instead.
- */
+/** Types a line out a character at a time. Keyed by the line, so a new greeting restarts it; screen
+ * readers are given the whole line at once instead. */
 export default function TypedGreeting({ text, className = "" }: TypedGreetingProps) {
   const [shown, setShown] = useState(0);
 

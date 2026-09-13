@@ -1,9 +1,7 @@
 import type { GitChange, GitStatus } from "../types";
 
-/**
- * How git's output is shown: pure, so the strip and the timeline read a diff
- * and a status the same way, and so both can be tested without a repository.
- */
+/** How git's output is shown: pure, so the strip and the timeline read a diff and a status the same
+ * way, and so both can be tested without a repository. */
 
 export type DiffLineKind = "add" | "remove" | "hunk" | "meta" | "context";
 

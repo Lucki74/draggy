@@ -13,12 +13,8 @@ interface ExplorerProps {
   initialPath?: string | null;
 }
 
-/**
- * The files screen. A plain chat has only what Draggy made, which is the
- * gallery it always had; a project has a folder of the user's, which is a tree
- * and a preview. The two are one screen because "where did that file go" is
- * one question either way.
- */
+/** The files screen: a gallery of what Draggy made in a plain chat, a tree and preview in a
+ * project. One screen, since "where did that file go" is one question. */
 export default function Explorer({
   settings,
   workspace,
@@ -67,11 +63,8 @@ function ProjectFiles({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  /**
-   * What was read, and which file it was read from. Carrying the path means the
-   * screen can tell a finished read from a stale one without clearing state on
-   * every selection, which would paint the old file's text under a new name.
-   */
+  /** What was read, and from which file. Carrying the path tells a finished read from a stale one
+   * without clearing state, which would flash old text. */
   const [preview, setPreview] = useState<{
     path: string;
     text: string | null;

@@ -14,11 +14,8 @@ import {
   toggleItem,
 } from "../plan/plan";
 
-/**
- * The plan. What matters is that a small model can write one without getting
- * the format wrong, and that the user can change it underneath without the two
- * of them ending up with different lists.
- */
+/** The plan. What matters is that a small model can write one without getting the format wrong, and
+ * that the user can change it underneath without the two of them ending up with different lists. */
 
 describe("reading what the model wrote", () => {
   it("takes a plain checklist", () => {

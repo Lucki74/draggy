@@ -1,11 +1,8 @@
 import { generateId } from "./utils";
 import type { AppSettings, ChatSession, Workspace } from "./types";
 
-/**
- * A workspace is what a conversation is about: an ordinary chat, or a folder
- * on disk that the model is allowed to work in. Settings live in two layers,
- * the app's and the workspace's, and this is where the two are put together.
- */
+/** A workspace is a plain chat or a folder the model may work in. Settings have two layers, the
+ * app's and the workspace's, combined here. */
 
 /** Matches `DEFAULT_WORKSPACE_ID` in electron/storage.cjs. */
 export const DEFAULT_WORKSPACE_ID = "default";
@@ -65,11 +62,8 @@ export function sessionsIn(
   return sessions.filter((session) => workspaceIdOf(session) === workspaceId);
 }
 
-/**
- * The settings a turn actually runs with. Each override is checked rather than
- * spread: the values come back from JSON in the database, and a workspace has
- * no business changing the theme or the update schedule even if its row says so.
- */
+/** The settings a turn runs with. Overrides are checked, not spread: they come from database JSON,
+ * and a workspace cannot change theme or updates. */
 export function resolveSettings(
   global: AppSettings,
   workspace: Workspace | null | undefined,

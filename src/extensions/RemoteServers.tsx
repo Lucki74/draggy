@@ -22,11 +22,8 @@ const idFrom = (name: string, url: string) => {
   );
 };
 
-/**
- * Servers that are somewhere else. Kept apart from the catalogue on purpose:
- * these are the only extensions that send anything off this machine, and the
- * screen says so rather than leaving it to be discovered.
- */
+/** Remote servers, kept apart from the catalogue because they are the only extensions that send
+ * anything off this machine, and the screen says so. */
 export default function RemoteServers({
   config,
   enabled,

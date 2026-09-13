@@ -5,9 +5,7 @@ import GitStrip from "../project/GitStrip";
 import { translations } from "../translations";
 import type { GitStatus } from "../types";
 
-/**
- * The strip at the foot of a project's file tree.
- */
+/** The strip at the foot of a project's file tree. */
 
 const t = (key: string) => translations.en[key] || key;
 

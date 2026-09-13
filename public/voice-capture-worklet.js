@@ -1,15 +1,5 @@
-/**
- * Microphone capture, on the audio thread.
- *
- * The previous implementation used a ScriptProcessorNode, which runs its
- * callback on the main thread: every React render during a streaming reply
- * competed with audio capture, and dropped frames land exactly where speech
- * begins. A worklet runs on the audio thread and cannot be starved by the UI.
- *
- * Frames leave here at 512 samples because that is the only size Silero VAD
- * accepts at 16 kHz. The render quantum is 128 samples, so four quanta fill
- * one frame exactly and no partial-frame bookkeeping is ever needed.
- */
+/** Mic capture on the audio thread, so UI renders cannot drop frames where speech starts.
+ * 512-sample frames (Silero at 16 kHz) are exactly four 128-sample quanta. */
 
 const FRAME = 512;
 

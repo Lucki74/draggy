@@ -1,10 +1,7 @@
 import { CHARS_PER_TOKEN, COMPACT_AT } from "./compaction";
 
-/**
- * What the context window is spent on. The model only reports one number, the
- * prompt it read; the parts are measured from what Draggy put into that
- * prompt and scaled so they add up to what the model actually counted.
- */
+/** What the context window is spent on. The model reports one number; the parts are measured from
+ * what Draggy sent and scaled to add up to it. */
 
 export type ContextCategory =
   | "messages"
@@ -36,13 +33,8 @@ export const CATEGORY_ORDER: ContextCategory[] = [
 
 const tokensOf = (chars: number) => Math.max(0, Math.ceil(chars / CHARS_PER_TOKEN));
 
-/**
- * Splits a measured token count across the parts of the prompt. The fixed
- * parts are estimated from their length; the conversation is whatever is left,
- * which is the one part that cannot be measured any other way. If the
- * estimates alone overshoot the measurement, they are scaled down together
- * rather than letting the conversation go negative.
- */
+/** Splits a measured count: fixed parts estimated from length, the conversation gets the rest.
+ * Overshooting estimates are scaled down together, never below zero. */
 export function measureBreakdown(
   parts: PromptParts,
   measuredTokens: number,
@@ -133,10 +125,8 @@ export function compactThreshold(
 /** The lowest limit accepted. Below it every turn would be folded away. */
 export const MIN_COMPACT_LIMIT = 1000;
 
-/**
- * The highest limit worth honouring. Past this the reply itself stops fitting,
- * so a limit above it would only move the wall rather than the fold.
- */
+/** The highest limit worth honouring. Past this the reply itself stops fitting, so a limit above it
+ * would only move the wall rather than the fold. */
 export function maxLimitFor(windowTokens: number): number {
   return Math.floor(windowTokens * 0.9);
 }
@@ -182,11 +172,8 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
   };
 }
 
-/**
- * Reads a token count the way people type one: "20000", "20k", "1.5k", "2m".
- * "auto" and "off" mean no limit of the user's own. Anything else is not a
- * count, and says so by coming back undefined.
- */
+/** Reads a typed token count ("20000", "20k", "1.5k", "2m"). "auto" and "off" return null; anything
+ * else returns undefined. */
 export function parseTokenCount(raw: string): number | null | undefined {
   const text = String(raw || "").trim().toLowerCase().replace(/[,_\s]/g, "");
 

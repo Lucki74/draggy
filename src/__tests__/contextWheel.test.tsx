@@ -6,9 +6,7 @@ import { formatPercent, toneFor } from "../chat/contextView";
 import { describeContextWindow, measureBreakdown } from "../agent/contextBreakdown";
 import { translations } from "../translations";
 
-/**
- * The wheel beside the model picker, and the breakdown behind it.
- */
+/** The wheel beside the model picker, and the breakdown behind it. */
 
 const t = (key: string) => translations.en[key] || key;
 

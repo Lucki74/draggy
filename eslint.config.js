@@ -19,9 +19,8 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
-  // The main process and the build scripts. Without a block of their own these
-  // are parsed and then left alone: no rules run, and `require`, `process` and
-  // `__dirname` read as undefined globals.
+  // The main process and the build scripts. Without a block of their own these are parsed and then
+  // left alone: no rules run, and `require`, `process` and `__dirname` read as undefined globals.
   {
     files: ['electron/**/*.cjs', 'scripts/**/*.mjs', '*.config.js'],
     extends: [js.configs.recommended],

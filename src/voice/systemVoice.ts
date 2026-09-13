@@ -1,9 +1,7 @@
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
-/**
- * The system voice: free, instant, every installed language, and the default.
- * Chromium stalls it after fifteen seconds and truncates long utterances.
- */
+/** The system voice: free, instant, every installed language, and the default. Chromium stalls it
+ * after fifteen seconds and truncates long utterances. */
 
 const VOICE_LANGUAGES: Record<string, string> = {
   en: "en-US",

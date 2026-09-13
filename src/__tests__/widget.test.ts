@@ -7,10 +7,8 @@ import {
   widgetCaller,
 } from "../chat/widget";
 
-/**
- * What a widget is allowed to ask the app for. The frame it runs in is built
- * in the main process; this is the other half, the door it can knock on.
- */
+/** What a widget is allowed to ask the app for. The frame it runs in is built in the main process;
+ * this is the other half, the door it can knock on. */
 
 describe("what a widget may ask for", () => {
   it("reads a resize", () => {

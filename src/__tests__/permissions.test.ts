@@ -8,11 +8,8 @@ import {
 import type { Grant, ToolAnnotations } from "../agent/permissions";
 import type { PermissionMode } from "../types";
 
-/**
- * The gate every tool call goes through. These tests are the specification:
- * anything that can reach the user's files or the outside world has to be
- * either explicitly safe, already allowed, or asked about.
- */
+/** The gate every tool call passes. Anything reaching files or the outside world must be explicitly
+ * safe, already allowed, or asked about. */
 
 const MODES: PermissionMode[] = ["plan", "ask", "acceptEdits", "auto"];
 

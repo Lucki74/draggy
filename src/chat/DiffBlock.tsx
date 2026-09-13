@@ -23,11 +23,8 @@ const MARKS: Record<DiffLine["kind"], string> = {
   context: " ",
 };
 
-/**
- * What an edit did, in the shape every developer already reads. The whole file
- * is never shown: the point of the block is that the change is small enough to
- * check at a glance, and anything that is not can be opened.
- */
+/** What an edit did, in the usual diff shape. Never the whole file: the change should be checkable
+ * at a glance, and larger ones can be opened. */
 export default function DiffBlock({ before, after, t }: DiffBlockProps) {
   const diff = useMemo(() => diffLines(before, after), [before, after]);
   const [open, setOpen] = useState(false);

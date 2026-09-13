@@ -49,16 +49,12 @@ const MODEL_CACHE_ORIGIN = "https://huggingface.co";
 /** What the app calls itself: window titles, the taskbar, the data folder. */
 const APP_NAME = "Draggy";
 
-/**
- * Names it answered to before. Both spellings are tried because only the
- * case-sensitive platforms care and an extra `existsSync` costs nothing.
- */
+/** Names it answered to before. Both spellings are tried because only the case-sensitive platforms
+ * care and an extra `existsSync` costs nothing. */
 const LEGACY_APP_NAMES = ["localai", "LocalAI"];
 
-/**
- * Takes over the old folder once, before the logger and database create files
- * in the new one. Returns what happened, for the log to pick up later.
- */
+/** Takes over the old folder once, before the logger and database create files in the new one.
+ * Returns what happened, for the log to pick up later. */
 function adoptLegacyDataFolder() {
   const parent = app.getPath("appData");
   const to = app.getPath("userData");
@@ -285,10 +281,8 @@ function cleanUserAgent(webContents) {
   return webContents.userAgent.replace(/Electron\/[0-9.]+ /g, "");
 }
 
-/**
- * The session every external page loads in. Off `defaultSession` so our own CSP
- * is not forced onto other people's sites, which left the browser in wreckage.
- */
+/** The session every external page loads in. Off `defaultSession` so our own CSP is not forced onto
+ * other people's sites, which left the browser in wreckage. */
 const WEB_PARTITION = "persist:draggy-web";
 
 let webSessionHooked = false;
@@ -309,10 +303,8 @@ function getWebSession() {
   return ses;
 }
 
-/**
- * Whether the ad blocker is on, for every web session at once. Persisted in the
- * renderer's store so the choice survives a restart.
- */
+/** Whether the ad blocker is on, for every web session at once. Persisted in the renderer's store
+ * so the choice survives a restart. */
 const ADBLOCK_KEY = "adblockEnabled";
 
 function adblockEnabled() {
@@ -365,16 +357,12 @@ function isBotChallengePage(state) {
   );
 }
 
-/**
- * The browser the user gets on a link. Two views: our toolbar on
- * `defaultSession`, and the page below in the shared web session.
- */
+/** The browser the user gets on a link. Two views: our toolbar on `defaultSession`, and the page
+ * below in the shared web session. */
 const TOOLBAR_HEIGHT = 48;
 
-/**
- * How far the toolbar grows for an open menu. A view clips to its own bounds,
- * so a menu below a 48px bar is cut off and the page covers what is left.
- */
+/** How far the toolbar grows for an open menu. A view clips to its own bounds, so a menu below a
+ * 48px bar is cut off and the page covers what is left. */
 const TOOLBAR_MENU_HEIGHT = 260;
 
 /** Every open browser window, so the toolbars can be told what changed. */
@@ -572,10 +560,8 @@ ipcMain.handle("browser-bar-action", (event, action, value) => {
   return { success: true };
 });
 
-/**
- * What the user typed in the address bar. Anything not obviously a URL is a
- * search: "how tall is everest" should not become a failed DNS lookup.
- */
+/** What the user typed in the address bar. Anything not obviously a URL is a search: "how tall is
+ * everest" should not become a failed DNS lookup. */
 function normaliseTypedUrl(raw) {
   const value = raw.trim();
   if (!value) return null;
@@ -825,10 +811,8 @@ app.whenReady().then(() => {
   });
 });
 
-/**
- * Everything Draggy started, stopped on the way out. One step failing must not
- * skip the rest, so each is on its own.
- */
+/** Everything Draggy started, stopped on the way out. One step failing must not skip the rest, so
+ * each is on its own. */
 function shutdown() {
   const steps = [
     ["browsers", closeBrowserWindows],
@@ -863,11 +847,8 @@ function stopOllama() {
   platform.killTreeSync(child);
 }
 
-/**
- * Every model Draggy has had Ollama load. An Ollama Draggy did not start is
- * left running on quit, but these are unloaded from it: kept warm for half an
- * hour otherwise, each one a llama-server holding memory for nobody.
- */
+/** Models Draggy had Ollama load. Unloaded on quit even when Ollama stays up, or each holds memory
+ * for half an hour for nobody. */
 const modelsInUse = new Set();
 
 ipcMain.on("model-in-use", (_event, name) => {
@@ -1429,10 +1410,8 @@ const resolveOllamaLauncher = platform.resolveOllamaLauncher;
 
 let isStartingOllama = false;
 
-/**
- * Ollama, only when Draggy was the one that started it. An instance that was
- * already up belongs to whoever started it and is left alone on quit.
- */
+/** Ollama, only when Draggy was the one that started it. An instance that was already up belongs to
+ * whoever started it and is left alone on quit. */
 let ollamaStartedHere = null;
 
 ipcMain.handle("start-ollama", async () => {
@@ -1887,11 +1866,8 @@ const wrap = (scope, handler) => async (...args) => {
   }
 };
 
-/**
- * The folders a conversation may reach: the ones its workspace was given, and
- * nothing else. The renderer names a workspace rather than a folder, so it
- * cannot widen its own reach by asking for one it was never granted.
- */
+/** The folders a conversation may reach: its workspace's and nothing else. The renderer names a
+ * workspace, so it cannot ask for a folder it was never given. */
 function rootsFor(workspaceId) {
   const workspace = storage.getWorkspace(workspaceId);
   return workspace && workspace.rootPath ? [workspace.rootPath] : [];
@@ -1912,11 +1888,8 @@ ipcMain.handle("fs:read", wrap("fs", async (event, workspaceId, target) =>
   fileOps.read(workspaceId, target),
 ));
 
-/**
- * Says a file moved under somebody's feet. The canvas listens so that an edit
- * the model just made appears in the editor the user is looking at, rather
- * than being discovered later by reopening the file.
- */
+/** Announces a changed file, so the canvas shows the model's edit as it lands instead of on the
+ * next reopen. */
 function announceChange(workspaceId, result) {
   if (!result?.success || !result.path) return result;
 
@@ -2141,10 +2114,8 @@ ipcMain.on("api-server:failed", (event, id, message) => {
 
 const git = gitTools.createGit();
 
-/**
- * Git for a workspace's folder, read-only. The renderer names a workspace, not
- * a folder, for the same reason the file handlers do.
- */
+/** Git for a workspace's folder, read-only. The renderer names a workspace, not a folder, for the
+ * same reason the file handlers do. */
 ipcMain.handle("git:status", wrap("git", async (event, workspaceId) => {
   const root = rootsFor(String(workspaceId || ""))[0];
   if (!root) return { success: true, available: false, isRepo: false };
@@ -2366,10 +2337,8 @@ ipcMain.handle("app:version", () => ({
 }));
 
 
-/**
- * MCP servers, configured per server in the usual store. Credentials go there
- * too: the same local SQLite file, and the same protection the chats get.
- */
+/** MCP servers, configured per server in the usual store. Credentials go there too: the same local
+ * SQLite file, and the same protection the chats get. */
 const MCP_CONFIG_KEY = "mcpServers";
 
 function mcpConfig() {
@@ -2391,11 +2360,8 @@ ipcMain.handle("mcp:catalogue", () => ({
   servers: mcpCatalogue.listCatalogue(),
 }));
 
-/**
- * Credentials written before there was anywhere safe to put them. Moved into
- * the encrypted store on first launch and taken out of the database, which is
- * an ordinary file that backups and support bundles both copy.
- */
+/** Credentials saved before the encrypted store existed. Moved there on first launch, since the
+ * database is a file backups and support bundles copy. */
 function adoptStoredCredentials() {
   try {
     const config = mcpConfig();
@@ -2442,11 +2408,8 @@ function saveEnabledByWorkspace(record) {
   storage.setValue(MCP_ENABLED_KEY, JSON.stringify(record));
 }
 
-/**
- * What a workspace has switched on. A project that needs the ticket system
- * should not turn it on for the conversation about dinner, so the list belongs
- * to the workspace rather than to the app.
- */
+/** What a workspace has switched on. The list is per workspace, so a project's ticket system stays
+ * out of the chat about dinner. */
 function enabledFor(workspaceId) {
   const record = enabledByWorkspace();
   const ids = record[String(workspaceId)];
@@ -2530,9 +2493,8 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
     return { success: false, error: `There is no server called "${id}".` };
   }
 
-  // A remote server is the one thing here that leaves the machine, so the
-  // address has to be one that cannot be read on the way: https, or this
-  // computer itself.
+  // A remote server is the one thing here that leaves the machine, so the address has to be one
+  // that cannot be read on the way: https, or this computer itself.
   if (url && !/^https:\/\//i.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)/i.test(url)) {
     return {
       success: false,
@@ -2611,10 +2573,8 @@ ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) =
   });
 }));
 
-/**
- * Starts what the user switched on, once the window is up. A ten-second npx
- * install should not hold the splash screen, and no tool is needed yet.
- */
+/** Starts what the user switched on, once the window is up. A ten-second npx install should not
+ * hold the splash screen, and no tool is needed yet. */
 ipcMain.handle("mcp:start-enabled", wrap("mcp", async (event, workspaceId) => {
   const config = mcpConfig();
   const states = [];

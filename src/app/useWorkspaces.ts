@@ -24,11 +24,8 @@ export interface WorkspaceStore {
   addGrant: (grant: Grant) => void;
 }
 
-/**
- * The workspaces the app knows about and which one is in front. The list lives
- * in the database; which one was last open is a local preference, so it is
- * read synchronously and the window opens where it was left.
- */
+/** The known workspaces and the one in front. The list is in the database; the last open one is a
+ * local preference, read synchronously to reopen there. */
 export function useWorkspaces(): WorkspaceStore {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([fallbackWorkspace()]);
   const [activeId, setActiveId] = useState<string>(

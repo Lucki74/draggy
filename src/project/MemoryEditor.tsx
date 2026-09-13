@@ -9,11 +9,8 @@ interface MemoryEditorProps {
   onClose: () => void;
 }
 
-/**
- * The project's instruction file, edited in place. It is an ordinary file in
- * the folder, so this is a convenience rather than the only way in: anybody can
- * open AGENTS.md in their own editor and Draggy will read it the same.
- */
+/** Edits AGENTS.md in place. A convenience only: it is an ordinary file, and any editor works just
+ * as well. */
 export default function MemoryEditor({
   path,
   initial,

@@ -4,11 +4,8 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import DiffBlock from "../chat/DiffBlock";
 import { translations } from "../translations";
 
-/**
- * The diff as the user meets it in the timeline. What matters is that the
- * changed lines are visible without opening anything, and that a big change
- * does not push the whole reply off the screen.
- */
+/** The diff in the timeline: changed lines visible without opening anything, and a big change never
+ * pushes the reply off the screen. */
 
 const t = (key: string) => translations.en[key] || key;
 

@@ -13,12 +13,8 @@ interface GitStripProps {
   onOpenFile: (path: string) => void;
 }
 
-/**
- * Where the project's repository stands, at the foot of the file tree: the
- * branch, how far it is from its upstream, and what changed. Opened, it lists
- * the changed files, each with its diff a click away. Committing stays in the
- * user's own git; there is deliberately no button for it here.
- */
+/** The repository at the foot of the tree: branch, upstream distance, changed files with diffs.
+ * Deliberately no commit button; that stays in the user's git. */
 export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: GitStripProps) {
   const [open, setOpen] = useState(false);
   const [diffFor, setDiffFor] = useState<string | null>(null);

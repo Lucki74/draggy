@@ -6,11 +6,8 @@ const { log } = require("./logger.cjs");
 
 const SCHEMA_VERSION = 4;
 
-/**
- * The workspace every chat belongs to until it is put somewhere else. It is a
- * real row rather than a null: one place for the settings that used to be
- * global, and nothing downstream has to special-case "no workspace".
- */
+/** The workspace chats belong to until moved. A real row, not null, so former global settings have
+ * a home and nothing special-cases "no workspace". */
 const DEFAULT_WORKSPACE_ID = "default";
 
 let db = null;
@@ -183,9 +180,8 @@ function isUsable(database) {
 }
 
 function salvage(damagedPath, fresh) {
-  // Chats are rescued without their workspace: the damaged database may predate
-  // the column, and an insert that names it would fail for every chat rather
-  // than for the one thing worth losing. They land in the default workspace.
+  // Rescued chats skip the workspace column, which a damaged database may predate; naming it would
+  // fail every insert. They land in the default workspace.
   const tables = [
     [
       "workspaces",
@@ -325,10 +321,8 @@ function hasLegacyMessageTable() {
   return columns.length > 0 && !columns.some((column) => column.name === "row_id");
 }
 
-/**
- * Adds a column to an existing database, once. Kept out of `migrate()`: a
- * column every version can ignore needs no schema version of its own.
- */
+/** Adds a column to an existing database, once. Kept out of `migrate()`: a column every version can
+ * ignore needs no schema version of its own. */
 function ensureColumn(table, name, definition) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (columns.some((column) => column.name === name)) return false;
@@ -406,11 +400,8 @@ function migrate() {
   }
 }
 
-/**
- * The default workspace, and any chat that has never been in one. Runs on
- * every launch: it is two statements, and it is what stands between a database
- * written by 1.x and a window that shows no conversations at all.
- */
+/** Ensures the default workspace and adopts chats that never had one. Runs every launch, since it
+ * is what lets a 1.x database show its conversations. */
 function ensureDefaultWorkspace() {
   try {
     const now = Date.now();
@@ -436,11 +427,8 @@ function ensureDefaultWorkspace() {
   }
 }
 
-/**
- * JSON written by an older or a newer version, so nothing in it is assumed. An
- * unreadable override is the global setting, and an unreadable list of
- * permissions is no permissions, which is the safe way to be wrong.
- */
+/** JSON from another version, so nothing is assumed: an unreadable override means the global
+ * setting, unreadable permissions mean none. */
 function parseJson(value, fallback) {
   if (!value) return fallback;
 
@@ -533,11 +521,8 @@ function saveWorkspace(workspace) {
   return { success: true, workspace: rowToWorkspace(row) };
 }
 
-/**
- * Removing a workspace keeps its conversations: they move back to the default
- * one. Deleting someone's chats because they closed a project would be a
- * surprise, and the folder on disk is never touched either way.
- */
+/** Removing a workspace moves its chats to the default one. Closing a project should never delete
+ * conversations, and the folder is never touched. */
 function deleteWorkspace(id) {
   if (id === DEFAULT_WORKSPACE_ID) {
     return { success: false, error: "The default workspace cannot be removed." };
@@ -552,10 +537,8 @@ function deleteWorkspace(id) {
   return { success: true, moved: moved.changes };
 }
 
-/**
- * A file Draggy changed, and what it looked like before. The row is the record;
- * the bytes live in the checkpoint store next to the attachment blobs.
- */
+/** A file Draggy changed, and what it looked like before. The row is the record; the bytes live in
+ * the checkpoint store next to the attachment blobs. */
 function addCheckpoint(entry) {
   const result = db
     .prepare(
@@ -902,10 +885,8 @@ const measure = (value) => {
 const MAX_TOOLS_PER_TURN = 50;
 const MAX_TOOL_NAME = 120;
 
-/**
- * One finished turn, for the statistics page. Everything here stays on this
- * machine; the table exists only so the user can see how their models perform.
- */
+/** One finished turn, for the statistics page. Everything here stays on this machine; the table
+ * exists only so the user can see how their models perform. */
 function recordMetric(row) {
   if (!row || typeof row !== "object") return { success: false };
 

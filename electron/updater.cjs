@@ -1,9 +1,7 @@
 const { log } = require("./logger.cjs");
 
-/**
- * Checks after launch and every few hours, downloads in the background, installs
- * on quit. The first check is late: launch already competes for the network.
- */
+/** Checks after launch and every few hours, downloads in the background, installs on quit. The
+ * first check is late: launch already competes for the network. */
 
 /** How long after launch the first check runs. */
 const FIRST_CHECK_MS = 20_000;
@@ -102,10 +100,8 @@ function schedule() {
   intervalTimer.unref?.();
 }
 
-/**
- * Turns automatic updating on or off. Called by the renderer whenever the
- * setting changes, and once at startup with whatever it was left on.
- */
+/** Turns automatic updating on or off. Called by the renderer whenever the setting changes, and
+ * once at startup with whatever it was left on. */
 function configure({ automatic: wanted } = {}) {
   automatic = Boolean(wanted);
 

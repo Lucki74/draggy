@@ -1,12 +1,5 @@
-/**
- * Talking to an MCP server that is not a program on this machine but a URL.
- * The transport is Streamable HTTP: one POST per JSON-RPC message, with the
- * answer arriving either as JSON or as a short server-sent event stream.
- *
- * This is the one part of Draggy that leaves the machine on purpose, so it is
- * never started on its own: a remote server runs only when the user turns it
- * on, and the interface says where it goes.
- */
+/** Streamable HTTP to a remote MCP server: one POST per message, answered as JSON or a short SSE
+ * stream. Never started unless the user turns it on. */
 
 const PROTOCOL_VERSION = "2025-06-18";
 
@@ -17,11 +10,8 @@ function isEventStream(response) {
   return (response.headers.get("content-type") || "").includes("text/event-stream");
 }
 
-/**
- * Pulls JSON-RPC messages out of an event stream. A server may send progress
- * notifications before the answer, so everything is read and the message with
- * the matching id is the one that counts.
- */
+/** Pulls JSON-RPC messages out of an event stream. A server may send progress notifications before
+ * the answer, so everything is read and the message with the matching id is the one that counts. */
 async function readEventStream(response) {
   const messages = [];
   const reader = response.body?.getReader();
@@ -55,12 +45,8 @@ async function readEventStream(response) {
   return messages;
 }
 
-/**
- * @param options.url        where the server answers
- * @param options.fetchImpl  injected for the tests
- * @param options.getToken   the bearer token, when the server wants one
- * @param options.onUnauthorized  called once on a 401, to refresh and retry
- */
+/** options: url of the server, fetchImpl for tests, getToken for a bearer token, onUnauthorized
+ * called once on a 401 to refresh and retry. */
 function createHttpTransport(options) {
   const {
     url,

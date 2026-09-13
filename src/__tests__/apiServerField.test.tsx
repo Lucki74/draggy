@@ -5,9 +5,7 @@ import ApiServerField from "../settings/ApiServerField";
 import { translations } from "../translations";
 import type { ApiServerStatus } from "../types";
 
-/**
- * The switch for the local API, and what it shows once it is on.
- */
+/** The switch for the local API, and what it shows once it is on. */
 
 const t = (key: string) => translations.en[key] || key;
 

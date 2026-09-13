@@ -20,10 +20,8 @@ const write = (dir, name, body) => {
 /** A folder as the app itself would leave it. */
 const withData = (dir, body = "every chat ever") => write(dir, MARKER, body);
 
-/**
- * A folder as Electron leaves it before the app has stored anything: the
- * profile scaffolding is there, but none of the app's own data.
- */
+/** A folder as Electron leaves it before the app has stored anything: the profile scaffolding is
+ * there, but none of the app's own data. */
 const scaffolded = (dir) => {
   write(dir, "Preferences", "{}");
   write(dir, "Local State", "{}");

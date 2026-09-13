@@ -5,11 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const require = createRequire(import.meta.url);
 const api = require("./apiServer.cjs");
 
-/**
- * The one port Draggy opens. Most of this is about who is turned away, and a
- * real server is started for it, because a check that only passes on paper
- * would be the worst kind here.
- */
+/** The one port Draggy opens. Most of this is about who is turned away, and a real server is
+ * started for it, because a check that only passes on paper would be the worst kind here. */
 
 const KEY = "draggy-test-key-0123456789";
 

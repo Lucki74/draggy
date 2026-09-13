@@ -21,9 +21,8 @@ function sourceFiles() {
 
 describe("no console window ever appears", () => {
   it("starts every child process through the hidden helpers", () => {
-    // A packaged Draggy is a GUI binary with no console, so a console program
-    // started without the flag gets a new window and flashes it at the user.
-    // taskkill was doing exactly that every time a code run was killed.
+    // A GUI app starting a console program without the flag flashes a new window; taskkill did that
+    // on every killed code run.
     const offenders = [];
 
     for (const file of sourceFiles()) {

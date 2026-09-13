@@ -2,15 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-/**
- * What a file looked like before Draggy touched it. Every write the model makes
- * copies the old bytes in here first, so "undo that" is always available and
- * does not depend on the folder being a git repository.
- *
- * Content addressed, like the attachment store next to it: editing the same
- * file ten times keeps ten rows and as many blobs as there were distinct
- * versions, which is usually fewer.
- */
+/** Old file bytes, kept before every model write so undo never depends on git. Content addressed,
+ * so ten edits keep only the distinct versions. */
 
 let storeDir = null;
 
@@ -24,11 +17,8 @@ function blobPath(hash) {
   return path.join(storeDir, hash.slice(0, 2), hash);
 }
 
-/**
- * Puts content in the store and hands back the name it is filed under. Bytes
- * rather than text: a checkpoint of an image has to come back as that image,
- * and text that went through a utf8 round trip would not.
- */
+/** Stores content and returns its name. Bytes, not text,
+ * so an image comes back as the same image. */
 function keep(contents) {
   const bytes = Buffer.isBuffer(contents)
     ? contents
@@ -56,11 +46,8 @@ function read(hash) {
   }
 }
 
-/**
- * The state of a file before a change. A file that is not there yet gets a null
- * hash, which is how a revert knows to remove what was created rather than to
- * write something back.
- */
+/** The state of a file before a change. A file that is not there yet gets a null hash, which is how
+ * a revert knows to remove what was created rather than to write something back. */
 function snapshot(file) {
   try {
     const stats = fs.statSync(file);

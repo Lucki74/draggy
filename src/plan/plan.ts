@@ -1,11 +1,5 @@
-/**
- * The plan a turn is working through. The model writes it with one tool call
- * and rewrites it as it goes; the user can edit it while that happens, which is
- * the difference between a plan and a progress bar.
- *
- * It is one string on the wire, marked the way a person would write a checklist,
- * because a small local model produces that far more reliably than nested JSON.
- */
+/** A turn's plan: one checklist string the model rewrites and the user can edit mid-run. A
+ * checklist, since small models write that far better than nested JSON. */
 
 export type PlanStatus = "todo" | "doing" | "done";
 
@@ -31,11 +25,8 @@ function statusOf(mark: string): PlanStatus {
   return "todo";
 }
 
-/**
- * Reads a checklist the model wrote. Anything that looks like a list item
- * counts, marked or not, because a model that forgets the brackets still meant
- * to write a step.
- */
+/** Reads a checklist the model wrote. Anything that looks like a list item counts, marked or not,
+ * because a model that forgets the brackets still meant to write a step. */
 export function parsePlan(text: string): PlanItem[] {
   const lines = String(text || "")
     .split("\n")

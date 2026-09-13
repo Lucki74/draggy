@@ -3,11 +3,8 @@ const fs = require("fs/promises");
 const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const { log } = require("./logger.cjs");
 
-/**
- * Ad and tracker blocking: Ghostery's engine, uBlock Origin's lists. A
- * hand-written blocklist cannot express per-site exceptions, so it broke
- * players and layouts.
- */
+/** Ad and tracker blocking: Ghostery's engine, uBlock Origin's lists. A hand-written blocklist
+ * cannot express per-site exceptions, so it broke players and layouts. */
 
 const GHOSTERY =
   "https://raw.githubusercontent.com/ghostery/adblocker/master/packages/adblocker/assets";
@@ -19,10 +16,8 @@ const LOCAL_PREFIX = "draggy-filters:";
 
 const EASYLIST_DOWNLOADS = "https://easylist-downloads.adblockplus.org";
 
-/**
- * uBO's default subscriptions, plus AdGuard's, OISD, and the list that defuses
- * adblock walls. uBO's own filters carry the YouTube ad rules.
- */
+/** uBO's default subscriptions, plus AdGuard's, OISD, and the list that defuses adblock walls.
+ * uBO's own filters carry the YouTube ad rules. */
 const FILTER_LISTS = [
   `${GHOSTERY}/easylist/easylist.txt`,
   `${GHOSTERY}/peter-lowe/serverlist.txt`,
@@ -58,10 +53,8 @@ const FILTER_LISTS = [
   `${LOCAL_PREFIX}draggy-extra.txt`,
 ];
 
-/**
- * Lets a bundled file sit alongside the remote ones. The engine builder only
- * knows how to fetch, so the local supplement is returned as a response.
- */
+/** Lets a bundled file sit alongside the remote ones. The engine builder only knows how to fetch,
+ * so the local supplement is returned as a response. */
 async function fetchList(url, init) {
   if (typeof url === "string" && url.startsWith(LOCAL_PREFIX)) {
     const name = path.basename(url.slice(LOCAL_PREFIX.length));
@@ -71,22 +64,16 @@ async function fetchList(url, init) {
   return fetch(url, init);
 }
 
-/**
- * The name carries a version: a cached engine is a compiled copy of the list
- * set. Changing lists without changing this would serve old rules forever.
- */
+/** The name carries a version: a cached engine is a compiled copy of the list set. Changing lists
+ * without changing this would serve old rules forever. */
 const ENGINE_FILE = "adblock-engine-v3.bin";
 
-/**
- * One engine for the whole app, shared by every session that blocks. It is a
- * few megabytes of compiled filters, and parsing it twice would buy nothing.
- */
+/** One engine for the whole app, shared by every session that blocks. It is a few megabytes of
+ * compiled filters, and parsing it twice would buy nothing. */
 let enginePromise = null;
 
-/**
- * Compiles the filter lists, or reads back the cache. Failing is not fatal: an
- * offline machine should still get a browser that loads pages.
- */
+/** Compiles the filter lists, or reads back the cache. Failing is not fatal: an offline machine
+ * should still get a browser that loads pages. */
 function loadEngine(userDataPath) {
   if (enginePromise) return enginePromise;
 
@@ -105,10 +92,8 @@ function loadEngine(userDataPath) {
   return enginePromise;
 }
 
-/**
- * Starts compiling without waiting, at start-up, so the first window that
- * wants blocking is not the one paying for the download.
- */
+/** Starts compiling without waiting, at start-up, so the first window that wants blocking is not
+ * the one paying for the download. */
 function primeAdblocker(userDataPath) {
   void loadEngine(userDataPath);
 }

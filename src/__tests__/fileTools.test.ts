@@ -9,12 +9,8 @@ import {
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import type { SearchStep } from "../types";
 
-/**
- * The file tools as the model meets them. What is allowed lives in the main
- * process; what these check is that a call carries the workspace with it, that
- * a refusal comes back as something a model can read, and that every change is
- * offered back to the user with a way to undo it.
- */
+/** File tools as the model meets them: calls carry the workspace, refusals come back readable, and
+ * every change is offered back with an undo. */
 
 const WITH_FOLDER: ToolEnvironment = {
   webMode: "auto",

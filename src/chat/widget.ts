@@ -1,9 +1,5 @@
-/**
- * MCP Apps, renderer side: what a widget may ask the app for, and what the app
- * is willing to do about it. The frame itself is set up in the main process
- * (see electron/widgets.cjs), because the isolation that matters is an origin
- * of its own rather than an attribute on the element.
- */
+/** MCP Apps, renderer side: what a widget may ask for and what the app will do. The frame's
+ * isolation is set up in electron/widgets.cjs. */
 
 /** What a widget may ask the app to do. Anything else is dropped. */
 export type WidgetRequest =
@@ -26,13 +22,8 @@ export interface WidgetToolResult {
   error?: string;
 }
 
-/**
- * Builds the one thing a widget can reach outside itself. Two rules: the tool
- * has to belong to the server that sent the widget, and it has to be one the
- * server itself marked read-only. A widget is markup Draggy did not write and
- * the user did not ask for, so it does not get to delete anything on the
- * strength of its own say-so.
- */
+/** A widget's only way out: tools on the server that sent it, and only ones marked read-only, since
+ * nobody asked for this markup to change anything. */
 export function widgetCaller(
   serverId: string,
   call: (
@@ -71,11 +62,8 @@ export function widgetCaller(
   };
 }
 
-/**
- * Whether a message really came from this frame. Without the check, any page
- * or worker that can reach the window could pretend to be the widget and ask
- * for a tool call.
- */
+/** Whether a message really came from this frame. Without the check, any page or worker that can
+ * reach the window could pretend to be the widget and ask for a tool call. */
 export function isFromFrame(
   event: MessageEvent,
   frame: HTMLIFrameElement | null,

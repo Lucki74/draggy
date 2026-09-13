@@ -19,11 +19,8 @@ const RANGES: { id: StatsRange; label: string }[] = [
 /** How many tools the usage list shows before it stops. */
 const TOP_TOOLS = 12;
 
-/**
- * How the user's models have been doing: speed by model, which tools get used,
- * and how long a task takes from sending to done. Counted from turns kept in
- * the local database, shown nowhere else, and gone when the user clears them.
- */
+/** How the user's models have done: speed by model, tool use, time per task. From turns kept
+ * locally, shown nowhere else, and clearable. */
 export default function StatsPanel({ t }: StatsPanelProps) {
   const [range, setRange] = useState<StatsRange>("30d");
   const [loaded, setLoaded] = useState<{ range: StatsRange; rows: MetricRow[] } | null>(null);

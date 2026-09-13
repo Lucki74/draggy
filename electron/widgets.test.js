@@ -4,11 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const widgets = require("./widgets.cjs");
 
-/**
- * The wall around an extension's widget. The markup came from somebody else's
- * server, so what matters is the policy it is served under, the origin it is
- * served from, and the fact that nothing else on disk is reachable through it.
- */
+/** The wall around an extension's widget: the policy it is served under, the origin it gets, and
+ * that nothing else on disk is reachable through it. */
 
 afterEach(() => widgets.forgetAll());
 

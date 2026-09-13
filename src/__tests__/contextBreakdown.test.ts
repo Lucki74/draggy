@@ -14,10 +14,8 @@ import { SLASH_COMMANDS, matchSlashCommands, parseSlashArgument } from "../chat/
 import { settleSession } from "../storage";
 import type { ChatSession, Message } from "../types";
 
-/**
- * The context view. The model reports one number; everything here is about
- * turning that into something the user can act on without it lying.
- */
+/** The context view. The model reports one number; everything here is about turning that into
+ * something the user can act on without it lying. */
 
 const PARTS = {
   systemChars: 4000, // 1000 tokens

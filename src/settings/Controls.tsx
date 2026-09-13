@@ -1,7 +1,5 @@
-/**
- * The small pieces every settings panel is built from, in their own file so a
- * panel can move out of SettingsPage without dragging copies with it.
- */
+/** The small pieces every settings panel is built from, in their own file so a panel can move out
+ * of SettingsPage without dragging copies with it. */
 
 export function Section({
   title,

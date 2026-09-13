@@ -3,10 +3,8 @@ import { safeJsonParse } from "./utils";
 
 export const OLLAMA_HOST = "http://127.0.0.1:11434";
 
-/**
- * How long Ollama keeps a model resident. Here rather than in the chat loop
- * because compaction needs it too and cannot import the loop that imports it.
- */
+/** How long Ollama keeps a model resident. Here rather than in the chat loop because compaction
+ * needs it too and cannot import the loop that imports it. */
 export const KEEP_ALIVE = "30m";
 
 export const FALLBACK_CONTEXT_LENGTH = 8192;
@@ -47,19 +45,15 @@ export interface InstalledModel {
   size: number;
   parameterSize: string;
   family: string;
-  /**
-   * What Ollama says this model can do. Empty when the server could not be
-   * asked, which every reader treats as "no information" rather than "no".
-   */
+  /** What Ollama says this model can do. Empty when the server could not be asked, which every
+   * reader treats as "no information" rather than "no". */
   capabilities: string[];
 }
 
 const modelInfoCache = new Map<string, Promise<ModelInfo | null>>();
 
-/**
- * How long to wait for Ollama to describe a model, so a silent server cannot
- * hold the splash screen open. Timing out reads as "unknown", not as "no".
- */
+/** How long to wait for Ollama to describe a model, so a silent server cannot hold the splash
+ * screen open. Timing out reads as "unknown", not as "no". */
 const MODEL_INFO_TIMEOUT_MS = 5000;
 
 async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
@@ -100,11 +94,8 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
   }
 }
 
-/**
- * What a model could do the last time Draggy asked, kept in the database. The
- * probe is what decides how tools are called, so a launch where Ollama is slow
- * to answer would otherwise drop a capable model into text mode for a turn.
- */
+/** A model's capabilities from the last probe, kept in the database, so a slow Ollama at launch
+ * does not drop a capable model into text mode. */
 const CAPABILITY_KEY = "modelCapabilities";
 
 let rememberedCapabilities: Record<string, string[]> | null = null;
@@ -196,10 +187,8 @@ export function pickContextSize(
   return cap;
 }
 
-/**
- * The window each model is loaded at. Changing `num_ctx` reloads the weights,
- * three to six seconds, so it is decided once per model and only ever grows.
- */
+/** The window each model is loaded at. Changing `num_ctx` reloads the weights, three to six
+ * seconds, so it is decided once per model and only ever grows. */
 const loadedContextSizes = new Map<string, number>();
 
 export function contextSizeFor(
@@ -254,10 +243,8 @@ export function isCloudModel(name: string): boolean {
   return tag === "cloud" || tag.endsWith("-cloud");
 }
 
-/**
- * Which Ollama is running. Only the first launch asks, to find out whether the
- * MLX builds it is about to recommend on a Mac can actually be run.
- */
+/** Which Ollama is running. Only the first launch asks, to find out whether the MLX builds it is
+ * about to recommend on a Mac can actually be run. */
 export async function getOllamaVersion(): Promise<string | null> {
   try {
     const res = await fetch(`${OLLAMA_HOST}/api/version`);
@@ -335,11 +322,8 @@ export async function gpuShareFor(model: string): Promise<number | null> {
 /** "qwen3" and "qwen3:latest" are the same model to Ollama. */
 const withTag = (name: string) => (name.includes(":") ? name : `${name}:latest`);
 
-/**
- * Whether the model is in memory at this window already. Ollama reloads for
- * any other, and a load is the long silence before the first token. Null when
- * Ollama could not say.
- */
+/** Whether the model is in memory at this window already. Ollama reloads for any other, and a load
+ * is the long silence before the first token. Null when Ollama could not say. */
 export async function isLoadedAt(
   model: string,
   numCtx: number,
@@ -424,16 +408,12 @@ export function mergeMetrics(
   };
 }
 
-/**
- * What the prompt and tool catalogue add to a turn: 5.4 to 8.5 KB, so this is
- * the middle. Guessing low costs one reload; guessing high spills to the CPU.
- */
+/** What the prompt and tool catalogue add to a turn: 5.4 to 8.5 KB, so this is the middle. Guessing
+ * low costs one reload; guessing high spills to the CPU. */
 const SYSTEM_PROMPT_CHARS = 6000;
 
-/**
- * Loads the weights ahead of a turn, at the size that turn will ask for.
- * Warming without `charEstimate` did not merely waste time: it forced a reload.
- */
+/** Loads the weights ahead of a turn, at the size that turn will ask for. Warming without
+ * `charEstimate` did not merely waste time: it forced a reload. */
 export async function warmModel(
   name: string,
   keepAlive: string,
@@ -505,16 +485,12 @@ export async function readNdjsonStream(
 
 const PULL_PROGRESS_INTERVAL_MS = 100;
 
-/**
- * What a pull is doing, whatever wording Ollama uses. The lines say "pulling
- * a3de86cd1c13", so matching on "downloading" left the bar at nought forever.
- */
+/** What a pull is doing, whatever wording Ollama uses. The lines say "pulling a3de86cd1c13", so
+ * matching on "downloading" left the bar at nought forever. */
 export type PullPhase = "preparing" | "downloading" | "verifying" | "done";
 
-/**
- * The translation key each phase is shown as, so every screen that downloads a
- * model words it the same way and none of them show a digest.
- */
+/** The translation key each phase is shown as, so every screen that downloads a model words it the
+ * same way and none of them show a digest. */
 export const PULL_PHASE_KEYS: Record<PullPhase, string> = {
   preparing: "preparingDownload",
   downloading: "downloadingModel",
@@ -550,10 +526,8 @@ function phaseFromStatus(status: string, current: PullPhase): PullPhase {
   return current;
 }
 
-/**
- * One figure for the whole download. Each line describes one layer, so they are
- * summed by digest; lines with no byte counts must leave the totals alone.
- */
+/** One figure for the whole download. Each line describes one layer, so they are summed by digest;
+ * lines with no byte counts must leave the totals alone. */
 export function createPullTracker(): (
   line: Record<string, unknown>,
 ) => PullProgress {

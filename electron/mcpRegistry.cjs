@@ -3,15 +3,8 @@ const path = require("path");
 const { log } = require("./logger.cjs");
 const catalogue = require("./mcpCatalogue.cjs");
 
-/**
- * Finding servers Draggy does not ship. The catalogue is still what the app
- * opens with, because it works with no network at all and every entry in it was
- * checked by hand; the registry is what the user reaches for when they want
- * something that is not in it.
- *
- * Nothing here runs on its own. A search happens because somebody typed one,
- * which is the only reason this file is allowed to touch the network.
- */
+/** Finding servers Draggy does not ship. The hand-checked catalogue still opens first; the registry
+ * is searched only when someone types a search. */
 
 const REGISTRY_URL = "https://registry.modelcontextprotocol.io/v0/servers";
 
@@ -59,11 +52,8 @@ function idFor(name) {
   );
 }
 
-/**
- * One registry entry as Draggy describes a server: either a package it can
- * install, or an address it can call. Anything it could do neither with is
- * dropped rather than shown as something that will fail when switched on.
- */
+/** A registry entry as something installable or callable. Anything that is neither is dropped
+ * rather than shown and failing when switched on. */
 function toEntry(server) {
   const npm = (server?.packages || []).find(
     (one) => (one.registry_name || one.registryType) === "npm",
@@ -103,11 +93,8 @@ function parseServers(payload) {
     .filter((entry) => !catalogue.findEntry(entry.id));
 }
 
-/**
- * Searches the registry, or hands back the last answer when there is no
- * network. The cache is per query, so a second look at the same search costs
- * nothing and works on a train.
- */
+/** Searches the registry, or hands back the last answer when there is no network. The cache is per
+ * query, so a second look at the same search costs nothing and works on a train. */
 async function search(query, { fetchImpl = fetch, now = Date.now() } = {}) {
   const term = String(query || "").trim();
   const cache = readCache();

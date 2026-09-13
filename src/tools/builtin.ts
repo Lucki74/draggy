@@ -7,10 +7,8 @@ const webEnabled = (environment: { webMode: string }) => environment.webMode !==
 
 const PAGE_LINE_LIMIT = 500;
 
-/**
- * How many empty searches before searching is switched off for the turn. A
- * model that gets one empty answer rewords the same question indefinitely.
- */
+/** How many empty searches before searching is switched off for the turn. A model that gets one
+ * empty answer rewords the same question indefinitely. */
 const SEARCH_FAILURE_BUDGET = 3;
 
 const SEARCH_MEMO = "search:asked";

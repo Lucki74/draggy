@@ -3,12 +3,8 @@ import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, MessageVersion } from "../types";
 import type { Grant } from "../agent/permissions";
 
-/**
- * Turns belong to a conversation, not to whatever is on screen. These are the
- * properties the surfaces in 2.0 rely on: two chats can generate at once, a
- * turn survives the user looking elsewhere, and stopping one leaves the other
- * alone.
- */
+/** Turns belong to conversations, not the screen: two chats can generate at once, a turn survives
+ * looking away, and stopping one spares the other. */
 
 const pending = vi.hoisted(() => {
   const turns: {

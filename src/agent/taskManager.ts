@@ -26,11 +26,8 @@ import type {
   TurnMetrics,
 } from "../types";
 
-/**
- * Running turns, keyed by conversation. Pulled out of the component so a run
- * belongs to a chat rather than to whatever is on screen: a turn keeps going
- * when the user looks at something else, and more than one can be in flight.
- */
+/** Running turns, keyed by conversation, so a turn belongs to its chat rather than the screen: it
+ * keeps going elsewhere, and several can run at once. */
 
 /** What the manager needs from the app around it. No React in here. */
 export interface TaskHost {
@@ -66,11 +63,8 @@ export interface RunOptions {
   isRetry?: boolean;
   /** Carry on where a reply that ran out of room stopped. */
   isContinuation?: boolean;
-  /**
-   * Let a fold already under way finish first. True when the turn only adds to
-   * the conversation; a turn that rewrites history cancels the fold instead,
-   * since the notes would describe messages that are no longer there.
-   */
+  /** Let a running fold finish first. Only for turns that add to the conversation; a turn that
+   * rewrites history cancels it, or the notes would be wrong. */
   waitForFold?: boolean;
 }
 
@@ -114,10 +108,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let host = initialHost;
 
   const runs = new Map<string, AbortController>();
-  /**
-   * Folds in flight. `started` flips once there is actually something being
-   * folded, which is when a turn waiting on it has anything worth saying.
-   */
+  /** Folds in flight. `started` flips once there is actually something being folded, which is when
+   * a turn waiting on it has anything worth saying. */
   interface Fold {
     controller: AbortController;
     done: Promise<CompactOutcome>;
@@ -127,11 +119,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   const folds = new Map<string, Fold>();
   const listeners = new Set<(running: string[]) => void>();
 
-  /**
-   * Calls waiting on the user. A turn is parked inside `runAgentTurn` until one
-   * of these is answered, so stopping a conversation has to answer them too or
-   * the turn never ends.
-   */
+  /** Calls waiting on the user. A turn is parked inside `runAgentTurn` until one of these is
+   * answered, so stopping a conversation has to answer them too or the turn never ends. */
   const waiting = new Map<
     string,
     { chatId: string; answer: (answer: ApprovalAnswer) => void }
@@ -153,10 +142,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     }
   }
 
-  /**
-   * Cached rather than rebuilt per call: this is what a subscriber compares
-   * against, and a fresh array every time reads as a change that never settles.
-   */
+  /** Cached rather than rebuilt per call: this is what a subscriber compares against, and a fresh
+   * array every time reads as a change that never settles. */
   let snapshot: string[] = [];
 
   const running = () => snapshot;
@@ -190,10 +177,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     }));
   }
 
-  /**
-   * Characters the conversation may occupy before an automatic fold. The
-   * user's limit when there is one, otherwise a share of the loaded window.
-   */
+  /** Characters the conversation may occupy before an automatic fold. The user's limit when there
+   * is one, otherwise a share of the loaded window. */
   async function budgetFor(model: string, numCtx: number): Promise<number> {
     const limit = host.getSettings().compactLimit ?? null;
 
@@ -205,12 +190,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     return compactThreshold(windowTokens, numCtx, limit).tokens * CHARS_PER_TOKEN;
   }
 
-  /**
-   * Folds the older conversation into notes. On its own this happens in the
-   * idle gap after a turn, paid while the user reads; `manual` is the user
-   * asking for it now. A marker under the last reply says it is happening, and
-   * stays once it is done.
-   */
+  /** Folds older conversation into notes, in the idle gap after a turn or now when `manual`. A
+   * marker under the last reply shows it running, then stays. */
   function compactChat(chatId: string, manual: boolean): Promise<CompactOutcome> {
     const inFlight = folds.get(chatId);
     if (inFlight) return inFlight.done;
@@ -383,10 +364,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const seed = options.isContinuation ? seedFor(contextMessages) : null;
 
     try {
-      // A turn that only adds to the conversation lets the fold finish: it
-      // takes seconds, the turn gets the smaller prompt, and the model is not
-      // asked to do both at once. Until then the reply says what it waits on,
-      // rather than claiming the model is warming up.
+      // An appending turn waits for the fold: it takes seconds and shrinks the prompt. Meanwhile
+      // the reply says it is compacting, not that the model is warming up.
       if (pendingFold && options.waitForFold) {
         if (pendingFold.started) {
           host.patchActiveMessage(chatId, {

@@ -23,10 +23,8 @@ import type { TalkPlan } from "./talkModel";
 import type { Detector, DetectorKind } from "./vad";
 import type { VoiceEngine, VoiceEngineId } from "./voiceEngine";
 
-/**
- * The conversation, arranged around the gap between falling silent and hearing
- * a reply. Every stage overlaps the one before; this file is only the wiring.
- */
+/** The conversation, arranged around the gap between falling silent and hearing a reply. Every
+ * stage overlaps the one before; this file is only the wiring. */
 
 export type Stage = "idle" | "starting" | "live" | "failed";
 
@@ -82,10 +80,8 @@ export interface ConversationConfig {
   neuralVoice: string;
   rate: number;
   searchEnabled: boolean;
-  /**
-   * Cancels the preparation. Leaving voice mode mid-download must stop the
-   * download and release the microphone, not carry both on in the background.
-   */
+  /** Cancels the preparation. Leaving voice mode mid-download must stop the download and release
+   * the microphone, not carry both on in the background. */
   signal?: AbortSignal;
 }
 
@@ -167,16 +163,12 @@ export async function openConversation(
   let counter = 0;
   let level = 0;
 
-  /**
-   * Which turn the microphone is working on. A transcription that lands after
-   * this changes belongs to a turn nobody is waiting for any more.
-   */
+  /** Which turn the microphone is working on. A transcription that lands after this changes belongs
+   * to a turn nobody is waiting for any more. */
   let listening = 0;
 
-  /**
-   * The answer being generated, held by identity: a barge-in that turns out to
-   * be "mhm" leaves it alone, and generation carries on rather than restarting.
-   */
+  /** The answer being generated, held by identity: a barge-in that turns out to be "mhm" leaves it
+   * alone, and generation carries on rather than restarting. */
   let answer: Answer | null = null;
 
   let speaking = false;
@@ -298,10 +290,8 @@ export async function openConversation(
         : turn.text,
     }));
 
-  /**
-   * Ends the answer in flight. Whatever was already said is kept, so the model
-   * can see what the user actually heard before they interrupted.
-   */
+  /** Ends the answer in flight. Whatever was already said is kept, so the model can see what the
+   * user actually heard before they interrupted. */
   const abandon = (interrupted: boolean) => {
     const current = answer;
     if (!current) return;

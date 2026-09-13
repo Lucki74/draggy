@@ -9,12 +9,8 @@ const require = createRequire(import.meta.url);
 const gitTools = require("./git.cjs");
 const fsGuard = require("./fsGuard.cjs");
 
-/**
- * Git, read-only and defensive. The parser is tested on git's own output
- * format; the rest runs against a real git in throwaway repositories, because
- * the thing that matters most here, that a hostile repository cannot make
- * Draggy run its programs, is only proven by trying.
- */
+/** The parser runs on git's own format; the rest uses real throwaway repos, since only trying
+ * proves a hostile repo cannot run programs. */
 
 const NUL = "\0";
 

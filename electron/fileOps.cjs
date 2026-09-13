@@ -2,12 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const fsGuard = require("./fsGuard.cjs");
 
-/**
- * What the file tools actually do, with everything they depend on handed in:
- * where the folders are, where the old versions go, and how a file gets thrown
- * away. Kept out of main.cjs so the part that can lose someone's work can be
- * tested without an Electron window.
- */
+/** The file tools, with roots, checkpoints and trash handed in, so the code that could lose
+ * someone's work is testable without Electron. */
 
 /** Generated, vendored or someone else's. A search walks past all of these. */
 const SKIPPED_DIRS = new Set([
@@ -63,12 +59,8 @@ function describeEntry(dirPath, entry) {
   };
 }
 
-/**
- * @param deps.roots      which folders a workspace may reach
- * @param deps.storage    the checkpoint rows
- * @param deps.checkpoints the store the old bytes go in
- * @param deps.trash      how a file is thrown away, recoverably
- */
+/** deps: roots a workspace may reach, checkpoint rows in storage, the checkpoint byte store, and a
+ * recoverable trash. */
 function create({ roots, storage, checkpoints, trash }) {
   const resolve = (workspaceId, requested, options) =>
     fsGuard.resolveWithin(roots(workspaceId), requested, options);
@@ -319,10 +311,8 @@ function create({ roots, storage, checkpoints, trash }) {
     return { success: true, hits, truncated: visited >= MAX_SEARCH_FILES };
   }
 
-  /**
-   * Undoing one change. The path goes back through the guard on the way: the
-   * row may be old, and the folder it names may not be in scope any more.
-   */
+  /** Undoing one change. The path goes back through the guard on the way: the row may be old, and
+   * the folder it names may not be in scope any more. */
   async function revert(id) {
     const entry = storage.getCheckpoint(id);
     if (!entry) return failed("There is no such change to undo.");

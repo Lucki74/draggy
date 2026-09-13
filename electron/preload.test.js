@@ -5,10 +5,8 @@ import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 
-/**
- * Loads the preload with a stub `electron` and hands back the API it exposes
- * along with the channel listeners it registered.
- */
+/** Loads the preload with a stub `electron` and hands back the API it exposes along with the
+ * channel listeners it registered. */
 function loadPreload() {
   const listeners = new Map();
 

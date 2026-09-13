@@ -10,11 +10,8 @@ import {
 } from "../project/memory";
 import type { ProjectScan } from "../project/memory";
 
-/**
- * The project's own instructions. The rule the tests hold to: the closest file
- * to the work wins, nothing is invented for a project that did not say it, and
- * a folder with no file at all costs nothing.
- */
+/** Project instructions: the closest file wins, nothing is invented for a project that said
+ * nothing, and no file costs nothing. */
 
 const ROOT = "C:\\projects\\thing";
 

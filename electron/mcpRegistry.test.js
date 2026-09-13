@@ -7,11 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const require = createRequire(import.meta.url);
 const registry = require("./mcpRegistry.cjs");
 
-/**
- * Looking for servers Draggy does not ship. Two rules hold everything here
- * together: nothing reaches the network unless somebody searched, and a search
- * that cannot reach it still answers with whatever it knew.
- */
+/** Registry search: nothing touches the network unless someone searched, and a search offline still
+ * answers with what it knew. */
 
 let workdir;
 

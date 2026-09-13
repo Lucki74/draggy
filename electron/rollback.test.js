@@ -6,13 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 
-/**
- * Going back. Someone who installs 2.0 and then reinstalls 1.2.7 opens a
- * database that 2.0 has written to: new tables, new columns, a higher schema
- * version. 1.2.7 must open it and keep working, even if it cannot see what
- * 2.0 added. The storage module here is 1.2.7's own, byte for byte, checked in
- * under fixtures so the test does not depend on git history.
- */
+/** Downgrading: 1.2.7 must keep working on a database 2.0 wrote. The storage module is 1.2.7's own,
+ * checked in so the test needs no git history. */
 
 const current = require("./storage.cjs");
 const legacy = require("./fixtures/v1.2.7/storage.cjs");

@@ -1,9 +1,7 @@
 import { vi } from "vitest";
 
-/**
- * A stand-in for the preload bridge. Component tests need the whole surface to
- * exist, and only ever care about two or three calls of it.
- */
+/** A stand-in for the preload bridge. Component tests need the whole surface to exist, and only
+ * ever care about two or three calls of it. */
 
 type Listener<T> = (value: T) => void;
 
@@ -37,10 +35,8 @@ export interface FakeApi {
   created: { filename: string; content: string }[];
 }
 
-/**
- * Anything not spelled out below answers with an empty result rather than
- * throwing, so a component can call the parts of the bridge it likes.
- */
+/** Anything not spelled out below answers with an empty result rather than throwing, so a component
+ * can call the parts of the bridge it likes. */
 function stub(): unknown {
   return new Proxy(() => {}, {
     get: (_target, key) => {

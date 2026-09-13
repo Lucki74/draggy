@@ -5,9 +5,7 @@ import StatsPanel from "../stats/StatsPanel";
 import { translations } from "../translations";
 import type { MetricRow } from "../types";
 
-/**
- * The statistics page as the user meets it.
- */
+/** The statistics page as the user meets it. */
 
 const t = (key: string) => translations.en[key] || key;
 

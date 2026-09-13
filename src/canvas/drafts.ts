@@ -1,24 +1,13 @@
-/**
- * The canvas: one file from the project, open beside the conversation, that
- * both the user and the model can change. This module is the bookkeeping for
- * the one hard part, which is two authors touching the same text.
- *
- * The editor is a textarea on purpose. CodeMirror 6 was the alternative, and
- * it would have added a few hundred kilobytes to an app whose whole pitch is
- * running on the user's own machine, for highlighting the timeline already
- * does elsewhere. A textarea types, pastes, undoes and scrolls, which is what
- * editing a file beside a chat needs.
- */
+/** Canvas bookkeeping for two authors editing one text. The editor is a textarea on purpose:
+ * CodeMirror would add hundreds of kilobytes for little gain. */
 
 export interface CanvasState {
   /** What is on disk, as far as the canvas last knew. */
   saved: string;
   /** What is in the editor. Differs from `saved` while there are changes. */
   draft: string;
-  /**
-   * What landed on disk while the user had changes of their own. Kept aside
-   * rather than applied, so neither author's work is silently thrown away.
-   */
+  /** What landed on disk while the user had changes of their own. Kept aside rather than applied,
+   * so neither author's work is silently thrown away. */
   conflict: string | null;
 }
 
@@ -30,11 +19,8 @@ export function isDirty(state: CanvasState): boolean {
   return state.draft !== state.saved;
 }
 
-/**
- * Something rewrote the file: usually the model, sometimes another program.
- * With nothing unsaved the editor simply follows; with unsaved changes the new
- * text waits for the user to choose.
- */
+/** Something rewrote the file: usually the model, sometimes another program. With nothing unsaved
+ * the editor simply follows; with unsaved changes the new text waits for the user to choose. */
 export function onDiskChange(state: CanvasState, text: string): CanvasState {
   if (text === state.saved && state.conflict === null) return state;
   if (text === state.draft) return { saved: text, draft: text, conflict: null };
@@ -48,10 +34,8 @@ export function takeTheirs(state: CanvasState): CanvasState {
   return state.conflict === null ? state : openState(state.conflict);
 }
 
-/**
- * Keeps the user's changes. The disk version becomes the base they are
- * measured against, so the next save is what overwrites it, knowingly.
- */
+/** Keeps the user's changes. The disk version becomes the base they are measured against, so the
+ * next save is what overwrites it, knowingly. */
 export function keepMine(state: CanvasState): CanvasState {
   if (state.conflict === null) return state;
   return { saved: state.conflict, draft: state.draft, conflict: null };
@@ -78,10 +62,8 @@ export interface FileChange {
   from?: string;
 }
 
-/**
- * What a change on disk means for the file the canvas has open: nothing, a
- * new version of it, or the same file under a new name.
- */
+/** What a change on disk means for the file the canvas has open: nothing, a new version of it, or
+ * the same file under a new name. */
 export function readChange(
   open: { workspaceId: string; path: string },
   change: FileChange,

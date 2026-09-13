@@ -5,11 +5,8 @@ import AppFrame from "../chat/AppFrame";
 import { MAX_WIDGET_HEIGHT } from "../chat/widget";
 import { translations } from "../translations";
 
-/**
- * The widget as it appears in a reply. Nothing about it is put into this
- * document: the markup goes to the main process and comes back as an address,
- * which is the whole point of the arrangement.
- */
+/** The widget as it appears in a reply. Nothing about it is put into this document: the markup goes
+ * to the main process and comes back as an address, which is the whole point of the arrangement. */
 
 const t = (key: string) => translations.en[key] || key;
 

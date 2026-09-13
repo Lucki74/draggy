@@ -7,11 +7,8 @@ import { resetRegistry, runTool } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import type { SearchStep } from "../types";
 
-/**
- * A step reads as something happening while it happens and as something done
- * once it is: "Reading notes.md", then "Read notes.md". A timeline that still
- * says "Searching" after the search came back looks stuck.
- */
+/** Steps read "Reading notes.md" while running and "Read notes.md" when done; a timeline still
+ * saying "Searching" afterwards looks stuck. */
 
 const EVERYTHING: ToolEnvironment = {
   webMode: "on",

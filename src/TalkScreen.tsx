@@ -34,10 +34,8 @@ import type {
 } from "./voice/conversation";
 import type { AppSettings } from "./types";
 
-/**
- * Voice mode, in three shapes and never more than one: a set-up panel, a
- * progress bar, and the conversation. Everything else sits at the bottom edge.
- */
+/** Voice mode, in three shapes and never more than one: a set-up panel, a progress bar, and the
+ * conversation. Everything else sits at the bottom edge. */
 
 interface TalkScreenProps {
   settings: AppSettings;
@@ -65,10 +63,8 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
   const talkRef = useRef<Conversation | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Preparation can take a minute and the user may leave mid-way. The token
-   * says whether the session that opens is still the one anyone asked for.
-   */
+  /** Preparation can take a minute and the user may leave mid-way. The token says whether the
+   * session that opens is still the one anyone asked for. */
   const attemptRef = useRef(0);
   const cancelRef = useRef<AbortController | null>(null);
 

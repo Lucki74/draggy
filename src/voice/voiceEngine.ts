@@ -1,19 +1,15 @@
 export type VoiceEngineId = "system" | "neural";
 
-/**
- * A voice the assistant can speak with. Each engine owns its own queue, so it
- * can overlap generating the next fragment with playing the current one.
- */
+/** A voice the assistant can speak with. Each engine owns its own queue, so it can overlap
+ * generating the next fragment with playing the current one. */
 export interface VoiceEngine {
   id: VoiceEngineId;
   /** Queue a fragment. Fragments are spoken in the order they arrive. */
   enqueue: (text: string) => void;
   /** Silence immediately and drop anything queued. */
   cancel: () => void;
-  /**
-   * Lower the volume without stopping. Used the moment the user starts talking,
-   * before it is known whether they meant to interrupt.
-   */
+  /** Lower the volume without stopping. Used the moment the user starts talking, before it is known
+   * whether they meant to interrupt. */
   duck: (active: boolean) => void;
   dispose: () => void;
 }

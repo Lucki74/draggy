@@ -8,10 +8,8 @@ import { SETTINGS_KEY } from "./storage";
 import { safeJsonParse } from "./utils";
 import type { AppSettings } from "./types";
 
-/**
- * The browser toolbar is its own window, not the app. Rendering it through
- * `App` would start the session store and updater for three buttons.
- */
+/** The browser toolbar is its own window, not the app. Rendering it through `App` would start the
+ * session store and updater for three buttons. */
 const isBrowserBar = window.location.search.includes("browserbar=true");
 
 function savedSettings(): Partial<AppSettings> {

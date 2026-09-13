@@ -3,10 +3,8 @@ import { answerApiRequest, nextDelta, pickModel } from "../api/answer";
 import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { ApiCompletionRequest, AppSettings } from "../types";
 
-/**
- * A request from the local API, answered by the chat's own loop. What these
- * pin down is what an outside caller is and is not trusted with.
- */
+/** A request from the local API, answered by the chat's own loop. What these pin down is what an
+ * outside caller is and is not trusted with. */
 
 const settings = {
   webMode: "auto",

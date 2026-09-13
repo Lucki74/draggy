@@ -1,9 +1,7 @@
 import { SAMPLE_RATE } from "./constants";
 
-/**
- * The microphone side of a conversation: raw frames, a level for the UI, and a
- * mute that takes effect on the audio thread rather than several frames later.
- */
+/** The microphone side of a conversation: raw frames, a level for the UI, and a mute that takes
+ * effect on the audio thread rather than several frames later. */
 
 const WORKLET_URL = "voice-capture-worklet.js";
 const WORKLET_NAME = "voice-capture";

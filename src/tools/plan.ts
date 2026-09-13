@@ -2,11 +2,8 @@ import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { parsePlan, planSummary, renderPlan } from "../plan/plan";
 
-/**
- * The plan tool. One string, one call: the model sends the whole checklist
- * every time rather than patching a list it cannot see, which is the only
- * shape a small local model gets right reliably.
- */
+/** The plan tool: the whole checklist in one string every call, the only shape small local models
+ * get right reliably. */
 
 const updatePlan: ToolSpec = {
   name: "update_plan",

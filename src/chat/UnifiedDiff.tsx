@@ -9,10 +9,8 @@ const LINE_CLASS: Record<DiffLineKind, string> = {
   context: "text-[var(--text-main)]",
 };
 
-/**
- * A diff as git printed it, coloured line by line. Used where the text comes
- * from git rather than from a before and after Draggy holds itself.
- */
+/** A diff as git printed it, coloured line by line. Used where the text comes from git rather than
+ * from a before and after Draggy holds itself. */
 export default function UnifiedDiff({ diff, maxHeight = 360 }: { diff: string; maxHeight?: number }) {
   const lines = classifyDiff(diff);
 

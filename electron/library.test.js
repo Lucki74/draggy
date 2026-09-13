@@ -250,10 +250,8 @@ describe("storing vectors as SQLite blobs", () => {
 });
 
 describe("ranking retrieved passages", () => {
-  /**
-   * The shape the index holds: vectors end to end in one buffer, ids alongside.
-   * Passage text is not in it, and is fetched for the few being returned.
-   */
+  /** The shape the index holds: vectors end to end in one buffer, ids alongside. Passage text is
+   * not in it, and is fetched for the few being returned. */
   function matrix(vectors, ids, sources = null) {
     const dim = vectors[0].length;
     const data = new Float32Array(vectors.length * dim);
