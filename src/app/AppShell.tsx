@@ -9,7 +9,6 @@ import {
   FolderPlus,
   Check,
   Loader2,
-  MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -42,14 +41,30 @@ import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
 import { useAgentRuns } from "./useAgentRuns";
 import { useUpdateDialog } from "./useUpdateDialog";
-import { useWorkspaces } from "./useWorkspaces";
+import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
+import ModeSwitch from "./ModeSwitch";
+import CodeHome from "./CodeHome";
+import {
+  LAST_PROJECT_KEY,
+  MODE_KEY,
+  initialMode,
+  isProject,
+  modeOf,
+  projectsOf,
+  runningInMode,
+  workspaceForMode,
+  workspaceOfChat,
+} from "./modes";
+import type { AppMode } from "./modes";
 import {
   DEFAULT_WORKSPACE_ID,
+  fallbackWorkspace,
   isDefault,
   resolveSettings,
   sessionsIn,
   workspaceLabel,
 } from "../workspaces";
+import { writeLocalStorage } from "../utils";
 import type { AppSettings } from "../types";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
@@ -91,7 +106,24 @@ export default function AppShell({
   const update = useUpdateDialog();
   const workspaces = useWorkspaces();
 
-  const active = workspaces.active;
+  const [mode, setMode] = useState<AppMode>(() =>
+    initialMode(localStorage.getItem(MODE_KEY), localStorage.getItem(ACTIVE_WORKSPACE_KEY)),
+  );
+  const projects = projectsOf(workspaces.workspaces);
+  const defaultWorkspace =
+    workspaces.workspaces.find((one) => isDefault(one)) ?? fallbackWorkspace();
+
+  // The mode decides which side a workspace is shown on: a project never appears in Chat, and
+  // Code with no project open shows its own home rather than a plain chat.
+  const codeHome = mode === "code" && !isProject(workspaces.active);
+  const active =
+    mode === "code"
+      ? codeHome
+        ? defaultWorkspace
+        : workspaces.active
+      : isProject(workspaces.active)
+        ? defaultWorkspace
+        : workspaces.active;
 
   const canvasPath = canvas && canvas.workspaceId === active.id ? canvas.path : null;
   const gitStatus = useGitStatus(active.id, active.rootPath ?? null);
@@ -337,23 +369,67 @@ export default function AppShell({
     setSelectedChatId(null);
   }, [runs, store]);
 
+  const enterMode = useCallback((next: AppMode) => {
+    setMode(next);
+    writeLocalStorage(MODE_KEY, next);
+  }, []);
+
   const handleSelectWorkspace = useCallback(
     (id: string) => {
       workspaces.select(id);
+      const workspace = workspaces.workspaces.find((one) => one.id === id);
+      if (isProject(workspace)) writeLocalStorage(LAST_PROJECT_KEY, id);
+      enterMode(modeOf(workspace));
       // Its own most recent conversation, rather than one from somewhere else.
       setSelectedChatId(null);
       setViewMode("chat");
     },
-    [workspaces],
+    [workspaces, enterMode],
+  );
+
+  const handleSwitchMode = useCallback(
+    (next: AppMode) => {
+      enterMode(next);
+      const target = workspaceForMode(
+        next,
+        workspaces.workspaces,
+        localStorage.getItem(LAST_PROJECT_KEY),
+      );
+      if (target) workspaces.select(target);
+      setSelectedChatId(null);
+      setViewMode("chat");
+    },
+    [workspaces, enterMode],
   );
 
   const handleNewProject = useCallback(async () => {
     const created = await workspaces.addProject();
     if (!created) return;
 
+    writeLocalStorage(LAST_PROJECT_KEY, created.id);
+    enterMode("code");
     setSelectedChatId(null);
     setViewMode("chat");
-  }, [workspaces]);
+  }, [workspaces, enterMode]);
+
+  /** Opens a conversation wherever it lives, switching workspace and mode first. Opening it from
+   * the wrong workspace showed an empty chat under its id. */
+  const openChat = useCallback(
+    (id: string) => {
+      const workspaceId = workspaceOfChat(store.sessions, id);
+      const workspace = workspaces.workspaces.find((one) => one.id === workspaceId);
+
+      if (workspace && workspace.id !== workspaces.active.id) {
+        workspaces.select(workspace.id);
+        if (isProject(workspace)) writeLocalStorage(LAST_PROJECT_KEY, workspace.id);
+      }
+      if (workspace) enterMode(modeOf(workspace));
+
+      setSelectedChatId(id);
+      setViewMode("chat");
+    },
+    [store.sessions, workspaces, enterMode],
+  );
 
   const handleRemoveWorkspace = useCallback(
     async (event: React.MouseEvent, id: string) => {
@@ -412,6 +488,7 @@ export default function AppShell({
   );
 
   const currentSession = visibleSessions.find((s) => s.id === currentChatId);
+  const runningHere = runningInMode(runs.running, store.sessions, workspaces.workspaces, mode);
   const hasPlan = Boolean(currentSession?.plan && currentSession.plan.length > 0);
 
   return (
@@ -472,7 +549,7 @@ export default function AppShell({
       {finishedChatId && (
         <button
           onClick={() => {
-            selectChat(finishedChatId);
+            openChat(finishedChatId);
             setFinishedChatId(null);
           }}
           className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] px-4 py-3 shadow-lg"
@@ -512,37 +589,46 @@ export default function AppShell({
         <div className="w-[260px] h-full flex flex-col flex-shrink-0 relative">
           <div className="pt-2 drag-region h-6 flex-shrink-0 w-full" />
 
+          {/* Chat and Code are separate places; the switch sits first, above everything they differ in. */}
+          <div className="px-[6px] group-hover:px-[14px] pt-1 no-drag transition-all">
+            <div className="w-[56px] group-hover:w-[232px] transition-all">
+              <ModeSwitch mode={mode} onChange={handleSwitchMode} t={t} />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-3 px-[14px] py-3 mt-0 no-drag">
-            <button onClick={handleNewChat} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+            <button onClick={codeHome ? handleNewProject : handleNewChat} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <Plus className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
               <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("newDiscussion")}
+                {mode === "code" ? t("newSession") : t("newDiscussion")}
               </span>
             </button>
 
             <button onClick={() => setViewMode("history")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <MessageSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
               <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("chatHistory")}
+                {mode === "code" ? t("sessions") : t("chatHistory")}
               </span>
             </button>
 
             <button onClick={() => setViewMode("files")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <FolderOpen className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
               <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("createdFiles")}
+                {mode === "code" ? t("projectFiles") : t("createdFiles")}
               </span>
             </button>
 
-            <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
-              <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("talk")}
-              </span>
-              <span className="ml-2 px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("beta")}
-              </span>
-            </button>
+            {mode === "chat" && (
+              <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
+                <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+                <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  {t("talk")}
+                </span>
+                <span className="ml-2 px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  {t("beta")}
+                </span>
+              </button>
+            )}
 
             <button onClick={() => openSettings("appearance")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <Settings className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
@@ -552,102 +638,110 @@ export default function AppShell({
             </button>
           </div>
 
-          <div
-            className="mt-2 flex flex-col gap-1 px-[14px] py-3 no-drag border-t-[3px] overflow-y-auto"
-            style={{ borderColor: "var(--border-light)" }}
-          >
-            <span className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-              {t("workspaces")}
-            </span>
-
-            {workspaces.workspaces.map((one) => (
-              <div
-                key={one.id}
-                className={
-                  one.id === active.id
-                    ? "flex items-center w-full rounded-lg bg-[var(--hover-bg)]"
-                    : "flex items-center w-full rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
-                }
-              >
-                <button
-                  onClick={() => handleSelectWorkspace(one.id)}
-                  title={one.rootPath || undefined}
-                  aria-current={one.id === active.id}
-                  className="flex items-center flex-1 min-w-0 p-2 overflow-hidden"
-                >
-                  {isDefault(one) ? (
-                    <MessagesSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-                  ) : (
-                    <Folder className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-                  )}
-                  <span className="ml-4 font-bold tracking-wider text-sm truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                    {workspaceLabel(one, t)}
-                  </span>
-                </button>
-
-                {!isDefault(one) && (
-                  <button
-                    onClick={(event) => handleRemoveWorkspace(event, one.id)}
-                    aria-label={t("removeProject")}
-                    title={t("removeProject")}
-                    className="mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-4 h-4 text-[var(--text-muted)]" />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {runs.running.length > 0 && (
-              <div
-                className="mt-2 flex flex-col gap-1 border-t-[3px] pt-2"
-                style={{ borderColor: "var(--border-light)" }}
-              >
-                <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  {t("working")}
-                </span>
-
-                {runs.running.map((id) => {
-                  const session = store.sessions.find((one) => one.id === id);
-
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => selectChat(id)}
-                      title={session?.title || t("newDiscussion")}
-                      className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
-                    >
-                      <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin text-[var(--text-muted)]" />
-                      <span className="ml-4 text-xs font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                        {session?.title || t("newDiscussion")}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <button
-              onClick={handleNewProject}
-              className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
+          {(mode === "code" || runningHere.length > 0) && (
+            <div
+              className="mt-2 flex flex-col gap-1 px-[14px] py-3 no-drag border-t-[3px] overflow-y-auto"
+              style={{ borderColor: "var(--border-light)" }}
             >
-              <FolderPlus className="w-6 h-6 flex-shrink-0 text-[var(--text-muted)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("newProject")}
-              </span>
-            </button>
-          </div>
+              {mode === "code" && (
+                <>
+                  <span className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    {t("projects")}
+                  </span>
+
+                  {projects.map((one) => (
+                    <div
+                      key={one.id}
+                      className={
+                        one.id === active.id && !codeHome
+                          ? "flex items-center w-full rounded-lg bg-[var(--hover-bg)]"
+                          : "flex items-center w-full rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                      }
+                    >
+                      <button
+                        onClick={() => handleSelectWorkspace(one.id)}
+                        title={one.rootPath || undefined}
+                        aria-current={one.id === active.id && !codeHome}
+                        className="flex items-center flex-1 min-w-0 p-2 overflow-hidden"
+                      >
+                        <Folder className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+                        <span className="ml-4 font-bold tracking-wider text-sm truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                          {workspaceLabel(one, t)}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={(event) => handleRemoveWorkspace(event, one.id)}
+                        aria-label={t("removeProject")}
+                        title={t("removeProject")}
+                        className="mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-4 h-4 text-[var(--text-muted)]" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={handleNewProject}
+                    className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
+                  >
+                    <FolderPlus className="w-6 h-6 flex-shrink-0 text-[var(--text-muted)]" />
+                    <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                      {t("newProject")}
+                    </span>
+                  </button>
+                </>
+              )}
+
+              {runningHere.length > 0 && (
+                <div
+                  className={mode === "code" ? "mt-2 flex flex-col gap-1 border-t-[3px] pt-2" : "flex flex-col gap-1"}
+                  style={{ borderColor: "var(--border-light)" }}
+                >
+                  <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    {t("working")}
+                  </span>
+
+                  {runningHere.map((id) => {
+                    const session = store.sessions.find((one) => one.id === id);
+
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => openChat(id)}
+                        title={session?.title || t("newDiscussion")}
+                        className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
+                      >
+                        <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin text-[var(--text-muted)]" />
+                        <span className="ml-4 text-xs font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                          {session?.title || t("newDiscussion")}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        {viewMode === "history" ? (
+        {codeHome && viewMode !== "settings" ? (
+          <CodeHome
+            projects={projects}
+            onOpenFolder={handleNewProject}
+            onSelectProject={handleSelectWorkspace}
+            t={t}
+          />
+        ) : viewMode === "history" ? (
           <ChatHistory
             sessions={visibleSessions}
             onSelectChat={selectChat}
             onDeleteChat={handleDeleteChat}
             onExportChat={handleExportChat}
             settings={settings}
+            title={mode === "code" ? t("sessions") : t("chatHistory")}
           />
         ) : viewMode === "files" ? (
           <Explorer
@@ -655,7 +749,7 @@ export default function AppShell({
             workspace={active}
             initialPath={canvasPath}
           />
-        ) : viewMode === "talk" ? (
+        ) : viewMode === "talk" && mode === "chat" ? (
           <TalkScreen settings={settings} />
         ) : currentChatId ? (
           <div className="flex-1 flex min-h-0">

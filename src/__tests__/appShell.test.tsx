@@ -120,3 +120,56 @@ describe("the app shell", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+describe("the chat and code switch", () => {
+  beforeEach(() => {
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ modelName: "qwen3:8b", language: "en", autoUpdate: true }),
+    );
+    installFakeElectronApi();
+  });
+
+  afterEach(() => {
+    cleanup();
+    clearFakeElectronApi();
+    localStorage.clear();
+  });
+
+  it("opens on Chat, with the chat side's screens", async () => {
+    render(<App />);
+
+    const chat = await screen.findByRole("radio", { name: "Chat" });
+    expect(chat.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Code" }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("button", { name: /talk/i })).toBeTruthy();
+    expect(screen.queryByText("Projects")).toBeNull();
+  });
+
+  it("switches to Code, which asks for a folder when there is no project", async () => {
+    render(<App />);
+
+    const code = await screen.findByRole("radio", { name: "Code" });
+    await act(async () => code.click());
+
+    expect(code.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Open a project")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /open a folder/i })).toBeTruthy();
+    expect(screen.getByText("Projects")).toBeTruthy();
+    // Talk belongs to plain conversations, and never shows beside project work.
+    expect(screen.queryByRole("button", { name: /talk/i })).toBeNull();
+    expect(localStorage.getItem("draggy_mode")).toBe("code");
+  });
+
+  it("comes back in the mode it was left in", async () => {
+    localStorage.setItem("draggy_mode", "code");
+    render(<App />);
+
+    const code = await screen.findByRole("radio", { name: "Code" });
+    expect(code.getAttribute("aria-checked")).toBe("true");
+
+    await act(async () => screen.getByRole("radio", { name: "Chat" }).click());
+    expect(screen.queryByText("Open a project")).toBeNull();
+    expect(localStorage.getItem("draggy_mode")).toBe("chat");
+  });
+});

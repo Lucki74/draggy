@@ -233,14 +233,28 @@ async function shoot(win, name) {
   await setDark(win, false);
 }
 
+// Also sets the mode, since a project only shows on the Code side.
 async function openWorkspace(win, id) {
-  await inPage(win, (workspace) => localStorage.setItem("draggy_workspace", workspace), id);
+  await inPage(
+    win,
+    (workspace) => {
+      localStorage.setItem("draggy_workspace", workspace);
+      localStorage.setItem("draggy_mode", workspace === "default" ? "chat" : "code");
+    },
+    id,
+  );
   win.webContents.reload();
   await sleep(1500);
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("form.composer"))), {
     label: "the chat screen after reload",
   });
   await sleep(2500);
+}
+
+// The sidebar opens on hover; an injected pointer reaches the page even with real input ignored.
+async function hoverSidebar(win, on) {
+  win.webContents.sendInputEvent({ type: "mouseMove", x: on ? 30 : WIDTH - 200, y: on ? 420 : 420 });
+  await sleep(900);
 }
 
 async function run() {
@@ -316,6 +330,22 @@ async function run() {
     await click(win, "All time");
     await sleep(1000);
     await shoot(win, "app-stats");
+  }
+
+  if (wanted("modes")) {
+    await openWorkspace(win, "default");
+    await hoverSidebar(win, true);
+    await shoot(win, "app-mode-chat");
+    await hoverSidebar(win, false);
+
+    await click(win, "Code", { exact: true });
+    await sleep(2500);
+    await hoverSidebar(win, true);
+    await shoot(win, "app-mode-code");
+    await hoverSidebar(win, false);
+    await capture(win, "app-mode-rail");
+    await click(win, "Chat", { exact: true });
+    await sleep(1500);
   }
 
   if (wanted("talk")) {

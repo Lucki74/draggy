@@ -45,9 +45,13 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
 - **Chat with a local model.** Draggy sizes a model to your graphics card on
   first launch and downloads it. Three answering modes, swappable models.
-- **Work in a project.** Open a folder and Draggy can read, edit, move and
-  delete files in it, and only in it. Every change shows as a diff, and every
-  one can be undone, whether or not the folder is a git repository.
+- **Keep chats and code apart.** A Chat and Code switch at the top of the
+  sidebar moves between plain conversations and project folders. Each side has
+  its own history, files and running tasks.
+- **Work in a project.** Switch to Code, open a folder and Draggy can read,
+  edit, move and delete files in it, and only in it. Every change shows as a
+  diff, and every one can be undone, whether or not the folder is a git
+  repository.
 - **Decide how much it may do.** Each project has a permission mode: plan (it
   only proposes), ask, accept edits, or auto. Anything outside the mode stops
   and asks you in the conversation, with the change shown before you allow it.

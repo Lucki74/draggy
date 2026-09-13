@@ -10,6 +10,8 @@ interface ChatHistoryProps {
   onDeleteChat: (e: React.MouseEvent, id: string) => void;
   onExportChat: (e: React.MouseEvent, id: string) => void;
   settings: AppSettings;
+  /** The heading: chats in Chat mode, a project's sessions in Code. */
+  title?: string;
 }
 
 const THINK_BLOCK_RE =
@@ -21,6 +23,7 @@ export default function ChatHistory({
   onDeleteChat,
   onExportChat,
   settings,
+  title,
 }: ChatHistoryProps) {
   const t = (key: string) =>
     translations[settings.language]?.[key] || translations["en"][key] || key;
@@ -51,7 +54,7 @@ export default function ChatHistory({
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-base)] p-6 overflow-y-auto">
       <div className="max-w-4xl w-full mx-auto flex flex-col h-full space-y-4">
         <h1 className="text-2xl font-bold tracking-wider text-[var(--text-main)] uppercase">
-          {t("chatHistory")}
+          {title ?? t("chatHistory")}
         </h1>
 
         <div className="relative w-full">
