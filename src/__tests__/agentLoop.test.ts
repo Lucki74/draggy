@@ -42,6 +42,7 @@ const SETTINGS = {
   showMetrics: true,
   fitContext: 8192,
   autoUpdate: true,
+  compactLimit: null,
 } as AppSettings;
 
 const ENVIRONMENT: ToolEnvironment = {

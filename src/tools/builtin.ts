@@ -61,7 +61,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
     ctx.pushStep({
       id: stepId,
       type: "searching",
-      content: `${ctx.t("searchingFor")} **${query}**...`,
+      content: `${ctx.t("searchingFor")} **${query}**`,
       isComplete: false,
     });
 
@@ -95,7 +95,10 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
       // A hit clears the run of failures: the engines are evidently working.
       ctx.memo.set(SEARCH_FAILURES, 0);
 
-      ctx.patchStep(stepId, { isComplete: true });
+      ctx.patchStep(stepId, {
+        isComplete: true,
+        content: `${ctx.t("searchedFor")} **${query}**`,
+      });
       ctx.pushStep({
         id: ctx.newId(),
         type: "results",
@@ -183,7 +186,10 @@ const readUrl: ToolSpec = {
       const lines = page.text.split("\n").filter((line) => line.trim().length > 0);
       const shown = Math.min(lines.length, PAGE_LINE_LIMIT);
 
-      ctx.patchStep(stepId, { isComplete: true });
+      ctx.patchStep(stepId, {
+        isComplete: true,
+        content: `${ctx.t("openedPage")} **${url}**`,
+      });
       ctx.pushStep({
         id: ctx.newId(),
         type: "reading",
@@ -218,22 +224,26 @@ const browserNavigate: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "navigating",
-      content: `Navigating to **${url}**`,
+      content: `${ctx.t("navigatingTo")} **${url}**`,
       isComplete: false,
     });
 
     const result = await api()?.browserNavigate(url);
-    ctx.patchStep(stepId, { isComplete: true });
 
     if (!result?.success) {
+      ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
       return `TOOL RESULT (browser_navigate): Failed - ${result?.error || "Unknown error"}`;
     }
 
+    ctx.patchStep(stepId, {
+      isComplete: true,
+      content: `${ctx.t("navigatedTo")} **${url}**`,
+    });
     ctx.pushStep({
       id: ctx.newId(),
       type: "loaded",
-      content: `Loaded **${result.title}** (${result.url})`,
+      content: `${ctx.t("loadedPage")} **${result.title}** (${result.url})`,
       isComplete: true,
     });
 
@@ -258,14 +268,14 @@ const browserGetElements: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "scanned",
-      content: "Scanning page for interactive elements...",
+      content: ctx.t("scanningPage"),
       isComplete: false,
     });
 
     const result = await api()?.browserGetElements();
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `Found **${result?.elements?.length || 0}** interactive elements`,
+      content: ctx.t("foundElements").replace("{count}", `**${result?.elements?.length || 0}**`),
     });
     ctx.syncSteps();
 
@@ -307,14 +317,14 @@ const browserClick: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "clicking",
-      content: `Clicking element **#${index}**...`,
+      content: `${ctx.t("clickingElement")} **#${index}**`,
       isComplete: false,
     });
 
     const result = await api()?.browserClick(index);
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `Clicked element #${index}${result?.title ? ` -> **${result.title}**` : ""}`,
+      content: `${ctx.t("clickedElement")} #${index}${result?.title ? ` → **${result.title}**` : ""}`,
     });
     ctx.syncSteps();
 
@@ -342,17 +352,23 @@ const browserType: ToolSpec = {
   run: async (args, ctx) => {
     const index = Number(args.index);
     const text = String(args.text);
+    const snippet = `${text.substring(0, 30)}${text.length > 30 ? "…" : ""}`;
     const stepId = ctx.newId();
 
     ctx.pushStep({
       id: stepId,
       type: "typing",
-      content: `Typing "${text.substring(0, 30)}${text.length > 30 ? "..." : ""}" into element **#${index}**`,
+      content: `${ctx.t("typingInto")} **#${index}**: "${snippet}"`,
       isComplete: false,
     });
 
     const result = await api()?.browserType(index, text);
-    ctx.patchStep(stepId, { isComplete: true });
+    ctx.patchStep(
+      stepId,
+      result?.success
+        ? { isComplete: true, content: `${ctx.t("typedInto")} **#${index}**: "${snippet}"` }
+        : { isComplete: true, type: "error" },
+    );
     ctx.syncSteps();
 
     return `TOOL RESULT (browser_type): ${
@@ -396,14 +412,14 @@ const browserGetText: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "reading",
-      content: "Reading page content...",
+      content: ctx.t("readingPage"),
       isComplete: false,
     });
 
     const result = await api()?.browserGetText();
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `Read **${result?.title}** (${result?.url})`,
+      content: `${ctx.t("readPage")} **${result?.title}** (${result?.url})`,
     });
     ctx.syncSteps();
 
@@ -457,7 +473,7 @@ const createFile: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "create_file",
-      content: `Creating **${filename}**...`,
+      content: `${ctx.t("creatingFile")} **${filename}**`,
       isComplete: false,
       filename,
       fileContent: content,
@@ -468,7 +484,7 @@ const createFile: ToolSpec = {
 
     if (!result?.success) {
       ctx.patchStep(stepId, {
-        content: `Failed to create **${filename}**`,
+        content: `${ctx.t("createFileFailed")} **${filename}**`,
         isComplete: true,
         type: "error",
       });
@@ -478,7 +494,7 @@ const createFile: ToolSpec = {
 
     ctx.patchStep(stepId, {
       filepath: result.filepath,
-      content: `Created **${filename}**`,
+      content: `${ctx.t("createdFile")} **${filename}**`,
       isComplete: true,
     });
     ctx.syncSteps();
@@ -516,7 +532,7 @@ const searchLibrary: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "library",
-      content: `${ctx.t("searchingLibrary")} **${query}**...`,
+      content: `${ctx.t("searchingLibrary")} **${query}**`,
       isComplete: false,
     });
 

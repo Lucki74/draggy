@@ -15,6 +15,7 @@ import {
   Library,
   Lightbulb,
   Loader2,
+  Minimize2,
   MousePointer,
   Pencil,
   RefreshCw,
@@ -45,10 +46,12 @@ import {
   REMARK_PLUGINS,
 } from "./markdown";
 import AppFrame from "./AppFrame";
+import { formatTokenCount } from "../agent/contextBreakdown";
 import ApprovalCard from "./ApprovalCard";
 import DiffBlock from "./DiffBlock";
 import type {
   ApprovalAnswer,
+  FoldMarker,
   AppSettings,
   Message,
   SearchStep,
@@ -388,6 +391,31 @@ interface MessageItemProps {
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Puts a file back the way it was before Draggy changed it. */
   onRevert?: (checkpointId: number) => Promise<boolean>;
+}
+
+/**
+ * Where the older conversation went. Under the reply it followed: spinning
+ * while the notes are written, then a plain line that stays.
+ */
+function FoldLine({ fold, t }: { fold: FoldMarker; t: (key: string) => string }) {
+  const running = fold.status === "running";
+
+  return (
+    <div role="status" className="flex items-center gap-3 mt-4 mb-1 text-[var(--text-muted)]">
+      <div className="h-[2px] flex-1 bg-[var(--border-light)]" />
+      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+        {running ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Minimize2 className="w-3.5 h-3.5" />
+        )}
+        {running
+          ? t("compactingConversation")
+          : t("compactedTokens").replace("{count}", formatTokenCount(fold.tokens))}
+      </span>
+      <div className="h-[2px] flex-1 bg-[var(--border-light)]" />
+    </div>
+  );
 }
 
 const MessageItem = memo(
@@ -924,6 +952,8 @@ const MessageItem = memo(
               </button>
             </div>
           )}
+
+          {msg.role === "assistant" && msg.fold && <FoldLine fold={msg.fold} t={t} />}
         </div>
       </motion.div>
     );

@@ -297,6 +297,19 @@ export interface TurnMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  /** What the prompt was spent on, measured on the last pass of the turn. */
+  breakdown?: ContextBreakdown;
+}
+
+/**
+ * The conversation being folded into notes, shown after the reply it followed.
+ * Kept once done, so the user can see where the older messages went.
+ */
+export interface FoldMarker {
+  status: "running" | "done";
+  /** Roughly how many tokens of conversation went into the notes. */
+  tokens: number;
+  at: number;
 }
 
 export interface MessageVersion {
@@ -320,6 +333,7 @@ export interface Message {
   versions?: MessageVersion[];
   currentVersionIndex?: number;
   metrics?: TurnMetrics | null;
+  fold?: FoldMarker;
 }
 
 /**
@@ -465,6 +479,7 @@ export interface Workspace {
 }
 
 import type { PlanItem } from "./plan/plan";
+import type { ContextBreakdown } from "./agent/contextBreakdown";
 
 export interface ChatSession {
   id: string;
@@ -513,6 +528,11 @@ export interface AppSettings {
   embedModel: string;
   showMetrics: boolean;
   autoUpdate: boolean;
+  /**
+   * Tokens of conversation before it is folded into notes. Null leaves it to
+   * Draggy, which folds at a share of the window the model is loaded at.
+   */
+  compactLimit: number | null;
 }
 
 declare global {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createTaskManager } from "../agent/taskManager";
-import type { TaskHost, TaskManager } from "../agent/taskManager";
+import type { CompactOutcome, TaskHost, TaskManager } from "../agent/taskManager";
 import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "../agent/permissions";
 import type {
@@ -50,6 +50,8 @@ export interface AgentRuns {
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** Folds the older conversation into notes now. */
+  compact: (chatId: string) => Promise<CompactOutcome>;
   stop: (chatId: string) => void;
   stopAll: () => void;
 }
@@ -93,6 +95,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
+      compact: manager.compact,
       stop: manager.stop,
       stopAll: manager.stopAll,
     }),

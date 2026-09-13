@@ -84,7 +84,11 @@ const readFile: ToolSpec = {
       return `TOOL RESULT (read_file): ${result?.error || NO_BRIDGE}`;
     }
 
-    ctx.patchStep(stepId, { isComplete: true, filepath: result.path });
+    ctx.patchStep(stepId, {
+      isComplete: true,
+      filepath: result.path,
+      content: `${ctx.t("readFile")} **${nameOf(target)}**`,
+    });
     ctx.syncSteps();
 
     const rules = await folderRules(ctx, result.path || target);
@@ -116,7 +120,7 @@ const listDirectory: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "reading",
-      content: `${ctx.t("readingFile")} **${nameOf(target)}**`,
+      content: `${ctx.t("listingFolder")} **${nameOf(target)}**`,
       isComplete: false,
     });
 
@@ -128,7 +132,11 @@ const listDirectory: ToolSpec = {
       return `TOOL RESULT (list_directory): ${result?.error || NO_BRIDGE}`;
     }
 
-    ctx.patchStep(stepId, { isComplete: true, filepath: result.path });
+    ctx.patchStep(stepId, {
+      isComplete: true,
+      filepath: result.path,
+      content: `${ctx.t("listedFolder")} **${nameOf(target)}**`,
+    });
     ctx.syncSteps();
 
     const lines = result.entries.map((entry) =>
@@ -344,7 +352,7 @@ const moveFile: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "edit_file",
-      content: `${ctx.t("movedFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
+      content: `${ctx.t("movingFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
       isComplete: false,
       filename: nameOf(to),
     });
@@ -361,6 +369,7 @@ const moveFile: ToolSpec = {
       isComplete: true,
       filepath: result.path,
       checkpointId: result.checkpointId,
+      content: `${ctx.t("movedFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
     });
     ctx.syncSteps();
 
@@ -387,7 +396,7 @@ const deleteFile: ToolSpec = {
     ctx.pushStep({
       id: stepId,
       type: "edit_file",
-      content: `${ctx.t("deletedFile")} **${nameOf(target)}**`,
+      content: `${ctx.t("deletingFile")} **${nameOf(target)}**`,
       isComplete: false,
       filename: nameOf(target),
     });
@@ -404,6 +413,7 @@ const deleteFile: ToolSpec = {
       isComplete: true,
       filepath: result.path,
       checkpointId: result.checkpointId,
+      content: `${ctx.t("deletedFile")} **${nameOf(target)}**`,
     });
     ctx.syncSteps();
 

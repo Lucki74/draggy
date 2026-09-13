@@ -125,7 +125,7 @@ export function describeMcpTool(
       ctx.pushStep({
         id: stepId,
         type: "extension",
-        content: `${serverId}: **${tool.name}**`,
+        content: `${ctx.t("callingTool")} **${tool.name}** · ${serverId}`,
         isComplete: false,
       });
 
@@ -141,13 +141,16 @@ export function describeMcpTool(
         ctx.patchStep(stepId, {
           isComplete: true,
           type: "error",
-          content: `${serverId}: ${tool.name} failed`,
+          content: `${ctx.t("toolCallFailed")} **${tool.name}** · ${serverId}`,
         });
         ctx.syncSteps();
         return `TOOL RESULT (${tool.qualifiedName}): Failed - ${result.error || "unknown error"}`;
       }
 
-      ctx.patchStep(stepId, { isComplete: true });
+      ctx.patchStep(stepId, {
+        isComplete: true,
+        content: `${ctx.t("calledTool")} **${tool.name}** · ${serverId}`,
+      });
 
       // A widget is shown, never described to the model: the markup came from
       // somebody else's server and has no business in the context window.

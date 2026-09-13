@@ -1,3 +1,4 @@
+import type { ContextBreakdown } from "./agent/contextBreakdown";
 import { safeJsonParse } from "./utils";
 
 export const OLLAMA_HOST = "http://127.0.0.1:11434";
@@ -31,6 +32,7 @@ export interface GenerationMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  breakdown?: ContextBreakdown;
 }
 
 export interface LoadedModel {

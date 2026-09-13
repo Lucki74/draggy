@@ -1,11 +1,14 @@
-import { contextSizeFor, isCloudModel } from "../ollama";
+import { contextSizeFor, getModelInfo, isCloudModel } from "../ollama";
 import { generateId, titleFromContent } from "../utils";
 import {
-  budgetForWindow,
+  CHARS_PER_TOKEN,
   compactionSurvives,
+  foldedTokens,
   planCompaction,
+  planManualCompaction,
   runCompaction,
 } from "./compaction";
+import { compactThreshold } from "./contextBreakdown";
 import { runAgentTurn } from "./agentLoop";
 import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "./permissions";
@@ -14,6 +17,7 @@ import type {
   AppSettings,
   Attachment,
   ChatSession,
+  FoldMarker,
   Message,
   MessageVersion,
   PermissionMode,
@@ -59,7 +63,16 @@ export interface RunOptions {
   isRetry?: boolean;
   /** Carry on where a reply that ran out of room stopped. */
   isContinuation?: boolean;
+  /**
+   * Let a fold already under way finish first. True when the turn only adds to
+   * the conversation; a turn that rewrites history cancels the fold instead,
+   * since the notes would describe messages that are no longer there.
+   */
+  waitForFold?: boolean;
 }
+
+/** How a fold the user asked for went. */
+export type CompactOutcome = "done" | "nothing" | "busy" | "failed";
 
 export interface TaskManager {
   /** Point the manager at the current app state. Called after every render. */
@@ -85,6 +98,8 @@ export interface TaskManager {
   dismissOutOfContext: (chatId: string) => void;
   /** The user's answer to a call that was waiting on them. */
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** Folds the older conversation into notes now, rather than waiting for the limit. */
+  compact: (chatId: string) => Promise<CompactOutcome>;
   stop: (chatId: string) => void;
   stopAll: () => void;
   isRunning: (chatId: string) => boolean;
@@ -96,7 +111,17 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let host = initialHost;
 
   const runs = new Map<string, AbortController>();
-  const folds = new Map<string, AbortController>();
+  /**
+   * Folds in flight. `started` flips once there is actually something being
+   * folded, which is when a turn waiting on it has anything worth saying.
+   */
+  interface Fold {
+    controller: AbortController;
+    done: Promise<CompactOutcome>;
+    started: boolean;
+  }
+
+  const folds = new Map<string, Fold>();
   const listeners = new Set<(running: string[]) => void>();
 
   /**
@@ -138,55 +163,128 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     for (const listener of [...listeners]) listener(snapshot);
   }
 
+  /** The reply a fold's marker sits under: the last one when the fold began. */
+  function lastReplyId(session: ChatSession): string | null {
+    for (let index = session.messages.length - 1; index >= 0; index--) {
+      if (session.messages[index].role === "assistant") return session.messages[index].id;
+    }
+    return null;
+  }
+
+  function markFold(chatId: string, messageId: string | null, fold: FoldMarker | null) {
+    if (!messageId) return;
+
+    host.updateSession(chatId, (s) => ({
+      ...s,
+      messages: s.messages.map((message) => {
+        if (message.id !== messageId) return message;
+        if (fold) return { ...message, fold };
+
+        const without = { ...message };
+        delete without.fold;
+        return without;
+      }),
+    }));
+  }
+
   /**
-   * Folds the older conversation into notes in the idle gap, paid while the
-   * user reads. Cancelled on send, and tried again after the next turn.
+   * Characters the conversation may occupy before an automatic fold. The
+   * user's limit when there is one, otherwise a share of the loaded window.
    */
-  async function maybeCompact(chatId: string) {
+  async function budgetFor(model: string, numCtx: number): Promise<number> {
+    const limit = host.getSettings().compactLimit ?? null;
+
+    // The model's own maximum only matters for capping a limit, so it is not
+    // asked for when there is none.
+    const info = limit !== null ? await getModelInfo(model).catch(() => null) : null;
+    const windowTokens = info?.contextLength ?? Math.max(numCtx, limit ?? 0);
+
+    return compactThreshold(windowTokens, numCtx, limit).tokens * CHARS_PER_TOKEN;
+  }
+
+  /**
+   * Folds the older conversation into notes. On its own this happens in the
+   * idle gap after a turn, paid while the user reads; `manual` is the user
+   * asking for it now. A marker under the last reply says it is happening, and
+   * stays once it is done.
+   */
+  function compactChat(chatId: string, manual: boolean): Promise<CompactOutcome> {
+    const inFlight = folds.get(chatId);
+    if (inFlight) return inFlight.done;
+
     const model = host.getModel();
-    if (!model || isCloudModel(model)) return;
+    if (!model || isCloudModel(model)) return Promise.resolve("nothing");
 
     const session = host.getSession(chatId);
-    if (!session || session.isGenerating) return;
+    if (!session) return Promise.resolve("nothing");
+    if (session.isGenerating || runs.has(chatId)) return Promise.resolve("busy");
 
-    const existing = session.compaction ?? null;
+    const fold = {
+      controller: new AbortController(),
+      started: false,
+    } as Fold;
 
-    // The window the model is already loaded at. `contextSizeFor` never
-    // shrinks, so asking it here cannot cause the reload this is avoiding.
-    const numCtx = contextSizeFor(model, 0, null);
+    folds.set(chatId, fold);
 
-    const plan = planCompaction(session.messages, {
-      existing,
-      budgetChars: budgetForWindow(numCtx),
-    });
-    if (!plan) return;
+    fold.done = (async (): Promise<CompactOutcome> => {
+      const { signal } = fold.controller;
+      const replyId = lastReplyId(session);
+      let marked = false;
 
-    folds.get(chatId)?.abort();
-    const controller = new AbortController();
-    folds.set(chatId, controller);
+      try {
+        const existing = session.compaction ?? null;
 
-    try {
-      const next = await runCompaction({
-        model,
-        numCtx,
-        messages: session.messages,
-        plan,
-        existing,
-        signal: controller.signal,
-      });
+        // The window the model is already loaded at. `contextSizeFor` never
+        // shrinks, so asking it here cannot cause the reload this is avoiding.
+        const numCtx = contextSizeFor(model, 0, null);
 
-      if (!next || controller.signal.aborted) return;
+        const plan = manual
+          ? planManualCompaction(session.messages, existing)
+          : planCompaction(session.messages, {
+              existing,
+              budgetChars: await budgetFor(model, numCtx),
+            });
 
-      host.updateSession(chatId, (s) =>
-        // The conversation can have moved on while this ran; it may not have
-        // gone backwards past what was just folded.
-        s.messages.length >= next.throughIndex ? { ...s, compaction: next } : s,
-      );
-    } catch {
-      // Nothing is lost by a fold that failed, and it will be tried again.
-    } finally {
-      if (folds.get(chatId) === controller) folds.delete(chatId);
-    }
+        if (!plan || signal.aborted) return "nothing";
+
+        const tokens = foldedTokens(session.messages, plan);
+
+        fold.started = true;
+        marked = true;
+        markFold(chatId, replyId, { status: "running", tokens, at: Date.now() });
+
+        const next = await runCompaction({
+          model,
+          numCtx,
+          messages: session.messages,
+          plan,
+          existing,
+          signal,
+        });
+
+        if (!next || signal.aborted) {
+          markFold(chatId, replyId, null);
+          return "failed";
+        }
+
+        host.updateSession(chatId, (s) =>
+          // The conversation can have moved on while this ran; it may not have
+          // gone backwards past what was just folded.
+          s.messages.length >= next.throughIndex ? { ...s, compaction: next } : s,
+        );
+
+        markFold(chatId, replyId, { status: "done", tokens, at: Date.now() });
+        return "done";
+      } catch {
+        // Nothing is lost by a fold that failed, and it will be tried again.
+        if (marked) markFold(chatId, replyId, null);
+        return "failed";
+      } finally {
+        if (folds.get(chatId) === fold) folds.delete(chatId);
+      }
+    })();
+
+    return fold.done;
   }
 
   function scaffold(
@@ -267,9 +365,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (!model) return;
 
     runs.get(chatId)?.abort();
-    // A fold in flight is now competing with the reply the user is waiting
-    // for, on the same model.
-    folds.get(chatId)?.abort();
+
+    const pendingFold = folds.get(chatId);
+
+    // A turn that rewrites history makes the notes being written wrong.
+    if (pendingFold && !options.waitForFold) pendingFold.controller.abort();
 
     const controller = new AbortController();
     runs.set(chatId, controller);
@@ -280,6 +380,30 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const seed = options.isContinuation ? seedFor(contextMessages) : null;
 
     try {
+      // A turn that only adds to the conversation lets the fold finish: it
+      // takes seconds, the turn gets the smaller prompt, and the model is not
+      // asked to do both at once. Until then the reply says what it waits on,
+      // rather than claiming the model is warming up.
+      if (pendingFold && options.waitForFold) {
+        if (pendingFold.started) {
+          host.patchActiveMessage(chatId, {
+            steps: [
+              {
+                id: generateId(),
+                type: "loading",
+                content: host.t("compactingConversation"),
+                isComplete: false,
+              },
+            ],
+          });
+        }
+
+        await pendingFold.done;
+        if (controller.signal.aborted) return;
+
+        host.patchActiveMessage(chatId, { steps: [] });
+      }
+
       const result = await runAgentTurn(
         {
           model,
@@ -361,7 +485,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         // moment folding is free.
         if (!controller.signal.aborted) {
           host.onFinished?.(chatId);
-          void maybeCompact(chatId);
+          void compactChat(chatId, false);
         }
       }
     }
@@ -393,7 +517,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       });
     }
 
-    void run(chatId, [...(existing?.messages || []), userMessage]);
+    void run(chatId, [...(existing?.messages || []), userMessage], {
+      waitForFold: true,
+    });
   }
 
   function regenerate(chatId: string, index?: number) {
@@ -489,7 +615,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       notify();
     }
 
-    folds.get(chatId)?.abort();
+    folds.get(chatId)?.controller.abort();
     folds.delete(chatId);
 
     host.updateSession(chatId, (s) => ({ ...s, isGenerating: false }));
@@ -499,7 +625,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     for (const chatId of runs.keys()) refuseWaiting(chatId);
     for (const controller of runs.values()) controller.abort();
     runs.clear();
-    for (const controller of folds.values()) controller.abort();
+    for (const fold of folds.values()) fold.controller.abort();
     folds.clear();
     notify();
   }
@@ -516,6 +642,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     continueGeneration,
     dismissOutOfContext,
     answerApproval,
+    compact: (chatId: string) => compactChat(chatId, true),
     stop,
     stopAll,
     isRunning: (chatId: string) => runs.has(chatId),

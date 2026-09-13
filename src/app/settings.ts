@@ -26,6 +26,7 @@ export const defaultSettings: AppSettings = {
   embedModel: "",
   showMetrics: true,
   autoUpdate: true,
+  compactLimit: null,
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };

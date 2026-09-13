@@ -25,6 +25,14 @@ import Logo from "./Logo";
 import { pickGreeting } from "./greetings";
 import TypedGreeting from "./TypedGreeting";
 import MessageItem from "./chat/MessageItem";
+import ContextWheel from "./chat/ContextWheel";
+import {
+  MIN_COMPACT_LIMIT,
+  describeContextWindow,
+  formatTokenCount,
+  parseTokenCount,
+} from "./agent/contextBreakdown";
+import type { CompactOutcome } from "./agent/taskManager";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import {
 } from "./chat/markdown";
@@ -53,6 +61,7 @@ import {
 import {
   clampSlashIndex,
   matchSlashCommands,
+  parseSlashArgument,
   slashQueryFor,
 } from "./chat/slashCommands";
 import { isSpeechSupported, startRecording, transcribe } from "./speech";
@@ -136,6 +145,8 @@ interface ChatScreenProps {
   onProjectMemory?: () => void;
   /** Writes a first draft of that file from what is in the folder. */
   onInitProject?: () => void;
+  /** Folds the older conversation into notes now. */
+  onCompact?: () => Promise<CompactOutcome>;
 }
 
 export default function ChatScreen({
@@ -157,6 +168,7 @@ export default function ChatScreen({
   onRevert,
   onProjectMemory,
   onInitProject,
+  onCompact,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -186,6 +198,8 @@ export default function ChatScreen({
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
+  /** A short confirmation, like a limit that was just set. Clears itself. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [micState, setMicState] = useState<
     "idle" | "recording" | "loading" | "transcribing"
   >("idle");
@@ -478,9 +492,45 @@ export default function ChatScreen({
     }
   };
 
+  const runCompact = async () => {
+    if (!onCompact) return;
+
+    const outcome = await onCompact();
+
+    if (outcome === "nothing") setNotice(t("nothingToCompact"));
+    else if (outcome === "busy") setNotice(t("compactWhileBusy"));
+    else if (outcome === "failed") setFileErrors([t("compactFailed")]);
+  };
+
+  /** "/compact-limit 20k", read once the menu has closed on the space. */
+  const setCompactLimit = (argument: string) => {
+    const limit = parseTokenCount(argument);
+
+    if (limit === undefined || (limit !== null && limit < MIN_COMPACT_LIMIT)) {
+      setFileErrors([t("compactLimitInvalid")]);
+      return false;
+    }
+
+    onUpdateSettings({ ...settings, compactLimit: limit });
+    setNotice(
+      limit === null
+        ? t("compactLimitCleared")
+        : t("compactLimitSet").replace("{count}", formatTokenCount(limit)),
+    );
+    return true;
+  };
+
   const runSlashCommand = (id: string) => {
+    // A command that needs a value keeps its name in the box for the value.
+    if (id === "compact-limit") {
+      setInput("/compact-limit ");
+      inputRef.current?.focus();
+      return;
+    }
+
     setInput("");
     if (id === "new") onNewChat();
+    else if (id === "compact") void runCompact();
     else if (id === "model") setIsModelMenuOpen(true);
     else if (id === "settings") onOpenSettings("appearance");
     else if (id === "files") fileInputRef.current?.click();
@@ -504,6 +554,12 @@ export default function ChatScreen({
     return () => clearTimeout(handle);
   }, [fileErrors]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const handle = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(handle);
+  }, [notice]);
+
   const removeFile = (index: number) => {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
@@ -521,6 +577,16 @@ export default function ChatScreen({
     }
 
     if (!sanitizedInput && attachedFiles.length === 0) return;
+
+    const command = parseSlashArgument(sanitizedInput);
+
+    if (command?.id === "compact-limit") {
+      if (setCompactLimit(command.argument)) {
+        setInput("");
+        localStorage.removeItem(draftKey);
+      }
+      return;
+    }
 
     onSendMessage(sanitizedInput, attachedFiles);
     setInput("");
@@ -553,7 +619,8 @@ export default function ChatScreen({
     [chat.messages],
   );
 
-  const measuredTokens = useMemo(() => {
+  /** The last turn that was measured, which is what the context view starts from. */
+  const lastMetrics = useMemo(() => {
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const message = chat.messages[i];
       if (message.role !== "assistant") continue;
@@ -564,12 +631,17 @@ export default function ChatScreen({
           ? message.versions[versionIndex]
           : message;
 
-      if (active.metrics) {
-        return active.metrics.promptTokens + active.metrics.responseTokens;
-      }
+      if (active.metrics) return active.metrics;
     }
     return null;
   }, [chat.messages]);
+
+  const measuredTokens = lastMetrics
+    ? lastMetrics.promptTokens + lastMetrics.responseTokens
+    : null;
+
+  /** A fold under way in this conversation, shown on the wheel. */
+  const compacting = chat.messages.some((message) => message.fold?.status === "running");
 
   const draftChars = input.length + attachedFiles.length * 4000;
 
@@ -597,28 +669,20 @@ export default function ChatScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
 
-  const estimatedTokens = contextUse.usedTokens;
-  const maxTokens = contextUse.windowTokens;
-  const formattedUsedTokens =
-    estimatedTokens === 0
-      ? "0"
-      : estimatedTokens < 1000
-        ? estimatedTokens.toString()
-        : (estimatedTokens / 1000).toFixed(1) + "k";
-  const maxTokensK =
-    maxTokens >= 1000 ? `${Math.round(maxTokens / 1000)}k` : String(maxTokens);
-  const rawPercent = contextUse.percent;
-  const percentUsed =
-    estimatedTokens === 0
-      ? "0"
-      : Math.min(100, rawPercent).toFixed(rawPercent < 1 ? 2 : 1);
-  const showContextBar = rawPercent >= 60;
-  const contextTone =
-    rawPercent >= 95
-      ? "#ef4444"
-      : rawPercent >= 80
-        ? "#f59e0b"
-        : "var(--text-muted)";
+  // A turn measured before breakdowns existed still has its total: all of it
+  // is shown as conversation, which is most of what it was.
+  const contextView = describeContextWindow({
+    breakdown:
+      lastMetrics?.breakdown ??
+      (measuredTokens
+        ? { messages: measuredTokens, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 }
+        : null),
+    historyChars: messageChars,
+    draftChars,
+    windowTokens: contextUse.windowTokens,
+    loadedTokens: lastMetrics?.contextWindow ?? null,
+    limitTokens: settings.compactLimit ?? null,
+  });
   const supportsNativeThinking = Boolean(
     modelInfo?.capabilities.includes("thinking"),
   );
@@ -766,18 +830,6 @@ export default function ChatScreen({
 
           <form onSubmit={handleSubmit} className="composer">
             <div className="overflow-hidden rounded-t-[9px] flex-shrink-0">
-              {showContextBar && (
-                <div className="h-1 w-full bg-[var(--hover-bg)] flex-shrink-0">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(100, rawPercent)}%`,
-                      backgroundColor: contextTone,
-                    }}
-                  />
-                </div>
-              )}
-
               {chat.isOutOfContext && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b-2 border-[var(--border-light)] bg-[var(--hover-bg)]">
                   <Brain className="w-4 h-4 flex-shrink-0 text-amber-500" />
@@ -844,6 +896,18 @@ export default function ChatScreen({
               rows={1}
               style={{ minHeight: "56px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
             />
+
+            {notice && (
+              <div className="px-4 pb-2 flex flex-wrap gap-2">
+                <span
+                  role="status"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-panel)] text-[10px] font-bold"
+                >
+                  <Check className="w-3 h-3 flex-shrink-0" />
+                  {notice}
+                </span>
+              </div>
+            )}
 
             {fileErrors.length > 0 && (
               <div className="px-4 pb-2 flex flex-wrap gap-2">
@@ -1084,16 +1148,6 @@ export default function ChatScreen({
 
                       <div className="h-[2px] bg-[var(--border-light)] w-full" />
 
-                      <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
-                        <span className="uppercase tracking-wider">
-                          {t("contextUsed")}
-                        </span>
-                        <span className="tabular-nums">
-                          {percentUsed}% &bull; {formattedUsedTokens} /{" "}
-                          {maxTokensK}
-                        </span>
-                      </div>
-
                       <button
                         type="button"
                         onClick={() => {
@@ -1108,6 +1162,13 @@ export default function ChatScreen({
                   )}
                 </AnimatePresence>
               </div>
+
+              <ContextWheel
+                view={contextView}
+                t={t}
+                compacting={compacting}
+                onCompact={onCompact ? () => void runCompact() : undefined}
+              />
 
               <button
                 type="submit"

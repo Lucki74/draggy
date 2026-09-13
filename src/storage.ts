@@ -29,6 +29,29 @@ export interface StorageBackend {
   saveSettings(settings: AppSettings): Promise<void>;
 }
 
+/**
+ * A conversation as it should look when the app opens. Nothing can be running
+ * yet: a turn or a fold cut short by quitting would otherwise spin forever.
+ */
+export function settleSession(session: ChatSession): ChatSession {
+  const hasRunningFold = session.messages?.some((message) => message.fold?.status === "running");
+
+  return {
+    ...session,
+    isGenerating: false,
+    ...(hasRunningFold
+      ? {
+          messages: session.messages.map((message) => {
+            if (message.fold?.status !== "running") return message;
+            const settled = { ...message };
+            delete settled.fold;
+            return settled;
+          }),
+        }
+      : {}),
+  };
+}
+
 function stripRuntimeFields(session: ChatSession) {
   return {
     id: session.id,
@@ -47,7 +70,7 @@ const sqliteBackend: StorageBackend = {
   async loadSessions() {
     const result = await window.electronAPI!.db.loadChats();
     if (!result?.success || !result.chats) return [];
-    return result.chats.map((chat) => ({ ...chat, isGenerating: false }));
+    return result.chats.map(settleSession);
   },
 
   async saveSession(session) {
@@ -88,7 +111,7 @@ function readLocalSessions(): ChatSession[] {
   const parsed = safeJsonParse<ChatSession[]>(raw);
   if (!Array.isArray(parsed)) return [];
 
-  return parsed.map((session) => ({ ...session, isGenerating: false }));
+  return parsed.map(settleSession);
 }
 
 function writeLocalSessions(sessions: ChatSession[]): boolean {

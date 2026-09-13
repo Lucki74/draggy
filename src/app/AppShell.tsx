@@ -735,6 +735,7 @@ export default function AppShell({
             onRevert={handleRevert}
             onProjectMemory={active.rootPath ? openProjectMemory : undefined}
             onInitProject={active.rootPath ? draftProject : undefined}
+            onCompact={() => runs.compact(currentChatId)}
             onSelectModel={onSelectModel}
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}

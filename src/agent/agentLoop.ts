@@ -14,8 +14,11 @@ import {
 import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
-import { loadSkills } from "../skills/skills";
+import { describeSkills, loadSkills } from "../skills/skills";
+import { renderMemory } from "../project/memory";
 import { renderCompactionBlock } from "./compaction";
+import { measureBreakdown } from "./contextBreakdown";
+import type { PromptParts } from "./contextBreakdown";
 import {
   MAX_TOOL_LOOPS,
   STREAM_UI_INTERVAL_MS,
@@ -27,7 +30,12 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
-import { annotationsFor, runTool, toolDefinitions } from "../tools/registry";
+import {
+  annotationsFor,
+  describeToolsForPrompt,
+  runTool,
+  toolDefinitions,
+} from "../tools/registry";
 import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
 import {
   chooseChannel,
@@ -462,6 +470,20 @@ export async function runAgentTurn(
       : null;
 
   const carried = compaction ? history.slice(compaction.throughIndex) : history;
+
+  // What the fixed parts of the prompt cost, so the context view can say where
+  // the window went rather than only how full it is.
+  const memoryChars = memory ? renderMemory(memory).length : 0;
+  const skillChars = describeSkills(skills).length;
+  const catalogueChars = nativeTools ? 0 : describeToolsForPrompt(environment).length;
+
+  const promptParts: PromptParts = {
+    systemChars: Math.max(0, systemPrompt.length - memoryChars - skillChars - catalogueChars),
+    toolChars: nativeTools ? JSON.stringify(definitions).length : catalogueChars,
+    memoryChars,
+    skillChars,
+    summaryChars: compaction ? renderCompactionBlock(compaction).length : 0,
+  };
 
   const wire: WireMessage[] = [
     { role: "system", content: systemPrompt },
@@ -926,7 +948,14 @@ ${currentTimeNote()}`,
   }
 
   if (metrics) {
-    metrics = { ...metrics, gpuPercent: await gpuShareFor(model) };
+    metrics = {
+      ...metrics,
+      gpuPercent: await gpuShareFor(model),
+      breakdown: measureBreakdown(
+        promptParts,
+        metrics.promptTokens + metrics.responseTokens,
+      ),
+    };
     host.onMetrics?.(metrics);
   }
 

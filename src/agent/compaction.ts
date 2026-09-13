@@ -63,6 +63,34 @@ export function messageChars(message: Message): number {
   return total;
 }
 
+/** Tokens of conversation a fold puts into the notes, near enough to show. */
+export function foldedTokens(messages: Message[], plan: CompactionPlan): number {
+  let chars = 0;
+
+  for (let index = plan.foldFrom; index < plan.foldThrough; index++) {
+    const message = messages[index];
+    if (message) chars += messageChars(message);
+  }
+
+  return Math.ceil(chars / CHARS_PER_TOKEN);
+}
+
+/**
+ * The fold the user asked for. Everything but the last exchange goes into the
+ * notes, however far under the limit the conversation is.
+ */
+export function planManualCompaction(
+  messages: Message[],
+  existing?: CompactionState | null,
+): CompactionPlan | null {
+  return planCompaction(messages, {
+    existing,
+    budgetChars: 1,
+    keepRecent: 2,
+    minFold: 2,
+  });
+}
+
 /** What the whole conversation costs, counting a summary already in place. */
 export function conversationChars(
   messages: Message[],

@@ -1,0 +1,213 @@
+import { CHARS_PER_TOKEN, COMPACT_AT } from "./compaction";
+
+/**
+ * What the context window is spent on. The model only reports one number, the
+ * prompt it read; the parts are measured from what Draggy put into that
+ * prompt and scaled so they add up to what the model actually counted.
+ */
+
+export type ContextCategory =
+  | "messages"
+  | "system"
+  | "tools"
+  | "memory"
+  | "skills"
+  | "summary";
+
+export type ContextBreakdown = Record<ContextCategory, number>;
+
+/** Characters of each fixed part of the prompt, as sent. */
+export interface PromptParts {
+  systemChars: number;
+  toolChars: number;
+  memoryChars: number;
+  skillChars: number;
+  summaryChars: number;
+}
+
+export const CATEGORY_ORDER: ContextCategory[] = [
+  "messages",
+  "system",
+  "tools",
+  "memory",
+  "skills",
+  "summary",
+];
+
+const tokensOf = (chars: number) => Math.max(0, Math.ceil(chars / CHARS_PER_TOKEN));
+
+/**
+ * Splits a measured token count across the parts of the prompt. The fixed
+ * parts are estimated from their length; the conversation is whatever is left,
+ * which is the one part that cannot be measured any other way. If the
+ * estimates alone overshoot the measurement, they are scaled down together
+ * rather than letting the conversation go negative.
+ */
+export function measureBreakdown(
+  parts: PromptParts,
+  measuredTokens: number,
+  conversationChars = 0,
+): ContextBreakdown {
+  const fixed = {
+    system: tokensOf(parts.systemChars),
+    tools: tokensOf(parts.toolChars),
+    memory: tokensOf(parts.memoryChars),
+    skills: tokensOf(parts.skillChars),
+    summary: tokensOf(parts.summaryChars),
+  };
+
+  const fixedTotal = fixed.system + fixed.tools + fixed.memory + fixed.skills + fixed.summary;
+
+  // Nothing measured: an estimate of everything is the best there is.
+  if (!(measuredTokens > 0)) {
+    return { ...fixed, messages: tokensOf(conversationChars) };
+  }
+
+  if (fixedTotal <= measuredTokens) {
+    return { ...fixed, messages: measuredTokens - fixedTotal };
+  }
+
+  const scale = measuredTokens / fixedTotal;
+  const scaled = {
+    system: Math.floor(fixed.system * scale),
+    tools: Math.floor(fixed.tools * scale),
+    memory: Math.floor(fixed.memory * scale),
+    skills: Math.floor(fixed.skills * scale),
+    summary: Math.floor(fixed.summary * scale),
+  };
+
+  const scaledTotal =
+    scaled.system + scaled.tools + scaled.memory + scaled.skills + scaled.summary;
+
+  return { ...scaled, messages: Math.max(0, measuredTokens - scaledTotal) };
+}
+
+export interface ContextRow {
+  id: ContextCategory | "draft" | "free";
+  tokens: number;
+  /** Share of the whole window, 0 to 100. */
+  percent: number;
+}
+
+export interface ContextWindowView {
+  usedTokens: number;
+  windowTokens: number;
+  percent: number;
+  /** Each part that has anything in it, then what is still free. */
+  rows: ContextRow[];
+  /** Where the conversation gets folded into notes, in tokens. */
+  compactAtTokens: number;
+  /** Whether that point was chosen by the user or worked out by Draggy. */
+  compactSource: "auto" | "limit";
+}
+
+export interface ContextWindowInput {
+  /** From the last finished turn, if there has been one. */
+  breakdown: ContextBreakdown | null;
+  /** The conversation as it stands, for before any turn has been measured. */
+  historyChars: number;
+  /** What is typed but not yet sent, attachments included. */
+  draftChars: number;
+  /** The most the model can take. */
+  windowTokens: number;
+  /** The window the model is loaded at, which is what automatic folding uses. */
+  loadedTokens: number | null;
+  /** The user's own limit, when they set one. */
+  limitTokens: number | null;
+}
+
+/** Where automatic folding happens for these settings, in tokens. */
+export function compactThreshold(
+  windowTokens: number,
+  loadedTokens: number | null,
+  limitTokens: number | null,
+): { tokens: number; source: "auto" | "limit" } {
+  if (limitTokens !== null && limitTokens > 0) {
+    return { tokens: Math.min(limitTokens, maxLimitFor(windowTokens)), source: "limit" };
+  }
+
+  const loaded = loadedTokens && loadedTokens > 0 ? loadedTokens : windowTokens;
+  return { tokens: Math.floor(Math.min(loaded, windowTokens) * COMPACT_AT), source: "auto" };
+}
+
+/** The lowest limit accepted. Below it every turn would be folded away. */
+export const MIN_COMPACT_LIMIT = 1000;
+
+/**
+ * The highest limit worth honouring. Past this the reply itself stops fitting,
+ * so a limit above it would only move the wall rather than the fold.
+ */
+export function maxLimitFor(windowTokens: number): number {
+  return Math.floor(windowTokens * 0.9);
+}
+
+export function describeContextWindow(input: ContextWindowInput): ContextWindowView {
+  const windowTokens = Math.max(1, input.windowTokens);
+  const share = (tokens: number) => (tokens / windowTokens) * 100;
+
+  const breakdown: ContextBreakdown = input.breakdown ?? {
+    messages: tokensOf(input.historyChars),
+    system: 0,
+    tools: 0,
+    memory: 0,
+    skills: 0,
+    summary: 0,
+  };
+
+  const draft = tokensOf(input.draftChars);
+
+  const rows: ContextRow[] = [];
+
+  for (const id of CATEGORY_ORDER) {
+    const tokens = breakdown[id];
+    if (tokens > 0) rows.push({ id, tokens, percent: share(tokens) });
+  }
+
+  if (draft > 0) rows.push({ id: "draft", tokens: draft, percent: share(draft) });
+
+  const usedTokens = rows.reduce((total, row) => total + row.tokens, 0);
+  const free = Math.max(0, windowTokens - usedTokens);
+
+  rows.push({ id: "free", tokens: free, percent: share(free) });
+
+  const threshold = compactThreshold(windowTokens, input.loadedTokens, input.limitTokens);
+
+  return {
+    usedTokens,
+    windowTokens,
+    percent: share(usedTokens),
+    rows,
+    compactAtTokens: threshold.tokens,
+    compactSource: threshold.source,
+  };
+}
+
+/**
+ * Reads a token count the way people type one: "20000", "20k", "1.5k", "2m".
+ * "auto" and "off" mean no limit of the user's own. Anything else is not a
+ * count, and says so by coming back undefined.
+ */
+export function parseTokenCount(raw: string): number | null | undefined {
+  const text = String(raw || "").trim().toLowerCase().replace(/[,_\s]/g, "");
+
+  if (!text) return undefined;
+  if (text === "auto" || text === "off" || text === "default") return null;
+
+  const match = /^(\d+(?:\.\d+)?)(k|m)?(?:tokens?)?$/.exec(text);
+  if (!match) return undefined;
+
+  const multiplier = match[2] === "m" ? 1_000_000 : match[2] === "k" ? 1_000 : 1;
+  const value = Math.round(Number(match[1]) * multiplier);
+
+  return value > 0 ? value : undefined;
+}
+
+/** "27.6k", "203k", "950". The same shape everywhere a count is shown. */
+export function formatTokenCount(tokens: number): string {
+  const value = Math.max(0, Math.round(tokens));
+
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (value >= 100_000) return `${Math.round(value / 1000)}k`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(value);
+}

@@ -49,7 +49,7 @@ const useSkill: ToolSpec = {
 
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("usingSkill")} **${result.skill.name}**`,
+      content: `${ctx.t("usedSkill")} **${result.skill.name}**`,
     });
     ctx.syncSteps();
 

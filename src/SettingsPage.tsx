@@ -1,3 +1,4 @@
+import CompactLimitField from "./settings/CompactLimitField";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Trash2,
@@ -753,6 +754,15 @@ export default function SettingsPage({
                     {modelError}
                   </p>
                 )}
+              </Field>
+
+              <Field label={t("compactLimitSetting")}>
+                <CompactLimitField
+                  key={String(settings.compactLimit)}
+                  limit={settings.compactLimit ?? null}
+                  onChange={(compactLimit) => onUpdate({ ...settings, compactLimit })}
+                  t={t}
+                />
               </Field>
             </Section>
           )}
