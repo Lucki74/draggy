@@ -4,14 +4,7 @@ const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { log } = require("./logger.cjs");
 
-const SCHEMA_VERSION = 4;
-
-/**
- * The workspace every chat belongs to until it is put somewhere else. It is a
- * real row rather than a null: one place for the settings that used to be
- * global, and nothing downstream has to special-case "no workspace".
- */
-const DEFAULT_WORKSPACE_ID = "default";
+const SCHEMA_VERSION = 2;
 
 let db = null;
 let blobDir = null;
@@ -20,26 +13,12 @@ const SCHEMA = `
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
-  CREATE TABLE IF NOT EXISTS workspaces (
-    id              TEXT PRIMARY KEY,
-    name            TEXT NOT NULL,
-    kind            TEXT NOT NULL DEFAULT 'chat',
-    root_path       TEXT,
-    permission_mode TEXT NOT NULL DEFAULT 'ask',
-    settings        TEXT,
-    grants          TEXT,
-    created_at      INTEGER NOT NULL,
-    updated_at      INTEGER NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS chats (
     id                TEXT PRIMARY KEY,
     title             TEXT NOT NULL,
     updated_at        INTEGER NOT NULL,
     is_out_of_context INTEGER NOT NULL DEFAULT 0,
-    compaction        TEXT,
-    workspace_id      TEXT,
-    plan              TEXT
+    compaction        TEXT
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -74,39 +53,6 @@ const SCHEMA = `
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
-
-  CREATE TABLE IF NOT EXISTS checkpoints (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    workspace_id TEXT NOT NULL,
-    chat_id      TEXT,
-    path         TEXT NOT NULL,
-    action       TEXT NOT NULL,
-    detail       TEXT,
-    before_hash  TEXT,
-    after_hash   TEXT,
-    created_at   INTEGER NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS checkpoints_by_workspace
-    ON checkpoints(workspace_id, created_at DESC);
-
-  CREATE TABLE IF NOT EXISTS metrics (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    recorded_at     INTEGER NOT NULL,
-    workspace_id    TEXT,
-    chat_id         TEXT,
-    model           TEXT NOT NULL,
-    prompt_tokens   INTEGER NOT NULL DEFAULT 0,
-    response_tokens INTEGER NOT NULL DEFAULT 0,
-    response_ms     REAL NOT NULL DEFAULT 0,
-    first_token_ms  REAL,
-    load_ms         REAL NOT NULL DEFAULT 0,
-    task_ms         REAL NOT NULL DEFAULT 0,
-    loops           INTEGER NOT NULL DEFAULT 1,
-    tools           TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS metrics_by_time ON metrics(recorded_at DESC);
 
   CREATE VIRTUAL TABLE IF NOT EXISTS message_search
     USING fts5(chat_id UNINDEXED, message_id UNINDEXED, body);
@@ -183,14 +129,7 @@ function isUsable(database) {
 }
 
 function salvage(damagedPath, fresh) {
-  // Chats are rescued without their workspace: the damaged database may predate
-  // the column, and an insert that names it would fail for every chat rather
-  // than for the one thing worth losing. They land in the default workspace.
   const tables = [
-    [
-      "workspaces",
-      "id, name, kind, root_path, permission_mode, settings, created_at, updated_at",
-    ],
     ["chats", "id, title, updated_at, is_out_of_context"],
     ["messages", "id, chat_id, position, role, payload"],
     ["attachments", "message_row_id, position, name, type, blob_hash"],
@@ -289,9 +228,6 @@ function init(userDataPath) {
     db.exec(SCHEMA);
     migrate();
     ensureColumn("chats", "compaction", "TEXT");
-    ensureColumn("chats", "workspace_id", "TEXT");
-    ensureColumn("chats", "plan", "TEXT");
-    ensureColumn("workspaces", "grants", "TEXT");
     healthy = isUsable(db);
   } catch (error) {
     log.warn("storage", `could not open the database: ${error.message}`);
@@ -299,10 +235,6 @@ function init(userDataPath) {
   }
 
   if (!healthy) rebuild(dbPath);
-
-  // After either path: a rebuilt database has the table but no rows, and a
-  // rescued chat comes back without the workspace it was in.
-  ensureDefaultWorkspace();
 
   log.info("storage", `opened ${dbPath}`);
   return dbPath;
@@ -406,225 +338,6 @@ function migrate() {
   }
 }
 
-/**
- * The default workspace, and any chat that has never been in one. Runs on
- * every launch: it is two statements, and it is what stands between a database
- * written by 1.x and a window that shows no conversations at all.
- */
-function ensureDefaultWorkspace() {
-  try {
-    const now = Date.now();
-
-    db.prepare(
-      `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at)
-       VALUES (?, '', 'chat', NULL, 'auto', NULL, NULL, ?, ?)
-       ON CONFLICT(id) DO NOTHING`,
-    ).run(DEFAULT_WORKSPACE_ID, now, now);
-
-    const adopted = db
-      .prepare("UPDATE chats SET workspace_id = ? WHERE workspace_id IS NULL")
-      .run(DEFAULT_WORKSPACE_ID);
-
-    if (adopted.changes > 0) {
-      log.info(
-        "storage",
-        `moved ${adopted.changes} chat(s) into the default workspace`,
-      );
-    }
-  } catch (error) {
-    log.warn("storage", `could not prepare the default workspace: ${error.message}`);
-  }
-}
-
-/**
- * JSON written by an older or a newer version, so nothing in it is assumed. An
- * unreadable override is the global setting, and an unreadable list of
- * permissions is no permissions, which is the safe way to be wrong.
- */
-function parseJson(value, fallback) {
-  if (!value) return fallback;
-
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function rowToWorkspace(row) {
-  const grants = parseJson(row.grants, []);
-
-  return {
-    id: row.id,
-    name: row.name || "",
-    kind: row.kind === "project" ? "project" : "chat",
-    rootPath: row.root_path || null,
-    permissionMode: row.permission_mode || "ask",
-    settings: parseJson(row.settings, {}),
-    grants: Array.isArray(grants) ? grants : [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function listWorkspaces() {
-  return db
-    .prepare(
-      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
-       FROM workspaces ORDER BY created_at ASC`,
-    )
-    .all()
-    .map(rowToWorkspace);
-}
-
-function getWorkspace(id) {
-  const row = db
-    .prepare(
-      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
-       FROM workspaces WHERE id = ?`,
-    )
-    .get(String(id || ""));
-
-  return row ? rowToWorkspace(row) : null;
-}
-
-function saveWorkspace(workspace) {
-  const id = String(workspace?.id || "").trim();
-  if (!id) return { success: false, error: "A workspace needs an id." };
-
-  const now = Date.now();
-  const kind = workspace.kind === "project" ? "project" : "chat";
-
-  db.prepare(
-    `INSERT INTO workspaces (id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       name = excluded.name,
-       kind = excluded.kind,
-       root_path = excluded.root_path,
-       permission_mode = excluded.permission_mode,
-       settings = excluded.settings,
-       grants = excluded.grants,
-       updated_at = excluded.updated_at`,
-  ).run(
-    id,
-    String(workspace.name || ""),
-    kind,
-    workspace.rootPath ? String(workspace.rootPath) : null,
-    String(workspace.permissionMode || "ask"),
-    workspace.settings && Object.keys(workspace.settings).length > 0
-      ? JSON.stringify(workspace.settings)
-      : null,
-    Array.isArray(workspace.grants) && workspace.grants.length > 0
-      ? JSON.stringify(workspace.grants)
-      : null,
-    Number(workspace.createdAt) || now,
-    now,
-  );
-
-  const row = db
-    .prepare(
-      `SELECT id, name, kind, root_path, permission_mode, settings, grants, created_at, updated_at
-       FROM workspaces WHERE id = ?`,
-    )
-    .get(id);
-
-  return { success: true, workspace: rowToWorkspace(row) };
-}
-
-/**
- * Removing a workspace keeps its conversations: they move back to the default
- * one. Deleting someone's chats because they closed a project would be a
- * surprise, and the folder on disk is never touched either way.
- */
-function deleteWorkspace(id) {
-  if (id === DEFAULT_WORKSPACE_ID) {
-    return { success: false, error: "The default workspace cannot be removed." };
-  }
-
-  const moved = db
-    .prepare("UPDATE chats SET workspace_id = ? WHERE workspace_id = ?")
-    .run(DEFAULT_WORKSPACE_ID, id);
-
-  db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
-
-  return { success: true, moved: moved.changes };
-}
-
-/**
- * A file Draggy changed, and what it looked like before. The row is the record;
- * the bytes live in the checkpoint store next to the attachment blobs.
- */
-function addCheckpoint(entry) {
-  const result = db
-    .prepare(
-      `INSERT INTO checkpoints (workspace_id, chat_id, path, action, detail, before_hash, after_hash, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      String(entry.workspaceId || DEFAULT_WORKSPACE_ID),
-      entry.chatId ? String(entry.chatId) : null,
-      String(entry.path || ""),
-      String(entry.action || "write"),
-      entry.detail ? String(entry.detail) : null,
-      entry.beforeHash || null,
-      entry.afterHash || null,
-      Number(entry.createdAt) || Date.now(),
-    );
-
-  return { success: true, id: Number(result.lastInsertRowid) };
-}
-
-function rowToCheckpoint(row) {
-  if (!row) return null;
-
-  return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    chatId: row.chat_id || null,
-    path: row.path,
-    action: row.action,
-    detail: row.detail || null,
-    beforeHash: row.before_hash || null,
-    afterHash: row.after_hash || null,
-    createdAt: row.created_at,
-  };
-}
-
-function getCheckpoint(id) {
-  return rowToCheckpoint(
-    db.prepare("SELECT * FROM checkpoints WHERE id = ?").get(Number(id)),
-  );
-}
-
-function listCheckpoints(workspaceId, limit = 100) {
-  return db
-    .prepare(
-      `SELECT * FROM checkpoints WHERE workspace_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT ?`,
-    )
-    .all(String(workspaceId), Number(limit) || 100)
-    .map(rowToCheckpoint);
-}
-
-function dropCheckpoint(id) {
-  db.prepare("DELETE FROM checkpoints WHERE id = ?").run(Number(id));
-  return { success: true };
-}
-
-/** Every blob any checkpoint still points at, for the store's own cleanup. */
-function checkpointHashes() {
-  const rows = db
-    .prepare(
-      `SELECT before_hash AS hash FROM checkpoints WHERE before_hash IS NOT NULL
-       UNION SELECT after_hash FROM checkpoints WHERE after_hash IS NOT NULL`,
-    )
-    .all();
-
-  return rows.map((row) => row.hash);
-}
-
 function searchBody(message) {
   const parts = [message.content || "", message.textContent || ""];
   for (const attachment of message.attachments || []) parts.push(attachment.name);
@@ -634,25 +347,19 @@ function searchBody(message) {
 function saveChat(session) {
   const transaction = () => {
     db.prepare(
-      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction, workspace_id, plan)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO chats (id, title, updated_at, is_out_of_context, compaction)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          updated_at = excluded.updated_at,
          is_out_of_context = excluded.is_out_of_context,
-         compaction = excluded.compaction,
-         workspace_id = excluded.workspace_id,
-         plan = excluded.plan`,
+         compaction = excluded.compaction`,
     ).run(
       session.id,
       String(session.title || ""),
       Number(session.updatedAt) || Date.now(),
       session.isOutOfContext ? 1 : 0,
       session.compaction ? JSON.stringify(session.compaction) : null,
-      String(session.workspaceId || DEFAULT_WORKSPACE_ID),
-      Array.isArray(session.plan) && session.plan.length > 0
-        ? JSON.stringify(session.plan)
-        : null,
     );
 
     db.prepare("DELETE FROM messages WHERE chat_id = ?").run(session.id);
@@ -756,8 +463,6 @@ function hydrateChat(chatRow) {
     id: chatRow.id,
     title: chatRow.title,
     updatedAt: chatRow.updated_at,
-    workspaceId: chatRow.workspace_id || DEFAULT_WORKSPACE_ID,
-    plan: parseJson(chatRow.plan, null),
     isOutOfContext: Boolean(chatRow.is_out_of_context),
     isGenerating: false,
     // Losing a summary costs one idle generation to rebuild, so an unparseable
@@ -770,8 +475,7 @@ function hydrateChat(chatRow) {
 function loadChats() {
   const rows = db
     .prepare(
-      `SELECT id, title, updated_at, is_out_of_context, compaction, workspace_id, plan
-       FROM chats ORDER BY updated_at DESC`,
+      "SELECT id, title, updated_at, is_out_of_context, compaction FROM chats ORDER BY updated_at DESC",
     )
     .all();
   return rows.map(hydrateChat);
@@ -780,7 +484,7 @@ function loadChats() {
 function loadChatSummaries() {
   return db
     .prepare(
-      `SELECT c.id, c.title, c.updated_at, c.is_out_of_context, c.workspace_id,
+      `SELECT c.id, c.title, c.updated_at, c.is_out_of_context,
               (SELECT COUNT(*) FROM messages m WHERE m.chat_id = c.id) AS message_count
        FROM chats c ORDER BY c.updated_at DESC`,
     )
@@ -789,7 +493,6 @@ function loadChatSummaries() {
       id: row.id,
       title: row.title,
       updatedAt: row.updated_at,
-      workspaceId: row.workspace_id || DEFAULT_WORKSPACE_ID,
       isOutOfContext: Boolean(row.is_out_of_context),
       messageCount: row.message_count,
     }));
@@ -857,7 +560,6 @@ function importSessions(sessions) {
         id: session.id,
         title: session.title || "",
         updatedAt: session.updatedAt || Date.now(),
-        workspaceId: session.workspaceId || DEFAULT_WORKSPACE_ID,
         isOutOfContext: Boolean(session.isOutOfContext),
         messages: Array.isArray(session.messages) ? session.messages : [],
       });
@@ -892,119 +594,8 @@ function close() {
   }
 }
 
-/** A number fit to store: finite, and not below zero. */
-const measure = (value) => {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : 0;
-};
-
-/** Most distinct tools one turn can report, and the longest name kept. */
-const MAX_TOOLS_PER_TURN = 50;
-const MAX_TOOL_NAME = 120;
-
-/**
- * One finished turn, for the statistics page. Everything here stays on this
- * machine; the table exists only so the user can see how their models perform.
- */
-function recordMetric(row) {
-  if (!row || typeof row !== "object") return { success: false };
-
-  const model = String(row.model || "").slice(0, 200);
-  if (!model) return { success: false };
-
-  const tools = {};
-  if (row.tools && typeof row.tools === "object") {
-    for (const [name, count] of Object.entries(row.tools).slice(0, MAX_TOOLS_PER_TURN)) {
-      const times = Math.floor(measure(count));
-      if (times > 0) tools[String(name).slice(0, MAX_TOOL_NAME)] = times;
-    }
-  }
-
-  const firstToken = Number(row.firstTokenMs);
-
-  db.prepare(
-    `INSERT INTO metrics (
-      recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-      response_ms, first_token_ms, load_ms, task_ms, loops, tools
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    Math.floor(measure(row.recordedAt)) || Date.now(),
-    row.workspaceId ? String(row.workspaceId) : null,
-    row.chatId ? String(row.chatId) : null,
-    model,
-    Math.floor(measure(row.promptTokens)),
-    Math.floor(measure(row.responseTokens)),
-    measure(row.responseMs),
-    Number.isFinite(firstToken) && firstToken >= 0 ? firstToken : null,
-    measure(row.loadMs),
-    measure(row.taskMs),
-    Math.max(1, Math.floor(measure(row.loops))),
-    Object.keys(tools).length > 0 ? JSON.stringify(tools) : null,
-  );
-
-  return { success: true };
-}
-
-/** The most rows one listing returns, newest first. */
-const MAX_METRIC_ROWS = 20_000;
-
-function listMetrics(since = 0) {
-  const rows = db
-    .prepare(
-      `SELECT recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-              response_ms, first_token_ms, load_ms, task_ms, loops, tools
-         FROM metrics
-        WHERE recorded_at >= ?
-        ORDER BY recorded_at DESC
-        LIMIT ?`,
-    )
-    .all(Math.floor(measure(since)), MAX_METRIC_ROWS);
-
-  return rows.map((row) => {
-    let tools;
-    try {
-      tools = row.tools ? JSON.parse(row.tools) : {};
-    } catch {
-      tools = {};
-    }
-
-    return {
-      recordedAt: row.recorded_at,
-      workspaceId: row.workspace_id,
-      chatId: row.chat_id,
-      model: row.model,
-      promptTokens: row.prompt_tokens,
-      responseTokens: row.response_tokens,
-      responseMs: row.response_ms,
-      firstTokenMs: row.first_token_ms,
-      loadMs: row.load_ms,
-      taskMs: row.task_ms,
-      loops: row.loops,
-      tools,
-    };
-  });
-}
-
-function clearMetrics() {
-  const result = db.prepare("DELETE FROM metrics").run();
-  return { success: true, removed: Number(result.changes) || 0 };
-}
-
 module.exports = {
-  DEFAULT_WORKSPACE_ID,
-  recordMetric,
-  listMetrics,
-  clearMetrics,
   init,
-  listWorkspaces,
-  getWorkspace,
-  saveWorkspace,
-  deleteWorkspace,
-  addCheckpoint,
-  getCheckpoint,
-  listCheckpoints,
-  dropCheckpoint,
-  checkpointHashes,
   saveChat,
   loadChats,
   loadChatSummaries,
