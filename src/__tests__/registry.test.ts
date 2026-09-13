@@ -5,6 +5,7 @@ import {
   describeToolsForPrompt,
   isBrowsingTool,
   registerTool,
+  registerTools,
   resetRegistry,
   runTool,
   toolDefinitions,
@@ -198,5 +199,49 @@ describe("dispatch", () => {
     registerTool(echo);
     const result = await runTool("echo", { value: "" }, makeContext(), ALL_ON);
     expect(result).toContain("missing required argument");
+  });
+});
+
+describe("a turn limited to some groups", () => {
+  beforeEach(() => {
+    resetRegistry();
+    registerTools([
+      {
+        name: "look_up",
+        group: "web",
+        description: "d",
+        parameters: {},
+        required: [],
+        usage: "{}",
+        annotations: { readOnly: true },
+        run: async () => "TOOL RESULT (look_up): found",
+      },
+      {
+        name: "github__list_issues",
+        group: "external",
+        description: "d",
+        parameters: {},
+        required: [],
+        usage: "{}",
+        annotations: { readOnly: true },
+        run: async () => "TOOL RESULT: issues",
+      },
+    ]);
+  });
+
+  const limited = { webMode: "on", codeExecution: false, libraryReady: false, allowedGroups: ["web"] } as ToolEnvironment;
+
+  it("offers only the tools in those groups", () => {
+    expect(availableTools(limited).map((tool) => tool.name)).toEqual(["look_up"]);
+  });
+
+  it("refuses a call to a tool outside them, even one that only reads", async () => {
+    const result = await runTool("github__list_issues", {}, {} as never, limited);
+
+    expect(result).toContain("not available here");
+  });
+
+  it("still runs the ones inside", async () => {
+    expect(await runTool("look_up", {}, {} as never, limited)).toContain("found");
   });
 });

@@ -76,6 +76,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onChanged: (callback) => subscribe("file-changed", callback),
   },
 
+  apiServer: {
+    status: () => ipcRenderer.invoke("api-server:status"),
+    configure: (config) => ipcRenderer.invoke("api-server:configure", config),
+    regenerateKey: () => ipcRenderer.invoke("api-server:regenerate-key"),
+    ready: () => ipcRenderer.send("api-server:ready"),
+    onRequest: (callback) => subscribe("api-server:request", callback),
+    onAbort: (callback) => subscribe("api-server:abort", callback),
+    text: (id, text) => ipcRenderer.send("api-server:text", id, text),
+    model: (id, model) => ipcRenderer.send("api-server:model", id, model),
+    done: (id, result) => ipcRenderer.send("api-server:done", id, result),
+    failed: (id, message) => ipcRenderer.send("api-server:failed", id, message),
+  },
+
   metrics: {
     record: (row) => ipcRenderer.invoke("metrics:record", row),
     list: (since) => ipcRenderer.invoke("metrics:list", since),

@@ -32,6 +32,11 @@ export interface ToolEnvironment {
   /** Whether that folder is a git repository and git is installed to read it. */
   hasGit?: boolean;
   /**
+   * The only groups this turn may use, when set. A request from the local API
+   * gets the web and nothing else: not the user's extensions, not their files.
+   */
+  allowedGroups?: ToolGroup[];
+  /**
    * Only tools that change nothing. Set for a nested exploration, which reads
    * the project on the conversation's behalf and must not act on it.
    */
@@ -145,6 +150,7 @@ export function availableTools(environment: ToolEnvironment): ToolSpec[] {
     // annotation missing is treated as "not safe", which is the cautious way
     // round.
     if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
+    if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) return false;
 
     return !spec.available || spec.available(environment);
   });
@@ -209,6 +215,12 @@ export async function runTool(
     )
       .map((entry) => entry.name)
       .join(", ")}.`;
+  }
+
+  // A tool outside the groups this turn was given is not there, however the
+  // model came to know its name.
+  if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) {
+    return `TOOL RESULT (${name}): This tool is not available here.`;
   }
 
   if (spec.available && !spec.available(environment)) {

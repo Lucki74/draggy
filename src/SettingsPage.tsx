@@ -1,3 +1,4 @@
+import ApiServerField from "./settings/ApiServerField";
 import StatsPanel from "./stats/StatsPanel";
 import CompactLimitField from "./settings/CompactLimitField";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -1125,6 +1126,10 @@ export default function SettingsPage({
                   checked={settings.showMetrics}
                   onChange={(value) => onUpdate({ ...settings, showMetrics: value })}
                 />
+              </Field>
+
+              <Field label={t("apiServer")}>
+                <ApiServerField t={t} />
               </Field>
             </Section>
           )}

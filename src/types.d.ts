@@ -303,6 +303,30 @@ export interface TurnMetrics {
   breakdown?: ContextBreakdown;
 }
 
+export interface ApiServerStatus {
+  success: boolean;
+  enabled: boolean;
+  port: number;
+  running: boolean;
+  baseUrl: string;
+  /** Only while enabled. */
+  key: string | null;
+  error: string | null;
+}
+
+/** A chat completion request as the main process has already checked it. */
+export interface ApiCompletionRequest {
+  model: string;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
+  stream: boolean;
+}
+
+export interface ApiCompletionResult {
+  model: string;
+  content: string;
+  usage: { promptTokens: number; responseTokens: number };
+}
+
 /** One finished turn, as the statistics page counts it. Never leaves this machine. */
 export interface MetricRow {
   recordedAt: number;
@@ -781,6 +805,20 @@ declare global {
         onChanged: (
           callback: (change: { workspaceId: string; path: string; from?: string }) => void,
         ) => Unsubscribe;
+      };
+
+      apiServer: {
+        status: () => Promise<ApiServerStatus>;
+        configure: (config: { enabled?: boolean; port?: number }) => Promise<ApiServerStatus>;
+        regenerateKey: () => Promise<ApiServerStatus>;
+        /** Tells the main process this window can answer requests. */
+        ready: () => void;
+        onRequest: (callback: (message: { id: string; request: ApiCompletionRequest }) => void) => Unsubscribe;
+        onAbort: (callback: (id: string) => void) => Unsubscribe;
+        text: (id: string, text: string) => void;
+        model: (id: string, model: string) => void;
+        done: (id: string, result: ApiCompletionResult) => void;
+        failed: (id: string, message: string) => void;
       };
 
       metrics: {

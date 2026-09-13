@@ -17,6 +17,7 @@ import {
 import ChatScreen from "../ChatScreen";
 import Canvas from "../canvas/Canvas";
 import GitStrip from "../project/GitStrip";
+import { useApiBridge } from "../api/useApiBridge";
 import { useGitStatus } from "../project/useGitStatus";
 import { shouldShowStrip } from "../project/gitView";
 import SettingsPage from "../SettingsPage";
@@ -200,6 +201,10 @@ export default function AppShell({
     hasSkills: skillCount > 0,
     hasGit: Boolean(active.rootPath && gitStatus?.available && gitStatus.isRepo),
   };
+
+  // Requests to the local API, when the user has turned it on, are answered
+  // by this window with the model and settings it has right now.
+  useApiBridge({ model, settings: effectiveSettings, t });
 
   const runs = useAgentRuns({
     model,

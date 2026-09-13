@@ -16,6 +16,7 @@ const os = require("os");
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
+const crypto = require("crypto");
 const adblocker = require("./adblocker.cjs");
 const favicon = require("./favicon.cjs");
 const logger = require("./logger.cjs");
@@ -25,6 +26,7 @@ const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
 const fsGuard = require("./fsGuard.cjs");
 const gitTools = require("./git.cjs");
+const apiServerTools = require("./apiServer.cjs");
 const checkpoints = require("./checkpoints.cjs");
 const secrets = require("./secrets.cjs");
 const mcpRegistry = require("./mcpRegistry.cjs");
@@ -811,6 +813,11 @@ app.whenReady().then(() => {
 
   updater.init(app, (state) => broadcast("updater-state", state));
 
+  // Only if the user turned it on, and never before they did.
+  applyApiServerConfig(readApiServerConfig()).catch((error) =>
+    log.warn("api", `could not start the local API: ${error.message}`),
+  );
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -828,6 +835,7 @@ function shutdown() {
     ["updater", () => updater.dispose()],
     // Servers and code runs are children of this process and would otherwise
     // be left running after the window is gone.
+    ["api", () => void apiServer?.stop()],
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["ollama", stopOllama],
@@ -1023,6 +1031,197 @@ function isOllamaRunning(timeout = 2000) {
 }
 
 ipcMain.handle("check-ollama", () => isOllamaRunning());
+
+/* -------------------------------------------------------------------------- */
+/* The local OpenAI-compatible API                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Where the key lives in the encrypted store. No server id can look like this. */
+const API_SECRET_OWNER = "__draggy_api_server";
+const API_CONFIG_KEY = "apiServer";
+
+/** How long a request may wait on the window before it is given up on. */
+const API_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+
+let apiServer = null;
+let apiServerError = null;
+/** The key for this run, when the keystore cannot hold one across runs. */
+let apiKeyInMemory = null;
+/** Set once the window has said it can answer requests. */
+let apiBridgeReady = false;
+const pendingApiRequests = new Map();
+
+function readApiServerConfig() {
+  const saved = safeParse(storage.getValue(API_CONFIG_KEY));
+  const port = Number(saved?.port);
+
+  return {
+    enabled: saved?.enabled === true,
+    port: Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : apiServerTools.DEFAULT_PORT,
+  };
+}
+
+function safeParse(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function currentApiKey() {
+  const stored = secrets.get(API_SECRET_OWNER).key;
+  if (stored) return stored;
+  if (apiKeyInMemory) return apiKeyInMemory;
+
+  const key = apiServerTools.generateKey();
+  // The keystore can refuse (no safeStorage); the key then lasts for this run.
+  if (!secrets.set(API_SECRET_OWNER, { key })) apiKeyInMemory = key;
+  return key;
+}
+
+function isMainWindowSender(event) {
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents);
+}
+
+/** Hands a request to the window, where the same loop as the chat runs it. */
+function generateInWindow(request, { signal, onText, onModel } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!apiBridgeReady || !mainWindow || mainWindow.isDestroyed()) {
+      reject(new Error("Draggy is still starting. Try again in a moment."));
+      return;
+    }
+
+    const id = crypto.randomUUID();
+
+    const finish = (callback) => (value) => {
+      const pending = pendingApiRequests.get(id);
+      if (!pending) return;
+      pendingApiRequests.delete(id);
+      clearTimeout(pending.timer);
+      callback(value);
+    };
+
+    const timer = setTimeout(() => {
+      mainWindow?.webContents.send("api-server:abort", id);
+      finish(reject)(new Error("The reply took too long."));
+    }, API_REQUEST_TIMEOUT_MS);
+
+    pendingApiRequests.set(id, {
+      onText,
+      onModel,
+      timer,
+      resolve: finish(resolve),
+      reject: finish(reject),
+    });
+
+    signal?.addEventListener("abort", () => {
+      if (!mainWindow?.isDestroyed()) mainWindow?.webContents.send("api-server:abort", id);
+      finish(reject)(new Error("The client went away."));
+    });
+
+    mainWindow.webContents.send("api-server:request", { id, request });
+  });
+}
+
+async function listApiModels() {
+  try {
+    const response = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data?.models ?? []).map((model) => String(model.name)).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function apiServerStatus() {
+  const config = readApiServerConfig();
+  return {
+    success: true,
+    enabled: config.enabled,
+    port: config.port,
+    running: Boolean(apiServer?.isRunning()),
+    baseUrl: `http://${apiServerTools.HOST}:${config.port}/v1`,
+    key: config.enabled ? currentApiKey() : null,
+    error: apiServerError,
+  };
+}
+
+async function applyApiServerConfig(config) {
+  apiServerError = null;
+
+  if (apiServer && (!config.enabled || apiServer.port() !== config.port)) {
+    await apiServer.stop();
+    apiServer = null;
+  }
+
+  if (!config.enabled) return apiServerStatus();
+
+  if (!apiServer) {
+    apiServer = apiServerTools.createApiServer({
+      port: config.port,
+      getKey: currentApiKey,
+      generate: generateInWindow,
+      listModels: listApiModels,
+      log,
+    });
+  }
+
+  const started = await apiServer.start();
+  if (!started.success) {
+    apiServerError = started.error;
+    apiServer = null;
+  }
+
+  return apiServerStatus();
+}
+
+ipcMain.handle("api-server:status", wrap("api", async () => apiServerStatus()));
+
+ipcMain.handle("api-server:configure", wrap("api", async (event, next) => {
+  const current = readApiServerConfig();
+  const port = Number(next?.port);
+
+  const config = {
+    enabled: typeof next?.enabled === "boolean" ? next.enabled : current.enabled,
+    port: Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : current.port,
+  };
+
+  storage.setValue(API_CONFIG_KEY, JSON.stringify(config));
+  return applyApiServerConfig(config);
+}));
+
+ipcMain.handle("api-server:regenerate-key", wrap("api", async () => {
+  apiKeyInMemory = null;
+  const key = apiServerTools.generateKey();
+  if (!secrets.set(API_SECRET_OWNER, { key })) apiKeyInMemory = key;
+  return apiServerStatus();
+}));
+
+ipcMain.on("api-server:ready", (event) => {
+  if (isMainWindowSender(event)) apiBridgeReady = true;
+});
+
+ipcMain.on("api-server:text", (event, id, text) => {
+  if (!isMainWindowSender(event)) return;
+  pendingApiRequests.get(String(id))?.onText?.(String(text ?? ""));
+});
+
+ipcMain.on("api-server:model", (event, id, model) => {
+  if (!isMainWindowSender(event)) return;
+  pendingApiRequests.get(String(id))?.onModel?.(String(model ?? ""));
+});
+
+ipcMain.on("api-server:done", (event, id, result) => {
+  if (!isMainWindowSender(event)) return;
+  pendingApiRequests.get(String(id))?.resolve(result ?? {});
+});
+
+ipcMain.on("api-server:failed", (event, id, message) => {
+  if (!isMainWindowSender(event)) return;
+  pendingApiRequests.get(String(id))?.reject(new Error(String(message || "The reply failed.")));
+});
 
 async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }) {
   const win = new BrowserWindow({
