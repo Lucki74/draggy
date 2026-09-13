@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { createFileProgressTracker, plainPreview } from "../utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { copyText, createFileProgressTracker, plainPreview } from "../utils";
 
 describe("tracking a multi-file download", () => {
   it("reports a simple single-file download plainly", () => {
@@ -88,5 +88,35 @@ describe("a reply as a one-line preview", () => {
 
   it("leaves ordinary underscores inside words alone", () => {
     expect(plainPreview("use snake_case names")).toBe("use snake_case names");
+  });
+});
+
+describe("copying text", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("says it copied only once the clipboard took the text", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+
+    await expect(copyText("npm test")).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith("npm test");
+  });
+
+  it("says so when the clipboard refuses, so no button shows Copied", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const refused = new Error("Write permission denied.");
+    vi.stubGlobal("navigator", { clipboard: { writeText: async () => Promise.reject(refused) } });
+
+    await expect(copyText("npm test")).resolves.toBe(false);
+  });
+
+  it("does not throw without a clipboard at all", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("navigator", {});
+
+    await expect(copyText("npm test")).resolves.toBe(false);
   });
 });

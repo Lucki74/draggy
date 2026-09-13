@@ -40,6 +40,7 @@ import { selectableModels } from "./modelKinds";
 import type { SettingsTab } from "./settings/pages";
 import { translations } from "./translations";
 import {
+  copyText,
   isBinary,
   writeLocalStorage,
 } from "./utils";
@@ -604,8 +605,8 @@ export default function ChatScreen({
     isAtBottom.current = true;
   };
 
-  const copyToClipboard = useCallback((text: string, idx: number) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = useCallback(async (text: string, idx: number) => {
+    if (!(await copyText(text))) return;
     setCopiedIndex(idx);
     setTimeout(() => setCopiedIndex(null), 2000);
   }, []);

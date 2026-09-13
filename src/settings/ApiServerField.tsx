@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { Toggle } from "./Controls";
 import type { ApiServerStatus } from "../types";
+import { copyText } from "../utils";
 
 interface ApiServerFieldProps {
   t: (key: string) => string;
@@ -44,8 +45,8 @@ export default function ApiServerField({ t }: ApiServerFieldProps) {
     }
   };
 
-  const copy = (label: string, text: string) => {
-    void navigator.clipboard?.writeText(text);
+  const copy = async (label: string, text: string) => {
+    if (!(await copyText(text))) return;
     setCopied(label);
     setTimeout(() => setCopied(null), 1500);
   };

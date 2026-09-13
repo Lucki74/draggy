@@ -1,3 +1,15 @@
+/** Puts text on the clipboard and says whether it got there, so a copy button only claims what
+ * actually happened. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.warn("[clipboard] copy failed:", error);
+    return false;
+  }
+}
+
 export const generateId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();

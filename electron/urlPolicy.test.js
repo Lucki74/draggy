@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const {
+  permissionGranted,
   isFetchableUrl,
   isPrivateHostname,
   refusalFor,
@@ -130,5 +131,26 @@ describe("refusalFor", () => {
 
   it("says plainly when the string was never a URL", () => {
     expect(refusalFor("not a url")).toContain("not a valid web address");
+  });
+});
+
+describe("permissionGranted", () => {
+  const app = { fromAppWindow: true, fromAppPage: true };
+
+  it("lets Draggy's own pages write to the clipboard, which every copy button needs", () => {
+    expect(permissionGranted("clipboard-sanitized-write", app)).toBe(true);
+    expect(permissionGranted("media", app)).toBe(true);
+  });
+
+  it("keeps the clipboard from a widget frame and from any other window", () => {
+    expect(permissionGranted("clipboard-sanitized-write", { ...app, fromAppPage: false })).toBe(false);
+    expect(permissionGranted("clipboard-sanitized-write", { ...app, fromAppWindow: false })).toBe(false);
+    expect(permissionGranted("media", { ...app, fromAppWindow: false })).toBe(false);
+  });
+
+  it("refuses everything else, reading the clipboard included", () => {
+    for (const permission of ["clipboard-read", "geolocation", "notifications", "openExternal"]) {
+      expect(permissionGranted(permission, app)).toBe(false);
+    }
   });
 });

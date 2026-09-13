@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { copyText } from "../utils";
 
 /** A fenced code block: language, copy button, highlighted source. Its own file because fast
  * refresh wants components or constants exported, not both. */
@@ -14,8 +15,8 @@ interface CodeBlockProps {
 export function CodeBlock({ language, value }: CodeBlockProps) {
   const [isCopied, setIsCopied] = useState(false);
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(value);
+  const copyCode = async () => {
+    if (!(await copyText(value))) return;
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };

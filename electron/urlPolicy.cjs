@@ -85,8 +85,17 @@ function refusalFor(value) {
   return "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read.";
 }
 
+/** What Draggy's own window may use: the microphone for Talk, and clipboard writes for copy
+ * buttons, those only from its own pages and never from a widget frame. */
+function permissionGranted(permission, { fromAppWindow, fromAppPage }) {
+  if (!fromAppWindow) return false;
+  if (permission === "media") return true;
+  return permission === "clipboard-sanitized-write" && Boolean(fromAppPage);
+}
+
 module.exports = {
   ALLOWED_PROTOCOLS,
+  permissionGranted,
   isFetchableUrl,
   isPrivateHostname,
   refusalFor,

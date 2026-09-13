@@ -801,10 +801,15 @@ app.whenReady().then(() => {
   );
 
   session.defaultSession.setPermissionRequestHandler(
-    (contents, permission, callback) => {
+    (contents, permission, callback, details) => {
       const isAppWindow =
         mainWindow && !mainWindow.isDestroyed() && contents === mainWindow.webContents;
-      callback(Boolean(isAppWindow) && permission === "media");
+      callback(
+        urlPolicy.permissionGranted(permission, {
+          fromAppWindow: Boolean(isAppWindow),
+          fromAppPage: isRendererUrl(String(details?.requestingUrl || "")),
+        }),
+      );
     },
   );
 
