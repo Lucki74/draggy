@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Download, Search, MessageSquare, Trash } from "lucide-react";
 import type { ChatSession, AppSettings } from "./types";
 import { translations } from "./translations";
+import { plainPreview } from "./utils";
 
 interface ChatHistoryProps {
   sessions: ChatSession[];
@@ -40,9 +41,9 @@ export default function ChatHistory({
     const aiMessage = session.messages.find((m) => m.role === "assistant");
     if (!aiMessage) return t("noResponseYet");
 
-    const preview =
-      aiMessage.textContent?.trim() ||
-      aiMessage.content.replace(THINK_BLOCK_RE, "").trim();
+    const preview = plainPreview(
+      aiMessage.textContent?.trim() || aiMessage.content.replace(THINK_BLOCK_RE, ""),
+    );
     return preview || t("noResponseYet");
   };
 

@@ -109,12 +109,14 @@ const listDirectory: ToolSpec = {
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path || ".");
+    // "." reads as nothing in the timeline; the project's own name says which folder.
+    const folderLabel = nameOf(target === "." && ctx.projectRoot ? ctx.projectRoot : target);
     const stepId = ctx.newId();
 
     ctx.pushStep({
       id: stepId,
       type: "reading",
-      content: `${ctx.t("listingFolder")} **${nameOf(target)}**`,
+      content: `${ctx.t("listingFolder")} **${folderLabel}**`,
       isComplete: false,
     });
 
@@ -129,7 +131,7 @@ const listDirectory: ToolSpec = {
     ctx.patchStep(stepId, {
       isComplete: true,
       filepath: result.path,
-      content: `${ctx.t("listedFolder")} **${nameOf(target)}**`,
+      content: `${ctx.t("listedFolder")} **${folderLabel}**`,
     });
     ctx.syncSteps();
 

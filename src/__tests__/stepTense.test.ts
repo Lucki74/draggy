@@ -88,11 +88,13 @@ describe("the file tools", () => {
   it("list a folder", async () => {
     stub({ list: { success: true, path: "C:\\projects\\thing", entries: [] } });
     const { context, lifecycle } = harness();
+    context.projectRoot = "C:\\projects\\thing";
 
     await runTool("list_directory", { path: "." }, context, EVERYTHING);
 
-    expect(lifecycle().began).toMatch(/^listingFolder /);
-    expect(lifecycle().ended).toMatch(/^listedFolder /);
+    // "." names the project rather than showing a lone dot.
+    expect(lifecycle().began).toBe("listingFolder **thing**");
+    expect(lifecycle().ended).toBe("listedFolder **thing**");
   });
 
   it("move a file", async () => {

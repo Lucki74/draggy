@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   MessageSquare,
@@ -81,6 +81,8 @@ export default function AppShell({
   const [skillCount, setSkillCount] = useState(0);
   /** A background conversation that finished while the user was elsewhere. */
   const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
+  // The chat on screen, if any. A new chat is never "selected", so the selection alone is not it.
+  const watchingRef = useRef<string | null>(null);
   /** The file open in the canvas, with the workspace it belongs to. Switching workspace hides it
    * rather than trying to open one project's file in another. */
   const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
@@ -208,7 +210,7 @@ export default function AppShell({
     onGrant: workspaces.addGrant,
     onFinished: (chatId) => {
       // Only worth saying for a conversation the user is not looking at.
-      if (chatId === selectedChatId) return;
+      if (chatId === watchingRef.current) return;
       setFinishedChatId(chatId);
       setTimeout(() => setFinishedChatId((current) => (current === chatId ? null : current)), 8000);
     },
@@ -381,6 +383,10 @@ export default function AppShell({
     ? (selectedChatId ?? visibleSessions[0]?.id ?? blankChatId)
     : selectedChatId;
 
+  useEffect(() => {
+    watchingRef.current = viewMode === "chat" ? currentChatId : null;
+  });
+
   // Stable identities so MessageItem's memo() skips unchanged messages; an inline arrow would be a
   // new prop every render.
   const { regenerate, switchVersion, editMessage } = runs;
@@ -406,6 +412,7 @@ export default function AppShell({
   );
 
   const currentSession = visibleSessions.find((s) => s.id === currentChatId);
+  const hasPlan = Boolean(currentSession?.plan && currentSession.plan.length > 0);
 
   return (
     <div
@@ -714,6 +721,7 @@ export default function AppShell({
                 </button>
               ))}
 
+            <div className="flex-1 min-w-0 flex">
             <ChatScreen
             model={model}
             chat={
@@ -745,40 +753,53 @@ export default function AppShell({
             settings={settings}
             onUpdateSettings={onUpdateSettings}
             />
+            </div>
 
-            {canvasPath && (
+            {/* One column on the right: with the canvas open the plan sits above it, since chat,
+                canvas and plan side by side do not fit a laptop screen. */}
+            {(canvasPath || hasPlan) && (
               <div
-                className="w-[45%] min-w-[320px] flex-shrink-0 border-l-[3px]"
+                className={`flex-shrink-0 flex flex-col border-l-[3px] ${
+                  canvasPath ? "w-[42%] min-w-[300px] max-w-[640px]" : "w-64"
+                }`}
                 style={{ borderColor: "var(--border-light)" }}
               >
-                <Canvas
-                  key={canvasPath}
-                  workspaceId={active.id}
-                  path={canvasPath}
-                  t={t}
-                  onClose={closeCanvas}
-                  onMoved={followCanvas}
-                />
-              </div>
-            )}
+                {hasPlan && currentSession?.plan && (
+                  <div
+                    className={
+                      canvasPath
+                        ? "max-h-[40%] overflow-y-auto border-b-[3px] flex-shrink-0"
+                        : "flex-1 min-h-0"
+                    }
+                    style={{ borderColor: "var(--border-light)" }}
+                  >
+                    <PlanPanel
+                      items={currentSession.plan}
+                      running={runs.running.includes(currentChatId)}
+                      onChange={(items: PlanItem[]) =>
+                        store.updateSession(currentChatId, (session) => ({
+                          ...session,
+                          plan: items,
+                        }))
+                      }
+                      onContinue={() => runs.send(currentChatId, t("continuePlan"))}
+                      t={t}
+                    />
+                  </div>
+                )}
 
-            {currentSession?.plan && currentSession.plan.length > 0 && (
-              <div
-                className="w-64 flex-shrink-0 border-l-[3px]"
-                style={{ borderColor: "var(--border-light)" }}
-              >
-                <PlanPanel
-                  items={currentSession.plan}
-                  running={runs.running.includes(currentChatId)}
-                  onChange={(items: PlanItem[]) =>
-                    store.updateSession(currentChatId, (session) => ({
-                      ...session,
-                      plan: items,
-                    }))
-                  }
-                  onContinue={() => runs.send(currentChatId, t("continuePlan"))}
-                  t={t}
-                />
+                {canvasPath && (
+                  <div className="flex-1 min-h-0">
+                    <Canvas
+                      key={canvasPath}
+                      workspaceId={active.id}
+                      path={canvasPath}
+                      t={t}
+                      onClose={closeCanvas}
+                      onMoved={followCanvas}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -786,11 +807,8 @@ export default function AppShell({
           <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />
         )}
 
-        {/*
-          Mounted for the life of the app rather than only while it is open. A
-          model download lives in this component, and unmounting it aborted the
-          pull the moment the user looked at anything else.
-        */}
+        {/* Mounted for the app's life, not only while open: a model download lives here, and
+            unmounting aborted the pull whenever the user looked away. */}
         <div
           className={
             viewMode === "settings"

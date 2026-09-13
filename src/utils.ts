@@ -126,6 +126,19 @@ export function siteLabel(hostname: string): string {
 
 /** A stable colour for a site badge, derived from the name. Fetching favicons from Google announced
  * every domain the user looked at, and was blocked. */
+/** A reply as one line of plain text for a preview: markdown markers and code blocks removed, so
+ * `**VRAM**` reads as VRAM. */
+export function plainPreview(markdown: string): string {
+  return String(markdown || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/(\*\*|__|`)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function hueFor(text: string): number {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {

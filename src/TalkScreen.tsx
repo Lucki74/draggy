@@ -440,9 +440,8 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
           </button>
         )}
 
-        {/* Only while a conversation is running, where it is diagnostic rather
-            than decoration: which model is answering, and whether the neural
-            detector and GPU synthesis actually loaded. */}
+        {/* Only while talking, as diagnostics: which model answers, and whether the neural
+            detector and GPU synthesis loaded. */}
         {live && (
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] opacity-60">
             <span>{modelLabel || t("noModelSelected")}</span>

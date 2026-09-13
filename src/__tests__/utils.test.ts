@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createFileProgressTracker } from "../utils";
+import { createFileProgressTracker, plainPreview } from "../utils";
 
 describe("tracking a multi-file download", () => {
   it("reports a simple single-file download plainly", () => {
@@ -70,5 +70,23 @@ describe("tracking a multi-file download", () => {
     const track = createFileProgressTracker();
 
     expect(track({ file: "", loaded: 0, total: 0 })).toBe(0);
+  });
+});
+
+describe("a reply as a one-line preview", () => {
+  it("drops markdown markers but keeps the words", () => {
+    expect(plainPreview("For AI, focus on:\n\n**VRAM**\n- At least 8 GB\n> quoted")).toBe(
+      "For AI, focus on: VRAM At least 8 GB quoted",
+    );
+  });
+
+  it("drops code blocks and headings", () => {
+    expect(plainPreview("## Setup\n```bash\nnpm install\n```\nRun `npm test`.")).toBe(
+      "Setup Run npm test.",
+    );
+  });
+
+  it("leaves ordinary underscores inside words alone", () => {
+    expect(plainPreview("use snake_case names")).toBe("use snake_case names");
   });
 });

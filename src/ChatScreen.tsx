@@ -764,13 +764,8 @@ export default function ChatScreen({
 
         {chat.messages.map((msg, idx) => (
           <ErrorBoundary key={msg.id}>
-            {/*
-              Everything above this line has been folded into notes and is no
-              longer sent to the model. The messages themselves are untouched,
-              still here and still searchable, but the model works from a
-              summary of them, and saying so is the difference between "it
-              forgot" and "it condensed".
-            */}
+            {/* Messages above are folded into notes: still shown and searchable, but the model reads
+                the summary. Saying so turns "it forgot" into "it condensed". */}
             {chat.compaction?.throughIndex === idx && (
               <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-[var(--border-light)]" />

@@ -1,6 +1,7 @@
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   Blocks,
   Check,
   ChevronRight,
@@ -777,7 +778,8 @@ const MessageItem = memo(
                     }
 
 
-                    const StepIcon = STEP_ICONS[step.type] || Globe;
+                    const failed = step.type === "error";
+                    const StepIcon = failed ? AlertTriangle : STEP_ICONS[step.type] || Globe;
 
                     const isActive = !step.isComplete;
 
@@ -807,7 +809,9 @@ const MessageItem = memo(
                         {isActive ? (
                           <Loader2 className="w-4 h-4 animate-spin opacity-60 flex-shrink-0" />
                         ) : (
-                          <StepIcon className="w-4 h-4 opacity-60 flex-shrink-0" />
+                          <StepIcon
+                            className={`w-4 h-4 flex-shrink-0 ${failed ? "text-red-500" : "opacity-60"}`}
+                          />
                         )}
                         <span
                           className={`text-sm font-bold tracking-tight markdown-inline ${isActive ? "opacity-60" : ""}`}
@@ -817,25 +821,17 @@ const MessageItem = memo(
                             rehypePlugins={REHYPE_PLUGINS}
                             components={INLINE_COMPONENTS}
                           >
-                            {step.content
-                              .replace(
-                                /^Navigating to/i,
-                                step.isComplete ? "Visited" : "Navigating to",
-                              )
-                              .replace(
-                                /^Scanning/i,
-                                step.isComplete ? "Scanned" : "Scanning",
-                              )
-                              .replace(
-                                /^Clicking/i,
-                                step.isComplete ? "Clicked" : "Clicking",
-                              )
-                              .replace(
-                                /^Typing/i,
-                                step.isComplete ? "Typed" : "Typing",
-                              )}
+                            {step.content}
                           </ReactMarkdown>
                         </span>
+
+                        {/* A failed step keeps the words of what it tried, so it says plainly that it
+                            did not happen rather than looking stuck. */}
+                        {failed && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-red-500">
+                            {t("stepFailed")}
+                          </span>
+                        )}
 
                         {step.checkpointId !== undefined && onRevert && (
                           <button

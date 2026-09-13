@@ -205,10 +205,8 @@ export default function McpPanel({
         </p>
       )}
 
-      {/*
-        The registry, asked only when the user asks: everything above this line
-        works with no network at all, and that is the default Draggy keeps.
-      */}
+      {/* The registry, asked only when the user asks: everything above works with no network,
+          which is the default Draggy keeps. */}
       {wanted.length > 1 && (
         <div className="space-y-2">
           <button
