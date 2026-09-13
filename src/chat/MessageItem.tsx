@@ -11,6 +11,7 @@ import {
   FilePen,
   FileText,
   Film,
+  GitBranch,
   Globe,
   Library,
   Lightbulb,
@@ -46,6 +47,8 @@ import {
   REMARK_PLUGINS,
 } from "./markdown";
 import AppFrame from "./AppFrame";
+import UnifiedDiff from "./UnifiedDiff";
+import { diffStats } from "../project/gitView";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import ApprovalCard from "./ApprovalCard";
 import DiffBlock from "./DiffBlock";
@@ -76,6 +79,7 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   run_code: Terminal,
   extension: Blocks,
   edit_file: FilePen,
+  git: GitBranch,
 };
 
 const formatTokens = (value: number) =>
@@ -162,6 +166,24 @@ function LibraryHits({
         </button>
       ))}
     </div>
+  );
+}
+
+/** A diff git printed, folded until the user wants it. */
+function GitDiffOutput({ diff, t }: { diff: string; t: (key: string) => string }) {
+  const { added, removed } = diffStats(diff);
+
+  return (
+    <details className="pl-5 mt-2">
+      <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-main)]">
+        {t("gitShowDiff")}{" "}
+        <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>{" "}
+        <span className="text-red-600 dark:text-red-400">-{removed}</span>
+      </summary>
+      <div className="mt-2">
+        <UnifiedDiff diff={diff} />
+      </div>
+    </details>
   );
 }
 
@@ -780,6 +802,8 @@ const MessageItem = memo(
                         <LibraryHits hits={step.libraryHits} t={t} />
                       ) : step.type === "run_code" ? (
                         <CodeRunOutput step={step} t={t} />
+                      ) : step.type === "git" && step.fileContent ? (
+                        <GitDiffOutput diff={step.fileContent} t={t} />
                       ) : step.type === "edit_file" &&
                         step.before !== undefined &&
                         step.after !== undefined ? (

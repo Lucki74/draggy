@@ -76,6 +76,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onChanged: (callback) => subscribe("file-changed", callback),
   },
 
+  git: {
+    status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
+    diff: (workspaceId, path, staged) =>
+      ipcRenderer.invoke("git:diff", workspaceId, path, staged),
+  },
+
   skills: {
     list: (workspaceId) => ipcRenderer.invoke("skills:list", workspaceId),
     read: (workspaceId, id) => ipcRenderer.invoke("skills:read", workspaceId, id),

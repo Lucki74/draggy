@@ -249,6 +249,8 @@ export interface SearchStep {
     | "skill"
     /** An extension answering with a small interface of its own. */
     | "app"
+    /** A look at the project's git repository. */
+    | "git"
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension";
   content: string;
@@ -299,6 +301,52 @@ export interface TurnMetrics {
   gpuPercent: number | null;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
+}
+
+export type GitChangeKind =
+  | "modified"
+  | "added"
+  | "deleted"
+  | "renamed"
+  | "untracked"
+  | "conflicted";
+
+export interface GitChange {
+  /** Relative to the project folder, with forward slashes. */
+  path: string;
+  /** For a rename: where it was. */
+  from?: string;
+  kind: GitChangeKind;
+  staged: boolean;
+  unstaged: boolean;
+}
+
+export interface GitStatus {
+  success: boolean;
+  /** Whether a git is installed at all. */
+  available: boolean;
+  isRepo: boolean;
+  branch?: string | null;
+  detached?: boolean;
+  upstream?: string | null;
+  ahead?: number;
+  behind?: number;
+  files?: GitChange[];
+  truncated?: boolean;
+  counts?: Record<GitChangeKind, number>;
+  error?: string;
+}
+
+export interface GitDiff {
+  success: boolean;
+  diff?: string;
+  truncated?: boolean;
+  staged?: boolean;
+  /** Files the diff covers. */
+  files?: number;
+  /** Changed files left out because they hold credentials. */
+  skipped?: number;
+  error?: string;
 }
 
 /**
@@ -715,6 +763,16 @@ declare global {
         onChanged: (
           callback: (change: { workspaceId: string; path: string; from?: string }) => void,
         ) => Unsubscribe;
+      };
+
+      git: {
+        /** Where the project's repository stands. Hidden when git or the repository is absent. */
+        status: (workspaceId: string) => Promise<GitStatus>;
+        diff: (
+          workspaceId: string,
+          path?: string,
+          staged?: boolean,
+        ) => Promise<GitDiff>;
       };
 
       skills: {

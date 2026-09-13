@@ -11,6 +11,7 @@ export type ToolGroup =
   | "plan"
   | "skill"
   | "agent"
+  | "git"
   | "external";
 
 export interface ToolParameter {
@@ -28,6 +29,8 @@ export interface ToolEnvironment {
   projectRoot?: string;
   /** Whether the user has written any skills down for this workspace. */
   hasSkills?: boolean;
+  /** Whether that folder is a git repository and git is installed to read it. */
+  hasGit?: boolean;
   /**
    * Only tools that change nothing. Set for a nested exploration, which reads
    * the project on the conversation's behalf and must not act on it.

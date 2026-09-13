@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import ChatScreen from "../ChatScreen";
 import Canvas from "../canvas/Canvas";
+import GitStrip from "../project/GitStrip";
+import { useGitStatus } from "../project/useGitStatus";
+import { shouldShowStrip } from "../project/gitView";
 import SettingsPage from "../SettingsPage";
 import type { SettingsTab } from "../SettingsPage";
 import ChatHistory from "../ChatHistory";
@@ -93,6 +96,7 @@ export default function AppShell({
   const active = workspaces.active;
 
   const canvasPath = canvas && canvas.workspaceId === active.id ? canvas.path : null;
+  const gitStatus = useGitStatus(active.id, active.rootPath ?? null);
   const closeCanvas = useCallback(() => setCanvas(null), []);
   const followCanvas = useCallback(
     (path: string) =>
@@ -194,6 +198,7 @@ export default function AppShell({
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
     hasSkills: skillCount > 0,
+    hasGit: Boolean(active.rootPath && gitStatus?.available && gitStatus.isRepo),
   };
 
   const runs = useAgentRuns({
@@ -698,6 +703,16 @@ export default function AppShell({
                       t={t}
                     />
                   </div>
+
+                  {shouldShowStrip(gitStatus) && (
+                    <GitStrip
+                      status={gitStatus}
+                      workspaceId={active.id}
+                      root={active.rootPath}
+                      t={t}
+                      onOpenFile={(path) => setCanvas({ workspaceId: active.id, path })}
+                    />
+                  )}
                 </div>
               ) : (
                 <button

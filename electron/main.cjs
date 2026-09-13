@@ -24,6 +24,7 @@ const platform = require("./platform.cjs");
 const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
 const fsGuard = require("./fsGuard.cjs");
+const gitTools = require("./git.cjs");
 const checkpoints = require("./checkpoints.cjs");
 const secrets = require("./secrets.cjs");
 const mcpRegistry = require("./mcpRegistry.cjs");
@@ -1938,6 +1939,48 @@ ipcMain.handle("fs:move", wrap("fs", async (event, workspaceId, from, to, chatId
 ipcMain.handle("fs:delete", wrap("fs", async (event, workspaceId, target, chatId) =>
   announceChange(workspaceId, await fileOps.remove(workspaceId, target, chatId)),
 ));
+
+const git = gitTools.createGit();
+
+/**
+ * Git for a workspace's folder, read-only. The renderer names a workspace, not
+ * a folder, for the same reason the file handlers do.
+ */
+ipcMain.handle("git:status", wrap("git", async (event, workspaceId) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  if (!root) return { success: true, available: false, isRepo: false };
+  return git.status(root);
+}));
+
+ipcMain.handle("git:diff", wrap("git", async (event, workspaceId, target, staged) => {
+  const roots = rootsFor(String(workspaceId || ""));
+  const root = roots[0];
+  if (!root) return { success: false, error: "This conversation has no project folder." };
+
+  // One file goes through the same guard as reading it would, which is also
+  // what keeps a credentials file out of a diff asked for by name.
+  let relative = ".";
+  if (target && String(target).trim() && String(target).trim() !== ".") {
+    const resolved = fsGuard.resolveWithin(roots, String(target), { mustExist: false });
+    if (!resolved.ok) return { success: false, error: resolved.error };
+
+    let realRoot = root;
+    try {
+      realRoot = fs.realpathSync.native(root);
+    } catch {
+      // A root that cannot be resolved has already failed the guard above.
+    }
+
+    relative = gitTools.toPathspec(realRoot, resolved.path);
+    if (!relative) return { success: false, error: "That path is outside the project." };
+  }
+
+  return git.diff(root, {
+    relative,
+    staged: Boolean(staged),
+    allow: (absolute) => fsGuard.isReadable(absolute),
+  });
+}));
 
 ipcMain.handle("fs:search", wrap("fs", async (event, workspaceId, query) =>
   fileOps.search(workspaceId, query),
