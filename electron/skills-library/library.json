@@ -14,385 +14,449 @@
       "id": "email-writer",
       "category": "writing",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Write or reply to emails"
     },
     {
       "id": "proofreader",
       "category": "writing",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Fix spelling and grammar"
     },
     {
       "id": "summarizer",
       "category": "writing",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Summarize text, pages or files"
     },
     {
       "id": "translator",
       "category": "writing",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Translate text"
     },
     {
       "id": "tone-rewriter",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Rewrite in a different tone"
     },
     {
       "id": "meeting-notes",
       "category": "writing",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Turn notes into minutes"
     },
     {
       "id": "blog-post",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a blog post or article"
     },
     {
       "id": "social-post",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write social media posts"
     },
     {
       "id": "speech-writer",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a speech or toast"
     },
     {
       "id": "cover-letter",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a cover letter"
     },
     {
       "id": "resume",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write or improve a CV"
     },
     {
       "id": "story-writer",
       "category": "writing",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a story"
     },
     {
       "id": "docx",
       "category": "documents",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Create a Word document"
     },
     {
       "id": "pptx",
       "category": "documents",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Create a slide deck"
     },
     {
       "id": "xlsx",
       "category": "documents",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Create a spreadsheet"
     },
     {
       "id": "pdf",
       "category": "documents",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Create a PDF"
     },
     {
       "id": "report",
       "category": "documents",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a structured report"
     },
     {
       "id": "formal-letter",
       "category": "documents",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write a formal letter"
     },
     {
       "id": "invoice",
       "category": "documents",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Make an invoice or quote"
     },
     {
       "id": "web-research",
       "category": "research",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Research a question online"
     },
     {
       "id": "fact-check",
       "category": "research",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Check whether a claim is true"
     },
     {
       "id": "compare-options",
       "category": "research",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Compare options and pick one"
     },
     {
       "id": "news-brief",
       "category": "research",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Catch up on the latest news"
     },
     {
       "id": "document-qa",
       "category": "research",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Answer from your documents"
     },
     {
       "id": "literature-review",
       "category": "research",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Review research on a topic"
     },
     {
       "id": "browser-tasks",
       "category": "research",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Work through an interactive page"
     },
     {
       "id": "explain-concept",
       "category": "learning",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Explain a concept simply"
     },
     {
       "id": "quiz-me",
       "category": "learning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Quiz me on a topic"
     },
     {
       "id": "flashcards",
       "category": "learning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Make flashcards"
     },
     {
       "id": "study-plan",
       "category": "learning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Plan studying for an exam"
     },
     {
       "id": "language-tutor",
       "category": "learning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Practise a language"
     },
     {
       "id": "brainstorm",
       "category": "planning",
       "surface": "chat",
-      "on": true
+      "on": true,
+      "summary": "Brainstorm ideas"
     },
     {
       "id": "trip-planner",
       "category": "planning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Plan a trip"
     },
     {
       "id": "meal-planner",
       "category": "planning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Plan meals and shopping"
     },
     {
       "id": "budget-planner",
       "category": "planning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Make a budget"
     },
     {
       "id": "project-plan",
       "category": "planning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Plan a project"
     },
     {
       "id": "goal-planner",
       "category": "planning",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Turn a goal into a plan"
     },
     {
       "id": "data-analysis",
       "category": "data",
       "surface": "both",
-      "on": true
+      "on": true,
+      "summary": "Analyse a dataset"
     },
     {
       "id": "sql-helper",
       "category": "data",
       "surface": "both",
-      "on": true
+      "on": true,
+      "summary": "Write or fix SQL"
     },
     {
       "id": "regex-helper",
       "category": "data",
       "surface": "both",
-      "on": false
+      "on": false,
+      "summary": "Build or explain a regex"
     },
     {
       "id": "csv-cleaner",
       "category": "data",
       "surface": "both",
-      "on": false
+      "on": false,
+      "summary": "Clean up messy data"
     },
     {
       "id": "spreadsheet-formulas",
       "category": "data",
       "surface": "chat",
-      "on": false
+      "on": false,
+      "summary": "Write spreadsheet formulas"
     },
     {
       "id": "code-review",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Review changes for bugs"
     },
     {
       "id": "debugging",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Find the cause of a bug"
     },
     {
       "id": "write-tests",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Add tests"
     },
     {
       "id": "commit-message",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Write a commit message"
     },
     {
       "id": "refactor",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Restructure code safely"
     },
     {
       "id": "explain-codebase",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Explain how a project works"
     },
     {
       "id": "add-feature",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Build a feature end to end"
     },
     {
       "id": "security-review",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Audit code for vulnerabilities"
     },
     {
       "id": "documentation",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Write or update docs"
     },
     {
       "id": "git-helper",
       "category": "code",
       "surface": "code",
-      "on": true
+      "on": true,
+      "summary": "Sort out a git problem"
     },
     {
       "id": "pull-request",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Write a pull request"
     },
     {
       "id": "changelog",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Write release notes"
     },
     {
       "id": "dependency-upgrade",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Upgrade dependencies safely"
     },
     {
       "id": "performance",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Find and fix slow code"
     },
     {
       "id": "api-design",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Design or review an API"
     },
     {
       "id": "database-migration",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Write a safe migration"
     },
     {
       "id": "accessibility",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Audit and fix accessibility"
     },
     {
       "id": "dockerfile",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Containerise a project"
     },
     {
       "id": "ci-workflow",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Set up or fix CI"
     },
     {
       "id": "type-errors",
       "category": "code",
       "surface": "code",
-      "on": false
+      "on": false,
+      "summary": "Fix type errors properly"
     },
     {
       "id": "shell-script",
       "category": "code",
       "surface": "both",
-      "on": false
+      "on": false,
+      "summary": "Write a shell script"
     },
     {
       "id": "skill-creator",
       "category": "authoring",
       "surface": "both",
-      "on": true
+      "on": true,
+      "summary": "Create a new skill"
     }
   ]
 }

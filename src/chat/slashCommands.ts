@@ -47,7 +47,8 @@ export function skillCommands(skills: InstalledSkill[]): SlashCommand[] {
     .map((skill) => ({
       id: skill.id,
       label: "",
-      description: skill.description,
+      // The menu has one line per command; the full description is on the Skills page.
+      description: skill.summary || skill.description,
       takesArgument: true,
     }));
 }

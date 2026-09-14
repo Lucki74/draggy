@@ -199,6 +199,16 @@ describe("a skill started from the composer", () => {
     ]);
   });
 
+  it("describes a skill in the menu by its short summary, not the whole description", () => {
+    const pptx = {
+      ...skill("pptx", "pptx", "Creates PowerPoint slide decks with create_file, using headings and separators."),
+      summary: "Create a slide deck",
+      source: "library" as const,
+    };
+
+    expect(matchSlashCommands("/pp", { surface: "chat", skills: [pptx] })[0].description).toBe("Create a slide deck");
+  });
+
   it("never lets a skill shadow a built-in command of the same name", () => {
     const init = { ...skill("init", "init", "Mine."), source: "user" as const };
 

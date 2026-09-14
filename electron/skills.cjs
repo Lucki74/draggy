@@ -96,6 +96,19 @@ function parseSkill(text) {
   };
 }
 
+/** A few words for the slash menu, where a whole description does not fit. */
+const MAX_SUMMARY_CHARS = 48;
+
+/** A skill written without a summary gets the first phrase of its description, cut at a word. */
+function summarize(description) {
+  const phrase = String(description || "").split(/(?<=\.)\s|:\s|\s\(|;\s/)[0].replace(/\.$/, "").trim();
+  if (phrase.length <= MAX_SUMMARY_CHARS) return phrase;
+
+  const cut = phrase.slice(0, MAX_SUMMARY_CHARS - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 20 ? cut.slice(0, space) : cut).replace(/[,\s]+$/, "")}…`;
+}
+
 /** Which library skills exist, what they are for, and whether each starts on. */
 function readCatalogue() {
   try {
@@ -131,6 +144,7 @@ function readSkillFolder(folder, source, catalogue) {
     id,
     name: parsed.name,
     description: parsed.description,
+    summary: typeof entry?.summary === "string" && entry.summary ? entry.summary : summarize(parsed.description),
     path: folder,
     source,
     category: entry?.category ?? null,
@@ -275,10 +289,12 @@ module.exports = {
   MAX_BODY_CHARS,
   MAX_DESCRIPTION_CHARS,
   MAX_FILE_CHARS,
+  MAX_SUMMARY_CHARS,
   SKILL_FILE,
   init,
   listSkills,
   parseSkill,
   readCatalogue,
   readSkill,
+  summarize,
 };

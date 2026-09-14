@@ -261,6 +261,42 @@ describe("the library and the switches", () => {
   });
 });
 
+describe("a summary for the slash menu", () => {
+  it("takes the first phrase of a description the user wrote", () => {
+    writeSkill(
+      userSkills(),
+      "invoices",
+      skill("Invoices", "Writes our invoices: numbered lines, tax and totals. Use when billing a client."),
+    );
+
+    expect(skills.listSkills()[0].summary).toBe("Writes our invoices");
+  });
+
+  it("stops at the end of the first sentence", () => {
+    expect(skills.summarize("Reviews pull requests. Use when asked.")).toBe("Reviews pull requests");
+  });
+
+  it("cuts a long phrase at a word, and says it did", () => {
+    const summary = skills.summarize(
+      "Turns every single spreadsheet export from the accounting system into a monthly board pack",
+    );
+
+    expect(summary.length).toBeLessThanOrEqual(skills.MAX_SUMMARY_CHARS);
+    expect(summary.endsWith("…")).toBe(true);
+    expect(summary).not.toMatch(/\s…$/);
+  });
+
+  it("prefers the library's own summary", () => {
+    writeSkill(library, "pptx", skill("pptx", "Creates PowerPoint decks with create_file, using headings."));
+    fs.writeFileSync(
+      path.join(library, skills.CATALOGUE_FILE),
+      JSON.stringify({ skills: [{ id: "pptx", category: "documents", surface: "chat", on: true, summary: "Create a slide deck" }] }),
+    );
+
+    expect(skills.listSkills()[0].summary).toBe("Create a slide deck");
+  });
+});
+
 describe("files that come with a skill", () => {
   function skillWithFiles() {
     const folder = writeSkill(userSkills(), "reports", skill("reports", "Writes reports."));
@@ -353,6 +389,13 @@ describe("the library Draggy ships", () => {
       expect(categories, entry.id).toContain(entry.category);
       expect(["chat", "code", "both"], entry.id).toContain(entry.surface);
       expect(typeof entry.on, entry.id).toBe("boolean");
+    }
+  });
+
+  it("gives every skill a summary short enough for one line of the slash menu", () => {
+    for (const found of skills.listSkills()) {
+      expect(found.summary, found.id).toBeTruthy();
+      expect(found.summary.length, found.id).toBeLessThanOrEqual(36);
     }
   });
 

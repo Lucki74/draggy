@@ -485,6 +485,8 @@ export interface InstalledSkill {
   id: string;
   name: string;
   description: string;
+  /** A few words for the slash menu. */
+  summary?: string;
   path: string;
   /** Shipped with Draggy, written by the user, or kept in the project. */
   source: "library" | "user" | "project";
