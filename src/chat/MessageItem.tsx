@@ -57,6 +57,7 @@ import { diffStats } from "../project/gitView";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import ApprovalCard from "./ApprovalCard";
 import DiffBlock from "./DiffBlock";
+import { FilePreview } from "./FilePreview";
 import type {
   ApprovalAnswer,
   FoldMarker,
@@ -272,6 +273,7 @@ function FileCard({
   const content = step.fileContent || "";
   const extension = step.filename?.split(".").pop()?.toLowerCase() || "";
   const isCode = CODE_EXTENSIONS.has(extension);
+  const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
 
   const [revealed, setRevealed] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -340,22 +342,55 @@ function FileCard({
           </div>
         </div>
 
-        {step.filepath && !writing && (
-          <button
-            onClick={() => window.electronAPI?.openFile?.(step.filepath!)}
-            className="p-2 rounded-lg bg-[var(--bg-panel)] border-2 border-[var(--border-light)] text-[var(--text-main)] hover:bg-[var(--text-main)] hover:text-[var(--bg-panel)] transition-colors flex items-center gap-2 text-xs font-bold flex-shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t("openFile")}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex rounded-lg border border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
+            <button
+              onClick={() => setViewMode("preview")}
+              className={`px-2 py-0.5 rounded-md transition-colors ${
+                viewMode === "preview"
+                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              {t("preview")}
+            </button>
+            <button
+              onClick={() => setViewMode("source")}
+              className={`px-2 py-0.5 rounded-md transition-colors ${
+                viewMode === "source"
+                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              {t("source")}
+            </button>
+          </div>
+
+          {step.filepath && !writing && (
+            <button
+              onClick={() => window.electronAPI?.openFile?.(step.filepath!)}
+              className="p-2 rounded-lg bg-[var(--bg-panel)] border-2 border-[var(--border-light)] text-[var(--text-main)] hover:bg-[var(--text-main)] hover:text-[var(--bg-panel)] transition-colors flex items-center gap-2 text-xs font-bold flex-shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t("openFile")}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div
         ref={bodyRef}
-        className="p-0 bg-[#1e1e1e] max-h-[300px] overflow-y-auto w-full relative scroll-smooth"
+        className={`p-0 max-h-[320px] overflow-y-auto w-full relative scroll-smooth ${
+          viewMode === "source" ? "bg-[#1e1e1e]" : "bg-[var(--bg-base)]"
+        }`}
       >
-        {isCode ? (
+        {viewMode === "preview" && !writing ? (
+          <FilePreview
+            filename={step.filename || "file.txt"}
+            content={shown}
+            t={t}
+          />
+        ) : isCode ? (
           <SyntaxHighlighter
             language={extension || "javascript"}
             style={atomDark}

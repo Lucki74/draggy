@@ -251,4 +251,18 @@ describe("routing by extension", () => {
     await documents.writeGeneratedFile(out("notes.md"), "# hello");
     expect(fs.readFileSync(out("notes.md"), "utf8")).toBe("# hello");
   });
+
+  it("converts HTML into formatted Office documents", async () => {
+    await documents.writeGeneratedFile(out("html.docx"), "<h1>Title</h1><p>Body</p>");
+    const docxText = documents.readDocx(fs.readFileSync(out("html.docx")));
+    expect(docxText).toContain("Title");
+
+    await documents.writeGeneratedFile(out("html.xlsx"), "<table><tr><th>H</th></tr><tr><td>1</td></tr></table>");
+    const xlsxText = await documents.readXlsx(fs.readFileSync(out("html.xlsx")));
+    expect(xlsxText).toContain("H");
+
+    await documents.writeGeneratedFile(out("html.pptx"), "<section><h2>Slide</h2><p>Text</p></section>");
+    const pptxText = documents.readPptx(fs.readFileSync(out("html.pptx")));
+    expect(pptxText).toContain("Slide");
+  });
 });

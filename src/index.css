@@ -46,20 +46,20 @@ body.browser-bar {
     transition: none;
 }
 
-/* A terminal caret: hard on, hard off, no fading in between. */
+/* Caret smoothly pulses on the compositor rather than flickering. */
 @keyframes typing-caret {
     0%,
-    49% {
+    100% {
         opacity: 1;
     }
-    50%,
-    100% {
-        opacity: 0;
+    50% {
+        opacity: 0.15;
     }
 }
 
 .typing-caret {
-    animation: typing-caret 1.06s step-end infinite;
+    animation: typing-caret 0.9s ease-in-out infinite;
+    will-change: opacity;
 }
 
 .drag-region {
@@ -207,31 +207,59 @@ body.browser-bar {
 
 .stream-word {
     animation: stream-word-in 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: opacity;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .stream-word {
-        animation: none;
+/* Each typed character eases in on the compositor. */
+@keyframes typing-char-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.typing-char {
+    display: inline;
+    animation: typing-char-in 140ms cubic-bezier(0.2, 0.65, 0.35, 1) both;
+    will-change: opacity;
+}
+
+/* Waiting dots float and fade in on the compositor. */
+@keyframes typing-dots-in {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
 .typing-dots {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     padding: 2px 0;
+    animation: typing-dots-in 200ms ease-out both;
 }
+
 .typing-dot {
     width: 6px;
     height: 6px;
     background-color: var(--text-main);
     border-radius: 50%;
-    opacity: 0.3;
-    animation: typing-blink 1.4s infinite both;
+    opacity: 0.25;
+    animation: typing-blink 1.4s ease-in-out infinite both;
+    will-change: opacity, transform;
 }
+
 .typing-dot:nth-child(2) {
     animation-delay: 0.2s;
 }
+
 .typing-dot:nth-child(3) {
     animation-delay: 0.4s;
 }
@@ -239,9 +267,20 @@ body.browser-bar {
 @keyframes typing-blink {
     0%,
     100% {
-        opacity: 0.3;
+        opacity: 0.25;
+        transform: translateY(0);
     }
     50% {
         opacity: 1;
+        transform: translateY(-2px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stream-word,
+    .typing-char,
+    .typing-dots,
+    .typing-dot {
+        animation: none;
     }
 }

@@ -14,6 +14,14 @@ import {
   takeTheirs,
 } from "./drafts";
 import type { CanvasState, FileChange } from "./drafts";
+import ReactMarkdown from "react-markdown";
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
+import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+  MARKDOWN_COMPONENTS,
+  REHYPE_PLUGINS,
+  REMARK_PLUGINS,
+} from "../chat/markdown";
 
 interface CanvasProps {
   workspaceId: string;
@@ -31,6 +39,8 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  const isMarkdown = path.toLowerCase().endsWith(".md") || path.toLowerCase().endsWith(".markdown");
   const gutterRef = useRef<HTMLPreElement>(null);
 
   const api = window.electronAPI?.files;
@@ -124,6 +134,31 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
           </p>
         </div>
 
+        <div className="flex rounded-lg border-2 border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
+          <button
+            type="button"
+            onClick={() => setViewMode("edit")}
+            className={`px-2 py-1 rounded-md transition-colors ${
+              viewMode === "edit"
+                ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            }`}
+          >
+            {t("edit")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("preview")}
+            className={`px-2 py-1 rounded-md transition-colors ${
+              viewMode === "preview"
+                ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            }`}
+          >
+            {t("preview")}
+          </button>
+        </div>
+
         <button
           onClick={() => void save()}
           disabled={!dirty || saving}
@@ -176,32 +211,62 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
       {problem && <p className="px-3 py-2 text-xs text-red-500">{problem}</p>}
 
       {state ? (
-        <div className="flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5">
-          <pre
-            ref={gutterRef}
-            aria-hidden="true"
-            className="m-0 select-none overflow-hidden px-2 py-3 text-right text-[var(--text-muted)] opacity-60"
-          >
-            {Array.from({ length: lines }, (_, index) => index + 1).join("\n")}
-          </pre>
-          <textarea
-            value={state.draft}
-            onChange={(event) => {
-              const draft = event.target.value;
-              setState((previous) => (previous ? { ...previous, draft } : previous));
-            }}
-            onKeyDown={onKeyDown}
-            onScroll={(event) => {
-              if (gutterRef.current) {
-                gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-              }
-            }}
-            spellCheck={false}
-            wrap="off"
-            aria-label={baseName(path)}
-            className="min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-[var(--text-main)] outline-none"
-          />
-        </div>
+        viewMode === "preview" ? (
+          isMarkdown ? (
+            <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-base)] text-[var(--text-main)] prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
+                components={MARKDOWN_COMPONENTS}
+              >
+                {state.draft}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto bg-[#1e1e1e] font-mono text-[13px]">
+              <SyntaxHighlighter
+                language={languageOf(path) || "text"}
+                style={atomDark}
+                showLineNumbers
+                customStyle={{
+                  margin: 0,
+                  padding: "1rem",
+                  background: "transparent",
+                  fontSize: "13px",
+                }}
+              >
+                {state.draft}
+              </SyntaxHighlighter>
+            </div>
+          )
+        ) : (
+          <div className="flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5">
+            <pre
+              ref={gutterRef}
+              aria-hidden="true"
+              className="m-0 select-none overflow-hidden px-2 py-3 text-right text-[var(--text-muted)] opacity-60"
+            >
+              {Array.from({ length: lines }, (_, index) => index + 1).join("\n")}
+            </pre>
+            <textarea
+              value={state.draft}
+              onChange={(event) => {
+                const draft = event.target.value;
+                setState((previous) => (previous ? { ...previous, draft } : previous));
+              }}
+              onKeyDown={onKeyDown}
+              onScroll={(event) => {
+                if (gutterRef.current) {
+                  gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                }
+              }}
+              spellCheck={false}
+              wrap="off"
+              aria-label={baseName(path)}
+              className="min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-[var(--text-main)] outline-none"
+            />
+          </div>
+        )
       ) : (
         !problem && (
           <div className="flex flex-1 items-center justify-center">

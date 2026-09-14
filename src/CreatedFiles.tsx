@@ -16,6 +16,7 @@ import { translations } from "./translations";
 import { formatSize, groupFiles, kindOf, matchesQuery } from "./fileList";
 import type { FileKind } from "./fileList";
 import type { AppSettings, CreatedFile } from "./types";
+import { FilePreview } from "./chat/FilePreview";
 
 /** Everything the model wrote, read from the folder rather than a list in the app: a file deleted
  * from the desktop simply stops appearing here. */
@@ -262,20 +263,28 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                     </div>
 
                     {isOpen && (
-                      <div className="border-t-2 border-[var(--border-light)] bg-[#1e1e1e] max-h-72 overflow-auto">
+                      <div className="border-t-2 border-[var(--border-light)] bg-[var(--bg-base)] max-h-80 overflow-auto">
                         {preview === null ? (
-                          <p className="p-4 text-xs font-mono text-gray-400">
+                          <p className="p-4 text-xs font-mono text-[var(--text-muted)]">
                             {t("loading")}
                           </p>
                         ) : preview.binary ? (
-                          <p className="p-4 text-xs font-mono text-gray-400">
+                          <p className="p-4 text-xs font-mono text-[var(--text-muted)]">
                             {t("previewUnavailable")}
                           </p>
                         ) : (
-                          <pre className="m-0 p-4 font-mono text-[13px] text-gray-300 whitespace-pre-wrap leading-relaxed break-words">
-                            {preview.text}
-                            {preview.truncated ? `\n\n${t("previewTruncated")}` : ""}
-                          </pre>
+                          <div>
+                            <FilePreview
+                              filename={file.name}
+                              content={preview.text}
+                              t={t}
+                            />
+                            {preview.truncated && (
+                              <p className="p-2 text-xs font-mono text-[var(--text-muted)] bg-[var(--hover-bg)]">
+                                {t("previewTruncated")}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}

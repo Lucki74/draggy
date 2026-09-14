@@ -155,7 +155,8 @@ export default function StreamingMarkdown({
         // Marks before the settled one are never read again.
         const keepFrom = timing.marks.findIndex((mark) => mark.position === settled);
         if (keepFrom > 0) timing.marks = timing.marks.slice(keepFrom);
-        changed = true;
+        // Avoids re-parsing Markdown on frames where no new word appeared.
+        if (changed || timing.settled >= timing.position) changed = true;
       }
 
       if (changed) setShown({ source, position: timing.position, settled: timing.settled });

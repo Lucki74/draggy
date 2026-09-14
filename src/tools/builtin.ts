@@ -457,7 +457,7 @@ const createFile: ToolSpec = {
     content: {
       type: "string",
       description:
-        "File body. Markdown for .docx, .pptx and .pdf, CSV for .xlsx, raw code otherwise.",
+        "File body. Markdown or HTML for .docx, .pptx and .xlsx (use HTML for custom styling like colors, sizes, column widths), Markdown for .pdf, raw code otherwise.",
     },
   },
   required: ["filename", "content"],

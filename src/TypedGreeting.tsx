@@ -17,14 +17,29 @@ export default function TypedGreeting({ text, className = "" }: TypedGreetingPro
   useEffect(() => {
     if (shown >= text.length) return;
 
-    const timer = setTimeout(() => setShown(shown + 1), CHARACTER_MS);
-    return () => clearTimeout(timer);
+    let frame = 0;
+    const timer = setTimeout(() => {
+      frame = requestAnimationFrame(() => {
+        setShown((prev) => Math.min(prev + 1, text.length));
+      });
+    }, CHARACTER_MS);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
   }, [shown, text]);
 
   return (
     <p className={className}>
       <span className="sr-only">{text}</span>
-      <span aria-hidden="true">{text.slice(0, shown)}</span>
+      <span aria-hidden="true">
+        {text.slice(0, shown).split("").map((char, index) => (
+          <span key={index} className="typing-char">
+            {char}
+          </span>
+        ))}
+      </span>
       <span aria-hidden="true" className="typing-caret">
         |
       </span>

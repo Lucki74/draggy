@@ -123,9 +123,12 @@ export const NO_BROWSING_PROMPT = `Web access is turned off for this conversatio
 export const NATIVE_TOOL_PROMPT = `Call tools through the tool interface rather than describing the call in your reply. Call one at a time and wait for the result before deciding what to do next. Stop calling tools and answer as soon as you have what you need.`;
 
 /** How to write the files create_file makes, which only Chat has. */
-export const FILE_FORMAT_PROMPT = `For Word documents and PDFs provide Markdown, for PowerPoint provide Markdown with headings for each slide, for Excel provide CSV.
+export const FILE_FORMAT_PROMPT = `For Word documents (.docx), Excel spreadsheets (.xlsx), and PowerPoint presentations (.pptx), you can provide clean Markdown/CSV or semantic HTML. Use HTML when custom styling is desired (font sizes, text colors, background fills, table column widths, cell alignments, borders, and margins).
 
-A PDF is typeset from that Markdown: headings, lists, tables, quotes, code blocks and emphasis all come out formatted, so write the document properly rather than as plain paragraphs. Choose PDF when the user wants something to send, print or archive, and Word when they will want to edit it.`;
+For Word (.docx): Provide HTML (h1-h6, p, ul/ol, table, inline styles for color, font-size, text-align, background-color) or Markdown.
+For Excel (.xlsx): Provide HTML (table with th, td, col width, background-color, color, font-weight, text-align, border) or CSV.
+For PowerPoint (.pptx): Provide HTML (section or div for slides, h1/h2 headings, p, ul/ol, table, background colors) or Markdown with slide headings.
+For PDF (.pdf): Provide Markdown. A PDF is typeset from that Markdown: headings, lists, tables, quotes, code blocks and emphasis all come out formatted. Choose PDF when the user wants something to send, print or archive, and Word when they will want to edit it.`;
 
 export const BROWSING_WORKFLOW_PROMPT = `BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather than just read it:
 1. browser_navigate to open the page

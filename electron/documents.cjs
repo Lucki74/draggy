@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const { pathToFileURL } = require("url");
+const htmlDocument = require("./htmlDocument.cjs");
 
 const DOCUMENT_TEXT_LIMIT = 200000;
 const SLIDE_BODY_LINES = 12;
@@ -44,6 +45,9 @@ function parseInlineFormatting(docx, text) {
 }
 
 function writeDocx(filepath, content) {
+  if (htmlDocument.isHtml(content)) {
+    return htmlDocument.writeDocxFromHtml(filepath, content);
+  }
   const docx = require("docx");
 
   const headingLevels = [
@@ -151,6 +155,9 @@ function splitIntoSlides(content) {
 }
 
 async function writePptx(filepath, content) {
+  if (htmlDocument.isHtml(content)) {
+    return htmlDocument.writePptxFromHtml(filepath, content);
+  }
   const PptxGen = require("pptxgenjs");
   const pres = new PptxGen();
   const slides = splitIntoSlides(content);
@@ -209,6 +216,9 @@ function parseCsv(text) {
 const NUMERIC_CELL_RE = /^-?(0|[1-9]\d*)(\.\d+)?$/;
 
 async function writeXlsx(filepath, content) {
+  if (htmlDocument.isHtml(content)) {
+    return htmlDocument.writeXlsxFromHtml(filepath, content);
+  }
   const ExcelJS = require("exceljs");
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Sheet1");
@@ -526,4 +536,6 @@ module.exports = {
   pageText,
   MAX_PDF_PAGES,
   extractText,
+  isHtml: htmlDocument.isHtml,
+  htmlDocument,
 };

@@ -164,3 +164,24 @@ describe("the model editing the open file", () => {
     expect(onMoved).toHaveBeenCalledWith("C:\\project\\docs\\notes.md");
   });
 });
+
+describe("preview mode", () => {
+  it("toggles between edit and markdown preview", async () => {
+    await open();
+
+    expect(editor().value).toBe("first\n");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(t("preview")));
+    });
+
+    expect(screen.queryByLabelText("notes.md")).toBeNull();
+    expect(screen.getByText("first")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(t("edit")));
+    });
+
+    expect(editor().value).toBe("first\n");
+  });
+});
