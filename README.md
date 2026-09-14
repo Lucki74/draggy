@@ -57,7 +57,7 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   adverts, and Word, PowerPoint, Excel and PDF files.
 - **Search your own documents.** Point it at a folder, indexed on your machine
   and searched by meaning and keywords at once.
-- **Extend it.** Thirty-four MCP servers, the official registry and remote
+- **Extend it.** Forty-five MCP servers, the official registry and remote
   servers, plus 64 skills you start with / or leave to the model.
 - **Talk to it.** A voice mode that knows when you have finished, answers out
   loud, and stops when you interrupt.
