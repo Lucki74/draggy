@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { app, BrowserWindow } = require("electron");
+const { app, BaseWindow, BrowserWindow } = require("electron");
 
 const OUT = path.resolve(
   process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "draggy-website", "assets", "img"),
@@ -199,19 +199,21 @@ async function submit(win, text) {
   await inPage(win, () => document.querySelector("form.composer").requestSubmit());
 }
 
+// Presses Allow once on an approval card, if one is waiting. Returns what it allowed.
+function allowPending(win) {
+  return inPage(win, () => {
+    const button = [...document.querySelectorAll("button")].find((node) => node.textContent.trim() === "Allow once");
+    if (!button) return null;
+    const card = button.closest("div.rounded-xl");
+    const target = card?.querySelector("pre")?.textContent ?? card?.querySelector("p")?.textContent ?? "a tool";
+    button.click();
+    return target.trim().slice(0, 80);
+  });
+}
+
+// Sends a message and waits for the whole reply, allowing anything the turn stops to ask about.
 async function send(win, text) {
-  await inPage(
-    win,
-    (message) => {
-      const box = document.querySelector("form.composer textarea");
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-      setter.call(box, message);
-      box.dispatchEvent(new Event("input", { bubbles: true }));
-    },
-    text,
-  );
-  await sleep(300);
-  await inPage(win, () => document.querySelector("form.composer").requestSubmit());
+  await submit(win, text);
 
   // Busy while the composer shows stop, or while the sidebar still lists a running turn.
   const generating = () =>
@@ -223,7 +225,14 @@ async function send(win, text) {
 
   await waitFor(generating, { timeout: 30_000, label: "the reply to start" });
   log("waiting for the reply to", JSON.stringify(text.slice(0, 50)));
-  await waitFor(async () => !(await generating()), { timeout: 600_000, every: 1000, label: "the reply" });
+  await waitFor(
+    async () => {
+      const allowed = await allowPending(win);
+      if (allowed) log("allowed once:", allowed);
+      return !allowed && !(await generating());
+    },
+    { timeout: 600_000, every: 1000, label: "the reply" },
+  );
   await sleep(1500);
 }
 
@@ -238,6 +247,30 @@ async function capture(win, name) {
   fs.writeFileSync(path.join(OUT, `${name}.png`), image.toPNG());
   const size = image.getSize();
   log(`saved ${name}.png (${size.width}x${size.height})`);
+}
+
+// Two captures one above the other. The browser window is two views and cannot be captured whole.
+async function stack(top, bottom, name) {
+  const helper = new BrowserWindow({ show: false, width: 200, height: 200 });
+  try {
+    await helper.loadURL("about:blank");
+    const png = await helper.webContents.executeJavaScript(`(async () => {
+      const load = (src) => new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.src = src; });
+      const [a, b] = await Promise.all([load(${JSON.stringify(top.toDataURL())}), load(${JSON.stringify(bottom.toDataURL())})]);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(a.width, b.width);
+      canvas.height = a.height + b.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(a, 0, 0);
+      context.drawImage(b, 0, a.height);
+      return canvas.toDataURL("image/png");
+    })()`);
+    const buffer = Buffer.from(png.split(",")[1], "base64");
+    fs.writeFileSync(path.join(OUT, `${name}.png`), buffer);
+    log(`saved ${name}.png (stacked)`);
+  } finally {
+    helper.destroy();
+  }
 }
 
 // Both themes of whatever is on screen.
@@ -309,6 +342,8 @@ async function run() {
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("form.composer"))), {
     label: "the chat screen",
   });
+  const placeholder = await inPage(win, () => document.querySelector("form.composer textarea").placeholder);
+  log("composer says", JSON.stringify(placeholder));
   await sleep(2000);
 
   if (wanted("chat") || wanted("context")) {
@@ -471,7 +506,42 @@ async function run() {
     await shoot(win, "app-command-ran");
   }
 
+  if (wanted("browser")) {
+    // Draggy's own browser on a page that scores the ad blocker, at the size the site shows it.
+    const before = new Set(BaseWindow.getAllWindows());
+    await inPage(win, () => window.open("https://superadblocktest.com/", "_blank"));
+    const browser = await waitFor(
+      () => BaseWindow.getAllWindows().find((one) => !before.has(one) && !(one instanceof BrowserWindow)),
+      { label: "the browser window" },
+    );
+    browser.setContentSize(1000, 660);
+    const [page, bar] = browser.contentView.children;
+
+    log("waiting for the ad block test to finish");
+    await waitFor(
+      () =>
+        page.webContents
+          .executeJavaScript('Boolean(document.body && document.body.innerText.includes("Completed:"))')
+          .catch(() => false),
+      { timeout: 180_000, every: 1000, label: "the ad block test" },
+    );
+    await sleep(2000);
+
+    for (const dark of [false, true]) {
+      await bar.webContents.executeJavaScript(`document.body.classList.toggle("dark", ${dark})`);
+      await sleep(600);
+      const top = await bar.webContents.capturePage({ x: 0, y: 0, width: 1000, height: 48 });
+      const body = await page.webContents.capturePage();
+      await stack(top, body, `app-browser-${dark ? "dark" : "light"}`);
+    }
+
+    browser.close();
+    await sleep(800);
+  }
+
   if (wanted("talk")) {
+    // Talk is on the Chat side only, and the command scene leaves the app in Code.
+    await openWorkspace(win, "default");
     await click(win, "Talk");
     await sleep(2500);
     await shoot(win, "app-talk");

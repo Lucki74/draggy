@@ -44,7 +44,8 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
 ## What it does
 
 - **Chat with a local model.** Draggy sizes a model to your graphics card on
-  first launch and downloads it. Three answering modes, swappable models.
+  first launch and downloads it. Three answering modes, swappable models, and
+  replies that ease in a word at a time without slowing the window down.
 - **Keep chats and code apart.** A Chat and Code switch at the top of the
   sidebar moves between plain conversations and project folders. Each side has
   its own history, files, running tasks, tools, model and preferences, so
@@ -86,13 +87,17 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   search of the official MCP registry, remote servers with OAuth sign-in, and
   skills you write down once. All of it is off until you switch it on, once
   for the whole app, and a server can answer with a small sandboxed interface.
-- **See where the context goes.** A wheel beside the model picker breaks the
-  window down into conversation, instructions, tools and memory. `/compact`
-  folds the conversation into notes now, `/compact-limit` sets when it happens.
+- **See where the context goes.** A wheel beside the model picker shows how full
+  the window is, counted by the model itself rather than estimated from the
+  text, as you type and after every pass while it answers. Open it for the split
+  between conversation, instructions, tools and memory. `/compact` folds the
+  conversation into notes now, `/compact-limit` sets when it happens.
 - **Talk to it.** Continuous voice mode that works out when you have finished a
   sentence, answers out loud, and stops when you cut in.
-- **Keep an eye on speed.** A statistics page shows tokens per second by model,
-  which tools get used, and how long tasks take. It stays on your machine.
+- **Keep an eye on speed.** A speed line under each reply, off until you switch
+  it on in Settings, counts tokens per second live while the model writes. A
+  statistics page shows speed by model, which tools get used, and how long tasks
+  take. It stays on your machine, and none of it slows generation down.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key, for editors and scripts.
 - **Export a conversation.** Any chat to Markdown, from the history list.
@@ -145,7 +150,7 @@ npm run electron:dev
 
 Vite and Electron together with hot reload. `npm run electron:build` produces an
 installer in `dist-electron`, and `npm run check` is typecheck, lint and around
-1,700 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
+1,800 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
 sending a patch, and [RELEASING.md](RELEASING.md) for how versions are cut.
 
 ## How it is laid out
@@ -178,8 +183,9 @@ conversation may touch, and every tool call goes through the permission check in
 under a strict Content Security Policy and every external page on a separate
 partition with no policy of ours imposed on it.
 
-Quitting stops everything Draggy started: browser windows, extension servers, a
-code run still going, and Ollama if Draggy was the one that started it.
+Quitting writes any conversation not saved yet, then stops everything Draggy
+started: browser windows, extension servers, a code run or command still going,
+and Ollama if Draggy was the one that started it.
 
 [Architecture](https://github.com/Lucki74/draggy/wiki/Architecture) has the rest.
 
