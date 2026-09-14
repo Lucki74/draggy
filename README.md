@@ -43,70 +43,26 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
 ## What it does
 
-- **Chat with a local model.** Draggy sizes a model to your graphics card on
-  first launch and downloads it. Three answering modes, swappable models, and
-  replies that ease in a word at a time without slowing the window down.
-- **Keep chats and code apart.** A Chat and Code switch at the top of the
-  sidebar moves between plain conversations and project folders. Each side has
-  its own history, files, running tasks, tools, model and preferences, so
-  nothing set in one reaches the other.
-- **Work in a project.** Switch to Code, open a folder and Draggy can read,
-  edit, move and delete files in it, and only in it. Every change shows as a
-  diff, and every one can be undone, whether or not the folder is a git
-  repository.
-- **Run commands.** In Code the model runs commands in the project folder, in
-  PowerShell, cmd, bash or sh: git, gh, package managers, tests and builds. A
-  stopped turn stops the command and everything it started.
-- **Decide how much it may do.** Each project has a permission mode, picked
-  from the composer or the project's settings: plan (it only proposes), ask,
-  accept edits, or auto. Anything outside the mode stops and asks you in the
-  conversation, with the change or the command shown before you allow it.
-  Commands ask in every mode but auto. "Always allow" remembers only the start
-  of a command, never one chained after it, and the project's settings list
-  everything allowed so it can be taken back.
-- **Follow the project's own rules.** An `AGENTS.md` in the folder is read into
-  every turn. `/init` drafts one from what is in the project, `/memory` opens it.
-- **Steer a plan while it runs.** The model writes its plan as a checklist you
-  can tick, reorder and edit mid-task. Tasks keep going in the background and
-  pick up again after a restart.
-- **Edit beside the chat.** Open a file in the canvas, type in it, and watch the
-  model's edits land in it as they happen. A strip under the file tree shows the
-  branch and what changed, and the model can read git status and diffs.
-- **Use tools.** Web search, reading a page, and driving a real browser session.
-  In Chat it writes Word, PowerPoint, Excel, PDF, code and text files and reads
-  them back when you attach one. In Code it runs short Python and JavaScript in
-  a sandbox, and a smaller model can be sent to explore a project and report
-  back.
-- **Browse without ads.** Links open in a browser window inside the app, with
-  uBlock Origin's filter lists on Ghostery's engine, YouTube adverts and
-  anti-adblock walls included.
-- **Search your own documents.** Point Chat at a folder and it indexes the
-  contents locally, on meaning and keywords at once. In Code the project itself
-  is what Draggy searches.
-- **Extend it.** Thirty-four Model Context Protocol servers in a catalogue, a
-  search of the official MCP registry, and remote servers with OAuth sign-in.
-  All of them are off until you switch them on, once for the whole app, and a
-  server can answer with a small sandboxed interface.
-- **Teach it how a job is done.** A library of 64 skills in the shared SKILL.md
-  format, from Word documents and web research to code review and commit
-  messages, 28 of them on from the start. The model sees only their names and
-  descriptions until one fits, or you type / and a skill's name. A loaded skill
-  stays loaded for the rest of the conversation and is named in the context
-  wheel. Write your own, for every chat or for one project.
-- **See where the context goes.** A wheel beside the model picker shows how full
-  the window is, counted by the model itself rather than estimated from the
-  text, as you type and after every pass while it answers. Open it for the split
-  between conversation, instructions, tools and memory. `/compact` folds the
-  conversation into notes now, `/compact-limit` sets when it happens.
-- **Talk to it.** Continuous voice mode that works out when you have finished a
-  sentence, answers out loud, and stops when you cut in.
-- **Keep an eye on speed.** A speed line under each reply, off until you switch
-  it on in Settings, counts tokens per second live while the model writes. A
-  statistics page shows speed by model, which tools get used, and how long tasks
-  take. It stays on your machine, and none of it slows generation down.
+- **Chat with a local model.** Draggy picks a model that fits your graphics card,
+  downloads it, and lets you swap it any time.
+- **Keep chats and code apart.** A switch at the top of the sidebar, and each
+  side keeps its own history, model and settings.
+- **Work in your projects.** Open a folder and it reads, edits and runs commands
+  there, showing every change as a diff you can undo.
+- **Decide how much it may do.** Four permission modes, from only proposing to
+  working alone. Anything outside the mode asks first.
+- **Steer the plan.** Tick, reorder and edit its checklist while it works, and
+  let tasks carry on in the background.
+- **Search, browse and make files.** Web search, a built-in browser that blocks
+  adverts, and Word, PowerPoint, Excel and PDF files.
+- **Search your own documents.** Point it at a folder, indexed on your machine
+  and searched by meaning and keywords at once.
+- **Extend it.** Thirty-four MCP servers, the official registry and remote
+  servers, plus 64 skills you start with / or leave to the model.
+- **Talk to it.** A voice mode that knows when you have finished, answers out
+  loud, and stops when you interrupt.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
-  by default and protected by a key, for editors and scripts.
-- **Export a conversation.** Any chat to Markdown, from the history list.
+  by default and protected by a key.
 
 ## Requirements
 
