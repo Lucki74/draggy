@@ -174,11 +174,17 @@ export function needsTextModeTools(info: ModelInfo | null): boolean {
   return info !== null && !hasCapability(info, "tools");
 }
 
+/** How far a model's window can grow: its own maximum, or the fallback a turn is held to without one.
+ * Never less than what is already loaded. */
+export function windowCeiling(maxContext: number | null, loaded = 0): number {
+  return Math.max(loaded, maxContext ?? FALLBACK_CONTEXT_LENGTH);
+}
+
 export function pickContextSize(
   charEstimate: number,
   maxContext: number | null,
 ): number {
-  const cap = maxContext ?? FALLBACK_CONTEXT_LENGTH;
+  const cap = windowCeiling(maxContext);
   const needed = Math.ceil(charEstimate / 4) + 2048;
 
   for (const bucket of CONTEXT_BUCKETS) {

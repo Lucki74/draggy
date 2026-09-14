@@ -19,7 +19,6 @@ const view = (overrides: Partial<Parameters<typeof describeContextWindow>[0]> = 
     draftTokens: 0,
     exact: true,
     windowTokens: 203_000,
-    loadedTokens: 32_768,
     limitTokens: null,
     ...overrides,
   });
@@ -96,7 +95,7 @@ describe("the breakdown", () => {
     render(<ContextWheel view={view()} t={t} />);
     open();
 
-    expect(screen.getByText("Compacts automatically at 19.7k tokens")).toBeTruthy();
+    expect(screen.getByText("Compacts automatically at 122k tokens")).toBeTruthy();
   });
 
   it("says so when the point is the user's own limit", () => {

@@ -10,6 +10,7 @@ import {
   parseTokenCount,
 } from "../agent/contextBreakdown";
 import { foldedTokens, planManualCompaction } from "../agent/compaction";
+import { FALLBACK_CONTEXT_LENGTH, pickContextSize, windowCeiling } from "../ollama";
 import { SLASH_COMMANDS, matchSlashCommands, parseSlashArgument } from "../chat/slashCommands";
 import { settleSession } from "../storage";
 import type { ChatSession, Message } from "../types";
@@ -69,7 +70,6 @@ describe("the window as the user sees it", () => {
     draftTokens: 100,
     exact: true,
     windowTokens: 100_000,
-    loadedTokens: 16_384,
     limitTokens: null,
   });
 
@@ -110,7 +110,6 @@ describe("the window as the user sees it", () => {
       draftTokens: 0,
       exact: true,
       windowTokens: 100_000,
-      loadedTokens: null,
       limitTokens: null,
     });
 
@@ -123,7 +122,6 @@ describe("the window as the user sees it", () => {
       draftTokens: 0,
       exact: true,
       windowTokens: 8192,
-      loadedTokens: null,
       limitTokens: null,
     });
 
@@ -134,20 +132,16 @@ describe("the window as the user sees it", () => {
 });
 
 describe("where the conversation gets folded", () => {
-  it("is a share of the loaded window when left to Draggy", () => {
-    expect(compactThreshold(128_000, 16_384, null)).toEqual({ tokens: 9830, source: "auto" });
-  });
-
-  it("uses the whole window when nothing says how much is loaded", () => {
-    expect(compactThreshold(10_000, null, null).tokens).toBe(6000);
+  it("is a share of how far the window can grow when left to Draggy", () => {
+    expect(compactThreshold(128_000, null)).toEqual({ tokens: 76_800, source: "auto" });
   });
 
   it("is the user's limit when they set one", () => {
-    expect(compactThreshold(128_000, 16_384, 50_000)).toEqual({ tokens: 50_000, source: "limit" });
+    expect(compactThreshold(128_000, 50_000)).toEqual({ tokens: 50_000, source: "limit" });
   });
 
   it("caps a limit that would leave no room for the reply", () => {
-    expect(compactThreshold(32_000, 16_384, 1_000_000).tokens).toBe(maxLimitFor(32_000));
+    expect(compactThreshold(32_000, 1_000_000).tokens).toBe(maxLimitFor(32_000));
   });
 
   it("is reported with the view", () => {
@@ -156,12 +150,38 @@ describe("where the conversation gets folded", () => {
       draftTokens: 0,
       exact: true,
       windowTokens: 128_000,
-      loadedTokens: 16_384,
       limitTokens: 20_000,
     });
 
     expect(view.compactAtTokens).toBe(20_000);
     expect(view.compactSource).toBe("limit");
+  });
+
+  it("does not follow the small window a short chat happens to be loaded at", () => {
+    const view = describeContextWindow({
+      breakdown: { messages: 135, system: 1500, tools: 692, memory: 0, skills: 0, summary: 0 },
+      draftTokens: 0,
+      exact: true,
+      windowTokens: windowCeiling(203_000, 4096),
+      limitTokens: null,
+    });
+
+    expect(view.compactAtTokens).toBe(121_800);
+  });
+});
+
+describe("how far a window can grow", () => {
+  it("is the model's own maximum", () => {
+    expect(windowCeiling(203_000, 4096)).toBe(203_000);
+  });
+
+  it("is the fallback a turn is held to when the model does not say", () => {
+    expect(windowCeiling(null)).toBe(FALLBACK_CONTEXT_LENGTH);
+    expect(pickContextSize(1_000_000, null)).toBe(windowCeiling(null));
+  });
+
+  it("is never less than what is already loaded", () => {
+    expect(windowCeiling(null, 32_768)).toBe(32_768);
   });
 });
 

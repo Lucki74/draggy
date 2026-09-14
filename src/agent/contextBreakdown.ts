@@ -104,26 +104,23 @@ export interface ContextWindowInput {
   draftTokens: number;
   /** False for an estimate made while a reply streams. */
   exact: boolean;
-  /** The most the model can take. */
+  /** The most the model can take, which is also what automatic folding is measured against. */
   windowTokens: number;
-  /** The window the model is loaded at, which is what automatic folding uses. */
-  loadedTokens: number | null;
   /** The user's own limit, when they set one. */
   limitTokens: number | null;
 }
 
-/** Where automatic folding happens for these settings, in tokens. */
+/** Where automatic folding happens, in tokens. Measured against how far the window can grow, not the
+ * smaller window loaded now: that one only grows past a size the fold would already have cut back. */
 export function compactThreshold(
   windowTokens: number,
-  loadedTokens: number | null,
   limitTokens: number | null,
 ): { tokens: number; source: "auto" | "limit" } {
   if (limitTokens !== null && limitTokens > 0) {
     return { tokens: Math.min(limitTokens, maxLimitFor(windowTokens)), source: "limit" };
   }
 
-  const loaded = loadedTokens && loadedTokens > 0 ? loadedTokens : windowTokens;
-  return { tokens: Math.floor(Math.min(loaded, windowTokens) * COMPACT_AT), source: "auto" };
+  return { tokens: Math.floor(windowTokens * COMPACT_AT), source: "auto" };
 }
 
 /** The lowest limit accepted. Below it every turn would be folded away. */
@@ -165,7 +162,7 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
 
   rows.push({ id: "free", tokens: free, percent: share(free) });
 
-  const threshold = compactThreshold(windowTokens, input.loadedTokens, input.limitTokens);
+  const threshold = compactThreshold(windowTokens, input.limitTokens);
 
   return {
     measured: input.breakdown !== null,

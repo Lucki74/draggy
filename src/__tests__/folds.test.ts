@@ -56,6 +56,8 @@ vi.mock("../ollama", async (importOriginal) => {
 });
 
 const { createTaskManager } = await import("../agent/taskManager");
+const { CHARS_PER_TOKEN, COMPACT_AT, conversationChars } = await import("../agent/compaction");
+const { contextSizeFor, forgetContextSize } = await import("../ollama");
 import type { TaskHost } from "../agent/taskManager";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -228,6 +230,46 @@ describe("the fold that follows a turn", () => {
 
     expect(folding).toHaveLength(0);
   });
+});
+
+describe("a conversation that keeps growing", () => {
+  // Instructions and tools ride along on every turn, about 2.2k tokens; the mocked model reports 128k.
+  const FIXED_CHARS = 8800;
+  const MAX_CONTEXT = 128_000;
+
+  it("grows the window toward the model's maximum before folding anything", async () => {
+    forgetContextSize("qwen3:8b");
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    let loaded = 0;
+    let foldedAtTokens: number | null = null;
+
+    for (let turn = 0; turn < 300 && foldedAtTokens === null; turn++) {
+      manager.send("chat", "q".repeat(400));
+      await settle();
+
+      // Sized the way a real pass sizes its window, from everything the turn sends.
+      const { request, host: agent, resolve } = turns[turns.length - 1];
+      const wireChars = FIXED_CHARS + conversationChars(request.messages, request.compaction);
+      loaded = contextSizeFor(request.model, wireChars, MAX_CONTEXT);
+      expect(wireChars / CHARS_PER_TOKEN).toBeLessThan(loaded);
+
+      agent.onPatch({ content: "a".repeat(12_000), textContent: "", steps: [] });
+      resolve(finished());
+      await settle();
+      await settle();
+
+      if (folding.length > 0) {
+        foldedAtTokens = conversationChars(sessions.get("chat")!.messages) / CHARS_PER_TOKEN;
+      }
+    }
+
+    expect(foldedAtTokens).not.toBeNull();
+    expect(loaded).toBeGreaterThan(16_384);
+    expect(foldedAtTokens!).toBeGreaterThan(MAX_CONTEXT * COMPACT_AT * 0.95);
+    expect(foldedAtTokens!).toBeLessThan(MAX_CONTEXT);
+  }, 30_000);
 });
 
 describe("sending while a fold is running", () => {

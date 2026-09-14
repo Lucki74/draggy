@@ -48,12 +48,12 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
-  FALLBACK_CONTEXT_LENGTH,
   getModelInfo,
   isCloudModel,
   listInstalledModels,
   needsTextModeTools,
   warmModel,
+  windowCeiling,
 } from "./ollama";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { ContextMeasurement } from "./agent/agentLoop";
@@ -831,8 +831,7 @@ export default function ChatScreen({
     breakdown: contextBreakdown,
     draftTokens,
     exact: exactFigure,
-    windowTokens: modelInfo?.contextLength ?? loadedTokens ?? FALLBACK_CONTEXT_LENGTH,
-    loadedTokens,
+    windowTokens: windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
     limitTokens: settings.compactLimit ?? null,
   });
   const supportsNativeThinking = Boolean(

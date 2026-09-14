@@ -5,8 +5,6 @@ import {
   MIN_FOLD_MESSAGES,
   SUMMARY_CHAR_BUDGET,
   appendSummary,
-  bucketFor,
-  budgetForWindow,
   compactionSurvives,
   conversationChars,
   buildSummaryMessages,
@@ -64,32 +62,6 @@ describe("conversationChars", () => {
     };
     // Two messages of ten remain, plus the seven-character summary.
     expect(conversationChars(conversation(4, 10), state)).toBe(27);
-  });
-});
-
-describe("budgetForWindow", () => {
-  it("is a fraction of the window, in characters", () => {
-    expect(budgetForWindow(8192)).toBe(Math.floor(8192 * 4 * COMPACT_AT));
-  });
-
-  it("leaves room for the reply rather than filling the window", () => {
-    expect(budgetForWindow(8192)).toBeLessThan(8192 * 4);
-  });
-
-  it("is never negative", () => {
-    expect(budgetForWindow(0)).toBe(0);
-  });
-});
-
-describe("bucketFor", () => {
-  it("rounds up to the window the model will actually be loaded at", () => {
-    expect(bucketFor(5000)).toBe(8192);
-    expect(bucketFor(8192)).toBe(8192);
-    expect(bucketFor(9000)).toBe(16384);
-  });
-
-  it("passes through a window larger than any bucket", () => {
-    expect(bucketFor(500000)).toBe(500000);
   });
 });
 

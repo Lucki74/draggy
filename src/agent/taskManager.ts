@@ -1,4 +1,4 @@
-import { contextSizeFor, getModelInfo, isCloudModel } from "../ollama";
+import { contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../ollama";
 import { generateId, titleFromContent } from "../utils";
 import {
   CHARS_PER_TOKEN,
@@ -197,16 +197,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Characters the conversation may occupy before an automatic fold. The user's limit when there
-   * is one, otherwise a share of the loaded window. */
+   * is one, otherwise a share of how far the window can grow. */
   async function budgetFor(model: string, numCtx: number): Promise<number> {
     const limit = host.getSettings().compactLimit ?? null;
+    const info = await getModelInfo(model).catch(() => null);
+    const windowTokens = windowCeiling(info?.contextLength ?? null, numCtx);
 
-    // The model's own maximum only matters for capping a limit, so it is not
-    // asked for when there is none.
-    const info = limit !== null ? await getModelInfo(model).catch(() => null) : null;
-    const windowTokens = info?.contextLength ?? Math.max(numCtx, limit ?? 0);
-
-    return compactThreshold(windowTokens, numCtx, limit).tokens * CHARS_PER_TOKEN;
+    return compactThreshold(windowTokens, limit).tokens * CHARS_PER_TOKEN;
   }
 
   /** Folds older conversation into notes, in the idle gap after a turn or now when `manual`. A

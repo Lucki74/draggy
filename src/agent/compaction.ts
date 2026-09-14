@@ -1,9 +1,9 @@
-import { CONTEXT_BUCKETS, KEEP_ALIVE, OLLAMA_HOST, beginOllamaWork } from "../ollama";
+import { KEEP_ALIVE, OLLAMA_HOST, beginOllamaWork } from "../ollama";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
 
 /** Folds the older part of a chat into notes, so it never hits the context wall. Appends rather
- * than rewrites, triggers off the bucket, and runs after a turn. */
+ * than rewrites, triggers off the model's maximum, and runs after a turn. */
 
 /** Roughly how many characters a token is worth, for budget arithmetic. */
 export const CHARS_PER_TOKEN = 4;
@@ -94,21 +94,6 @@ export function conversationChars(
   }
 
   return total;
-}
-
-/** How much conversation fits the window now loaded. Asked of the bucket, not the maximum: a 128k
- * model sitting in a 16k bucket should fold at 16k. */
-export function budgetForWindow(numCtx: number): number {
-  return Math.max(0, Math.floor(numCtx * CHARS_PER_TOKEN * COMPACT_AT));
-}
-
-/** The bucket a conversation of this size will be loaded at, which is what the budget is measured
- * against. */
-export function bucketFor(numCtx: number): number {
-  for (const bucket of CONTEXT_BUCKETS) {
-    if (bucket >= numCtx) return bucket;
-  }
-  return numCtx;
 }
 
 /** Decides whether to fold, and where. Null when it still fits, when there is too little new
