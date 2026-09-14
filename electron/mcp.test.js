@@ -179,6 +179,37 @@ describe("the server catalogue", () => {
     }
   });
 
+  it("does not offer extensions that duplicate built-in features", () => {
+    // Built-in tools and planning handle files, thinking steps and protocol tests.
+    const ids = entries.map((entry) => entry.id);
+    expect(ids).not.toContain("filesystem");
+    expect(ids).not.toContain("sequential-thinking");
+    expect(ids).not.toContain("everything");
+  });
+
+  it("includes verified developer and database servers", () => {
+    const ids = entries.map((entry) => entry.id);
+    const added = [
+      "azure-devops",
+      "netlify",
+      "mysql",
+      "sqlite",
+      "pinecone",
+      "jira",
+      "confluence",
+      "asana",
+      "clickup",
+      "google-calendar",
+      "hubspot",
+      "datadog",
+      "shopify",
+      "contentful",
+    ];
+    for (const id of added) {
+      expect(ids).toContain(id);
+    }
+  });
+
   it("links every server to its package documentation", () => {
     for (const entry of entries) {
       expect(entry.docs, entry.id).toBe(
@@ -196,7 +227,7 @@ describe("the server catalogue", () => {
   });
 
   it("gives the servers that talk to a service a website", () => {
-    const local = new Set(["filesystem", "memory", "sequential-thinking"]);
+    const local = new Set(["memory"]);
     for (const entry of entries) {
       if (local.has(entry.id)) continue;
       expect(entry.site, `${entry.id} has no website`).toBeTruthy();
@@ -259,7 +290,10 @@ describe("searching the catalogue", () => {
 describe("knowing when a server can start", () => {
   const github = catalogue.findEntry("github");
   const memory = catalogue.findEntry("memory");
-  const filesystem = catalogue.findEntry("filesystem");
+  const listServer = {
+    id: "test-roots",
+    arguments: [{ key: "roots", multiple: true, required: true }],
+  };
 
   it("says nothing is missing for a server that needs nothing", () => {
     expect(catalogue.missingRequirements(memory, {})).toEqual([]);
@@ -288,12 +322,12 @@ describe("knowing when a server can start", () => {
   });
 
   it("wants at least one folder for a server that takes a list", () => {
-    expect(catalogue.missingRequirements(filesystem, {})).toHaveLength(1);
+    expect(catalogue.missingRequirements(listServer, {})).toHaveLength(1);
     expect(
-      catalogue.missingRequirements(filesystem, { arguments: { roots: [] } }),
+      catalogue.missingRequirements(listServer, { arguments: { roots: [] } }),
     ).toHaveLength(1);
     expect(
-      catalogue.missingRequirements(filesystem, { arguments: { roots: ["C:/work"] } }),
+      catalogue.missingRequirements(listServer, { arguments: { roots: ["C:/work"] } }),
     ).toEqual([]);
   });
 
@@ -303,6 +337,11 @@ describe("knowing when a server can start", () => {
 });
 
 describe("building the command line", () => {
+  const listServer = {
+    id: "test-roots",
+    arguments: [{ key: "roots", multiple: true, required: true }],
+  };
+
   it("passes only the server's own arguments", () => {
     // The package is installed separately and its entry point run directly, so
     // neither npx nor the package name belongs on this command line.
@@ -327,14 +366,14 @@ describe("building the command line", () => {
   });
 
   it("appends every folder of a list argument", () => {
-    const spec = catalogue.commandFor(catalogue.findEntry("filesystem"), {
+    const spec = catalogue.commandFor(listServer, {
       arguments: { roots: ["C:/one", "C:/two"] },
     });
     expect(spec.args.slice(-2)).toEqual(["C:/one", "C:/two"]);
   });
 
   it("skips a blank entry in a list", () => {
-    const spec = catalogue.commandFor(catalogue.findEntry("filesystem"), {
+    const spec = catalogue.commandFor(listServer, {
       arguments: { roots: ["C:/one", "", "  "] },
     });
     expect(spec.args.slice(-1)).toEqual(["C:/one"]);

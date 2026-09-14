@@ -9,24 +9,32 @@
 
 const CATALOGUE = [
   {
-    id: "filesystem",
-    name: "Filesystem",
-    description:
-      "Read, write and search files in folders you choose. The folders are the arguments: nothing outside them is reachable.",
-    package: "@modelcontextprotocol/server-filesystem",
+    id: "azure-devops",
+    name: "Azure DevOps",
+    description: "Manage projects, repositories, work items, pipelines and wikis in Azure DevOps.",
+    package: "@azure-devops/mcp",
+    site: "https://azure.microsoft.com/products/devops",
     args: [],
     arguments: [
       {
-        key: "roots",
-        label: "Folders to expose",
-        placeholder: "C:\\Users\\you\\projects",
-        multiple: true,
+        key: "organization",
+        label: "Organization name",
+        placeholder: "contoso",
         required: true,
       },
     ],
+    env: [
+      { key: "AZURE_DEVOPS_EXT_PAT", label: "Personal access token", secret: true, required: false },
+    ],
+  },
+  {
+    id: "shopify",
+    name: "Shopify Dev",
+    description: "Search Shopify documentation, validate GraphQL and Liquid templates, and inspect schemas.",
+    package: "@shopify/dev-mcp",
+    site: "https://shopify.dev",
+    args: [],
     env: [],
-    caution:
-      "This server can write and delete inside the folders you list. Point it at a project, not at your home directory.",
   },
   {
     id: "github",
@@ -219,6 +227,71 @@ const CATALOGUE = [
     args: [],
     env: [{ key: "GOOGLE_MAPS_API_KEY", label: "Google Maps API key", secret: true, required: true }],
   },
+  {
+    id: "jira",
+    name: "Jira",
+    description: "Search issues, update projects and track tickets across Jira.",
+    package: "@aashari/mcp-server-atlassian-jira",
+    site: "https://www.atlassian.com/software/jira",
+    args: [],
+    env: [
+      { key: "ATLASSIAN_SITE_NAME", label: "Atlassian site name (e.g. your-company)", required: true },
+      { key: "ATLASSIAN_USER_EMAIL", label: "Atlassian user email", required: true },
+      { key: "ATLASSIAN_API_TOKEN", label: "Atlassian API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "confluence",
+    name: "Confluence",
+    description: "Search spaces, read documentation and update pages in Confluence.",
+    package: "@aashari/mcp-server-atlassian-confluence",
+    site: "https://www.atlassian.com/software/confluence",
+    args: [],
+    env: [
+      { key: "ATLASSIAN_SITE_NAME", label: "Atlassian site name (e.g. your-company)", required: true },
+      { key: "ATLASSIAN_USER_EMAIL", label: "Atlassian user email", required: true },
+      { key: "ATLASSIAN_API_TOKEN", label: "Atlassian API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "asana",
+    name: "Asana",
+    description: "Read and manage Asana tasks, projects, workspaces and teams.",
+    package: "@roychri/mcp-server-asana",
+    site: "https://asana.com",
+    args: [],
+    env: [{ key: "ASANA_ACCESS_TOKEN", label: "Asana personal access token", secret: true, required: true }],
+  },
+  {
+    id: "clickup",
+    name: "ClickUp",
+    description: "Manage ClickUp tasks, lists, spaces and custom fields.",
+    package: "@taazkareem/clickup-mcp-server",
+    site: "https://clickup.com",
+    args: [],
+    env: [
+      { key: "CLICKUP_API_KEY", label: "ClickUp API key", secret: true, required: true },
+      { key: "CLICKUP_TEAM_ID", label: "ClickUp team ID", required: false },
+    ],
+  },
+  {
+    id: "google-calendar",
+    name: "Google Calendar",
+    description: "List upcoming events, create calendar entries and manage schedules.",
+    package: "@cocal/google-calendar-mcp",
+    site: "https://calendar.google.com",
+    args: [],
+    env: [{ key: "GOOGLE_OAUTH_CREDENTIALS", label: "Path to Google OAuth credentials JSON", required: true }],
+  },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "Manage contacts, companies, deals and CRM objects in HubSpot.",
+    package: "@hubspot/mcp-server",
+    site: "https://www.hubspot.com",
+    args: [],
+    env: [{ key: "PRIVATE_APP_ACCESS_TOKEN", label: "HubSpot private app access token", secret: true, required: true }],
+  },
 
   {
     id: "postgres",
@@ -292,6 +365,47 @@ const CATALOGUE = [
     args: [],
     env: [{ key: "AIRTABLE_API_KEY", label: "Airtable API key", secret: true, required: true }],
   },
+  {
+    id: "mysql",
+    name: "MySQL",
+    description: "Query tables, inspect schemas and run queries against a MySQL database.",
+    package: "@benborla29/mcp-server-mysql",
+    site: "https://www.mysql.com",
+    args: [],
+    env: [
+      { key: "MYSQL_HOST", label: "MySQL host", required: true },
+      { key: "MYSQL_PORT", label: "MySQL port", required: false },
+      { key: "MYSQL_USER", label: "MySQL user", required: true },
+      { key: "MYSQL_PASS", label: "MySQL password", secret: true, required: true },
+      { key: "MYSQL_DB", label: "Database name", required: true },
+    ],
+  },
+  {
+    id: "sqlite",
+    name: "SQLite",
+    description: "Query and inspect SQLite database files on this machine.",
+    package: "mcp-server-sqlite-npx",
+    site: "https://www.sqlite.org",
+    args: [],
+    arguments: [
+      {
+        key: "database",
+        label: "Path to SQLite file",
+        placeholder: "C:\\Users\\you\\data.db",
+        required: true,
+      },
+    ],
+    env: [],
+  },
+  {
+    id: "pinecone",
+    name: "Pinecone",
+    description: "Search, upsert and query vector records and indexes in Pinecone.",
+    package: "@pinecone-database/mcp",
+    site: "https://www.pinecone.io",
+    args: [],
+    env: [{ key: "PINECONE_API_KEY", label: "Pinecone API key", secret: true, required: true }],
+  },
 
   {
     id: "kubernetes",
@@ -348,30 +462,47 @@ const CATALOGUE = [
   },
 
   {
+    id: "netlify",
+    name: "Netlify",
+    description: "Manage Netlify sites, deployments, build logs and environment variables.",
+    package: "@netlify/mcp",
+    site: "https://www.netlify.com",
+    args: [],
+    env: [{ key: "NETLIFY_PERSONAL_ACCESS_TOKEN", label: "Netlify personal access token", secret: true, required: true }],
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    description: "Query metrics, search logs, inspect monitors and view dashboards in Datadog.",
+    package: "@winor30/mcp-server-datadog",
+    site: "https://www.datadoghq.com",
+    args: [],
+    env: [
+      { key: "DATADOG_API_KEY", label: "Datadog API key", secret: true, required: true },
+      { key: "DATADOG_APP_KEY", label: "Datadog application key", secret: true, required: true },
+      { key: "DATADOG_SITE", label: "Datadog site (e.g. datadoghq.com)", required: false },
+    ],
+  },
+  {
+    id: "contentful",
+    name: "Contentful",
+    description: "Create, edit and publish content entries, assets and content models in Contentful.",
+    package: "@contentful/mcp-server",
+    site: "https://www.contentful.com",
+    args: [],
+    env: [
+      { key: "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN", label: "Management access token", secret: true, required: true },
+      { key: "SPACE_ID", label: "Space ID", required: true },
+      { key: "ENVIRONMENT_ID", label: "Environment ID", required: false },
+    ],
+  },
+
+  {
     id: "memory",
     name: "Memory",
     description:
       "A knowledge graph the model can write to and read back, so facts survive between conversations.",
     package: "@modelcontextprotocol/server-memory",
-    args: [],
-    env: [],
-  },
-  {
-    id: "sequential-thinking",
-    name: "Sequential thinking",
-    description:
-      "A scratchpad for working a hard problem through in numbered steps, revising earlier ones as it goes.",
-    package: "@modelcontextprotocol/server-sequential-thinking",
-    args: [],
-    env: [],
-  },
-  {
-    id: "everything",
-    name: "Everything (reference)",
-    description:
-      "The reference server. Exercises every part of the protocol, so it is useful for checking MCP works at all.",
-    package: "@modelcontextprotocol/server-everything",
-    site: "https://modelcontextprotocol.io",
     args: [],
     env: [],
   },
