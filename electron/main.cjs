@@ -2406,10 +2406,28 @@ function saveMcpConfig(config) {
   storage.setValue(MCP_CONFIG_KEY, JSON.stringify(config));
 }
 
-ipcMain.handle("mcp:catalogue", () => ({
-  success: true,
-  servers: mcpCatalogue.listCatalogue(),
-}));
+ipcMain.handle("mcp:catalogue", () => {
+  const shipped = mcpCatalogue.listCatalogue();
+  const config = mcpConfig();
+  const custom = Object.entries(config)
+    .filter(([id, entry]) => Boolean(entry?.package) && !shipped.some((s) => s.id === id))
+    .map(([id, entry]) => ({
+      id,
+      name: entry.name || id,
+      description: entry.description || "",
+      package: entry.package,
+      docs: entry.docs || `https://www.npmjs.com/package/${entry.package}`,
+      args: Array.isArray(entry.args) ? entry.args : [],
+      arguments: Array.isArray(entry.argumentsList) ? entry.argumentsList : [],
+      env: Array.isArray(entry.envDeclarations) ? entry.envDeclarations : [],
+      source: "registry",
+    }));
+
+  return {
+    success: true,
+    servers: [...shipped, ...custom],
+  };
+});
 
 /** Credentials saved before the encrypted store existed. Moved there on first launch, since the
  * database is a file backups and support bundles copy. */
@@ -2558,8 +2576,14 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
   const config = mcpConfig();
 
   const url = typeof entry?.url === "string" ? entry.url.trim() : "";
+  const pkg =
+    typeof entry?.package === "string"
+      ? entry.package.trim()
+      : typeof config[String(id)]?.package === "string"
+        ? config[String(id)].package.trim()
+        : "";
 
-  if (!mcpCatalogue.findEntry(String(id)) && !url) {
+  if (!mcpCatalogue.findEntry(String(id)) && !url && !pkg) {
     return { success: false, error: `There is no server called "${id}".` };
   }
 
@@ -2569,6 +2593,13 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
     return {
       success: false,
       error: "A remote server has to be an https address, or a local one.",
+    };
+  }
+
+  if (pkg && !/^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i.test(pkg)) {
+    return {
+      success: false,
+      error: "That is not a valid npm package name.",
     };
   }
 
@@ -2582,6 +2613,8 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
 
   if (Object.keys(secretFields).length > 0) secrets.set(String(id), secretFields);
 
+  const isCustomPackage = !mcpCatalogue.findEntry(String(id)) && Boolean(pkg);
+
   config[String(id)] = {
     enabled: Boolean(entry?.enabled),
     env: Object.fromEntries(
@@ -2592,6 +2625,15 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
     arguments:
       entry?.arguments && typeof entry.arguments === "object" ? entry.arguments : {},
     ...(url ? { url, name: String(entry?.name || id) } : {}),
+    ...(isCustomPackage
+      ? {
+          package: pkg,
+          name: String(entry?.name || config[String(id)]?.name || id),
+          description: String(entry?.description || config[String(id)]?.description || ""),
+          docs: String(entry?.docs || config[String(id)]?.docs || ""),
+          source: "registry",
+        }
+      : {}),
     ...(entry?.apps ? { apps: true } : {}),
   };
 
@@ -2603,6 +2645,7 @@ ipcMain.handle("mcp:forget", wrap("mcp", async (event, id) => {
   const config = mcpConfig();
   delete config[String(id)];
   saveMcpConfig(config);
+  secrets.remove(String(id));
   mcp.stopServer(String(id));
   return { success: true };
 }));

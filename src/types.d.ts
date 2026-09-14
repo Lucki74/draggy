@@ -478,6 +478,7 @@ export interface McpCatalogueEntry {
   env: McpRequirement[];
   /** Shown next to the switch when a server can do something irreversible. */
   caution?: string;
+  source?: "registry";
 }
 
 /** A skill on disk, as it appears in the prompt: no body, just the offer. */
@@ -527,6 +528,10 @@ export interface McpServerConfig {
   /** Set when the server is somewhere else rather than a program on this machine. */
   url?: string;
   name?: string;
+  package?: string;
+  description?: string;
+  docs?: string;
+  source?: "registry";
   /** Whether this server may answer with an interface rather than with text. */
   apps?: boolean;
 }

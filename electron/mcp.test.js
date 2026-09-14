@@ -412,6 +412,40 @@ describe("a server that is a URL rather than a program", () => {
   });
 });
 
+describe("a server that is an npm package rather than a catalogue server", () => {
+  it("is recognised from the package it was saved with", () => {
+    const definition = mcp.definitionFor("custom-weather", {
+      package: "@someone/weather-mcp",
+      name: "Weather",
+      description: "Weather forecasts.",
+      docs: "https://github.com/someone/weather",
+    });
+
+    expect(definition).toEqual({
+      id: "custom-weather",
+      name: "Weather",
+      description: "Weather forecasts.",
+      package: "@someone/weather-mcp",
+      docs: "https://github.com/someone/weather",
+      args: [],
+      arguments: [],
+      env: [],
+      source: "registry",
+    });
+  });
+
+  it("is not remote", () => {
+    expect(mcp.isRemote("custom-weather", { package: "@someone/weather-mcp" })).toBe(false);
+  });
+
+  it("does not require configuration before starting", () => {
+    const definition = mcp.definitionFor("custom-weather", {
+      package: "@someone/weather-mcp",
+    });
+    expect(catalogue.missingRequirements(definition, {})).toEqual([]);
+  });
+});
+
 describe("a tool that answers with an interface", () => {
   it("finds a widget in an embedded resource", () => {
     const result = {

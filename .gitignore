@@ -16,7 +16,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
-.claude
 .DS_Store
 *.suo
 *.ntvs*
@@ -31,3 +30,7 @@ Draggy_Setup
 # Local toolchains
 .dotnet
 dotnet-install.ps1
+
+# claude
+claude_last_conversation_transcript.md
+.claude 

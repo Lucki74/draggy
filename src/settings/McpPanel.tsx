@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ExternalLink, Loader2, Search } from "lucide-react";
+import { ChevronDown, ExternalLink, Loader2, Search, Trash2 } from "lucide-react";
 import { Toggle } from "./Controls";
 import { hostnameOf, hueFor, siteLabel } from "./../utils";
 import type {
@@ -60,6 +60,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   const [enabled, setEnabled] = useState<string[]>([]);
   const [found, setFound] = useState<RegistryEntry[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [registryError, setRegistryError] = useState<string | null>(null);
 
   const api = window.electronAPI?.mcp;
 
@@ -205,6 +206,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
           <button
             onClick={async () => {
               setSearching(true);
+              setRegistryError(null);
               try {
                 const result = await api?.search(wanted);
                 setFound(result?.entries ?? []);
@@ -217,6 +219,12 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
           >
             {searching ? t("loading") : t("searchRegistry")}
           </button>
+
+          {registryError && (
+            <p className="text-center text-xs font-medium text-red-500 py-1">
+              {registryError}
+            </p>
+          )}
 
           {found?.map((entry) => (
             <div
@@ -239,14 +247,31 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
 
               <button
                 onClick={async () => {
-                  await api?.save(entry.id, {
+                  const res = await api?.save(entry.id, {
                     enabled: false,
                     env: {},
                     arguments: {},
+                    ...(entry.package
+                      ? {
+                          package: entry.package,
+                          name: entry.name,
+                          description: entry.description,
+                          docs: entry.docs,
+                        }
+                      : {}),
                     ...(entry.url ? { url: entry.url, name: entry.name } : {}),
                   });
-                  const saved = await api?.config();
-                  setConfig(saved?.config ?? {});
+                  if (res && !res.success) {
+                    setRegistryError(res.error || "Could not add server");
+                    return;
+                  }
+                  setRegistryError(null);
+                  const [savedConfig, savedCatalogue] = await Promise.all([
+                    api?.config(),
+                    api?.catalogue(),
+                  ]);
+                  setConfig(savedConfig?.config ?? {});
+                  setCatalogue(savedCatalogue?.servers ?? []);
                 }}
                 className="flex-shrink-0 rounded-xl bg-[var(--bg-inverted)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-inverted)]"
               >
@@ -339,15 +364,36 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                      onClick={() => setExpanded(open ? null : entry.id)}
-                      className="p-2 rounded-lg hover:bg-[var(--hover-bg)]"
-                      aria-label={t("mcpConfigure")}
+                  {entry.source === "registry" && (
+                    <button
+                      onClick={async () => {
+                        await api?.forget(entry.id);
+                        const [savedConfig, savedCatalogue] = await Promise.all([
+                          api?.config(),
+                          api?.catalogue(),
+                        ]);
+                        setConfig(savedConfig?.config ?? {});
+                        setCatalogue(savedCatalogue?.servers ?? []);
+                        setEnabled((previous) =>
+                          previous.filter((id) => id !== entry.id),
+                        );
+                      }}
+                      aria-label={t("delete")}
+                      title={t("delete")}
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-red-500 transition-colors"
                     >
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
-                      />
+                      <Trash2 className="h-4 w-4" />
                     </button>
+                  )}
+                  <button
+                    onClick={() => setExpanded(open ? null : entry.id)}
+                    className="p-2 rounded-lg hover:bg-[var(--hover-bg)]"
+                    aria-label={t("mcpConfigure")}
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </button>
                   <Toggle
                     checked={current.enabled}
                     onChange={(value) => {

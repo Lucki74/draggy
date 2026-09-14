@@ -329,8 +329,29 @@ function remoteDefinition(id, config) {
   };
 }
 
+/** An npm package saved from the registry or entered as a custom extension. */
+function packageDefinition(id, config) {
+  if (!config?.package) return null;
+
+  return {
+    id,
+    name: config.name || id,
+    description: config.description || "",
+    package: String(config.package),
+    docs: config.docs || `https://www.npmjs.com/package/${config.package}`,
+    args: Array.isArray(config.args) ? config.args : [],
+    arguments: Array.isArray(config.argumentsList) ? config.argumentsList : [],
+    env: Array.isArray(config.envDeclarations) ? config.envDeclarations : [],
+    source: "registry",
+  };
+}
+
 function definitionFor(id, config) {
-  return catalogue.findEntry(id) || remoteDefinition(id, config);
+  return (
+    catalogue.findEntry(id) ||
+    packageDefinition(id, config) ||
+    remoteDefinition(id, config)
+  );
 }
 
 /** The token a remote server is called with, and the way to renew it. */

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import SkillsTab from "../extensions/SkillsTab";
 import RemoteServers from "../extensions/RemoteServers";
+import McpPanel from "../settings/McpPanel";
 import { translations } from "../translations";
 
 /** The extensions screen: a remote server is labelled before it is switched on, and switches are
@@ -279,3 +280,88 @@ describe("a server somewhere else", () => {
     });
   });
 });
+
+describe("adding an npm server from the registry", () => {
+  const registryEntry = {
+    id: "weather",
+    name: "Weather",
+    description: "Weather info for anywhere.",
+    source: "registry" as const,
+    docs: "https://github.com/someone/weather",
+    package: "@someone/weather-mcp",
+    args: [],
+    env: [],
+  };
+
+  it("saves an npm registry result with its package name and metadata", async () => {
+    const calls = stubBridge({
+      search: async () => ({ success: true, entries: [registryEntry] }),
+    });
+
+    render(<McpPanel t={t} />);
+
+    const searchInput = screen.getByPlaceholderText("Search extensions");
+    fireEvent.change(searchInput, { target: { value: "weather" } });
+
+    await act(async () => screen.getByRole("button", { name: "Search the registry" }).click());
+
+    expect(screen.getByText("Weather")).toBeTruthy();
+    expect(screen.getByText("Weather info for anywhere.")).toBeTruthy();
+
+    await act(async () => screen.getByRole("button", { name: "Add" }).click());
+
+    const saved = calls.find((call) => call.method === "save");
+    expect(saved?.args[0]).toBe("weather");
+    expect(saved?.args[1]).toMatchObject({
+      enabled: false,
+      package: "@someone/weather-mcp",
+      name: "Weather",
+    });
+  });
+
+  it("surfaces a save failure instead of ignoring it", async () => {
+    stubBridge({
+      search: async () => ({ success: true, entries: [registryEntry] }),
+      save: async () => ({ success: false, error: 'There is no server called "weather".' }),
+    });
+
+    render(<McpPanel t={t} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Search extensions"), { target: { value: "weather" } });
+    await act(async () => screen.getByRole("button", { name: "Search the registry" }).click());
+    await act(async () => screen.getByRole("button", { name: "Add" }).click());
+
+    expect(screen.getByText('There is no server called "weather".')).toBeTruthy();
+  });
+
+  it("shows a delete button for registry servers and calls forget", async () => {
+    const calls = stubBridge({
+      catalogue: async () => ({
+        success: true,
+        servers: [
+          {
+            id: "weather",
+            name: "Weather",
+            description: "Weather info",
+            package: "@someone/weather-mcp",
+            docs: "https://github.com/someone/weather",
+            source: "registry",
+            args: [],
+            env: [],
+          },
+        ],
+      }),
+    });
+
+    await act(async () => {
+      render(<McpPanel t={t} />);
+    });
+
+    expect(screen.getByText("Weather")).toBeTruthy();
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    await act(async () => fireEvent.click(deleteButton));
+
+    expect(calls).toContainEqual({ method: "forget", args: ["weather"] });
+  });
+});
+

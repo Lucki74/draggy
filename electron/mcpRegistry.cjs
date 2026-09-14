@@ -67,6 +67,19 @@ function toEntry(server) {
 
   if (!npm && !remote) return null;
 
+  const env = (
+    npm?.environment_variables ||
+    npm?.environmentVariables ||
+    server?.environment_variables ||
+    server?.environmentVariables ||
+    []
+  ).map((v) => ({
+    key: v.name || v.key,
+    label: v.description || v.name || v.key,
+    required: Boolean(v.is_required ?? v.required),
+    secret: Boolean(v.is_secret ?? v.secret),
+  }));
+
   return {
     id: idFor(server.name),
     name: server.title || server.name,
@@ -74,7 +87,7 @@ function toEntry(server) {
     source: "registry",
     docs: server.repository?.url || server.website_url || "",
     ...(npm
-      ? { package: npm.name || npm.identifier, args: [], env: [] }
+      ? { package: npm.name || npm.identifier, args: [], env }
       : { url: remote.url, transport: "http", remote: true }),
   };
 }
