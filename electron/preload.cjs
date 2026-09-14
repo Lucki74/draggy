@@ -108,7 +108,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   skills: {
     list: (workspaceId) => ipcRenderer.invoke("skills:list", workspaceId),
-    read: (workspaceId, id) => ipcRenderer.invoke("skills:read", workspaceId, id),
+    read: (workspaceId, id, options) => ipcRenderer.invoke("skills:read", workspaceId, id, options),
+    setEnabled: (id, enabled) => ipcRenderer.invoke("skills:set-enabled", id, enabled),
     openFolder: () => ipcRenderer.invoke("skills:open"),
   },
 

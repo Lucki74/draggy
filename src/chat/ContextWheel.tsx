@@ -20,10 +20,27 @@ const LABEL_KEYS: Record<ContextRow["id"], string> = {
   tools: "contextTools",
   memory: "contextMemory",
   skills: "contextSkills",
+  loadedSkills: "contextLoadedSkills",
   summary: "contextSummary",
   draft: "contextDraft",
   free: "contextFree",
 };
+
+/** The skills whose instructions are in the window, each with what it costs when that was measured. */
+function LoadedSkillList({ skills }: { skills: ContextWindowView["details"]["loadedSkills"] }) {
+  return (
+    <ul className="mt-1 ml-[18px] space-y-1 border-l-2 border-[var(--border-light)] pl-2">
+      {skills.map((skill) => (
+        <li key={skill.id} className="flex items-center gap-2 text-[10px]">
+          <span className="flex-1 truncate font-mono font-bold">{skill.name}</span>
+          {skill.tokens !== null && (
+            <span className="tabular-nums text-[var(--text-muted)]">{formatTokenCount(skill.tokens)}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const SIZE = 18;
 const STROKE = 2.5;
@@ -58,6 +75,11 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
     : `- / ${formatTokenCount(view.windowTokens)}`;
 
   const parts = view.rows.filter((row) => row.id !== "free");
+  const { toolCount, skillCount, loadedSkills } = view.details;
+
+  // Tools and skills are easy to confuse in a list of parts, so each says how many it holds.
+  const countFor = (id: ContextRow["id"]) =>
+    id === "tools" ? toolCount : id === "skills" ? skillCount : id === "loadedSkills" ? loadedSkills.length : null;
 
   return (
     <div className="relative" ref={rootRef}>
@@ -143,27 +165,76 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
               ))}
             </div>
 
+            {!expanded && loadedSkills.length > 0 && (
+              <p className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+                <span
+                  className="w-2 h-2 rounded-[2px] flex-shrink-0"
+                  style={{ backgroundColor: CONTEXT_COLORS.loadedSkills }}
+                />
+                <span className="truncate">
+                  <span className="font-bold">{t("contextLoadedSkills")}:</span>{" "}
+                  {loadedSkills.map((skill) => skill.name).join(", ")}
+                </span>
+              </p>
+            )}
+
             {expanded && (
               <ul className="space-y-1.5 pt-0.5">
-                {view.rows.map((row) => (
-                  <li key={row.id} className="flex items-center gap-2 text-[11px]">
-                    <span
-                      className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
-                      style={
-                        row.id === "free"
-                          ? { border: "2px solid var(--border-light)" }
-                          : { backgroundColor: CONTEXT_COLORS[row.id] }
-                      }
-                    />
-                    <span className="flex-1 font-bold">{t(LABEL_KEYS[row.id])}</span>
-                    <span className="tabular-nums text-[var(--text-muted)]">
-                      {formatTokenCount(row.tokens)}
-                    </span>
-                    <span className="w-11 text-right tabular-nums font-bold">
-                      {formatPercent(row.percent)}
-                    </span>
+                {view.rows.map((row) => {
+                  const count = countFor(row.id);
+
+                  return (
+                    <li key={row.id}>
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span
+                          className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
+                          style={
+                            row.id === "free"
+                              ? { border: "2px solid var(--border-light)" }
+                              : { backgroundColor: CONTEXT_COLORS[row.id] }
+                          }
+                        />
+                        <span className="flex-1 font-bold">
+                          {t(LABEL_KEYS[row.id])}
+                          {count !== null && (
+                            <span className="ml-1 font-normal tabular-nums text-[var(--text-muted)]">
+                              · {count}
+                            </span>
+                          )}
+                        </span>
+                        <span className="tabular-nums text-[var(--text-muted)]">
+                          {formatTokenCount(row.tokens)}
+                        </span>
+                        <span className="w-11 text-right tabular-nums font-bold">
+                          {formatPercent(row.percent)}
+                        </span>
+                      </div>
+
+                      {row.id === "loadedSkills" && loadedSkills.length > 0 && (
+                        <LoadedSkillList skills={loadedSkills} />
+                      )}
+                    </li>
+                  );
+                })}
+
+                {/* Loaded skills with no measured row yet are still named, so a load never goes unseen. */}
+                {loadedSkills.length > 0 && !view.rows.some((row) => row.id === "loadedSkills") && (
+                  <li>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span
+                        className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
+                        style={{ backgroundColor: CONTEXT_COLORS.loadedSkills }}
+                      />
+                      <span className="flex-1 font-bold">
+                        {t("contextLoadedSkills")}
+                        <span className="ml-1 font-normal tabular-nums text-[var(--text-muted)]">
+                          · {loadedSkills.length}
+                        </span>
+                      </span>
+                    </div>
+                    <LoadedSkillList skills={loadedSkills} />
                   </li>
-                ))}
+                )}
               </ul>
             )}
 

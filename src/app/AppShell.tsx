@@ -71,7 +71,8 @@ import {
   workspaceLabel,
 } from "../workspaces";
 import { writeLocalStorage } from "../utils";
-import type { AppSettings, Attachment, ChatSession, Workspace } from "../types";
+import type { AppSettings, Attachment, ChatSession, InstalledSkill, Workspace } from "../types";
+import { skillsFor } from "../skills/skills";
 
 export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
 
@@ -119,8 +120,8 @@ export default function AppShell({
     observer.observe(area);
     return () => observer.disconnect();
   }, []);
-  /** How many skills this workspace can reach, which decides whether to offer any. */
-  const [skillCount, setSkillCount] = useState(0);
+  /** The skills switched on for this side, which decide whether to offer any and fill the slash menu. */
+  const [skills, setSkills] = useState<InstalledSkill[]>([]);
   /** A background conversation that finished while the user was elsewhere. */
   const [finishedChatId, setFinishedChatId] = useState<string | null>(null);
   // The chat on screen, if any. A new chat is never "selected", so the selection alone is not it.
@@ -265,8 +266,8 @@ export default function AppShell({
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
-  // Counted rather than listed here: the loop reads the skills themselves when it builds a prompt,
-  // and the window only needs to know whether to offer the tool at all.
+  // Read again on leaving settings, where switches may have been flipped. The loop reads its own copy
+  // when it builds a prompt; this one decides whether to offer the tool and what the slash menu lists.
   useEffect(() => {
     const api = window.electronAPI?.skills;
     if (!api) return;
@@ -276,14 +277,14 @@ export default function AppShell({
     api
       .list(active.id)
       .then((result) => {
-        if (!cancelled) setSkillCount(result?.skills?.length ?? 0);
+        if (!cancelled) setSkills(skillsFor(result?.skills ?? [], mode));
       })
       .catch(() => undefined);
 
     return () => {
       cancelled = true;
     };
-  }, [active.id, viewMode]);
+  }, [active.id, viewMode, mode]);
 
   const environment: ToolEnvironment = {
     webMode: effectiveSettings.webMode,
@@ -294,7 +295,7 @@ export default function AppShell({
     libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
-    hasSkills: skillCount > 0,
+    hasSkills: skills.length > 0,
     hasGit: Boolean(active.rootPath && gitStatus?.available && gitStatus.isRepo),
   };
 
@@ -983,6 +984,7 @@ export default function AppShell({
             onOpenSettings={openSettings}
             onNewChat={handleNewChat}
             surface={mode}
+            skills={skills}
             settings={effectiveSettings}
             onPatchSettings={patchFromComposer}
             permissionMode={mode === "code" ? active.permissionMode : undefined}

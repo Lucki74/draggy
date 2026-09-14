@@ -257,7 +257,7 @@ export interface SearchStep {
     | "approval"
     /** The model writing down what it is going to do. */
     | "plan"
-    /** The model reaching for something the user wrote down for it. */
+    /** A skill's instructions loaded, by the model or by a slash command. */
     | "skill"
     /** An extension answering with a small interface of its own. */
     | "app"
@@ -270,6 +270,8 @@ export interface SearchStep {
   content: string;
   thoughtTime?: number;
   isComplete?: boolean;
+  /** For a skill step whose instructions loaded, the skill's id, which keeps it loaded afterwards. */
+  skill?: string;
   results?: SearchResult[];
   filepath?: string;
   filename?: string;
@@ -484,12 +486,22 @@ export interface InstalledSkill {
   name: string;
   description: string;
   path: string;
-  source: "user" | "project";
+  /** Shipped with Draggy, written by the user, or kept in the project. */
+  source: "library" | "user" | "project";
+  /** The library's grouping. Null for skills the user wrote. */
+  category?: string | null;
+  /** The side it is offered on. */
+  surface?: "chat" | "code" | "both";
+  enabled?: boolean;
+  /** What it starts as before the user flips it. */
+  defaultOn?: boolean;
+  /** False when only a slash command may start it, never the model on its own. */
+  modelInvocable?: boolean;
 }
 
 export interface LoadedSkill extends InstalledSkill {
   body: string;
-  /** Anything else in the skill's folder: templates, scripts, examples. */
+  /** Anything else in the skill's folder, relative to it: templates, references, examples. */
   files: string[];
 }
 
@@ -860,7 +872,14 @@ declare global {
         read: (
           workspaceId: string,
           id: string,
-        ) => Promise<{ success: boolean; skill?: LoadedSkill; error?: string }>;
+          options?: { enabledOnly?: boolean; file?: string },
+        ) => Promise<{
+          success: boolean;
+          skill?: LoadedSkill;
+          file?: { name: string; content: string };
+          error?: string;
+        }>;
+        setEnabled: (id: string, enabled: boolean) => Promise<{ success: boolean }>;
         openFolder: () => Promise<string>;
       };
 

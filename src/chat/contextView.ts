@@ -9,6 +9,7 @@ export const CONTEXT_COLORS: Record<ContextRow["id"], string> = {
   tools: "#f97316",
   memory: "#94a3b8",
   skills: "#10b981",
+  loadedSkills: "#047857",
   summary: "#8b5cf6",
   draft: "#06b6d4",
   free: "transparent",

@@ -1,0 +1,398 @@
+{
+  "categories": [
+    "writing",
+    "documents",
+    "research",
+    "learning",
+    "planning",
+    "data",
+    "code",
+    "authoring"
+  ],
+  "skills": [
+    {
+      "id": "email-writer",
+      "category": "writing",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "proofreader",
+      "category": "writing",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "summarizer",
+      "category": "writing",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "translator",
+      "category": "writing",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "tone-rewriter",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "meeting-notes",
+      "category": "writing",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "blog-post",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "social-post",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "speech-writer",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "cover-letter",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "resume",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "story-writer",
+      "category": "writing",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "docx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "pptx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "xlsx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "pdf",
+      "category": "documents",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "report",
+      "category": "documents",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "formal-letter",
+      "category": "documents",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "invoice",
+      "category": "documents",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "web-research",
+      "category": "research",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "fact-check",
+      "category": "research",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "compare-options",
+      "category": "research",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "news-brief",
+      "category": "research",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "document-qa",
+      "category": "research",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "literature-review",
+      "category": "research",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "browser-tasks",
+      "category": "research",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "explain-concept",
+      "category": "learning",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "quiz-me",
+      "category": "learning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "flashcards",
+      "category": "learning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "study-plan",
+      "category": "learning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "language-tutor",
+      "category": "learning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "brainstorm",
+      "category": "planning",
+      "surface": "chat",
+      "on": true
+    },
+    {
+      "id": "trip-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "meal-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "budget-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "project-plan",
+      "category": "planning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "goal-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "data-analysis",
+      "category": "data",
+      "surface": "both",
+      "on": true
+    },
+    {
+      "id": "sql-helper",
+      "category": "data",
+      "surface": "both",
+      "on": true
+    },
+    {
+      "id": "regex-helper",
+      "category": "data",
+      "surface": "both",
+      "on": false
+    },
+    {
+      "id": "csv-cleaner",
+      "category": "data",
+      "surface": "both",
+      "on": false
+    },
+    {
+      "id": "spreadsheet-formulas",
+      "category": "data",
+      "surface": "chat",
+      "on": false
+    },
+    {
+      "id": "code-review",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "debugging",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "write-tests",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "commit-message",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "refactor",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "explain-codebase",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "add-feature",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "security-review",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "documentation",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "git-helper",
+      "category": "code",
+      "surface": "code",
+      "on": true
+    },
+    {
+      "id": "pull-request",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "changelog",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "dependency-upgrade",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "performance",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "api-design",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "database-migration",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "accessibility",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "dockerfile",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "ci-workflow",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "type-errors",
+      "category": "code",
+      "surface": "code",
+      "on": false
+    },
+    {
+      "id": "shell-script",
+      "category": "code",
+      "surface": "both",
+      "on": false
+    },
+    {
+      "id": "skill-creator",
+      "category": "authoring",
+      "surface": "both",
+      "on": true
+    }
+  ]
+}

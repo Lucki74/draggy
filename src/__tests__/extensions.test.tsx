@@ -74,41 +74,131 @@ describe("the three lists", () => {
 });
 
 describe("the skills list", () => {
-  it("says where each one applies", async () => {
+  const SHELF = [
+    {
+      id: "invoices",
+      name: "Invoices",
+      description: "How we invoice.",
+      path: "C:\\skills\\invoices",
+      source: "user",
+      surface: "both",
+      enabled: true,
+    },
+    {
+      id: "release",
+      name: "Release",
+      description: "How we release.",
+      path: "C:\\project\\.draggy\\skills\\release",
+      source: "project",
+      surface: "both",
+      enabled: true,
+    },
+    {
+      id: "proofreader",
+      name: "proofreader",
+      description: "Corrects spelling and grammar.",
+      path: "C:\\draggy\\skills-library\\proofreader",
+      source: "library",
+      category: "writing",
+      surface: "chat",
+      enabled: true,
+    },
+    {
+      id: "dockerfile",
+      name: "dockerfile",
+      description: "Containerises applications.",
+      path: "C:\\draggy\\skills-library\\dockerfile",
+      source: "library",
+      category: "code",
+      surface: "code",
+      enabled: false,
+    },
+  ];
+
+  function stubSkills() {
+    const setEnabled = vi.fn(async () => ({ success: true }));
+    const read = vi.fn(async (_workspace: string, id: string) => ({
+      success: true,
+      skill: { ...SHELF.find((one) => one.id === id), body: `Steps for ${id}.`, files: ["checklist.md"] },
+    }));
+
     vi.stubGlobal("window", {
       electronAPI: {
         skills: {
-          list: async () => ({
-            success: true,
-            skills: [
-              {
-                id: "invoices",
-                name: "Invoices",
-                description: "How we invoice.",
-                path: "C:\\skills\\invoices",
-                source: "user",
-              },
-              {
-                id: "release",
-                name: "Release",
-                description: "How we release.",
-                path: "C:\\project\\.draggy\\skills\\release",
-                source: "project",
-              },
-            ],
-          }),
+          list: async () => ({ success: true, skills: SHELF }),
+          read,
+          setEnabled,
           openFolder: async () => "",
         },
       },
     });
 
+    return { setEnabled, read };
+  }
+
+  async function show() {
     await act(async () => {
       render(<SkillsTab workspaceId="w1" t={t} />);
     });
+  }
 
-    expect(screen.getByText("Invoices")).toBeTruthy();
-    expect(screen.getByText("Everywhere")).toBeTruthy();
-    expect(screen.getByText("This project")).toBeTruthy();
+  it("groups the project's, the user's and the library's under their own headings", async () => {
+    stubSkills();
+    await show();
+
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+
+    expect(headings).toEqual(["This project", "Your skills", "Writing", "Code"]);
+    expect(screen.getByText("3 of 4 switched on")).toBeTruthy();
+  });
+
+  it("says which side a library skill belongs to", async () => {
+    stubSkills();
+    await show();
+
+    expect(screen.getByText("Chat")).toBeTruthy();
+    expect(screen.getByText("Code", { selector: "span" })).toBeTruthy();
+  });
+
+  it("switches a skill for the whole app when its switch is flipped", async () => {
+    const { setEnabled } = stubSkills();
+    await show();
+
+    const toggle = screen.getByRole("switch", { name: "dockerfile" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+    await act(async () => fireEvent.click(toggle));
+
+    expect(setEnabled).toHaveBeenCalledWith("dockerfile", true);
+    expect(screen.getByRole("switch", { name: "dockerfile" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("finds a skill by what it does, and by whether it is on", async () => {
+    stubSkills();
+    await show();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search skills" }), { target: { value: "grammar" } });
+    expect(screen.getByText("proofreader")).toBeTruthy();
+    expect(screen.queryByText("Invoices")).toBeNull();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search skills" }), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Off" }));
+    expect(screen.getByText("dockerfile")).toBeTruthy();
+    expect(screen.queryByText("proofreader")).toBeNull();
+  });
+
+  it("shows a skill's instructions and files without switching it on", async () => {
+    const { read, setEnabled } = stubSkills();
+    await show();
+
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Instructions: dockerfile" })),
+    );
+
+    expect(read).toHaveBeenCalledWith("w1", "dockerfile");
+    expect(screen.getByText("Steps for dockerfile.")).toBeTruthy();
+    expect(screen.getByText("checklist.md")).toBeTruthy();
+    expect(setEnabled).not.toHaveBeenCalled();
   });
 });
 

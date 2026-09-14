@@ -9,29 +9,53 @@ export type ContextCategory =
   | "tools"
   | "memory"
   | "skills"
+  | "loadedSkills"
   | "summary";
 
 export type ContextBreakdown = Record<ContextCategory, number>;
+
+/** A skill whose instructions are in the prompt, with what they cost. */
+export interface LoadedSkillPart {
+  id: string;
+  name: string;
+  chars: number;
+}
 
 /** Characters of each fixed part of the prompt, as sent. */
 export interface PromptParts {
   systemChars: number;
   toolChars: number;
   memoryChars: number;
+  /** The list of skills on offer: names and descriptions only. */
   skillChars: number;
   summaryChars: number;
+  /** The instructions of the skills loaded in this conversation. */
+  loadedSkillChars?: number;
+  loadedSkills?: LoadedSkillPart[];
+  toolCount?: number;
+  skillCount?: number;
 }
 
 export const CATEGORY_ORDER: ContextCategory[] = [
   "messages",
   "system",
   "tools",
-  "memory",
   "skills",
+  "loadedSkills",
+  "memory",
   "summary",
 ];
 
-const tokensOf = (chars: number) => Math.max(0, Math.ceil(chars / CHARS_PER_TOKEN));
+const FIXED: Exclude<ContextCategory, "messages">[] = [
+  "system",
+  "tools",
+  "memory",
+  "skills",
+  "loadedSkills",
+  "summary",
+];
+
+export const tokensOf = (chars: number) => Math.max(0, Math.ceil(chars / CHARS_PER_TOKEN));
 
 /** Splits a measured count: fixed parts estimated from length, the conversation gets the rest.
  * Overshooting estimates are scaled down together, never below zero. */
@@ -40,15 +64,18 @@ export function measureBreakdown(
   measuredTokens: number,
   conversationChars = 0,
 ): ContextBreakdown {
-  const fixed = {
+  const fixed: Omit<ContextBreakdown, "messages"> = {
     system: tokensOf(parts.systemChars),
     tools: tokensOf(parts.toolChars),
     memory: tokensOf(parts.memoryChars),
     skills: tokensOf(parts.skillChars),
+    loadedSkills: tokensOf(parts.loadedSkillChars ?? 0),
     summary: tokensOf(parts.summaryChars),
   };
 
-  const fixedTotal = fixed.system + fixed.tools + fixed.memory + fixed.skills + fixed.summary;
+  const total = (values: Omit<ContextBreakdown, "messages">) =>
+    FIXED.reduce((sum, key) => sum + values[key], 0);
+  const fixedTotal = total(fixed);
 
   // Nothing measured: an estimate of everything is the best there is.
   if (!(measuredTokens > 0)) {
@@ -60,18 +87,19 @@ export function measureBreakdown(
   }
 
   const scale = measuredTokens / fixedTotal;
-  const scaled = {
-    system: Math.floor(fixed.system * scale),
-    tools: Math.floor(fixed.tools * scale),
-    memory: Math.floor(fixed.memory * scale),
-    skills: Math.floor(fixed.skills * scale),
-    summary: Math.floor(fixed.summary * scale),
-  };
+  const scaled = Object.fromEntries(
+    FIXED.map((key) => [key, Math.floor(fixed[key] * scale)]),
+  ) as Omit<ContextBreakdown, "messages">;
 
-  const scaledTotal =
-    scaled.system + scaled.tools + scaled.memory + scaled.skills + scaled.summary;
+  return { ...scaled, messages: Math.max(0, measuredTokens - total(scaled)) };
+}
 
-  return { ...scaled, messages: Math.max(0, measuredTokens - scaledTotal) };
+/** What the popover lists beyond the parts: how many tools and skills are offered, and which skills
+ * are loaded. Tokens are left out when nothing was measured to split. */
+export interface ContextDetails {
+  toolCount: number | null;
+  skillCount: number | null;
+  loadedSkills: { id: string; name: string; tokens: number | null }[];
 }
 
 export interface ContextRow {
@@ -95,9 +123,12 @@ export interface ContextWindowView {
   compactAtTokens: number;
   /** Whether that point was chosen by the user or worked out by Draggy. */
   compactSource: "auto" | "limit";
+  details: ContextDetails;
 }
 
 export interface ContextWindowInput {
+  /** Tool and skill counts, and the loaded skills. Left out, the popover shows none. */
+  details?: ContextDetails;
   /** The parts, adding up to what the model counted. Null when nothing has been measured. */
   breakdown: ContextBreakdown | null;
   /** How much of the conversation part is the message not yet sent, when that was measured. */
@@ -142,6 +173,7 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
     tools: 0,
     memory: 0,
     skills: 0,
+    loadedSkills: 0,
     summary: 0,
   };
 
@@ -173,6 +205,32 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
     rows,
     compactAtTokens: threshold.tokens,
     compactSource: threshold.source,
+    details: input.details ?? { toolCount: null, skillCount: null, loadedSkills: [] },
+  };
+}
+
+/** The counts and loaded skills for the popover, from the parts of the prompt when a turn measured
+ * them, and otherwise from the loaded skills the conversation shows, without their sizes. */
+export function contextDetails(
+  parts: PromptParts | null,
+  loaded: { id: string; name: string }[],
+): ContextDetails {
+  if (parts?.loadedSkills) {
+    return {
+      toolCount: parts.toolCount ?? null,
+      skillCount: parts.skillCount ?? null,
+      loadedSkills: parts.loadedSkills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        tokens: tokensOf(skill.chars),
+      })),
+    };
+  }
+
+  return {
+    toolCount: parts?.toolCount ?? null,
+    skillCount: parts?.skillCount ?? null,
+    loadedSkills: loaded.map((skill) => ({ ...skill, tokens: null })),
   };
 }
 

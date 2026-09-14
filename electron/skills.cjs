@@ -7,18 +7,52 @@ const { log } = require("./logger.cjs");
 
 const SKILL_FILE = "SKILL.md";
 
+/** The skills Draggy ships, with which of them start switched on. */
+const LIBRARY_ROOT = path.join(__dirname, "skills-library");
+const CATALOGUE_FILE = "library.json";
+
 /** How much of a skill body is worth handing over in one go. */
 const MAX_BODY_CHARS = 20000;
 
-let userSkillRoot = null;
+/** The format's own limit. A longer description is a body in the wrong place. */
+const MAX_DESCRIPTION_CHARS = 1024;
 
-function init(userDataPath) {
+/** A file that came with a skill, read on request. Templates and references, not datasets. */
+const MAX_FILE_CHARS = 20000;
+const MAX_LISTED_FILES = 100;
+const MAX_FILE_DEPTH = 3;
+
+const SURFACES = new Set(["chat", "code", "both"]);
+
+let userSkillRoot = null;
+let libraryRoot = LIBRARY_ROOT;
+
+function init(userDataPath, options = {}) {
   userSkillRoot = path.join(userDataPath, "skills");
+  if (options.libraryRoot !== undefined) libraryRoot = options.libraryRoot;
   return userSkillRoot;
 }
 
-/** Front matter read without a YAML parser: the format only needs flat `key: value` lines, and more
- * than that should not be encouraged. */
+/** A `key: >` or `key: |` value continues on the indented lines below it, as skills written for
+ * Claude often do. Folded joins them with spaces, literal keeps the breaks. */
+function readBlock(lines, start, style) {
+  const taken = [];
+  let index = start;
+
+  while (index < lines.length && (lines[index].trim() === "" || /^\s/.test(lines[index]))) {
+    taken.push(lines[index].trim());
+    index++;
+  }
+
+  const value = style.startsWith(">")
+    ? taken.join(" ").replace(/\s+/g, " ")
+    : taken.join("\n");
+
+  return { value: value.trim(), next: index };
+}
+
+/** Front matter read without a YAML parser: flat `key: value` lines and block values are all the
+ * format needs, and nested keys such as metadata are skipped. */
 function parseSkill(text) {
   // A byte order mark, which an editor on Windows may well have put there.
   const source = String(text || "").replace(/^\uFEFF/, "");
@@ -27,30 +61,53 @@ function parseSkill(text) {
   if (!match) return null;
 
   const fields = {};
+  const lines = match[1].split(/\r?\n/);
 
-  for (const line of match[1].split(/\r?\n/)) {
+  for (let index = 0; index < lines.length; ) {
+    const line = lines[index];
     const at = line.indexOf(":");
-    if (at === -1) continue;
+
+    if (at === -1 || /^\s/.test(line)) {
+      index++;
+      continue;
+    }
 
     const key = line.slice(0, at).trim().toLowerCase();
-    const value = line
-      .slice(at + 1)
-      .trim()
-      .replace(/^["']|["']$/g, "");
+    const raw = line.slice(at + 1).trim();
 
-    if (key) fields[key] = value;
+    if (/^[>|][-+]?$/.test(raw)) {
+      const block = readBlock(lines, index + 1, raw);
+      if (key) fields[key] = block.value;
+      index = block.next;
+      continue;
+    }
+
+    if (key) fields[key] = raw.replace(/^["']|["']$/g, "");
+    index++;
   }
 
   if (!fields.name || !fields.description) return null;
 
   return {
     name: fields.name,
-    description: fields.description,
+    description: fields.description.slice(0, MAX_DESCRIPTION_CHARS),
     body: match[2].trim(),
+    disableModelInvocation: fields["disable-model-invocation"] === "true",
   };
 }
 
-function readSkillFolder(folder, source) {
+/** Which library skills exist, what they are for, and whether each starts on. */
+function readCatalogue() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(libraryRoot, CATALOGUE_FILE), "utf8"));
+    const entries = Array.isArray(parsed?.skills) ? parsed.skills : [];
+    return new Map(entries.map((entry) => [entry.id, entry]));
+  } catch {
+    return new Map();
+  }
+}
+
+function readSkillFolder(folder, source, catalogue) {
   const file = path.join(folder, SKILL_FILE);
 
   let parsed;
@@ -67,16 +124,24 @@ function readSkillFolder(folder, source) {
     return null;
   }
 
+  const id = path.basename(folder);
+  const entry = source === "library" ? catalogue.get(id) : null;
+
   return {
-    id: path.basename(folder),
+    id,
     name: parsed.name,
     description: parsed.description,
     path: folder,
     source,
+    category: entry?.category ?? null,
+    surface: SURFACES.has(entry?.surface) ? entry.surface : "both",
+    // What the user writes is meant to be used; the library waits to be asked, bar its defaults.
+    defaultOn: source === "library" ? Boolean(entry?.on) : true,
+    modelInvocable: !parsed.disableModelInvocation,
   };
 }
 
-function listIn(root, source) {
+function listIn(root, source, catalogue) {
   if (!root || !fs.existsSync(root)) return [];
 
   let entries;
@@ -88,40 +153,108 @@ function listIn(root, source) {
 
   return entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => readSkillFolder(path.join(root, entry.name), source))
+    .map((entry) => readSkillFolder(path.join(root, entry.name), source, catalogue))
     .filter(Boolean);
 }
 
-/** Every skill a workspace can use, from the user and from the project. A project skill with the
- * same name wins as the more specific one. */
-function listSkills(projectRoot) {
-  const mine = listIn(userSkillRoot, "user");
+/** Every skill a workspace can reach: the library, the user's, and the project's, each winning over
+ * the one before when ids match. `overrides` holds the switches the user has flipped. */
+function listSkills(projectRoot, overrides = {}) {
+  const catalogue = readCatalogue();
+  const library = listIn(libraryRoot, "library", catalogue);
+  const mine = listIn(userSkillRoot, "user", catalogue);
   const theirs = projectRoot
-    ? listIn(path.join(projectRoot, ".draggy", "skills"), "project")
+    ? listIn(path.join(projectRoot, ".draggy", "skills"), "project", catalogue)
     : [];
 
   const byId = new Map();
-  for (const skill of [...mine, ...theirs]) byId.set(skill.id, skill);
+  for (const skill of [...library, ...mine, ...theirs]) byId.set(skill.id, skill);
 
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...byId.values()]
+    .map((skill) => {
+      const flipped = overrides?.[skill.id];
+      return { ...skill, enabled: typeof flipped === "boolean" ? flipped : skill.defaultOn };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The whole skill, read only once the model has asked to use it. */
-function readSkill(id, projectRoot) {
-  const skill = listSkills(projectRoot).find((one) => one.id === id);
+/** What else sits in a skill's folder, as paths relative to it. */
+function listFiles(folder) {
+  const found = [];
+
+  const walk = (directory, prefix, depth) => {
+    if (depth > MAX_FILE_DEPTH || found.length >= MAX_LISTED_FILES) return;
+
+    let entries;
+    try {
+      entries = fs.readdirSync(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name.startsWith(".") || found.length >= MAX_LISTED_FILES) continue;
+
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) walk(path.join(directory, entry.name), relative, depth + 1);
+      else if (entry.isFile() && relative !== SKILL_FILE) found.push(relative);
+    }
+  };
+
+  walk(folder, "", 0);
+  return found;
+}
+
+/** One file from a skill's folder, which it may not climb out of. */
+function readSkillFile(skill, name) {
+  const target = path.resolve(skill.path, String(name));
+  const relative = path.relative(skill.path, target);
+
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return { success: false, error: `"${name}" is not a file in the ${skill.id} skill.` };
+  }
+
+  let content;
+  try {
+    if (!fs.statSync(target).isFile()) throw new Error("not a file");
+    content = fs.readFileSync(target, "utf8");
+  } catch {
+    return { success: false, error: `The ${skill.id} skill has no file called "${name}".` };
+  }
+
+  if (content.includes("\u0000")) {
+    return { success: false, error: `"${name}" is not a text file, so it cannot be read here.` };
+  }
+
+  return {
+    success: true,
+    file: { name: relative.split(path.sep).join("/"), content: content.slice(0, MAX_FILE_CHARS) },
+  };
+}
+
+/** The whole skill, read only once the model has asked to use it, or one of its files. A switched
+ * off skill is refused when `enabledOnly` says the model is the one asking. */
+function readSkill(id, projectRoot, options = {}) {
+  const { overrides = {}, enabledOnly = false, file = null } = options;
+  const skill = listSkills(projectRoot, overrides).find((one) => one.id === id);
+
   if (!skill) return { success: false, error: `There is no skill called "${id}".` };
+  if (enabledOnly && !skill.enabled) {
+    return { success: false, error: `The ${id} skill is switched off.` };
+  }
 
   try {
-    const parsed = parseSkill(
-      fs.readFileSync(path.join(skill.path, SKILL_FILE), "utf8"),
-    );
+    const files = listFiles(skill.path);
+
+    if (file) {
+      const read = readSkillFile(skill, file);
+      return read.success ? { success: true, skill: { ...skill, body: "", files }, file: read.file } : read;
+    }
+
+    const parsed = parseSkill(fs.readFileSync(path.join(skill.path, SKILL_FILE), "utf8"));
 
     if (!parsed) return { success: false, error: "That skill could not be read." };
-
-    const files = fs
-      .readdirSync(skill.path, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name !== SKILL_FILE)
-      .map((entry) => entry.name);
 
     return {
       success: true,
@@ -137,10 +270,15 @@ function readSkill(id, projectRoot) {
 }
 
 module.exports = {
+  CATALOGUE_FILE,
+  LIBRARY_ROOT,
   MAX_BODY_CHARS,
+  MAX_DESCRIPTION_CHARS,
+  MAX_FILE_CHARS,
   SKILL_FILE,
   init,
   listSkills,
   parseSkill,
+  readCatalogue,
   readSkill,
 };

@@ -84,9 +84,15 @@ Electron app, in React and TypeScript, for Windows, macOS and Linux.
   contents locally, on meaning and keywords at once. In Code the project itself
   is what Draggy searches.
 - **Extend it.** Thirty-four Model Context Protocol servers in a catalogue, a
-  search of the official MCP registry, remote servers with OAuth sign-in, and
-  skills you write down once. All of it is off until you switch it on, once
-  for the whole app, and a server can answer with a small sandboxed interface.
+  search of the official MCP registry, and remote servers with OAuth sign-in.
+  All of them are off until you switch them on, once for the whole app, and a
+  server can answer with a small sandboxed interface.
+- **Teach it how a job is done.** A library of 64 skills in the shared SKILL.md
+  format, from Word documents and web research to code review and commit
+  messages, 28 of them on from the start. The model sees only their names and
+  descriptions until one fits, or you type / and a skill's name. A loaded skill
+  stays loaded for the rest of the conversation and is named in the context
+  wheel. Write your own, for every chat or for one project.
 - **See where the context goes.** A wheel beside the model picker shows how full
   the window is, counted by the model itself rather than estimated from the
   text, as you type and after every pass while it answers. Open it for the split

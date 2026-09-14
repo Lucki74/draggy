@@ -13,6 +13,7 @@ const skills = require("./skills.cjs");
 let workdir;
 let userData;
 let project;
+let library;
 
 function writeSkill(root, id, text) {
   const folder = path.join(root, id);
@@ -32,7 +33,10 @@ beforeEach(() => {
   fs.mkdirSync(path.join(userData, "skills"), { recursive: true });
   fs.mkdirSync(path.join(project, ".draggy", "skills"), { recursive: true });
 
-  skills.init(userData);
+  // An empty library of its own, so each test sees only the skills it wrote.
+  library = path.join(workdir, "library");
+  fs.mkdirSync(library, { recursive: true });
+  skills.init(userData, { libraryRoot: library });
 });
 
 afterEach(() => {
@@ -157,5 +161,216 @@ describe("reading one on demand", () => {
     const { skill: loaded } = skills.readSkill("long");
 
     expect(loaded.body).toHaveLength(skills.MAX_BODY_CHARS);
+  });
+});
+
+describe("front matter written for Claude", () => {
+  it("reads a description folded over several lines", () => {
+    const parsed = skills.parseSkill(
+      "---\nname: pdf\ndescription: >\n  Fills in PDF forms\n  and merges files.\nlicense: MIT\n---\n\nBody.",
+    );
+
+    expect(parsed.description).toBe("Fills in PDF forms and merges files.");
+    expect(parsed.name).toBe("pdf");
+  });
+
+  it("skips nested keys it has no use for", () => {
+    const parsed = skills.parseSkill(
+      "---\nname: notes\nmetadata:\n  version: 2\n  author: someone\ndescription: Takes notes.\n---\n\nBody.",
+    );
+
+    expect(parsed.description).toBe("Takes notes.");
+  });
+
+  it("marks a skill only a slash command may start", () => {
+    const text = "---\nname: deploy\ndescription: Deploys.\ndisable-model-invocation: true\n---\n\nBody.";
+
+    expect(skills.parseSkill(text).disableModelInvocation).toBe(true);
+    expect(skills.parseSkill(skill("deploy", "Deploys.")).disableModelInvocation).toBe(false);
+  });
+
+  it("cuts a description at the format's limit", () => {
+    const parsed = skills.parseSkill(skill("long", "x".repeat(3000)));
+
+    expect(parsed.description).toHaveLength(skills.MAX_DESCRIPTION_CHARS);
+  });
+});
+
+describe("the library and the switches", () => {
+  function writeLibrary(entries) {
+    for (const entry of entries) writeSkill(library, entry.id, skill(entry.id, `The ${entry.id} job.`));
+    fs.writeFileSync(
+      path.join(library, skills.CATALOGUE_FILE),
+      JSON.stringify({ categories: ["writing", "code"], skills: entries }),
+    );
+  }
+
+  it("lists shipped skills with their shelf, side and default", () => {
+    writeLibrary([
+      { id: "proofreader", category: "writing", surface: "chat", on: true },
+      { id: "dockerfile", category: "code", surface: "code", on: false },
+    ]);
+
+    const found = skills.listSkills();
+
+    expect(found).toEqual([
+      expect.objectContaining({ id: "dockerfile", source: "library", category: "code", surface: "code", enabled: false }),
+      expect.objectContaining({ id: "proofreader", source: "library", category: "writing", surface: "chat", enabled: true }),
+    ]);
+  });
+
+  it("switches on what the user wrote, on both sides", () => {
+    writeSkill(userSkills(), "invoices", skill("Invoices", "How we invoice."));
+
+    const [found] = skills.listSkills();
+
+    expect(found).toMatchObject({ enabled: true, defaultOn: true, surface: "both", category: null });
+  });
+
+  it("lets the user's switches win over the defaults", () => {
+    writeLibrary([
+      { id: "proofreader", category: "writing", surface: "chat", on: true },
+      { id: "dockerfile", category: "code", surface: "code", on: false },
+    ]);
+    writeSkill(userSkills(), "invoices", skill("Invoices", "How we invoice."));
+
+    const found = skills.listSkills(undefined, { proofreader: false, dockerfile: true, invoices: false });
+    const byId = Object.fromEntries(found.map((one) => [one.id, one.enabled]));
+
+    expect(byId).toEqual({ proofreader: false, dockerfile: true, invoices: false });
+  });
+
+  it("lets the user's own version of a shipped skill replace it", () => {
+    writeLibrary([{ id: "proofreader", category: "writing", surface: "chat", on: true }]);
+    writeSkill(userSkills(), "proofreader", skill("proofreader", "The way I like it."));
+
+    const found = skills.listSkills();
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ source: "user", description: "The way I like it." });
+  });
+
+  it("refuses a switched-off skill to the model but still shows it to the user", () => {
+    writeLibrary([{ id: "dockerfile", category: "code", surface: "code", on: false }]);
+
+    expect(skills.readSkill("dockerfile", undefined, { enabledOnly: true }).success).toBe(false);
+    expect(skills.readSkill("dockerfile").success).toBe(true);
+    expect(
+      skills.readSkill("dockerfile", undefined, { enabledOnly: true, overrides: { dockerfile: true } }).success,
+    ).toBe(true);
+  });
+});
+
+describe("files that come with a skill", () => {
+  function skillWithFiles() {
+    const folder = writeSkill(userSkills(), "reports", skill("reports", "Writes reports."));
+    fs.mkdirSync(path.join(folder, "templates"), { recursive: true });
+    fs.writeFileSync(path.join(folder, "templates", "weekly.md"), "# Weekly\n");
+    fs.writeFileSync(path.join(folder, "checklist.md"), "- [ ] Numbers checked\n");
+    fs.writeFileSync(path.join(folder, ".hidden"), "not listed");
+    fs.writeFileSync(path.join(folder, "logo.png"), Buffer.from([137, 80, 78, 71, 0, 0, 0, 13]));
+    return folder;
+  }
+
+  it("lists them by path inside the skill, nested ones included", () => {
+    skillWithFiles();
+
+    const { skill: loaded } = skills.readSkill("reports");
+
+    expect(loaded.files).toEqual(["checklist.md", "logo.png", "templates/weekly.md"]);
+  });
+
+  it("reads one on request instead of the instructions", () => {
+    skillWithFiles();
+
+    const result = skills.readSkill("reports", undefined, { file: "templates/weekly.md" });
+
+    expect(result.success).toBe(true);
+    expect(result.file).toEqual({ name: "templates/weekly.md", content: "# Weekly\n" });
+    expect(result.skill.body).toBe("");
+  });
+
+  it("never reads outside the skill's folder", () => {
+    skillWithFiles();
+    writeSkill(userSkills(), "secret", skill("secret", "Other skill.", "Private body."));
+    fs.writeFileSync(path.join(userData, "settings.json"), "{}");
+
+    for (const escape of ["../secret/SKILL.md", "../../settings.json", path.join(userData, "settings.json")]) {
+      const result = skills.readSkill("reports", undefined, { file: escape });
+      expect(result.success, escape).toBe(false);
+    }
+  });
+
+  it("says so for a file that is missing or not text", () => {
+    skillWithFiles();
+
+    expect(skills.readSkill("reports", undefined, { file: "nope.md" }).success).toBe(false);
+    expect(skills.readSkill("reports", undefined, { file: "logo.png" }).error).toContain("not a text file");
+  });
+});
+
+describe("the library Draggy ships", () => {
+  beforeEach(() => {
+    skills.init(userData, { libraryRoot: skills.LIBRARY_ROOT });
+  });
+
+  const catalogue = () =>
+    JSON.parse(fs.readFileSync(path.join(skills.LIBRARY_ROOT, skills.CATALOGUE_FILE), "utf8"));
+
+  const folders = () =>
+    fs
+      .readdirSync(skills.LIBRARY_ROOT, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+
+  it("holds at least 56 skills, and loads every one of them", () => {
+    expect(folders().length).toBeGreaterThanOrEqual(56);
+    expect(skills.listSkills().map((one) => one.id).sort()).toEqual(folders());
+  });
+
+  it("lists every folder in the catalogue and nothing else", () => {
+    expect(catalogue().skills.map((entry) => entry.id).sort()).toEqual(folders());
+  });
+
+  it("names each skill after its folder, with a description the format accepts", () => {
+    for (const found of skills.listSkills()) {
+      const raw = fs.readFileSync(path.join(found.path, skills.SKILL_FILE), "utf8");
+      const parsed = skills.parseSkill(raw);
+      const written = raw.match(/^description: (.*)$/m)[1].replace(/^"|"$/g, "");
+
+      expect(parsed.name, found.id).toBe(found.id);
+      expect(found.id, found.id).toMatch(/^[a-z0-9][a-z0-9-]{0,63}$/);
+      expect(written.length, found.id).toBeLessThanOrEqual(skills.MAX_DESCRIPTION_CHARS);
+      expect(parsed.body.length, found.id).toBeGreaterThan(400);
+    }
+  });
+
+  it("puts each skill on a known shelf and side", () => {
+    const { categories, skills: entries } = catalogue();
+
+    for (const entry of entries) {
+      expect(categories, entry.id).toContain(entry.category);
+      expect(["chat", "code", "both"], entry.id).toContain(entry.surface);
+      expect(typeof entry.on, entry.id).toBe("boolean");
+    }
+  });
+
+  it("starts with many switched on, and some left for the user to choose", () => {
+    const on = catalogue().skills.filter((entry) => entry.on).length;
+
+    expect(on).toBeGreaterThanOrEqual(20);
+    expect(on).toBeLessThan(catalogue().skills.length);
+  });
+
+  it("ships every file a skill tells the model to read", () => {
+    for (const found of skills.listSkills()) {
+      const { skill: loaded } = skills.readSkill(found.id);
+
+      for (const [, name] of loaded.body.matchAll(/file "([^"]+)"/g)) {
+        expect(loaded.files, `${found.id} mentions ${name}`).toContain(name);
+        expect(skills.readSkill(found.id, undefined, { file: name }).success, name).toBe(true);
+      }
+    }
   });
 });

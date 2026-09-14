@@ -35,9 +35,18 @@ describe("splitting a measured prompt into its parts", () => {
       tools: 500,
       memory: 200,
       skills: 100,
+      loadedSkills: 0,
       summary: 0,
       messages: 3200,
     });
+  });
+
+  it("keeps the instructions of loaded skills apart from the list of skills on offer", () => {
+    const breakdown = measureBreakdown({ ...PARTS, loadedSkillChars: 2400 }, 5600);
+
+    expect(breakdown.skills).toBe(100);
+    expect(breakdown.loadedSkills).toBe(600);
+    expect(breakdown.messages).toBe(3200);
   });
 
   it("always adds up to what the model counted", () => {
@@ -78,11 +87,15 @@ describe("the window as the user sees it", () => {
       "messages",
       "system",
       "tools",
-      "memory",
       "skills",
+      "memory",
       "draft",
       "free",
     ]);
+  });
+
+  it("carries no counts or loaded skills when nothing was said about them", () => {
+    expect(view.details).toEqual({ toolCount: null, skillCount: null, loadedSkills: [] });
   });
 
   it("shows the measured draft on its own row, out of the conversation's share", () => {
@@ -106,7 +119,7 @@ describe("the window as the user sees it", () => {
 
   it("never reports negative free space when the window is overfull", () => {
     const full = describeContextWindow({
-      breakdown: { messages: 200_000, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 },
+      breakdown: { messages: 200_000, system: 0, tools: 0, memory: 0, skills: 0, loadedSkills: 0, summary: 0 },
       draftTokens: 0,
       exact: true,
       windowTokens: 100_000,
@@ -159,7 +172,7 @@ describe("where the conversation gets folded", () => {
 
   it("does not follow the small window a short chat happens to be loaded at", () => {
     const view = describeContextWindow({
-      breakdown: { messages: 135, system: 1500, tools: 692, memory: 0, skills: 0, summary: 0 },
+      breakdown: { messages: 135, system: 1500, tools: 692, memory: 0, skills: 0, loadedSkills: 0, summary: 0 },
       draftTokens: 0,
       exact: true,
       windowTokens: windowCeiling(203_000, 4096),

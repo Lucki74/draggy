@@ -28,11 +28,13 @@ import ContextWheel from "./chat/ContextWheel";
 import PermissionPicker from "./chat/PermissionPicker";
 import {
   MIN_COMPACT_LIMIT,
+  contextDetails,
   describeContextWindow,
   formatTokenCount,
   measureBreakdown,
   parseTokenCount,
 } from "./agent/contextBreakdown";
+import { loadedSkillIds } from "./skills/skills";
 import type { ContextBreakdown } from "./agent/contextBreakdown";
 import { useLiveTurn } from "./agent/liveTurn";
 import type { CompactOutcome } from "./agent/taskManager";
@@ -122,12 +124,16 @@ const MODEL_CAPABILITIES = [
   { id: "thinking", label: "thinking" },
 ];
 
+/** One shared empty list, so a screen without skills does not see a new one every render. */
+const NO_SKILLS: InstalledSkill[] = [];
+
 
 import type {
   ApprovalAnswer,
   ChatSession,
   AppSettings,
   Attachment,
+  InstalledSkill,
   PermissionMode,
 } from "./types";
 
@@ -146,6 +152,8 @@ interface ChatScreenProps {
   onNewChat: () => void;
   /** Which side this is. Code adds the permission picker, running code and the project commands. */
   surface: "chat" | "code";
+  /** The skills switched on for this side, each one a slash command too. */
+  skills?: InstalledSkill[];
   /** The settings this side runs with. */
   settings: AppSettings;
   /** A change from the composer, which the shell writes to this side's own settings. */
@@ -185,6 +193,7 @@ export default function ChatScreen({
   onOpenSettings,
   onNewChat,
   surface,
+  skills = NO_SKILLS,
   settings,
   onPatchSettings,
   permissionMode,
@@ -608,9 +617,10 @@ export default function ChatScreen({
   };
 
   const runSlashCommand = (id: string) => {
-    // A command that needs a value keeps its name in the box for the value.
-    if (id === "compact-limit") {
-      setInput("/compact-limit ");
+    // A command that needs a value keeps its name in the box for the value, and so does a skill,
+    // which runs with whatever is typed after it.
+    if (id === "compact-limit" || skills.some((skill) => skill.id === id)) {
+      setInput(`/${id} `);
       inputRef.current?.focus();
       return;
     }
@@ -825,7 +835,13 @@ export default function ChatScreen({
         ? measureBreakdown(parts, usedTokens)
         : lastMetrics?.breakdown && usedTokens === lastTotal
           ? lastMetrics.breakdown
-          : { messages: usedTokens, system: 0, tools: 0, memory: 0, skills: 0, summary: 0 };
+          : { messages: usedTokens, system: 0, tools: 0, memory: 0, skills: 0, loadedSkills: 0, summary: 0 };
+
+  // Named from the conversation itself when no measured parts say what each one costs.
+  const loadedSkillNames = loadedSkillIds(chat.messages, skills).map((id) => ({
+    id,
+    name: skills.find((skill) => skill.id === id)?.name ?? id,
+  }));
 
   const contextView = describeContextWindow({
     breakdown: contextBreakdown,
@@ -833,6 +849,7 @@ export default function ChatScreen({
     exact: exactFigure,
     windowTokens: windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
     limitTokens: settings.compactLimit ?? null,
+    details: contextDetails(parts, loadedSkillNames),
   });
   const supportsNativeThinking = Boolean(
     modelInfo?.capabilities.includes("thinking"),
@@ -858,7 +875,7 @@ export default function ChatScreen({
     .join(",");
 
   const slashQuery = slashQueryFor(input);
-  const slashMatches = matchSlashCommands(input, { surface });
+  const slashMatches = matchSlashCommands(input, { surface, skills });
 
   if (lastSlashQuery !== slashQuery) {
     setLastSlashQuery(slashQuery);
@@ -947,10 +964,12 @@ export default function ChatScreen({
       <div className="p-6 bg-[var(--bg-base)] border-t-[3px] border-[var(--border-light)] shadow-[0_-4px_0_var(--border-light)] z-10">
         <div className="max-w-5xl mx-auto relative">
           {slashMatches.length > 0 && (
-            <div className="absolute bottom-full mb-2 left-0 right-0 ui-box p-2 z-40 flex flex-col gap-1">
+            <div className="absolute bottom-full mb-2 left-0 right-0 ui-box p-2 z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
               {slashMatches.map((command, index) => (
                 <button
                   key={command.id}
+                  // Skills make the list longer than the box, so the row the arrows reach scrolls in.
+                  ref={index === activeSlashIndex ? (node) => node?.scrollIntoView?.({ block: "nearest" }) : undefined}
                   type="button"
                   onMouseDown={(event) => {
                     event.preventDefault();
@@ -962,11 +981,11 @@ export default function ChatScreen({
                       : "hover:bg-[var(--hover-bg)]"
                   }`}
                 >
-                  <span className="font-mono text-xs font-bold">
+                  <span className="font-mono text-xs font-bold flex-shrink-0">
                     /{command.id}
                   </span>
-                  <span className="text-[11px] font-bold opacity-70">
-                    {t(command.label)}
+                  <span className="min-w-0 truncate text-[11px] font-bold opacity-70">
+                    {command.description ?? t(command.label)}
                   </span>
                 </button>
               ))}

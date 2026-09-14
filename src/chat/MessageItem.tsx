@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Blocks,
+  BookOpen,
   Check,
   ChevronRight,
   Copy,
@@ -81,6 +82,8 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], LucideIcon>> = {
   run_code: Terminal,
   command: SquareTerminal,
   extension: Blocks,
+  // The same book as the Skills tab, so a loaded skill never reads as a web search.
+  skill: BookOpen,
   edit_file: FilePen,
   git: GitBranch,
 };

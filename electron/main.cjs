@@ -2515,14 +2515,36 @@ ipcMain.handle("registry:search", wrap("mcp", async (event, query) =>
   mcpRegistry.search(String(query || "")),
 ));
 
+const SKILLS_ENABLED_KEY = "skillsEnabled";
+
+/** The switches the user has flipped, by skill id. Anything missing keeps its default. */
+function skillOverrides() {
+  try {
+    const parsed = JSON.parse(storage.getValue(SKILLS_ENABLED_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 ipcMain.handle("skills:list", wrap("skills", async (event, workspaceId) => ({
   success: true,
-  skills: skills.listSkills(rootsFor(workspaceId)[0]),
+  skills: skills.listSkills(rootsFor(workspaceId)[0], skillOverrides()),
 })));
 
-ipcMain.handle("skills:read", wrap("skills", async (event, workspaceId, id) =>
-  skills.readSkill(String(id), rootsFor(workspaceId)[0]),
+ipcMain.handle("skills:read", wrap("skills", async (event, workspaceId, id, options) =>
+  skills.readSkill(String(id), rootsFor(workspaceId)[0], {
+    overrides: skillOverrides(),
+    enabledOnly: Boolean(options?.enabledOnly),
+    file: typeof options?.file === "string" && options.file ? options.file : null,
+  }),
 ));
+
+ipcMain.handle("skills:set-enabled", wrap("skills", async (event, id, enabled) => {
+  const overrides = { ...skillOverrides(), [String(id)]: Boolean(enabled) };
+  storage.setValue(SKILLS_ENABLED_KEY, JSON.stringify(overrides));
+  return { success: true };
+}));
 
 ipcMain.handle("skills:open", wrap("skills", async () => {
   const folder = skills.init(app.getPath("userData"));

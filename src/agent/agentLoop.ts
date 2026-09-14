@@ -19,7 +19,17 @@ import {
 import type { GenerationMetrics } from "../ollama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
-import { describeSkills, loadSkills } from "../skills/skills";
+import {
+  MAX_LISTED_SKILLS,
+  describeSkills,
+  loadSkills,
+  loadedSkillIds,
+  renderInvokedSkill,
+  renderLoadedSkills,
+  renderSkill,
+  skillInvocation,
+} from "../skills/skills";
+import type { LoadedSkill } from "../types";
 import { renderMemory } from "../project/memory";
 import { CHARS_PER_TOKEN, renderCompactionBlock } from "./compaction";
 import type { LiveTurn } from "./liveTurn";
@@ -38,6 +48,7 @@ import {
 import { buildResumeMessage, joinContinuation } from "./resume";
 import {
   annotationsFor,
+  availableTools,
   describeToolsForPrompt,
   runTool,
   toolDefinitions,
@@ -262,6 +273,8 @@ export interface PreparedTurn {
   definitions: ToolDefinition[];
   promptParts: PromptParts;
   wire: WireMessage[];
+  /** The skill this message started with a slash command, once it has loaded. */
+  invokedSkill: { id: string; name: string } | null;
 }
 
 export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
@@ -290,17 +303,32 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
       : null;
 
+  // A project is Code's; everything else is Chat's, and each side has its own skills switched on.
   const skills = environment.hasSkills
-    ? await loadSkills(request.workspaceId || "default")
+    ? await loadSkills(request.workspaceId || "default", environment.hasFolder ? "code" : "chat")
     : [];
 
-  const systemPrompt = buildSystemPrompt(
-    settings,
-    { nativeTools, nativeThinking },
-    environment,
-    memory,
-    skills,
+  // "/code-review src/app.ts" loads that skill with the message, as a slash command should.
+  const lastMessage = messages[messages.length - 1];
+  const invoked =
+    !request.isContinuation && lastMessage?.role === "user"
+      ? skillInvocation(lastMessage.content, skills)
+      : null;
+
+  // A skill loaded anywhere in the conversation stays loaded, as its text would if tool results
+  // were carried from turn to turn. Switched off since, it is dropped.
+  const loadedSkills = await readLoadedSkills(
+    request.workspaceId || "default",
+    loadedSkillIds(messages, skills),
   );
+  const loadedSection = renderLoadedSkills(loadedSkills);
+
+  const systemPrompt = [
+    buildSystemPrompt(settings, { nativeTools, nativeThinking }, environment, memory, skills),
+    loadedSection,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const definitions = toolDefinitions(environment);
 
   const prefill = request.isContinuation
@@ -329,14 +357,29 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   // the window went rather than only how full it is.
   const memoryChars = memory ? renderMemory(memory).length : 0;
   const skillChars = describeSkills(skills).length;
+  const loadedSkillChars = loadedSection.length;
   const catalogueChars = nativeTools ? 0 : describeToolsForPrompt(environment).length;
 
   const promptParts: PromptParts = {
-    systemChars: Math.max(0, systemPrompt.length - memoryChars - skillChars - catalogueChars),
+    systemChars: Math.max(
+      0,
+      systemPrompt.length - memoryChars - skillChars - loadedSkillChars - catalogueChars,
+    ),
     toolChars: nativeTools ? JSON.stringify(definitions).length : catalogueChars,
     memoryChars,
     skillChars,
     summaryChars: compaction ? renderCompactionBlock(compaction).length : 0,
+    loadedSkillChars,
+    loadedSkills: loadedSkills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      chars: renderSkill(skill).length,
+    })),
+    toolCount: availableTools(environment).length,
+    skillCount: Math.min(
+      skills.filter((skill) => skill.modelInvocable !== false).length,
+      MAX_LISTED_SKILLS,
+    ),
   };
 
   const wire: WireMessage[] = [
@@ -364,9 +407,20 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     }
   }
 
+  const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
+
+  const invokedSkill =
+    invoked && loadedSkills.some((skill) => skill.id === invoked.skill.id) ? invoked.skill : null;
+
+  if (invoked && invokedSkill && lastUserIndex !== -1) {
+    wire[lastUserIndex] = {
+      ...wire[lastUserIndex],
+      content: `${wire[lastUserIndex].content}\n\n${renderInvokedSkill(invokedSkill, invoked.request)}`,
+    };
+  }
+
   // The clock goes at the tail, where changing it costs nothing. In the system
   // prompt it ended the cached prefix, re-evaluating the chat every turn.
-  const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
   if (lastUserIndex !== -1) {
     wire[lastUserIndex] = {
       ...wire[lastUserIndex],
@@ -386,7 +440,21 @@ ${currentTimeNote()}`,
     definitions,
     promptParts,
     wire,
+    invokedSkill: invokedSkill ? { id: invokedSkill.id, name: invokedSkill.name } : null,
   };
+}
+
+/** The instructions of the skills a conversation loaded, skipping any that can no longer be read. */
+async function readLoadedSkills(workspaceId: string, ids: string[]): Promise<LoadedSkill[]> {
+  if (ids.length === 0) return [];
+
+  const results = await Promise.all(
+    ids.map((id) =>
+      window.electronAPI?.skills?.read(workspaceId, id, { enabledOnly: true }).catch(() => undefined),
+    ),
+  );
+
+  return results.flatMap((result) => (result?.success && result.skill ? [result.skill] : []));
 }
 
 export interface ContextMeasurement {
@@ -651,7 +719,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     definitions,
     promptParts,
     wire,
+    invokedSkill,
   } = await prepareTurn(request);
+
+  // A slash command's skill shows where it loaded, as one the model asked for does.
+  if (invokedSkill) {
+    pushStep({
+      id: generateId(),
+      type: "skill",
+      content: `${host.t("usedSkill")} **${invokedSkill.name}**`,
+      isComplete: true,
+      skill: invokedSkill.id,
+    });
+  }
 
   let loopCount = 0;
   let isFinished = false;

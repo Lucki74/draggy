@@ -1,3 +1,5 @@
+import type { InstalledSkill } from "../types";
+
 /** The slash commands. `label` is a translation key, so the menu reads in the user's language while
  * "/new" stays "/new" whatever the interface is set to. */
 export interface SlashCommand {
@@ -8,6 +10,8 @@ export interface SlashCommand {
   /** Written with a value after it, like "/compact-limit 20k". Picking it from the menu fills in
    * the command and leaves the value to be typed. */
   takesArgument?: boolean;
+  /** Set for a skill, whose description stands in for a translated label. */
+  description?: string;
 }
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -33,18 +37,38 @@ export function slashQueryFor(input: string): string | null {
   return input.slice(1).toLowerCase();
 }
 
+/** Skills as commands, after the built-in ones. A skill named like a built-in command is left out,
+ * since typing it runs the command. */
+export function skillCommands(skills: InstalledSkill[]): SlashCommand[] {
+  const taken = new Set(SLASH_COMMANDS.map((command) => command.id));
+
+  return skills
+    .filter((skill) => !taken.has(skill.id.toLowerCase()))
+    .map((skill) => ({
+      id: skill.id,
+      label: "",
+      description: skill.description,
+      takesArgument: true,
+    }));
+}
+
 export function matchSlashCommands(
   input: string,
-  options: { surface?: "chat" | "code" } = {},
+  options: { surface?: "chat" | "code"; skills?: InstalledSkill[] } = {},
 ): SlashCommand[] {
   const query = slashQueryFor(input);
   if (query === null) return [];
 
   const surface = options.surface ?? "chat";
 
-  return SLASH_COMMANDS.filter(
+  const builtIn = SLASH_COMMANDS.filter(
     (command) => (!command.only || command.only === surface) && command.id.startsWith(query),
   );
+  const skills = skillCommands(options.skills ?? []).filter((command) =>
+    command.id.toLowerCase().startsWith(query),
+  );
+
+  return [...builtIn, ...skills];
 }
 
 /** A command typed with a value, like "/compact-limit 20k", read after the space closed the menu.

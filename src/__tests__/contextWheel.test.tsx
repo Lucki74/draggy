@@ -91,6 +91,75 @@ describe("the breakdown", () => {
     expect(screen.queryByText(t("contextSkills"))).toBeNull();
   });
 
+  it("keeps skills apart from tools, each with how many it holds", () => {
+    const withSkills = view({
+      breakdown: measureBreakdown(
+        { systemChars: 4000, toolChars: 2000, memoryChars: 0, skillChars: 1200, summaryChars: 0 },
+        27_600,
+      ),
+      details: { toolCount: 14, skillCount: 18, loadedSkills: [] },
+    });
+
+    render(<ContextWheel view={withSkills} t={t} />);
+    open();
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: /27\.6k/ }));
+
+    const rows = screen.getAllByRole("listitem").map((item) => item.textContent);
+    expect(rows.find((text) => text?.startsWith("Tools"))).toMatch(/^Tools· 14/);
+    expect(rows.find((text) => text?.startsWith("Skills"))).toMatch(/^Skills· 18/);
+  });
+
+  it("names each loaded skill with what it costs", () => {
+    const loaded = view({
+      breakdown: measureBreakdown(
+        {
+          systemChars: 4000,
+          toolChars: 2000,
+          memoryChars: 0,
+          skillChars: 1200,
+          summaryChars: 0,
+          loadedSkillChars: 8000,
+        },
+        27_600,
+      ),
+      details: {
+        toolCount: 14,
+        skillCount: 18,
+        loadedSkills: [
+          { id: "docx", name: "docx", tokens: 1200 },
+          { id: "pptx", name: "pptx", tokens: 800 },
+        ],
+      },
+    });
+
+    render(<ContextWheel view={loaded} t={t} />);
+    open();
+
+    // Seen before expanding, so a load never goes unnoticed.
+    expect(screen.getByRole("dialog").textContent).toContain("Loaded skills: docx, pptx");
+
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: /27\.6k/ }));
+
+    expect(screen.getByText("docx")).toBeTruthy();
+    expect(screen.getByText("1.2k")).toBeTruthy();
+    expect(screen.getByText("800")).toBeTruthy();
+    expect(screen.getByRole("dialog").textContent).toContain("Loaded skills· 2");
+  });
+
+  it("still names loaded skills when nothing measured what they cost", () => {
+    render(
+      <ContextWheel
+        view={view({ details: { toolCount: null, skillCount: null, loadedSkills: [{ id: "docx", name: "docx", tokens: null }] } })}
+        t={t}
+      />,
+    );
+    open();
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: /27\.6k/ }));
+
+    expect(screen.getByText("docx")).toBeTruthy();
+    expect(screen.getByRole("dialog").textContent).toContain("Loaded skills· 1");
+  });
+
   it("says where automatic compaction happens", () => {
     render(<ContextWheel view={view()} t={t} />);
     open();
