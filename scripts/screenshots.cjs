@@ -346,23 +346,57 @@ async function run() {
   log("composer says", JSON.stringify(placeholder));
   await sleep(2000);
 
-  if (wanted("chat") || wanted("context")) {
+  if (wanted("chat")) {
     await send(
       win,
       "What should I look for in a graphics card for running AI models locally? Three short bullet points.",
     );
+    await shoot(win, "app-chat");
+  }
 
-    if (wanted("chat")) await shoot(win, "app-chat");
+  if (wanted("extensions")) {
+    // The catalogue of servers, then the library of skills, as the Extensions page shows them.
+    await openWorkspace(win, "default");
+    await click(win, "Settings", { exact: true });
+    await sleep(800);
+    await openSettingsPage(win, "App", "Extensions");
+    await sleep(2500);
+    await shoot(win, "app-extensions");
 
-    if (wanted("context")) {
-      await click(win, "Context window:");
-      await inPage(win, () => {
-        const header = document.querySelector("[role=dialog] button[aria-expanded]");
-        if (header && header.getAttribute("aria-expanded") === "false") header.click();
-      });
-      await shoot(win, "app-context");
-      await click(win, "Context window:");
-    }
+    await click(win, "Skills", { exact: true });
+    await sleep(1200);
+    await shoot(win, "app-skills");
+  }
+
+  if (wanted("skills")) {
+    await openWorkspace(win, "default");
+    await click(win, "New Chat");
+
+    // The slash menu lists skills after the built-in commands.
+    await inPage(win, () => {
+      const box = document.querySelector("form.composer textarea");
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+      setter.call(box, "/");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      box.focus();
+    });
+    await sleep(900);
+    await inPage(win, () => {
+      const menu = document.querySelector("form.composer")?.parentElement?.querySelector(".overflow-y-auto");
+      if (menu) menu.scrollTop = menu.scrollHeight;
+    });
+    await sleep(500);
+    await capture(win, "app-skill-menu");
+
+    // A skill started by its command, then the context popover naming it as loaded.
+    await send(win, "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.");
+    await click(win, "Context window:");
+    await inPage(win, () => {
+      const header = document.querySelector("[role=dialog] button[aria-expanded]");
+      if (header && header.getAttribute("aria-expanded") === "false") header.click();
+    });
+    await shoot(win, "app-skill-context");
+    await click(win, "Context window:");
   }
 
   if (wanted("project")) {
