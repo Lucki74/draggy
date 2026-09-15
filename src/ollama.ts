@@ -1,4 +1,5 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
+import { loggedFetch } from "./logger";
 import { safeJsonParse } from "./utils";
 
 export const OLLAMA_HOST = "http://127.0.0.1:11434";
@@ -58,7 +59,7 @@ const MODEL_INFO_TIMEOUT_MS = 5000;
 
 async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
   try {
-    const res = await fetch(`${OLLAMA_HOST}/api/show`, {
+    const res = await loggedFetch(`${OLLAMA_HOST}/api/show`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: model }),
@@ -259,7 +260,7 @@ export function isCloudModel(name: string): boolean {
  * about to recommend on a Mac can actually be run. */
 export async function getOllamaVersion(): Promise<string | null> {
   try {
-    const res = await fetch(`${OLLAMA_HOST}/api/version`);
+    const res = await loggedFetch(`${OLLAMA_HOST}/api/version`);
     if (!res.ok) return null;
 
     const data = await res.json();
@@ -270,7 +271,7 @@ export async function getOllamaVersion(): Promise<string | null> {
 }
 
 export async function listInstalledModels(): Promise<InstalledModel[]> {
-  const res = await fetch(`${OLLAMA_HOST}/api/tags`);
+  const res = await loggedFetch(`${OLLAMA_HOST}/api/tags`);
   if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
 
   const data = await res.json();
@@ -301,7 +302,7 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
 
 export async function describeLoadedModels(): Promise<LoadedModel[]> {
   try {
-    const res = await fetch(`${OLLAMA_HOST}/api/ps`);
+    const res = await loggedFetch(`${OLLAMA_HOST}/api/ps`);
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -333,7 +334,7 @@ export async function gpuShareFor(model: string): Promise<number | null> {
 
 /** Posts a generate request with keep_alive=0 so Ollama evicts the model from VRAM. */
 export async function unloadModel(model: string): Promise<void> {
-  await fetch(`${OLLAMA_HOST}/api/generate`, {
+  await loggedFetch(`${OLLAMA_HOST}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, keep_alive: 0 }),
@@ -449,7 +450,7 @@ export async function warmModel(
     info?.contextLength ?? null,
   );
 
-  await fetch(`${OLLAMA_HOST}/api/chat`, {
+  await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -464,7 +465,7 @@ export async function warmModel(
 }
 
 export async function deleteModel(name: string): Promise<void> {
-  const res = await fetch(`${OLLAMA_HOST}/api/delete`, {
+  const res = await loggedFetch(`${OLLAMA_HOST}/api/delete`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
@@ -605,7 +606,7 @@ export async function pullModel(
 ): Promise<void> {
   if (isCloudModel(name)) throw new Error(`${name} is not a local model`);
 
-  const res = await fetch(`${OLLAMA_HOST}/api/pull`, {
+  const res = await loggedFetch(`${OLLAMA_HOST}/api/pull`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, stream: true }),

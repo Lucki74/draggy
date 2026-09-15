@@ -73,6 +73,7 @@ import {
 import type { Grant } from "./permissions";
 import { describeEdit, describePlan, samePlan } from "../plan/plan";
 import type { PlanItem } from "../plan/plan";
+import { loggedFetch, logOllamaInference, logOllamaMetrics, logStreamChunk, newCorrelationId } from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import type {
   AppSettings,
@@ -497,7 +498,7 @@ export async function measureTurn(
   });
 
   try {
-    const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+    const response = await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -538,6 +539,8 @@ export async function runAgentTurn(request: AgentRequest, host: AgentHost): Prom
 
 async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
   const { model, settings, environment, signal } = request;
+  // One id for every pass and tool round-trip in this turn, so its log lines join back together.
+  const correlationId = newCorrelationId();
 
   const steps: SearchStep[] = [...(request.seed?.steps ?? [])];
 
@@ -678,7 +681,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     repairsLeft--;
 
     try {
-      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+      const response = await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -875,23 +878,29 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
     const requestStart = performance.now();
 
+    logOllamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
+
     try {
-      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          stream: true,
-          keep_alive: KEEP_ALIVE,
-          options: { num_ctx: numCtx, num_predict: -1 },
-          messages: wire,
-          // Explicit false, not merely the absence of true: left to its own
-          // template a capable model reasons anyway, which Fast mode forbids.
-          ...(hasThinkingCapability ? { think: nativeThinking } : {}),
-          ...(nativeTools ? { tools: definitions } : {}),
-        }),
-        signal: loopController.signal,
-      });
+      const response = await loggedFetch(
+        `${OLLAMA_HOST}/api/chat`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            stream: true,
+            keep_alive: KEEP_ALIVE,
+            options: { num_ctx: numCtx, num_predict: -1 },
+            messages: wire,
+            // Explicit false, not merely the absence of true: left to its own
+            // template a capable model reasons anyway, which Fast mode forbids.
+            ...(hasThinkingCapability ? { think: nativeThinking } : {}),
+            ...(nativeTools ? { tools: definitions } : {}),
+          }),
+          signal: loopController.signal,
+        },
+        correlationId,
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -962,6 +971,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           }
 
           if (added) {
+            logStreamChunk(added, correlationId);
+
             if (nativeThinking && thinkStartTime !== null && thoughtTime === null) {
               thoughtTime = (performance.now() - thinkStartTime) / 1000;
             }
@@ -1050,6 +1061,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           numCtx,
           firstTokenAt === null ? null : firstTokenAt - requestStart,
         );
+        if (turnMetrics) logOllamaMetrics(turnMetrics, correlationId);
         metrics = mergeMetrics(metrics, turnMetrics);
 
         // The real counts for this pass: the checkpoint the meter and the speed line snap to.

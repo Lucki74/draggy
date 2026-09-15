@@ -45,6 +45,15 @@ export interface DownloadProgressEvent {
   total: number;
 }
 
+/** One line the renderer logger batches to the main process. Mirrors electron/logger.cjs's shape. */
+export interface LogEntry {
+  level: "DEBUG" | "INFO" | "WARN" | "ERROR";
+  context: string;
+  message: string;
+  correlationId?: string | null;
+  data?: unknown;
+}
+
 export interface LibraryHit {
   id: number;
   name: string;
@@ -1051,7 +1060,9 @@ declare global {
 
       appInfo: () => Promise<AppInfo>;
       openLogs: () => Promise<string>;
-      readLogs: () => Promise<string>;
+      readLogs: (target: "debug" | "app", bytes?: number) => Promise<string>;
+      logEntry: (entry: LogEntry) => void;
+      logBatch: (entries: LogEntry[]) => void;
 
       onDownloadProgress: (
         callback: (progress: DownloadProgressEvent) => void,
