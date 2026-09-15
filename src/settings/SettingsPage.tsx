@@ -107,6 +107,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                 settings={settings}
                 chatModel={props.chatModel}
                 onUpdate={onUpdate}
+                onNavigate={setTab}
                 t={t}
               />
             )}

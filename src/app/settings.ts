@@ -31,6 +31,7 @@ export const defaultSettings: AppSettings = {
   showMetrics: false,
   autoUpdate: true,
   compactLimit: null,
+  fixedContextSize: null,
   updateChannel: "prerelease",
 };
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { deleteModel, listInstalledModels, pullModel } from "../ollama";
+import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unloadModel } from "../ollama";
 import type { InstalledModel, PullPhase } from "../ollama";
 
 export interface PullState {
@@ -10,12 +10,16 @@ export interface PullState {
 
 export interface ModelManager {
   installed: InstalledModel[];
+  /** Names of models currently resident in VRAM. */
+  loaded: string[];
   refresh: () => void;
   pull: PullState | null;
   /** Downloads a model, resolving true once it is installed. One at a time. */
   startPull: (name: string) => Promise<boolean>;
   cancelPull: () => void;
   remove: (name: string) => Promise<void>;
+  /** Evicts a model from VRAM without deleting it. */
+  unload: (name: string) => Promise<void>;
   error: string;
   vram: number;
   unifiedMemory: boolean;
@@ -25,6 +29,7 @@ export interface ModelManager {
  * keeps going while the user moves between pages. The list is read again whenever `page` changes. */
 export function useModelManager(page?: string): ModelManager {
   const [installed, setInstalled] = useState<InstalledModel[]>([]);
+  const [loaded, setLoaded] = useState<string[]>([]);
   const [version, setVersion] = useState(0);
   const [pull, setPull] = useState<PullState | null>(null);
   const [error, setError] = useState("");
@@ -43,6 +48,20 @@ export function useModelManager(page?: string): ModelManager {
       })
       .catch(() => {
         if (!cancelled) setInstalled([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [version, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    describeLoadedModels()
+      .then((models) => {
+        if (!cancelled) setLoaded(models.map((m) => m.name));
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded([]);
       });
     return () => {
       cancelled = true;
@@ -113,5 +132,18 @@ export function useModelManager(page?: string): ModelManager {
     [refresh],
   );
 
-  return { installed, refresh, pull, startPull, cancelPull, remove, error, vram, unifiedMemory };
+  const unload = useCallback(
+    async (name: string) => {
+      setError("");
+      try {
+        await unloadModel(name);
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [refresh],
+  );
+
+  return { installed, loaded, refresh, pull, startPull, cancelPull, remove, unload, error, vram, unifiedMemory };
 }

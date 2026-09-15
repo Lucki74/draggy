@@ -476,7 +476,8 @@ export async function measureTurn(
 
   const turn = await prepareTurn(input);
   const chars = estimateChars(turn.wire);
-  const maxContext = turn.info?.contextLength ?? null;
+  // A user-fixed window overrides the automatic bucket; null means let Draggy choose.
+  const maxContext = input.settings.fixedContextSize ?? turn.info?.contextLength ?? null;
 
   // A look that may not load the model must not grow the window either, or a later turn reloads.
   const numCtx = options.allowLoad
@@ -844,7 +845,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     numCtx = contextSizeFor(
       model,
       estimateChars(wire),
-      info?.contextLength ?? null,
+      settings.fixedContextSize ?? info?.contextLength ?? null,
     );
     // The meter has a figure from the start of each pass, not only once tokens arrive.
     emitLive(0, null);

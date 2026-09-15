@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Loader2, PowerOff, Search, Trash2 } from "lucide-react";
 import { Block, Group, Page, Row, Select } from "./Controls";
 import CompactLimitField from "./CompactLimitField";
 import PullProgress from "./PullProgress";
 import { cannotGenerate, isEmbeddingModel } from "../modelKinds";
 import { describeFit, describeSplit } from "../vram";
+import { CONTEXT_BUCKETS } from "../ollama";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings, LibraryModel } from "../types";
+import type { SettingsTab } from "./pages";
 
 interface ModelsPageProps {
   manager: ModelManager;
@@ -14,6 +16,8 @@ interface ModelsPageProps {
   /** The model Chat is running. */
   chatModel: string;
   onUpdate: (patch: Partial<AppSettings>) => void;
+  /** Navigates to another settings tab, used for the chat/code preference shortcuts. */
+  onNavigate: (tab: SettingsTab) => void;
   t: (key: string) => string;
 }
 
@@ -27,7 +31,7 @@ const FIT_COLOURS = { green: "#22c55e", amber: "#f59e0b", red: "#ef4444" } as co
 
 /** What is installed, what can be downloaded, and the two models that serve everything else: the
  * one that indexes documents, and when a conversation gets folded. */
-export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }: ModelsPageProps) {
+export default function ModelsPage({ manager, settings, chatModel, onUpdate, onNavigate, t }: ModelsPageProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LibraryModel[]>([]);
   const [searching, setSearching] = useState(false);
@@ -82,9 +86,34 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
 
   const codeModel = settings.codeModel || chatModel;
 
+  const contextSizeOptions = [
+    { id: "", label: t("automatic") },
+    ...CONTEXT_BUCKETS.map((n) => ({ id: String(n), label: `${(n / 1024).toFixed(0)}k` })),
+  ];
+
   return (
     <Page title={t("models")} description={t("modelsHint")}>
       <Group title={t("installed")}>
+        {/* Shortcut links to Chat and Code preference pages. */}
+        <div className="px-4 pb-2 flex items-center gap-1 text-[11px] font-bold text-[var(--text-muted)]">
+          <span>{t("chooseModel")}</span>
+          <button
+            type="button"
+            onClick={() => onNavigate("chat")}
+            className="underline hover:text-[var(--text-main)] transition-colors"
+          >
+            {t("chatMode")}
+          </button>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => onNavigate("code")}
+            className="underline hover:text-[var(--text-main)] transition-colors"
+          >
+            {t("codeMode")}
+          </button>
+        </div>
+
         {manager.installed.length === 0 ? (
           <Row label={t("noModelsFound")} />
         ) : (
@@ -93,6 +122,9 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
               entry.name === chatModel ? t("chatMode") : null,
               entry.name === codeModel ? t("codeMode") : null,
             ].filter((label): label is string => Boolean(label));
+
+            const isLoaded = manager.loaded.includes(entry.name) ||
+              manager.loaded.some((n) => n.split(":")[0] === entry.name.split(":")[0]);
 
             return (
               <div key={entry.name} className="flex items-center gap-3 px-4 py-3">
@@ -117,6 +149,18 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
                     ))}
                   </p>
                 </div>
+
+                {isLoaded && (
+                  <button
+                    type="button"
+                    onClick={() => void manager.unload(entry.name)}
+                    aria-label={`${t("unloadModel")} ${entry.name}`}
+                    title={t("unloadModel")}
+                    className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                  >
+                    <PowerOff className="w-4 h-4" />
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -236,6 +280,14 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
       </Group>
 
       <Group title={t("contextGroup")}>
+        <Row label={t("fixedContextSize")} description={t("fixedContextSizeHint")}>
+          <Select
+            label={t("fixedContextSize")}
+            value={settings.fixedContextSize ? String(settings.fixedContextSize) : ""}
+            options={contextSizeOptions}
+            onChange={(value) => onUpdate({ fixedContextSize: value ? Number(value) : null })}
+          />
+        </Row>
         <Block>
           <p className="mb-3 text-sm font-bold text-[var(--text-main)]">{t("compactLimitSetting")}</p>
           <CompactLimitField

@@ -331,6 +331,15 @@ export async function gpuShareFor(model: string): Promise<number | null> {
   return match ? match.gpuPercent : null;
 }
 
+/** Posts a generate request with keep_alive=0 so Ollama evicts the model from VRAM. */
+export async function unloadModel(model: string): Promise<void> {
+  await fetch(`${OLLAMA_HOST}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, keep_alive: 0 }),
+  });
+}
+
 /** "qwen3" and "qwen3:latest" are the same model to Ollama. */
 const withTag = (name: string) => (name.includes(":") ? name : `${name}:latest`);
 

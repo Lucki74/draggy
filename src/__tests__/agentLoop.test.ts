@@ -47,6 +47,7 @@ const SETTINGS = {
   fitContext: 8192,
   autoUpdate: true,
   compactLimit: null,
+  fixedContextSize: null,
   updateChannel: "prerelease",
 } as AppSettings;
 

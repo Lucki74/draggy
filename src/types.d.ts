@@ -658,6 +658,8 @@ export interface AppSettings {
   /** Tokens of conversation before it is folded into notes. Null leaves it to Draggy, which folds
    * at a share of the window the model is loaded at. */
   compactLimit: number | null;
+  /** When set, Ollama is always loaded at this context window instead of the automatic size. */
+  fixedContextSize: number | null;
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
   updateChannel: "release" | "prerelease";
 }
