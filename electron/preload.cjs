@@ -189,7 +189,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
-  readLogs: () => ipcRenderer.invoke("logs:tail"),
+  readLogs: (target, bytes) => ipcRenderer.invoke("logs:tail", target, bytes),
+  logEntry: (entry) => ipcRenderer.send("logs:write", entry),
+  logBatch: (entries) => ipcRenderer.send("logs:batch", entries),
 
   onDownloadProgress: (callback) => subscribe("download-progress", callback),
   onBootModel: (callback) => subscribe("boot-model", callback),

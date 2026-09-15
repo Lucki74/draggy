@@ -658,6 +658,8 @@ export interface AppSettings {
   /** Tokens of conversation before it is folded into notes. Null leaves it to Draggy, which folds
    * at a share of the window the model is loaded at. */
   compactLimit: number | null;
+  /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
+  updateChannel: "release" | "prerelease";
 }
 
 declare global {
@@ -969,7 +971,7 @@ declare global {
         state: () => Promise<UpdaterState>;
         /** Turns background checking and downloading on or off. Sent whenever the automatic-updates
          * setting changes, and once at startup. */
-        configure: (options: { automatic: boolean }) => Promise<UpdaterState>;
+        configure: (options: { automatic: boolean; channel?: "release" | "prerelease" }) => Promise<UpdaterState>;
         check: (options?: { silent?: boolean }) => Promise<UpdaterState>;
         download: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;

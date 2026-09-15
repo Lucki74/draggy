@@ -370,7 +370,7 @@ async function run() {
 
   if (wanted("skills")) {
     await openWorkspace(win, "default");
-    await click(win, "New Chat");
+    await click(win, "New chat");
 
     // The slash menu lists skills after the built-in commands.
     await inPage(win, () => {
@@ -422,11 +422,11 @@ async function run() {
 
   if (wanted("history")) {
     await openWorkspace(win, "default");
-    await click(win, "New Chat");
+    await click(win, "New chat");
     await send(win, "Explain what a context window is in two sentences.");
-    await click(win, "New Chat");
+    await click(win, "New chat");
     await send(win, "Give me three names for a weather app.");
-    await click(win, "Chat History");
+    await click(win, "Chat history");
     await sleep(1200);
     await shoot(win, "app-history");
   }

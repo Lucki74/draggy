@@ -31,6 +31,7 @@ export const defaultSettings: AppSettings = {
   showMetrics: false,
   autoUpdate: true,
   compactLimit: null,
+  updateChannel: "prerelease",
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
@@ -75,9 +76,9 @@ export function useSettings(isSplashMode: boolean) {
   useEffect(() => {
     if (isSplashMode) return;
     window.electronAPI?.updater
-      .configure({ automatic: settings.autoUpdate })
+      .configure({ automatic: settings.autoUpdate, channel: settings.updateChannel })
       .catch(() => undefined);
-  }, [settings.autoUpdate, isSplashMode]);
+  }, [settings.autoUpdate, settings.updateChannel, isSplashMode]);
 
   useEffect(() => {
     if (settings.theme === "dark") document.body.classList.add("dark");

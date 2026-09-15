@@ -2708,5 +2708,8 @@ ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
 }));
 
 ipcMain.handle("logs:open", async () => shell.openPath(logger.logFolder()));
-ipcMain.handle("logs:tail", () => logger.readTail());
+ipcMain.handle("logs:tail", (_event, target, bytes) => logger.readTail(target, bytes));
+ipcMain.on("logs:write", (_event, entry) => logger.logEntry(entry));
+ipcMain.on("logs:batch", (_event, entries) => logger.logEntries(entries));
+
 

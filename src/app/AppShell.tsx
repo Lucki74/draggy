@@ -1001,7 +1001,7 @@ export default function AppShell({
             chat={
               currentSession || {
                 id: currentChatId,
-                title: "New Chat",
+                title: t("newDiscussion"),
                 messages: [],
                 updatedAt: openedAt,
                 isGenerating: false,

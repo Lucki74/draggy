@@ -100,12 +100,23 @@ function schedule() {
   intervalTimer.unref?.();
 }
 
-/** Turns automatic updating on or off. Called by the renderer whenever the setting changes, and
- * once at startup with whatever it was left on. */
-function configure({ automatic: wanted } = {}) {
+/** Turns automatic updating on or off and switches the update channel. Called by the renderer
+ * whenever the setting changes, and once at startup with whatever it was left on. */
+function configure({ automatic: wanted, channel } = {}) {
   automatic = Boolean(wanted);
 
-  if (updater) updater.autoDownload = automatic;
+  if (updater) {
+    updater.autoDownload = automatic;
+
+    // "release" pins to stable x.x.x only; "prerelease" accepts x.x.x-label too.
+    if (channel === "release") {
+      updater.allowPrerelease = false;
+      updater.channel = null;
+    } else {
+      updater.allowPrerelease = true;
+      updater.channel = "latest";
+    }
+  }
 
   if (automatic) schedule();
   else unschedule();

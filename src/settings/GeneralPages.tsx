@@ -269,6 +269,17 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
             onChange={(autoUpdate) => onUpdate({ autoUpdate })}
           />
         </Row>
+        <Row label={t("updateChannel")}>
+          <Segmented
+            label={t("updateChannel")}
+            value={settings.updateChannel ?? "prerelease"}
+            options={[
+              { id: "prerelease", label: t("updateChannelAll") },
+              { id: "release", label: t("updateChannelReleases") },
+            ]}
+            onChange={(updateChannel) => onUpdate({ updateChannel: updateChannel as "release" | "prerelease" })}
+          />
+        </Row>
         <Row
           label={t("updateStatus")}
           description={
