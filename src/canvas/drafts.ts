@@ -241,3 +241,22 @@ export function prismLanguageOf(target: string): string {
   if (dot <= 0) return "text";
   return PRISM_LANGUAGES[name.slice(dot + 1).toLowerCase()] ?? "text";
 }
+
+export function isCodeFile(target: string): boolean {
+  const name = String(target || "").split(/[\\/]/).pop() || "";
+  const lower = name.toLowerCase();
+  if (lower === "dockerfile" || lower === "makefile") return true;
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const ext = name.slice(dot + 1).toLowerCase();
+  return ext in PRISM_LANGUAGES && ext !== "txt" && ext !== "md" && ext !== "markdown" && ext !== "mdx";
+}
+
+export function isMarkdownFile(target: string): boolean {
+  const name = String(target || "").split(/[\\/]/).pop() || "";
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const ext = name.slice(dot + 1).toLowerCase();
+  return ext === "md" || ext === "markdown" || ext === "mdx";
+}
+

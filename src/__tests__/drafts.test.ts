@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   afterSave,
+  isCodeFile,
   isDirty,
+  isMarkdownFile,
   keepMine,
   languageOf,
   lineCount,
@@ -12,6 +14,7 @@ import {
   samePath,
   takeTheirs,
 } from "../canvas/drafts";
+
 
 /** Two authors, one file. The rule these tests hold the canvas to: nobody's work disappears without
  * the user having chosen that it should. */
@@ -143,8 +146,26 @@ describe("the header", () => {
     expect(prismLanguageOf("Dockerfile")).toBe("docker");
   });
 
+  it("identifies code files versus markdown and extensionless plain text", () => {
+    expect(isCodeFile("main.ts")).toBe(true);
+    expect(isCodeFile("script.py")).toBe(true);
+    expect(isCodeFile("deploy.ps1")).toBe(true);
+    expect(isCodeFile("Dockerfile")).toBe(true);
+    expect(isCodeFile("LICENSE")).toBe(false);
+    expect(isCodeFile("README.md")).toBe(false);
+    expect(isCodeFile(".gitignore")).toBe(false);
+    expect(isCodeFile("notes.txt")).toBe(false);
+
+    expect(isMarkdownFile("README.md")).toBe(true);
+    expect(isMarkdownFile("docs.markdown")).toBe(true);
+    expect(isMarkdownFile("spec.mdx")).toBe(true);
+    expect(isMarkdownFile("LICENSE")).toBe(false);
+    expect(isMarkdownFile("script.py")).toBe(false);
+  });
+
   it("counts lines for the gutter", () => {
     expect(lineCount("")).toBe(1);
     expect(lineCount("a\nb\nc")).toBe(3);
   });
 });
+

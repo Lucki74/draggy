@@ -205,4 +205,53 @@ describe("preview mode", () => {
 
     expect(editor().value).toBe("  first\n");
   });
+
+  it("windows rendering for large files to keep UI responsive", async () => {
+    const largeText = Array.from({ length: 500 }, (_, i) => `const x${i} = ${i};`).join("\n");
+    read.mockResolvedValueOnce({ success: true, path: "C:\\project\\big.ts", text: largeText } as never);
+
+    await open({ path: "C:\\project\\big.ts" });
+
+    const bigEditor = screen.getByLabelText("big.ts") as HTMLTextAreaElement;
+    expect(bigEditor.value).toBe(largeText);
+  });
+
+  it("renders extensionless files like LICENSE as plain text without preview toggle", async () => {
+    read.mockResolvedValueOnce({ success: true, path: "C:\\project\\LICENSE", text: "MIT License\n" } as never);
+
+    await open({ path: "C:\\project\\LICENSE" });
+
+    expect(screen.queryByText(t("preview"))).toBeNull();
+    expect(screen.queryByText(t("edit"))).toBeNull();
+    const licenseEditor = screen.getByLabelText("LICENSE") as HTMLTextAreaElement;
+    expect(licenseEditor.value).toBe("MIT License\n");
+    expect(licenseEditor.className).not.toContain("code-editor-textarea");
+  });
+
+  it("handles renaming and deleting files via action buttons", async () => {
+    const onRename = vi.fn();
+    const onDelete = vi.fn();
+
+    await open({ onRename, onDelete });
+
+    const renameBtn = screen.getByLabelText(t("rename"));
+    fireEvent.click(renameBtn);
+
+    const renameInput = screen.getByLabelText(t("rename")) as HTMLInputElement;
+    fireEvent.change(renameInput, { target: { value: "renamed.md" } });
+    fireEvent.keyDown(renameInput, { key: "Enter" });
+
+    expect(onRename).toHaveBeenCalledWith("renamed.md");
+
+    const deleteBtn = screen.getByLabelText(t("delete"));
+    fireEvent.click(deleteBtn);
+
+    const confirmBtn = screen.getByText(t("confirm"));
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(onDelete).toHaveBeenCalled();
+  });
 });
+

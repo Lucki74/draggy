@@ -70,8 +70,26 @@ describe("FilePreview markdown and code view", () => {
 
   it("renders code files with syntax highlighting", () => {
     const code = "const message = 'hello world';";
-    render(<FilePreview filename="script.ts" content={code} />);
+    render(<FilePreview filename="script.ts" content={code} fullHeight />);
 
     expect(screen.getByText(/hello world/)).toBeTruthy();
   });
+
+  it("windows very large code files to protect UI responsiveness without truncating", () => {
+    const largeCode = Array.from({ length: 600 }, (_, i) => `console.log("line ${i}");`).join("\n");
+    render(<FilePreview filename="large.js" content={largeCode} />);
+
+    expect(screen.queryByText(/Showing first 400/)).toBeNull();
+    expect(screen.getByText(/line 0/)).toBeTruthy();
+  });
+
+  it("renders extensionless files as plain text without markdown or syntax highlighting", () => {
+    const license = "# MIT License\n**Copyright (c) 2026**\nAll rights reserved.";
+    render(<FilePreview filename="LICENSE" content={license} />);
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText(/# MIT License/)).toBeTruthy();
+    expect(screen.getByText(/\*\*Copyright/)).toBeTruthy();
+  });
 });
+

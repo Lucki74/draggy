@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, FileCode, Loader2, Save, X } from "lucide-react";
+import { Check, ExternalLink, FileCode, Loader2, Pencil, Save, Trash2, X } from "lucide-react";
+
+const LINE_HEIGHT = 20;
+const OVERSCAN = 40;
 import { baseName } from "../files/tree";
 import {
   afterSave,
+  isCodeFile,
   isDirty,
+  isMarkdownFile,
   keepMine,
   languageOf,
   lineCount,
@@ -31,18 +36,36 @@ interface CanvasProps {
   onClose: () => void;
   /** The file was moved while open; the canvas follows it to its new name. */
   onMoved?: (path: string) => void;
+  onDelete?: () => void | Promise<void>;
+  onRename?: (newName: string) => void | Promise<void>;
+  allowExternal?: boolean;
 }
 
 /** A project file beside the chat that both the user and the model edit. Saves use the guarded
  * write, so every save is checkpointed and undoable. */
-export default function Canvas({ workspaceId, path, t, onClose, onMoved }: CanvasProps) {
+export default function Canvas({
+  workspaceId,
+  path,
+  t,
+  onClose,
+  onMoved,
+  onDelete,
+  onRename,
+  allowExternal = true,
+}: CanvasProps) {
   const [state, setState] = useState<CanvasState | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
-  const isMarkdown = path.toLowerCase().endsWith(".md") || path.toLowerCase().endsWith(".markdown");
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const isMarkdown = isMarkdownFile(path);
+  const isCode = isCodeFile(path);
   const activeMode = isMarkdown ? viewMode : "edit";
+
   const gutterRef = useRef<HTMLPreElement>(null);
   const highlighterRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -132,6 +155,30 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
 
   const dirty = state ? isDirty(state) : false;
   const lines = state ? lineCount(state.draft) : 1;
+  const [scrollTop, setScrollTop] = useState(0);
+  const lastScrollTopRef = useRef(0);
+
+  const visibleRange = useMemo(() => {
+    if (lines <= 200) {
+      return { isWindowed: false, startLine: 0, endLine: lines };
+    }
+    const start = Math.max(0, Math.floor(scrollTop / LINE_HEIGHT) - OVERSCAN);
+    const end = Math.min(lines, Math.ceil((scrollTop + 800) / LINE_HEIGHT) + OVERSCAN);
+    return { isWindowed: true, startLine: start, endLine: end };
+  }, [lines, scrollTop]);
+
+  const visibleText = useMemo(() => {
+    if (!state) return "";
+    if (!visibleRange.isWindowed) {
+      return state.draft.endsWith("\n") ? `${state.draft} ` : state.draft;
+    }
+    const allLines = state.draft.split("\n");
+    const slice = allLines.slice(visibleRange.startLine, visibleRange.endLine).join("\n");
+    return slice.endsWith("\n") ? `${slice} ` : slice;
+  }, [state, visibleRange]);
+
+  const topSpacerHeight = visibleRange.startLine * LINE_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, (lines - visibleRange.endLine) * LINE_HEIGHT);
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-[var(--bg-base)]">
@@ -142,14 +189,97 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
         <FileCode className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold tracking-tight" title={path}>
-            {baseName(path)}
-          </p>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            {languageOf(path)}
-            {dirty && ` · ${t("canvasUnsaved")}`}
-          </p>
+          {renaming ? (
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setRenaming(false);
+                  if (onRename && renameDraft.trim() && renameDraft !== baseName(path)) {
+                    void onRename(renameDraft);
+                  }
+                } else if (e.key === "Escape") {
+                  setRenaming(false);
+                }
+              }}
+              onBlur={() => {
+                setRenaming(false);
+                if (onRename && renameDraft.trim() && renameDraft !== baseName(path)) {
+                  void onRename(renameDraft);
+                }
+              }}
+              aria-label={t("rename")}
+              className="w-full rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-0.5 text-sm font-bold outline-none text-[var(--text-main)]"
+            />
+          ) : (
+            <>
+              <p className="truncate text-sm font-bold tracking-tight" title={path}>
+                {baseName(path)}
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {languageOf(path)}
+                {dirty && ` · ${t("canvasUnsaved")}`}
+              </p>
+            </>
+          )}
         </div>
+
+        {onRename && !renaming && (
+          <button
+            onClick={() => {
+              setRenameDraft(baseName(path));
+              setRenaming(true);
+            }}
+            title={t("rename")}
+            aria-label={t("rename")}
+            className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {allowExternal && (
+          <button
+            onClick={() => window.electronAPI?.openFile?.(path)}
+            title={t("openFile")}
+            aria-label={t("openFile")}
+            className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {onDelete &&
+          (confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  await onDelete();
+                }}
+                className="rounded-lg border-[2px] border-red-500 px-2 py-0.5 text-[10px] font-bold uppercase text-red-500"
+              >
+                {t("confirm")}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--text-muted)]"
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              title={t("delete")}
+              aria-label={t("delete")}
+              className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-red-500"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          ))}
 
         {isMarkdown && (
           <div className="flex rounded-lg border-2 border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
@@ -241,50 +371,76 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
             </ReactMarkdown>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5 bg-[#1e1e1e]">
+          <div
+            className={`flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5 ${
+              isCode ? "bg-[#1e1e1e]" : "bg-[var(--bg-base)] text-[var(--text-main)]"
+            }`}
+          >
             <pre
               ref={gutterRef}
               aria-hidden="true"
-              className="m-0 select-none overflow-hidden px-2.5 py-3 text-right text-[#858585] border-r border-[#333333] bg-[#1e1e1e]"
-              style={{ minWidth: "3rem" }}
+              className={`m-0 select-none overflow-hidden text-right ${
+                isCode
+                  ? "text-[#858585] border-r border-[#333333] bg-[#1e1e1e]"
+                  : "text-[var(--text-muted)] border-r border-[var(--border-light)] bg-[var(--bg-panel)]"
+              }`}
+              style={{ minWidth: "3.5rem", padding: "12px 8px 12px 12px", lineHeight: `${LINE_HEIGHT}px` }}
             >
-              {Array.from({ length: lines }, (_, index) => index + 1).join("\n")}
+              {visibleRange.isWindowed && topSpacerHeight > 0 && (
+                <div style={{ height: `${topSpacerHeight}px` }} />
+              )}
+              {Array.from(
+                { length: visibleRange.endLine - visibleRange.startLine },
+                (_, index) => visibleRange.startLine + index + 1,
+              ).join("\n")}
+              {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
+                <div style={{ height: `${bottomSpacerHeight}px` }} />
+              )}
             </pre>
             <div className="relative min-w-0 flex-1 h-full overflow-hidden">
-              <div
-                ref={highlighterRef}
-                aria-hidden="true"
-                className="absolute inset-0 pointer-events-none overflow-hidden m-0 p-0"
-              >
-                <SyntaxHighlighter
-                  language={prismLanguageOf(path) || "text"}
-                  style={atomDark}
-                  customStyle={{
-                    margin: 0,
-                    padding: "12px",
-                    background: "transparent",
-                    fontSize: "13px",
-                    lineHeight: "20px",
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                    whiteSpace: "pre",
-                    wordBreak: "keep-all",
-                    tabSize: 2,
-                    overflow: "visible",
-                  }}
-                  codeTagProps={{
-                    style: {
+              {isCode && (
+                <div
+                  ref={highlighterRef}
+                  aria-hidden="true"
+                  className="absolute inset-0 pointer-events-none overflow-hidden m-0"
+                  style={{ padding: "12px 0" }}
+                >
+                  {visibleRange.isWindowed && topSpacerHeight > 0 && (
+                    <div style={{ height: `${topSpacerHeight}px` }} />
+                  )}
+                  <SyntaxHighlighter
+                    language={prismLanguageOf(path) || "text"}
+                    style={atomDark}
+                    customStyle={{
+                      margin: 0,
+                      padding: "0 12px",
+                      background: "transparent",
                       fontSize: "13px",
-                      lineHeight: "20px",
+                      lineHeight: `${LINE_HEIGHT}px`,
                       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                       whiteSpace: "pre",
                       wordBreak: "keep-all",
                       tabSize: 2,
-                    },
-                  }}
-                >
-                  {state.draft.endsWith("\n") ? `${state.draft} ` : state.draft}
-                </SyntaxHighlighter>
-              </div>
+                      overflow: "visible",
+                    }}
+                    codeTagProps={{
+                      style: {
+                        fontSize: "13px",
+                        lineHeight: `${LINE_HEIGHT}px`,
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                        whiteSpace: "pre",
+                        wordBreak: "keep-all",
+                        tabSize: 2,
+                      },
+                    }}
+                  >
+                    {visibleText}
+                  </SyntaxHighlighter>
+                  {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
+                    <div style={{ height: `${bottomSpacerHeight}px` }} />
+                  )}
+                </div>
+              )}
               <textarea
                 ref={textareaRef}
                 value={state.draft}
@@ -303,16 +459,23 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
                   if (gutterRef.current) {
                     gutterRef.current.scrollTop = top;
                   }
+                  if (lines > 200 && Math.abs(top - lastScrollTopRef.current) > LINE_HEIGHT * 8) {
+                    lastScrollTopRef.current = top;
+                    setScrollTop(top);
+                  }
                 }}
                 spellCheck={false}
                 wrap="off"
                 aria-label={baseName(path)}
-                className="code-editor-textarea absolute inset-0 w-full h-full resize-none bg-transparent p-3 outline-none overflow-auto border-0 text-[13px] leading-5 font-mono"
+                className={`absolute inset-0 w-full h-full resize-none bg-transparent p-3 outline-none overflow-auto border-0 text-[13px] leading-5 font-mono ${
+                  isCode ? "code-editor-textarea" : "text-[var(--text-main)] caret-[var(--text-main)]"
+                }`}
                 style={{
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                   whiteSpace: "pre",
                   wordBreak: "keep-all",
                   tabSize: 2,
+                  lineHeight: `${LINE_HEIGHT}px`,
                 }}
               />
             </div>

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -7,7 +7,10 @@ import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
 } from "./markdown";
-import { prismLanguageOf } from "../canvas/drafts";
+import { isCodeFile, prismLanguageOf } from "../canvas/drafts";
+
+const LINE_HEIGHT = 20;
+const OVERSCAN = 30;
 
 /** Renders a formatted mini preview for created documents, spreadsheets, slide decks, and code. */
 
@@ -15,6 +18,7 @@ interface FilePreviewProps {
   filename: string;
   content: string;
   t?: (key: string) => string;
+  fullHeight?: boolean;
 }
 
 function parseCsvRows(text: string): string[][] {
@@ -60,8 +64,10 @@ function parseCsvRows(text: string): string[][] {
       cell += ch;
     }
   }
-  row.push(cell);
-  if (row.some((c) => c.trim().length > 0)) rows.push(row);
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    if (row.some((c) => c.trim().length > 0)) rows.push(row);
+  }
   return rows;
 }
 
@@ -73,29 +79,27 @@ interface SlideItem {
 function parseSlideCards(text: string): SlideItem[] {
   if (typeof window !== "undefined" && window.DOMParser && /<\s*section\b/i.test(text)) {
     const doc = new DOMParser().parseFromString(text, "text/html");
-    const sections = Array.from(doc.querySelectorAll("section, .slide"));
+    const sections = Array.from(doc.querySelectorAll("section"));
     if (sections.length > 0) {
-      return sections.map((sec, idx) => {
-        const titleEl = sec.querySelector("h1, h2, h3");
-        const title = titleEl?.textContent?.trim() || `Slide ${idx + 1}`;
+      return sections.map((sec) => {
+        const title = sec.querySelector("h1, h2, h3, h4")?.textContent?.trim() || "";
         const items = Array.from(sec.querySelectorAll("li, p"))
-          .filter((el) => el !== titleEl)
           .map((el) => el.textContent?.trim() || "")
-          .filter(Boolean);
+          .filter((t) => t && t !== title);
         return { title, items };
       });
     }
   }
 
-  const blocks = text.split(/^\s*(?:---|\*\*\*)\s*$/m);
-  return blocks
-    .map((block, idx) => {
-      const lines = block
+  return text
+    .split(/\n---\n/)
+    .map((chunk) => {
+      const lines = chunk
         .split("\n")
         .map((l) => l.trim())
         .filter(Boolean);
-      const titleLine = lines.find((l) => /^#{1,6}\s+/.test(l));
-      const title = titleLine ? titleLine.replace(/^#{1,6}\s+/, "") : `Slide ${idx + 1}`;
+      const titleLine = lines.find((l) => l.startsWith("#"));
+      const title = titleLine ? titleLine.replace(/^#+\s*/, "") : lines[0] || "";
       const items = lines
         .filter((l) => l !== titleLine)
         .map((l) => l.replace(/^[-*•]\s+/, ""));
@@ -104,11 +108,25 @@ function parseSlideCards(text: string): SlideItem[] {
     .filter((s) => s.title || s.items.length > 0);
 }
 
-export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProps) {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  const isSheet = ext === "xlsx" || ext === "xls" || ext === "csv";
-  const isPptx = ext === "pptx" || ext === "ppt";
-  const isCode = prismLanguageOf(filename) !== "text" && !isSheet && !isPptx;
+export function FilePreview({ filename, content, t = (k) => k, fullHeight = false }: FilePreviewProps) {
+  const dot = filename.lastIndexOf(".");
+  const hasExt = dot > 0;
+  const ext = hasExt ? filename.slice(dot + 1).toLowerCase() : "";
+
+  const isSheet = hasExt && (ext === "xlsx" || ext === "xls" || ext === "csv");
+  const isPptx = hasExt && (ext === "pptx" || ext === "ppt");
+  const isDoc =
+    hasExt &&
+    (ext === "md" ||
+      ext === "markdown" ||
+      ext === "mdx" ||
+      ext === "docx" ||
+      ext === "doc" ||
+      ext === "pdf");
+  const isCode = isCodeFile(filename) && !isSheet && !isPptx;
+
+  const [scrollTop, setScrollTop] = useState(0);
+  const lastScrollTopRef = useRef(0);
 
   const tableRows = useMemo(() => {
     if (!isSheet) return [];
@@ -119,6 +137,38 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
     if (!isPptx) return [];
     return parseSlideCards(content);
   }, [isPptx, content]);
+
+  const lines = useMemo(() => {
+    if (isSheet || isPptx || isDoc) return [];
+    return content.split("\n");
+  }, [isSheet, isPptx, isDoc, content]);
+
+  const totalLines = lines.length;
+
+  const visibleRange = useMemo(() => {
+    if (totalLines <= 100) {
+      return { isWindowed: false, startLine: 0, endLine: totalLines };
+    }
+    const start = Math.max(0, Math.floor(scrollTop / LINE_HEIGHT) - OVERSCAN);
+    const end = Math.min(totalLines, Math.ceil((scrollTop + 600) / LINE_HEIGHT) + OVERSCAN);
+    return { isWindowed: true, startLine: start, endLine: end };
+  }, [totalLines, scrollTop]);
+
+  const visibleText = useMemo(() => {
+    if (!visibleRange.isWindowed) return content;
+    return lines.slice(visibleRange.startLine, visibleRange.endLine).join("\n");
+  }, [content, lines, visibleRange]);
+
+  const topSpacerHeight = visibleRange.startLine * LINE_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, (totalLines - visibleRange.endLine) * LINE_HEIGHT);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const top = event.currentTarget.scrollTop;
+    if (totalLines > 100 && Math.abs(top - lastScrollTopRef.current) > LINE_HEIGHT * 6) {
+      lastScrollTopRef.current = top;
+      setScrollTop(top);
+    }
+  };
 
   if (isSheet) {
     if (tableRows.length === 0) {
@@ -133,14 +183,14 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
     const data = tableRows.slice(1);
 
     return (
-      <div className="flex flex-col w-full overflow-hidden">
+      <div className={`flex flex-col w-full overflow-hidden ${fullHeight ? "h-full flex-1" : ""}`}>
         <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between">
           <span>{filename}</span>
           <span>
             {tableRows.length} {t("rowCount")} · {header.length} {t("columnCount")}
           </span>
         </div>
-        <div className="max-h-72 overflow-auto bg-[var(--bg-base)]">
+        <div className={`overflow-auto bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
           <table className="w-full border-collapse text-left font-mono text-xs">
             <thead>
               <tr className="bg-[var(--bg-panel)] sticky top-0 border-b-2 border-[var(--border-light)]">
@@ -187,12 +237,12 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
     }
 
     return (
-      <div className="flex flex-col w-full overflow-hidden">
+      <div className={`flex flex-col w-full overflow-hidden ${fullHeight ? "h-full flex-1" : ""}`}>
         <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between">
           <span>{filename}</span>
           <span>{slides.length} {t("slideCount")}</span>
         </div>
-        <div className="p-3 max-h-80 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--bg-base)]">
+        <div className={`p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-80"}`}>
           {slides.map((slide, idx) => (
             <div
               key={idx}
@@ -224,32 +274,61 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
 
   if (isCode) {
     return (
-      <SyntaxHighlighter
-        language={prismLanguageOf(filename)}
-        style={atomDark}
-        customStyle={{
-          margin: 0,
-          padding: "1rem",
-          background: "transparent",
-          fontSize: "13px",
-        }}
-        wrapLines
-        wrapLongLines
+      <div
+        onScroll={handleScroll}
+        className={`flex flex-col ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-[#1e1e1e] font-mono text-[13px]`}
       >
-        {content}
-      </SyntaxHighlighter>
+        {visibleRange.isWindowed && topSpacerHeight > 0 && (
+          <div style={{ height: `${topSpacerHeight}px`, flexShrink: 0 }} />
+        )}
+        <SyntaxHighlighter
+          language={prismLanguageOf(filename)}
+          style={atomDark}
+          customStyle={{
+            margin: 0,
+            padding: "1rem",
+            background: "transparent",
+            fontSize: "13px",
+            lineHeight: `${LINE_HEIGHT}px`,
+          }}
+        >
+          {visibleText}
+        </SyntaxHighlighter>
+        {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
+          <div style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />
+        )}
+      </div>
+    );
+  }
+
+  if (isDoc) {
+    return (
+      <div className={`p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-72"} text-sm leading-relaxed markdown-body max-w-none`}>
+        <ReactMarkdown
+          remarkPlugins={DOCUMENT_REMARK_PLUGINS}
+          rehypePlugins={REHYPE_PLUGINS}
+          components={MARKDOWN_COMPONENTS}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
     );
   }
 
   return (
-    <div className="p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto max-h-72 text-sm leading-relaxed markdown-body max-w-none">
-      <ReactMarkdown
-        remarkPlugins={DOCUMENT_REMARK_PLUGINS}
-        rehypePlugins={REHYPE_PLUGINS}
-        components={MARKDOWN_COMPONENTS}
-      >
-        {content}
-      </ReactMarkdown>
+    <div
+      onScroll={handleScroll}
+      className={`flex flex-col ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-[var(--bg-base)] p-4`}
+    >
+      {visibleRange.isWindowed && topSpacerHeight > 0 && (
+        <div style={{ height: `${topSpacerHeight}px`, flexShrink: 0 }} />
+      )}
+      <pre className="whitespace-pre font-mono text-xs leading-5 m-0 p-0 text-[var(--text-main)]">
+        {visibleText}
+      </pre>
+      {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
+        <div style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />
+      )}
     </div>
   );
 }
