@@ -1,6 +1,6 @@
 const path = require("path");
 const fs = require("fs");
-const { IS_WINDOWS, killTree, spawnHidden } = require("./platform.cjs");
+const { IS_WINDOWS, killTree, killTreeSync, spawnHidden } = require("./platform.cjs");
 
 /** Interactive terminal sessions run hidden in the project folder. Every child process
  * goes through spawnHidden so no console window flashes at the user. */
@@ -84,16 +84,27 @@ function killTerminal(id) {
   const session = sessions.get(id);
   if (!session) return false;
   sessions.delete(id);
-  if (session.child.pid) {
-    killTree(session.child.pid).catch(() => {});
+  if (session.child) {
+    try {
+      killTree(session.child);
+    } catch {
+      // Process already terminated.
+    }
   }
   return true;
 }
 
 function killAll() {
-  for (const [id] of sessions) {
-    killTerminal(id);
+  for (const [, session] of sessions) {
+    if (session.child) {
+      try {
+        killTreeSync(session.child);
+      } catch {
+        // Process already terminated.
+      }
+    }
   }
+  sessions.clear();
 }
 
 module.exports = {
