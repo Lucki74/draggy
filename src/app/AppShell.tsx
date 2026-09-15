@@ -11,10 +11,12 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
+  TerminalSquare,
   X,
 } from "lucide-react";
 import ChatScreen from "../ChatScreen";
 import Canvas from "../canvas/Canvas";
+import Terminal from "../terminal/Terminal";
 import GitStrip from "../project/GitStrip";
 import { useApiBridge } from "../api/useApiBridge";
 import { useGitStatus } from "../project/useGitStatus";
@@ -129,6 +131,74 @@ export default function AppShell({
   /** The file open in the canvas, with the workspace it belongs to. Switching workspace hides it
    * rather than trying to open one project's file in another. */
   const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalVisible, setTerminalVisible] = useState(false);
+  const [treeWidth, setTreeWidth] = useState(224);
+  const [rightPaneWidth, setRightPaneWidth] = useState(500);
+  const [splitHeight, setSplitHeight] = useState(260);
+
+  const toggleTerminal = useCallback(() => {
+    if (!terminalOpen) {
+      setTerminalOpen(true);
+      setTerminalVisible(true);
+    } else {
+      setTerminalVisible((prev) => !prev);
+    }
+  }, [terminalOpen]);
+
+  const killTerminal = useCallback(() => {
+    setTerminalOpen(false);
+    setTerminalVisible(false);
+  }, []);
+
+  const startResizeTree = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = treeWidth;
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setTreeWidth(Math.max(160, Math.min(480, startW + delta)));
+    };
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, [treeWidth]);
+
+  const startResizeRightPane = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = rightPaneWidth;
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX;
+      const maxW = Math.max(300, window.innerWidth - 420);
+      setRightPaneWidth(Math.max(260, Math.min(maxW, startW + delta)));
+    };
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, [rightPaneWidth]);
+
+  const startResizeSplit = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = splitHeight;
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startY - moveEvent.clientY;
+      setSplitHeight(Math.max(120, Math.min(600, startH + delta)));
+    };
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, [splitHeight]);
 
   const pinSidebar = useCallback((node: HTMLDivElement | null) => {
     const rail = node?.parentElement;
@@ -753,6 +823,21 @@ export default function AppShell({
               </span>
             </button>
 
+            {mode === "code" && (
+              <button
+                onClick={toggleTerminal}
+                className={`flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden ${
+                  terminalVisible ? "bg-[var(--hover-bg)]" : ""
+                }`}
+                title={t("terminal")}
+              >
+                <TerminalSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
+                <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  {t("terminal")}
+                </span>
+              </button>
+            )}
+
             {mode === "chat" && (
               <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
                 <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
@@ -892,53 +977,60 @@ export default function AppShell({
           <div ref={observeWorkArea} className="flex-1 flex min-h-0 min-w-0">
             {active.rootPath &&
               (treeOpen && treeFits ? (
-                <div
-                  className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-r-[3px]"
-                  style={{ borderColor: "var(--border-light)" }}
-                >
+                <div className="flex flex-shrink-0 h-full">
                   <div
-                    className="flex items-center gap-1 px-2 py-2 border-b-[3px]"
-                    style={{ borderColor: "var(--border-light)" }}
+                    className="flex flex-col overflow-hidden border-r-[3px]"
+                    style={{ width: `${treeWidth}px`, borderColor: "var(--border-light)" }}
                   >
-                    <button
-                      onClick={() => void openProjectMemory()}
-                      title={t("projectMemory")}
-                      className="flex-1 min-w-0 truncate rounded-lg px-2 py-1 text-left text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+                    <div
+                      className="flex items-center gap-1 px-2 py-2 border-b-[3px]"
+                      style={{ borderColor: "var(--border-light)" }}
                     >
-                      {t("projectMemory")}
-                    </button>
+                      <button
+                        onClick={() => void openProjectMemory()}
+                        title={t("projectMemory")}
+                        className="flex-1 min-w-0 truncate rounded-lg px-2 py-1 text-left text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+                      >
+                        {t("projectMemory")}
+                      </button>
 
-                    <button
-                      onClick={() => setTreeOpen(false)}
-                      aria-label={t("hideFiles")}
-                      title={t("hideFiles")}
-                      className="p-1 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
-                    >
-                      <PanelLeftClose className="w-4 h-4" />
-                    </button>
+                      <button
+                        onClick={() => setTreeOpen(false)}
+                        aria-label={t("hideFiles")}
+                        title={t("hideFiles")}
+                        className="p-1 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+                      >
+                        <PanelLeftClose className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                      <FileTree
+                        workspaceId={active.id}
+                        root={active.rootPath}
+                        selected={canvasPath}
+                        onSelect={(entry) =>
+                          setCanvas({ workspaceId: active.id, path: entry.path })
+                        }
+                        t={t}
+                      />
+                    </div>
+
+                    {shouldShowStrip(gitStatus) && (
+                      <GitStrip
+                        status={gitStatus}
+                        workspaceId={active.id}
+                        root={active.rootPath}
+                        t={t}
+                        onOpenFile={(path) => setCanvas({ workspaceId: active.id, path })}
+                      />
+                    )}
                   </div>
-
-                  <div className="flex-1 overflow-y-auto">
-                    <FileTree
-                      workspaceId={active.id}
-                      root={active.rootPath}
-                      selected={canvasPath}
-                      onSelect={(entry) =>
-                        setCanvas({ workspaceId: active.id, path: entry.path })
-                      }
-                      t={t}
-                    />
-                  </div>
-
-                  {shouldShowStrip(gitStatus) && (
-                    <GitStrip
-                      status={gitStatus}
-                      workspaceId={active.id}
-                      root={active.rootPath}
-                      t={t}
-                      onOpenFile={(path) => setCanvas({ workspaceId: active.id, path })}
-                    />
-                  )}
+                  <div
+                    onMouseDown={startResizeTree}
+                    className="w-1.5 cursor-col-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none z-10 transition-colors"
+                    title="Resize file tree"
+                  />
                 </div>
               ) : (
                 <button
@@ -996,51 +1088,76 @@ export default function AppShell({
             />
             </div>
 
-            {/* One column on the right: with the canvas open the plan sits above it, since chat,
-                canvas and plan side by side do not fit a laptop screen. */}
-            {(canvasPath || hasPlan) && (
-              <div
-                className={`flex flex-col border-l-[3px] ${
-                  canvasPath ? "w-[42%] min-w-[280px] max-w-[640px]" : "w-64 min-w-[200px]"
-                }`}
-                style={{ borderColor: "var(--border-light)" }}
-              >
-                {hasPlan && currentSession?.plan && (
-                  <div
-                    className={
-                      canvasPath
-                        ? "max-h-[40%] overflow-y-auto border-b-[3px] flex-shrink-0"
-                        : "flex-1 min-h-0"
-                    }
-                    style={{ borderColor: "var(--border-light)" }}
-                  >
-                    <PlanPanel
-                      items={currentSession.plan}
-                      running={runs.running.includes(currentChatId)}
-                      onChange={(items: PlanItem[]) =>
-                        store.updateSession(currentChatId, (session) => ({
-                          ...session,
-                          plan: items,
-                        }))
+            {/* Right column: with resizer, canvas, plan, and terminal */}
+            {(canvasPath || hasPlan || (terminalOpen && terminalVisible)) && (
+              <div className="flex h-full flex-shrink-0 relative">
+                <div
+                  onMouseDown={startResizeRightPane}
+                  className="w-1.5 cursor-col-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none z-10 transition-colors"
+                  title="Resize pane"
+                />
+                <div
+                  className="flex flex-col border-l-[3px] h-full overflow-hidden"
+                  style={{ width: `${rightPaneWidth}px`, borderColor: "var(--border-light)" }}
+                >
+                  {hasPlan && currentSession?.plan && (
+                    <div
+                      className={
+                        canvasPath || (terminalOpen && terminalVisible)
+                          ? "max-h-[40%] overflow-y-auto border-b-[3px] flex-shrink-0"
+                          : "flex-1 min-h-0"
                       }
-                      onContinue={() => runs.send(currentChatId, t("continuePlan"))}
-                      t={t}
-                    />
-                  </div>
-                )}
+                      style={{ borderColor: "var(--border-light)" }}
+                    >
+                      <PlanPanel
+                        items={currentSession.plan}
+                        running={runs.running.includes(currentChatId)}
+                        onChange={(items: PlanItem[]) =>
+                          store.updateSession(currentChatId, (session) => ({
+                            ...session,
+                            plan: items,
+                          }))
+                        }
+                        onContinue={() => runs.send(currentChatId, t("continuePlan"))}
+                        t={t}
+                      />
+                    </div>
+                  )}
 
-                {canvasPath && (
-                  <div className="flex-1 min-h-0">
-                    <Canvas
-                      key={canvasPath}
-                      workspaceId={active.id}
-                      path={canvasPath}
-                      t={t}
-                      onClose={closeCanvas}
-                      onMoved={followCanvas}
+                  {canvasPath && (
+                    <div className="flex-1 min-h-0">
+                      <Canvas
+                        key={canvasPath}
+                        workspaceId={active.id}
+                        path={canvasPath}
+                        t={t}
+                        onClose={closeCanvas}
+                        onMoved={followCanvas}
+                      />
+                    </div>
+                  )}
+
+                  {canvasPath && terminalOpen && terminalVisible && (
+                    <div
+                      onMouseDown={startResizeSplit}
+                      className="h-1.5 cursor-row-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none border-t border-b border-[var(--border-light)] bg-[var(--bg-panel)] transition-colors"
+                      title="Resize terminal"
                     />
-                  </div>
-                )}
+                  )}
+
+                  {terminalOpen && terminalVisible && (
+                    <div
+                      className={canvasPath ? "flex-shrink-0" : "flex-1 min-h-0"}
+                      style={canvasPath ? { height: `${splitHeight}px` } : undefined}
+                    >
+                      <Terminal
+                        cwd={active.rootPath || undefined}
+                        onKill={killTerminal}
+                        t={t}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

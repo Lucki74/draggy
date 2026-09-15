@@ -1057,6 +1057,14 @@ declare global {
       quitApp: () => void;
       /** Runs before Draggy quits and storage closes; the quit waits for it, up to a few seconds. */
       onBeforeQuit: (handler: () => Promise<void> | void) => Unsubscribe;
+
+      terminal?: {
+        spawn: (id: string, cwd?: string) => Promise<{ success: boolean; id: string; shell: string; error?: string }>;
+        write: (id: string, data: string) => Promise<boolean>;
+        kill: (id: string) => Promise<boolean>;
+        onData: (callback: (payload: { id: string; data: string }) => void) => Unsubscribe;
+        onExit: (callback: (payload: { id: string; code: number }) => void) => Unsubscribe;
+      };
     };
   }
 }

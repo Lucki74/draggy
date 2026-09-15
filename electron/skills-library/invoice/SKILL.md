@@ -50,6 +50,6 @@ Create a .pdf with create_file using this layout:
 **Payment:** [bank details or link], reference [invoice number]
 ```
 
-Add any legally required mentions only if the user states them (for example VAT exemption wording). If the user wants the lines in a spreadsheet too, also create an .xlsx with one row per line item.
+Add any legally required mentions only if the user states them (for example VAT exemption wording). If the user wants the lines in a spreadsheet too, also create an .xlsx with one row per line item (as an HTML table with styled headers and column widths, or clean CSV).
 
 In the reply, give the total and the file name(s).

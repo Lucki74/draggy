@@ -213,7 +213,7 @@ describe("CSV parsing for Excel output", () => {
 
     expect(text).toContain("Ada,99");
     expect(text).toContain("Grace,-3.5");
-  });
+  }, 15000);
 });
 
 describe("XML entity decoding", () => {

@@ -145,41 +145,80 @@ body.browser-bar {
     @apply mb-3 last:mb-0;
 }
 .markdown-body ul {
-    @apply list-disc pl-5 mb-3;
+    @apply list-disc pl-6 mb-3 space-y-1;
 }
 .markdown-body ol {
-    @apply list-decimal pl-5 mb-3;
+    @apply list-decimal pl-6 mb-3 space-y-1;
+}
+.markdown-body li > p {
+    @apply mb-1;
 }
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
     color: var(--text-main);
-    @apply mt-5 mb-3;
+    @apply mt-6 mb-3 font-bold;
 }
 .markdown-body h1 {
-    @apply text-2xl;
+    @apply text-2xl pb-2 border-b;
+    border-color: var(--border-light);
 }
 .markdown-body h2 {
-    @apply text-xl;
+    @apply text-xl pb-1.5 border-b;
+    border-color: var(--border-light);
 }
 .markdown-body h3 {
     @apply text-lg;
 }
+.markdown-body hr {
+    border: 0;
+    border-top: 1px solid var(--border-light);
+    @apply my-6;
+}
 .markdown-body a {
-    @apply underline text-blue-600 hover:text-blue-800;
+    @apply underline text-blue-500 hover:text-blue-400;
+}
+.markdown-body img {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+}
+.markdown-body p > a > img,
+.markdown-body p > img {
+    margin: 2px 3px;
+    display: inline-block;
+    vertical-align: middle;
+}
+.markdown-body [align="center"],
+[align="center"] {
+    text-align: center;
+}
+.markdown-body [align="right"],
+[align="right"] {
+    text-align: right;
+}
+.markdown-body [align="left"],
+[align="left"] {
+    text-align: left;
+}
+.markdown-body :not(pre) > code {
+    background-color: var(--bg-panel);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    @apply px-1.5 py-0.5 rounded text-[0.875em] font-mono;
 }
 .markdown-body pre {
     @apply my-0;
 }
 .markdown-body table {
     background-color: var(--bg-base);
-    border: 3px solid var(--border-light);
-    @apply w-full mb-3 border-collapse rounded-xl overflow-hidden overflow-x-auto block;
+    border: 2px solid var(--border-light);
+    @apply w-full mb-4 border-collapse rounded-xl overflow-hidden overflow-x-auto block;
 }
 .markdown-body th,
 .markdown-body td {
-    border-bottom: 2px solid var(--border-light);
-    border-right: 2px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
     @apply px-3 py-2 text-left last:border-r-0;
 }
 .markdown-body tr:last-child td {

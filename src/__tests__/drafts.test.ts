@@ -7,6 +7,7 @@ import {
   lineCount,
   onDiskChange,
   openState,
+  prismLanguageOf,
   readChange,
   samePath,
   takeTheirs,
@@ -123,8 +124,23 @@ describe("the header", () => {
   it("names the language from the extension", () => {
     expect(languageOf("src/app.tsx")).toBe("TypeScript");
     expect(languageOf("C:\\p\\script.PY")).toBe("Python");
-    expect(languageOf("Makefile")).toBe("Text");
+    expect(languageOf("Makefile")).toBe("Makefile");
+    expect(languageOf("Dockerfile")).toBe("Docker");
     expect(languageOf(".gitignore")).toBe("Text");
+  });
+
+  it("maps extensions to prism language tokens", () => {
+    expect(prismLanguageOf("app.ts")).toBe("typescript");
+    expect(prismLanguageOf("component.tsx")).toBe("tsx");
+    expect(prismLanguageOf("main.py")).toBe("python");
+    expect(prismLanguageOf("lib.rs")).toBe("rust");
+    expect(prismLanguageOf("server.go")).toBe("go");
+    expect(prismLanguageOf("Program.cs")).toBe("csharp");
+    expect(prismLanguageOf("native.cpp")).toBe("cpp");
+    expect(prismLanguageOf("script.ps1")).toBe("powershell");
+    expect(prismLanguageOf("deploy.sh")).toBe("bash");
+    expect(prismLanguageOf("query.sql")).toBe("sql");
+    expect(prismLanguageOf("Dockerfile")).toBe("docker");
   });
 
   it("counts lines for the gutter", () => {

@@ -45,6 +45,7 @@ const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
 const mcpCatalogue = require("./mcpCatalogue.cjs");
 const pdfWriter = require("./pdfWriter.cjs");
+const terminal = require("./terminal.cjs");
 
 const OLLAMA_HOST = "127.0.0.1:11434";
 const MODEL_CACHE_ORIGIN = "https://huggingface.co";
@@ -239,7 +240,7 @@ const CSP_DIRECTIVES = [
   "script-src 'self' app: draggy: 'wasm-unsafe-eval'",
   "style-src 'self' app: draggy: 'unsafe-inline'",
   "font-src 'self' app: draggy: data:",
-  "img-src 'self' app: draggy: data: blob:",
+  "img-src 'self' app: draggy: data: blob: https:",
   "media-src 'self' app: draggy: data: blob:",
   "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11434 ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
@@ -852,6 +853,7 @@ function shutdown() {
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
+    ["terminal", () => terminal.killAll()],
     ["ollama", stopOllama],
     ["storage", () => storage.close()],
     ["library", () => library.close()],
@@ -2709,3 +2711,21 @@ ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
 
 ipcMain.handle("logs:open", async () => shell.openPath(logger.logFolder()));
 ipcMain.handle("logs:tail", () => logger.readTail());
+
+ipcMain.handle("terminal:spawn", wrap("terminal", async (event, id, cwd) =>
+  terminal.spawnTerminal(
+    String(id),
+    cwd ? String(cwd) : undefined,
+    (tid, data) => broadcast("terminal-data", { id: tid, data }),
+    (tid, code) => broadcast("terminal-exit", { id: tid, code }),
+  ),
+));
+
+ipcMain.handle("terminal:write", wrap("terminal", async (event, id, data) =>
+  terminal.writeTerminal(String(id), String(data)),
+));
+
+ipcMain.handle("terminal:kill", wrap("terminal", async (event, id) =>
+  terminal.killTerminal(String(id)),
+));
+

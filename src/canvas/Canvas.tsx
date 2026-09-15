@@ -10,6 +10,7 @@ import {
   lineCount,
   onDiskChange,
   openState,
+  prismLanguageOf,
   readChange,
   takeTheirs,
 } from "./drafts";
@@ -18,9 +19,9 @@ import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
+  DOCUMENT_REMARK_PLUGINS,
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
-  REMARK_PLUGINS,
 } from "../chat/markdown";
 
 interface CanvasProps {
@@ -213,9 +214,9 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
       {state ? (
         viewMode === "preview" ? (
           isMarkdown ? (
-            <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-base)] text-[var(--text-main)] prose prose-sm dark:prose-invert max-w-none">
+            <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-base)] text-[var(--text-main)] markdown-body max-w-none">
               <ReactMarkdown
-                remarkPlugins={REMARK_PLUGINS}
+                remarkPlugins={DOCUMENT_REMARK_PLUGINS}
                 rehypePlugins={REHYPE_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
               >
@@ -225,7 +226,7 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
           ) : (
             <div className="flex-1 overflow-auto bg-[#1e1e1e] font-mono text-[13px]">
               <SyntaxHighlighter
-                language={languageOf(path) || "text"}
+                language={prismLanguageOf(path) || "text"}
                 style={atomDark}
                 showLineNumbers
                 customStyle={{

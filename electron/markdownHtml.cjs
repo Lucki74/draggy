@@ -1,5 +1,4 @@
-/** Markdown to HTML for the PDF writer, covering what the Word writer covers. Raw HTML is escaped:
- * a remote image would report that the document was made. */
+const { isHtml } = require("./htmlDocument.cjs");
 
 const ESCAPES = {
   "&": "&amp;",
@@ -280,19 +279,44 @@ const PRINT_STYLES = `
   tr { break-inside: avoid; page-break-inside: avoid; }
 `;
 
-/** The complete page handed to Chromium. The content policy is belt to the escaping's braces:
- * markup that got through still cannot fetch anything. */
-function buildDocument(markdown, title) {
+/** The complete page handed to Chromium. Direct HTML is framed with print styles;
+ * Markdown is converted block by block. The policy prevents any network fetch. */
+function buildDocument(content, title) {
+  const safeTitle = escapeHtml(title || "Document");
+  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />`;
+
+  if (isHtml(content)) {
+    const raw = String(content ?? "").replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script\s*>/gi, "");
+    if (/<!doctype\b/i.test(raw) || /<html\b/i.test(raw)) {
+      if (/<head\b/i.test(raw)) {
+        return raw.replace(/<head\b[^>]*>/i, (match) => `${match}\n${csp}\n<style>${PRINT_STYLES}</style>`);
+      }
+      return `${csp}\n<style>${PRINT_STYLES}</style>\n${raw}`;
+    }
+    return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+${csp}
+<title>${safeTitle}</title>
+<style>${PRINT_STYLES}</style>
+</head>
+<body>
+${raw}
+</body>
+</html>`;
+  }
+
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />
-<title>${escapeHtml(title || "Document")}</title>
+${csp}
+<title>${safeTitle}</title>
 <style>${PRINT_STYLES}</style>
 </head>
 <body>
-${markdownToHtml(markdown)}
+${markdownToHtml(content)}
 </body>
 </html>`;
 }

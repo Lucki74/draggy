@@ -1,36 +1,42 @@
 ---
 name: docx
-description: "Creates Word documents (.docx) with create_file from well-structured Markdown: headings, lists, emphasis and page breaks that Draggy converts faithfully. Use whenever the user asks for a Word document, a .docx, or an editable document to download."
+description: "Creates Word documents (.docx) with create_file from structured HTML (for custom styling, tables, colors and fonts) or Markdown. Use whenever the user asks for a Word document, a .docx, or an editable document to download."
 ---
 
 # Word documents (.docx)
 
-Draggy writes .docx files with create_file. The content you pass is Markdown, converted line by line, so the Markdown must use only what the converter understands.
+Draggy writes .docx files with create_file from either semantic HTML or Markdown. Use HTML when the document needs styling, tables, custom colors, or specific text sizes; use Markdown for simple plain-text documents.
 
-## What converts
+## Writing with HTML (Recommended for styled documents and tables)
 
-- `#` to `######` headings become Word headings 1 to 6. Use one `#` title, then `##` sections, `###` subsections.
-- `- item` or `* item` becomes a bullet. Only one level: nested indentation is flattened.
+Pass valid semantic HTML to create_file:
+
+- **Headings:** `<h1>` through `<h6>` become Word headings 1 to 6.
+- **Paragraphs:** `<p style="text-align: center; margin-bottom: 12pt">` with alignment (`left`, `center`, `right`, `justify`).
+- **Text styling:** `<span style="color: #0066cc; font-size: 14pt; font-weight: bold">`, `<em>`, `<u>`, `<s>`.
+- **Colors:** Hex codes (`#2563eb`), rgb, or standard names.
+- **Lists:** `<ul><li>` for bullet points and `<ol><li>` for numbered items.
+- **Tables:** `<table>` elements with `<tr>`, `<th>`, `<td>`. Supports cell borders, widths (`<th style="width: 120px">` or `<col width="120">`), and cell background shading (`<th style="background-color: #f1f5f9">`).
+- **Page breaks:** `<hr>` or `<div style="page-break-after: always">`.
+
+## Writing with Markdown
+
+Simple Markdown is also converted line by line:
+- `#` to `######` headings become Word headings 1 to 6.
+- `- item` or `* item` becomes a bullet.
 - `1. item` becomes a numbered list item.
-- `**bold**`, `*italic*` and `***bold italic***` inside a line.
-- A line with only `---` becomes a horizontal rule.
-- An empty line becomes an empty paragraph, so use exactly one blank line between blocks.
-- Every other line becomes a normal paragraph. Write each paragraph on a single line.
+- `**bold**`, `*italic*`, `***bold italic***` inline.
+- `---` becomes a horizontal rule.
+- *Note:* Markdown pipe tables arrive as plain text. For tables, always use HTML `<table>` instead.
 
-## What does not convert
-
-- **Tables:** Markdown tables arrive as plain text rows. For tabular content, use a short list per row ("**Q1:** revenue 4.2 M, costs 3.1 M"), or create a .pdf (tables work there) or an .xlsx for the data.
-- Links become plain text: write the URL out in full if it matters.
-- Images, footnotes, code blocks with syntax colours, and nested lists.
-
-## Writing the document
+## Designing the document
 
 1. Decide the document type (letter, report, proposal, handout, policy) and its sections before writing.
-2. Start with a `#` title. For reports and proposals, add a short summary paragraph near the top.
-3. Keep paragraphs short and headings descriptive, since readers navigate by them.
+2. Start with a title heading. For reports and proposals, add an executive summary near the top.
+3. Use HTML when tables, colored callouts, or aligned headers are required.
 4. Choose a clear file name with no spaces or unusual characters, like quarterly-report-q3.docx.
-5. Call create_file with the filename and the full Markdown as content.
+5. Call create_file with the filename and the full HTML or Markdown content.
 
 ## After creating
 
-Tell the user the file name and that it is saved in Draggy's Created files (reachable from the sidebar). Summarise in one or two lines what the document contains. If content was simplified because of the limits above (a table turned into a list), say so.
+Tell the user the file name and that it is saved in Draggy's Created files (reachable from the sidebar). Summarise in one or two lines what the document contains.

@@ -65,16 +65,37 @@ interface CodeProps {
   children?: React.ReactNode;
 }
 
+const LANGUAGE_ALIASES: Record<string, string> = {
+  ts: "typescript",
+  js: "javascript",
+  py: "python",
+  rs: "rust",
+  cs: "csharp",
+  sh: "bash",
+  zsh: "bash",
+  ps1: "powershell",
+  html: "markup",
+  xml: "markup",
+  svg: "markup",
+  yml: "yaml",
+  docker: "dockerfile",
+};
+
+function normalizePrismLanguage(raw: string): string {
+  const lower = String(raw || "").toLowerCase();
+  return LANGUAGE_ALIASES[lower] ?? lower;
+}
+
 export function MarkdownCode({ className, children }: CodeProps) {
-  const match = /language-(\w+)/.exec(className || "");
+  const match = /language-([A-Za-z0-9_#-]+)/.exec(className || "");
 
   return match ? (
     <CodeBlock
-      language={match[1]}
+      language={normalizePrismLanguage(match[1])}
       value={String(children).replace(/\n$/, "")}
     />
   ) : (
-    <code className="bg-[var(--hover-bg)] px-1.5 py-0.5 rounded-md border-2 border-[var(--border-light)]">
+    <code className="bg-[var(--bg-panel)] px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-[var(--border-light)]">
       {children}
     </code>
   );

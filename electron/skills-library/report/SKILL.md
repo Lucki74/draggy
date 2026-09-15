@@ -26,4 +26,4 @@ Reports are read top-down by people with little time. The structure in template.
 
 ## File
 
-Ask whether the user wants an editable file (.docx with create_file; tables become lists) or a finished one (.pdf; tables allowed). Default to .pdf if the report has tables. Mention the file name when done.
+Ask whether the user wants an editable file (.docx with create_file; use HTML for tables and styled sections) or a finished one (.pdf). Mention the file name when done.

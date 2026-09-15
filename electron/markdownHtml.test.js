@@ -187,3 +187,33 @@ describe("the printable document", () => {
     expect(buildDocument("x", "<script>")).toContain("<title>&lt;script&gt;</title>");
   });
 });
+
+describe("HTML content in printable document", () => {
+  it("frames an HTML fragment directly inside the page body", () => {
+    const fragment = '<h1 style="color: blue;">Direct HTML</h1><p>Styled text</p>';
+    const doc = buildDocument(fragment, "styled");
+
+    expect(doc).toContain('<h1 style="color: blue;">Direct HTML</h1>');
+    expect(doc).toContain("<p>Styled text</p>");
+    expect(doc).toContain("default-src 'none'");
+    expect(doc).toContain("<title>styled</title>");
+  });
+
+  it("injects security policy and print styles into a full HTML document", () => {
+    const full = "<!doctype html><html><head><title>Custom</title></head><body><h1>Hi</h1></body></html>";
+    const doc = buildDocument(full, "custom");
+
+    expect(doc).toContain("default-src 'none'");
+    expect(doc).toContain("A4");
+    expect(doc).toContain("<h1>Hi</h1>");
+  });
+
+  it("strips script tags from HTML content", () => {
+    const dangerous = '<h1>Hello</h1><script>alert("hack")</script>';
+    const doc = buildDocument(dangerous, "safe");
+
+    expect(doc).toContain("<h1>Hello</h1>");
+    expect(doc).not.toContain("alert");
+    expect(doc).not.toContain("<script>");
+  });
+});

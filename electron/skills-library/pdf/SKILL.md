@@ -1,36 +1,42 @@
 ---
 name: pdf
-description: Creates polished PDF documents with create_file from Markdown, including tables, headings, lists and page numbers, for anything meant to be shared or printed rather than edited. Use whenever the user asks for a PDF, a printable document, a handout or a report to send.
+description: Creates polished PDF documents with create_file from styled HTML (for custom fonts, colors, tables and layouts) or Markdown. Use whenever the user asks for a PDF, a printable document, a handout or a report to send.
 ---
 
 # PDF documents
 
-Draggy writes .pdf files with create_file. The content is Markdown, laid out by a browser engine and printed, so it supports more than the Word converter.
+Draggy writes .pdf files with create_file from either **HTML** (recommended for styled layouts, custom colors, fonts, and precise table formatting) or **Markdown** (for fast, clean text documents). Both are laid out and typeset by Chromium.
 
-## What works
+## Writing with HTML (Recommended for styled PDFs)
 
+Pass semantic HTML to create_file:
+
+- **Full styling:** Use inline CSS `style="..."` for custom font sizes, text colors (`color: #1e293b`), backgrounds (`background-color: #f8fafc`), borders, and padding.
+- **Tables:** Full HTML `<table>` support with custom column widths (`<col width="...">` or `<th style="width: ...">`), header shading, cell alignments, borders, and multi-line content.
+- **Layouts:** Use flexbox, CSS grids, and multi-column designs (`display: flex; justify-content: space-between`).
+- **Page breaks:** Insert `<div style="page-break-after: always"></div>` to force a clean break before a new section.
+- **Images & icons:** Inline `data:` URIs (`<img src="data:image/png;base64,...">`) work natively. Remote network URLs are blocked for privacy.
+- **Headers & footers:** A page number (`X / Y`) is automatically typeset at the bottom center of each page.
+
+## Writing with Markdown
+
+Simple Markdown is also fully supported:
 - Headings `#` to `######`, paragraphs, bold, italic, `inline code` and ~~strikethrough~~.
-- Bulleted and numbered lists, one level deep (indented items are flattened).
-- Tables in Markdown pipe syntax with a separator row; headers repeat across pages.
-- Fenced code blocks, block quotes (one line each), horizontal rules, and http or https links.
-- A page number is added at the foot of every page.
-
-Images, nested lists and custom fonts or colours are not available.
+- Bulleted and numbered lists.
+- Pipe tables (`| Col 1 | Col 2 |`).
+- Fenced code blocks, block quotes, and horizontal rules.
 
 ## When to choose PDF
 
 - The document will be read, printed or sent, not edited: reports, handouts, invoices, itineraries, reference sheets.
-- It contains tables (the .docx converter cannot keep them).
-If the user needs to edit it afterwards, suggest .docx instead.
+- If the user needs an editable file that can be opened and modified in Word, suggest .docx instead (which also supports tables, headings and styling via HTML).
 
 ## Writing it
 
-1. One `#` title at the top, followed by a line with the date or subtitle.
-2. Use `##` for sections so the structure is visible when printed.
-3. Keep tables narrow: about six columns at most, short cell text, so they fit the page width.
-4. Avoid very long unbroken strings (long URLs) in tables.
-5. For multi-page documents, put a short summary or table of contents list near the top.
-6. Choose a clear filename like trip-itinerary-june.pdf and call create_file with the Markdown content.
+1. One title heading at the top, followed by a subtitle or date.
+2. Use clear section headings (`<h2>` or `##`) so the structure is clear when printed.
+3. Use HTML when specific colors, side-by-side columns, invoices, or precise table widths are needed.
+4. Choose a clear filename like trip-itinerary-june.pdf and call create_file with the HTML or Markdown content.
 
 ## After creating
 

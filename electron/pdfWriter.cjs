@@ -37,9 +37,9 @@ const FOOTER_TEMPLATE = `
   </div>
 `;
 
-async function writePdf(filepath, markdown) {
+async function writePdf(filepath, content) {
   const title = path.basename(filepath, path.extname(filepath));
-  const html = buildDocument(markdown, title);
+  const html = buildDocument(content, title);
 
   // A file rather than a data: URL: Chromium refuses top-level navigation to
   // those, and a long document would not fit in one anyway.

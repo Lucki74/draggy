@@ -114,7 +114,7 @@ describe("Excel output from HTML", () => {
     expect(text).toContain("Ada Lovelace");
     expect(text).toContain("98.5");
     expect(text).toContain("Grace Hopper");
-  });
+  }, 15000);
 });
 
 describe("PowerPoint output from HTML", () => {

@@ -1,38 +1,73 @@
 ---
 name: xlsx
-description: "Creates Excel spreadsheets (.xlsx) with create_file from clean CSV: one header row, consistent columns, real numbers and dates that open ready to sort and filter. Use whenever the user asks for a spreadsheet, an Excel file, a table to download, or data in .xlsx."
+description: "Creates Excel spreadsheets (.xlsx) with create_file from styled HTML tables (with custom column widths, colors, borders and numbers) or clean CSV. Use whenever the user asks for a spreadsheet, an Excel file, a table to download, or data in .xlsx."
 ---
 
 # Excel spreadsheets (.xlsx)
 
-Draggy writes .xlsx files with create_file. The content is CSV, which becomes a single worksheet named Sheet1.
+Draggy writes .xlsx files with create_file. The content can be either an **HTML `<table>`** (recommended when you want custom column widths, colors, borders, or merged cells) or **CSV** (for plain tabular data).
 
-## How the CSV is read
+## Styled HTML spreadsheets (Recommended)
+
+Pass an HTML `<table>` string to create_file:
+
+- **Column widths:** Set custom widths using `<col width="140">` or `<th style="width: 140px">`. Columns auto-size if omitted.
+- **Headers:** Style header cells with `<th style="background-color: #2563eb; color: #ffffff; font-weight: bold; text-align: center">`.
+- **Cell styling:** Supports `background-color`, font `color`, `font-weight`, `text-align` (align numbers `right`, text `left`), and borders.
+- **Merged cells:** Supports `colspan` and `rowspan` (e.g. `<td colspan="4">Total</td>`).
+- **Numbers:** Plain numeric strings (e.g. `1250.50`, `-3.5`) are automatically stored as native Excel numbers ready for formulas, sorting, and charting.
+- **Multiple tables:** Place multiple `<table>` elements in the HTML to create stacked tables separated cleanly.
+
+## Plain CSV spreadsheets
+
+Pass standard CSV text:
 
 - Commas separate cells, new lines separate rows.
-- Wrap any cell containing a comma, a quote or a line break in double quotes, and double any quote inside it: `"Smith, John"`, `"He said ""yes"""`.
-- A cell that is a plain number becomes a real number: `1250`, `-3.5`, `0.75`. Anything else stays text.
-- So write numbers with no thousands separators, no currency symbols, no percent signs and a dot as the decimal separator: `1250.50`, not `1,250.50 €`. Put the unit in the column header instead: `Price (EUR)`, `Growth (%)`.
-- Formulas are not evaluated: `=SUM(B2:B9)` would appear as text. Calculate totals yourself and write the results, or tell the user which formula to add.
-- Only one sheet per file. For several tables, create several files, or stack them in one sheet separated by an empty row and a title row.
+- Wrap any cell containing a comma, a quote or a line break in double quotes: `"Smith, John"`, `"He said ""yes"""`.
+- A cell that is a plain number becomes a real number: `1250`, `-3.5`, `0.75`. Write numbers with no thousands separators and a dot as the decimal separator (`1250.50`, not `1,250.50 €`). Put the unit in the column header instead: `Price (EUR)`, `Growth (%)`.
+- Formulas are not evaluated: calculate totals yourself and write the results.
 - Empty rows are dropped.
 
 ## Designing the sheet
 
 1. First row: short, unique headers. One kind of value per column.
-2. One record per row. No merged cells, no blank columns inside the data.
-3. Dates as ISO text `2025-03-14`, which sorts correctly and Excel recognises.
-4. Put derived values (totals, averages) in a clearly labelled final row, and double-check the arithmetic before writing it. Show your working in the reply if the numbers matter.
-5. Codes with leading zeros, such as 00123 or postal codes, stay text automatically, so their zeros survive.
+2. Align numbers to the right and text to the left.
+3. Use background colors and bold text on header rows and summary/total rows for readability.
+4. Dates as ISO text `2025-03-14`, which sorts correctly and Excel recognises.
+5. Put derived values (totals, averages) in a clearly labelled final row, and double-check the arithmetic.
 
-## Example content
+## Example content (HTML)
 
-```
-Item,Category,Quantity,Unit price (EUR),Total (EUR)
-Desk chair,Furniture,4,149.00,596.00
-"Monitor 27""",Electronics,4,229.00,916.00
-"Cables, assorted",Electronics,10,6.50,65.00
-Total,,,,1577.00
+```html
+<table>
+  <col width="180">
+  <col width="120">
+  <col width="80">
+  <col width="120">
+  <col width="120">
+  <thead>
+    <tr style="background-color: #1e293b; color: #ffffff;">
+      <th style="text-align: left;">Item</th>
+      <th style="text-align: left;">Category</th>
+      <th style="text-align: right;">Quantity</th>
+      <th style="text-align: right;">Unit price (EUR)</th>
+      <th style="text-align: right;">Total (EUR)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Desk chair</td>
+      <td>Furniture</td>
+      <td style="text-align: right;">4</td>
+      <td style="text-align: right;">149.00</td>
+      <td style="text-align: right;">596.00</td>
+    </tr>
+    <tr style="background-color: #f8fafc; font-weight: bold;">
+      <td colspan="4">Total</td>
+      <td style="text-align: right;">596.00</td>
+    </tr>
+  </tbody>
+</table>
 ```
 
 ## After creating

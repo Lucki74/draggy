@@ -98,6 +98,13 @@ export function installFakeElectronApi(): FakeApi {
     onBootModel: () => () => {},
     onDownloadProgress: () => () => {},
     onBeforeQuit: () => () => {},
+    terminal: {
+      spawn: async () => ({ success: true, id: "term-1", shell: "pwsh" }),
+      write: async () => true,
+      kill: async () => true,
+      onData: () => () => {},
+      onExit: () => () => {},
+    },
     appInfo: async () => ({ version: "1.2.4", packaged: true }),
     apiServer: {
       status: async () => ({

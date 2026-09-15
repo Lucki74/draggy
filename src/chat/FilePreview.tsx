@@ -2,7 +2,12 @@ import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { REHYPE_PLUGINS, REMARK_PLUGINS, MARKDOWN_COMPONENTS } from "./markdown";
+import {
+  DOCUMENT_REMARK_PLUGINS,
+  MARKDOWN_COMPONENTS,
+  REHYPE_PLUGINS,
+} from "./markdown";
+import { prismLanguageOf } from "../canvas/drafts";
 
 /** Renders a formatted mini preview for created documents, spreadsheets, slide decks, and code. */
 
@@ -11,12 +16,6 @@ interface FilePreviewProps {
   content: string;
   t?: (key: string) => string;
 }
-
-const CODE_EXTENSIONS = new Set([
-  "js", "jsx", "ts", "tsx", "py", "css", "scss", "json", "yml", "yaml",
-  "sh", "bash", "ps1", "cpp", "c", "h", "cs", "rs", "go", "java", "rb",
-  "sql", "toml", "xml", "swift", "kt", "lua", "r",
-]);
 
 function parseCsvRows(text: string): string[][] {
   if (typeof window !== "undefined" && window.DOMParser && /<\s*table\b/i.test(text)) {
@@ -109,7 +108,7 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const isSheet = ext === "xlsx" || ext === "xls" || ext === "csv";
   const isPptx = ext === "pptx" || ext === "ppt";
-  const isCode = CODE_EXTENSIONS.has(ext);
+  const isCode = prismLanguageOf(filename) !== "text" && !isSheet && !isPptx;
 
   const tableRows = useMemo(() => {
     if (!isSheet) return [];
@@ -226,7 +225,7 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
   if (isCode) {
     return (
       <SyntaxHighlighter
-        language={ext || "javascript"}
+        language={prismLanguageOf(filename)}
         style={atomDark}
         customStyle={{
           margin: 0,
@@ -243,9 +242,9 @@ export function FilePreview({ filename, content, t = (k) => k }: FilePreviewProp
   }
 
   return (
-    <div className="p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto max-h-72 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+    <div className="p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto max-h-72 text-sm leading-relaxed markdown-body max-w-none">
       <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
+        remarkPlugins={DOCUMENT_REMARK_PLUGINS}
         rehypePlugins={REHYPE_PLUGINS}
         components={MARKDOWN_COMPONENTS}
       >

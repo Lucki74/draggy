@@ -201,4 +201,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       beforeQuit.delete(handler);
     };
   },
+
+  terminal: {
+    spawn: (id, cwd) => ipcRenderer.invoke("terminal:spawn", id, cwd),
+    write: (id, data) => ipcRenderer.invoke("terminal:write", id, data),
+    kill: (id) => ipcRenderer.invoke("terminal:kill", id),
+    onData: (callback) => subscribe("terminal-data", callback),
+    onExit: (callback) => subscribe("terminal-exit", callback),
+  },
 });

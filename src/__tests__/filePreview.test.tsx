@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { FilePreview } from "../chat/FilePreview";
 
 /** Exercises mini previews for created spreadsheets, slide decks, documents, and code. */
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("FilePreview spreadsheet view", () => {
   it("renders a CSV as an interactive table grid with headers and counts", () => {
@@ -53,6 +57,15 @@ describe("FilePreview markdown and code view", () => {
 
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("bold")).toBeTruthy();
+  });
+
+  it("renders styled HTML for PDF documents", () => {
+    const html = "<h1 style='color: blue;'>Invoice PDF</h1><p>Thank you</p>";
+    render(<FilePreview filename="invoice.pdf" content={html} />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Invoice PDF")).toBeTruthy();
+    expect(screen.getByText("Thank you")).toBeTruthy();
   });
 
   it("renders code files with syntax highlighting", () => {
