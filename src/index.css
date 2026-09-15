@@ -323,3 +323,15 @@ body.browser-bar {
         animation: none;
     }
 }
+
+/* Transparent text keeps the underlying syntax-highlighted tokens visible while typing. */
+.code-editor-textarea {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: #ffffff;
+}
+.code-editor-textarea::selection {
+    background-color: rgba(59, 130, 246, 0.45);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}

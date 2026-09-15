@@ -42,7 +42,10 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
   const [justSaved, setJustSaved] = useState(false);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
   const isMarkdown = path.toLowerCase().endsWith(".md") || path.toLowerCase().endsWith(".markdown");
+  const activeMode = isMarkdown ? viewMode : "edit";
   const gutterRef = useRef<HTMLPreElement>(null);
+  const highlighterRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const api = window.electronAPI?.files;
 
@@ -111,6 +114,19 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       void save();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      const textarea = event.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const current = textarea.value;
+      const next = current.substring(0, start) + "  " + current.substring(end);
+      setState((previous) => (previous ? { ...previous, draft: next } : previous));
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      });
     }
   };
 
@@ -135,30 +151,32 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
           </p>
         </div>
 
-        <div className="flex rounded-lg border-2 border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
-          <button
-            type="button"
-            onClick={() => setViewMode("edit")}
-            className={`px-2 py-1 rounded-md transition-colors ${
-              viewMode === "edit"
-                ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
-            }`}
-          >
-            {t("edit")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("preview")}
-            className={`px-2 py-1 rounded-md transition-colors ${
-              viewMode === "preview"
-                ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
-            }`}
-          >
-            {t("preview")}
-          </button>
-        </div>
+        {isMarkdown && (
+          <div className="flex rounded-lg border-2 border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
+            <button
+              type="button"
+              onClick={() => setViewMode("edit")}
+              className={`px-2 py-1 rounded-md transition-colors ${
+                activeMode === "edit"
+                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              {t("edit")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("preview")}
+              className={`px-2 py-1 rounded-md transition-colors ${
+                activeMode === "preview"
+                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              {t("preview")}
+            </button>
+          </div>
+        )}
 
         <button
           onClick={() => void save()}
@@ -212,60 +230,92 @@ export default function Canvas({ workspaceId, path, t, onClose, onMoved }: Canva
       {problem && <p className="px-3 py-2 text-xs text-red-500">{problem}</p>}
 
       {state ? (
-        viewMode === "preview" ? (
-          isMarkdown ? (
-            <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-base)] text-[var(--text-main)] markdown-body max-w-none">
-              <ReactMarkdown
-                remarkPlugins={DOCUMENT_REMARK_PLUGINS}
-                rehypePlugins={REHYPE_PLUGINS}
-                components={MARKDOWN_COMPONENTS}
-              >
-                {state.draft}
-              </ReactMarkdown>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-auto bg-[#1e1e1e] font-mono text-[13px]">
-              <SyntaxHighlighter
-                language={prismLanguageOf(path) || "text"}
-                style={atomDark}
-                showLineNumbers
-                customStyle={{
-                  margin: 0,
-                  padding: "1rem",
-                  background: "transparent",
-                  fontSize: "13px",
-                }}
-              >
-                {state.draft}
-              </SyntaxHighlighter>
-            </div>
-          )
+        activeMode === "preview" && isMarkdown ? (
+          <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-base)] text-[var(--text-main)] markdown-body max-w-none">
+            <ReactMarkdown
+              remarkPlugins={DOCUMENT_REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={MARKDOWN_COMPONENTS}
+            >
+              {state.draft}
+            </ReactMarkdown>
+          </div>
         ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5">
+          <div className="flex min-h-0 flex-1 overflow-hidden font-mono text-[13px] leading-5 bg-[#1e1e1e]">
             <pre
               ref={gutterRef}
               aria-hidden="true"
-              className="m-0 select-none overflow-hidden px-2 py-3 text-right text-[var(--text-muted)] opacity-60"
+              className="m-0 select-none overflow-hidden px-2.5 py-3 text-right text-[#858585] border-r border-[#333333] bg-[#1e1e1e]"
+              style={{ minWidth: "3rem" }}
             >
               {Array.from({ length: lines }, (_, index) => index + 1).join("\n")}
             </pre>
-            <textarea
-              value={state.draft}
-              onChange={(event) => {
-                const draft = event.target.value;
-                setState((previous) => (previous ? { ...previous, draft } : previous));
-              }}
-              onKeyDown={onKeyDown}
-              onScroll={(event) => {
-                if (gutterRef.current) {
-                  gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-                }
-              }}
-              spellCheck={false}
-              wrap="off"
-              aria-label={baseName(path)}
-              className="min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-[var(--text-main)] outline-none"
-            />
+            <div className="relative min-w-0 flex-1 h-full overflow-hidden">
+              <div
+                ref={highlighterRef}
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none overflow-hidden m-0 p-0"
+              >
+                <SyntaxHighlighter
+                  language={prismLanguageOf(path) || "text"}
+                  style={atomDark}
+                  customStyle={{
+                    margin: 0,
+                    padding: "12px",
+                    background: "transparent",
+                    fontSize: "13px",
+                    lineHeight: "20px",
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                    whiteSpace: "pre",
+                    wordBreak: "keep-all",
+                    tabSize: 2,
+                    overflow: "visible",
+                  }}
+                  codeTagProps={{
+                    style: {
+                      fontSize: "13px",
+                      lineHeight: "20px",
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      whiteSpace: "pre",
+                      wordBreak: "keep-all",
+                      tabSize: 2,
+                    },
+                  }}
+                >
+                  {state.draft.endsWith("\n") ? `${state.draft} ` : state.draft}
+                </SyntaxHighlighter>
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={state.draft}
+                onChange={(event) => {
+                  const draft = event.target.value;
+                  setState((previous) => (previous ? { ...previous, draft } : previous));
+                }}
+                onKeyDown={onKeyDown}
+                onScroll={(event) => {
+                  const top = event.currentTarget.scrollTop;
+                  const left = event.currentTarget.scrollLeft;
+                  if (highlighterRef.current) {
+                    highlighterRef.current.scrollTop = top;
+                    highlighterRef.current.scrollLeft = left;
+                  }
+                  if (gutterRef.current) {
+                    gutterRef.current.scrollTop = top;
+                  }
+                }}
+                spellCheck={false}
+                wrap="off"
+                aria-label={baseName(path)}
+                className="code-editor-textarea absolute inset-0 w-full h-full resize-none bg-transparent p-3 outline-none overflow-auto border-0 text-[13px] leading-5 font-mono"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                  whiteSpace: "pre",
+                  wordBreak: "keep-all",
+                  tabSize: 2,
+                }}
+              />
+            </div>
           </div>
         )
       ) : (

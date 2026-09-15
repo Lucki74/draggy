@@ -184,4 +184,25 @@ describe("preview mode", () => {
 
     expect(editor().value).toBe("first\n");
   });
+
+  it("does not show preview toggle for code files", async () => {
+    read.mockResolvedValueOnce({ success: true, path: "C:\\project\\run.ps1", text: "Get-Process\n" } as never);
+
+    await open({ path: "C:\\project\\run.ps1" });
+
+    expect(screen.queryByText(t("preview"))).toBeNull();
+    expect(screen.queryByText(t("edit"))).toBeNull();
+    const psEditor = screen.getByLabelText("run.ps1") as HTMLTextAreaElement;
+    expect(psEditor.value).toBe("Get-Process\n");
+  });
+
+  it("indents with two spaces on Tab key", async () => {
+    await open();
+
+    editor().selectionStart = 0;
+    editor().selectionEnd = 0;
+    fireEvent.keyDown(editor(), { key: "Tab" });
+
+    expect(editor().value).toBe("  first\n");
+  });
 });
