@@ -11,12 +11,10 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  TerminalSquare,
   X,
 } from "lucide-react";
 import ChatScreen from "../ChatScreen";
 import Canvas from "../canvas/Canvas";
-import Terminal from "../terminal/Terminal";
 import GitStrip from "../project/GitStrip";
 import { useApiBridge } from "../api/useApiBridge";
 import { useGitStatus } from "../project/useGitStatus";
@@ -131,25 +129,8 @@ export default function AppShell({
   /** The file open in the canvas, with the workspace it belongs to. Switching workspace hides it
    * rather than trying to open one project's file in another. */
   const [canvas, setCanvas] = useState<{ workspaceId: string; path: string } | null>(null);
-  const [terminalOpen, setTerminalOpen] = useState(false);
-  const [terminalVisible, setTerminalVisible] = useState(false);
   const [treeWidth, setTreeWidth] = useState(224);
   const [rightPaneWidth, setRightPaneWidth] = useState(500);
-  const [splitHeight, setSplitHeight] = useState(260);
-
-  const toggleTerminal = useCallback(() => {
-    if (!terminalOpen) {
-      setTerminalOpen(true);
-      setTerminalVisible(true);
-    } else {
-      setTerminalVisible((prev) => !prev);
-    }
-  }, [terminalOpen]);
-
-  const killTerminal = useCallback(() => {
-    setTerminalOpen(false);
-    setTerminalVisible(false);
-  }, []);
 
   const startResizeTree = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -183,22 +164,6 @@ export default function AppShell({
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
   }, [rightPaneWidth]);
-
-  const startResizeSplit = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startH = splitHeight;
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const delta = startY - moveEvent.clientY;
-      setSplitHeight(Math.max(120, Math.min(600, startH + delta)));
-    };
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, [splitHeight]);
 
   const pinSidebar = useCallback((node: HTMLDivElement | null) => {
     const rail = node?.parentElement;
@@ -823,21 +788,6 @@ export default function AppShell({
               </span>
             </button>
 
-            {mode === "code" && (
-              <button
-                onClick={toggleTerminal}
-                className={`flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden ${
-                  terminalVisible ? "bg-[var(--hover-bg)]" : ""
-                }`}
-                title={t("terminal")}
-              >
-                <TerminalSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-                <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  {t("terminal")}
-                </span>
-              </button>
-            )}
-
             {mode === "chat" && (
               <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
                 <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
@@ -1088,8 +1038,8 @@ export default function AppShell({
             />
             </div>
 
-            {/* Right column: with resizer, canvas, plan, and terminal */}
-            {(canvasPath || hasPlan || (terminalOpen && terminalVisible)) && (
+            {/* Right column: with resizer, canvas, and plan */}
+            {(canvasPath || hasPlan) && (
               <div className="flex h-full flex-shrink-0 relative">
                 <div
                   onMouseDown={startResizeRightPane}
@@ -1103,7 +1053,7 @@ export default function AppShell({
                   {hasPlan && currentSession?.plan && (
                     <div
                       className={
-                        canvasPath || (terminalOpen && terminalVisible)
+                        canvasPath
                           ? "max-h-[40%] overflow-y-auto border-b-[3px] flex-shrink-0"
                           : "flex-1 min-h-0"
                       }
@@ -1133,27 +1083,6 @@ export default function AppShell({
                         t={t}
                         onClose={closeCanvas}
                         onMoved={followCanvas}
-                      />
-                    </div>
-                  )}
-
-                  {canvasPath && terminalOpen && terminalVisible && (
-                    <div
-                      onMouseDown={startResizeSplit}
-                      className="h-1.5 cursor-row-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none border-t border-b border-[var(--border-light)] bg-[var(--bg-panel)] transition-colors"
-                      title="Resize terminal"
-                    />
-                  )}
-
-                  {terminalOpen && terminalVisible && (
-                    <div
-                      className={canvasPath ? "flex-shrink-0" : "flex-1 min-h-0"}
-                      style={canvasPath ? { height: `${splitHeight}px` } : undefined}
-                    >
-                      <Terminal
-                        cwd={active.rootPath || undefined}
-                        onKill={killTerminal}
-                        t={t}
                       />
                     </div>
                   )}

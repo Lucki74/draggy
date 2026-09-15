@@ -15,8 +15,6 @@ export const languages = [
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
-    terminal: "Terminal",
-    killTerminal: "Kill terminal",
     exploring: "Looking up",
     explored: "Looked up",
     extensionServers: "Servers",
@@ -504,8 +502,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "this image could not be read (it may be corrupted, empty, or in a format such as HEIC that is not supported)"
   },
   fr: {
-    terminal: "Terminal",
-    killTerminal: "Arrêter le terminal",
     exploring: "Recherche de",
     explored: "Trouvé",
     extensionServers: "Serveurs",
@@ -993,8 +989,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "cette image n'a pas pu être lue (elle est peut-être corrompue, vide, ou dans un format non pris en charge comme HEIC)"
   },
   es: {
-    terminal: "Terminal",
-    killTerminal: "Cerrar terminal",
     exploring: "Buscando",
     explored: "Encontrado",
     extensionServers: "Servidores",
@@ -1482,8 +1476,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "no se pudo leer esta imagen (puede estar dañada, vacía o en un formato no compatible como HEIC)"
   },
   de: {
-    terminal: "Terminal",
-    killTerminal: "Terminal beenden",
     exploring: "Sucht nach",
     explored: "Gefunden",
     extensionServers: "Server",
@@ -1971,8 +1963,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "dieses Bild konnte nicht gelesen werden (möglicherweise beschädigt, leer oder in einem nicht unterstützten Format wie HEIC)"
   },
   it: {
-    terminal: "Terminale",
-    killTerminal: "Termina terminale",
     exploring: "Cerca",
     explored: "Trovato",
     extensionServers: "Server",
@@ -2460,8 +2450,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "impossibile leggere questa immagine (potrebbe essere danneggiata, vuota o in un formato non supportato come HEIC)"
   },
   pt: {
-    terminal: "Terminal",
-    killTerminal: "Encerrar terminal",
     exploring: "A procurar",
     explored: "Encontrado",
     extensionServers: "Servidores",
@@ -2949,8 +2937,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "não foi possível ler esta imagem (pode estar danificada, vazia ou num formato não suportado como HEIC)"
   },
   nl: {
-    terminal: "Terminal",
-    killTerminal: "Terminal beëindigen",
     exploring: "Zoekt naar",
     explored: "Gevonden",
     extensionServers: "Servers",
@@ -3438,8 +3424,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "deze afbeelding kon niet worden gelezen (mogelijk beschadigd, leeg of in een niet-ondersteund formaat zoals HEIC)"
   },
   ru: {
-    terminal: "Терминал",
-    killTerminal: "Завершить терминал",
     exploring: "Ищет",
     explored: "Найдено",
     extensionServers: "Серверы",
@@ -3927,8 +3911,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "не удалось прочитать это изображение (возможно, оно повреждено, пустое или в неподдерживаемом формате, например HEIC)"
   },
   zh: {
-    terminal: "终端",
-    killTerminal: "关闭终端",
     exploring: "正在查找",
     explored: "已查到",
     extensionServers: "服务器",
@@ -4416,8 +4398,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "无法读取此图片（可能已损坏、为空，或为 HEIC 等不受支持的格式）"
   },
   ja: {
-    terminal: "ターミナル",
-    killTerminal: "ターミナルを終了",
     exploring: "調べています",
     explored: "調べました",
     extensionServers: "サーバー",
@@ -4905,8 +4885,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "この画像を読み込めませんでした（破損、空、または HEIC など未対応の形式の可能性があります）"
   },
   ko: {
-    terminal: "터미널",
-    killTerminal: "터미널 종료",
     exploring: "찾는 중",
     explored: "찾음",
     extensionServers: "서버",
@@ -5394,8 +5372,6 @@ export const translations: Record<string, Record<string, string>> = {
     unreadableImage: "이 이미지를 읽을 수 없습니다 (손상되었거나 비어 있거나 HEIC 등 지원되지 않는 형식일 수 있습니다)"
   },
   ar: {
-    terminal: "الطرفية",
-    killTerminal: "إنهاء الطرفية",
     exploring: "يبحث عن",
     explored: "تم العثور",
     extensionServers: "الخوادم",

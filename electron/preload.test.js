@@ -99,8 +99,6 @@ describe("preload channel subscriptions", () => {
       () => api.onDownloadProgress(() => {}),
       () => api.onBootModel(() => {}),
       () => api.onBeforeQuit(() => {}),
-      () => api.terminal.onData(() => {}),
-      () => api.terminal.onExit(() => {}),
     ];
 
     for (const subscribe of subscriptions) {
