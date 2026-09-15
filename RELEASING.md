@@ -109,12 +109,15 @@ either way.
 
 ## How the app behaves
 
-`Settings → Updates` holds a single **Automatic updates** switch.
+`Settings → Updates` holds an **Automatic updates** switch and an **Update
+channel**: **Pre-release**, the default, takes any release including one with a
+word on the end; **Releases** sets `allowPrerelease = false` and waits for a
+plain version.
 
-With it on, the app checks twenty seconds after launch and every six hours
-afterwards, downloads a new version in the background, and installs it the next
-time Draggy is quit. With it off nothing happens on its own; the same panel has
-**Check now**, **Download** and **Restart and install** buttons.
+With automatic updates on, the app checks twenty seconds after launch and every
+six hours afterwards, downloads a new version in the background, and installs it
+the next time Draggy is quit. With it off nothing happens on its own; the same
+panel has **Check now**, **Download** and **Restart and install** buttons.
 
 Updates only work in a packaged build. In development the panel reports that
 updates are disabled, which is expected.

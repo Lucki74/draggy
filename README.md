@@ -112,7 +112,7 @@ npm run electron:dev
 
 Vite and Electron together with hot reload. `npm run electron:build` produces an
 installer in `dist-electron`, and `npm run check` is typecheck, lint and around
-1,800 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
+1,900 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
 sending a patch, and [RELEASING.md](RELEASING.md) for how versions are cut.
 
 ## How it is laid out
