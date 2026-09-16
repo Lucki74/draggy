@@ -106,6 +106,8 @@ export default function AppShell({
     tab: "general",
     id: 0,
   });
+  /** The settings page actually on screen, which decides whether an update needs announcing. */
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   /** A project the user asked to remove, waiting on their confirmation. */
   const [removingProjectId, setRemovingProjectId] = useState<string | null>(null);
   const [libraryReady, setLibraryReady] = useState(false);
@@ -631,6 +633,10 @@ export default function AppShell({
     [chatId, editMessage],
   );
 
+  // The Updates page already says an update is ready and offers the same button,
+  // so the dialog over the top of it would be covering its own answer.
+  const onUpdatesPage = viewMode === "settings" && settingsTab === "updates";
+
   const currentSession = visibleSessions.find((s) => s.id === currentChatId);
   const runningHere = runningInMode(runs.running, store.sessions, workspaces.workspaces, mode);
   const hasPlan = Boolean(currentSession?.plan && currentSession.plan.length > 0);
@@ -640,7 +646,7 @@ export default function AppShell({
       className="w-screen h-screen overflow-hidden flex transition-colors duration-300"
       style={{ backgroundColor: "var(--bg-base)", color: "var(--text-main)" }}
     >
-      {update.ready !== null && !update.dismissed && (
+      {update.ready !== null && !update.dismissed && !onUpdatesPage && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
           role="dialog"
@@ -1124,6 +1130,7 @@ export default function AppShell({
             onClearChats={() => clearSide("chat")}
             onClearSessions={() => clearSide("code")}
             onLibraryChange={refreshLibraryReadiness}
+            onTabChange={setSettingsTab}
           />
         </div>
       </div>

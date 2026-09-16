@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Block, Group, Page } from "./Controls";
 import { SETTINGS_GROUPS } from "./pages";
 import type { SettingsTab } from "./pages";
@@ -37,6 +37,8 @@ interface SettingsPageProps {
   onClearChats: () => void;
   onClearSessions: () => void;
   onLibraryChange?: () => void;
+  /** Which page is open, for the shell: an update notice is noise on the Updates page. */
+  onTabChange?: (tab: SettingsTab) => void;
 }
 
 /** Settings, in three groups: the app, Chat and Code. It stays mounted for the app's life, since a
@@ -56,8 +58,12 @@ export default function SettingsPage(props: SettingsPageProps) {
     setTab(request.tab);
   }
 
-  const { onLibraryChange } = props;
+  const { onLibraryChange, onTabChange } = props;
   const libraryChanged = useCallback(() => onLibraryChange?.(), [onLibraryChange]);
+
+  useEffect(() => {
+    onTabChange?.(tab);
+  }, [tab, onTabChange]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
