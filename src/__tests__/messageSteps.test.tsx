@@ -55,3 +55,30 @@ describe("steps in a finished reply", () => {
     expect(screen.queryByText(/Visited/)).toBeNull();
   });
 });
+
+/** A document is written as HTML and can be read either way. A source file is already its own
+ * source, and asking which of one thing to show is the question that made no sense. */
+describe("a file the model wrote", () => {
+  const file = (filename: string, fileContent: string): SearchStep => ({
+    id: "f1",
+    type: "create_file",
+    content: filename,
+    isComplete: true,
+    filename,
+    fileContent,
+  });
+
+  it("offers preview and source for a document", () => {
+    show([file("report.docx", "<h1>Report</h1>")]);
+
+    expect(screen.getByText("Preview")).toBeTruthy();
+    expect(screen.getByText("Source")).toBeTruthy();
+  });
+
+  it("offers neither for a code file", () => {
+    show([file("format.ts", "export const one = 1;")]);
+
+    expect(screen.queryByText("Preview")).toBeNull();
+    expect(screen.queryByText("Source")).toBeNull();
+  });
+});

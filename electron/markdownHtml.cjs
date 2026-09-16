@@ -201,14 +201,15 @@ const PRINT_STYLES = `
 
   body {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Aptos, "Segoe UI", Helvetica, Arial, sans-serif;
     font-size: 11pt;
     line-height: 1.55;
     color: #111;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: "Aptos Display", Aptos, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #0f4761;
     line-height: 1.25;
     margin: 1.4em 0 0.5em;
     break-after: avoid;
@@ -228,7 +229,7 @@ const PRINT_STYLES = `
   a { color: #0b5cad; text-decoration: none; }
 
   code {
-    font-family: Consolas, "Courier New", monospace;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
     font-size: 9.5pt;
     background: #f2f2f4;
     padding: 0.1em 0.3em;

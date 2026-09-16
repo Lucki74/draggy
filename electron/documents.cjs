@@ -3,6 +3,7 @@ const path = require("path");
 const zlib = require("zlib");
 const { pathToFileURL } = require("url");
 const htmlDocument = require("./htmlDocument.cjs");
+const officeStyle = require("./officeStyle.cjs");
 
 const DOCUMENT_TEXT_LIMIT = 200000;
 const SLIDE_BODY_LINES = 12;
@@ -98,22 +99,8 @@ function writeDocx(filepath, content) {
   });
 
   const doc = new docx.Document({
-    numbering: {
-      config: [
-        {
-          reference: "numList",
-          levels: [
-            {
-              level: 0,
-              format: "decimal",
-              text: "%1.",
-              alignment: docx.AlignmentType.START,
-              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
-            },
-          ],
-        },
-      ],
-    },
+    styles: officeStyle.DOCX_STYLES,
+    numbering: officeStyle.DOCX_NUMBERING,
     sections: [{ properties: {}, children }],
   });
 
@@ -168,7 +155,9 @@ async function writePptx(filepath, content) {
     const target = pres.addSlide();
     if (slide.title) {
       target.addText(slide.title, {
-        x: 0.5, y: 0.4, w: 9, h: 0.8, fontSize: 28, bold: true, valign: "top",
+        x: 0.5, y: 0.4, w: 9, h: 0.8,
+        fontFace: officeStyle.HEADING_FONT,
+        fontSize: 28, bold: true, valign: "top",
       });
     }
     if (slide.body.length > 0) {
@@ -177,6 +166,7 @@ async function writePptx(filepath, content) {
         y: slide.title ? 1.4 : 0.5,
         w: 9,
         h: slide.title ? 3.7 : 4.6,
+        fontFace: officeStyle.BODY_FONT,
         fontSize: 16,
         valign: "top",
       });
@@ -224,12 +214,13 @@ async function writeXlsx(filepath, content) {
   const sheet = workbook.addWorksheet("Sheet1");
 
   for (const cells of parseCsv(content)) {
-    sheet.addRow(
+    const row = sheet.addRow(
       cells.map((cell) => {
         const value = cell.trim();
         return NUMERIC_CELL_RE.test(value) ? Number(value) : cell;
       }),
     );
+    row.font = { name: officeStyle.SHEET_FONT, size: 11, bold: row.number === 1 };
   }
 
   await workbook.xlsx.writeFile(filepath);

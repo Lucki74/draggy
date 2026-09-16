@@ -86,6 +86,81 @@ describe("Word output from HTML", () => {
   });
 });
 
+describe("Word structure and typeface", () => {
+  /** A real document arrives wrapped in a container. Treating that wrapper as one paragraph is
+   * how every heading, list and table in it came out as a single line of body text. */
+  it("keeps the structure inside a wrapping div", async () => {
+    const html = `
+      <!DOCTYPE html>
+      <html><body>
+        <div class="page">
+          <h1>Report</h1>
+          <p>Opening line.</p>
+          <ul><li>One</li><li>Two</li></ul>
+          <table><tr><th>Head</th></tr><tr><td>Cell</td></tr></table>
+        </div>
+      </body></html>
+    `;
+
+    const docxPath = out("wrapped.docx");
+    await htmlDoc.writeDocxFromHtml(docxPath, html);
+    const buffer = fs.readFileSync(docxPath);
+    const entries = documents.findZipEntries(buffer);
+    const xml = documents.readZipEntry(buffer, entries.get("word/document.xml")).toString("utf8");
+
+    expect(xml).toContain('w:pStyle w:val="Heading1"');
+    expect(xml).toContain("w:tbl");
+    expect(xml).toMatch(/numPr|numId/);
+
+    // Each block is its own paragraph rather than all of them run together.
+    const paragraphs = xml.match(/<w:p[ >]/g) || [];
+    expect(paragraphs.length).toBeGreaterThan(3);
+  });
+
+  /** Every run used to be stamped with an explicit 11pt, which overrode the heading styles and
+   * flattened the document's hierarchy wherever no size was asked for. */
+  it("leaves a heading at its own size when the HTML sets none", async () => {
+    const docxPath = out("heading-size.docx");
+    await htmlDoc.writeDocxFromHtml(docxPath, "<h1>Big</h1><p>Small</p>");
+    const buffer = fs.readFileSync(docxPath);
+    const entries = documents.findZipEntries(buffer);
+    const xml = documents.readZipEntry(buffer, entries.get("word/document.xml")).toString("utf8");
+
+    expect(xml).not.toContain('w:sz w:val="22"');
+  });
+
+  it("honours a size the HTML does ask for", async () => {
+    const docxPath = out("explicit-size.docx");
+    await htmlDoc.writeDocxFromHtml(docxPath, '<p style="font-size: 18pt">Large</p>');
+    const buffer = fs.readFileSync(docxPath);
+    const entries = documents.findZipEntries(buffer);
+    const xml = documents.readZipEntry(buffer, entries.get("word/document.xml")).toString("utf8");
+
+    expect(xml).toContain('w:sz w:val="36"');
+  });
+
+  it("writes Aptos as the document's own typeface", async () => {
+    const docxPath = out("typeface.docx");
+    await htmlDoc.writeDocxFromHtml(docxPath, "<p>Plain</p>");
+    const buffer = fs.readFileSync(docxPath);
+    const entries = documents.findZipEntries(buffer);
+    const xml = documents.readZipEntry(buffer, entries.get("word/styles.xml")).toString("utf8");
+
+    expect(xml).toContain("Aptos");
+  });
+
+  it("keeps the line breaks in preformatted text", async () => {
+    const docxPath = out("pre.docx");
+    await htmlDoc.writeDocxFromHtml(docxPath, "<pre>first\nsecond\nthird</pre>");
+    const buffer = fs.readFileSync(docxPath);
+
+    const text = documents.readDocx(buffer);
+    expect(text).toContain("first");
+    expect(text).toContain("second");
+    expect(text.indexOf("first")).toBeLessThan(text.indexOf("second"));
+  });
+});
+
 describe("Excel output from HTML", () => {
   it("writes xlsx from HTML table with column widths and styled cells", async () => {
     const html = `

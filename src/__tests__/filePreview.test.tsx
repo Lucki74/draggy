@@ -50,6 +50,56 @@ describe("FilePreview presentation view", () => {
   });
 });
 
+describe("FilePreview HTML documents", () => {
+  /** A .docx is written as HTML. Handed to the Markdown renderer its indentation became a code
+   * block, so the document previewed as its own source. */
+  it("renders a docx written as HTML as the document itself", () => {
+    const html = `
+      <div class="page">
+        <h1>Quarterly Report</h1>
+        <p>Revenue rose by <strong>12%</strong>.</p>
+      </div>
+    `;
+    const { container } = render(<FilePreview filename="report.docx" content={html} />);
+
+    expect(container.querySelector("h1")?.textContent).toBe("Quarterly Report");
+    expect(container.querySelector("strong")?.textContent).toBe("12%");
+    expect(container.textContent).not.toContain("<h1>");
+  });
+
+  it("renders an html file as the page rather than as source", () => {
+    const { container } = render(
+      <FilePreview filename="page.html" content="<h2>Hello</h2><p>World</p>" />,
+    );
+
+    expect(container.querySelector("h2")?.textContent).toBe("Hello");
+  });
+
+  it("drops anything in the markup that could act rather than show", () => {
+    const html =
+      '<div><script>window.stolen = 1</script><style>p{color:red}</style>' +
+      '<p onclick="steal()" style="color: #008000">Safe</p>' +
+      '<a href="javascript:steal()">Link</a></div>';
+    const { container } = render(<FilePreview filename="note.docx" content={html} />);
+
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("style")).toBeNull();
+    expect(container.querySelector("p")?.getAttribute("onclick")).toBeNull();
+    expect(container.querySelector("a")?.getAttribute("href")).toBeNull();
+
+    // What is left still looks like the document it will become.
+    expect(container.querySelector("p")?.getAttribute("style")).toContain("008000");
+    expect(container.textContent).toContain("Safe");
+  });
+
+  it("still renders a Markdown document as Markdown", () => {
+    render(<FilePreview filename="notes.md" content={"# Heading\n\nSome **bold** text."} />);
+
+    expect(screen.getByText("Heading")).toBeTruthy();
+    expect(screen.getByText("bold")).toBeTruthy();
+  });
+});
+
 describe("FilePreview markdown and code view", () => {
   it("renders formatted markdown for document files", () => {
     const doc = "# Project Spec\n\nThis is a **bold** document.";

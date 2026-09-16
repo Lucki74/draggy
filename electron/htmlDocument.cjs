@@ -1,4 +1,5 @@
 const fs = require("fs");
+const officeStyle = require("./officeStyle.cjs");
 
 /** Parses HTML strings and converts them into native Word (.docx), Excel (.xlsx),
  * and PowerPoint (.pptx) documents with colors, fonts, tables, and dimensions. */
@@ -173,6 +174,25 @@ function nodeText(node) {
   return (node.children || []).map(nodeText).join("");
 }
 
+/** The first real name out of a CSS font stack, without its quotes. */
+function firstFont(value) {
+  return String(value || "").split(",")[0].replace(/['"]/g, "").trim();
+}
+
+/** Tags that carry their own block of the document. A wrapper holding any of them is scaffolding
+ * rather than a paragraph, and flattening it is how a whole document became one line. */
+const BLOCK_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "div", "dl", "figure", "footer",
+  "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "main", "nav",
+  "ol", "p", "pre", "section", "table", "ul",
+]);
+
+function hasBlockChild(node) {
+  return (node.children || []).some(
+    (child) => child.type === "element" && BLOCK_TAGS.has(child.tag),
+  );
+}
+
 /** Checks whether a content string appears to contain HTML markup. */
 function isHtml(content) {
   if (typeof content !== "string") return false;
@@ -229,10 +249,12 @@ function collectDocxRuns(docx, node, parentStyle = {}) {
     const color = parseColor(style.color || item.attrs.color);
     if (color) currentStyle.color = color;
 
-    const size = parsePt(style["font-size"]);
-    if (size) currentStyle.size = size;
+    // Only when the HTML actually asks for a size. Setting it unconditionally
+    // stamped 11pt on every run, which overrode the heading styles and was why
+    // a document came out as one flat wall of body text.
+    if (style["font-size"]) currentStyle.size = parsePt(style["font-size"]);
 
-    if (style["font-family"]) currentStyle.font = style["font-family"].split(",")[0].replace(/['"]/g, "").trim();
+    if (style["font-family"]) currentStyle.font = firstFont(style["font-family"]);
 
     for (const child of item.children || []) {
       walk(child, currentStyle);
@@ -297,7 +319,11 @@ function convertHtmlTableToDocx(docx, tableNode) {
     }
   }
 
-  return new docx.Table({ rows, width: { size: 100, type: docx.WidthType.PERCENTAGE } });
+  return new docx.Table({
+    rows,
+    width: { size: 100, type: docx.WidthType.PERCENTAGE },
+    borders: officeStyle.tableBorders(docx),
+  });
 }
 
 /** Converts an HTML document into a Word .docx file. */
@@ -337,6 +363,14 @@ async function writeDocxFromHtml(filepath, html) {
       return;
     }
 
+    // A div wrapping other blocks is a container, not a paragraph. Treating it
+    // as one collapsed every heading, list and table inside it into one run of
+    // text, which is what a whole document arriving as a single line was.
+    if (node.tag === "div" && hasBlockChild(node)) {
+      for (const child of node.children || []) visitNode(child);
+      return;
+    }
+
     if (node.tag === "p" || node.tag === "div") {
       const style = node.style || {};
       const align = style["text-align"] || node.attrs.align;
@@ -348,6 +382,26 @@ async function writeDocxFromHtml(filepath, html) {
       const runs = collectDocxRuns(docx, node);
       pOpts.children = runs.length > 0 ? runs : [new docx.TextRun("")];
       docChildren.push(new docx.Paragraph(pOpts));
+      return;
+    }
+
+    // Line breaks are the whole point of preformatted text, and a single
+    // paragraph would throw them away.
+    if (node.tag === "pre") {
+      for (const line of nodeText(node).replace(/\n+$/, "").split("\n")) {
+        docChildren.push(
+          new docx.Paragraph({
+            spacing: { after: 0, line: 240 },
+            children: [
+              new docx.TextRun({
+                text: line,
+                font: officeStyle.MONO_FONT,
+                size: officeStyle.pt(9.5),
+              }),
+            ],
+          }),
+        );
+      }
       return;
     }
 
@@ -402,22 +456,8 @@ async function writeDocxFromHtml(filepath, html) {
   }
 
   const doc = new docx.Document({
-    numbering: {
-      config: [
-        {
-          reference: "numList",
-          levels: [
-            {
-              level: 0,
-              format: "decimal",
-              text: "%1.",
-              alignment: docx.AlignmentType.START,
-              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
-            },
-          ],
-        },
-      ],
-    },
+    styles: officeStyle.DOCX_STYLES,
+    numbering: officeStyle.DOCX_NUMBERING,
     sections: [{ properties: {}, children: docChildren }],
   });
 
@@ -484,7 +524,7 @@ async function writeXlsxFromHtml(filepath, html) {
 
         // Font
         const fontOpts = {
-          name: cellStyle["font-family"] || "Calibri",
+          name: firstFont(cellStyle["font-family"]) || officeStyle.SHEET_FONT,
           size: parsePt(cellStyle["font-size"], isHeader ? 11 : 10),
           bold: isHeader || cellStyle["font-weight"] === "bold" || parseInt(cellStyle["font-weight"], 10) >= 600,
           italic: cellStyle["font-style"] === "italic",
@@ -631,6 +671,7 @@ async function writePptxFromHtml(filepath, html) {
         y: yOffset,
         w: 8.8,
         h: 0.8,
+        fontFace: officeStyle.HEADING_FONT,
         fontSize: tSize,
         bold: true,
         color: tColor,
@@ -643,19 +684,25 @@ async function writePptxFromHtml(filepath, html) {
     const bodyRuns = [];
     const walkBody = (item) => {
       if (item === titleNode) return;
-      if (item.type === "element" && (item.tag === "p" || item.tag === "li")) {
+
+      // Any heading that is not the slide's own title. Without this they were
+      // walked past and their text never reached the slide at all.
+      const subheading = item.type === "element" && /^h[1-6]$/.test(item.tag);
+
+      if (subheading || (item.type === "element" && (item.tag === "p" || item.tag === "li"))) {
         const isBullet = item.tag === "li";
         const pStyle = item.style || {};
-        const pColor = parseColor(pStyle.color) || "333333";
-        const pSize = parsePt(pStyle["font-size"], 16);
+        const pColor = parseColor(pStyle.color) || (subheading ? "111111" : "333333");
+        const pSize = parsePt(pStyle["font-size"], subheading ? 18 : 16);
         const text = nodeText(item).trim();
         if (text) {
           bodyRuns.push({
             text: isBullet ? `• ${text}\n` : `${text}\n\n`,
             options: {
               color: pColor,
+              fontFace: firstFont(pStyle["font-family"]) || officeStyle.BODY_FONT,
               fontSize: pSize,
-              bold: pStyle["font-weight"] === "bold",
+              bold: subheading || pStyle["font-weight"] === "bold",
               italic: pStyle["font-style"] === "italic",
             },
           });

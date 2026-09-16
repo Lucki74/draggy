@@ -254,6 +254,10 @@ const CODE_EXTENSIONS = new Set([
   "sql", "toml", "xml", "swift", "kt", "lua", "r",
 ]);
 
+/** The only files with two ways to be read: the document, and the markup it was written as. Offering
+ * the choice on a .ts file asked which of one thing the reader wanted. */
+const PREVIEWABLE_EXTENSIONS = new Set(["docx", "pptx", "xlsx", "html", "htm"]);
+
 /** How long the reveal takes, whatever the size: a note types out, a document scrolls past. Either
  * way it ends together, so nobody is left watching. */
 const FILE_REVEAL_MS = 1600;
@@ -273,6 +277,7 @@ function FileCard({
   const content = step.fileContent || "";
   const extension = step.filename?.split(".").pop()?.toLowerCase() || "";
   const isCode = CODE_EXTENSIONS.has(extension);
+  const canToggle = PREVIEWABLE_EXTENSIONS.has(extension);
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
 
   const [revealed, setRevealed] = useState(0);
@@ -343,6 +348,7 @@ function FileCard({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {canToggle && (
           <div className="flex rounded-lg border border-[var(--border-light)] p-0.5 bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider">
             <button
               onClick={() => setViewMode("preview")}
@@ -365,6 +371,7 @@ function FileCard({
               {t("source")}
             </button>
           </div>
+          )}
 
           {step.filepath && !writing && (
             <button
@@ -381,7 +388,9 @@ function FileCard({
       <div
         ref={bodyRef}
         className={`p-0 max-h-[320px] overflow-y-auto w-full relative scroll-smooth ${
-          viewMode === "source" ? "bg-[#1e1e1e]" : "bg-[var(--bg-base)]"
+          // While it is still being written the raw text is what is on screen,
+          // and its light-on-dark colours need the dark behind them.
+          viewMode === "source" || writing ? "bg-[#1e1e1e]" : "bg-[var(--bg-base)]"
         }`}
       >
         {viewMode === "preview" && !writing ? (

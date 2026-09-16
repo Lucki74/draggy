@@ -8,6 +8,7 @@ import {
   REHYPE_PLUGINS,
 } from "./markdown";
 import { isCodeFile, prismLanguageOf } from "../canvas/drafts";
+import { isHtmlContent, sanitizeHtml } from "./htmlPreview";
 
 const LINE_HEIGHT = 20;
 const OVERSCAN = 30;
@@ -123,7 +124,17 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
       ext === "docx" ||
       ext === "doc" ||
       ext === "pdf");
-  const isCode = isCodeFile(filename) && !isSheet && !isPptx;
+  const isWebPage = hasExt && (ext === "html" || ext === "htm");
+
+  // A document the model wrote as HTML is shown as that HTML. Handing it to the
+  // Markdown renderer indents it into a code block, which is why a .docx used
+  // to preview as its own source.
+  const asHtml = useMemo(
+    () => ((isDoc || isWebPage) && isHtmlContent(content) ? sanitizeHtml(content) : null),
+    [isDoc, isWebPage, content],
+  );
+
+  const isCode = isCodeFile(filename) && !isSheet && !isPptx && !asHtml;
 
   const [scrollTop, setScrollTop] = useState(0);
   const lastScrollTopRef = useRef(0);
@@ -139,9 +150,9 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
   }, [isPptx, content]);
 
   const lines = useMemo(() => {
-    if (isSheet || isPptx || isDoc) return [];
+    if (isSheet || isPptx || isDoc || asHtml) return [];
     return content.split("\n");
-  }, [isSheet, isPptx, isDoc, content]);
+  }, [isSheet, isPptx, isDoc, asHtml, content]);
 
   const totalLines = lines.length;
 
@@ -298,6 +309,15 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
           <div style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />
         )}
       </div>
+    );
+  }
+
+  if (asHtml !== null) {
+    return (
+      <div
+        className={`p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-72"} text-sm leading-relaxed markdown-body max-w-none`}
+        dangerouslySetInnerHTML={{ __html: asHtml }}
+      />
     );
   }
 
