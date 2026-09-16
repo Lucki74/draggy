@@ -7,7 +7,7 @@
 
 [![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
-[![Documentation](https://img.shields.io/badge/Docs-wiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://github.com/Lucki74/draggy/wiki)
+[![Documentation](https://img.shields.io/badge/Docs-draggy.org%2Fwiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://draggy.org/wiki)
 
 [![Release](https://img.shields.io/github/v/release/Lucki74/draggy?style=flat&label=release&color=2b2b2b)](https://github.com/Lucki74/draggy/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/Lucki74/draggy/ci.yml?style=flat&label=build&logo=githubactions&logoColor=white)](https://github.com/Lucki74/draggy/actions/workflows/ci.yml)
@@ -39,6 +39,12 @@ projects, all on models running on your own computer.
 It drives a local [Ollama](https://ollama.com) instance, so there is no account,
 no API key, and no request leaving the machine unless you ask for one. An
 Electron app, in React and TypeScript, for Windows, macOS and Linux.
+
+**The documentation lives at [draggy.org/wiki](https://draggy.org/wiki)**, in the
+same twelve languages the app speaks. Start with
+[Installation](https://draggy.org/wiki/installation), or
+[Building and architecture](https://draggy.org/wiki/development) if you are here
+to work on it.
 
 
 ## What it does
@@ -149,7 +155,7 @@ Quitting writes any conversation not saved yet, then stops everything Draggy
 started: browser windows, extension servers, a code run or command still going,
 and Ollama if Draggy was the one that started it.
 
-[Architecture](https://github.com/Lucki74/draggy/wiki/Architecture) has the rest.
+[Building and architecture](https://draggy.org/wiki/development) has the rest.
 
 ## Privacy
 
