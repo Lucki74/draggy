@@ -50,6 +50,39 @@ describe("FilePreview presentation view", () => {
   });
 });
 
+/** Counts every box in a subtree that would grow its own scrollbar. */
+function scrollers(root: HTMLElement): Element[] {
+  return Array.from(root.querySelectorAll("*")).filter((element) => {
+    const inline = element.getAttribute("style") || "";
+    const classes = element.className?.toString() || "";
+    return (
+      /overflow(-[xy])?\s*:\s*(auto|scroll)/.test(inline) ||
+      /\boverflow(-[xy])?-(auto|scroll)\b/.test(classes)
+    );
+  });
+}
+
+describe("FilePreview scrolling", () => {
+  const long = Array.from({ length: 221 }, (_, i) => `const line${i} = ${i};`).join("\n");
+
+  /** The box scrolled, the highlighter's own pre scrolled inside it, and the card scrolled around
+   * both: three bars down one edge for one file. */
+  it("gives a long code file exactly one scrollbar", () => {
+    const { container } = render(<FilePreview filename="organizer.py" content={long} />);
+
+    expect(scrollers(container).length).toBe(1);
+  });
+
+  /** The spacer that holds the scroll height is unshrinkable. As a flex child the code was
+   * squashed to a single line and the rest of the card was empty. */
+  it("shows the windowed code rather than collapsing it to one line", () => {
+    const { container } = render(<FilePreview filename="organizer.py" content={long} />);
+
+    expect(container.textContent).toContain("const line0");
+    expect(container.textContent).toContain("const line40");
+  });
+});
+
 describe("FilePreview HTML documents", () => {
   /** A .docx is written as HTML. Handed to the Markdown renderer its indentation became a code
    * block, so the document previewed as its own source. */

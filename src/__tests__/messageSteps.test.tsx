@@ -81,4 +81,22 @@ describe("a file the model wrote", () => {
     expect(screen.queryByText("Preview")).toBeNull();
     expect(screen.queryByText("Source")).toBeNull();
   });
+
+  /** The card scrolled, the preview inside it scrolled, and the highlighter inside that scrolled
+   * again: three bars down the right-hand edge of one file. */
+  it("scrolls in one place, not three", () => {
+    const long = Array.from({ length: 221 }, (_, i) => `const line${i} = ${i};`).join("\n");
+    const { container } = show([file("organizer.py", long)]);
+
+    const scrolling = Array.from(container.querySelectorAll("*")).filter((element) => {
+      const inline = element.getAttribute("style") || "";
+      const classes = element.className?.toString() || "";
+      return (
+        /overflow(-[xy])?\s*:\s*(auto|scroll)/.test(inline) ||
+        /\boverflow(-[xy])?-(auto|scroll)\b/.test(classes)
+      );
+    });
+
+    expect(scrolling.length).toBe(1);
+  });
 });

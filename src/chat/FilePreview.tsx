@@ -285,12 +285,14 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
 
   if (isCode) {
     return (
+      // Block flow, not a flex column: the spacer below is unshrinkable, so as a
+      // flex child the code itself was squashed to a line and the rest was gap.
       <div
         onScroll={handleScroll}
-        className={`flex flex-col ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-[#1e1e1e] font-mono text-[13px]`}
+        className={`${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-[#1e1e1e] font-mono text-[13px]`}
       >
         {visibleRange.isWindowed && topSpacerHeight > 0 && (
-          <div style={{ height: `${topSpacerHeight}px`, flexShrink: 0 }} />
+          <div style={{ height: `${topSpacerHeight}px` }} />
         )}
         <SyntaxHighlighter
           language={prismLanguageOf(filename)}
@@ -301,12 +303,15 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
             background: "transparent",
             fontSize: "13px",
             lineHeight: `${LINE_HEIGHT}px`,
+            // This box scrolls. Left to itself the highlighter's own <pre>
+            // scrolls too, which is a second bar inside the first.
+            overflow: "visible",
           }}
         >
           {visibleText}
         </SyntaxHighlighter>
         {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
-          <div style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />
+          <div style={{ height: `${bottomSpacerHeight}px` }} />
         )}
       </div>
     );

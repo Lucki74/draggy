@@ -307,6 +307,7 @@ function FileCard({
   }, [animate, content]);
 
   const writing = (animate && revealed < content.length) || !step.isComplete;
+  const showingPreview = viewMode === "preview" && !writing;
   const shown = animate ? content.slice(0, Math.min(revealed, content.length)) : content;
 
   useEffect(() => {
@@ -387,13 +388,17 @@ function FileCard({
 
       <div
         ref={bodyRef}
-        className={`p-0 max-h-[320px] overflow-y-auto w-full relative scroll-smooth ${
+        className={`p-0 w-full relative scroll-smooth ${
+          // The preview caps and scrolls itself. Capping it here as well put one
+          // scrollbar inside another.
+          showingPreview ? "" : "max-h-[320px] overflow-y-auto"
+        } ${
           // While it is still being written the raw text is what is on screen,
           // and its light-on-dark colours need the dark behind them.
           viewMode === "source" || writing ? "bg-[#1e1e1e]" : "bg-[var(--bg-base)]"
         }`}
       >
-        {viewMode === "preview" && !writing ? (
+        {showingPreview ? (
           <FilePreview
             filename={step.filename || "file.txt"}
             content={shown}
