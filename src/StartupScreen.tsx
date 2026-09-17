@@ -174,6 +174,8 @@ export default function StartupScreen({
             platform: specs?.platform,
             arch: specs?.arch,
             ollamaVersion: await getOllamaVersion(),
+            ram: specs?.ram,
+            cpuModel: specs?.cpu,
           });
 
           if (!isOnline) {

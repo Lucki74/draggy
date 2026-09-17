@@ -470,19 +470,15 @@ async function run() {
       ["App", "Data", "app-settings-data"],
       ["Chat", "Preferences", "app-settings-chat"],
       ["Chat", "Talk", "app-settings-talk"],
+      ["Chat", "Library", "app-settings-library"],
       ["Code", "Preferences", "app-settings-code"],
       ["Code", "Projects", "app-settings-projects"],
     ];
 
     for (const [group, label, name] of pages) {
       await openSettingsPage(win, group, label);
-      await capture(win, name);
+      await shoot(win, name);
     }
-
-    await setDark(win, true);
-    await openSettingsPage(win, "Code", "Projects");
-    await capture(win, "app-settings-projects-dark");
-    await setDark(win, false);
   }
 
   if (wanted("command")) {

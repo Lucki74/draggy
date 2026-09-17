@@ -1670,22 +1670,44 @@ function parseSearchResults(html) {
   return models;
 }
 
+/** The first of each name wins: popular is the more settled list, so its description and tags
+ * are the ones kept when newest lists the same model again. */
+function mergeModelLists(...lists) {
+  const seen = new Set();
+  const merged = [];
+  for (const model of lists.flat()) {
+    if (seen.has(model.name)) continue;
+    seen.add(model.name);
+    merged.push(model);
+  }
+  return merged;
+}
+
+async function fetchLibraryPage(url) {
+  const response = await fetch(url, {
+    headers: { "User-Agent": APP_NAME },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Library returned ${response.status}`);
+  return parseSearchResults(await response.text());
+}
+
 ipcMain.handle("search-models", async (event, query) => {
   const term = String(query || "").trim();
-  const url = term
-    ? `${OLLAMA_LIBRARY}/search?q=${encodeURIComponent(term)}`
-    : `${OLLAMA_LIBRARY}/library?sort=popular`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": APP_NAME },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!response.ok) {
-      return { success: false, error: `Library returned ${response.status}` };
+    if (!term) {
+      // Sorted by installs alone, the browse view would never show anything too new to have
+      // racked any up yet, so it is merged with the newest sort instead of using one or the other.
+      const [popular, newest] = await Promise.all([
+        fetchLibraryPage(`${OLLAMA_LIBRARY}/library?sort=popular`),
+        fetchLibraryPage(`${OLLAMA_LIBRARY}/library?sort=newest`),
+      ]);
+      return { success: true, models: mergeModelLists(popular, newest) };
     }
 
-    return { success: true, models: parseSearchResults(await response.text()) };
+    const models = await fetchLibraryPage(`${OLLAMA_LIBRARY}/search?q=${encodeURIComponent(term)}`);
+    return { success: true, models };
   } catch (error) {
     return { success: false, error: error.message };
   }

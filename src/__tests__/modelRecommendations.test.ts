@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chipClassOf,
   getRecommendedModel,
   ggufLadder,
   ladderFor,
@@ -112,6 +113,96 @@ describe("choosing between the two ladders", () => {
   it("defaults to the PC ladder when nothing is known", () => {
     expect(ladderFor()).toBe(ggufLadder);
     expect(modelRecommendations).toBe(ggufLadder);
+  });
+});
+
+describe("RAM alongside VRAM, on a PC", () => {
+  const gguf = [...ggufLadder].sort((a, b) => a.vram - b.vram);
+
+  it("still ignores RAM when none is reported", () => {
+    // Every test above calls with no `ram` at all; this just names that on purpose.
+    expect(getRecommendedModel(gguf[3].vram, {})).toBe(gguf[3].model);
+  });
+
+  it("caps a big card at what little RAM can actually hold", () => {
+    // Ollama has to read the whole model into RAM before the GPU touches it, so a
+    // 24 GB card in an 8 GB machine cannot really run what the card alone suggests.
+    const uncapped = getRecommendedModel(24, {});
+    const capped = getRecommendedModel(24, { ram: 8 });
+    const climbing = [...gguf];
+
+    expect(capped).not.toBe(uncapped);
+    expect(climbing.findIndex((entry) => entry.model === capped)).toBeLessThan(
+      climbing.findIndex((entry) => entry.model === uncapped),
+    );
+  });
+
+  it("does not strand integrated graphics on the smallest model when RAM is generous", () => {
+    // No dedicated GPU used to mean the 0.8B floor no matter what, even next to 32 GB of RAM.
+    const chosen = getRecommendedModel(0, { ram: 32 });
+    expect(chosen).not.toBe(gguf[0].model);
+  });
+
+  it("never lets a RAM floor exceed a RAM ceiling", () => {
+    for (let ram = 1; ram <= 256; ram += 1) {
+      expect(() => getRecommendedModel(0, { ram })).not.toThrow();
+    }
+  });
+});
+
+describe("chip class on Apple Silicon", () => {
+  it("reads the variant out of the CPU string", () => {
+    expect(chipClassOf("Apple M1")).toBe("base");
+    expect(chipClassOf("Apple M2 Pro")).toBe("pro");
+    expect(chipClassOf("Apple M3 Max")).toBe("max");
+    expect(chipClassOf("Apple M1 Ultra")).toBe("ultra");
+  });
+
+  it("defaults unknown and non-Apple CPUs to the most conservative class", () => {
+    expect(chipClassOf("AMD Ryzen 9 7950X")).toBe("base");
+    expect(chipClassOf(undefined)).toBe("base");
+    expect(chipClassOf(null)).toBe("base");
+  });
+
+  it("reads unified memory itself rather than the pre-reduced VRAM copy", () => {
+    const base = { platform: "darwin", arch: "arm64", ollamaVersion: "0.33.3" };
+    const raw16 = mlxLadder.find((entry) => entry.vram === 16)!;
+
+    // The old, already-reduced number would have missed this rung entirely.
+    expect(getRecommendedModel(5, { ...base, ram: 16, cpuModel: "Apple M1" })).toBe(
+      raw16.model,
+    );
+  });
+
+  it("takes a wide-bandwidth Max or Ultra chip one rung above a base or Pro one", () => {
+    const base = { platform: "darwin", arch: "arm64", ollamaVersion: "0.33.3", ram: 32 };
+    const climbing = [...mlxLadder].sort((a, b) => a.vram - b.vram);
+    const atThirtyTwo = climbing.findIndex((entry) => entry.vram === 32);
+
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2" })).toBe(
+      climbing[atThirtyTwo].model,
+    );
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Pro" })).toBe(
+      climbing[atThirtyTwo].model,
+    );
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Max" })).toBe(
+      climbing[atThirtyTwo + 1].model,
+    );
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Ultra" })).toBe(
+      climbing[atThirtyTwo + 1].model,
+    );
+  });
+
+  it("never bumps past the top of the ladder", () => {
+    const top = [...mlxLadder].sort((a, b) => a.vram - b.vram).at(-1)!;
+    const chosen = getRecommendedModel(0, {
+      platform: "darwin",
+      arch: "arm64",
+      ollamaVersion: "0.33.3",
+      ram: 999,
+      cpuModel: "Apple M4 Ultra",
+    });
+    expect(chosen).toBe(top.model);
   });
 });
 
