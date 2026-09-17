@@ -46,6 +46,36 @@ describe("HTML detection and style parsing", () => {
   });
 });
 
+describe("parsing entities and tags safely", () => {
+  it("decodes an entity once rather than unescaping its own output", () => {
+    // "&amp;lt;" names the literal text "&lt;". Decoding &amp; first turns that
+    // into "&lt;" and then decodes it a second time into "<", which is a
+    // different character the source never actually named.
+    expect(htmlDoc.decodeEntities("&amp;lt;script&amp;gt;")).toBe("&lt;script&gt;");
+    expect(htmlDoc.decodeEntities("&amp;amp;")).toBe("&amp;");
+  });
+
+  it("still decodes every entity it always has", () => {
+    expect(htmlDoc.decodeEntities("&lt;b&gt; &amp; &quot;q&#39;s&quot; &#65;&#x42;")).toBe(
+      '<b> & "q\'s" AB',
+    );
+  });
+
+  it("parses a tag with no closing '>' in linear time", () => {
+    // "=" inside an attribute name, and an unquoted value allowed to start
+    // with a quote character, both let one stretch of the input parse as
+    // an attribute two different ways; each repeat below used to roughly
+    // double the time this took instead of adding a constant amount of it.
+    const attacks = ['!="" ', ' =! !', "!=! "];
+    for (const unit of attacks) {
+      const attack = "<a " + unit.repeat(400);
+      const started = Date.now();
+      htmlDoc.parseHtml(attack);
+      expect(Date.now() - started, unit).toBeLessThan(1000);
+    }
+  });
+});
+
 describe("Word output from HTML", () => {
   it("writes docx from HTML with styled headings, paragraphs and tables", async () => {
     const html = `

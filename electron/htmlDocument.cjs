@@ -90,17 +90,18 @@ function parseWidth(value) {
   return { type: "px", value: num };
 }
 
-/** Unescapes HTML entities in text content. */
+/** Unescapes HTML entities in text content. `&amp;` decodes last, or `&amp;lt;` (a literal,
+ * once-escaped "&lt;") would decode twice into "<" instead of the text it actually names. */
 function decodeEntities(text) {
   return String(text || "")
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, "&");
 }
 
 const VOID_TAGS = new Set([
@@ -112,7 +113,10 @@ const VOID_TAGS = new Set([
 function parseHtml(html) {
   const root = { type: "root", children: [] };
   const stack = [root];
-  const tagRegex = /<!--[\s\S]*?-->|<(\/)?([a-zA-Z0-9:-]+)((?:\s+[^'">\s/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/)?>|([^<]+)/g;
+  // The attribute name excludes "=" too: without that, "!=" in unquoted junk parses two ways
+  // (name "!=" with no value, or name "!" with value after "="), and the ambiguity multiplies
+  // with every repetition, which is what let a crafted string blow this up exponentially.
+  const tagRegex = /<!--[\s\S]*?-->|<(\/)?([a-zA-Z0-9:-]+)((?:\s+[^'">\s/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?)*)\s*(\/)?>|([^<]+)/g;
 
   let match;
   while ((match = tagRegex.exec(html)) !== null) {

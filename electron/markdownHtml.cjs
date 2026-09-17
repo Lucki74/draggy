@@ -287,7 +287,10 @@ function buildDocument(content, title) {
   const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />`;
 
   if (isHtml(content)) {
-    const raw = String(content ?? "").replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script\s*>/gi, "");
+    // A closing tag with junk before the ">", like </script foo> or one broken across a
+    // newline, still ends the element as far as a real browser is concerned; matching only
+    // "</script>" exactly let one of those survive the strip with the opening tag intact.
+    const raw = String(content ?? "").replace(/<script\b[^<]*(?:(?!<\/script\b)<[^<]*)*<\/script\b[^>]*>/gi, "");
     if (/<!doctype\b/i.test(raw) || /<html\b/i.test(raw)) {
       if (/<head\b/i.test(raw)) {
         return raw.replace(/<head\b[^>]*>/i, (match) => `${match}\n${csp}\n<style>${PRINT_STYLES}</style>`);

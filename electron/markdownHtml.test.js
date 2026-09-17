@@ -216,4 +216,20 @@ describe("HTML content in printable document", () => {
     expect(doc).not.toContain("alert");
     expect(doc).not.toContain("<script>");
   });
+
+  it("still strips a script whose closing tag a real browser accepts but this one used to miss", () => {
+    // A browser ends the element as soon as it sees "</script" regardless of
+    // what junk or whitespace follows before the ">". Requiring exactly
+    // "</script>" let one written as "</script foo>" or split across a line
+    // survive the strip with the payload still attached to it.
+    const spaced = '<h1>Hello</h1><script>alert("hack")</script foo>';
+    const newlined = '<h1>Hello</h1><script>alert("hack")</script\n>';
+
+    for (const dangerous of [spaced, newlined]) {
+      const doc = buildDocument(dangerous, "safe");
+      expect(doc).toContain("<h1>Hello</h1>");
+      expect(doc).not.toContain("alert");
+      expect(doc).not.toContain("<script");
+    }
+  });
 });
