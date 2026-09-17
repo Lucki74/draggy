@@ -52,33 +52,14 @@ but `1.2.5-fix` is **older** than `1.2.5` and is never offered to anyone
 already on it. Tag from the version you are heading for, not the one you are
 on. `npm version 1.2.6-fix` writes it, the same as `patch` does.
 
-## The channel, and who a release actually reaches
+## The channel
 
-`electron/updater.cjs` pins `channel = "latest"` with `allowPrerelease` on,
-which is what the **Pre-release** setting means and what every install defaults
-to. In electron-updater's GitHub provider that combination only accepts a
-release whose tag carries the prerelease id `latest`. A plain `vX.Y.Z` is never
-offered to it; a `vX.Y.Z-latest` is.
-
-**Every 2.x release so far has gone out as a plain tag.** Each is on the
-releases page to download, and reaches a copy on 1.2.5 or older, which has no
-channel pinned. None of them reach 1.2.6, 1.2.7, or each other. Nobody already
-on 2.x has been offered an update.
-
-Three ways out, none of them taken yet:
-
-- **Publish the twin.** Tag `vX.Y.Z-latest` as well, carrying the same
-  installers and a `latest.yml` that names the plain version. The version inside
-  is what gets compared, so an install moves to X.Y.Z and never sees the word
-  again. Every release needs its own twin, for as long as the channel is pinned.
-- **Stop pinning.** Drop `channel = "latest"` so a plain tag reaches 2.x
-  directly. It abandons anyone still on 1.2.6 or 1.2.7, and it wants testing
-  against a real install before it ships.
-- **Say so.** Leave it and tell people to download the installer, which is what
-  is happening now.
-
-Whichever it is, only a real install proves it. The unit tests cover the data a
-version jump has to survive; none of them cover the updater.
+`electron/updater.cjs` never pins an explicit channel name; only
+`allowPrerelease` changes between the two settings. **Releases** takes
+GitHub's own latest non-prerelease tag. **Pre-release** adds a prerelease tag
+on top of that, not instead of it; an explicit name would make electron-updater
+look only for a tag carrying that word as its prerelease id, which nothing
+published here has.
 
 ## Releasing from your own machine instead
 

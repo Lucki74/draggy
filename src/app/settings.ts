@@ -32,7 +32,7 @@ export const defaultSettings: AppSettings = {
   autoUpdate: true,
   compactLimit: null,
   fixedContextSize: null,
-  updateChannel: "prerelease",
+  updateChannel: "release",
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };

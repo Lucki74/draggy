@@ -70,12 +70,17 @@ describe("a version with a prerelease tag still reaches people", () => {
     // electron-builder otherwise names the file after the prerelease word, so
     // 1.2.6-fix would publish fix.yml, which no installed app ever reads.
     expect(pkg.build.detectUpdateChannel).toBe(false);
-    expect(updater).toContain('updater.channel = "latest"');
   });
 
-  it("accepts one as an update", () => {
-    // Without this a stable build refuses a prerelease outright, whatever the
-    // number says.
-    expect(updater).toContain("updater.allowPrerelease = true");
+  it("never pins an explicit channel name", () => {
+    // Explicit channel names force GitHub tag filtering by prerelease id;
+    // null allows fetching latest.yml directly without filtering releases.
+    expect(updater).not.toMatch(/updater\.channel\s*=\s*"/);
+  });
+
+  it("lets the pre-release setting also pick up a plain release", () => {
+    // Pre-release is meant to add prerelease tags on top of plain releases,
+    // not swap one set for the other.
+    expect(updater).toContain('updater.allowPrerelease = channel !== "release"');
   });
 });

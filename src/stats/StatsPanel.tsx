@@ -150,7 +150,7 @@ export default function StatsPanel({ t }: StatsPanelProps) {
                     </span>
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--hover-bg)]">
                       <div
-                        className="h-full rounded-full bg-[var(--bg-inverted)]"
+                        className="h-full rounded-full bg-[var(--text-main)]"
                         style={{ width: `${(tool.calls / busiestTool) * 100}%` }}
                       />
                     </div>
@@ -176,7 +176,7 @@ export default function StatsPanel({ t }: StatsPanelProps) {
                   </span>
                   <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--hover-bg)]">
                     <div
-                      className="h-full rounded-full bg-[var(--bg-inverted)]"
+                      className="h-full rounded-full bg-[var(--text-main)]"
                       style={{ width: `${(bucket.count / busiestBucket) * 100}%` }}
                     />
                   </div>

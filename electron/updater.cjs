@@ -43,10 +43,10 @@ function init(app, sendToWindows) {
   updater.autoDownload = automatic;
   updater.autoInstallOnAppQuit = true;
 
-  // A version like 1.2.6-fix is a real release here, not a channel of its own.
-  // Both sides are pinned to latest.yml so every build lands in one manifest.
-  updater.allowPrerelease = true;
-  updater.channel = "latest";
+  // Channel stays null so the GitHub provider does not filter tags by channel name;
+  // both settings still resolve to latest.yml, which every build uploads.
+  updater.allowPrerelease = false;
+  updater.channel = null;
   updater.logger = {
     info: (message) => log.info("updater", message),
     warn: (message) => log.warn("updater", message),
@@ -107,15 +107,11 @@ function configure({ automatic: wanted, channel } = {}) {
 
   if (updater) {
     updater.autoDownload = automatic;
+    updater.channel = null;
 
-    // "release" pins to stable x.x.x only; "prerelease" accepts x.x.x-label too.
-    if (channel === "release") {
-      updater.allowPrerelease = false;
-      updater.channel = null;
-    } else {
-      updater.allowPrerelease = true;
-      updater.channel = "latest";
-    }
+    // "release" only ever takes GitHub's own latest non-prerelease tag.
+    // "prerelease" adds a prerelease tag on top of that, not instead of it.
+    updater.allowPrerelease = channel !== "release";
   }
 
   if (automatic) schedule();

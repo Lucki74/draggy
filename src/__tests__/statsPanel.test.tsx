@@ -92,4 +92,14 @@ describe("the statistics page", () => {
     expect(clear).toHaveBeenCalledTimes(1);
     expect(screen.getByText(t("statsEmpty"))).toBeTruthy();
   });
+
+  it("uses text-main for bar fills to maintain dark mode contrast", async () => {
+    // Dark mode bg-inverted (#2d2d2d) blends into hover-bg (#2a2a2a);
+    // text-main ensures visible contrast across light and dark modes.
+    const { container } = render(<StatsPanel t={t} />);
+    await act(async () => {});
+    const fills = container.querySelectorAll(".rounded-full > .bg-\\[var\\(--text-main\\)\\]");
+    expect(fills.length).toBeGreaterThan(0);
+    expect(container.querySelector(".rounded-full > .bg-\\[var\\(--bg-inverted\\)\\]")).toBeNull();
+  });
 });

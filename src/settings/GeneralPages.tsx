@@ -272,7 +272,7 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
         <Row label={t("updateChannel")}>
           <Segmented
             label={t("updateChannel")}
-            value={settings.updateChannel ?? "prerelease"}
+            value={settings.updateChannel ?? "release"}
             options={[
               { id: "prerelease", label: t("updateChannelAll") },
               { id: "release", label: t("updateChannelReleases") },
