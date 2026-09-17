@@ -55,40 +55,15 @@ data folder without touching one. Follow that shape and your change is testable.
 
 ## How the code is laid out
 
-```
-electron/       main process: windows, IPC, SQLite, the file guard and
-                checkpoints, git, search, the embedded browser, code
-                execution, MCP servers and widgets, the local API, updates
-src/            the React app
-src/app/        the shell: sidebar, routing, sessions, running tasks
-src/agent/      the tool-calling loop, permissions, compaction, subagents
-src/chat/       the message list, diffs, approvals, the context wheel
-src/canvas/     the editor beside the chat
-src/files/      the file explorer and tree
-src/project/    project memory, the git strip
-src/plan/       the editable plan
-src/extensions/ MCP servers, remote servers and skills on one screen
-src/settings/   the settings panels
-src/stats/      the statistics page
-src/tools/      tool definitions and the registry they live in
-src/voice/      capture, voice activity detection, turn-taking, speech
-src/__tests__   everything that can be tested without a GPU
-```
+[Building and architecture](https://draggy.org/wiki/development) has the
+folder layout and the two boundaries that matter most: `electron/preload.cjs`,
+the only way from the renderer to the filesystem, network and database, and
+the session split between Draggy's own window and any external page it opens.
 
-Two boundaries matter more than the rest:
-
-`electron/preload.cjs` is the security boundary. The renderer has no Node access
-and reaches the filesystem, the network and the database only through the
-functions exposed there. Adding one is a deliberate act, so say why in the pull
-request.
-
-The session split is the other. Draggy's own window runs under a strict Content
-Security Policy; every external page runs on a separate partition with no policy
-of ours imposed on it. Do not merge the two.
-
-Two more checks sit behind the preload. `electron/fsGuard.cjs` is the only way to
-a user's file: a new file tool resolves its path there, or it is a way around it.
-And every tool declares what it can do (`readOnly`, `destructive` and so on) so
+Two checks sit behind the preload that the wiki page does not go into.
+`electron/fsGuard.cjs` is the only way to a user's file: a new file tool
+resolves its path there, or it is a way around it. And every tool declares
+what it can do (`readOnly`, `destructive` and so on) so
 `src/agent/permissions.ts` can decide whether to run it, ask, or refuse. A tool
 without that declaration is treated as the most dangerous kind.
 

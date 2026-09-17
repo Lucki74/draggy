@@ -7,7 +7,7 @@
 
 [![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
-[![Documentation](https://img.shields.io/badge/Docs-draggy.org%2Fwiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://draggy.org/wiki)
+[![Wiki](https://img.shields.io/badge/Wiki-draggy.org%2Fwiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://draggy.org/wiki)
 
 [![Release](https://img.shields.io/github/v/release/Lucki74/draggy?style=flat&label=release&color=2b2b2b)](https://github.com/Lucki74/draggy/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/Lucki74/draggy/ci.yml?style=flat&label=build&logo=githubactions&logoColor=white)](https://github.com/Lucki74/draggy/actions/workflows/ci.yml)
@@ -40,12 +40,12 @@ It drives a local [Ollama](https://ollama.com) instance, so there is no account,
 no API key, and no request leaving the machine unless you ask for one. An
 Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
-**The documentation lives at [draggy.org/wiki](https://draggy.org/wiki)**, in the
-same twelve languages the app speaks. Start with
+**The wiki, at [draggy.org/wiki](https://draggy.org/wiki)**, is where the rest
+lives: installing, requirements, every feature, troubleshooting, and how the
+app is built, in the same twelve languages the app speaks. Start with
 [Installation](https://draggy.org/wiki/installation), or
 [Building and architecture](https://draggy.org/wiki/development) if you are here
-to work on it.
-
+to work on the code.
 
 ## What it does
 
@@ -70,41 +70,14 @@ to work on it.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key.
 
-## Requirements
-
-Ollama has to be installed and running. Draggy will offer to install it if it
-cannot find it.
-
-### Minimum
-| | |
-| --- | --- |
-| System | Windows 10 64-bit (1809 or newer), macOS 11, 64-bit Linux with glibc 2.28 or newer |
-| Processor | Intel Core i5-8250U, AMD Ryzen 3 3200U, Apple M1 |
-| Memory | 8 GB |
-| Graphics | Intel UHD 620, AMD Radeon Vega 8 |
-| Disk | 10 GB free |
-
-### Recommended
-| | |
-| --- | --- |
-| System | Windows 11, macOS 14, Newest Linux |
-| Processor | Intel Core i5-12400, AMD Ryzen 5 5600, or Apple M2 |
-| Memory | 16 GB |
-| Graphics | GeForce RTX 3070, Radeon RX 7600, Intel Arc A750 |
-| Disk | 20 GB free (SSD) |
-
-## Installing
+## Installing and requirements
 
 Pick your system on [draggy.org](https://draggy.org), or take the installer
-straight from the [Releases page](https://github.com/Lucki74/draggy/releases),
-and run it. Draggy updates itself in the background and offers to install on
-the next launch.
-
-Nothing is code signed, which is a certificate I have not bought rather than
-anything wrong with the build. Windows shows a SmartScreen warning: **More
-info**, then **Run anyway**. macOS needs the quarantine flag cleared with
-`xattr -cr /Applications/Draggy.app`, and cannot update itself. Each release
-includes a SHA-512 if you would rather check than trust.
+straight from the [Releases page](https://github.com/Lucki74/draggy/releases).
+Ollama has to be installed and running; Draggy offers to install it if it
+cannot find it. See [Installation](https://draggy.org/wiki/installation) for
+hardware requirements, the code-signing warnings each system shows once, and
+how updates arrive.
 
 ## Building it yourself
 
@@ -116,75 +89,16 @@ npm install
 npm run electron:dev
 ```
 
-Vite and Electron together with hot reload. `npm run electron:build` produces an
-installer in `dist-electron`, and `npm run check` is typecheck, lint and around
-1,900 tests in a few seconds. See [CONTRIBUTING.md](CONTRIBUTING.md) before
-sending a patch, and [RELEASING.md](RELEASING.md) for how versions are cut.
-
-## How it is laid out
-
-```
-electron/       main process: windows, IPC, SQLite, the file guard and
-                checkpoints, git, search, the embedded browser, code
-                execution, MCP servers and widgets, the local API, updates
-src/            the React app
-src/app/        the shell: sidebar, routing, sessions, running tasks
-src/agent/      the tool-calling loop, permissions, compaction, subagents
-src/chat/       the message list, diffs, approvals, the context wheel
-src/canvas/     the editor beside the chat
-src/files/      the file explorer and tree
-src/project/    project memory, the git strip
-src/plan/       the editable plan
-src/extensions/ MCP servers, remote servers and skills on one screen
-src/settings/   settings: the app, Chat and Code pages
-src/stats/      the statistics page
-src/tools/      tool definitions and the registry they live in
-src/voice/      capture, voice activity detection, turn-taking, speech
-src/__tests__   everything that can be tested without a GPU
-```
-
-Two boundaries matter. `electron/preload.cjs` is the security one: the renderer
-has no Node access and reaches the filesystem, network and database only through
-what is exposed there. Behind it, `electron/fsGuard.cjs` decides which paths a
-conversation may touch, and every tool call goes through the permission check in
-`src/agent/permissions.ts`. The second is the session split, with Draggy's own window
-under a strict Content Security Policy and every external page on a separate
-partition with no policy of ours imposed on it.
-
-Quitting writes any conversation not saved yet, then stops everything Draggy
-started: browser windows, extension servers, a code run or command still going,
-and Ollama if Draggy was the one that started it.
-
-[Building and architecture](https://draggy.org/wiki/development) has the rest.
-
-## Privacy
-
-The only things that reach the internet are model downloads, searches you or the
-model trigger, pages the browser opens, the speech models on first use, the ad
-blocker's filter lists, site icons for search results, the update check, a
-registry search when you type one, and any extension you switch on, remote ones
-and their sign-in included. Everything else is local, statistics included. The
-local API opens a port only if you turn it on, and only on 127.0.0.1. There is
-no telemetry and nowhere for it to go.
-
-## Languages
-
-English, French, Spanish, German, Italian, Portuguese, Dutch, Russian, Chinese,
-Japanese, Korean and Arabic. Whether the model answers in your language depends
-on the model, not on Draggy.
+Vite and Electron together with hot reload. See
+[Building and architecture](https://draggy.org/wiki/development) for how the
+code is laid out and where the two security boundaries are,
+[CONTRIBUTING.md](CONTRIBUTING.md) before sending a patch, and
+[RELEASING.md](RELEASING.md) for how versions are cut.
 
 ## Known rough edges
 
-- Voice mode is beta. It wants a decent GPU and a headset; over laptop speakers
-  the model will occasionally answer itself.
-- macOS builds are unsigned, so they need the quarantine flag cleared and cannot
-  update themselves.
-- Tool calling quality varies a lot by model, and small models get it wrong.
-- A long conversation is condensed into notes as it approaches the context
-  window. The messages stay on screen and stay searchable; the model works from
-  the summary. `/compact` does it on demand and `/compact-limit` moves the point.
-- Small models write plans and edits less reliably than large ones. Keep a
-  project on ask or accept edits until you trust the model you are using.
+Tracked in the wiki's [Troubleshooting](https://draggy.org/wiki/troubleshooting)
+page, along with what actually fixes each one.
 
 ## License
 

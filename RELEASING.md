@@ -52,28 +52,33 @@ but `1.2.5-fix` is **older** than `1.2.5` and is never offered to anyone
 already on it. Tag from the version you are heading for, not the one you are
 on. `npm version 1.2.6-fix` writes it, the same as `patch` does.
 
-## Getting 1.x installs onto 2.0
+## The channel, and who a release actually reaches
 
-Copies on 1.2.6 and 1.2.7 set `channel = "latest"` with `allowPrerelease` on. In
-electron-updater's GitHub provider that combination only accepts a release whose
-tag carries the prerelease id `latest`: `v2.0.0-latest` is offered to them, a
-plain `v2.0.0` never is. Copies on 1.2.5 and older have no channel set and take
-the newest release as usual.
+`electron/updater.cjs` pins `channel = "latest"` with `allowPrerelease` on,
+which is what the **Pre-release** setting means and what every install defaults
+to. In electron-updater's GitHub provider that combination only accepts a
+release whose tag carries the prerelease id `latest`. A plain `vX.Y.Z` is never
+offered to it; a `vX.Y.Z-latest` is.
 
-So 2.0 goes out twice. The normal `v2.0.0` release for everyone else, and a
-second release tagged `v2.0.0-latest` carrying the same installers and a
-`latest.yml` that says `2.0.0`. The version inside is what gets compared, so a
-1.2.7 copy moves to 2.0.0 and never sees the word `latest` again.
+**2.0.0, 2.0.1 and 2.0.2 each went out as a plain tag only.** So they are on the
+releases page to download, and they reach a copy on 1.2.5 or older, which has no
+channel pinned. They do not reach 1.2.6, 1.2.7, or each other. Nobody already on
+2.x has been offered an update.
 
-Two things to settle before that release:
+Three ways out, none of them taken yet:
 
-- **2.x still pins the same channel.** `electron/updater.cjs` on v2 keeps
-  `channel = "latest"`, so every 2.x release would need its `-latest` twin too.
-  Changing it is safe for 2.x but needs testing against a real install first.
-- **Test the path on a real machine.** Install 1.2.7, point it at a test release
-  with both tags, and watch it take `v2.0.0-latest` and come back on 2.0.0 with
-  every chat, setting and library index intact. The unit tests cover the data;
-  only a real install covers the updater.
+- **Publish the twin.** Tag `vX.Y.Z-latest` as well, carrying the same
+  installers and a `latest.yml` that names the plain version. The version inside
+  is what gets compared, so an install moves to X.Y.Z and never sees the word
+  again. Every release needs its own twin, for as long as the channel is pinned.
+- **Stop pinning.** Drop `channel = "latest"` so a plain tag reaches 2.x
+  directly. It abandons anyone still on 1.2.6 or 1.2.7, and it wants testing
+  against a real install before it ships.
+- **Say so.** Leave it and tell people to download the installer, which is what
+  is happening now.
+
+Whichever it is, only a real install proves it. The unit tests cover the data a
+version jump has to survive; none of them cover the updater.
 
 ## Releasing from your own machine instead
 

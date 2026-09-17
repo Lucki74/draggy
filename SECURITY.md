@@ -84,8 +84,9 @@ Specifically:
 - Anything that needs someone to already have your unlocked machine.
 - Bugs in Ollama, in a model, or in an extension server. Those belong upstream,
   though I would rather hear about them twice than not at all.
-- Windows builds are not code signed yet, so SmartScreen warns on first install.
-  That is known, and not something a report can speed up.
+- Windows builds are not code signed yet, so SmartScreen warns on first install
+  (see [Installation](https://draggy.org/wiki/installation)). That is known,
+  and not something a report can speed up.
 
 ## After a report
 
