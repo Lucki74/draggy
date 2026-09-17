@@ -109,9 +109,11 @@ How updates actually behave once installed is in the wiki's
 
 ## macOS
 
-macOS is deliberately not part of the release workflow. Squirrel.Mac refuses to
-apply an update to an app that is not signed and notarised, so an unsigned
-`.dmg` would install fine and then never update itself again. `npm run
+macOS is deliberately not part of the release workflow. The `.dmg` is signed
+with an ad-hoc identity (`identity: "-"` in the build config), which is
+required just to let it launch on Apple Silicon at all, but it is not
+notarised. Squirrel.Mac refuses to apply an update to an app that is not
+notarised, so a copy installed this way never updates itself again. `npm run
 electron:build:mac` still produces one for manual distribution.
 
 To add macOS properly you need an Apple Developer certificate, `CSC_LINK` and

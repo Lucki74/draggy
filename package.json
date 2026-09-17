@@ -78,7 +78,7 @@
       "artifactName": "Draggy-${version}-${arch}.${ext}",
       "darkModeSupport": true,
       "icon": "build/icon.icns",
-      "identity": null,
+      "identity": "-",
       "notarize": false
     },
     "linux": {

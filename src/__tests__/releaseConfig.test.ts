@@ -40,10 +40,13 @@ describe("the release workflow", () => {
 });
 
 describe("packaging", () => {
-  it("does not go looking for a signing identity it will not find", () => {
-    // Without this electron-builder hunts for a certificate and fails the
-    // build rather than producing an unsigned app.
-    expect(pkg.build.mac.identity).toBeNull();
+  it("signs ad-hoc rather than hunting for a certificate it will not find", () => {
+    // "-" is electron-builder's own sentinel for an ad-hoc signature: it never
+    // touches CSC_LINK or a real keychain entry, so CI needs no certificate.
+    // Apple refuses to launch an arm64 build with no signature at all, which
+    // is why plain `null` here shipped a Mac build nobody on Apple Silicon
+    // could open.
+    expect(pkg.build.mac.identity).toBe("-");
     expect(pkg.build.mac.notarize).toBe(false);
     expect(pkg.scripts["release:mac"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
     expect(pkg.scripts.release).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
