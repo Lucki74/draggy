@@ -4,7 +4,7 @@ import { SETTINGS_KEY, storageBackend } from "../storage";
 import { safeJsonParse, writeLocalStorage } from "../utils";
 
 export const defaultSettings: AppSettings = {
-  theme: "light",
+  theme: "dark",
   fontSize: "base",
   language: "en",
   // Empty means "not chosen yet": the startup screen adopts whatever is

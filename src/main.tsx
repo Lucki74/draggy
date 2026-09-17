@@ -17,11 +17,12 @@ function savedSettings(): Partial<AppSettings> {
   return (saved ? safeJsonParse<Partial<AppSettings>>(saved) : null) ?? {};
 }
 
+const settings = savedSettings();
+if ((settings.theme ?? "dark") === "dark") document.body.classList.add("dark");
+
 if (isBrowserBar) {
-  const settings = savedSettings();
   // The toolbar never renders `App`, which is what normally applies these.
   document.body.classList.add("browser-bar");
-  if (settings.theme === "dark") document.body.classList.add("dark");
 }
 
 createRoot(document.getElementById("root")!).render(
