@@ -185,7 +185,7 @@ export function Select({
   options,
   onChange,
   label,
-  placeholder = "—",
+  placeholder = "–",
 }: {
   value: string;
   options: SelectOption[];

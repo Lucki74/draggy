@@ -60,10 +60,10 @@ to. In electron-updater's GitHub provider that combination only accepts a
 release whose tag carries the prerelease id `latest`. A plain `vX.Y.Z` is never
 offered to it; a `vX.Y.Z-latest` is.
 
-**2.0.0, 2.0.1 and 2.0.2 each went out as a plain tag only.** So they are on the
-releases page to download, and they reach a copy on 1.2.5 or older, which has no
-channel pinned. They do not reach 1.2.6, 1.2.7, or each other. Nobody already on
-2.x has been offered an update.
+**Every 2.x release so far has gone out as a plain tag.** Each is on the
+releases page to download, and reaches a copy on 1.2.5 or older, which has no
+channel pinned. None of them reach 1.2.6, 1.2.7, or each other. Nobody already
+on 2.x has been offered an update.
 
 Three ways out, none of them taken yet:
 
@@ -82,50 +82,30 @@ version jump has to survive; none of them cover the updater.
 
 ## Releasing from your own machine instead
 
-If you would rather not use the workflow, build and publish locally. This needs
-a GitHub personal access token with `repo` scope in `GH_TOKEN`:
-
-```powershell
-$env:GH_TOKEN = "your_token_here"
-```
+If you would rather not use the workflow, build and publish locally with a
+GitHub personal access token (`repo` scope) in `GH_TOKEN`:
 
 ```bash
 npm run release
 ```
 
 `npm run release` builds the Windows installer and uploads it; `npm run
-release:linux` does the same for the AppImage and `.deb`. Both require the tag
-for that version to exist already.
+release:linux` does the AppImage and `.deb`. Both need the tag to exist
+already. `npm run electron:build` builds locally without touching GitHub at
+all; every non-release script passes `--publish never`.
 
-To build an installer without touching GitHub at all, use `npm run
-electron:build`. Every non-release build script passes `--publish never`, so a
-local build can never upload anything by accident.
-
-If that fails with `unable to verify the first certificate`, something on the
-machine is intercepting TLS (antivirus, a proxy, a VPN) with a root Windows
-trusts and Node does not. Node reads the system store when told to:
+`unable to verify the first certificate` means something on the machine is
+intercepting TLS (antivirus, a proxy, a VPN). Point Node at the system trust
+store instead of its own:
 
 ```powershell
 $env:NODE_OPTIONS = "--use-system-ca"
 ```
 
-The workflow runners have clean trust stores, so a tagged release is unaffected
-either way.
+The workflow runners are unaffected either way; their trust stores are clean.
 
-## How the app behaves
-
-`Settings → Updates` holds an **Automatic updates** switch and an **Update
-channel**: **Pre-release**, the default, takes any release including one with a
-word on the end; **Releases** sets `allowPrerelease = false` and waits for a
-plain version.
-
-With automatic updates on, the app checks twenty seconds after launch and every
-six hours afterwards, downloads a new version in the background, and installs it
-the next time Draggy is quit. With it off nothing happens on its own; the same
-panel has **Check now**, **Download** and **Restart and install** buttons.
-
-Updates only work in a packaged build. In development the panel reports that
-updates are disabled, which is expected.
+How updates actually behave once installed is in the wiki's
+[Installation](https://draggy.org/wiki/installation) page.
 
 ## macOS
 
