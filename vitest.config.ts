@@ -1,0 +1,44 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    // Component tests carry their own `@vitest-environment jsdom` docblock,
+    // so the logic suite keeps running in plain Node with nothing stubbed.
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "electron/**/*.test.js"],
+    setupFiles: ["src/__tests__/helpers/setup.ts"],
+    reporters: ["default"],
+    coverage: {
+      // The logic-heavy modules the suite is actually aimed at. Screens and workers are left out:
+      // they are driven by Electron and a GPU, not by anything a coverage number here would mean.
+      include: [
+        "src/agent/*.ts",
+        "src/chat/attachments.ts",
+        "src/chat/slashCommands.ts",
+        "src/tools/mcp.ts",
+        "src/embedModel.ts",
+        "src/fileList.ts",
+        "src/greetings.ts",
+        "src/modelKinds.ts",
+        "src/modelRecommendations.ts",
+        "src/ollama.ts",
+        "src/storage.ts",
+        "src/toolParsing.ts",
+        "src/tools/registry.ts",
+        "src/utils.ts",
+        "src/voice/*.ts",
+        "src/vram.ts",
+        "electron/documents.cjs",
+        "electron/favicon.cjs",
+        "electron/markdownHtml.cjs",
+        "electron/mcp.cjs",
+        "electron/platform.cjs",
+        "electron/mcpCatalogue.cjs",
+        "electron/urlPolicy.cjs",
+        "electron/library.cjs",
+        "electron/search.cjs",
+        "electron/storage.cjs",
+      ],
+    },
+  },
+});

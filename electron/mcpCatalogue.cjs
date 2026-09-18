@@ -1,0 +1,634 @@
+/** The servers offered, each naming the package it fetches. Every one was checked against npm;
+ * Python servers need `uvx` and are left out on purpose. */
+
+/** Nothing here duplicates a built-in feature. Draggy has Brave, DuckDuckGo and a browser of its
+ * own, so those are out; a service it cannot do is not a duplicate. */
+
+/** What a server needs before it runs. `secret: true` marks a credential, which the interface masks
+ * and never logs. */
+
+const CATALOGUE = [
+  {
+    id: "azure-devops",
+    name: "Azure DevOps",
+    description: "Manage projects, repositories, work items, pipelines and wikis in Azure DevOps.",
+    package: "@azure-devops/mcp",
+    site: "https://azure.microsoft.com/products/devops",
+    args: [],
+    arguments: [
+      {
+        key: "organization",
+        label: "Organization name",
+        placeholder: "contoso",
+        required: true,
+      },
+    ],
+    env: [
+      { key: "AZURE_DEVOPS_EXT_PAT", label: "Personal access token", secret: true, required: false },
+    ],
+  },
+  {
+    id: "shopify",
+    name: "Shopify Dev",
+    description: "Search Shopify documentation, validate GraphQL and Liquid templates, and inspect schemas.",
+    package: "@shopify/dev-mcp",
+    site: "https://shopify.dev",
+    args: [],
+    env: [],
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    description:
+      "Search repositories, read issues and pull requests, create branches and commits.",
+    package: "@modelcontextprotocol/server-github",
+    site: "https://github.com",
+    args: [],
+    env: [
+      {
+        key: "GITHUB_PERSONAL_ACCESS_TOKEN",
+        label: "GitHub personal access token",
+        secret: true,
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "gitlab",
+    name: "GitLab",
+    description: "Read and write projects, issues and merge requests on GitLab.",
+    package: "@modelcontextprotocol/server-gitlab",
+    site: "https://gitlab.com",
+    args: [],
+    env: [
+      { key: "GITLAB_PERSONAL_ACCESS_TOKEN", label: "GitLab token", secret: true, required: true },
+      { key: "GITLAB_API_URL", label: "GitLab API URL", required: false },
+    ],
+  },
+  {
+    id: "sentry",
+    name: "Sentry",
+    description: "Look up issues, stack traces and releases from Sentry.",
+    package: "@sentry/mcp-server",
+    site: "https://sentry.io",
+    args: [],
+    env: [
+      { key: "SENTRY_ACCESS_TOKEN", label: "Sentry access token", secret: true, required: true },
+      { key: "SENTRY_HOST", label: "Sentry host", required: false },
+    ],
+  },
+  {
+    id: "jetbrains",
+    name: "JetBrains IDEs",
+    description:
+      "Drive a running JetBrains IDE: open files, read the project tree, run inspections.",
+    package: "@jetbrains/mcp-proxy",
+    site: "https://www.jetbrains.com",
+    args: [],
+    env: [],
+    caution: "Needs the MCP Server plugin installed in the IDE and the IDE running.",
+  },
+  {
+    id: "context7",
+    name: "Context7 docs",
+    description:
+      "Up-to-date API documentation for thousands of libraries, fetched per question instead of recalled from training.",
+    package: "@upstash/context7-mcp",
+    site: "https://context7.com",
+    args: [],
+    env: [],
+  },
+  {
+    id: "magic-ui",
+    name: "21st.dev Magic",
+    description: "Generate React interface components from a description.",
+    package: "@21st-dev/magic",
+    site: "https://21st.dev",
+    args: [],
+    env: [{ key: "API_KEY", label: "21st.dev API key", secret: true, required: true }],
+  },
+
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    description:
+      "Ask Perplexity a question and get an answer with its sources, rather than a page of results to read yourself.",
+    package: "server-perplexity-ask",
+    site: "https://www.perplexity.ai",
+    args: [],
+    env: [{ key: "PERPLEXITY_API_KEY", label: "Perplexity API key", secret: true, required: true }],
+  },
+  {
+    id: "exa",
+    name: "Exa",
+    description:
+      "Search the web by meaning rather than by keyword, which finds pages that never use the words you typed.",
+    package: "exa-mcp-server",
+    site: "https://exa.ai",
+    args: [],
+    env: [{ key: "EXA_API_KEY", label: "Exa API key", secret: true, required: true }],
+  },
+  {
+    id: "tavily",
+    name: "Tavily",
+    description:
+      "A search API built for models: results come back already extracted and trimmed, instead of as pages to scrape.",
+    package: "tavily-mcp",
+    site: "https://tavily.com",
+    args: [],
+    env: [{ key: "TAVILY_API_KEY", label: "Tavily API key", secret: true, required: true }],
+  },
+  {
+    id: "firecrawl",
+    name: "Firecrawl",
+    description:
+      "Crawl a whole site and turn its pages into clean markdown, where the built-in reader takes one page at a time.",
+    package: "firecrawl-mcp",
+    site: "https://firecrawl.dev",
+    args: [],
+    env: [{ key: "FIRECRAWL_API_KEY", label: "Firecrawl API key", secret: true, required: true }],
+  },
+
+  {
+    id: "slack",
+    name: "Slack",
+    description: "Read channels and messages, post replies, look up users.",
+    package: "@modelcontextprotocol/server-slack",
+    site: "https://slack.com",
+    args: [],
+    env: [
+      { key: "SLACK_BOT_TOKEN", label: "Slack bot token", secret: true, required: true },
+      { key: "SLACK_TEAM_ID", label: "Slack team ID", required: true },
+    ],
+  },
+  {
+    id: "notion",
+    name: "Notion",
+    description: "Search, read and write Notion pages and databases.",
+    package: "@notionhq/notion-mcp-server",
+    site: "https://www.notion.so",
+    args: [],
+    env: [
+      { key: "NOTION_TOKEN", label: "Notion integration token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "linear",
+    name: "Linear",
+    description: "Read and update Linear issues, projects and cycles.",
+    package: "linear-mcp-server",
+    site: "https://linear.app",
+    args: [],
+    env: [{ key: "LINEAR_API_KEY", label: "Linear API key", secret: true, required: true }],
+  },
+  {
+    id: "todoist",
+    name: "Todoist",
+    description: "Create, complete and search tasks in Todoist.",
+    package: "@abhiz123/todoist-mcp-server",
+    site: "https://todoist.com",
+    args: [],
+    env: [{ key: "TODOIST_API_TOKEN", label: "Todoist API token", secret: true, required: true }],
+  },
+  {
+    id: "obsidian",
+    name: "Obsidian",
+    description: "Read and search an Obsidian vault on this machine.",
+    package: "mcp-obsidian",
+    site: "https://obsidian.md",
+    args: [],
+    arguments: [
+      {
+        key: "vault",
+        label: "Vault folder",
+        placeholder: "C:\\Users\\you\\notes",
+        required: true,
+      },
+    ],
+    env: [],
+  },
+  {
+    id: "google-drive",
+    name: "Google Drive",
+    description: "Search Drive and read the contents of documents.",
+    package: "@modelcontextprotocol/server-gdrive",
+    site: "https://drive.google.com",
+    args: [],
+    env: [
+      { key: "GDRIVE_CREDENTIALS_PATH", label: "Path to credentials JSON", required: true },
+    ],
+  },
+  {
+    id: "google-maps",
+    name: "Google Maps",
+    description: "Geocoding, directions, places and distance lookups.",
+    package: "@modelcontextprotocol/server-google-maps",
+    site: "https://developers.google.com/maps",
+    args: [],
+    env: [{ key: "GOOGLE_MAPS_API_KEY", label: "Google Maps API key", secret: true, required: true }],
+  },
+  {
+    id: "jira",
+    name: "Jira",
+    description: "Search issues, update projects and track tickets across Jira.",
+    package: "@aashari/mcp-server-atlassian-jira",
+    site: "https://www.atlassian.com/software/jira",
+    args: [],
+    env: [
+      { key: "ATLASSIAN_SITE_NAME", label: "Atlassian site name (e.g. your-company)", required: true },
+      { key: "ATLASSIAN_USER_EMAIL", label: "Atlassian user email", required: true },
+      { key: "ATLASSIAN_API_TOKEN", label: "Atlassian API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "confluence",
+    name: "Confluence",
+    description: "Search spaces, read documentation and update pages in Confluence.",
+    package: "@aashari/mcp-server-atlassian-confluence",
+    site: "https://www.atlassian.com/software/confluence",
+    args: [],
+    env: [
+      { key: "ATLASSIAN_SITE_NAME", label: "Atlassian site name (e.g. your-company)", required: true },
+      { key: "ATLASSIAN_USER_EMAIL", label: "Atlassian user email", required: true },
+      { key: "ATLASSIAN_API_TOKEN", label: "Atlassian API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "asana",
+    name: "Asana",
+    description: "Read and manage Asana tasks, projects, workspaces and teams.",
+    package: "@roychri/mcp-server-asana",
+    site: "https://asana.com",
+    args: [],
+    env: [{ key: "ASANA_ACCESS_TOKEN", label: "Asana personal access token", secret: true, required: true }],
+  },
+  {
+    id: "clickup",
+    name: "ClickUp",
+    description: "Manage ClickUp tasks, lists, spaces and custom fields.",
+    package: "@taazkareem/clickup-mcp-server",
+    site: "https://clickup.com",
+    args: [],
+    env: [
+      { key: "CLICKUP_API_KEY", label: "ClickUp API key", secret: true, required: true },
+      { key: "CLICKUP_TEAM_ID", label: "ClickUp team ID", required: false },
+    ],
+  },
+  {
+    id: "google-calendar",
+    name: "Google Calendar",
+    description: "List upcoming events, create calendar entries and manage schedules.",
+    package: "@cocal/google-calendar-mcp",
+    site: "https://calendar.google.com",
+    args: [],
+    env: [{ key: "GOOGLE_OAUTH_CREDENTIALS", label: "Path to Google OAuth credentials JSON", required: true }],
+  },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "Manage contacts, companies, deals and CRM objects in HubSpot.",
+    package: "@hubspot/mcp-server",
+    site: "https://www.hubspot.com",
+    args: [],
+    env: [{ key: "PRIVATE_APP_ACCESS_TOKEN", label: "HubSpot private app access token", secret: true, required: true }],
+  },
+
+  {
+    id: "postgres",
+    name: "PostgreSQL",
+    description: "Run read-only queries against a Postgres database and inspect its schema.",
+    package: "@modelcontextprotocol/server-postgres",
+    site: "https://www.postgresql.org",
+    args: [],
+    arguments: [
+      {
+        key: "connection",
+        label: "Connection string",
+        placeholder: "postgresql://user@localhost/dbname",
+        required: true,
+      },
+    ],
+    env: [],
+  },
+  {
+    id: "mongodb",
+    name: "MongoDB",
+    description: "Query collections and inspect schemas in MongoDB or Atlas.",
+    package: "mongodb-mcp-server",
+    site: "https://www.mongodb.com",
+    args: [],
+    env: [
+      { key: "MDB_MCP_CONNECTION_STRING", label: "Connection string", secret: true, required: true },
+    ],
+  },
+  {
+    id: "redis",
+    name: "Redis",
+    description: "Read and write keys in a Redis instance.",
+    package: "@modelcontextprotocol/server-redis",
+    site: "https://redis.io",
+    args: [],
+    arguments: [
+      { key: "url", label: "Redis URL", placeholder: "redis://localhost:6379", required: true },
+    ],
+    env: [],
+  },
+  {
+    id: "elasticsearch",
+    name: "Elasticsearch",
+    description: "Search indices and inspect mappings in Elasticsearch.",
+    package: "@elastic/mcp-server-elasticsearch",
+    site: "https://www.elastic.co",
+    args: [],
+    env: [
+      { key: "ES_URL", label: "Elasticsearch URL", required: true },
+      { key: "ES_API_KEY", label: "API key", secret: true, required: false },
+    ],
+  },
+  {
+    id: "supabase",
+    name: "Supabase",
+    description: "Manage Supabase projects, run queries and inspect tables.",
+    package: "@supabase/mcp-server-supabase",
+    site: "https://supabase.com",
+    args: [],
+    env: [
+      { key: "SUPABASE_ACCESS_TOKEN", label: "Supabase access token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "airtable",
+    name: "Airtable",
+    description: "Read and write Airtable bases, tables and records.",
+    package: "airtable-mcp-server",
+    site: "https://airtable.com",
+    args: [],
+    env: [{ key: "AIRTABLE_API_KEY", label: "Airtable API key", secret: true, required: true }],
+  },
+  {
+    id: "mysql",
+    name: "MySQL",
+    description: "Query tables, inspect schemas and run queries against a MySQL database.",
+    package: "@benborla29/mcp-server-mysql",
+    site: "https://www.mysql.com",
+    args: [],
+    env: [
+      { key: "MYSQL_HOST", label: "MySQL host", required: true },
+      { key: "MYSQL_PORT", label: "MySQL port", required: false },
+      { key: "MYSQL_USER", label: "MySQL user", required: true },
+      { key: "MYSQL_PASS", label: "MySQL password", secret: true, required: true },
+      { key: "MYSQL_DB", label: "Database name", required: true },
+    ],
+  },
+  {
+    id: "sqlite",
+    name: "SQLite",
+    description: "Query and inspect SQLite database files on this machine.",
+    package: "mcp-server-sqlite-npx",
+    site: "https://www.sqlite.org",
+    args: [],
+    arguments: [
+      {
+        key: "database",
+        label: "Path to SQLite file",
+        placeholder: "C:\\Users\\you\\data.db",
+        required: true,
+      },
+    ],
+    env: [],
+  },
+  {
+    id: "pinecone",
+    name: "Pinecone",
+    description: "Search, upsert and query vector records and indexes in Pinecone.",
+    package: "@pinecone-database/mcp",
+    site: "https://www.pinecone.io",
+    args: [],
+    env: [{ key: "PINECONE_API_KEY", label: "Pinecone API key", secret: true, required: true }],
+  },
+
+  {
+    id: "kubernetes",
+    name: "Kubernetes",
+    description: "Inspect and manage a Kubernetes cluster through your current kubeconfig.",
+    package: "mcp-server-kubernetes",
+    site: "https://kubernetes.io",
+    args: [],
+    env: [],
+    caution: "Acts as whatever your current kubeconfig context is allowed to do.",
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare",
+    description: "Manage Workers, KV, R2 and D1 on a Cloudflare account.",
+    package: "@cloudflare/mcp-server-cloudflare",
+    site: "https://www.cloudflare.com",
+    args: [],
+    env: [
+      { key: "CLOUDFLARE_API_TOKEN", label: "Cloudflare API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "heroku",
+    name: "Heroku",
+    description: "Inspect and manage Heroku apps, dynos, add-ons and logs.",
+    package: "@heroku/mcp-server",
+    site: "https://www.heroku.com",
+    args: [],
+    env: [{ key: "HEROKU_API_KEY", label: "Heroku API key", secret: true, required: true }],
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    description: "Look up customers, payments, subscriptions and invoices.",
+    package: "@stripe/mcp",
+    site: "https://stripe.com",
+    args: ["--tools=all"],
+    env: [{ key: "STRIPE_SECRET_KEY", label: "Stripe secret key", secret: true, required: true }],
+    caution: "A live key can move real money. Use a restricted or test key.",
+  },
+  {
+    id: "aws-kb",
+    name: "AWS Knowledge Base",
+    description: "Retrieve from an Amazon Bedrock knowledge base.",
+    package: "@modelcontextprotocol/server-aws-kb-retrieval",
+    site: "https://aws.amazon.com/bedrock/",
+    args: [],
+    env: [
+      { key: "AWS_ACCESS_KEY_ID", label: "AWS access key ID", secret: true, required: true },
+      { key: "AWS_SECRET_ACCESS_KEY", label: "AWS secret access key", secret: true, required: true },
+      { key: "AWS_REGION", label: "AWS region", required: true },
+    ],
+  },
+
+  {
+    id: "netlify",
+    name: "Netlify",
+    description: "Manage Netlify sites, deployments, build logs and environment variables.",
+    package: "@netlify/mcp",
+    site: "https://www.netlify.com",
+    args: [],
+    env: [{ key: "NETLIFY_PERSONAL_ACCESS_TOKEN", label: "Netlify personal access token", secret: true, required: true }],
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    description: "Query metrics, search logs, inspect monitors and view dashboards in Datadog.",
+    package: "@winor30/mcp-server-datadog",
+    site: "https://www.datadoghq.com",
+    args: [],
+    env: [
+      { key: "DATADOG_API_KEY", label: "Datadog API key", secret: true, required: true },
+      { key: "DATADOG_APP_KEY", label: "Datadog application key", secret: true, required: true },
+      { key: "DATADOG_SITE", label: "Datadog site (e.g. datadoghq.com)", required: false },
+    ],
+  },
+  {
+    id: "contentful",
+    name: "Contentful",
+    description: "Create, edit and publish content entries, assets and content models in Contentful.",
+    package: "@contentful/mcp-server",
+    site: "https://www.contentful.com",
+    args: [],
+    env: [
+      { key: "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN", label: "Management access token", secret: true, required: true },
+      { key: "SPACE_ID", label: "Space ID", required: true },
+      { key: "ENVIRONMENT_ID", label: "Environment ID", required: false },
+    ],
+  },
+
+  {
+    id: "memory",
+    name: "Memory",
+    description:
+      "A knowledge graph the model can write to and read back, so facts survive between conversations.",
+    package: "@modelcontextprotocol/server-memory",
+    args: [],
+    env: [],
+  },
+
+  {
+    id: "figma",
+    name: "Figma",
+    description: "Read Figma files and turn frames into layout and style information.",
+    package: "figma-developer-mcp",
+    site: "https://www.figma.com",
+    args: ["--stdio"],
+    env: [{ key: "FIGMA_API_KEY", label: "Figma API key", secret: true, required: true }],
+  },
+  {
+    id: "youtube-transcript",
+    name: "YouTube transcripts",
+    description:
+      "Fetch the transcript of a YouTube video, with its title and available languages, so it can be read or summarised.",
+    package: "@sinco-lab/mcp-youtube-transcript",
+    site: "https://www.youtube.com",
+    args: [],
+    env: [],
+    caution:
+      "YouTube blocks transcript reads for some videos. The server reports the failure rather than returning a partial transcript.",
+  },
+];
+
+/** The package's page on npm, which renders its README. Derived rather than stored, so the link can
+ * never drift out of step with the package name. */
+function docsUrl(entry) {
+  if (!entry) return null;
+  return `https://www.npmjs.com/package/${entry.package}`;
+}
+
+/** Every catalogue entry, with its documentation link filled in. */
+function listCatalogue() {
+  return CATALOGUE.map((entry) => ({ ...entry, docs: docsUrl(entry) }));
+}
+
+function findEntry(id) {
+  const entry = CATALOGUE.find((candidate) => candidate.id === id);
+  return entry ? { ...entry, docs: docsUrl(entry) } : null;
+}
+
+/** Entries whose name or description matches what was typed. */
+function searchCatalogue(term) {
+  const wanted = String(term || "").trim().toLowerCase();
+  if (!wanted) return listCatalogue();
+
+  return listCatalogue().filter((entry) =>
+    [entry.id, entry.name, entry.description].some((field) =>
+      String(field).toLowerCase().includes(wanted),
+    ),
+  );
+}
+
+/** What is still missing before a server can start. Returned, not thrown, so the interface can open
+ * the setup fields rather than starting something doomed. */
+function missingRequirements(entry, config = {}) {
+  if (!entry) return ["unknown server"];
+
+  const missing = [];
+  const env = config.env || {};
+  const values = config.arguments || {};
+
+  for (const variable of entry.env || []) {
+    if (variable.required && !String(env[variable.key] || "").trim()) {
+      missing.push(variable.label || variable.key);
+    }
+  }
+
+  for (const argument of entry.arguments || []) {
+    const value = values[argument.key];
+    const empty = argument.multiple
+      ? !Array.isArray(value) || value.filter(Boolean).length === 0
+      : !String(value || "").trim();
+
+    if (argument.required && empty) missing.push(argument.label || argument.key);
+  }
+
+  return missing;
+}
+
+/** The arguments a server is started with: its own, then anything the user supplied. The package
+ * itself is installed separately and run directly. */
+function commandFor(entry, config = {}) {
+  if (!entry) return null;
+
+  const values = config.arguments || {};
+  const extra = [];
+
+  for (const argument of entry.arguments || []) {
+    const value = values[argument.key];
+    if (argument.multiple) {
+      for (const item of Array.isArray(value) ? value : []) {
+        if (String(item || "").trim()) extra.push(String(item));
+      }
+    } else if (String(value || "").trim()) {
+      extra.push(String(value));
+    }
+  }
+
+  return {
+    args: [...(entry.args || []), ...extra],
+    env: { ...(config.env || {}) },
+  };
+}
+
+/** Whether a field is a credential. The catalogue says for its own servers; otherwise only the name
+ * is evidence, so it is read cautiously. */
+function isSecretField(id, field) {
+  const entry = findEntry(String(id));
+  const declared = (entry?.env || []).find((one) => one.key === field);
+
+  if (declared) return Boolean(declared.secret);
+
+  return /token|key|secret|password|credential/i.test(String(field));
+}
+
+module.exports = {
+  CATALOGUE,
+  isSecretField,
+  listCatalogue,
+  findEntry,
+  searchCatalogue,
+  missingRequirements,
+  commandFor,
+  docsUrl,
+};

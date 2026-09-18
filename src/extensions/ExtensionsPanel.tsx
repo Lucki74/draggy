@@ -1,0 +1,86 @@
+import { useCallback, useEffect, useState } from "react";
+import McpPanel from "../settings/McpPanel";
+import RemoteServers from "./RemoteServers";
+import SkillsTab from "./SkillsTab";
+import type { McpServerConfig } from "../types";
+
+interface ExtensionsPanelProps {
+  t: (key: string) => string;
+}
+
+type Tab = "servers" | "remote" | "skills";
+
+/** One screen for extending Draggy: catalogue servers, remote servers, and skills. They are global,
+ * so Chat and every project get the same ones. */
+export default function ExtensionsPanel({ t }: ExtensionsPanelProps) {
+  const [tab, setTab] = useState<Tab>("servers");
+  const [config, setConfig] = useState<Record<string, McpServerConfig>>({});
+  const [enabled, setEnabled] = useState<string[]>([]);
+  const [revision, setRevision] = useState(0);
+
+  const api = window.electronAPI?.mcp;
+
+  useEffect(() => {
+    if (!api) return;
+
+    let cancelled = false;
+
+    Promise.all([api.config(), api.enabled()])
+      .then(([saved, on]) => {
+        if (cancelled) return;
+        setConfig(saved?.config ?? {});
+        setEnabled(on?.ids ?? []);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, revision]);
+
+  const refresh = useCallback(() => setRevision((count) => count + 1), []);
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: "servers", label: t("extensionServers") },
+    { id: "remote", label: t("extensionRemote") },
+    { id: "skills", label: t("extensionSkills") },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="flex w-fit overflow-hidden rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]"
+        role="tablist"
+      >
+        {TABS.map((one) => (
+          <button
+            key={one.id}
+            role="tab"
+            aria-selected={tab === one.id}
+            onClick={() => setTab(one.id)}
+            className={`px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+              tab === one.id
+                ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+            }`}
+          >
+            {one.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "servers" && <McpPanel t={t} />}
+
+      {tab === "remote" && (
+        <RemoteServers
+          config={config}
+          enabled={enabled}
+          t={t}
+          onChanged={refresh}
+        />
+      )}
+
+      {tab === "skills" && <SkillsTab t={t} />}
+    </div>
+  );
+}

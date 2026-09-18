@@ -1,0 +1,161 @@
+{
+  "name": "draggy",
+  "author": "lucki74",
+  "description": "A desktop AI assistant that talks, browses and works with your files all on local models.",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://draggy.org",
+  "private": true,
+  "version": "2.0.4",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "electron:build": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish never",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "electron:build:mac": "npm run build && electron-builder --mac --publish never",
+    "electron:build:linux": "npm run build && electron-builder --linux --publish never",
+    "electron:build:all": "npm run build && electron-builder -mwl --publish never",
+    "release": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish always",
+    "release:linux": "npm run build && electron-builder --linux --publish always",
+    "release:mac": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish always",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "build": {
+    "appId": "com.draggy.app",
+    "productName": "Draggy",
+    "copyright": "Copyright (C) 2026 lucki74. GNU GPL v3.0 or later.",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "icon": "build/icon.ico",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "!electron/**/*.test.js",
+      "package.json",
+      "!node_modules/pdfjs-dist/build/**",
+      "!node_modules/pdfjs-dist/web/**",
+      "!node_modules/pdfjs-dist/image_decoders/**",
+      "!node_modules/pdfjs-dist/types/**",
+      "!node_modules/pdfjs-dist/**/*.map"
+    ],
+    "asarUnpack": [
+      "node_modules/pdfjs-dist/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "draggy_setup.exe",
+      "icon": "build/icon.ico",
+      "legalTrademarks": "",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "artifactName": "draggy_setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "Draggy-${version}-${arch}.${ext}",
+      "darkModeSupport": true,
+      "icon": "build/icon.icns",
+      "identity": "-",
+      "notarize": false
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "artifactName": "Draggy-${version}-${arch}.${ext}",
+      "maintainer": "lucki74",
+      "icon": "build/icons"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Lucki74",
+        "repo": "draggy",
+        "releaseType": "release"
+      }
+    ],
+    "detectUpdateChannel": false
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.2",
+    "docx": "^9.7.1",
+    "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0",
+    "pdfjs-dist": "^6.3.289",
+    "pptxgenjs": "^4.0.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "sharp": "$sharp"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@huggingface/transformers": "^3.8.1",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "autoprefixer": "^10.5.0",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.3.2",
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "framer-motion": "^12.40.0",
+    "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
+    "katex": "^0.17.0",
+    "kokoro-js": "^1.2.1",
+    "lucide-react": "^1.17.0",
+    "onnxruntime-web": "1.22.0-dev.20250409-89f8206ba4",
+    "postcss": "^8.5.15",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.1",
+    "rehype-katex": "^7.0.1",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^4.3.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.11",
+    "wait-on": "^9.0.10"
+  }
+}
