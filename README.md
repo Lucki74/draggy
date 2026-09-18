@@ -70,6 +70,11 @@ to work on the code.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key.
 
+## Upcoming
+
+Removing ollama dependency and using a custom llama.cpp server instead.
+Many QoL improvements and small features and chanegs to the app.
+
 ## Installing and requirements
 
 Pick your system on [draggy.org](https://draggy.org), or take the installer
