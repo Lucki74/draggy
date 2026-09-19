@@ -10,10 +10,10 @@ and the traps that have actually cost time here.
 
 ## What Draggy is
 
-A local-first Electron desktop assistant that drives a local Ollama. No account,
-no telemetry, nothing leaves the machine that the user did not ask to send. A
-change that weakens any of that is wrong however well it is written, so do not
-propose one.
+A local-first Electron desktop assistant that runs an embedded native GGUF
+engine (`llama-server`) with open models from Hugging Face. No account, no telemetry,
+nothing leaves the machine that the user did not ask to send. A change that weakens any of that is
+wrong however well it is written, so do not propose one.
 
 Electron main process in `electron/` (CommonJS, `.cjs`), React renderer in
 `src/` (TypeScript). `electron/main.cjs` is the entry point.
@@ -101,6 +101,17 @@ French, `du` in German, polite forms in Japanese and Korean).
 **Outbound URLs go through `electron/urlPolicy.cjs`.** `http:`/`https:` only,
 private hostnames refused. Anything that fetches on the model's behalf uses it.
 
+**Diagnostics protect privacy with dual-file rotation and hashing.** Operational
+events write to `app.log` while verbose traces land in `debug.log`. Sensitive
+payloads (`prompt`, `content`, `text`, `rawChunk`, etc.) are hashed with SHA-256
+and truncated before writing to disk. `src/__tests__/logger.test.ts` guards it.
+
+**Model repetition loops are halted.** Degenerate token loops (such as repeated
+safety refusal markers like `== [REDACTED] ==` or repeating lines and phrases) are
+detected in real time by `src/agent/repetition.ts`. The streaming loop aborts
+before runaway output wastes compute, and trims the repetitive tail before saving.
+`src/__tests__/repetition.test.ts` and `src/__tests__/agentLoop.test.ts` guard it.
+
 ## House style, in short
 
 Match the file you are editing. Then:
@@ -179,11 +190,11 @@ published at draggy.org. It is its own folder, not a git repository, and
 nothing here builds, tests or deploys it, so a change in this repo cannot
 break it.
 
-The site is generated: `npm run build` there writes 36 pages, three of them in
-each of the twelve languages this app speaks, from templates and one JSON file
-per language. They land in `public/`, which is wiped on every build and is the
-whole of what Vercel serves. Three things are duplicated between the two
-projects rather than shared, and each one goes stale silently:
+The site is generated: `npm run build` there writes 240 pages (3 pages plus
+17 wiki pages in each of the twelve languages this app speaks), from templates
+and one JSON file per language. They land in `public/`, which is wiped on every
+build and is the whole of what Vercel serves. Three things are duplicated between
+the two projects rather than shared, and each one goes stale silently:
 
 - **The palette.** `assets/css/site.css` transcribes the custom properties from
   `src/index.css`. Change a colour here and the site keeps the old one.

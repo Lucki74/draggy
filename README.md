@@ -23,7 +23,7 @@
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-2b2b2b?style=flat&logo=ollama&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?style=flat&logo=huggingface&logoColor=black)
 
 </div>
 
@@ -36,9 +36,10 @@
 Draggy is a desktop AI assistant that talks, browses and works on your own
 projects, all on models running on your own computer.
 
-It drives a local [Ollama](https://ollama.com) instance, so there is no account,
-no API key, and no request leaving the machine unless you ask for one. An
-Electron app, in React and TypeScript, for Windows, macOS and Linux.
+It runs models directly on your hardware via its built-in native GGUF engine
+(powered by `llama.cpp`) with open weights from Hugging Face, so there is no
+account, no API key, and no request leaving the machine unless you ask for one.
+An Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
 **The wiki, at [draggy.org/wiki](https://draggy.org/wiki)**, is where the rest
 lives: installing, requirements, every feature, troubleshooting, and how the
@@ -50,7 +51,14 @@ to work on the code.
 ## What it does
 
 - **Chat with a local model.** Draggy picks a model that fits your graphics card,
-  downloads it, and lets you swap it any time.
+  downloads it, and lets you swap it any time. A Hugging Face browser lists the
+  top 100 trending GGUFs, searches, and finds each quantization variant.
+  Queue as many downloads as you like: two run at a time and the rest wait
+  their turn. A download icon beside the search bar carries a red badge with the
+  count, and opens a panel with each one's progress, time remaining (such as
+  `2m 14s`) and a cancel button that deletes the partial `.download` file.
+- **Stay quick on small models.** An efficient system prompt keeps 1B to 7B
+  models responsive without cutting any instructions.
 - **Keep chats and code apart.** A switch at the top of the sidebar, and each
   side keeps its own history, model and settings.
 - **Work in your projects.** Open a folder and it reads, edits and runs commands
@@ -74,10 +82,9 @@ to work on the code.
 
 Pick your system on [draggy.org](https://draggy.org), or take the installer
 straight from the [Releases page](https://github.com/Lucki74/draggy/releases).
-Ollama has to be installed and running; Draggy offers to install it if it
-cannot find it. See [Installation](https://draggy.org/wiki/installation) for
-hardware requirements, the code-signing warnings each system shows once, and
-how updates arrive.
+Models are downloaded directly to your machine on first launch. See
+[Installation](https://draggy.org/wiki/installation) for hardware requirements, the
+code-signing warnings each system shows once, and how updates arrive.
 
 ## Building it yourself
 
@@ -94,6 +101,13 @@ Vite and Electron together with hot reload. See
 code is laid out and where the two security boundaries are,
 [CONTRIBUTING.md](CONTRIBUTING.md) before sending a patch, and
 [RELEASING.md](RELEASING.md) for how versions are cut.
+
+## Logging and diagnostics
+
+Recorded in `app.log` (sanitized operational events) and `debug.log` (raw
+diagnostic traces) in the application data folder. See
+[Troubleshooting](https://draggy.org/wiki/troubleshooting) and
+[Building and architecture](https://draggy.org/wiki/development) in the wiki.
 
 ## Known rough edges
 
