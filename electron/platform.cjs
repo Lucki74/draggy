@@ -29,57 +29,6 @@ function runCommand(file, args, timeout) {
   });
 }
 
-function ollamaInstallDirs() {
-  if (IS_WINDOWS) {
-    return [
-      ...new Set(
-        [
-          process.env.LOCALAPPDATA &&
-            path.join(process.env.LOCALAPPDATA, "Programs", "Ollama"),
-          path.join(os.homedir(), "AppData", "Local", "Programs", "Ollama"),
-          "C:\\Program Files\\Ollama",
-        ].filter(Boolean),
-      ),
-    ];
-  }
-
-  if (IS_MAC) {
-    return [
-      "/Applications/Ollama.app/Contents/Resources",
-      "/usr/local/bin",
-      "/opt/homebrew/bin",
-      path.join(os.homedir(), ".local", "bin"),
-    ];
-  }
-
-  return [
-    "/usr/local/bin",
-    "/usr/bin",
-    "/opt/ollama/bin",
-    path.join(os.homedir(), ".local", "bin"),
-  ];
-}
-
-function ollamaBinaryName() {
-  return IS_WINDOWS ? "ollama.exe" : "ollama";
-}
-
-function ollamaLaunchCandidates() {
-  return ollamaInstallDirs().map((dir) => ({
-    file: path.join(dir, ollamaBinaryName()),
-    args: ["serve"],
-  }));
-}
-
-async function resolveOllamaLauncher() {
-  for (const candidate of ollamaLaunchCandidates()) {
-    if (fs.existsSync(candidate.file)) return candidate;
-  }
-
-  const onPath = await runCommand("ollama", ["--version"], 5000);
-  return onPath ? { file: "ollama", args: ["serve"] } : null;
-}
-
 async function appleSiliconBudget() {
   const wired = await runCommand("sysctl", ["-n", "iogpu.wired_limit_mb"], 4000);
   const limitMb = wired ? parseInt(wired.trim(), 10) : 0;
@@ -184,50 +133,6 @@ async function detectVideoMemoryGB() {
 
 function hasUnifiedMemory() {
   return IS_MAC && os.arch() === "arm64";
-}
-
-const OLLAMA_DOWNLOAD_PAGE = "https://ollama.com/download";
-
-function ollamaInstaller() {
-  if (IS_WINDOWS) {
-    return {
-      mode: "run",
-      url: "https://ollama.com/download/OllamaSetup.exe",
-      filename: "OllamaSetup.exe",
-      args: ["/silent"],
-    };
-  }
-
-  if (IS_MAC) {
-    return {
-      mode: "dmg",
-      url: "https://ollama.com/download/Ollama.dmg",
-      filename: "Ollama.dmg",
-      args: [],
-    };
-  }
-
-  return { mode: "manual", url: OLLAMA_DOWNLOAD_PAGE, filename: "", args: [] };
-}
-
-async function installFromDmg(dmgPath) {
-  const mountPoint = path.join(os.tmpdir(), "draggy-ollama-mount");
-
-  await runCommand(
-    "hdiutil",
-    ["attach", dmgPath, "-nobrowse", "-quiet", "-mountpoint", mountPoint],
-    120000,
-  );
-
-  try {
-    const source = path.join(mountPoint, "Ollama.app");
-    if (!fs.existsSync(source)) throw new Error("Ollama.app not found in image");
-
-    await runCommand("cp", ["-R", source, "/Applications/"], 180000);
-    return fs.existsSync("/Applications/Ollama.app");
-  } finally {
-    await runCommand("hdiutil", ["detach", mountPoint, "-quiet"], 60000);
-  }
 }
 
 function defaultShellEnv() {
@@ -341,13 +246,8 @@ module.exports = {
   IS_MAC,
   IS_LINUX,
   runCommand,
-  ollamaInstallDirs,
-  ollamaLaunchCandidates,
-  resolveOllamaLauncher,
   detectVideoMemoryGB,
   hasUnifiedMemory,
-  ollamaInstaller,
-  installFromDmg,
   defaultShellEnv,
   pythonCandidates,
   resolveNpx,
