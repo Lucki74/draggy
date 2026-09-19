@@ -56,6 +56,26 @@ describe("steps in a finished reply", () => {
   });
 });
 
+/** Reasoning often arrives with indented lines, which Markdown turns into a code block that does
+ * not wrap and ran off the edge of the reply. */
+describe("a thinking step with indented lines", () => {
+  it("wraps them instead of running off the edge", () => {
+    const { container } = show([
+      {
+        id: "t1",
+        type: "thinking",
+        content: "Plan:\n\n    *   A very long line that keeps going well past the width of the reply",
+        isComplete: true,
+        thoughtTime: 2,
+      },
+    ]);
+
+    const block = container.querySelector("details pre");
+    expect(block).not.toBeNull();
+    expect(block?.closest(".markdown-body")?.className).toContain("[&_pre]:whitespace-pre-wrap");
+  });
+});
+
 /** A document is written as HTML and can be read either way. A source file is already its own
  * source, and asking which of one thing to show is the question that made no sense. */
 describe("a file the model wrote", () => {

@@ -808,7 +808,7 @@ const MessageItem = memo(
                               <Loader2 className="w-3 h-3 animate-spin ml-2 opacity-50" />
                             )}
                           </summary>
-                          <div className="pl-5 pr-2 mb-6 text-[var(--text-muted)] text-[0.95em] leading-relaxed border-l-2 border-[var(--border-light)] italic opacity-80 markdown-body">
+                          <div className="pl-5 pr-2 mb-6 text-[var(--text-muted)] text-[0.95em] leading-relaxed border-l-2 border-[var(--border-light)] italic opacity-80 markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
                             {live ? (
                               <StreamingMarkdown
                                 source={normalizeMath(step.content)}
