@@ -1,3 +1,4 @@
+const semver = require("semver");
 const { log } = require("./logger.cjs");
 
 /** Checks after launch and every few hours, downloads in the background, installs on quit. The
@@ -10,6 +11,7 @@ const FIRST_CHECK_MS = 20_000;
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 let updater = null;
+let appInstance = null;
 let state = { status: "idle", version: null, percent: 0, notes: null, error: null };
 let broadcast = () => {};
 
@@ -17,12 +19,26 @@ let automatic = false;
 let firstCheckTimer = null;
 let intervalTimer = null;
 
+function getCurrentVersion() {
+  return appInstance?.getVersion?.() || require("../package.json").version;
+}
+
+function isNewer(candidate, current) {
+  if (!candidate || !current) return false;
+  try {
+    return semver.gt(candidate, current);
+  } catch {
+    return false;
+  }
+}
+
 function publish(next) {
   state = { ...state, ...next };
   broadcast(state);
 }
 
 function init(app, sendToWindows) {
+  appInstance = app;
   broadcast = sendToWindows;
 
   if (!app.isPackaged) {
@@ -47,6 +63,8 @@ function init(app, sendToWindows) {
   // both settings still resolve to latest.yml, which every build uploads.
   updater.allowPrerelease = false;
   updater.channel = null;
+  // electron-updater silently enables allowDowngrade whenever channel is assigned.
+  updater.allowDowngrade = false;
   updater.logger = {
     info: (message) => log.info("updater", message),
     warn: (message) => log.warn("updater", message),
@@ -56,9 +74,14 @@ function init(app, sendToWindows) {
 
   updater.on("checking-for-update", () => publish({ status: "checking", error: null }));
 
-  updater.on("update-available", (info) =>
-    publish({ status: "available", version: info.version, notes: info.releaseNotes || null }),
-  );
+  updater.on("update-available", (info) => {
+    if (!isNewer(info?.version, getCurrentVersion())) {
+      log.info("updater", `ignoring update to older or equal version: ${info?.version}`);
+      publish({ status: "current", percent: 0 });
+      return;
+    }
+    publish({ status: "available", version: info.version, notes: info.releaseNotes || null });
+  });
 
   updater.on("update-not-available", () => publish({ status: "current", percent: 0 }));
 
@@ -66,9 +89,13 @@ function init(app, sendToWindows) {
     publish({ status: "downloading", percent: Math.round(progress.percent) }),
   );
 
-  updater.on("update-downloaded", (info) =>
-    publish({ status: "ready", version: info.version, percent: 100 }),
-  );
+  updater.on("update-downloaded", (info) => {
+    if (!isNewer(info?.version, getCurrentVersion())) {
+      publish({ status: "current", percent: 0 });
+      return;
+    }
+    publish({ status: "ready", version: info.version, percent: 100 });
+  });
 
   updater.on("error", (error) => {
     log.warn("updater", error?.message || String(error));
@@ -108,6 +135,8 @@ function configure({ automatic: wanted, channel } = {}) {
   if (updater) {
     updater.autoDownload = automatic;
     updater.channel = null;
+    // electron-updater silently enables allowDowngrade whenever channel is assigned.
+    updater.allowDowngrade = false;
 
     // "release" only ever takes GitHub's own latest non-prerelease tag.
     // "prerelease" adds a prerelease tag on top of that, not instead of it.
@@ -134,6 +163,7 @@ async function check({ silent } = {}) {
 
 async function download() {
   if (!updater) return { ...state };
+  if (!isNewer(state.version, getCurrentVersion())) return { ...state };
 
   try {
     publish({ status: "downloading", percent: 0 });
@@ -147,6 +177,7 @@ async function download() {
 
 function install() {
   if (!updater || state.status !== "ready") return { ...state };
+  if (!isNewer(state.version, getCurrentVersion())) return { ...state };
 
   // Silent, and relaunch afterwards. The wizard asked where to install and
   // whether to continue, for a version of an app the user already has.
@@ -170,4 +201,5 @@ module.exports = {
   install,
   current,
   dispose,
+  isNewer,
 };

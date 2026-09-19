@@ -83,4 +83,12 @@ describe("a version with a prerelease tag still reaches people", () => {
     // not swap one set for the other.
     expect(updater).toContain('updater.allowPrerelease = channel !== "release"');
   });
+
+  it("never allows downgrading to an older release", () => {
+    // Resetting channel to null in electron-updater silently flips allowDowngrade
+    // to true, which must be immediately forced back to false.
+    const matches = [...updater.matchAll(/updater\.allowDowngrade\s*=\s*false/g)];
+    expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
 });
+
