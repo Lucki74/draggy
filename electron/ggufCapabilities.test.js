@@ -98,9 +98,15 @@ describe("readChatTemplate", () => {
 });
 
 describe("capabilitiesFromTemplate", () => {
-  it("gives every model tools and completion", () => {
+  it("gives a model tools when its template handles them, or cannot be read", () => {
     expect(capabilitiesFromTemplate(null)).toEqual(["tools", "completion"]);
-    expect(capabilitiesFromTemplate("{{ messages }}")).toEqual(["tools", "completion"]);
+    expect(capabilitiesFromTemplate("{% if tools %}{{ tools }}{% endif %}")).toEqual(["tools", "completion"]);
+    expect(capabilitiesFromTemplate("{{ message.tool_calls }}")).toContain("tools");
+  });
+
+  it("leaves tools out for a template that never mentions them", () => {
+    expect(capabilitiesFromTemplate("{{ messages }}")).toEqual(["completion"]);
+    expect(capabilitiesFromTemplate("<think>{{ messages }}")).toEqual(["completion", "thinking"]);
   });
 
   it("adds thinking for a template that opens a thinking block or takes an option for one", () => {
@@ -114,11 +120,13 @@ describe("listGgufModels capabilities", () => {
   it("reports thinking for a model whose template supports it and not for one that does not", () => {
     const dir = tempDir();
     fs.writeFileSync(path.join(dir, "thinker.gguf"), buildModel({ template: "<think>", tokens: 500 }));
+    fs.writeFileSync(path.join(dir, "tooler.gguf"), buildModel({ template: "{{ tools }} <think>", tokens: 500 }));
     fs.writeFileSync(path.join(dir, "plain.gguf"), buildModel({ template: "{{ messages }}", tokens: 500 }));
 
     const byName = Object.fromEntries(modelStorage.listGgufModels(dir).map((model) => [model.filename, model]));
 
-    expect(byName["thinker.gguf"].capabilities).toEqual(["tools", "completion", "thinking"]);
-    expect(byName["plain.gguf"].capabilities).toEqual(["tools", "completion"]);
+    expect(byName["thinker.gguf"].capabilities).toEqual(["completion", "thinking"]);
+    expect(byName["plain.gguf"].capabilities).toEqual(["completion"]);
+    expect(byName["tooler.gguf"].capabilities).toEqual(["tools", "completion", "thinking"]);
   });
 });

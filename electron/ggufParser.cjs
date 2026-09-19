@@ -307,13 +307,16 @@ function readChatTemplate(filePath) {
   }
 }
 
-/** What a model can do, from its chat template. Every model gets tools and completion; a template that
- * opens a thinking block, or takes an option to switch one on, marks a model that can think. */
+/** What a model can do, from its chat template. A template that never mentions tools cannot format a
+ * call to one, so its model has none; a model whose template could not be read is given the benefit
+ * of the doubt. A template that opens a thinking block, or takes an option to switch one on, marks a
+ * model that can think. */
 function capabilitiesFromTemplate(template) {
-  const capabilities = ["tools", "completion"];
-  if (typeof template === "string" && /<think>|enable_thinking|reasoning_effort/.test(template)) {
-    capabilities.push("thinking");
-  }
+  const known = typeof template === "string";
+  const capabilities = [];
+  if (!known || /tool/i.test(template)) capabilities.push("tools");
+  capabilities.push("completion");
+  if (known && /<think>|enable_thinking|reasoning_effort/.test(template)) capabilities.push("thinking");
   return capabilities;
 }
 
