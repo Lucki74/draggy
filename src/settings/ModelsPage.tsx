@@ -36,8 +36,27 @@ const FIT_COLOURS = { green: "#22c55e", amber: "#f59e0b", red: "#ef4444" } as co
 const CAPABILITY_KEYS: Record<string, string> = {
   tools: "capabilityTools",
   thinking: "capabilityThinking",
-  completion: "capabilityCompletion",
   embedding: "capabilityEmbedding",
+  reranking: "capabilityReranking",
+  "image-generation": "capabilityImageGeneration",
+  "video-generation": "capabilityVideoGeneration",
+  "3d-generation": "capability3dGeneration",
+  "speech-recognition": "capabilitySpeechRecognition",
+  "text-to-speech": "capabilityTextToSpeech",
+  "audio-generation": "capabilityAudioGeneration",
+  "audio-processing": "capabilityAudioProcessing",
+  "image-analysis": "capabilityImageAnalysis",
+  "video-analysis": "capabilityVideoAnalysis",
+  translation: "capabilityTranslation",
+  summarization: "capabilitySummarization",
+  "question-answering": "capabilityQuestionAnswering",
+  "fill-mask": "capabilityFillMask",
+  "text-classification": "capabilityTextClassification",
+  "time-series": "capabilityTimeSeries",
+  tabular: "capabilityTabular",
+  robotics: "capabilityRobotics",
+  graph: "capabilityGraph",
+  other: "capabilityOther",
   vision: "capabilityVision",
 };
 
@@ -232,10 +251,13 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-[var(--text-main)] truncate">{model.name}</span>
-                          {model.capabilities.map((capability) => {
-                            const key = CAPABILITY_KEYS[capability];
-                            return <Badge key={capability}>{key ? t(key) : capability}</Badge>;
-                          })}
+                          {/* Every chat model can chat, so that says nothing; a model that cannot shows what it is. */}
+                          {model.capabilities
+                            .filter((capability) => capability !== "completion")
+                            .map((capability) => {
+                              const key = CAPABILITY_KEYS[capability];
+                              return <Badge key={capability}>{key ? t(key) : capability}</Badge>;
+                            })}
                           <ChevronRight
                             className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
                           />
