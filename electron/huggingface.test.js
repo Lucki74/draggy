@@ -78,14 +78,74 @@ describe("searching with an empty query", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves out speech and detection repos", async () => {
+  it("lists speech, detection and image repos with the kind of model they are", async () => {
     mockApi([
       item("audio-cpp/audio.cpp-gguf", { pipeline_tag: "text-to-speech" }),
       item("mudler/locate-anything.cpp-gguf", { pipeline_tag: "object-detection" }),
+      item("city96/FLUX.1-dev-gguf", { pipeline_tag: "text-to-image" }),
+      item("someone/brand-new-task-gguf", { pipeline_tag: "a-task-made-up-next-year" }),
       item("bartowski/phi-4-GGUF"),
     ]);
     const models = await huggingface.searchHuggingFace("");
-    expect(models.map((m) => m.repo)).toEqual(["bartowski/phi-4-GGUF"]);
+    const byRepo = Object.fromEntries(models.map((m) => [m.repo, m.capabilities]));
+
+    expect(byRepo["audio-cpp/audio.cpp-gguf"]).toEqual(["text-to-speech"]);
+    expect(byRepo["mudler/locate-anything.cpp-gguf"]).toEqual(["image-analysis"]);
+    expect(byRepo["city96/FLUX.1-dev-gguf"]).toEqual(["image-generation"]);
+    expect(byRepo["someone/brand-new-task-gguf"]).toEqual(["other"]);
+    expect(byRepo["bartowski/phi-4-GGUF"]).toContain("completion");
+  });
+
+  it("describes a model that does not chat by its type, not as a language model", async () => {
+    mockApi([item("city96/FLUX.1-dev-gguf", { pipeline_tag: "text-to-image" })]);
+    const [flux] = await huggingface.searchHuggingFace("");
+
+    expect(flux.description).toMatch(/^Image generation model/);
+  });
+});
+
+describe("model types", () => {
+  // Every task Hugging Face defines for models, as of its task list.
+  const HUGGING_FACE_TASKS = [
+    "text-classification", "token-classification", "table-question-answering", "question-answering",
+    "zero-shot-classification", "translation", "summarization", "feature-extraction", "text-generation",
+    "fill-mask", "sentence-similarity", "text-ranking", "text-to-speech", "text-to-audio",
+    "automatic-speech-recognition", "audio-to-audio", "audio-classification", "voice-activity-detection",
+    "depth-estimation", "image-classification", "object-detection", "image-segmentation", "text-to-image",
+    "image-to-text", "image-to-image", "image-to-video", "unconditional-image-generation", "video-classification",
+    "text-to-video", "zero-shot-image-classification", "mask-generation", "zero-shot-object-detection",
+    "text-to-3d", "image-to-3d", "image-feature-extraction", "keypoint-detection", "visual-question-answering",
+    "document-question-answering", "reinforcement-learning", "robotics", "tabular-classification",
+    "tabular-regression", "time-series-forecasting", "graph-ml", "text2text-generation", "conversational",
+    "image-text-to-text", "video-text-to-text", "audio-text-to-text", "any-to-any", "multiple-choice",
+    "text-retrieval", "visual-document-retrieval",
+  ];
+
+  it("gives every task a type, or none when the model chats", () => {
+    for (const task of HUGGING_FACE_TASKS) {
+      const type = huggingface.typeOfTask(task);
+      if (type !== null) expect(huggingface.TYPE_LABELS, task).toHaveProperty(type);
+    }
+  });
+
+  it("leaves chat and vision-language models untyped, and names the rest", () => {
+    for (const task of ["text-generation", "text2text-generation", "conversational", "audio-text-to-text"]) {
+      expect(huggingface.typeOfTask(task)).toBeNull();
+    }
+    for (const task of ["image-text-to-text", "video-text-to-text", "any-to-any", "visual-question-answering"]) {
+      expect(huggingface.typeOfTask(task)).toBeNull();
+    }
+    expect(huggingface.typeOfTask("")).toBeNull();
+    expect(huggingface.typeOfTask("text-to-image")).toBe("image-generation");
+    expect(huggingface.typeOfTask("automatic-speech-recognition")).toBe("speech-recognition");
+    expect(huggingface.typeOfTask("feature-extraction")).toBe("embedding");
+    expect(huggingface.typeOfTask("something-new")).toBe("other");
+  });
+
+  it("uses only types that have a label", () => {
+    for (const type of new Set(Object.values(huggingface.TASK_TYPES))) {
+      expect(huggingface.TYPE_LABELS, type).toHaveProperty(type);
+    }
   });
 });
 
@@ -327,6 +387,42 @@ describe("repo file matching", () => {
     const big = await huggingface.resolveModelDownload("acme/Big-GGUF:Q4_K_M");
     expect(big).toMatchObject({ filename: "big-Q4_K_M-00001-of-00002.gguf", size: 42 });
     expect((await huggingface.resolveModelDownload("acme/Small-GGUF:Q5_K_M")).size).toBe(7);
+  });
+
+  it("never takes a multi-token-prediction draft head for the model", async () => {
+    // Laid out like unsloth/gemma-4-26B-A4B-it-GGUF: the draft heads carry the same quant names.
+    mockTree([
+      ["MTP/mtp-gemma-4-26B-A4B-it-Q8_0.gguf", 460_000_000],
+      ["mtp-gemma-4-26B-A4B-it.gguf", 460_000_000],
+      ["gemma-4-26B-A4B-it-Q8_0.gguf", 26_860_000_000],
+      ["gemma-4-26B-A4B-it-UD-Q4_K_M.gguf", 16_950_000_000],
+      ["mmproj-F16.gguf", 1_190_000_000],
+    ]);
+
+    expect(await huggingface.fetchModelSize("unsloth/gemma-4-GGUF", "Q8_0")).toEqual({
+      success: true,
+      bytes: 26_860_000_000,
+    });
+    const resolved = await huggingface.resolveModelDownload("unsloth/gemma-4-GGUF:Q8_0");
+    expect(resolved.filename).toBe("gemma-4-26B-A4B-it-Q8_0.gguf");
+    expect(resolved.url).not.toContain("mtp");
+  });
+
+  it("does not offer a quantization that only a draft head has", async () => {
+    mockTree([
+      ["MTP/mtp-model-F16.gguf", 900_000_000],
+      ["model-Q4_K_M.gguf", 5_000_000_000],
+    ]);
+
+    expect(await huggingface.fetchModelSize("acme/Draft-GGUF", "F16")).toMatchObject({ success: false });
+    expect((await huggingface.fetchModelSize("acme/Draft-GGUF", "Q4_K_M")).bytes).toBe(5_000_000_000);
+    expect(
+      huggingface.extractAvailableSizes([
+        { rfilename: "MTP/mtp-model-F16.gguf" },
+        { rfilename: "mtp-model.gguf" },
+        { rfilename: "model-Q4_K_M.gguf" },
+      ]),
+    ).toEqual(["Q4_K_M"]);
   });
 
   it("does not let Q2_0 pick up a PQ2_0 file", async () => {

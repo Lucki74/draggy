@@ -191,10 +191,14 @@ const MAX_LISTED_QUANTS = 5;
 const QUANT_PATTERN = /(?:^|[-_.])([iI]?[qQ][0-9][a-zA-Z0-9_]*|[fF]16|[bB][fF]16|[fF]32|[pP][tT]?[qQ][0-9][a-zA-Z0-9_]*)(?:[-_.]|$)/;
 const SHARD_PATTERN = /-[0-9]{5}-of-[0-9]{5}\.gguf$|\.part[0-9]+of[0-9]+\.gguf$/i;
 
-/** Projector and importance-matrix files ship beside the weights but are not models to run. */
+/** Files that ship beside the weights but are not models to run: the vision projector, the importance
+ * matrix, and the multi-token-prediction draft heads (an `mtp` folder, or `mtp` set off in a file name),
+ * which carry the same quantization names as the model and are a fraction of its size. */
+const HELPER_FILE = /mmproj|imatrix|(^|[/_.-])mtp([/_.-]|$)/;
+
 function isModelFile(filePath) {
   const lower = typeof filePath === "string" ? filePath.toLowerCase() : "";
-  return lower.endsWith(".gguf") && !lower.includes("mmproj") && !lower.includes("imatrix");
+  return lower.endsWith(".gguf") && !HELPER_FILE.test(lower);
 }
 
 /** Reads the quantization from the file name, then from its folders when the name carries none. */
@@ -233,16 +237,13 @@ function matchFilesForTag(files, tag) {
   });
   if (hits.length === 0) return null;
 
-  const plain = hits.filter((file) => !/-mtp/i.test(file.path.split("/").pop()));
-  const pool = plain.length > 0 ? plain : hits;
-
-  const shards = pool.filter((file) => SHARD_PATTERN.test(file.path)).sort((a, b) => a.path.localeCompare(b.path));
+  const shards = hits.filter((file) => SHARD_PATTERN.test(file.path)).sort((a, b) => a.path.localeCompare(b.path));
   if (shards.length > 0) {
     const group = shards[0].path.replace(SHARD_PATTERN, "");
     const parts = shards.filter((file) => file.path.replace(SHARD_PATTERN, "") === group);
     return { files: parts, primary: parts[0], bytes: parts.reduce((sum, file) => sum + file.size, 0) };
   }
-  return { files: [pool[0]], primary: pool[0], bytes: pool[0].size };
+  return { files: [hits[0]], primary: hits[0], bytes: hits[0].size };
 }
 
 /** Resolves files and exact sizes for a Hugging Face model repository. */
@@ -277,9 +278,90 @@ const TOP_MODELS_URL = `${MODELS_API}?filter=gguf&sort=trendingScore&direction=-
 const TOP_MODELS_TTL_MS = 30 * 60 * 1000;
 
 const EMBEDDING_TASKS = new Set(["feature-extraction", "sentence-similarity"]);
-const VISION_TASKS = new Set(["image-text-to-text", "any-to-any", "visual-question-answering"]);
-// Text-in, text-out tasks only; the download list also holds speech and detection repos.
-const CHAT_TASKS = new Set(["text-generation", "text2text-generation", "conversational"]);
+const VISION_TASKS = new Set(["image-text-to-text", "video-text-to-text", "any-to-any", "visual-question-answering"]);
+// Text and audio in, text out: the models that answer a message.
+const CHAT_TASKS = new Set(["text-generation", "text2text-generation", "conversational", "audio-text-to-text"]);
+
+/** What kind of model each Hugging Face task is, for a model that does not chat. A chat model has no
+ * type of its own, since nearly every model in the list is one and a tag on all of them says nothing.
+ * Every task Hugging Face defines is listed; one it adds later shows as "other" until it is. */
+const TASK_TYPES = {
+  "feature-extraction": "embedding",
+  "sentence-similarity": "embedding",
+  "text-retrieval": "embedding",
+  "visual-document-retrieval": "embedding",
+  "text-ranking": "reranking",
+  "text-to-image": "image-generation",
+  "image-to-image": "image-generation",
+  "unconditional-image-generation": "image-generation",
+  "text-to-video": "video-generation",
+  "image-to-video": "video-generation",
+  "text-to-3d": "3d-generation",
+  "image-to-3d": "3d-generation",
+  "automatic-speech-recognition": "speech-recognition",
+  "text-to-speech": "text-to-speech",
+  "text-to-audio": "audio-generation",
+  "audio-to-audio": "audio-processing",
+  "audio-classification": "audio-processing",
+  "voice-activity-detection": "audio-processing",
+  "image-classification": "image-analysis",
+  "zero-shot-image-classification": "image-analysis",
+  "image-feature-extraction": "image-analysis",
+  "image-to-text": "image-analysis",
+  "object-detection": "image-analysis",
+  "zero-shot-object-detection": "image-analysis",
+  "image-segmentation": "image-analysis",
+  "mask-generation": "image-analysis",
+  "depth-estimation": "image-analysis",
+  "keypoint-detection": "image-analysis",
+  "video-classification": "video-analysis",
+  translation: "translation",
+  summarization: "summarization",
+  "question-answering": "question-answering",
+  "table-question-answering": "question-answering",
+  "document-question-answering": "question-answering",
+  "multiple-choice": "question-answering",
+  "fill-mask": "fill-mask",
+  "text-classification": "text-classification",
+  "token-classification": "text-classification",
+  "zero-shot-classification": "text-classification",
+  "time-series-forecasting": "time-series",
+  "tabular-classification": "tabular",
+  "tabular-regression": "tabular",
+  "reinforcement-learning": "robotics",
+  robotics: "robotics",
+  "graph-ml": "graph",
+};
+
+const TYPE_LABELS = {
+  embedding: "Embedding",
+  reranking: "Reranking",
+  "image-generation": "Image generation",
+  "video-generation": "Video generation",
+  "3d-generation": "3D generation",
+  "speech-recognition": "Speech recognition",
+  "text-to-speech": "Text to speech",
+  "audio-generation": "Audio generation",
+  "audio-processing": "Audio",
+  "image-analysis": "Image analysis",
+  "video-analysis": "Video analysis",
+  translation: "Translation",
+  summarization: "Summarization",
+  "question-answering": "Question answering",
+  "fill-mask": "Fill-mask",
+  "text-classification": "Text classification",
+  "time-series": "Time series",
+  tabular: "Tabular",
+  robotics: "Robotics",
+  graph: "Graph",
+  other: "Other",
+};
+
+/** The type of a model that does not chat, or null for one that does (or that names no task). */
+function typeOfTask(task) {
+  if (!task || CHAT_TASKS.has(task) || VISION_TASKS.has(task)) return null;
+  return TASK_TYPES[task] || "other";
+}
 
 const TASK_LABELS = {
   "text-generation": "Text generation",
@@ -403,14 +485,15 @@ function formatParameters(repoId, total) {
   return "";
 }
 
-function describeModel(item, { repoId, author, base, task, tags }) {
-  // Only the repo's own name counts; a community model built on Qwen is not stock Qwen.
-  const family = FAMILIES.find((entry) => entry.match.test(cleanModelName(repoId)));
+function describeModel(item, { repoId, author, base, task, tags, type }) {
+  // Only the repo's own name counts; a community model built on Qwen is not stock Qwen. A model that
+  // does not chat is never the family's language model, whatever its name.
+  const family = type ? null : FAMILIES.find((entry) => entry.match.test(cleanModelName(repoId)));
   if (family) return `${family.description} GGUF by ${author}.`;
 
   const params = formatParameters(repoId, Number(item.gguf?.total) || 0);
   const verb = RELATION_VERBS[item.baseModels?.relation] || "based on";
-  const label = TASK_LABELS[task] || "Language";
+  const label = type ? TYPE_LABELS[type] : TASK_LABELS[task] || "Language";
   let text = `${label} model${params ? ` with ${params} parameters` : ""}${base ? `, ${verb} ${base}` : ""}.`;
   text += ` GGUF by ${author}.`;
 
@@ -443,13 +526,14 @@ function detectCapabilities({ repoId, base, task, tags }, chatTemplate) {
   return capabilities;
 }
 
-/** Turns one Hugging Face API item into a library entry, or null when it is not a chat or embedding model. */
+/** Turns one Hugging Face API item into a library entry, or null when it has no repo id. A model that
+ * does not chat is listed with the type of model it is instead of being left out. */
 function toLibraryModel(item) {
   const repoId = typeof item?.id === "string" ? item.id : "";
   if (!repoId.includes("/")) return null;
 
   const task = item.pipeline_tag || item.cardData?.pipeline_tag || "";
-  if (task && !CHAT_TASKS.has(task) && !VISION_TASKS.has(task) && !EMBEDDING_TASKS.has(task)) return null;
+  const type = typeOfTask(task);
 
   const tags = (Array.isArray(item.tags) ? item.tags : item.cardData?.tags || [])
     .filter((tag) => typeof tag === "string")
@@ -460,6 +544,7 @@ function toLibraryModel(item) {
     base: firstBaseModel(item, repoId),
     task,
     tags,
+    type,
   };
 
   // The chat template is only read for capability hints; it is far too large to send to the renderer.
@@ -469,7 +554,7 @@ function toLibraryModel(item) {
     name: cleanModelName(repoId),
     repo: repoId,
     description: describeModel(item, context),
-    capabilities: detectCapabilities(context, chatTemplate),
+    capabilities: type ? [type] : detectCapabilities(context, chatTemplate),
     sizes: extractAvailableSizes(item.siblings),
   };
 }
@@ -599,6 +684,9 @@ async function resolveModelDownload(reference) {
 
 module.exports = {
   CURATED_MODELS,
+  TASK_TYPES,
+  TYPE_LABELS,
+  typeOfTask,
   extractAvailableSizes,
   searchHuggingFace,
   resetSearchCache,
