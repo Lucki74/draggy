@@ -452,6 +452,13 @@
       "summary": "Write a shell script"
     },
     {
+      "id": "frontend-design",
+      "category": "code",
+      "surface": "both",
+      "on": false,
+      "summary": "Design and build web interfaces"
+    },
+    {
       "id": "skill-creator",
       "category": "authoring",
       "surface": "both",
