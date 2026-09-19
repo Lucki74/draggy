@@ -390,6 +390,7 @@ async function run() {
 
     // A skill started by its command, then the context popover naming it as loaded.
     await send(win, "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.");
+    await shoot(win, "app-skill-request");
     await click(win, "Context window:");
     await inPage(win, () => {
       const header = document.querySelector("[role=dialog] button[aria-expanded]");

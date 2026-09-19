@@ -1729,4 +1729,24 @@ describe("a tool call the model got wrong", () => {
 
     expect(repairs).toHaveLength(0);
   });
+
+  it("aborts the stream and trims runaway repetition when model loops on REDACTED markers", async () => {
+    installFetch(
+      [
+        {
+          content: [
+            "Here is the answer.\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+          ],
+        },
+      ],
+      [],
+    );
+
+    const result = await run([userMessage("write essay")]).promise;
+    expect(result.textContent).toBe("Here is the answer.");
+  });
 });

@@ -46,6 +46,7 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
+import { detectRepetition } from "./repetition";
 import {
   annotationsFor,
   availableTools,
@@ -785,9 +786,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   let fullFinalTextContent = request.seed?.textContent ?? "";
 
   /** Trimming is right for a fresh reply and wrong for a continued one: that space is the only
-   * thing keeping the joined words apart. */
+   * thing keeping the joined words apart. Runaway repetition loops are trimmed first. */
   const cleanText = (raw: string): string => {
-    const cleaned = cleanStream ? raw.trim() : stripToolSyntax(raw);
+    const trimmed = detectRepetition(raw).trimmedText;
+    const cleaned = cleanStream ? trimmed.trim() : stripToolSyntax(trimmed);
     if (!cleaned || !request.isContinuation) return cleaned;
     return /^\s/.test(raw) ? " " + cleaned : cleaned;
   };
@@ -1000,6 +1002,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             ) {
               maybeToolCall = true;
             }
+
+            // Break degenerate model repetition loops before runaway output.
+            const loopCheck = detectRepetition(rawChunk);
+            if (loopCheck.hasLoop) {
+              rawChunk = loopCheck.trimmedText;
+              loopController.abort();
+              break;
+            }
           }
 
           if (!nativeTools && maybeToolCall) {
@@ -1086,6 +1096,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         ? thinkingText
         : (extractThought(rawChunk) ?? currentThought);
       if (!nativeTools && !toolMatch) toolMatch = detectToolCall(rawChunk);
+      const postLoop = detectRepetition(rawChunk);
+      if (postLoop.hasLoop) rawChunk = postLoop.trimmedText;
       textContent = cleanText(rawChunk);
 
       // A reply that was trying to be a tool call and came out mangled: worth
