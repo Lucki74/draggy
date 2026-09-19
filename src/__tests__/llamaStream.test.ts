@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   accumulateToolCalls,
   finalizeToolCalls,
+  drainToolCalls,
+  ggufErrorMessage,
+  toLlamaMessages,
   readLlamaMetrics,
   readLlamaSseStream,
   sseToOllamaChunks,
@@ -143,5 +146,105 @@ describe("readLlamaSseStream", () => {
     expect(chunks[1].message?.content).toBe("there");
     expect(chunks[2].done).toBe(true);
     expect(chunks[2].prompt_eval_count).toBe(5);
+  });
+});
+
+describe("ggufErrorMessage", () => {
+  it("reads the message out of llama-server's error object instead of printing [object Object]", () => {
+    const body = JSON.stringify({ error: { code: 500, message: "Failed to parse tool call arguments", type: "server_error" } });
+    expect(ggufErrorMessage(body, "Internal Server Error")).toBe("Failed to parse tool call arguments");
+  });
+
+  it("still accepts a plain string error", () => {
+    expect(ggufErrorMessage(JSON.stringify({ error: "model not loaded" }), "Bad Request")).toBe("model not loaded");
+  });
+
+  it("falls back to the raw body, then the status text", () => {
+    expect(ggufErrorMessage("upstream exploded", "Bad Gateway")).toBe("upstream exploded");
+    expect(ggufErrorMessage("", "Bad Gateway")).toBe("Bad Gateway");
+  });
+});
+
+describe("toLlamaMessages", () => {
+  const history = [
+    { role: "user", content: "read it" },
+    { role: "assistant", content: "", tool_calls: [{ function: { name: "read_file", arguments: { path: "a.ts" } } }] },
+    { role: "tool", content: "export const a = 1;" },
+  ];
+
+  it("adds the function type llama-server rejects a replayed tool call without", () => {
+    const [, assistant] = toLlamaMessages(history);
+    expect(assistant.tool_calls).toEqual([
+      { type: "function", function: { name: "read_file", arguments: { path: "a.ts" } } },
+    ]);
+  });
+
+  it("leaves messages without tool calls, and the input, untouched", () => {
+    const converted = toLlamaMessages(history);
+    expect(converted[0]).toBe(history[0]);
+    expect(converted[2]).toBe(history[2]);
+    expect(history[1].tool_calls?.[0]).not.toHaveProperty("type");
+  });
+
+  it("keeps a type that is already there", () => {
+    const [call] = toLlamaMessages([{ tool_calls: [{ type: "function", function: { name: "x" } }] }])[0].tool_calls ?? [];
+    expect(call).toEqual({ type: "function", function: { name: "x" } });
+  });
+});
+
+describe("tool calls are delivered once", () => {
+  const finish = [
+    'data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"name":"read_file","arguments":"{\\"path\\":\\"a.ts\\"}"}}]}}]}\n\n',
+    'data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"name":"search_files","arguments":"{\\"q\\":\\"x\\"}"}}]}}]}\n\n',
+    'data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}\n\n',
+    "data: [DONE]\n\n",
+  ];
+
+  function readerOf(chunks: string[]): ReadableStreamDefaultReader<Uint8Array> {
+    const encoder = new TextEncoder();
+    let index = 0;
+    return {
+      read: async () =>
+        index >= chunks.length
+          ? { done: true, value: undefined }
+          : { done: false, value: encoder.encode(chunks[index++]) },
+      releaseLock: () => {},
+      cancel: async () => {},
+      closed: Promise.resolve(undefined),
+    } as ReadableStreamDefaultReader<Uint8Array>;
+  }
+
+  it("hands each call to readLlamaSseStream once, not again at [DONE]", async () => {
+    const delivered: string[] = [];
+    await readLlamaSseStream(readerOf(finish), "m", 8192, (chunk) => {
+      for (const call of chunk.toolCalls ?? []) delivered.push(call.name);
+    });
+
+    expect(delivered).toEqual(["read_file", "search_files"]);
+  });
+
+  it("hands each call to sseToOllamaChunks once, not again at [DONE]", async () => {
+    const delivered: string[] = [];
+    for await (const chunk of sseToOllamaChunks(readerOf(finish))) {
+      for (const call of chunk.message?.tool_calls ?? []) delivered.push(call.function.name);
+    }
+
+    expect(delivered).toEqual(["read_file", "search_files"]);
+  });
+
+  it("still delivers calls from a stream that ends without a finish reason", async () => {
+    const delivered: string[] = [];
+    for await (const chunk of sseToOllamaChunks(readerOf([finish[0], "data: [DONE]\n\n"]))) {
+      for (const call of chunk.message?.tool_calls ?? []) delivered.push(call.function.name);
+    }
+
+    expect(delivered).toEqual(["read_file"]);
+  });
+
+  it("drainToolCalls empties the map it reads", () => {
+    const pending = new Map([[0, { id: "", name: "read_file", argsString: "{}" }]]);
+
+    expect(drainToolCalls(pending)).toHaveLength(1);
+    expect(drainToolCalls(pending)).toHaveLength(0);
   });
 });

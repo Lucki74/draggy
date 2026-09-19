@@ -1,6 +1,22 @@
 import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../ollama";
 
+/** llama-server speaks the OpenAI shape, which wants a type on every tool call a history replays. */
+export function toLlamaMessages<M extends { tool_calls?: object[] }>(messages: M[]): M[] {
+  return messages.map((message) =>
+    message.tool_calls
+      ? { ...message, tool_calls: message.tool_calls.map((call) => ({ type: "function", ...call })) }
+      : message,
+  );
+}
+
+/** llama-server reports failures as {"error": {"code", "message", "type"}}, an object, not a string. */
+export function ggufErrorMessage(body: string, fallback: string): string {
+  const error = safeJsonParse<{ error?: string | { message?: string } }>(body)?.error;
+  const message = typeof error === "string" ? error : error?.message;
+  return message || body || fallback;
+}
+
 export interface PartialToolCall {
   id: string;
   name: string;
@@ -39,6 +55,9 @@ export interface AdaptedOllamaChunk {
   done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_duration?: number;
+  total_duration?: number;
 }
 
 /** Accumulates fragmented streaming arguments into a per-index tool call map. */
@@ -79,6 +98,14 @@ export function finalizeToolCalls(
   }
 
   return result;
+}
+
+/** Finalizes the tool calls and empties the map, so each reaches the caller once. llama-server sends
+ * the finish reason and then `[DONE]`, and both used to hand over the same calls: every tool ran twice. */
+export function drainToolCalls(pending: Map<number, PartialToolCall>): ParsedToolCall[] {
+  const calls = finalizeToolCalls(pending);
+  pending.clear();
+  return calls;
 }
 
 export interface SseRawChoice {
@@ -169,7 +196,7 @@ export async function readLlamaSseStream(
 
       const dataStr = trimmed.slice(5).trim();
       if (dataStr === "[DONE]") {
-        const finalTools = finalizeToolCalls(pendingTools);
+        const finalTools = drainToolCalls(pendingTools);
         if (finalTools.length > 0) {
           onChunk({ toolCalls: finalTools });
         }
@@ -194,7 +221,7 @@ export async function readLlamaSseStream(
 
       const hasFinish = Boolean(choice?.finish_reason);
       const readyTools = hasFinish && choice?.finish_reason === "tool_calls"
-        ? finalizeToolCalls(pendingTools)
+        ? drainToolCalls(pendingTools)
         : undefined;
 
       const metrics = payload.timings || payload.usage
@@ -212,7 +239,7 @@ export async function readLlamaSseStream(
     }
   }
 
-  const finalTools = finalizeToolCalls(pendingTools);
+  const finalTools = drainToolCalls(pendingTools);
   if (finalTools.length > 0) {
     onChunk({ toolCalls: finalTools });
   }
@@ -225,6 +252,10 @@ export async function* sseToOllamaChunks(
   const decoder = new TextDecoder();
   let buffer = "";
   const pendingTools = new Map<number, PartialToolCall>();
+
+  let lastUsage: SseRawPayload["usage"];
+  let lastTimings: SseRawPayload["timings"];
+  let yieldedDone = false;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -245,7 +276,7 @@ export async function* sseToOllamaChunks(
       if (dataLines.length === 0) continue;
       const data = dataLines.join("\n");
       if (data === "[DONE]") {
-        const remaining = finalizeToolCalls(pendingTools);
+        const remaining = drainToolCalls(pendingTools);
         if (remaining.length > 0) {
           yield {
             message: {
@@ -253,12 +284,24 @@ export async function* sseToOllamaChunks(
             },
           };
         }
-        yield { done: true };
+        if (!yieldedDone) {
+          yield {
+            done: true,
+            prompt_eval_count: lastUsage?.prompt_tokens ?? lastTimings?.prompt_n,
+            eval_count: lastUsage?.completion_tokens ?? lastTimings?.predicted_n,
+            prompt_eval_duration:
+              lastTimings?.prompt_ms !== undefined ? lastTimings.prompt_ms * 1e6 : undefined,
+            eval_duration:
+              lastTimings?.predicted_ms !== undefined ? lastTimings.predicted_ms * 1e6 : undefined,
+          };
+        }
         return;
       }
 
       const payload = safeJsonParse<SseRawPayload>(data);
       if (!payload) continue;
+      if (payload.usage) lastUsage = payload.usage;
+      if (payload.timings) lastTimings = payload.timings;
 
       const choice = payload.choices?.[0];
       const delta = choice?.delta;
@@ -268,7 +311,9 @@ export async function* sseToOllamaChunks(
       }
 
       const isToolFinish = choice?.finish_reason === "tool_calls";
-      const readyTools = isToolFinish ? finalizeToolCalls(pendingTools) : [];
+      const readyTools = isToolFinish ? drainToolCalls(pendingTools) : [];
+
+      if (choice?.finish_reason) yieldedDone = true;
 
       yield {
         message: {
@@ -280,8 +325,16 @@ export async function* sseToOllamaChunks(
         },
         done: Boolean(choice?.finish_reason),
         done_reason: choice?.finish_reason || undefined,
-        prompt_eval_count: payload.usage?.prompt_tokens,
-        eval_count: payload.usage?.completion_tokens,
+        prompt_eval_count: payload.usage?.prompt_tokens ?? payload.timings?.prompt_n,
+        eval_count: payload.usage?.completion_tokens ?? payload.timings?.predicted_n,
+        prompt_eval_duration:
+          payload.timings?.prompt_ms !== undefined ? payload.timings.prompt_ms * 1e6 : undefined,
+        eval_duration:
+          payload.timings?.predicted_ms !== undefined ? payload.timings.predicted_ms * 1e6 : undefined,
+        total_duration:
+          payload.timings?.prompt_ms !== undefined || payload.timings?.predicted_ms !== undefined
+            ? ((payload.timings?.prompt_ms ?? 0) + (payload.timings?.predicted_ms ?? 0)) * 1e6
+            : undefined,
       };
     }
   }
