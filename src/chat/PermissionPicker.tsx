@@ -8,6 +8,8 @@ interface PermissionPickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (mode: PermissionMode) => void;
+  /** The model cannot use tools, so only Plan only means anything: the rest are shown but not offered. */
+  toolsUnavailable?: boolean;
   t: (key: string) => string;
   /** Icon only, for a composer too narrow for the label. */
   compact?: boolean;
@@ -19,6 +21,7 @@ export default function PermissionPicker({
   open,
   onOpenChange,
   onPick,
+  toolsUnavailable = false,
   t,
   compact = false,
 }: PermissionPickerProps) {
@@ -68,6 +71,7 @@ export default function PermissionPicker({
         >
           {PERMISSION_MODES.map((option) => {
             const selected = option.id === mode;
+            const disabled = toolsUnavailable && option.id !== "plan";
 
             return (
               <button
@@ -75,14 +79,18 @@ export default function PermissionPicker({
                 type="button"
                 role="menuitemradio"
                 aria-checked={selected}
+                disabled={disabled}
+                title={disabled ? t("needsToolModel") : undefined}
                 onClick={() => {
                   onPick(option.id);
                   onOpenChange(false);
                 }}
                 className={`flex items-start gap-2 px-2.5 py-2 rounded-lg text-left transition-colors ${
-                  selected
-                    ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                    : "hover:bg-[var(--hover-bg)]"
+                  disabled
+                    ? "opacity-40 cursor-not-allowed"
+                    : selected
+                      ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+                      : "hover:bg-[var(--hover-bg)]"
                 }`}
               >
                 <span className="flex-1 min-w-0">

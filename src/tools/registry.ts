@@ -158,6 +158,21 @@ export function isBrowsingTool(name: string): boolean {
   return spec?.group === "web" || spec?.group === "browser";
 }
 
+/** The same turn with nothing to call. For a model that cannot use tools, so that neither the prompt nor
+ * the request offers what it could only get wrong. The folder stays, since its rules are still text. */
+export function withoutTools(environment: ToolEnvironment): ToolEnvironment {
+  return {
+    ...environment,
+    webMode: "off",
+    codeExecution: false,
+    libraryReady: false,
+    hasSkills: false,
+    hasGit: false,
+    canRunCommands: false,
+    allowedGroups: [],
+  };
+}
+
 export function toolDefinitions(environment: ToolEnvironment): ToolDefinition[] {
   return availableTools(environment).map((spec) => ({
     type: "function" as const,

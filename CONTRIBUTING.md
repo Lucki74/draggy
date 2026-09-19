@@ -17,8 +17,7 @@ weakens any of those will be declined however well it is written.
 
 ## Getting it running
 
-You need [Ollama](https://ollama.com) installed and running, and Node 24 (what
-CI uses).
+You need Node 24 (what CI uses).
 
 ```bash
 npm install
@@ -36,7 +35,7 @@ That starts Vite and Electron together with hot reload.
 npm run check
 ```
 
-Typecheck, lint and the full test suite, around 1,900 tests in about six
+Typecheck, lint and the full test suite, around 1,960 tests in about six
 seconds. CI runs the same command on every push and pull request, so a mistake
 will be caught either way, faster on your own machine.
 
@@ -61,6 +60,10 @@ Match the file you are editing. Comments explain why, never what, and are two
 lines at most. Name a tradeoff (a timeout, a threshold) in the pull request
 rather than the code. No new dependency without a reason that survives being
 said out loud. CRLF line endings; ESLint is the only formatter.
+
+Logging follows the dual-log split: operational events go to `app.log` with
+sensitive user content sanitized; raw diagnostic traces, chunks, and child
+process output go to `debug.log`.
 
 ## Translations
 

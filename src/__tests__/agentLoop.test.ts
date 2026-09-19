@@ -7,7 +7,7 @@ import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
-import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
+import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../ollama";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -57,33 +57,55 @@ const ENVIRONMENT: ToolEnvironment = {
   libraryReady: true,
 };
 
-const NS = 1e6;
-
-function ndjsonStream(lines: unknown[]) {
+/** Encodes content/thinking/toolCalls chunks as SSE events for llama-server format. */
+function sseStream(chunks: unknown[]) {
   const encoder = new TextEncoder();
   let index = 0;
 
   return new ReadableStream<Uint8Array>({
     pull(controller) {
-      if (index >= lines.length) {
+      if (index >= chunks.length) {
         controller.close();
         return;
       }
-      controller.enqueue(encoder.encode(JSON.stringify(lines[index++]) + "\n"));
+      controller.enqueue(encoder.encode("data: " + JSON.stringify(chunks[index++]) + "\n\n"));
     },
   });
 }
 
-const finalChunk = (extra: Record<string, unknown> = {}) => ({
-  done: true,
-  done_reason: "stop",
-  eval_count: 40,
-  eval_duration: 400 * NS,
-  prompt_eval_count: 120,
-  prompt_eval_duration: 60 * NS,
-  total_duration: 500 * NS,
-  ...extra,
-});
+/** Converts an Ollama-style turn description into SSE chunks the GGUF stream parser expects. */
+function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unknown[] {
+  const chunks: unknown[] = [];
+  for (const piece of turn.thinking ?? []) {
+    chunks.push({ choices: [{ delta: { reasoning_content: piece }, finish_reason: null }] });
+  }
+  for (const piece of turn.content ?? []) {
+    chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
+  }
+  if (turn.toolCalls) {
+    const deltas = turn.toolCalls.map((tc, i) => ({
+      index: i,
+      id: `call_${i}`,
+      function: { name: tc.function.name, arguments: JSON.stringify(tc.function.arguments) },
+    }));
+    chunks.push({
+      choices: [{ delta: { tool_calls: deltas }, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else {
+    const finishReason = (extra.finish_reason ?? extra.done_reason ?? "stop") as string;
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: finishReason }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  }
+  chunks.push("[DONE]");
+  return chunks;
+}
 
 interface Turn {
   content?: string[];
@@ -94,46 +116,58 @@ interface Turn {
 
 function installFetch(
   turns: Turn[],
-  capabilities: string[],
-  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80 }],
-  /** What a constrained repair pass answers, when the loop asks for one. */
+  /** What the model reports it can do, or null for one the probe cannot identify. */
+  capabilities: string[] | null,
+  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80, context_length: 4096 }],
   repair?: string,
 ) {
   const requests: Record<string, unknown>[] = [];
   const repairs: Record<string, unknown>[] = [];
+  const starts: { modelPath: string; contextSize: number }[] = [];
   let turnIndex = 0;
 
+  vi.stubGlobal("window", {
+    electronAPI: {
+      gguf: {
+        status: async () => {
+          const first = loaded[0];
+          if (!first) return { running: false, model: null };
+          return {
+            running: true,
+            model: String(first.name || MODEL).replace(/:latest$/, ""),
+            contextSize: Number(first.context_length ?? first.contextSize ?? 4096),
+          };
+        },
+        listModels: async () =>
+          capabilities === null
+            ? []
+            : [
+                {
+                  filename: MODEL,
+                  contextLength: 32768,
+                  blockCount: 32,
+                  architecture: "gguf",
+                  fileType: 0,
+                  capabilities,
+                },
+              ],
+        start: async (opts: { modelPath: string; contextSize: number }) => {
+          starts.push(opts);
+          return { success: true };
+        },
+      },
+    },
+  });
+
   const impl = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/api/show")) {
-      return new Response(
-        JSON.stringify({
-          capabilities,
-          model_info: {
-            "test.context_length": 32768,
-            "test.block_count": 32,
-            "test.embedding_length": 4096,
-            "test.attention.head_count": 32,
-            "test.attention.head_count_kv": 8,
-          },
-          details: { parameter_size: "8B", quantization_level: "Q4_K_M" },
-        }),
-        { status: 200 },
-      );
-    }
-
-    if (url.endsWith("/api/ps")) {
-      return new Response(JSON.stringify({ models: loaded }), { status: 200 });
-    }
-
-    if (url.endsWith("/api/chat")) {
+    if (url.endsWith("/v1/chat/completions")) {
       const body = JSON.parse(String(init?.body));
 
-      // A repair is the one request that is not streamed, and the only one
-      // that carries a schema.
-      if (body.format) {
+      if (body.response_format || body.format) {
+        body.format = body.response_format?.json_schema?.schema ?? body.format;
         repairs.push(body);
         return new Response(
-          JSON.stringify({ message: { content: repair ?? "" } }),
+          JSON.stringify({ choices: [{ message: { content: repair ?? "" } }] }),
           { status: 200 },
         );
       }
@@ -141,27 +175,14 @@ function installFetch(
       requests.push(body);
 
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
-
-      const lines: unknown[] = [];
-      for (const piece of turn.thinking ?? []) {
-        lines.push({ message: { thinking: piece } });
-      }
-      for (const piece of turn.content ?? []) {
-        lines.push({ message: { content: piece } });
-      }
-      if (turn.toolCalls) {
-        lines.push({ message: { content: "", tool_calls: turn.toolCalls } });
-      }
-      lines.push(finalChunk(turn.final));
-
-      return new Response(ndjsonStream(lines), { status: 200 });
+      return new Response(sseStream(turnToSseChunks(turn, turn.final ?? {})), { status: 200 });
     }
 
     throw new Error(`unexpected fetch to ${url}`);
   });
 
   vi.stubGlobal("fetch", impl);
-  return { requests, repairs };
+  return { requests, repairs, starts };
 }
 
 function makeHost() {
@@ -273,7 +294,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("a model Ollama has to load first", () => {
+describe("a model the GGUF engine has to load first", () => {
   // Every list the host is shown, since the notice has to be gone by the end.
   function watchSteps() {
     const host = makeHost();
@@ -346,7 +367,7 @@ describe("a plain answer with no tools", () => {
 
     expect(result.metrics?.responseTokens).toBe(40);
     expect(result.metrics?.tokensPerSecond).toBeCloseTo(100, 5);
-    expect(host.metrics?.gpuPercent).toBe(80);
+    expect(host.metrics?.gpuPercent).toBe(0);
   });
 
   it("sends a system prompt and the conversation", async () => {
@@ -593,6 +614,7 @@ describe("native thinking models", () => {
     const result = await run([userMessage("2+2")]).promise;
 
     expect((requests[0] as { think?: boolean }).think).toBe(true);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: true });
     expect(result.textContent).toBe("Four.");
     expect(result.steps.find((s) => s.type === "thinking")?.content).toContain("let me see");
   });
@@ -605,6 +627,17 @@ describe("native thinking models", () => {
   });
 });
 
+describe("a model that cannot think", () => {
+  it("is sent no thinking option at all", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("think");
+    expect(requests[0]).not.toHaveProperty("chat_template_kwargs");
+  });
+});
+
 describe("fast thinking mode", () => {
   const FAST_SETTINGS = { ...SETTINGS, thinkingMode: "low" } as AppSettings;
 
@@ -614,6 +647,7 @@ describe("fast thinking mode", () => {
     await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
 
     expect((requests[0] as { think?: boolean }).think).toBe(false);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: false });
     const system = String(
       (requests[0] as { messages: { content: string }[] }).messages[0].content,
     );
@@ -658,17 +692,15 @@ describe("keeping the model loaded", () => {
   type ChatBody = { options: { num_ctx: number } };
 
   it("asks for the window the warm-up already loaded", async () => {
-    const { requests } = installFetch([{ content: ["ok"] }], []);
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
 
     await warmModel(MODEL, "30m", 0);
     await run([userMessage("hi")]).promise;
 
-    // Two /api/chat calls: the warm-up, then the turn. Ollama unloads and
-    // reloads the weights when num_ctx changes, so these have to agree.
-    expect(requests).toHaveLength(2);
-    expect((requests[1] as ChatBody).options.num_ctx).toBe(
-      (requests[0] as ChatBody).options.num_ctx,
-    );
+    // GGUF server is started at the warm-up size, which the turn agrees with.
+    expect(starts).toHaveLength(2);
+    expect(starts[1].contextSize).toBe(starts[0].contextSize);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(starts[0].contextSize);
   });
 
   it("does not give a window back once the conversation has needed it", async () => {
@@ -681,6 +713,24 @@ describe("keeping the model loaded", () => {
 
     expect(grown).toBeGreaterThan(4096);
     expect((requests[1] as ChatBody).options.num_ctx).toBe(grown);
+  });
+
+  it("locks the context size to fixedContextSize when set to a number", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: 16384 }).promise;
+
+    expect(starts[0].contextSize).toBe(16384);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(16384);
+  });
+
+  it("locks the context size to the model maximum when fixedContextSize is 'max'", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: "max" }).promise;
+
+    expect(starts[0].contextSize).toBe(32768);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(32768);
   });
 });
 
@@ -1631,16 +1681,23 @@ describe("working to a plan", () => {
 describe("a tool call the model got wrong", () => {
   const GOOD = '{"name": "search_web", "args": {"query": "paris"}}';
 
+  /** A model the app has seen described as unable to call tools, and cannot reach now: its calls travel
+   * as text, and a bad one gets the repair. A model known to lack tools is given none at all. */
+  async function textModeFetch(turns: Turn[], repair?: string) {
+    installFetch([], ["completion"]);
+    await getModelInfo(MODEL);
+    forgetModelInfo(MODEL);
+    return installFetch(turns, null, undefined, repair);
+  }
+
   it("is asked for again against a schema, and then runs", async () => {
     // A small model that opened the tag and never closed it. Before the repair
     // this reached the user as a wall of JSON.
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] },
         { content: ["Paris is the capital."] },
       ],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1651,13 +1708,11 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("constrains the repair to the tools that exist", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web"'] },
         { content: ["Done."] },
       ],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1670,14 +1725,12 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("only tries once in a turn", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web"'] },
         { content: ['<tool>{"name": "search_web"'] },
         { content: ["Giving up."] },
       ],
-      [],
-      undefined,
       "not a call at all",
     );
 
@@ -1687,10 +1740,8 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("leaves an ordinary answer alone", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [{ content: ["Paris is the capital of France."] }],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1701,10 +1752,8 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("hands back the reply as written when the repair fails too", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [{ content: ['<tool>{"name": "search_web", "args": {'] }],
-      [],
-      undefined,
       "still not a call",
     );
 
@@ -1748,5 +1797,59 @@ describe("a tool call the model got wrong", () => {
 
     const result = await run([userMessage("write essay")]).promise;
     expect(result.textContent).toBe("Here is the answer.");
+  });
+});
+
+describe("a model that cannot use tools", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is offered none, and told there is no browsing", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(systemOf(requests[0])).not.toContain("AVAILABLE TOOLS");
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("is not given the web even when the setting asks for it", async () => {
+    const withWeb = { ...SETTINGS, webMode: "on" } as AppSettings;
+    const off = { ...SETTINGS, webMode: "off" } as AppSettings;
+
+    const first = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, withWeb).promise;
+    const second = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, off).promise;
+
+    expect(systemOf(first.requests[0])).toBe(systemOf(second.requests[0]));
+  });
+
+  it("still gets tools when the probe could not say what it can do", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], null);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(String((requests[0] as { messages: { content: string }[] }).messages[0].content)).toContain(
+      "AVAILABLE TOOLS",
+    );
+  });
+});
+
+describe("a model that cannot think", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is run as if thinking were off, whatever the setting says", async () => {
+    const medium = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")]).promise;
+
+    const fast = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")], undefined, undefined, { ...SETTINGS, thinkingMode: "low" } as AppSettings).promise;
+
+    expect(systemOf(medium.requests[0])).toBe(systemOf(fast.requests[0]));
+    expect(medium.requests[0]).not.toHaveProperty("think");
+    expect(medium.requests[0]).not.toHaveProperty("chat_template_kwargs");
   });
 });

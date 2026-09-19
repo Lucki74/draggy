@@ -1,16 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { WifiOff, HardDrive, AlertCircle } from "lucide-react";
-import { getRecommendedModel } from "./modelRecommendations";
+import { HardDrive, AlertCircle } from "lucide-react";
+import { getRecommendedDownload } from "./modelRecommendations";
 import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
-import {
-  PULL_PHASE_KEYS,
-  getOllamaVersion,
-  isCloudModel,
-  listInstalledModels,
-  pullModel,
-} from "./ollama";
+import { isCloudModel, listInstalledModels } from "./ollama";
 import Logo from "./Logo";
 
 interface StartupScreenProps {
@@ -23,14 +17,12 @@ interface DownloadProgress {
   percent: number;
   completed: number;
   total: number;
-  /** What is being fetched: a model name, or the service itself. */
   label: string;
 }
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
 
-/** Both halves share one unit, picked from the total, so the pair reads as a pair. */
 function transferred(completed: number, total: number): string {
   const inGigabytes = total >= GB;
   const scale = inGigabytes ? GB : MB;
@@ -66,6 +58,30 @@ export default function StartupScreen({
   }, [t]);
 
   useEffect(() => {
+    const updateProgress = (p: {
+      percent: number;
+      completed: number;
+      total: number;
+      label?: string;
+    }) => {
+      setDownloadProgress((prev) => ({
+        percent: Number(p.percent) || 0,
+        completed: Number(p.completed) || 0,
+        total: Number(p.total) || prev?.total || 0,
+        label: p.label || prev?.label || "GGUF",
+      }));
+    };
+
+    const stopWatchingGguf = window.electronAPI?.gguf?.onProgress?.(updateProgress);
+    const stopWatchingDl = window.electronAPI?.onDownloadProgress?.(updateProgress);
+
+    return () => {
+      stopWatchingGguf?.();
+      stopWatchingDl?.();
+    };
+  }, []);
+
+  useEffect(() => {
     if (hasBootedRef.current) return;
     hasBootedRef.current = true;
 
@@ -79,85 +95,34 @@ export default function StartupScreen({
       return;
     }
 
-    const stopWatching = window.electronAPI.onDownloadProgress((p) => {
-      setDownloadProgress((prev) => ({
-        percent: Number(p.percent) || 0,
-        completed: Number(p.completed) || 0,
-        total: Number(p.total) || 0,
-        label: prev?.label ?? "Ollama",
-      }));
-    });
-
     async function bootSequence() {
       try {
         let targetModel = isCloudModel(modelName) ? "" : modelName;
 
-        const onlinePromise = window.electronAPI?.checkInternet();
-        const ollamaPromise = window.electronAPI?.checkOllama();
-
-        setStatus(tr("checkingInternet"));
-        const isOnline = await onlinePromise;
-
         setStatus(tr("checkingService"));
-        const isOllamaRunning = await ollamaPromise;
+        let engineStatus = await window.electronAPI?.gguf?.status();
 
-        if (!isOllamaRunning) {
-          setStatus(tr("startingService"));
-          const started = await window.electronAPI?.startOllama();
+        if (!engineStatus?.hasBinary || !engineStatus?.ready) {
+          setStatus(tr("installingService"));
+          setDownloadProgress({ percent: 0, completed: 0, total: 100, label: "AI Engine" });
+          await window.electronAPI?.gguf?.setupEngine?.();
 
-          if (!started) {
-            if (!isOnline) {
-              setError({
-                message:
-                  "AI service is not running and you are offline. Please connect to the internet to install it.",
-                icon: <WifiOff className="w-10 h-10 text-red-400" />,
-              });
-              return;
-            }
-
-            setStatus(tr("installingService"));
-            setDownloadProgress({
-              percent: 0,
-              completed: 0,
-              total: 0,
-              label: "Ollama",
+          engineStatus = await window.electronAPI?.gguf?.status();
+          if (!engineStatus?.hasBinary || !engineStatus?.ready) {
+            setError({
+              message: tr("missingGgufEngine"),
+              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
             });
-            try {
-              await window.electronAPI?.installOllama();
-              setDownloadProgress(null);
-              setStatus(tr("startingService"));
-              const finalStart = await window.electronAPI?.startOllama();
-              if (!finalStart)
-                throw new Error("Could not start Ollama after installation.");
-            } catch {
-              setDownloadProgress(null);
-              setError({
-                message:
-                  "Failed to install Ollama. Please try restarting the app.",
-                icon: <AlertCircle className="w-10 h-10 text-red-400" />,
-              });
-              return;
-            }
+            return;
           }
+          setDownloadProgress(null);
         }
 
         setStatus(tr("verifyingAssets"));
         const installed = await listInstalledModels();
         const models = installed.map((entry) => entry.name);
 
-        let hasModel =
-          !!targetModel &&
-          models.some((name) => {
-            const installedBase = name.split(":")[0];
-            const targetBase = targetModel.split(":")[0];
-            return (
-              name === targetModel ||
-              name.startsWith(targetModel) ||
-              installedBase === targetBase ||
-              installedBase.startsWith(targetBase) ||
-              targetBase.startsWith(installedBase)
-            );
-          });
+        let hasModel = !!targetModel && models.includes(targetModel);
 
         // Falling back to whatever happens to be installed must not land on an
         // embedding model, which cannot answer anything.
@@ -170,27 +135,34 @@ export default function StartupScreen({
         if (!hasModel) {
           setStatus(tr("checkingHardware"));
           const specs = await window.electronAPI?.getSystemSpecs();
-          targetModel = getRecommendedModel(specs?.vram || 0, {
+          const target = getRecommendedDownload(specs?.vram || 0, {
             platform: specs?.platform,
             arch: specs?.arch,
-            ollamaVersion: await getOllamaVersion(),
             ram: specs?.ram,
             cpuModel: specs?.cpu,
           });
 
-          if (!isOnline) {
+          setStatus(tr("checkingInternet"));
+          const online = await window.electronAPI?.checkInternet();
+          if (!online) {
             setError({
-              message: `Model "${targetModel}" is not installed and you are offline.`,
-              icon: <WifiOff className="w-10 h-10 text-red-400" />,
+              message: tr("noInternetConnection"),
+              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
             });
             return;
           }
 
           setStatus(tr("checkingDisk"));
           const freeSpace = await window.electronAPI?.checkDiskSpace();
-          if (freeSpace !== undefined && freeSpace < 10) {
+          const freeBytes =
+            typeof freeSpace === "number" && freeSpace > 0
+              ? freeSpace < 100_000
+                ? freeSpace * 1024 ** 3
+                : freeSpace
+              : 0;
+          if (freeBytes > 0 && freeBytes < target.size * 1.5) {
             setError({
-              message: `${tr("notEnoughSpace")}. Need ~10 GB, you have ${freeSpace.toFixed(1)} GB free.`,
+              message: tr("notEnoughSpace"),
               icon: <HardDrive className="w-10 h-10 text-red-400" />,
             });
             return;
@@ -200,22 +172,34 @@ export default function StartupScreen({
           setDownloadProgress({
             percent: 0,
             completed: 0,
-            total: 0,
-            label: targetModel,
+            total: target.size,
+            label: target.filename,
           });
 
-          await pullModel(targetModel, (progress) => {
-            setDownloadProgress({
-              percent: progress.percent,
-              completed: progress.completed,
-              total: progress.total,
-              label: targetModel,
-            });
-            setStatus(tr(PULL_PHASE_KEYS[progress.phase]));
+          setStatus(tr("downloadingModel"));
+          const downloadRes = await window.electronAPI?.gguf?.downloadModel({
+            url: target.url,
+            filename: target.filename,
           });
-          setDownloadProgress(null);
+
+          if (!downloadRes || (typeof downloadRes === "object" && "error" in downloadRes && downloadRes.error)) {
+            const msg = typeof downloadRes === "object" && "error" in downloadRes ? String(downloadRes.error) : tr("downloadFailed");
+            setError({
+              message: `${tr("downloadFailed")}: ${msg}`,
+              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
+            });
+            return;
+          }
+
+          setStatus(tr("installingService"));
+          setStatus(tr("systemCheckComplete"));
+          await new Promise((r) => setTimeout(r, 700));
+
+          onReady(target.filename);
+          return;
         }
 
+        setStatus(tr("startingService"));
         setStatus(tr("systemCheckComplete"));
         await new Promise((r) => setTimeout(r, 700));
 
@@ -223,7 +207,7 @@ export default function StartupScreen({
       } catch (err: unknown) {
         setError({
           message:
-            err instanceof Error ? err.message : "Initialization failed.",
+            err instanceof Error ? err.message : tr("initializationFailed"),
           icon: <AlertCircle className="w-10 h-10 text-red-400" />,
         });
       }
@@ -231,7 +215,6 @@ export default function StartupScreen({
 
     bootSequence();
 
-    return () => stopWatching();
   }, [modelName, onReady]);
 
   return (

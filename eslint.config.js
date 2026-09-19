@@ -18,6 +18,10 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Allow _-prefixed args kept for interface compatibility.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
   },
   // The main process and the build scripts. Without a block of their own these are parsed and then
   // left alone: no rules run, and `require`, `process` and `__dirname` read as undefined globals.

@@ -1,4 +1,4 @@
-import { contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../ollama";
+import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../ollama";
 import { generateId, titleFromContent } from "../utils";
 import {
   CHARS_PER_TOKEN,
@@ -199,9 +199,14 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   /** Characters the conversation may occupy before an automatic fold. The user's limit when there
    * is one, otherwise a share of how far the window can grow. */
   async function budgetFor(model: string, numCtx: number): Promise<number> {
-    const limit = host.getSettings().compactLimit ?? null;
+    const settings = host.getSettings();
+    const limit = settings.compactLimit ?? null;
     const info = await getModelInfo(model).catch(() => null);
-    const windowTokens = windowCeiling(info?.contextLength ?? null, numCtx);
+    const windowTokens = settings.fixedContextSize === "max"
+      ? (info?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
+      : typeof settings.fixedContextSize === "number"
+      ? settings.fixedContextSize
+      : windowCeiling(info?.contextLength ?? null, numCtx);
 
     return compactThreshold(windowTokens, limit).tokens * CHARS_PER_TOKEN;
   }
@@ -236,7 +241,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
         // The window the model is already loaded at. `contextSizeFor` never
         // shrinks, so asking it here cannot cause the reload this is avoiding.
-        const numCtx = contextSizeFor(model, 0, null);
+        const numCtx = contextSizeFor(model, 0, null, host.getSettings().fixedContextSize);
 
         const plan = manual
           ? planManualCompaction(session.messages, existing)

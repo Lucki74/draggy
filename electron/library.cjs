@@ -4,7 +4,7 @@ const { DatabaseSync } = require("node:sqlite");
 const { log } = require("./logger.cjs");
 const { extractText, DOCUMENT_TEXT_LIMIT } = require("./documents.cjs");
 
-const OLLAMA_URL = "http://127.0.0.1:11434";
+const GGUF_ENGINE_URL = "http://127.0.0.1:11435";
 const DEFAULT_EMBED_MODEL = "nomic-embed-text";
 
 const CHUNK_TARGET_CHARS = 1200;
@@ -283,10 +283,10 @@ function normalise(vector) {
 }
 
 async function embed(model, inputs) {
-  const response = await fetch(`${OLLAMA_URL}/api/embed`, {
+  const response = await fetch(`${GGUF_ENGINE_URL}/v1/embeddings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, input: inputs }),
+    body: JSON.stringify({ input: inputs, model }),
   });
 
   if (!response.ok) {
@@ -295,7 +295,7 @@ async function embed(model, inputs) {
   }
 
   const body = await response.json();
-  const vectors = body?.embeddings;
+  const vectors = body?.data?.map((entry) => entry.embedding);
   if (!Array.isArray(vectors) || vectors.length !== inputs.length) {
     throw new Error("Embedding model returned an unexpected shape");
   }

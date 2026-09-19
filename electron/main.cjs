@@ -14,7 +14,6 @@ const {
 } = require("electron");
 const path = require("path");
 const os = require("os");
-const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -45,8 +44,11 @@ const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
 const mcpCatalogue = require("./mcpCatalogue.cjs");
 const pdfWriter = require("./pdfWriter.cjs");
+const llamaProcess = require("./llamaProcess.cjs");
+const binaryManager = require("./binaryManager.cjs");
+const modelStorage = require("./modelStorage.cjs");
+const huggingface = require("./huggingface.cjs");
 
-const OLLAMA_HOST = "127.0.0.1:11434";
 const MODEL_CACHE_ORIGIN = "https://huggingface.co";
 
 /** What the app calls itself: window titles, the taskbar, the data folder. */
@@ -241,7 +243,7 @@ const CSP_DIRECTIVES = [
   "font-src 'self' app: draggy: data:",
   "img-src 'self' app: draggy: data: blob: https:",
   "media-src 'self' app: draggy: data: blob:",
-  "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11434 ws://127.0.0.1:5173 http://127.0.0.1:5173",
+  "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
   "object-src 'none'",
   "frame-src widget:",
@@ -279,7 +281,6 @@ function applyContentSecurityPolicy(ses, packaged) {
   });
 }
 
-const OLLAMA_URL = `http://${OLLAMA_HOST}`;
 function cleanUserAgent(webContents) {
   return webContents.userAgent.replace(/Electron\/[0-9.]+ /g, "");
 }
@@ -852,7 +853,17 @@ function shutdown() {
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
-    ["ollama", stopOllama],
+    ["llama", () => llamaProcess.stopServerSync()],
+    ["watchers", () => {
+      for (const watcher of workspaceWatchers.values()) {
+        try {
+          watcher.close();
+        } catch (error) {
+          log.debug("fs", `Error closing watcher: ${error.message}`);
+        }
+      }
+      workspaceWatchers.clear();
+    }],
     ["storage", () => storage.close()],
     ["library", () => library.close()],
   ];
@@ -866,44 +877,6 @@ function shutdown() {
   }
 }
 
-/** Only ever the instance Draggy started, never one that was already running. */
-function stopOllama() {
-  if (!ollamaStartedHere) return;
-
-  const child = ollamaStartedHere;
-  ollamaStartedHere = null;
-  // Each model Ollama loads runs as a llama-server of its own, so this has to
-  // take the whole tree, and finish doing so before Draggy exits.
-  platform.killTreeSync(child);
-}
-
-/** Models Draggy had Ollama load. Unloaded on quit even when Ollama stays up, or each holds memory
- * for half an hour for nobody. */
-const modelsInUse = new Set();
-
-ipcMain.on("model-in-use", (_event, name) => {
-  if (typeof name === "string" && name) modelsInUse.add(name);
-});
-
-/** A quit that hangs is worse than a model left loaded. */
-const RELEASE_TIMEOUT_MS = 2000;
-
-function releaseModels() {
-  const names = [...modelsInUse];
-  modelsInUse.clear();
-
-  return Promise.allSettled(
-    names.map((model) =>
-      fetch(`${OLLAMA_URL}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, keep_alive: 0 }),
-        signal: AbortSignal.timeout(RELEASE_TIMEOUT_MS),
-      }),
-    ),
-  );
-}
-
 let quitting = false;
 
 app.on("before-quit", (event) => {
@@ -911,11 +884,8 @@ app.on("before-quit", (event) => {
   quitting = true;
   event.preventDefault();
 
-  // The window writes its pending saves before storage closes under them. An Ollama Draggy
-  // started goes whole in shutdown, models and all.
-  const released = ollamaStartedHere ? null : releaseModels();
-
-  Promise.allSettled([flushWindow(mainWindow, ipcMain), released]).then(() => {
+  // The window writes its pending saves before storage closes under them.
+  Promise.allSettled([flushWindow(mainWindow, ipcMain)]).then(() => {
     shutdown();
     app.quit();
   });
@@ -958,7 +928,7 @@ app.on("window-all-closed", () => {
 
 let cachedSpecs = null;
 
-ipcMain.handle("get-system-specs", async () => {
+async function getSystemSpecs() {
   if (cachedSpecs) return cachedSpecs;
 
   const cpus = os.cpus();
@@ -997,7 +967,9 @@ ipcMain.handle("get-system-specs", async () => {
   );
 
   return cachedSpecs;
-});
+}
+
+ipcMain.handle("get-system-specs", getSystemSpecs);
 
 ipcMain.handle("check-internet", async () => {
   return new Promise((resolve) => {
@@ -1017,29 +989,11 @@ ipcMain.handle("check-disk-space", async () => {
   try {
     const appPath = app.getPath("userData");
     const stats = fs.statfsSync(appPath);
-    const freeGB = (stats.bavail * stats.bsize) / 1024 ** 3;
-    return freeGB;
+    return Number(stats.bavail) * Number(stats.bsize);
   } catch {
-    return 100;
+    return 100 * 1024 ** 3;
   }
 });
-
-function isOllamaRunning(timeout = 2000) {
-  return new Promise((resolve) => {
-    const req = http.get(`${OLLAMA_URL}/api/tags`, (res) => {
-      res.resume();
-      resolve(res.statusCode === 200);
-    });
-    req.on("error", () => resolve(false));
-    req.setTimeout(timeout, () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.end();
-  });
-}
-
-ipcMain.handle("check-ollama", () => isOllamaRunning());
 
 async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }) {
   const win = new BrowserWindow({
@@ -1434,279 +1388,97 @@ ipcMain.handle("browser-close", async () => {
   return { success: true };
 });
 
-const resolveOllamaLauncher = platform.resolveOllamaLauncher;
-
-let isStartingOllama = false;
-
-/** Ollama, only when Draggy was the one that started it. An instance that was already up belongs to
- * whoever started it and is left alone on quit. */
-let ollamaStartedHere = null;
-
-ipcMain.handle("start-ollama", async () => {
-  if (isStartingOllama) return true;
-  isStartingOllama = true;
-
-  try {
-    const checkRunning = () => isOllamaRunning(1000);
-
-    if (await checkRunning()) {
-      isStartingOllama = false;
-      return true;
-    }
-
-    const launcher = await resolveOllamaLauncher();
-    if (!launcher) {
-      isStartingOllama = false;
-      return false;
-    }
-
-    log.info("ollama", `starting ${launcher.file}`);
-
-    const child = platform.spawnHidden(launcher.file, launcher.args, {
-      // Its own group on macOS and Linux, so the kill on quit reaches the
-      // llama-server processes too rather than only Ollama itself.
-      detached: !platform.IS_WINDOWS,
-      stdio: "ignore",
-      env: { ...platform.defaultShellEnv(), OLLAMA_HOST },
-    });
-    child.unref();
-
-    ollamaStartedHere = child;
-    child.on("exit", () => {
-      if (ollamaStartedHere === child) ollamaStartedHere = null;
-    });
-
-    let started = false;
-    for (let i = 0; i < 20; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      if (await checkRunning()) {
-        started = true;
-        break;
-      }
-    }
-
-    isStartingOllama = false;
-    return started;
-  } catch {
-    isStartingOllama = false;
-    return false;
-  }
-});
-
-
-function httpsGetFollow(url, onResponse, onError, depth = 0) {
-  if (depth > 5) {
-    onError(new Error("Too many redirects"));
-    return;
-  }
-  const req = https.get(url, (res) => {
-    const status = res.statusCode || 0;
-    if (status >= 300 && status < 400 && res.headers.location) {
-      res.resume(); 
-      httpsGetFollow(
-        new URL(res.headers.location, url).toString(),
-        onResponse,
-        onError,
-        depth + 1,
-      );
-      return;
-    }
-    if (status !== 200) {
-      res.resume();
-      onError(new Error(`Download failed with status ${status}`));
-      return;
-    }
-    onResponse(res);
-  });
-  req.on("error", onError);
+function ggufModelsDir() {
+  return path.join(app.getPath("userData"), "models");
 }
 
-ipcMain.handle("install-ollama", async () => {
-  const spec = platform.ollamaInstaller();
+ipcMain.handle("gguf:status", async () => {
+  log.debug("ipc", "gguf:status requested");
+  const specs = await getSystemSpecs();
+  const engine = binaryManager.getEngineEnvironment(app.getPath("userData"), specs?.vram || 0);
+  const status = llamaProcess.getServerStatus();
+  return {
+    ...status,
+    hasBinary: Boolean(engine.binaryPath),
+    ready: Boolean(engine.binaryPath),
+    runnerType: engine.runnerType,
+  };
+});
 
-  if (spec.mode === "manual") {
-    log.info("ollama", "no silent installer for this platform, opening download page");
-    await shell.openExternal(spec.url);
-    return false;
+ipcMain.handle("gguf:setup-engine", async () => {
+  log.info("ipc", "gguf:setup-engine requested");
+  const specs = await getSystemSpecs();
+  const result = await binaryManager.ensureEngineReady(app.getPath("userData"), specs?.vram || 0, (progress) => {
+    broadcast("gguf:progress", progress);
+    broadcast("download-progress", progress);
+  });
+  log.info("ipc", `gguf:setup-engine result: ready=${result.ready} runner=${result.runnerType}`);
+  return { success: Boolean(result.ready), runnerType: result.runnerType, error: result.error };
+});
+
+ipcMain.handle("gguf:start", async (_event, options = {}) => {
+  log.info("ipc", `gguf:start model=${options.modelPath} context=${options.contextSize}`);
+  const binary = binaryManager.findLlamaBinary(app.getPath("userData"));
+  if (!binary) {
+    log.error("ipc", "gguf:start failed: llama-server binary not found");
+    return { success: false, error: "llama-server binary not found" };
   }
+  const targetPath = path.isAbsolute(options.modelPath || "")
+    ? options.modelPath
+    : path.join(ggufModelsDir(), options.modelPath || "");
+  const specs = await getSystemSpecs();
+  const result = await llamaProcess.startServer({
+    binaryPath: binary,
+    userDataDir: app.getPath("userData"),
+    vramGB: specs?.vram || 0,
+    modelPath: targetPath,
+    contextSize: options.contextSize || 8192,
+    gpuLayers: options.gpuLayers ?? 99,
+    port: options.port || 11435,
+    log,
+  });
+  log.info("ipc", `gguf:start result: success=${result.success}`);
+  return result;
+});
 
-  const installerPath = path.join(app.getPath("temp"), spec.filename);
+ipcMain.handle("gguf:stop", async () => {
+  log.info("ipc", "gguf:stop requested");
+  llamaProcess.stopServerSync();
+  return { success: true };
+});
 
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(installerPath);
-    let failed = false;
-    const cleanup = (err) => {
-      if (failed) return;
-      failed = true;
-      file.destroy();
-      fs.unlink(installerPath, () => {});
-      reject(err);
-    };
+ipcMain.handle("gguf:models", async () => {
+  log.debug("ipc", "gguf:models listing requested");
+  return modelStorage.listGgufModels(ggufModelsDir());
+});
 
-    httpsGetFollow(
-      spec.url,
-      (response) => {
-        const totalSize =
-          parseInt(response.headers["content-length"], 10) || 0;
-        let downloadedSize = 0;
-        let lastSent = 0;
+ipcMain.handle("gguf:delete", async (_event, filename) => {
+  log.info("ipc", `gguf:delete requested: ${filename}`);
+  return modelStorage.deleteGgufModel(ggufModelsDir(), filename);
+});
 
-        response.on("data", (chunk) => {
-          downloadedSize += chunk.length;
-
-          const now = Date.now();
-          if (now - lastSent < 100 && downloadedSize !== totalSize) return;
-          lastSent = now;
-
-          const progress = {
-            percent: totalSize ? (downloadedSize / totalSize) * 100 : 0,
-            completed: downloadedSize,
-            total: totalSize,
-          };
-          BrowserWindow.getAllWindows().forEach((win) => {
-            if (!win.isDestroyed()) {
-              win.webContents.send("download-progress", progress);
-            }
-          });
-        });
-
-        response.on("error", cleanup);
-        file.on("error", cleanup);
-
-        response.pipe(file);
-        file.on("close", async () => {
-          if (failed) return;
-
-          if (spec.mode === "dmg") {
-            try {
-              const installed = await platform.installFromDmg(installerPath);
-              fs.unlink(installerPath, () => {});
-              resolve(installed);
-            } catch (e) {
-              fs.unlink(installerPath, () => {});
-              reject(e);
-            }
-            return;
-          }
-
-          try {
-            const child = platform.spawnHidden(installerPath, spec.args, {
-              detached: true,
-              stdio: "ignore",
-            });
-            child.on("exit", () => {
-              fs.unlink(installerPath, () => {});
-            });
-            child.unref();
-            resolve(true);
-          } catch (e) {
-            reject(e);
-          }
-        });
-      },
-      cleanup,
-    );
+ipcMain.handle("gguf:download", async (event, { url, filename } = {}) => {
+  log.info("ipc", `gguf:download requested: ${filename} from ${url}`);
+  return modelStorage.downloadGgufModel({
+    url,
+    modelsDir: ggufModelsDir(),
+    filename,
+    onProgress: (progress) => {
+      const payload = { ...progress, label: filename };
+      broadcast("gguf:progress", payload);
+      broadcast("download-progress", payload);
+    },
   });
 });
 
-const OLLAMA_LIBRARY = "https://ollama.com";
-const OLLAMA_REGISTRY = "https://registry.ollama.ai";
-const MODEL_SIZE_CACHE = new Map();
-
-function decodeHtml(value) {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (whole, code) => String.fromCharCode(Number(code)))
-    .replace(/&amp;/g, "&")
-    .trim();
-}
-
-function isCloudTag(tag) {
-  const value = String(tag || "").toLowerCase();
-  return value === "cloud" || value.endsWith("-cloud");
-}
-
-function parseSearchResults(html) {
-  const blocks = html.split(/<li[\s>]/).slice(1);
-  const models = [];
-
-  for (const block of blocks) {
-    const nameMatch = block.match(/href="\/library\/([a-zA-Z0-9._:-]+)"/);
-    if (!nameMatch) continue;
-
-    const descMatch = block.match(
-      /<p[^>]*class="[^"]*max-w-lg[^"]*"[^>]*>([\s\S]*?)<\/p>/,
-    );
-
-    const capabilities = [];
-    const sizes = [];
-    let cloudOnly = false;
-    const tagPattern = /class="([^"]*?)"[^>]*>([^<]{1,24})<\/span>/g;
-    let tag;
-    while ((tag = tagPattern.exec(block)) !== null) {
-      const classes = tag[1];
-      const label = decodeHtml(tag[2]);
-      if (!label) continue;
-      if (classes.includes("bg-cyan-50")) {
-        if (label.toLowerCase() === "cloud") cloudOnly = true;
-      } else if (classes.includes("bg-indigo-50")) capabilities.push(label);
-      else if (classes.includes("ddf4ff") && !isCloudTag(label)) sizes.push(label);
-    }
-
-    if (cloudOnly && sizes.length === 0) continue;
-
-    models.push({
-      name: nameMatch[1],
-      description: descMatch ? decodeHtml(descMatch[1].replace(/<[^>]+>/g, " ")) : "",
-      capabilities: [...new Set(capabilities)],
-      sizes: [...new Set(sizes)],
-    });
-  }
-
-  return models;
-}
-
-/** The first of each name wins: popular is the more settled list, so its description and tags
- * are the ones kept when newest lists the same model again. */
-function mergeModelLists(...lists) {
-  const seen = new Set();
-  const merged = [];
-  for (const model of lists.flat()) {
-    if (seen.has(model.name)) continue;
-    seen.add(model.name);
-    merged.push(model);
-  }
-  return merged;
-}
-
-async function fetchLibraryPage(url) {
-  const response = await fetch(url, {
-    headers: { "User-Agent": APP_NAME },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`Library returned ${response.status}`);
-  return parseSearchResults(await response.text());
-}
+ipcMain.handle("gguf:cancel-download", async (_event, filename) => {
+  log.info("ipc", `gguf:cancel-download requested: ${filename}`);
+  return modelStorage.cancelDownloadGgufModel(ggufModelsDir(), filename);
+});
 
 ipcMain.handle("search-models", async (event, query) => {
-  const term = String(query || "").trim();
-
   try {
-    if (!term) {
-      // Sorted by installs alone, the browse view would never show anything too new to have
-      // racked any up yet, so it is merged with the newest sort instead of using one or the other.
-      const [popular, newest] = await Promise.all([
-        fetchLibraryPage(`${OLLAMA_LIBRARY}/library?sort=popular`),
-        fetchLibraryPage(`${OLLAMA_LIBRARY}/library?sort=newest`),
-      ]);
-      return { success: true, models: mergeModelLists(popular, newest) };
-    }
-
-    const models = await fetchLibraryPage(`${OLLAMA_LIBRARY}/search?q=${encodeURIComponent(term)}`);
+    const models = await huggingface.searchHuggingFace(query);
     return { success: true, models };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1714,36 +1486,11 @@ ipcMain.handle("search-models", async (event, query) => {
 });
 
 ipcMain.handle("model-size", async (event, name, tag) => {
-  if (isCloudTag(tag)) return { success: false, error: "Cloud-only model" };
+  return huggingface.fetchModelSize(name, tag);
+});
 
-  const reference = `${name}:${tag || "latest"}`;
-  if (MODEL_SIZE_CACHE.has(reference)) {
-    return { success: true, bytes: MODEL_SIZE_CACHE.get(reference) };
-  }
-
-  const repository = name.includes("/") ? name : `library/${name}`;
-
-  try {
-    const response = await fetch(
-      `${OLLAMA_REGISTRY}/v2/${repository}/manifests/${tag || "latest"}`,
-      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) },
-    );
-    if (!response.ok) {
-      return { success: false, error: `Registry returned ${response.status}` };
-    }
-
-    const manifest = await response.json();
-    const layers = manifest.layers || [];
-    const weights = layers.find((layer) =>
-      String(layer.mediaType).includes(".model"),
-    );
-    if (!weights) return { success: false, error: "No weights layer" };
-
-    MODEL_SIZE_CACHE.set(reference, weights.size);
-    return { success: true, bytes: weights.size };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+ipcMain.handle("resolve-model-url", async (event, reference) => {
+  return huggingface.resolveModelDownload(reference);
 });
 
 const createdFilesDir = () => path.join(app.getPath("userData"), "created_files");
@@ -1930,9 +1677,55 @@ const fileOps = fileOperations.create({
   trash: (target) => shell.trashItem(target),
 });
 
-ipcMain.handle("fs:list", wrap("fs", async (event, workspaceId, target) =>
-  fileOps.list(workspaceId, target),
-));
+const workspaceWatchers = new Map();
+
+/** Watches project roots for changes made by external tools or git. */
+function ensureWorkspaceWatcher(workspaceId, rootPath) {
+  if (!rootPath || !fs.existsSync(rootPath) || workspaceWatchers.has(workspaceId)) return;
+
+  try {
+    let timer = null;
+    let pendingPath = rootPath;
+
+    const watcher = fs.watch(rootPath, { recursive: true }, (_eventType, filename) => {
+      const rel = String(filename || "").replace(/\\/g, "/");
+      if (
+        rel.includes("/.git/") || rel.startsWith(".git") ||
+        rel.includes("/node_modules/") || rel.startsWith("node_modules") ||
+        rel.includes("/dist/") || rel.startsWith("dist") ||
+        rel.includes("/dist-electron/") || rel.startsWith("dist-electron") ||
+        rel.includes("/.draggy/") || rel.startsWith(".draggy") ||
+        rel.endsWith(".swp") || rel.endsWith("~")
+      ) {
+        return;
+      }
+
+      pendingPath = filename ? path.join(rootPath, filename) : rootPath;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        broadcast("file-changed", {
+          workspaceId: String(workspaceId || ""),
+          path: pendingPath,
+        });
+      }, 150);
+    });
+
+    watcher.on("error", (err) => {
+      log.debug("fs", `Workspace watcher error: ${err.message}`);
+    });
+
+    workspaceWatchers.set(workspaceId, watcher);
+  } catch (err) {
+    log.debug("fs", `Could not watch workspace ${workspaceId}: ${err.message}`);
+  }
+}
+
+ipcMain.handle("fs:list", wrap("fs", async (event, workspaceId, target) => {
+  const roots = rootsFor(workspaceId);
+  if (roots[0]) ensureWorkspaceWatcher(workspaceId, roots[0]);
+  return fileOps.list(workspaceId, target);
+}));
 
 ipcMain.handle("fs:read", wrap("fs", async (event, workspaceId, target) =>
   fileOps.read(workspaceId, target),
@@ -2065,10 +1858,10 @@ function generateInWindow(request, { signal, onText, onModel } = {}) {
 
 async function listApiModels() {
   try {
-    const response = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(5000) });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return (data?.models ?? []).map((model) => String(model.name)).filter(Boolean);
+    return modelStorage
+      .listGgufModels(ggufModelsDir())
+      .map((model) => model.filename)
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -2257,9 +2050,18 @@ ipcMain.handle("workspace:save", wrap("workspace", async (event, workspace) =>
   storage.saveWorkspace(workspace),
 ));
 
-ipcMain.handle("workspace:delete", wrap("workspace", async (event, id) =>
-  storage.deleteWorkspace(String(id)),
-));
+ipcMain.handle("workspace:delete", wrap("workspace", async (event, id) => {
+  const watcher = workspaceWatchers.get(String(id));
+  if (watcher) {
+    try {
+      watcher.close();
+    } catch (error) {
+      log.debug("fs", `Error closing watcher: ${error.message}`);
+    }
+    workspaceWatchers.delete(String(id));
+  }
+  return storage.deleteWorkspace(String(id));
+}));
 
 ipcMain.handle("workspace:pick-folder", wrap("workspace", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

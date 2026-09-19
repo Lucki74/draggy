@@ -18,6 +18,8 @@ export interface Attachment {
 
 export interface LibraryModel {
   name: string;
+  /** Hugging Face repo to download from, when `name` is only a display title. */
+  repo?: string;
   description: string;
   capabilities: string[];
   sizes: string[];
@@ -242,7 +244,7 @@ export interface SearchStep {
   id: string;
   type:
     | "thinking"
-    /** Ollama loading the weights, gone again at the first token. */
+    /** The GGUF engine loading the weights, gone again at the first token. */
     | "loading"
     /** Prose written between two tool calls. In the step list so it stays where it was written,
      * rather than collected up after the tool activity. */
@@ -365,7 +367,7 @@ export interface MetricRow {
   model: string;
   promptTokens: number;
   responseTokens: number;
-  /** Time spent generating, from Ollama's own count. */
+  /** Time spent generating, from the engine's own count. */
   responseMs: number;
   firstTokenMs: number | null;
   loadMs: number;
@@ -667,8 +669,8 @@ export interface AppSettings {
   /** Tokens of conversation before it is folded into notes. Null leaves it to Draggy, which folds
    * at a share of the window the model is loaded at. */
   compactLimit: number | null;
-  /** When set, Ollama is always loaded at this context window instead of the automatic size. */
-  fixedContextSize: number | null;
+  /** When set, the model is always loaded at this context window instead of the automatic size. */
+  fixedContextSize: number | "max" | null;
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
   updateChannel: "release" | "prerelease";
 }
@@ -677,11 +679,6 @@ declare global {
   interface Window {
     electronAPI?: {
       getSystemSpecs: () => Promise<SystemSpecs>;
-      checkOllama: () => Promise<boolean>;
-      startOllama: () => Promise<boolean>;
-      /** So what Draggy loaded is unloaded when it quits. */
-      modelInUse: (name: string) => void;
-      installOllama: () => Promise<boolean>;
       checkInternet: () => Promise<boolean>;
       checkDiskSpace: () => Promise<number>;
 
@@ -766,6 +763,9 @@ declare global {
         name: string,
         tag: string,
       ) => Promise<{ success: boolean; bytes?: number; error?: string }>;
+      resolveModelUrl: (
+        reference: string,
+      ) => Promise<{ url: string; filename: string; size?: number } | null>;
 
       db: {
         loadChats: () => Promise<{ success: boolean; chats?: ChatSession[]; error?: string }>;
@@ -802,6 +802,9 @@ declare global {
           path?: string;
           text?: string;
           bytes?: number;
+          isImage?: boolean;
+          mime?: string;
+          dataUrl?: string;
           error?: string;
         }>;
         write: (
@@ -1079,6 +1082,55 @@ declare global {
         kill: (id: string) => Promise<boolean>;
         onData: (callback: (payload: { id: string; data: string }) => void) => Unsubscribe;
         onExit: (callback: (payload: { id: string; code: number }) => void) => Unsubscribe;
+      };
+
+      gguf?: {
+        status: () => Promise<{
+          running: boolean;
+          port: number;
+          model: string | null;
+          contextSize: number;
+          baseUrl: string;
+          hasBinary: boolean;
+          ready: boolean;
+          runnerType?: string;
+        }>;
+        setupEngine: () => Promise<{ success: boolean; runnerType?: string; error?: string }>;
+        start: (options: {
+          modelPath: string;
+          contextSize?: number;
+          gpuLayers?: number;
+          port?: number;
+        }) => Promise<{ success: boolean; port?: number; error?: string; alreadyRunning?: boolean }>;
+        stop: () => Promise<{ success: boolean }>;
+        listModels: () => Promise<{
+          name: string;
+          filename: string;
+          size: number;
+          path: string;
+          architecture: string;
+          contextLength: number | null;
+          blockCount: number | null;
+          fileType: number | null;
+          /** From the chat template: tools and completion for all, thinking where the template has it. */
+          capabilities?: string[];
+        }[]>;
+        deleteModel: (filename: string) => Promise<boolean>;
+        downloadModel: (options: { url: string; filename: string }) => Promise<{
+          success: boolean;
+          path?: string;
+          filename?: string;
+        }>;
+        cancelDownload: (filename: string) => Promise<{ success: boolean }>;
+        onProgress: (callback: (progress: {
+          phase: "preparing" | "downloading" | "done";
+          completed: number;
+          total: number;
+          percent: number;
+          remainingSeconds?: number | null;
+          /** The file this event is for; downloads run side by side and share one channel. */
+          label?: string;
+        }) => void) => Unsubscribe;
       };
     };
   }

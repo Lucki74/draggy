@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
+import InView from "./chat/InView";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -25,6 +26,7 @@ import { pickGreeting } from "./greetings";
 import TypedGreeting from "./TypedGreeting";
 import MessageItem from "./chat/MessageItem";
 import ContextWheel from "./chat/ContextWheel";
+import CrossedIcon from "./chat/CrossedIcon";
 import PermissionPicker from "./chat/PermissionPicker";
 import {
   MIN_COMPACT_LIMIT,
@@ -50,6 +52,7 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
+  FALLBACK_CONTEXT_LENGTH,
   getModelInfo,
   isCloudModel,
   listInstalledModels,
@@ -121,7 +124,7 @@ const canDecodeImage = async (file: File): Promise<boolean> => {
 const MODEL_CAPABILITIES = [
   { id: "tools", label: "capabilityTools" },
   { id: "vision", label: "capabilityVision" },
-  { id: "thinking", label: "thinking" },
+  { id: "thinking", label: "capabilityThinking" },
 ];
 
 /** One shared empty list, so a screen without skills does not see a new one every render. */
@@ -250,6 +253,9 @@ export default function ChatScreen({
   const [installedModels, setInstalledModels] = useState<InstalledModel[]>([]);
 
   const modelInfo = probedModel.model === model ? probedModel.info : null;
+  // Only when the model has said so: a probe that has not answered yet is not proof of anything.
+  const thinkingUnavailable = modelInfo !== null && !modelInfo.capabilities.includes("thinking");
+  const toolsUnavailable = needsTextModeTools(modelInfo);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -789,7 +795,7 @@ export default function ChatScreen({
         allowLoad: true,
       }).catch(() => undefined);
     } else {
-      warmModel(model, KEEP_ALIVE).catch(() => undefined);
+      warmModel(model, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
     }
     // Only the first keystroke for a model loads it; later ones are counted above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -847,19 +853,14 @@ export default function ChatScreen({
     breakdown: contextBreakdown,
     draftTokens,
     exact: exactFigure,
-    windowTokens: windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+    windowTokens: settings.fixedContextSize === "max"
+      ? (modelInfo?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
+      : typeof settings.fixedContextSize === "number"
+      ? settings.fixedContextSize
+      : windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
     limitTokens: settings.compactLimit ?? null,
     details: contextDetails(parts, loadedSkillNames),
   });
-  const supportsNativeThinking = Boolean(
-    modelInfo?.capabilities.includes("thinking"),
-  );
-
-  const toolsAreGuesswork = needsTextModeTools(modelInfo);
-
-  const toolWarning = toolsAreGuesswork
-    ? `${model} ${t("toolsNotNative")}`
-    : "";
   const speechSupported = isSpeechSupported();
   const documentsSupported = Boolean(window.electronAPI);
   const visionSupported =
@@ -929,34 +930,40 @@ export default function ChatScreen({
         )}
 
         {chat.messages.map((msg, idx) => (
-          <ErrorBoundary key={msg.id}>
-            {/* Messages above are folded into notes: still shown and searchable, but the model reads
-                the summary. Saying so turns "it forgot" into "it condensed". */}
-            {chat.compaction?.throughIndex === idx && (
-              <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[var(--border-light)]" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap">
-                  {t("earlierCondensed")}
-                </span>
-                <div className="h-px flex-1 bg-[var(--border-light)]" />
-              </div>
-            )}
-            <MessageItem
-              chatId={chat.id}
-              msg={msg}
-              idx={idx}
-              isGenerating={chat.isGenerating}
-              isLast={idx === chat.messages.length - 1}
-              onRegenerate={onRegenerate}
-              onSwitchVersion={onSwitchVersion}
-              copiedIndex={copiedIndex}
-              copyToClipboard={copyToClipboard}
-              settings={settings}
-              onEditMessage={onEditMessage}
-              onApproval={onApproval}
-              onRevert={onRevert}
-            />
-          </ErrorBoundary>
+          <InView
+            key={msg.id}
+            estimatedHeight={100}
+            forceRender={idx === chat.messages.length - 1 && chat.isGenerating}
+          >
+            <ErrorBoundary>
+              {/* Messages above are folded into notes: still shown and searchable, but the model reads
+                  the summary. Saying so turns "it forgot" into "it condensed". */}
+              {chat.compaction?.throughIndex === idx && (
+                <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[var(--border-light)]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap">
+                    {t("earlierCondensed")}
+                  </span>
+                  <div className="h-px flex-1 bg-[var(--border-light)]" />
+                </div>
+              )}
+              <MessageItem
+                chatId={chat.id}
+                msg={msg}
+                idx={idx}
+                isGenerating={chat.isGenerating}
+                isLast={idx === chat.messages.length - 1}
+                onRegenerate={onRegenerate}
+                onSwitchVersion={onSwitchVersion}
+                copiedIndex={copiedIndex}
+                copyToClipboard={copyToClipboard}
+                settings={settings}
+                onEditMessage={onEditMessage}
+                onApproval={onApproval}
+                onRevert={onRevert}
+              />
+            </ErrorBoundary>
+          </InView>
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -1159,42 +1166,50 @@ export default function ChatScreen({
 
               <button
                 type="button"
+                disabled={thinkingUnavailable}
                 onClick={() =>
                   onPatchSettings({ thinkingMode: nextThinkingMode(settings.thinkingMode) })
                 }
-                className="composer-pill"
-                title={`${
-                  supportsNativeThinking
-                    ? t("thinkingMode")
-                    : `${t("thinkingMode")} (${t("promptBased")})`
-                }: ${t(settings.thinkingMode)}`}
+                className={`composer-pill ${thinkingUnavailable ? "cursor-not-allowed opacity-70" : ""}`}
+                title={
+                  thinkingUnavailable
+                    ? `${model} ${t("thinkingNotSupported")}`
+                    : `${t("thinkingMode")}: ${t(settings.thinkingMode)}`
+                }
               >
-                <Brain className="w-3.5 h-3.5 flex-shrink-0" />
-                {!compactToolbar && t(settings.thinkingMode)}
+                {thinkingUnavailable ? (
+                  <CrossedIcon icon={Brain} />
+                ) : (
+                  <Brain className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+                {!compactToolbar && (thinkingUnavailable ? t("thinkingOff") : t(settings.thinkingMode))}
               </button>
 
               <button
                 type="button"
+                disabled={toolsUnavailable}
                 onClick={() => onPatchSettings({ webMode: nextWebMode(settings.webMode) })}
                 className={`composer-pill ${
-                  settings.webMode === "on"
-                    ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
-                    : settings.webMode === "off"
-                      ? "opacity-50"
-                      : ""
+                  toolsUnavailable
+                    ? "cursor-not-allowed opacity-70"
+                    : settings.webMode === "on"
+                      ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
+                      : settings.webMode === "off"
+                        ? "opacity-50"
+                        : ""
                 }`}
                 title={
-                  toolWarning && settings.webMode !== "off"
-                    ? `${t("webSearch")}: ${toolWarning}`
+                  toolsUnavailable
+                    ? `${model} ${t("toolsNotNative")}`
                     : `${t("webSearch")}: ${t(WEB_MODE_LABELS[settings.webMode])}`
                 }
               >
-                {settings.webMode !== "off" && toolsAreGuesswork ? (
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                {toolsUnavailable ? (
+                  <CrossedIcon icon={Globe} />
                 ) : (
                   <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
-                {!compactToolbar && t(WEB_MODE_LABELS[settings.webMode])}
+                {!compactToolbar && t(WEB_MODE_LABELS[toolsUnavailable ? "off" : settings.webMode])}
               </button>
 
               {surface === "code" && permissionMode && onPermissionMode && (
@@ -1203,6 +1218,7 @@ export default function ChatScreen({
                   open={permissionMenuOpen}
                   onOpenChange={setPermissionMenuOpen}
                   onPick={onPermissionMode}
+                  toolsUnavailable={toolsUnavailable}
                   t={t}
                   compact={compactToolbar}
                 />

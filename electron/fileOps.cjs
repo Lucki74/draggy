@@ -30,6 +30,24 @@ const MAX_LIST_ENTRIES = 500;
 const MAX_SEARCH_FILES = 4000;
 const MAX_SEARCH_HITS = 50;
 const MAX_SEARCHED_BYTES = 512 * 1024;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+
+const IMAGE_MIME_TYPES = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".jfif": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".cur": "image/x-icon",
+  ".bmp": "image/bmp",
+  ".avif": "image/avif",
+  ".apng": "image/apng",
+  ".tiff": "image/tiff",
+  ".tif": "image/tiff",
+};
 
 function failed(error) {
   return { success: false, error };
@@ -93,6 +111,30 @@ function create({ roots, storage, checkpoints, trash }) {
     const resolved = resolve(workspaceId, requested, { mustExist: true });
     if (!resolved.ok) return failed(resolved.error);
 
+    const ext = path.extname(resolved.path).toLowerCase();
+    const mime = IMAGE_MIME_TYPES[ext];
+
+    if (mime) {
+      const stats = fs.statSync(resolved.path);
+      if (stats.isDirectory()) return failed("That is a folder, not a file.");
+      if (stats.size > MAX_IMAGE_BYTES) {
+        return failed(
+          `That image is ${Math.round(stats.size / (1024 * 1024))} MB, over the 20 MB limit.`,
+        );
+      }
+
+      const buffer = fs.readFileSync(resolved.path);
+      return {
+        success: true,
+        path: resolved.path,
+        isImage: true,
+        mime,
+        dataUrl: `data:${mime};base64,${buffer.toString("base64")}`,
+        text: ext === ".svg" ? buffer.toString("utf8") : "",
+        bytes: stats.size,
+      };
+    }
+
     const text = fsGuard.readText(resolved.path);
     if (!text.ok) return failed(text.error);
 
@@ -108,11 +150,13 @@ function create({ roots, storage, checkpoints, trash }) {
     const resolved = resolve(workspaceId, requested, { createParents: true });
     if (!resolved.ok) return failed(resolved.error);
 
-    const text = String(contents ?? "");
+    const raw = String(contents ?? "");
+    const match = raw.match(/^data:([^;]+);base64,(.+)$/);
+    const dataToWrite = match ? Buffer.from(match[2], "base64") : raw;
     const before = checkpoints.snapshot(resolved.path);
 
     fs.mkdirSync(path.dirname(resolved.path), { recursive: true });
-    fs.writeFileSync(resolved.path, text, "utf8");
+    fs.writeFileSync(resolved.path, dataToWrite);
 
     const { id } = storage.addCheckpoint({
       workspaceId,
@@ -120,7 +164,7 @@ function create({ roots, storage, checkpoints, trash }) {
       path: resolved.path,
       action: "write",
       beforeHash: before,
-      afterHash: checkpoints.keep(text),
+      afterHash: checkpoints.keep(dataToWrite),
     });
 
     return {

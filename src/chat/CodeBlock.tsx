@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { copyText } from "../utils";
+import { translate } from "../i18n";
 
 /** A fenced code block: language, copy button, highlighted source. Its own file because fast
  * refresh wants components or constants exported, not both. */
@@ -14,6 +15,8 @@ interface CodeBlockProps {
 
 export function CodeBlock({ language, value }: CodeBlockProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const lang = typeof document !== "undefined" ? document.documentElement.lang || "en" : "en";
+  const t = (key: string) => translate(lang, key);
 
   const copyCode = async () => {
     if (!(await copyText(value))) return;
@@ -34,12 +37,12 @@ export function CodeBlock({ language, value }: CodeBlockProps) {
           {isCopied ? (
             <>
               <Check className="w-3.5 h-3.5 text-green-500" />
-              <span>Copied!</span>
+              <span>{t("codeCopied")}</span>
             </>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy</span>
+              <span>{t("copyCode")}</span>
             </>
           )}
         </button>

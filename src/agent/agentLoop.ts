@@ -1,6 +1,5 @@
 import {
   KEEP_ALIVE,
-  OLLAMA_HOST,
   beginOllamaWork,
   contextSizeFor,
   getModelInfo,
@@ -9,7 +8,7 @@ import {
   isCloudModel,
   isLoadedAt,
   mergeMetrics,
-  noteModelInUse,
+  needsTextModeTools,
   ollamaIsBusy,
   onOllamaWork,
   peekContextSize,
@@ -47,12 +46,15 @@ import {
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
+import { ggufModelName } from "../ai/engineAdapter";
+import { ggufErrorMessage, sseToOllamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import {
   annotationsFor,
   availableTools,
   describeToolsForPrompt,
   runTool,
   toolDefinitions,
+  withoutTools,
 } from "../tools/registry";
 import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
 import {
@@ -74,7 +76,15 @@ import {
 import type { Grant } from "./permissions";
 import { describeEdit, describePlan, samePlan } from "../plan/plan";
 import type { PlanItem } from "../plan/plan";
-import { loggedFetch, logOllamaInference, logOllamaMetrics, logStreamChunk, newCorrelationId } from "../logger";
+import {
+  loggedFetch,
+  logOllamaInference,
+  logOllamaMetrics,
+  logStreamChunk,
+  logAgentStep,
+  logToolCall,
+  newCorrelationId,
+} from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import type {
   AppSettings,
@@ -172,8 +182,10 @@ export function toWireMessage(
   };
 }
 
-export function estimateChars(messages: WireMessage[]): number {
-  return messages.reduce(
+/** `toolChars` is the tool definitions sent with every request: thousands of tokens the window needs
+ * room for, and the reason a small chat could land just over a bucket and be refused. */
+export function estimateChars(messages: WireMessage[], toolChars = 0): number {
+  return toolChars + messages.reduce(
     (total, message) =>
       total +
       message.content.length +
@@ -280,9 +292,21 @@ export interface PreparedTurn {
 }
 
 export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
-  const { model, settings, environment, messages } = request;
+  const { model, messages } = request;
 
   const info = await getModelInfo(model);
+
+  // A model that cannot call tools is given none, and one that cannot think is not asked to: the
+  // composer shows both as off. A probe that got no answer proves nothing, so an unknown model is
+  // left as it was asked for.
+  const cannotUseTools = needsTextModeTools(info);
+  const cannotThink = info !== null && !hasCapability(info, "thinking");
+  const settings: AppSettings = {
+    ...request.settings,
+    ...(cannotUseTools ? { webMode: "off" as const } : {}),
+    ...(cannotThink ? { thinkingMode: "low" as const } : {}),
+  };
+  const environment = cannotUseTools ? withoutTools(request.environment) : request.environment;
 
   // A probe that failed is not proof a model cannot call tools: Ollama may
   // have been busy. What it said last time stands in.
@@ -478,17 +502,27 @@ export async function measureTurn(
 
   const turn = await prepareTurn(input);
   const chars = estimateChars(turn.wire);
+  // The window has to hold the tool definitions too; the checkpoint below counts the wire alone.
+  const windowChars = estimateChars(turn.wire, turn.nativeTools ? JSON.stringify(turn.definitions).length : 0);
   // A user-fixed window overrides the automatic bucket; null means let Draggy choose.
-  const maxContext = input.settings.fixedContextSize ?? turn.info?.contextLength ?? null;
+  const maxContext = turn.info?.contextLength ?? null;
+  const fixedContext = input.settings.fixedContextSize ?? null;
 
   // A look that may not load the model must not grow the window either, or a later turn reloads.
   const numCtx = options.allowLoad
-    ? contextSizeFor(input.model, chars, maxContext)
-    : peekContextSize(input.model, chars, maxContext);
+    ? contextSizeFor(input.model, windowChars, maxContext, fixedContext)
+    : peekContextSize(input.model, windowChars, maxContext, fixedContext);
 
   if (!options.allowLoad && (await isLoadedAt(input.model, numCtx)) !== true) return null;
   if (options.signal.aborted || ollamaIsBusy()) return null;
-  if (options.allowLoad) noteModelInUse(input.model);
+
+  if (options.allowLoad && typeof window !== "undefined" && window.electronAPI?.gguf) {
+    const warmStart = await window.electronAPI.gguf.start({
+      modelPath: ggufModelName(input.model),
+      contextSize: numCtx,
+    });
+    if (!warmStart?.success && !warmStart?.alreadyRunning) return null;
+  }
 
   // Gives way the moment a reply starts. What it evaluated stays cached, so that reply loses nothing.
   const controller = new AbortController();
@@ -499,24 +533,22 @@ export async function measureTurn(
   });
 
   try {
-    const response = await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
+    const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: input.model,
+        model: ggufModelName(input.model),
         stream: false,
-        keep_alive: KEEP_ALIVE,
-        options: { num_ctx: numCtx, num_predict: 1 },
-        messages: turn.wire,
-        ...(turn.hasThinkingCapability ? { think: turn.nativeThinking } : {}),
+        max_tokens: 1,
+        messages: toLlamaMessages(turn.wire),
         ...(turn.nativeTools ? { tools: turn.definitions } : {}),
       }),
       signal: controller.signal,
     });
     if (!response.ok) return null;
 
-    const body = safeJsonParse<{ prompt_eval_count?: number }>(await response.text());
-    const tokens = Number(body?.prompt_eval_count) || 0;
+    const body = safeJsonParse<{ usage?: { prompt_tokens?: number } }>(await response.text());
+    const tokens = Number(body?.usage?.prompt_tokens) || 0;
     return tokens > 0 ? { tokens, chars, window: numCtx, parts: turn.promptParts } : null;
   } catch {
     return null;
@@ -543,7 +575,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   // One id for every pass and tool round-trip in this turn, so its log lines join back together.
   const correlationId = newCorrelationId();
 
+  const mode: PermissionMode = request.permission?.mode ?? "auto";
   const steps: SearchStep[] = [...(request.seed?.steps ?? [])];
+
+  logAgentStep(
+    "turn_start",
+    {
+      model,
+      mode,
+      hasProjectRoot: Boolean(environment.projectRoot),
+      initialSteps: steps.length,
+    },
+    correlationId,
+  );
 
   const syncSteps = () => host.onSteps([...steps]);
 
@@ -586,7 +630,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   /** The plan as the model last saw it, so only the user's edits are reported. */
   let lastSeenPlan: PlanItem[] | null = null;
 
-  const mode: PermissionMode = request.permission?.mode ?? "auto";
   let grants: Grant[] = [...(request.permission?.grants ?? [])];
 
   /** For the statistics page: which tools this turn reached for, and how often. */
@@ -608,12 +651,27 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     const remembered = grantsFor(name, target, annotations);
 
     if (verdict.decision === "allow") {
-      return runTool(name, args, toolContext, environment);
+      const toolStart = performance.now();
+      logToolCall(name, "start", args, correlationId);
+      try {
+        const toolOutput = await runTool(name, args, toolContext, environment);
+        logToolCall(name, "complete", { durationMs: performance.now() - toolStart }, correlationId);
+        return toolOutput;
+      } catch (err) {
+        logToolCall(
+          name,
+          "error",
+          { durationMs: performance.now() - toolStart, error: (err as Error).message },
+          correlationId,
+        );
+        throw err;
+      }
     }
 
     const stepId = generateId();
 
     if (verdict.decision === "deny") {
+      logToolCall(name, "error", { reason: verdict.reason, verdict: "deny" }, correlationId);
       pushStep({
         id: stepId,
         type: "approval",
@@ -668,29 +726,27 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     return runTool(name, args, toolContext, environment);
   }
 
-  /** One repair per turn for a malformed call: asked again with a `format` schema, so the sampler
+  /** One repair per turn for a malformed call: asked again with a JSON schema, so the sampler
    * can only produce a valid call. Costs one short request. */
   let repairsLeft = 1;
 
   async function repairCall(
     broken: string,
     definitions: ToolDefinition[],
-    numCtx: number,
     abort: AbortSignal,
   ): Promise<RepairedCall> {
     if (repairsLeft <= 0) return {};
     repairsLeft--;
 
     try {
-      const response = await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
+      const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: ggufModelName(model),
           stream: false,
-          keep_alive: KEEP_ALIVE,
-          options: { num_ctx: numCtx, num_predict: 500 },
-          format: repairSchema(definitions),
+          max_tokens: 500,
+          response_format: { type: "json_schema", json_schema: { name: "tool_call", schema: repairSchema(definitions) } },
           messages: [
             ...wire,
             { role: "user", content: repairPrompt(broken) },
@@ -701,19 +757,17 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       if (!response.ok) return {};
 
-      const body = safeJsonParse<{ message?: { content?: string } }>(
+      const body = safeJsonParse<{ choices?: { message?: { content?: string } }[] }>(
         await response.text(),
       );
 
-      return readRepair(body?.message?.content ?? "");
+      return readRepair(body?.choices?.[0]?.message?.content ?? "");
     } catch {
       // A repair that fails leaves the turn exactly as it was: the reply is
       // shown as written, which is what happened before this existed.
       return {};
     }
   }
-
-  noteModelInUse(model);
 
   const {
     info,
@@ -849,8 +903,9 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     // tally: a disagreement with the warm-up costs a full reload.
     numCtx = contextSizeFor(
       model,
-      estimateChars(wire),
-      settings.fixedContextSize ?? info?.contextLength ?? null,
+      estimateChars(wire, nativeTools ? JSON.stringify(definitions).length : 0),
+      info?.contextLength ?? null,
+      settings.fixedContextSize ?? null,
     );
     // The meter has a figure from the start of each pass, not only once tokens arrive.
     emitLive(0, null);
@@ -883,45 +938,60 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     logOllamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
 
     try {
-      const response = await loggedFetch(
-        `${OLLAMA_HOST}/api/chat`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            stream: true,
-            keep_alive: KEEP_ALIVE,
-            options: { num_ctx: numCtx, num_predict: -1 },
-            messages: wire,
-            // Explicit false, not merely the absence of true: left to its own
-            // template a capable model reasons anyway, which Fast mode forbids.
-            ...(hasThinkingCapability ? { think: nativeThinking } : {}),
-            ...(nativeTools ? { tools: definitions } : {}),
-          }),
-          signal: loopController.signal,
-        },
-        correlationId,
-      );
+      if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+        const started = await window.electronAPI.gguf.start({
+          modelPath: ggufModelName(model),
+          contextSize: numCtx,
+        });
+        if (!started?.success && !started?.alreadyRunning) {
+          throw new Error(started?.error || "Could not start local GGUF model");
+        }
+      }
+
+      const requestBody = JSON.stringify({
+        model: ggufModelName(model),
+        stream: true,
+        options: { num_ctx: numCtx, num_predict: -1 },
+        messages: toLlamaMessages(wire),
+        // llama-server ignores `think`; the template option is what switches the reasoning on or off.
+        ...(hasThinkingCapability
+          ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
+          : {}),
+        ...(nativeTools ? { tools: definitions } : {}),
+      });
+
+      let response: Response;
+      try {
+        response = await loggedFetch(
+          "http://127.0.0.1:11435/v1/chat/completions",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: requestBody,
+            signal: loopController.signal,
+          },
+          correlationId,
+        );
+      } catch (error) {
+        // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
+        if (error instanceof TypeError) {
+          throw new Error("Failed to connect to local GGUF engine at http://127.0.0.1:11435", { cause: error });
+        }
+        throw error;
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
-        const parsed = safeJsonParse<{ error?: string }>(errorText);
-        throw new Error(
-          `Ollama Error: ${parsed?.error || errorText || response.statusText}`,
-        );
+        throw new Error(`GGUF Error: ${ggufErrorMessage(errorText, response.statusText)}`);
       }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response");
 
-      const decoder = new TextDecoder();
-
       let rawChunk = "";
       let thinkingText = "";
       let currentThought = "";
       let textContent = "";
-      let streamBuffer = "";
       let toolMatch: string | null = null;
       let maybeToolCall = false;
       let lastUpdateTime = performance.now();
@@ -934,34 +1004,24 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const readChunk = (parsed: OllamaChunk) => {
         if (parsed.message?.tool_calls) nativeCalls.push(...parsed.message.tool_calls);
         if (parsed.done) {
-          finalChunk = parsed as unknown as Record<string, unknown>;
+          finalChunk = { ...(finalChunk || {}), ...(parsed as unknown as Record<string, unknown>) };
           if (parsed.done_reason === "length") outOfContext = true;
         }
       };
 
+      const readStream = async function* () {
+        for await (const chunk of sseToOllamaChunks(reader)) {
+          yield chunk as OllamaChunk;
+        }
+      };
+
       try {
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          streamBuffer += decoder.decode(value, { stream: true });
-          const lines = streamBuffer.split("\n");
-          streamBuffer = lines.pop() || "";
-
-          let added = "";
-          let thinkingAdded = "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            const parsed = safeJsonParse<OllamaChunk>(trimmed);
-            if (!parsed) continue;
-            doneLoading();
-            if (parsed.message?.content) added += parsed.message.content;
-            if (parsed.message?.thinking) thinkingAdded += parsed.message.thinking;
-            if (parsed.message?.content || parsed.message?.thinking) passChunks++;
-            readChunk(parsed);
-          }
+        for await (const parsed of readStream()) {
+          doneLoading();
+          const added = parsed.message?.content || "";
+          const thinkingAdded = parsed.message?.thinking || "";
+          if (added || thinkingAdded) passChunks++;
+          readChunk(parsed);
 
           if ((added || thinkingAdded) && firstTokenAt === null) {
             firstTokenAt = performance.now();
@@ -1055,15 +1115,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (error instanceof Error && error.name !== "AbortError") throw error;
       }
 
-      if (streamBuffer) {
-        const parsed = safeJsonParse<OllamaChunk>(streamBuffer);
-        if (parsed) {
-          if (parsed.message?.content) rawChunk += parsed.message.content;
-          if (parsed.message?.thinking) thinkingText += parsed.message.thinking;
-          readChunk(parsed);
-        }
-      }
-
       if (finalChunk) {
         const turnMetrics = readMetrics(
           finalChunk,
@@ -1110,7 +1161,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         const repaired = await repairCall(
           rawChunk,
           definitions,
-          numCtx,
           loopController.signal,
         );
         if (repaired.name) {
@@ -1211,7 +1261,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           const repaired = await repairCall(
             toolMatch as string,
             definitions,
-            numCtx,
             loopController.signal,
           );
           name = repaired.name;
@@ -1251,6 +1300,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     };
     host.onMetrics?.(metrics);
   }
+
+  logAgentStep(
+    "turn_complete",
+    {
+      loops: loopCount,
+      outOfContext,
+      exhausted,
+      aborted: signal.aborted,
+      toolCalls,
+      totalTokens: metrics ? metrics.promptTokens + metrics.responseTokens : 0,
+    },
+    correlationId,
+  );
 
   return {
     content: fullFinalContent,

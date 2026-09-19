@@ -81,6 +81,22 @@ describe("planning what to do with a dropped file", () => {
     });
   });
 
+  it("accepts all major image formats when the model can see", () => {
+    for (const ext of ["png", "jpg", "jpeg", "webp", "gif", "ico", "avif", "tiff", "bmp"]) {
+      expect(planAttachment(file(`image.${ext}`, 1000), seeing)).toEqual({
+        kind: "image",
+        extension: ext,
+      });
+    }
+  });
+
+  it("falls back to text for SVG when model cannot see", () => {
+    expect(planAttachment(file("icon.svg", 500), blind)).toEqual({
+      kind: "text",
+      extension: "svg",
+    });
+  });
+
   it("accepts an image exactly at the limit", () => {
     expect(planAttachment(file("photo.png", MAX_IMAGE_BYTES), seeing).kind).toBe("image");
   });

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import CreatedFiles from "../CreatedFiles";
 import Canvas from "../canvas/Canvas";
@@ -61,6 +61,20 @@ function ProjectFiles({
       : null,
   );
   const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const api = window.electronAPI?.files;
+    if (!api) return;
+
+    const stop = api.onChanged?.((change: { workspaceId?: string }) => {
+      if (change.workspaceId && change.workspaceId !== workspaceId) return;
+      setRevision((count) => count + 1);
+    });
+
+    return () => {
+      stop?.();
+    };
+  }, [workspaceId]);
 
   const changed = useCallback(() => {
     setRevision((count) => count + 1);

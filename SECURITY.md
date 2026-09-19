@@ -51,7 +51,7 @@ extension's output) into actions nobody asked for. Specifically:
   installed writing something wrong or rude: that is not Draggy's to police.
 - An extension server you enabled doing what it says it does, or anything
   that needs your machine already unlocked.
-- Bugs in Ollama, a model, or an extension server; those belong upstream.
+- Bugs in llama.cpp, a model, or an extension server; those belong upstream.
 - Windows SmartScreen on first install: expected, since builds are not code
   signed yet (see [Installation](https://draggy.org/wiki/installation)).
 

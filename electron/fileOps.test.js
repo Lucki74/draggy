@@ -351,3 +351,37 @@ describe("searching is not a way around the guard", () => {
     expect(ops.search("w1", { name: "id_rsa" }).hits).toEqual([]);
   });
 });
+
+describe("reading and writing image files", () => {
+  it("reads binary image files and returns dataUrl and mime", () => {
+    const icoBytes = Buffer.from([0x00, 0x00, 0x01, 0x00, 0x01, 0x00]);
+    fs.writeFileSync(path.join(root, "favicon.ico"), icoBytes);
+
+    const result = ops.read("w1", "favicon.ico");
+    expect(result.success).toBe(true);
+    expect(result.isImage).toBe(true);
+    expect(result.mime).toBe("image/x-icon");
+    expect(result.dataUrl).toContain("data:image/x-icon;base64,");
+  });
+
+  it("reads svg files returning both dataUrl and text", () => {
+    const svgText = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="5"/></svg>';
+    fs.writeFileSync(path.join(root, "icon.svg"), svgText);
+
+    const result = ops.read("w1", "icon.svg");
+    expect(result.success).toBe(true);
+    expect(result.isImage).toBe(true);
+    expect(result.mime).toBe("image/svg+xml");
+    expect(result.text).toBe(svgText);
+  });
+
+  it("writes base64 data URLs as binary files", () => {
+    const rawData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+    const dataUrl = `data:image/png;base64,${rawData.toString("base64")}`;
+
+    const result = ops.write("w1", "upload.png", dataUrl);
+    expect(result.success).toBe(true);
+    expect(fs.readFileSync(path.join(root, "upload.png"))).toEqual(rawData);
+  });
+});
+

@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unloadModel } from "../ollama";
-import type { InstalledModel, PullPhase } from "../ollama";
+import type { InstalledModel, PullPhase, PullProgress } from "../ollama";
+
+/** Downloads that run at once. More than this wait their turn: several multi-gigabyte files sharing
+ * one connection each crawl, and none of them is usable until it is whole. */
+export const MAX_PARALLEL_PULLS = 2;
 
 export interface PullState {
   name: string;
   percent: number;
-  phase: PullPhase;
+  /** `queued` is waiting for a free slot; the rest are what the engine reports. */
+  phase: PullPhase | "queued";
+  remainingSeconds?: number | null;
+}
+
+/** Fallback for when the main process sent no estimate: the average speed since the first byte seen. */
+function estimateRemaining(progress: PullProgress, first: { time: number; completed: number } | null): number | null {
+  if (!first || progress.total <= progress.completed) return null;
+  const elapsed = (Date.now() - first.time) / 1000;
+  const speed = elapsed > 0 ? (progress.completed - first.completed) / elapsed : 0;
+  return speed > 0 ? Math.round((progress.total - progress.completed) / speed) : null;
 }
 
 export interface ModelManager {
@@ -13,10 +27,14 @@ export interface ModelManager {
   /** Names of models currently resident in VRAM. */
   loaded: string[];
   refresh: () => void;
-  pull: PullState | null;
-  /** Downloads a model, resolving true once it is installed. One at a time. */
-  startPull: (name: string) => Promise<boolean>;
-  cancelPull: () => void;
+  /** Every download, in the order it was asked for: the ones running and the ones waiting. */
+  pulls: PullState[];
+  /** Downloads a model, resolving true once it is installed. Only `MAX_PARALLEL_PULLS` run at once and
+   * the rest queue; `immediate` skips the queue, for a small file something else is waiting on. Asking
+   * for a model already downloading returns that download. */
+  startPull: (name: string, options?: { immediate?: boolean }) => Promise<boolean>;
+  /** Stops a download or takes it out of the queue, and removes what it had written. */
+  cancelPull: (name: string) => void;
   remove: (name: string) => Promise<void>;
   /** Evicts a model from VRAM without deleting it. */
   unload: (name: string) => Promise<void>;
@@ -25,18 +43,26 @@ export interface ModelManager {
   unifiedMemory: boolean;
 }
 
-/** The installed models and the one download in flight. Held by the settings shell, so a download
+interface PullJob {
+  name: string;
+  immediate: boolean;
+  started: boolean;
+  controller: AbortController;
+  result: Promise<boolean>;
+  settle: (installed: boolean) => void;
+}
+
+/** The installed models and the downloads in flight. Held by the settings shell, so a download
  * keeps going while the user moves between pages. The list is read again whenever `page` changes. */
 export function useModelManager(page?: string): ModelManager {
   const [installed, setInstalled] = useState<InstalledModel[]>([]);
   const [loaded, setLoaded] = useState<string[]>([]);
   const [version, setVersion] = useState(0);
-  const [pull, setPull] = useState<PullState | null>(null);
+  const [pulls, setPulls] = useState<PullState[]>([]);
   const [error, setError] = useState("");
   const [vram, setVram] = useState(0);
   const [unifiedMemory, setUnifiedMemory] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
-  const pullingRef = useRef(false);
+  const jobsRef = useRef<PullJob[]>([]);
 
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
@@ -83,41 +109,114 @@ export function useModelManager(page?: string): ModelManager {
     };
   }, []);
 
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(
+    () => () => {
+      for (const job of jobsRef.current) job.controller.abort();
+    },
+    [],
+  );
+
+  const patchPull = useCallback((name: string, patch: Partial<PullState>) => {
+    setPulls((current) => current.map((entry) => (entry.name === name ? { ...entry, ...patch } : entry)));
+  }, []);
+
+  /** Starts whatever the free slots allow, oldest request first. Each finished download asks again. */
+  const pump = useCallback(
+    function pumpQueue() {
+      const runningSlots = jobsRef.current.filter((job) => job.started && !job.immediate).length;
+      let free = MAX_PARALLEL_PULLS - runningSlots;
+
+      for (const job of jobsRef.current) {
+        if (job.started) continue;
+        if (!job.immediate) {
+          if (free <= 0) continue;
+          free -= 1;
+        }
+
+        job.started = true;
+        patchPull(job.name, { phase: "preparing" });
+        let first: { time: number; completed: number } | null = null;
+
+        void pullModel(
+          job.name,
+          (progress) => {
+            if (!first && progress.phase === "downloading" && progress.completed > 0) {
+              first = { time: Date.now(), completed: progress.completed };
+            }
+            patchPull(job.name, {
+              percent: progress.percent,
+              phase: progress.phase,
+              remainingSeconds: progress.remainingSeconds ?? estimateRemaining(progress, first),
+            });
+          },
+          job.controller.signal,
+        )
+          .then(
+            () => {
+              refresh();
+              job.settle(true);
+            },
+            (err: unknown) => {
+              if (!job.controller.signal.aborted) setError(err instanceof Error ? err.message : String(err));
+              job.settle(false);
+            },
+          )
+          .finally(() => {
+            jobsRef.current = jobsRef.current.filter((entry) => entry !== job);
+            setPulls((current) => current.filter((entry) => entry.name !== job.name));
+            pumpQueue();
+          });
+      }
+    },
+    [patchPull, refresh],
+  );
 
   const startPull = useCallback(
-    async (name: string) => {
+    (name: string, options?: { immediate?: boolean }) => {
       const target = name.trim();
-      if (!target || pullingRef.current) return false;
+      if (!target) return Promise.resolve(false);
 
-      pullingRef.current = true;
+      const existing = jobsRef.current.find((job) => job.name === target);
+      if (existing) return existing.result;
+
+      let settle: (installed: boolean) => void = () => undefined;
+      const result = new Promise<boolean>((resolve) => {
+        settle = resolve;
+      });
+      jobsRef.current.push({
+        name: target,
+        immediate: Boolean(options?.immediate),
+        started: false,
+        controller: new AbortController(),
+        result,
+        settle,
+      });
+
       setError("");
-      setPull({ name: target, percent: 0, phase: "preparing" });
+      setPulls((current) => [...current, { name: target, percent: 0, phase: "queued" }]);
+      pump();
+      return result;
+    },
+    [pump],
+  );
 
-      const controller = new AbortController();
-      controllerRef.current = controller;
+  const cancelPull = useCallback(
+    (name: string) => {
+      const job = jobsRef.current.find((entry) => entry.name === name);
+      if (!job) return;
 
-      try {
-        await pullModel(
-          target,
-          (progress) => setPull({ name: target, percent: progress.percent, phase: progress.phase }),
-          controller.signal,
-        );
-        refresh();
-        return true;
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err));
-        return false;
-      } finally {
-        pullingRef.current = false;
-        controllerRef.current = null;
-        setPull(null);
+      // A running download removes its own partial file when aborted, and asks for the next one
+      // in the queue when it settles. One still waiting has nothing to stop, so it just leaves.
+      job.controller.abort();
+      if (!job.started) {
+        jobsRef.current = jobsRef.current.filter((entry) => entry !== job);
+        job.settle(false);
       }
+      setPulls((current) => current.filter((entry) => entry.name !== name));
+      refresh();
     },
     [refresh],
   );
-
-  const cancelPull = useCallback(() => controllerRef.current?.abort(), []);
 
   const remove = useCallback(
     async (name: string) => {
@@ -145,5 +244,5 @@ export function useModelManager(page?: string): ModelManager {
     [refresh],
   );
 
-  return { installed, loaded, refresh, pull, startPull, cancelPull, remove, unload, error, vram, unifiedMemory };
+  return { installed, loaded, refresh, pulls, startPull, cancelPull, remove, unload, error, vram, unifiedMemory };
 }

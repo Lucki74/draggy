@@ -85,11 +85,13 @@ export function useSettings(isSplashMode: boolean) {
     if (settings.theme === "dark") document.body.classList.add("dark");
     else document.body.classList.remove("dark");
 
+    document.documentElement.lang = settings.language;
+
     document.documentElement.style.setProperty(
       "--chat-font-size",
       FONT_SIZES[settings.fontSize],
     );
-  }, [settings.theme, settings.fontSize]);
+  }, [settings.theme, settings.fontSize, settings.language]);
 
   return [settings, setSettings] as const;
 }

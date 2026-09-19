@@ -253,5 +253,25 @@ describe("preview mode", () => {
 
     expect(onDelete).toHaveBeenCalled();
   });
+
+  it("displays an image preview when opening image files", async () => {
+    const dataUrl = "data:image/x-icon;base64,AAABAAEAEBAAAAAAAABoBQAA";
+    read.mockResolvedValueOnce({
+      success: true,
+      path: "C:\\project\\favicon.ico",
+      isImage: true,
+      dataUrl,
+      bytes: 1024,
+      mime: "image/x-icon",
+    } as never);
+
+    await open({ path: "C:\\project\\favicon.ico" });
+
+    expect(screen.getByText("favicon.ico")).toBeTruthy();
+    expect(screen.queryByText("That file is not text.")).toBeNull();
+    const img = screen.getByAltText("favicon.ico") as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.src).toBe(dataUrl);
+  });
 });
 

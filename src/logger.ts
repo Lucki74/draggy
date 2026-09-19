@@ -125,3 +125,72 @@ export function logStreamChunk(chunk: string, correlationId: string): void {
     data: { chunk: sanitizeString(chunk) },
   });
 }
+
+export function logGgufInference(params: Record<string, unknown>, correlationId: string): void {
+  enqueue({
+    level: "INFO",
+    context: "gguf",
+    message: "inference",
+    correlationId,
+    data: sanitizeValue(params),
+  });
+}
+
+export function logGgufMetrics(metrics: object, correlationId: string): void {
+  enqueue({ level: "INFO", context: "gguf", message: "metrics", correlationId, data: metrics });
+}
+
+export function logGgufChunk(chunk: string, correlationId: string): void {
+  enqueue({
+    level: "DEBUG",
+    context: "gguf",
+    message: "chunk",
+    correlationId,
+    data: { chunk: sanitizeString(chunk) },
+  });
+}
+
+export function logAgentStep(
+  step: string,
+  details?: Record<string, unknown>,
+  correlationId?: string | null,
+): void {
+  enqueue({
+    level: "INFO",
+    context: "agent",
+    message: `step:${step}`,
+    correlationId,
+    data: details ? sanitizeValue(details) : undefined,
+  });
+}
+
+export function logToolCall(
+  name: string,
+  status: "start" | "complete" | "error",
+  details?: Record<string, unknown>,
+  correlationId?: string | null,
+): void {
+  enqueue({
+    level: status === "error" ? "ERROR" : "INFO",
+    context: "tools",
+    message: `${name}:${status}`,
+    correlationId,
+    data: details ? sanitizeValue(details) : undefined,
+  });
+}
+
+export function logRendererEvent(
+  context: string,
+  level: "INFO" | "WARN" | "ERROR" | "DEBUG",
+  message: string,
+  data?: Record<string, unknown>,
+  correlationId?: string | null,
+): void {
+  enqueue({
+    level,
+    context,
+    message,
+    correlationId,
+    data: data ? sanitizeValue(data) : undefined,
+  });
+}
