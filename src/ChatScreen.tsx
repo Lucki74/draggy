@@ -26,6 +26,7 @@ import { pickGreeting } from "./greetings";
 import TypedGreeting from "./TypedGreeting";
 import MessageItem from "./chat/MessageItem";
 import ContextWheel from "./chat/ContextWheel";
+import CrossedIcon from "./chat/CrossedIcon";
 import PermissionPicker from "./chat/PermissionPicker";
 import {
   MIN_COMPACT_LIMIT,
@@ -252,6 +253,9 @@ export default function ChatScreen({
   const [installedModels, setInstalledModels] = useState<InstalledModel[]>([]);
 
   const modelInfo = probedModel.model === model ? probedModel.info : null;
+  // Only when the model has said so: a probe that has not answered yet is not proof of anything.
+  const thinkingUnavailable = modelInfo !== null && !modelInfo.capabilities.includes("thinking");
+  const toolsUnavailable = needsTextModeTools(modelInfo);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -857,15 +861,6 @@ export default function ChatScreen({
     limitTokens: settings.compactLimit ?? null,
     details: contextDetails(parts, loadedSkillNames),
   });
-  const supportsNativeThinking = Boolean(
-    modelInfo?.capabilities.includes("thinking"),
-  );
-
-  const toolsAreGuesswork = needsTextModeTools(modelInfo);
-
-  const toolWarning = toolsAreGuesswork
-    ? `${model} ${t("toolsNotNative")}`
-    : "";
   const speechSupported = isSpeechSupported();
   const documentsSupported = Boolean(window.electronAPI);
   const visionSupported =
@@ -1171,42 +1166,50 @@ export default function ChatScreen({
 
               <button
                 type="button"
+                disabled={thinkingUnavailable}
                 onClick={() =>
                   onPatchSettings({ thinkingMode: nextThinkingMode(settings.thinkingMode) })
                 }
-                className="composer-pill"
-                title={`${
-                  supportsNativeThinking
-                    ? t("thinkingMode")
-                    : `${t("thinkingMode")} (${t("promptBased")})`
-                }: ${t(settings.thinkingMode)}`}
+                className={`composer-pill ${thinkingUnavailable ? "cursor-not-allowed opacity-70" : ""}`}
+                title={
+                  thinkingUnavailable
+                    ? `${model} ${t("thinkingNotSupported")}`
+                    : `${t("thinkingMode")}: ${t(settings.thinkingMode)}`
+                }
               >
-                <Brain className="w-3.5 h-3.5 flex-shrink-0" />
-                {!compactToolbar && t(settings.thinkingMode)}
+                {thinkingUnavailable ? (
+                  <CrossedIcon icon={Brain} />
+                ) : (
+                  <Brain className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+                {!compactToolbar && (thinkingUnavailable ? t("thinkingOff") : t(settings.thinkingMode))}
               </button>
 
               <button
                 type="button"
+                disabled={toolsUnavailable}
                 onClick={() => onPatchSettings({ webMode: nextWebMode(settings.webMode) })}
                 className={`composer-pill ${
-                  settings.webMode === "on"
-                    ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
-                    : settings.webMode === "off"
-                      ? "opacity-50"
-                      : ""
+                  toolsUnavailable
+                    ? "cursor-not-allowed opacity-70"
+                    : settings.webMode === "on"
+                      ? "!bg-[var(--bg-inverted)] !text-[var(--text-inverted)]"
+                      : settings.webMode === "off"
+                        ? "opacity-50"
+                        : ""
                 }`}
                 title={
-                  toolWarning && settings.webMode !== "off"
-                    ? `${t("webSearch")}: ${toolWarning}`
+                  toolsUnavailable
+                    ? `${model} ${t("toolsNotNative")}`
                     : `${t("webSearch")}: ${t(WEB_MODE_LABELS[settings.webMode])}`
                 }
               >
-                {settings.webMode !== "off" && toolsAreGuesswork ? (
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                {toolsUnavailable ? (
+                  <CrossedIcon icon={Globe} />
                 ) : (
                   <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
-                {!compactToolbar && t(WEB_MODE_LABELS[settings.webMode])}
+                {!compactToolbar && t(WEB_MODE_LABELS[toolsUnavailable ? "off" : settings.webMode])}
               </button>
 
               {surface === "code" && permissionMode && onPermissionMode && (
@@ -1215,6 +1218,7 @@ export default function ChatScreen({
                   open={permissionMenuOpen}
                   onOpenChange={setPermissionMenuOpen}
                   onPick={onPermissionMode}
+                  toolsUnavailable={toolsUnavailable}
                   t={t}
                   compact={compactToolbar}
                 />

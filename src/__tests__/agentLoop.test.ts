@@ -7,7 +7,7 @@ import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
-import { forgetContextSize, forgetModelInfo, warmModel } from "../ollama";
+import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../ollama";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -116,7 +116,8 @@ interface Turn {
 
 function installFetch(
   turns: Turn[],
-  capabilities: string[],
+  /** What the model reports it can do, or null for one the probe cannot identify. */
+  capabilities: string[] | null,
   loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80, context_length: 4096 }],
   repair?: string,
 ) {
@@ -137,16 +138,19 @@ function installFetch(
             contextSize: Number(first.context_length ?? first.contextSize ?? 4096),
           };
         },
-        listModels: async () => [
-          {
-            filename: MODEL,
-            contextLength: 32768,
-            blockCount: 32,
-            architecture: "gguf",
-            fileType: 0,
-            capabilities,
-          },
-        ],
+        listModels: async () =>
+          capabilities === null
+            ? []
+            : [
+                {
+                  filename: MODEL,
+                  contextLength: 32768,
+                  blockCount: 32,
+                  architecture: "gguf",
+                  fileType: 0,
+                  capabilities,
+                },
+              ],
         start: async (opts: { modelPath: string; contextSize: number }) => {
           starts.push(opts);
           return { success: true };
@@ -1677,16 +1681,23 @@ describe("working to a plan", () => {
 describe("a tool call the model got wrong", () => {
   const GOOD = '{"name": "search_web", "args": {"query": "paris"}}';
 
+  /** A model the app has seen described as unable to call tools, and cannot reach now: its calls travel
+   * as text, and a bad one gets the repair. A model known to lack tools is given none at all. */
+  async function textModeFetch(turns: Turn[], repair?: string) {
+    installFetch([], ["completion"]);
+    await getModelInfo(MODEL);
+    forgetModelInfo(MODEL);
+    return installFetch(turns, null, undefined, repair);
+  }
+
   it("is asked for again against a schema, and then runs", async () => {
     // A small model that opened the tag and never closed it. Before the repair
     // this reached the user as a wall of JSON.
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] },
         { content: ["Paris is the capital."] },
       ],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1697,13 +1708,11 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("constrains the repair to the tools that exist", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web"'] },
         { content: ["Done."] },
       ],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1716,14 +1725,12 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("only tries once in a turn", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [
         { content: ['<tool>{"name": "search_web"'] },
         { content: ['<tool>{"name": "search_web"'] },
         { content: ["Giving up."] },
       ],
-      [],
-      undefined,
       "not a call at all",
     );
 
@@ -1733,10 +1740,8 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("leaves an ordinary answer alone", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [{ content: ["Paris is the capital of France."] }],
-      [],
-      undefined,
       GOOD,
     );
 
@@ -1747,10 +1752,8 @@ describe("a tool call the model got wrong", () => {
   });
 
   it("hands back the reply as written when the repair fails too", async () => {
-    const { repairs } = installFetch(
+    const { repairs } = await textModeFetch(
       [{ content: ['<tool>{"name": "search_web", "args": {'] }],
-      [],
-      undefined,
       "still not a call",
     );
 
@@ -1794,5 +1797,59 @@ describe("a tool call the model got wrong", () => {
 
     const result = await run([userMessage("write essay")]).promise;
     expect(result.textContent).toBe("Here is the answer.");
+  });
+});
+
+describe("a model that cannot use tools", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is offered none, and told there is no browsing", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(systemOf(requests[0])).not.toContain("AVAILABLE TOOLS");
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("is not given the web even when the setting asks for it", async () => {
+    const withWeb = { ...SETTINGS, webMode: "on" } as AppSettings;
+    const off = { ...SETTINGS, webMode: "off" } as AppSettings;
+
+    const first = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, withWeb).promise;
+    const second = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, off).promise;
+
+    expect(systemOf(first.requests[0])).toBe(systemOf(second.requests[0]));
+  });
+
+  it("still gets tools when the probe could not say what it can do", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], null);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(String((requests[0] as { messages: { content: string }[] }).messages[0].content)).toContain(
+      "AVAILABLE TOOLS",
+    );
+  });
+});
+
+describe("a model that cannot think", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is run as if thinking were off, whatever the setting says", async () => {
+    const medium = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")]).promise;
+
+    const fast = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")], undefined, undefined, { ...SETTINGS, thinkingMode: "low" } as AppSettings).promise;
+
+    expect(systemOf(medium.requests[0])).toBe(systemOf(fast.requests[0]));
+    expect(medium.requests[0]).not.toHaveProperty("think");
+    expect(medium.requests[0]).not.toHaveProperty("chat_template_kwargs");
   });
 });

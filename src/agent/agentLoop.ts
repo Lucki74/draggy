@@ -8,6 +8,7 @@ import {
   isCloudModel,
   isLoadedAt,
   mergeMetrics,
+  needsTextModeTools,
   ollamaIsBusy,
   onOllamaWork,
   peekContextSize,
@@ -53,6 +54,7 @@ import {
   describeToolsForPrompt,
   runTool,
   toolDefinitions,
+  withoutTools,
 } from "../tools/registry";
 import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
 import {
@@ -290,9 +292,21 @@ export interface PreparedTurn {
 }
 
 export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
-  const { model, settings, environment, messages } = request;
+  const { model, messages } = request;
 
   const info = await getModelInfo(model);
+
+  // A model that cannot call tools is given none, and one that cannot think is not asked to: the
+  // composer shows both as off. A probe that got no answer proves nothing, so an unknown model is
+  // left as it was asked for.
+  const cannotUseTools = needsTextModeTools(info);
+  const cannotThink = info !== null && !hasCapability(info, "thinking");
+  const settings: AppSettings = {
+    ...request.settings,
+    ...(cannotUseTools ? { webMode: "off" as const } : {}),
+    ...(cannotThink ? { thinkingMode: "low" as const } : {}),
+  };
+  const environment = cannotUseTools ? withoutTools(request.environment) : request.environment;
 
   // A probe that failed is not proof a model cannot call tools: Ollama may
   // have been busy. What it said last time stands in.
