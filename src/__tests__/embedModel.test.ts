@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMBED_TIERS, planEmbedModel, tierForEmbed, tierOfEmbed } from "../embedModel";
+import { EMBED_TIERS, isEmbedModel, planEmbedModel, tierForEmbed, tierOfEmbed } from "../embedModel";
 
 describe("sizing the embedding model to the machine", () => {
   it("climbs the ladder as memory grows", () => {
@@ -95,5 +95,24 @@ describe("planning what indexing will run", () => {
 
     expect(plan.model).toBe("qwen3-embedding:0.6b-q8_0");
     expect(plan.download).toBeNull();
+  });
+});
+
+describe("telling an embedding download from a chat one", () => {
+  it("recognises the tiers and a pinned override", () => {
+    expect(isEmbedModel("nomic-embed-text")).toBe(true);
+    expect(isEmbedModel("all-minilm")).toBe(true);
+    expect(isEmbedModel("my-custom-vectors", "My-Custom-Vectors ")).toBe(true);
+  });
+
+  it("recognises embedding families by name", () => {
+    expect(isEmbedModel("bge-m3")).toBe(true);
+  });
+
+  it("rejects chat and code models", () => {
+    expect(isEmbedModel("ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M")).toBe(false);
+    expect(isEmbedModel("phi-4-Q4_K_M.gguf")).toBe(false);
+    expect(isEmbedModel("qwen3:8b")).toBe(false);
+    expect(isEmbedModel("qwen3:8b", "bge-m3")).toBe(false);
   });
 });

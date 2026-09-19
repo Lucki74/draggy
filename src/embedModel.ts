@@ -33,6 +33,14 @@ export function tierOfEmbed(model: string): EmbedTier | null {
   return EMBED_TIERS.find((tier) => tier.model === model) ?? null;
 }
 
+/** Whether a download is an embedding model. The Library tab shares its download state with the
+ * Models tab, so it needs this to ignore chat models. */
+export function isEmbedModel(modelName: string, override?: string): boolean {
+  if (override && modelName.trim().toLowerCase() === override.trim().toLowerCase()) return true;
+  if (tierOfEmbed(modelName) !== null) return true;
+  return /(?:embed|bge-|minilm|gte-)/i.test(modelName);
+}
+
 /** Whether something on disk counts as the model wanted. A re-quantised build is the same model
  * here, and treating it as a miss re-downloads the weights. */
 function installedMatch(wanted: string, installed: readonly string[]): string | null {

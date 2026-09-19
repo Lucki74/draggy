@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, FolderPlus, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "./Controls";
 import PullProgress from "./PullProgress";
-import { planEmbedModel } from "../embedModel";
+import { isEmbedModel, planEmbedModel } from "../embedModel";
 import type { ModelManager } from "./useModelManager";
 import type { LibraryProgress, LibrarySource } from "../types";
 
@@ -54,7 +54,7 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
       installed: manager.installed.map((entry) => entry.name),
       vram: manager.vram,
     });
-    if (plan.download && !(await manager.startPull(plan.model))) return null;
+    if (plan.download && !(await manager.startPull(plan.model, { immediate: true }))) return null;
     return plan.model;
   };
 
@@ -88,6 +88,10 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
 
   if (!api) return null;
 
+  // A chat model downloading on the Models tab shares this manager and must not take over here.
+  const embedPull = manager.pulls.find((pull) => isEmbedModel(pull.name, embedModel));
+  const isEmbedPull = Boolean(embedPull);
+
   return (
     <div className="space-y-2">
       {sources.length === 0 && (
@@ -111,7 +115,7 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
           <button
             type="button"
             onClick={() => void index(source.path)}
-            disabled={Boolean(progress || manager.pull)}
+            disabled={Boolean(progress || isEmbedPull)}
             aria-label={t("reindex")}
             title={t("reindex")}
             className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)] transition-colors disabled:opacity-40"
@@ -130,8 +134,8 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
         </div>
       ))}
 
-      {manager.pull ? (
-        <PullProgress state={manager.pull} t={t} />
+      {embedPull ? (
+        <PullProgress state={embedPull} t={t} />
       ) : progress ? (
         <div className="space-y-2 rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-base)] p-3">
           <div className="flex items-center gap-2">
