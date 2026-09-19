@@ -1,20 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
-  PULL_PHASE_KEYS,
   contextSizeFor,
-  createPullTracker,
   forgetContextSize,
   forgetModelInfo,
-  getModelInfo,
   isCloudModel,
   mergeMetrics,
   needsTextModeTools,
+  peekContextSize,
   pickContextSize,
-  pullModel,
   readMetrics,
-  warmModel,
 } from "../ollama";
 
 describe("context budgeting", () => {
@@ -188,279 +184,8 @@ describe("knowing when tool calls will be guesswork", () => {
   });
 });
 
-/** Copied from a real `POST /api/pull` against Ollama 0.33.1. Nothing in the stream says
- * "downloading", which the startup screen used to wait for. */
-const BLOB = "sha256:a3de86cd1c1354b0e7d2ce1e4a1e6f0e0d0c0b0a09080706050403020100ffee";
-const CONFIG = "sha256:966de95ca8a62200913e3f8bfbf84c8494536f1b94b49166851e766445e96639";
-
-describe("following a model download", () => {
-  it("reports progress even though Ollama never says the word downloading", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling manifest" });
-    const progress = track({
-      status: "pulling a3de86cd1c13",
-      digest: BLOB,
-      total: 1000,
-      completed: 250,
-    });
-
-    expect(progress.phase).toBe("downloading");
-    expect(progress.percent).toBeCloseTo(25);
-    expect(progress.total).toBe(1000);
-  });
-
-  it("never offers a digest as something to show a person", () => {
-    const track = createPullTracker();
-    const progress = track({
-      status: "pulling a3de86cd1c13",
-      digest: BLOB,
-      total: 1000,
-      completed: 1,
-    });
-
-    expect(PULL_PHASE_KEYS[progress.phase]).toBe("downloadingModel");
-    expect(PULL_PHASE_KEYS[progress.phase]).not.toContain("a3de86cd1c13");
-  });
-
-  it("measures the whole model, not whichever layer is in flight", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling manifest" });
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 1000 });
-
-    // A second layer starting from nothing must not throw the figure away:
-    // per-layer arithmetic would report 0 percent of a finished download.
-    const progress = track({
-      status: "pulling 966de",
-      digest: CONFIG,
-      total: 1000,
-      completed: 0,
-    });
-
-    expect(progress.completed).toBe(1000);
-    expect(progress.total).toBe(2000);
-    expect(progress.percent).toBeCloseTo(50);
-  });
-
-  it("counts a layer once, however many times it is reported", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 100 });
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 500 });
-    const progress = track({
-      status: "pulling a3de",
-      digest: BLOB,
-      total: 1000,
-      completed: 900,
-    });
-
-    expect(progress.total).toBe(1000);
-    expect(progress.completed).toBe(900);
-  });
-
-  it("holds its figures when Ollama stops reporting bytes", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 1000 });
-    const verifying = track({ status: "verifying sha256 digest" });
-
-    // Zeroing here is what dropped the bar back to "waiting" at the very end.
-    expect(verifying.phase).toBe("verifying");
-    expect(verifying.percent).toBeCloseTo(100);
-    expect(verifying.total).toBe(1000);
-
-    const writing = track({ status: "writing manifest" });
-    expect(writing.total).toBe(1000);
-    expect(writing.percent).toBeCloseTo(100);
-  });
-
-  it("finishes at a hundred", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 400 });
-    const done = track({ status: "success" });
-
-    expect(done.phase).toBe("done");
-    expect(done.percent).toBe(100);
-    expect(done.completed).toBe(done.total);
-  });
-
-  it("does not walk backwards when a report arrives out of order", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 800 });
-    const late = track({
-      status: "pulling a3de",
-      digest: BLOB,
-      total: 1000,
-      completed: 200,
-    });
-
-    expect(late.percent).toBeCloseTo(80);
-  });
-
-  it("does move back when a newly announced layer makes the job bigger", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling 966de", digest: CONFIG, total: 100, completed: 100 });
-    const bigger = track({ status: "pulling a3de", digest: BLOB, total: 900, completed: 0 });
-
-    // Pretending to be finished would be the lie; the work really did grow.
-    expect(bigger.percent).toBeCloseTo(10);
-  });
-
-  it("keeps calm about wording it has never seen", () => {
-    const track = createPullTracker();
-
-    track({ status: "pulling a3de", digest: BLOB, total: 1000, completed: 500 });
-    const odd = track({ status: "reticulating splines" });
-
-    expect(odd.phase).toBe("downloading");
-    expect(odd.percent).toBeCloseTo(50);
-  });
-
-  it("starts out preparing rather than claiming to download", () => {
-    const track = createPullTracker();
-    const first = track({ status: "pulling manifest" });
-
-    expect(first.phase).toBe("preparing");
-    expect(first.total).toBe(0);
-  });
-});
-
-describe("reporting a download to the screen", () => {
-  const stream = (lines: Record<string, unknown>[]) => {
-    const body = lines.map((line) => JSON.stringify(line)).join("\n") + "\n";
-    const encoded = new TextEncoder().encode(body);
-    let sent = false;
-
-    return {
-      ok: true,
-      body: {
-        getReader: () => ({
-          read: async () =>
-            sent
-              ? { done: true, value: undefined }
-              : ((sent = true), { done: false, value: encoded }),
-        }),
-      },
-    };
-  };
-
-  it("lets every change of phase through, however fast they arrive", async () => {
-    const original = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      stream([
-        { status: "pulling manifest" },
-        { status: "pulling a3de", digest: BLOB, total: 1000, completed: 1000 },
-        { status: "verifying sha256 digest" },
-        { status: "writing manifest" },
-        { status: "success" },
-      ])) as unknown as typeof fetch;
-
-    try {
-      const seen: string[] = [];
-      await pullModel("qwen3:8b", (progress) => seen.push(progress.phase));
-
-      // These all land inside one throttle window, and dropping them leaves
-      // the screen saying "downloading" long after the bytes are in.
-      expect(seen).toContain("downloading");
-      expect(seen).toContain("verifying");
-      expect(seen).toContain("done");
-    } finally {
-      globalThis.fetch = original;
-    }
-  });
-
-  it("raises what Ollama reports as an error", async () => {
-    const original = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      stream([
-        { status: "pulling manifest" },
-        { error: "model \"nope\" not found" },
-      ])) as unknown as typeof fetch;
-
-    try {
-      await expect(pullModel("nope", () => {})).rejects.toThrow(/not found/);
-    } finally {
-      globalThis.fetch = original;
-    }
-  });
-});
-
-describe("asking a model what it can do", () => {
-  const shown = (capabilities: string[]) =>
-    new Response(JSON.stringify({ capabilities }), { status: 200 });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    forgetModelInfo("probe:deadline");
-    forgetModelInfo("probe:failure");
-  });
-
-  it("gives the request a deadline, so one hung model cannot stall the list", async () => {
-    let sent: RequestInit | undefined;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (_url: string, init?: RequestInit) => {
-        sent = init;
-        return shown(["completion"]);
-      }),
-    );
-
-    await getModelInfo("probe:deadline");
-
-    expect(sent?.signal).toBeInstanceOf(AbortSignal);
-  });
-
-  it("reports nothing when the request times out", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new DOMException("The operation timed out.", "TimeoutError");
-      }),
-    );
-
-    expect(await getModelInfo("probe:failure")).toBeNull();
-  });
-
-  it("does not remember a timeout, so the next look can still succeed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new DOMException("The operation timed out.", "TimeoutError");
-      }),
-    );
-    await getModelInfo("probe:failure");
-
-    vi.stubGlobal("fetch", vi.fn(async () => shown(["embedding"])));
-    const info = await getModelInfo("probe:failure");
-
-    expect(info?.capabilities).toEqual(["embedding"]);
-  });
-});
-
 describe("holding a model in memory", () => {
   const MODEL = "sticky:test";
-
-  const stubShow = () =>
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (String(url).endsWith("/api/show")) {
-          return new Response(
-            JSON.stringify({
-              capabilities: ["completion"],
-              model_info: { "test.context_length": 32768 },
-              details: { parameter_size: "8B", quantization_level: "Q4_K_M" },
-            }),
-            { status: 200 },
-          );
-        }
-        return new Response("{}", { status: 200 });
-      }),
-    );
 
   afterEach(() => {
     forgetContextSize(MODEL);
@@ -482,43 +207,24 @@ describe("holding a model in memory", () => {
     expect(contextSizeFor(MODEL, 500000, 8192)).toBe(8192);
   });
 
-  it("forgets a model, so a reinstalled one starts over", () => {
-    contextSizeFor(MODEL, 200000, 131072);
-    forgetContextSize(MODEL);
-
-    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+  it("locks to a fixed context window when specified", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, 32768)).toBe(32768);
   });
 
-  it("warms the model at the size the turn will ask for", async () => {
-    stubShow();
-
-    await warmModel(MODEL, "30m", 100000);
-
-    const sent = vi.mocked(fetch).mock.calls.find(([url]) =>
-      String(url).endsWith("/api/chat"),
-    );
-    const body = JSON.parse(String((sent?.[1] as RequestInit).body));
-
-    // The window the warm-up picked is the one the next turn is handed, so the
-    // weights are loaded once rather than loaded and then loaded again.
-    expect(body.options.num_ctx).toBe(contextSizeFor(MODEL, 100000, 32768));
-    expect(body.keep_alive).toBe("30m");
+  it("locks to the model maximum when fixedContext is 'max'", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, "max")).toBe(131072);
+    expect(contextSizeFor(MODEL, 100, null, "max")).toBe(FALLBACK_CONTEXT_LENGTH);
   });
 
-  it("leaves room for the system prompt the turn will carry", async () => {
-    stubShow();
+  it("resets and adapts when fixedContext setting changes", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, 65536)).toBe(65536);
+    expect(contextSizeFor(MODEL, 100, 131072, 8192)).toBe(8192);
+    expect(contextSizeFor(MODEL, 100, 131072, "max")).toBe(131072);
+    expect(contextSizeFor(MODEL, 100, 131072, null)).toBe(4096);
+  });
 
-    // Fits the smaller bucket alone, but not once the prompt is counted.
-    // Warming to the smaller one hands the turn a window it must grow.
-    expect(pickContextSize(8000, 32768)).toBe(4096);
-
-    await warmModel(MODEL, "30m", 8000);
-
-    const sent = vi.mocked(fetch).mock.calls.find(([url]) =>
-      String(url).endsWith("/api/chat"),
-    );
-    const body = JSON.parse(String((sent?.[1] as RequestInit).body));
-
-    expect(body.options.num_ctx).toBe(8192);
+  it("peekContextSize respects fixed context numbers and 'max'", () => {
+    expect(peekContextSize(MODEL, 100, 131072, 16384)).toBe(16384);
+    expect(peekContextSize(MODEL, 100, 131072, "max")).toBe(131072);
   });
 });

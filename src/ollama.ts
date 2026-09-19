@@ -1,11 +1,8 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
-import { loggedFetch } from "./logger";
 import { safeJsonParse } from "./utils";
 
-export const OLLAMA_HOST = "http://127.0.0.1:11434";
-
-/** How long Ollama keeps a model resident. Here rather than in the chat loop because compaction
- * needs it too and cannot import the loop that imports it. */
+/** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
+ * setting; kept only so callers built around the idea need no changes. */
 export const KEEP_ALIVE = "30m";
 
 export const FALLBACK_CONTEXT_LENGTH = 8192;
@@ -46,56 +43,42 @@ export interface InstalledModel {
   size: number;
   parameterSize: string;
   family: string;
-  /** What Ollama says this model can do. Empty when the server could not be asked, which every
-   * reader treats as "no information" rather than "no". */
+  /** What the model can do. Fixed for the GGUF engine, which speaks the same OpenAI-style
+   * protocol for every model it loads. */
   capabilities: string[];
+}
+
+/** A model identifier with any leading "gguf:" stripped, matching the filename the engine was
+ * given when it was started. */
+function bareModelName(model: string): string {
+  return model.toLowerCase().startsWith("gguf:") ? model.slice(5) : model;
 }
 
 const modelInfoCache = new Map<string, Promise<ModelInfo | null>>();
 
-/** How long to wait for Ollama to describe a model, so a silent server cannot hold the splash
- * screen open. Timing out reads as "unknown", not as "no". */
-const MODEL_INFO_TIMEOUT_MS = 5000;
-
 async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
+  if (typeof window === "undefined") return null;
+
   try {
-    const res = await loggedFetch(`${OLLAMA_HOST}/api/show`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: model }),
-      signal: AbortSignal.timeout(MODEL_INFO_TIMEOUT_MS),
-    });
-    if (!res.ok) return null;
+    const models = await window.electronAPI?.gguf?.listModels();
+    if (!Array.isArray(models)) return null;
 
-    const data = await res.json();
-    const info: Record<string, unknown> = data?.model_info || {};
-
-    const readNumber = (suffix: string): number | null => {
-      const key = Object.keys(info).find((entry) => entry.endsWith(suffix));
-      const value = key ? info[key] : undefined;
-      return typeof value === "number" && value > 0 ? value : null;
-    };
-
-    const contextLength = readNumber(".context_length");
-
-    const parameters = data?.details?.parameter_size;
-    const parsedParameters =
-      typeof parameters === "string"
-        ? Number(parameters.replace(/[^\d.]/g, "")) || null
-        : null;
+    const target = bareModelName(model);
+    const entry = models.find((m) => m.filename === target || m.filename === model);
+    if (!entry) return null;
 
     return {
-      contextLength,
-      capabilities: Array.isArray(data?.capabilities) ? data.capabilities : [],
-      parameterCount: parsedParameters,
-      quantization: data?.details?.quantization_level ?? null,
+      contextLength: entry.contextLength,
+      capabilities: (entry as { capabilities?: string[] }).capabilities ?? ["tools", "completion"],
+      parameterCount: null,
+      quantization: entry.fileType !== null && entry.fileType !== undefined ? String(entry.fileType) : null,
     };
   } catch {
     return null;
   }
 }
 
-/** A model's capabilities from the last probe, kept in the database, so a slow Ollama at launch
+/** A model's capabilities from the last probe, kept in the database, so a slow start at launch
  * does not drop a capable model into text mode. */
 const CAPABILITY_KEY = "modelCapabilities";
 
@@ -194,15 +177,34 @@ export function pickContextSize(
   return cap;
 }
 
-/** The window each model is loaded at. Changing `num_ctx` reloads the weights, three to six
- * seconds, so it is decided once per model and only ever grows. */
+/** The window each model is loaded at. Changing context size restarts the server,
+ * so it is kept once per model and only resets when fixed settings change. */
 const loadedContextSizes = new Map<string, number>();
+let activeFixedContext: number | "max" | null | undefined;
+
+function syncFixedContext(fixedContext?: number | "max" | null): void {
+  if (fixedContext !== activeFixedContext) {
+    loadedContextSizes.clear();
+    activeFixedContext = fixedContext;
+  }
+}
 
 export function contextSizeFor(
   model: string,
   charEstimate: number,
   maxContext: number | null,
+  fixedContext?: number | "max" | null,
 ): number {
+  syncFixedContext(fixedContext);
+  if (fixedContext === "max") {
+    const size = maxContext ?? FALLBACK_CONTEXT_LENGTH;
+    loadedContextSizes.set(model, size);
+    return size;
+  }
+  if (typeof fixedContext === "number") {
+    loadedContextSizes.set(model, fixedContext);
+    return fixedContext;
+  }
   const size = Math.max(
     loadedContextSizes.get(model) ?? 0,
     pickContextSize(charEstimate, maxContext),
@@ -217,7 +219,14 @@ export function peekContextSize(
   model: string,
   charEstimate: number,
   maxContext: number | null,
+  fixedContext?: number | "max" | null,
 ): number {
+  if (fixedContext === "max") {
+    return maxContext ?? FALLBACK_CONTEXT_LENGTH;
+  }
+  if (typeof fixedContext === "number") {
+    return fixedContext;
+  }
   return Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext));
 }
 
@@ -256,68 +265,34 @@ export function isCloudModel(name: string): boolean {
   return tag === "cloud" || tag.endsWith("-cloud");
 }
 
-/** Which Ollama is running. Only the first launch asks, to find out whether the MLX builds it is
- * about to recommend on a Mac can actually be run. */
-export async function getOllamaVersion(): Promise<string | null> {
-  try {
-    const res = await loggedFetch(`${OLLAMA_HOST}/api/version`);
-    if (!res.ok) return null;
+export async function listInstalledModels(): Promise<InstalledModel[]> {
+  if (typeof window === "undefined") return [];
 
-    const data = await res.json();
-    return typeof data?.version === "string" ? data.version : null;
+  try {
+    const models = await window.electronAPI?.gguf?.listModels();
+    if (!Array.isArray(models)) return [];
+
+    return models.map((m) => ({
+      name: m.filename,
+      size: m.size,
+      parameterSize: m.blockCount ? `${m.blockCount}L` : "",
+      family: m.architecture || "gguf",
+      capabilities: ["tools", "completion"],
+    }));
   } catch {
-    return null;
+    return [];
   }
 }
 
-export async function listInstalledModels(): Promise<InstalledModel[]> {
-  const res = await loggedFetch(`${OLLAMA_HOST}/api/tags`);
-  if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
-
-  const data = await res.json();
-  const listed: Omit<InstalledModel, "capabilities">[] = (data?.models || [])
-    .map(
-      (m: {
-        name: string;
-        size?: number;
-        details?: { parameter_size?: string; family?: string };
-      }) => ({
-        name: m.name,
-        size: m.size || 0,
-        parameterSize: m.details?.parameter_size || "",
-        family: m.details?.family || "",
-      }),
-    )
-    .filter((m: { name: string }) => !isCloudModel(m.name));
-
-  // `/api/tags` says nothing about capabilities, so each model is asked. The
-  // calls go together and are cached, so the price is paid once per model.
-  const info = await Promise.all(listed.map((m) => getModelInfo(m.name)));
-
-  return listed.map((model, index) => ({
-    ...model,
-    capabilities: info[index]?.capabilities ?? [],
-  }));
-}
-
+/** The model the GGUF engine currently has loaded, if any. Only ever one at a time, so the list
+ * is at most a single entry. */
 export async function describeLoadedModels(): Promise<LoadedModel[]> {
-  try {
-    const res = await loggedFetch(`${OLLAMA_HOST}/api/ps`);
-    if (!res.ok) return [];
+  if (typeof window === "undefined") return [];
 
-    const data = await res.json();
-    return (data?.models || []).map(
-      (entry: { name: string; size?: number; size_vram?: number }) => {
-        const size = entry.size || 0;
-        const sizeVram = entry.size_vram || 0;
-        return {
-          name: entry.name,
-          size,
-          sizeVram,
-          gpuPercent: size > 0 ? Math.round((sizeVram / size) * 100) : 0,
-        };
-      },
-    );
+  try {
+    const status = await window.electronAPI?.gguf?.status();
+    if (!status?.running || !status.model) return [];
+    return [{ name: status.model, size: 0, sizeVram: 0, gpuPercent: 0 }];
   } catch {
     return [];
   }
@@ -325,55 +300,36 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
 
 export async function gpuShareFor(model: string): Promise<number | null> {
   const loaded = await describeLoadedModels();
-  const base = model.split(":")[0];
-  const match =
-    loaded.find((entry) => entry.name === model) ||
-    loaded.find((entry) => entry.name.split(":")[0] === base);
+  const target = bareModelName(model);
+  const match = loaded.find((entry) => entry.name === target || entry.name === model);
   return match ? match.gpuPercent : null;
 }
 
-/** Posts a generate request with keep_alive=0 so Ollama evicts the model from VRAM. */
-export async function unloadModel(model: string): Promise<void> {
-  await loggedFetch(`${OLLAMA_HOST}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, keep_alive: 0 }),
-  });
+/** Stops the GGUF engine, which unloads whatever model it was holding. */
+export async function unloadModel(_model: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  await window.electronAPI?.gguf?.stop();
 }
 
-/** "qwen3" and "qwen3:latest" are the same model to Ollama. */
-const withTag = (name: string) => (name.includes(":") ? name : `${name}:latest`);
-
-/** Whether the model is in memory at this window already. Ollama reloads for any other, and a load
- * is the long silence before the first token. Null when Ollama could not say. */
+/** Whether the model is already loaded at this window. Null when the engine could not say. */
 export async function isLoadedAt(
   model: string,
-  numCtx: number,
+  contextSize: number,
 ): Promise<boolean | null> {
+  if (typeof window === "undefined") return null;
+
   try {
-    const res = await fetch(`${OLLAMA_HOST}/api/ps`);
-    if (!res.ok) return null;
+    const status = await window.electronAPI?.gguf?.status();
+    if (!status) return null;
+    if (!status.running || !status.model) return false;
 
-    const data = await res.json();
-    const entry = (data?.models || []).find(
-      (loaded: { name: string }) => withTag(loaded.name) === withTag(model),
-    );
-    if (!entry) return false;
+    const target = bareModelName(model);
+    if (status.model !== target && status.model !== model) return false;
 
-    // Older versions do not report the window. Better to say nothing than to
-    // announce a load that is not coming.
-    return typeof entry.context_length === "number"
-      ? entry.context_length === numCtx
-      : true;
+    return status.contextSize === contextSize;
   } catch {
     return null;
   }
-}
-
-/** Told to the main process, which unloads these when Draggy quits. */
-export function noteModelInUse(model: string): void {
-  if (typeof window === "undefined") return;
-  window.electronAPI?.modelInUse?.(model);
 }
 
 const NS_PER_MS = 1e6;
@@ -434,214 +390,118 @@ export function mergeMetrics(
  * low costs one reload; guessing high spills to the CPU. */
 const SYSTEM_PROMPT_CHARS = 6000;
 
-/** Loads the weights ahead of a turn, at the size that turn will ask for. Warming without
- * `charEstimate` did not merely waste time: it forced a reload. */
+/** Starts the engine on this model ahead of a turn, at the size that turn will ask for. Warming
+ * without `charEstimate` did not merely waste time: it forced a reload. */
 export async function warmModel(
   name: string,
-  keepAlive: string,
+  _keepAlive: string,
   charEstimate = 0,
+  fixedContext?: number | "max" | null,
 ): Promise<void> {
-  noteModelInUse(name);
+  if (typeof window === "undefined") return;
 
   const info = await getModelInfo(name);
   const numCtx = contextSizeFor(
     name,
     charEstimate + SYSTEM_PROMPT_CHARS,
     info?.contextLength ?? null,
+    fixedContext,
   );
 
-  await loggedFetch(`${OLLAMA_HOST}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: name,
-      stream: false,
-      think: false,
-      keep_alive: keepAlive,
-      options: { num_ctx: numCtx, num_predict: 1 },
-      messages: [{ role: "user", content: "hi" }],
-    }),
+  await window.electronAPI?.gguf?.start({
+    modelPath: bareModelName(name),
+    contextSize: numCtx,
   });
 }
 
 export async function deleteModel(name: string): Promise<void> {
-  const res = await loggedFetch(`${OLLAMA_HOST}/api/delete`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-  if (!res.ok) throw new Error(`Could not remove ${name}`);
+  if (typeof window === "undefined") throw new Error(`Could not remove ${name}`);
+
+  const removed = await window.electronAPI?.gguf?.deleteModel(bareModelName(name));
+  if (!removed) throw new Error(`Could not remove ${name}`);
+
   forgetModelInfo(name);
   forgetContextSize(name);
 }
 
-export async function readNdjsonStream(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  onValue: (value: Record<string, unknown>) => boolean | void,
-): Promise<void> {
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const parsed = safeJsonParse<Record<string, unknown>>(trimmed);
-      if (parsed && onValue(parsed) === false) return;
-    }
-  }
-
-  const tail = buffer.trim();
-  if (tail) {
-    const parsed = safeJsonParse<Record<string, unknown>>(tail);
-    if (parsed) onValue(parsed);
-  }
-}
-
-const PULL_PROGRESS_INTERVAL_MS = 100;
-
-/** What a pull is doing, whatever wording Ollama uses. The lines say "pulling a3de86cd1c13", so
- * matching on "downloading" left the bar at nought forever. */
-export type PullPhase = "preparing" | "downloading" | "verifying" | "done";
+/** What a download is doing, as the GGUF engine reports it. */
+export type PullPhase = "preparing" | "downloading" | "done";
 
 /** The translation key each phase is shown as, so every screen that downloads a model words it the
- * same way and none of them show a digest. */
+ * same way. */
 export const PULL_PHASE_KEYS: Record<PullPhase, string> = {
   preparing: "preparingDownload",
   downloading: "downloadingModel",
-  verifying: "verifyingDownload",
   done: "verifyingDownload",
 };
 
 export interface PullProgress {
-  /** The line exactly as Ollama sent it. */
-  status: string;
   phase: PullPhase;
-  /** Bytes transferred across every layer announced so far. */
+  /** Bytes transferred so far. */
   completed: number;
-  /** Bytes to transfer across every layer announced so far. */
+  /** Bytes to transfer in total. */
   total: number;
-  /** 0 to 100 for the pull as a whole. */
+  /** 0 to 100 for the download as a whole. */
   percent: number;
+  /** Estimated seconds until the download finishes, or null while there is no speed to go on. */
+  remainingSeconds?: number | null;
 }
 
-function phaseFromStatus(status: string, current: PullPhase): PullPhase {
-  const text = status.toLowerCase();
-  if (text.startsWith("success")) return "done";
-  if (text.includes("pulling manifest")) return "preparing";
-  if (
-    text.startsWith("verifying") ||
-    text.startsWith("writing") ||
-    text.startsWith("removing")
-  ) {
-    return "verifying";
-  }
-  // Wording we do not recognise says nothing about what changed, so carry on
-  // with whatever was already happening rather than inventing a phase.
-  return current;
-}
-
-/** One figure for the whole download. Each line describes one layer, so they are summed by digest;
- * lines with no byte counts must leave the totals alone. */
-export function createPullTracker(): (
-  line: Record<string, unknown>,
-) => PullProgress {
-  const layers = new Map<string, { completed: number; total: number }>();
-  let completed = 0;
-  let total = 0;
-  let percent = 0;
-  let phase: PullPhase = "preparing";
-
-  return (line) => {
-    const status = typeof line.status === "string" ? line.status : "";
-    const lineTotal = Number(line.total) || 0;
-
-    if (lineTotal > 0) {
-      // Ollama names the layer by digest; the status holds an abbreviation of
-      // the same digest, which serves if the field is ever missing.
-      const key = typeof line.digest === "string" ? line.digest : status;
-      const seen = layers.get(key);
-      layers.set(key, {
-        total: lineTotal,
-        // Reports can arrive out of order; a layer never un-downloads.
-        completed: Math.max(seen?.completed ?? 0, Number(line.completed) || 0),
-      });
-
-      const previousTotal = total;
-      completed = 0;
-      total = 0;
-      for (const layer of layers.values()) {
-        completed += layer.completed;
-        total += layer.total;
-      }
-
-      const measured = total > 0 ? (completed / total) * 100 : 0;
-      // A newly announced layer makes the job bigger, so going back is honest.
-      // While the job stays the same size the figure only ever grows.
-      percent = total === previousTotal ? Math.max(percent, measured) : measured;
-      phase = "downloading";
-    } else {
-      phase = phaseFromStatus(status, phase);
-      if (phase === "done") {
-        percent = 100;
-        completed = total;
-      }
-    }
-
-    return { status, phase, completed, total, percent };
-  };
-}
-
+/** Downloads a GGUF model from Hugging Face or direct URL and tracks progress until complete. */
 export async function pullModel(
-  name: string,
+  reference: string,
   onProgress: (progress: PullProgress) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (isCloudModel(name)) throw new Error(`${name} is not a local model`);
+  if (typeof window === "undefined" || !window.electronAPI?.gguf) {
+    throw new Error("Downloading a model requires the desktop app.");
+  }
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  const res = await loggedFetch(`${OLLAMA_HOST}/api/pull`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, stream: true }),
-    signal,
-  });
+  let downloadUrl = reference;
+  let filename = reference.split("/").pop() || "model.gguf";
 
-  if (!res.ok) throw new Error(`Could not download ${name}`);
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("Stream reader unavailable.");
-
-  let failure: string | null = null;
-  let lastPaint = 0;
-  let lastPhase: PullPhase | null = null;
-
-  const track = createPullTracker();
-
-  await readNdjsonStream(reader, (parsed) => {
-    if (typeof parsed.error === "string") {
-      failure = parsed.error;
-      return false;
+  if (!reference.startsWith("http://") && !reference.startsWith("https://")) {
+    const resolved = await window.electronAPI.resolveModelUrl?.(reference);
+    if (resolved?.url) {
+      downloadUrl = resolved.url;
+      filename = resolved.filename;
     }
+  }
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    const progress = track(parsed);
-    const now = performance.now();
-
-    // Throttling spares the renderer thousands of updates, but a phase change
-    // happens once and must get through, or the screen lies about the stage.
-    const changedPhase = progress.phase !== lastPhase;
-    if (!changedPhase && now - lastPaint < PULL_PROGRESS_INTERVAL_MS) return;
-
-    lastPaint = now;
-    lastPhase = progress.phase;
-    onProgress(progress);
+  const unsubscribe = window.electronAPI.gguf.onProgress((progress) => {
+    // Downloads run side by side on one channel, and the engine setup reports here too.
+    if (progress.label && progress.label !== filename) return;
+    onProgress({
+      phase: progress.phase,
+      completed: progress.completed,
+      total: progress.total,
+      percent: progress.percent,
+      remainingSeconds: progress.remainingSeconds,
+    });
   });
 
-  if (failure) throw new Error(failure);
-  forgetModelInfo(name);
+  try {
+    const download = window.electronAPI.gguf.downloadModel({ url: downloadUrl, filename });
+    const result = signal
+      ? await Promise.race([
+          download,
+          new Promise<never>((_, reject) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                window.electronAPI?.gguf?.cancelDownload?.(filename)?.catch(() => undefined);
+                reject(new DOMException("Aborted", "AbortError"));
+              },
+              { once: true },
+            );
+          }),
+        ])
+      : await download;
+
+    if (!result?.success) throw new Error(`Could not download ${filename}`);
+  } finally {
+    unsubscribe?.();
+  }
 }
