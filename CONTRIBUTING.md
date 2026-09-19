@@ -54,17 +54,6 @@ Behind the preload: `electron/fsGuard.cjs` is the only way to a user's file,
 and every tool declares what it can do (`readOnly`, `destructive`, and so on)
 so `src/agent/permissions.ts` knows whether to run it, ask, or refuse.
 
-## House style
-
-Match the file you are editing. Comments explain why, never what, and are two
-lines at most. Name a tradeoff (a timeout, a threshold) in the pull request
-rather than the code. No new dependency without a reason that survives being
-said out loud. CRLF line endings; ESLint is the only formatter.
-
-Logging follows the dual-log split: operational events go to `app.log` with
-sensitive user content sanitized; raw diagnostic traces, chunks, and child
-process output go to `debug.log`.
-
 ## Translations
 
 Draggy ships in twelve languages, and CI enforces that every one defines
