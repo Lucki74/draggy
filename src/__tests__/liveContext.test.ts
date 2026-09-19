@@ -8,6 +8,7 @@ import {
   forgetContextSize,
   forgetModelInfo,
   peekContextSize,
+  pickContextSize,
 } from "../ollama";
 import { SETTINGS_KEY } from "../storage";
 import { defaultSettings, loadSettings } from "../app/settings";
@@ -27,12 +28,18 @@ const input = (content = "How big is this?"): TurnInput => ({
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 
-function stream(lines: unknown[]) {
+function sseStream(chunks: unknown[]) {
   const encoder = new TextEncoder();
   return new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
-        for (const line of lines) controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+        for (const chunk of chunks) {
+          if (typeof chunk === "string") {
+            controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+          } else {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          }
+        }
         controller.close();
       },
     }),
@@ -40,23 +47,31 @@ function stream(lines: unknown[]) {
   );
 }
 
-function installOllama(options: {
+function installGguf(options: {
   loadedAt: () => number | null;
   chat: (body: Record<string, unknown>, init?: RequestInit) => Promise<Response> | Response;
 }) {
   const chats: Record<string, unknown>[] = [];
 
+  (window as unknown as { electronAPI: unknown }).electronAPI = {
+    gguf: {
+      status: async () => {
+        const size = options.loadedAt();
+        return size === null
+          ? { running: false, model: null }
+          : { running: true, model: MODEL, contextSize: size };
+      },
+      listModels: async () => [
+        { filename: MODEL, contextLength: 32768, blockCount: 32, architecture: "gguf", fileType: 0 },
+      ],
+      start: async () => ({ success: true }),
+    },
+  };
+
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/api/show")) {
-        return json({ capabilities: ["completion"], model_info: { "test.context_length": 32768 } });
-      }
-      if (url.endsWith("/api/ps")) {
-        const size = options.loadedAt();
-        return json({ models: size === null ? [] : [{ name: MODEL, size: 1, size_vram: 1, context_length: size }] });
-      }
-      if (url.endsWith("/api/chat")) {
+      if (url.endsWith("/v1/chat/completions")) {
         const body = JSON.parse(String(init?.body));
         chats.push(body);
         return options.chat(body, init);
@@ -84,20 +99,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   localStorage.clear();
+  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
 });
 
 describe("counting the next turn", () => {
   it("asks the model for one token of the very prompt a turn sends, and reports its count", async () => {
     const request = input();
     const size = await windowFor(request);
-    const chats = installOllama({ loadedAt: () => size, chat: () => json({ done: true, prompt_eval_count: 1234 }) });
+    const chats = installGguf({ loadedAt: () => size, chat: () => json({ usage: { prompt_tokens: 1234 } }) });
 
     const counted = await measureTurn(request, { signal: new AbortController().signal, allowLoad: false });
 
     expect(counted?.tokens).toBe(1234);
     expect(counted?.window).toBe(size);
     expect(chats).toHaveLength(1);
-    expect(chats[0]).toMatchObject({ stream: false, options: { num_ctx: size, num_predict: 1 } });
+    expect(chats[0]).toMatchObject({ stream: false, max_tokens: 1 });
 
     const turn = await prepareTurn(request);
     expect((chats[0].messages as { role: string }[]).map((one) => one.role)).toEqual(turn.wire.map((one) => one.role));
@@ -105,7 +121,7 @@ describe("counting the next turn", () => {
   });
 
   it("does not load a model just to count, unless the user is typing", async () => {
-    const chats = installOllama({ loadedAt: () => null, chat: () => json({ prompt_eval_count: 99 }) });
+    const chats = installGguf({ loadedAt: () => null, chat: () => json({ usage: { prompt_tokens: 99 } }) });
 
     const idle = await measureTurn(input(), { signal: new AbortController().signal, allowLoad: false });
     expect(idle).toBeNull();
@@ -118,7 +134,7 @@ describe("counting the next turn", () => {
   it("asks nothing while a reply is being written anywhere", async () => {
     const request = input();
     const size = await windowFor(request);
-    const chats = installOllama({ loadedAt: () => size, chat: () => json({ prompt_eval_count: 5 }) });
+    const chats = installGguf({ loadedAt: () => size, chat: () => json({ usage: { prompt_tokens: 5 } }) });
 
     const end = beginOllamaWork();
     try {
@@ -133,7 +149,7 @@ describe("counting the next turn", () => {
     const request = input();
     const size = await windowFor(request);
     let aborted = false;
-    const chats = installOllama({
+    const chats = installGguf({
       loadedAt: () => size,
       chat: (_body, init) =>
         new Promise<Response>((_resolve, reject) => {
@@ -159,14 +175,19 @@ describe("counting the next turn", () => {
 
 describe("a turn as it runs", () => {
   it("snaps to the model's own counts when a pass ends", async () => {
-    installOllama({
+    installGguf({
       loadedAt: () => null,
       chat: () =>
-        stream([
-          { message: { content: "Four " } },
-          { message: { content: "words " } },
-          { message: { content: "of reply." } },
-          { done: true, done_reason: "stop", prompt_eval_count: 500, eval_count: 30, eval_duration: 1e9 },
+        sseStream([
+          { choices: [{ delta: { content: "Four " }, finish_reason: null }] },
+          { choices: [{ delta: { content: "words " }, finish_reason: null }] },
+          { choices: [{ delta: { content: "of reply." }, finish_reason: null }] },
+          {
+            choices: [{ delta: {}, finish_reason: "stop" }],
+            usage: { prompt_tokens: 500, completion_tokens: 30 },
+            timings: { predicted_ms: 1000, predicted_n: 30, prompt_ms: 50, prompt_n: 500 },
+          },
+          "[DONE]",
         ]),
     });
 
@@ -190,9 +211,17 @@ describe("a turn as it runs", () => {
   it("starts from a count taken just before it, instead of an estimate", async () => {
     const request = input();
     const turn = await prepareTurn(request);
-    installOllama({
+    installGguf({
       loadedAt: () => null,
-      chat: () => stream([{ done: true, done_reason: "stop", prompt_eval_count: 0, eval_count: 0 }]),
+      chat: () =>
+        sseStream([
+          {
+            choices: [{ delta: {}, finish_reason: "stop" }],
+            usage: { prompt_tokens: 0, completion_tokens: 0 },
+            timings: { predicted_ms: 0, predicted_n: 0, prompt_ms: 0, prompt_n: 0 },
+          },
+          "[DONE]",
+        ]),
     });
 
     const seen: LiveTurn[] = [];
@@ -219,5 +248,19 @@ describe("the speed line", () => {
   it("stays on once the user has chosen it", () => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ showMetrics: true, metricsChosen: true }));
     expect(loadSettings().showMetrics).toBe(true);
+  });
+});
+
+describe("estimateChars tool definitions", () => {
+  const messages = [{ role: "user" as const, content: "x".repeat(4000) }];
+
+  it("adds the tool payload on top of the message text", () => {
+    expect(estimateChars(messages, 5000)).toBe(estimateChars(messages) + 5000);
+  });
+
+  it("moves a chat that only just fits without tools up a window once they are counted", () => {
+    const bare = estimateChars([{ role: "user" as const, content: "x".repeat(24000) }]);
+    const withTools = estimateChars([{ role: "user" as const, content: "x".repeat(24000) }], 8000);
+    expect(pickContextSize(withTools, 131072)).toBeGreaterThan(pickContextSize(bare, 131072));
   });
 });

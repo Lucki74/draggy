@@ -57,33 +57,55 @@ const ENVIRONMENT: ToolEnvironment = {
   libraryReady: true,
 };
 
-const NS = 1e6;
-
-function ndjsonStream(lines: unknown[]) {
+/** Encodes content/thinking/toolCalls chunks as SSE events for llama-server format. */
+function sseStream(chunks: unknown[]) {
   const encoder = new TextEncoder();
   let index = 0;
 
   return new ReadableStream<Uint8Array>({
     pull(controller) {
-      if (index >= lines.length) {
+      if (index >= chunks.length) {
         controller.close();
         return;
       }
-      controller.enqueue(encoder.encode(JSON.stringify(lines[index++]) + "\n"));
+      controller.enqueue(encoder.encode("data: " + JSON.stringify(chunks[index++]) + "\n\n"));
     },
   });
 }
 
-const finalChunk = (extra: Record<string, unknown> = {}) => ({
-  done: true,
-  done_reason: "stop",
-  eval_count: 40,
-  eval_duration: 400 * NS,
-  prompt_eval_count: 120,
-  prompt_eval_duration: 60 * NS,
-  total_duration: 500 * NS,
-  ...extra,
-});
+/** Converts an Ollama-style turn description into SSE chunks the GGUF stream parser expects. */
+function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unknown[] {
+  const chunks: unknown[] = [];
+  for (const piece of turn.thinking ?? []) {
+    chunks.push({ choices: [{ delta: { reasoning_content: piece }, finish_reason: null }] });
+  }
+  for (const piece of turn.content ?? []) {
+    chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
+  }
+  if (turn.toolCalls) {
+    const deltas = turn.toolCalls.map((tc, i) => ({
+      index: i,
+      id: `call_${i}`,
+      function: { name: tc.function.name, arguments: JSON.stringify(tc.function.arguments) },
+    }));
+    chunks.push({
+      choices: [{ delta: { tool_calls: deltas }, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else {
+    const finishReason = (extra.finish_reason ?? extra.done_reason ?? "stop") as string;
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: finishReason }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  }
+  chunks.push("[DONE]");
+  return chunks;
+}
 
 interface Turn {
   content?: string[];
@@ -95,45 +117,53 @@ interface Turn {
 function installFetch(
   turns: Turn[],
   capabilities: string[],
-  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80 }],
-  /** What a constrained repair pass answers, when the loop asks for one. */
+  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80, context_length: 4096 }],
   repair?: string,
 ) {
   const requests: Record<string, unknown>[] = [];
   const repairs: Record<string, unknown>[] = [];
+  const starts: { modelPath: string; contextSize: number }[] = [];
   let turnIndex = 0;
 
-  const impl = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/api/show")) {
-      return new Response(
-        JSON.stringify({
-          capabilities,
-          model_info: {
-            "test.context_length": 32768,
-            "test.block_count": 32,
-            "test.embedding_length": 4096,
-            "test.attention.head_count": 32,
-            "test.attention.head_count_kv": 8,
+  vi.stubGlobal("window", {
+    electronAPI: {
+      gguf: {
+        status: async () => {
+          const first = loaded[0];
+          if (!first) return { running: false, model: null };
+          return {
+            running: true,
+            model: String(first.name || MODEL).replace(/:latest$/, ""),
+            contextSize: Number(first.context_length ?? first.contextSize ?? 4096),
+          };
+        },
+        listModels: async () => [
+          {
+            filename: MODEL,
+            contextLength: 32768,
+            blockCount: 32,
+            architecture: "gguf",
+            fileType: 0,
+            capabilities,
           },
-          details: { parameter_size: "8B", quantization_level: "Q4_K_M" },
-        }),
-        { status: 200 },
-      );
-    }
+        ],
+        start: async (opts: { modelPath: string; contextSize: number }) => {
+          starts.push(opts);
+          return { success: true };
+        },
+      },
+    },
+  });
 
-    if (url.endsWith("/api/ps")) {
-      return new Response(JSON.stringify({ models: loaded }), { status: 200 });
-    }
-
-    if (url.endsWith("/api/chat")) {
+  const impl = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/v1/chat/completions")) {
       const body = JSON.parse(String(init?.body));
 
-      // A repair is the one request that is not streamed, and the only one
-      // that carries a schema.
-      if (body.format) {
+      if (body.response_format || body.format) {
+        body.format = body.response_format?.json_schema?.schema ?? body.format;
         repairs.push(body);
         return new Response(
-          JSON.stringify({ message: { content: repair ?? "" } }),
+          JSON.stringify({ choices: [{ message: { content: repair ?? "" } }] }),
           { status: 200 },
         );
       }
@@ -141,27 +171,14 @@ function installFetch(
       requests.push(body);
 
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
-
-      const lines: unknown[] = [];
-      for (const piece of turn.thinking ?? []) {
-        lines.push({ message: { thinking: piece } });
-      }
-      for (const piece of turn.content ?? []) {
-        lines.push({ message: { content: piece } });
-      }
-      if (turn.toolCalls) {
-        lines.push({ message: { content: "", tool_calls: turn.toolCalls } });
-      }
-      lines.push(finalChunk(turn.final));
-
-      return new Response(ndjsonStream(lines), { status: 200 });
+      return new Response(sseStream(turnToSseChunks(turn, turn.final ?? {})), { status: 200 });
     }
 
     throw new Error(`unexpected fetch to ${url}`);
   });
 
   vi.stubGlobal("fetch", impl);
-  return { requests, repairs };
+  return { requests, repairs, starts };
 }
 
 function makeHost() {
@@ -273,7 +290,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("a model Ollama has to load first", () => {
+describe("a model the GGUF engine has to load first", () => {
   // Every list the host is shown, since the notice has to be gone by the end.
   function watchSteps() {
     const host = makeHost();
@@ -346,7 +363,7 @@ describe("a plain answer with no tools", () => {
 
     expect(result.metrics?.responseTokens).toBe(40);
     expect(result.metrics?.tokensPerSecond).toBeCloseTo(100, 5);
-    expect(host.metrics?.gpuPercent).toBe(80);
+    expect(host.metrics?.gpuPercent).toBe(0);
   });
 
   it("sends a system prompt and the conversation", async () => {
@@ -658,17 +675,15 @@ describe("keeping the model loaded", () => {
   type ChatBody = { options: { num_ctx: number } };
 
   it("asks for the window the warm-up already loaded", async () => {
-    const { requests } = installFetch([{ content: ["ok"] }], []);
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
 
     await warmModel(MODEL, "30m", 0);
     await run([userMessage("hi")]).promise;
 
-    // Two /api/chat calls: the warm-up, then the turn. Ollama unloads and
-    // reloads the weights when num_ctx changes, so these have to agree.
-    expect(requests).toHaveLength(2);
-    expect((requests[1] as ChatBody).options.num_ctx).toBe(
-      (requests[0] as ChatBody).options.num_ctx,
-    );
+    // GGUF server is started at the warm-up size, which the turn agrees with.
+    expect(starts).toHaveLength(2);
+    expect(starts[1].contextSize).toBe(starts[0].contextSize);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(starts[0].contextSize);
   });
 
   it("does not give a window back once the conversation has needed it", async () => {
@@ -681,6 +696,24 @@ describe("keeping the model loaded", () => {
 
     expect(grown).toBeGreaterThan(4096);
     expect((requests[1] as ChatBody).options.num_ctx).toBe(grown);
+  });
+
+  it("locks the context size to fixedContextSize when set to a number", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: 16384 }).promise;
+
+    expect(starts[0].contextSize).toBe(16384);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(16384);
+  });
+
+  it("locks the context size to the model maximum when fixedContextSize is 'max'", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: "max" }).promise;
+
+    expect(starts[0].contextSize).toBe(32768);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(32768);
   });
 });
 
@@ -1728,5 +1761,25 @@ describe("a tool call the model got wrong", () => {
     await run([userMessage("go")]).promise;
 
     expect(repairs).toHaveLength(0);
+  });
+
+  it("aborts the stream and trims runaway repetition when model loops on REDACTED markers", async () => {
+    installFetch(
+      [
+        {
+          content: [
+            "Here is the answer.\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+          ],
+        },
+      ],
+      [],
+    );
+
+    const result = await run([userMessage("write essay")]).promise;
+    expect(result.textContent).toBe("Here is the answer.");
   });
 });
