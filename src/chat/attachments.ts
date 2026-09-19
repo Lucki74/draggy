@@ -1,7 +1,9 @@
 /** What to do with a dropped file. The rules need no FileReader, so they live here and are tested;
  * the order of the checks is the part that goes wrong. */
 
-export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
+export const IMAGE_EXTENSIONS = [
+  "png", "jpg", "jpeg", "jfif", "gif", "webp", "bmp", "ico", "cur", "avif", "apng", "tiff", "tif",
+];
 
 export const DOCUMENT_EXTENSIONS = ["docx", "pptx", "xlsx", "pdf"];
 
@@ -59,7 +61,13 @@ export function planAttachment(
   if (looksLikeImage(file)) {
     // Refused before the size check: telling someone their photo is too large
     // when the model could not have read it at any size is a worse message.
-    if (!options.visionSupported) return { kind: "reject", reason: "visionUnsupported" };
+    if (!options.visionSupported) {
+      if (extension === "svg") {
+        if (file.size > MAX_TEXT_FILE_BYTES) return { kind: "reject", reason: "fileTooLarge" };
+        return { kind: "text", extension };
+      }
+      return { kind: "reject", reason: "visionUnsupported" };
+    }
     if (file.size > MAX_IMAGE_BYTES) return { kind: "reject", reason: "fileTooLarge" };
     return { kind: "image", extension };
   }

@@ -149,6 +149,19 @@ const LANGUAGES: Record<string, string> = {
   dockerfile: "Docker",
   diff: "Diff",
   txt: "Text",
+  png: "PNG Image",
+  jpg: "JPEG Image",
+  jpeg: "JPEG Image",
+  jfif: "JPEG Image",
+  gif: "GIF Image",
+  webp: "WebP Image",
+  ico: "Icon",
+  cur: "Cursor",
+  bmp: "Bitmap Image",
+  avif: "AVIF Image",
+  apng: "APNG Image",
+  tiff: "TIFF Image",
+  tif: "TIFF Image",
 };
 
 const PRISM_LANGUAGES: Record<string, string> = {
@@ -258,5 +271,29 @@ export function isMarkdownFile(target: string): boolean {
   if (dot <= 0) return false;
   const ext = name.slice(dot + 1).toLowerCase();
   return ext === "md" || ext === "markdown" || ext === "mdx";
+}
+
+export const IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "jfif",
+  "gif",
+  "webp",
+  "svg",
+  "ico",
+  "cur",
+  "bmp",
+  "avif",
+  "apng",
+  "tiff",
+  "tif",
+]);
+
+export function isImageFile(target: string): boolean {
+  const name = String(target || "").split(/[\\/]/).pop() || "";
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  return IMAGE_EXTENSIONS.has(name.slice(dot + 1).toLowerCase());
 }
 
