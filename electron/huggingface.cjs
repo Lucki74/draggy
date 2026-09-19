@@ -373,8 +373,8 @@ const TASK_LABELS = {
   "sentence-similarity": "Embedding",
 };
 
+// Every chat model is tagged conversational, so it says nothing and is left out.
 const TAG_LABELS = {
-  conversational: "chat",
   coding: "coding",
   code: "coding",
   math: "math",

@@ -389,6 +389,13 @@ describe("repo file matching", () => {
     expect((await huggingface.resolveModelDownload("acme/Small-GGUF:Q5_K_M")).size).toBe(7);
   });
 
+  it("does not end every description with Tagged chat", async () => {
+    mockApi([item("acme/Plain-7B-GGUF", { tags: ["gguf", "conversational"] })]);
+    const [plain] = await huggingface.searchHuggingFace("");
+
+    expect(plain.description).not.toMatch(/Tagged/);
+  });
+
   it("never takes a multi-token-prediction draft head for the model", async () => {
     // Laid out like unsloth/gemma-4-26B-A4B-it-GGUF: the draft heads carry the same quant names.
     mockTree([
