@@ -132,6 +132,33 @@ describe("cancelDownloadGgufModel", () => {
     }
   });
 
+  it("reports a cancel as cancelled even while data is still arriving", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-cancel-"));
+    try {
+      // Keeps writing after the response starts, so a chunk is always in flight when the cancel lands.
+      let timer;
+      server = http.createServer((req, res) => {
+        res.writeHead(200, { "content-length": 100000000 });
+        timer = setInterval(() => { for (let i = 0; i < 8; i++) res.write(Buffer.alloc(65536)); }, 0);
+        req.on("close", () => clearInterval(timer));
+      });
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      vi.spyOn(require("./urlPolicy.cjs"), "isFetchableUrl").mockReturnValue(true);
+      let downloaded = 0;
+      const outcome = modelStorage
+        .downloadGgufModel({ url: `http://127.0.0.1:${server.address().port}/m.gguf`, modelsDir: tmpDir, filename: "m", onProgress: (p) => (downloaded = p.completed) })
+        .catch((err) => err);
+      await until(() => downloaded > 0);
+
+      await modelStorage.cancelDownloadGgufModel(tmpDir, "m.gguf");
+
+      expect((await outcome).name).toBe("AbortError");
+      clearInterval(timer);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("lets the same file be downloaded again after a cancel", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-cancel-"));
     try {

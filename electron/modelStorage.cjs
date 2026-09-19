@@ -225,6 +225,8 @@ function downloadGgufModel({ url, modelsDir, filename, onProgress, maxRedirects 
 
         fileStream.on("error", (err) => {
           activeDownloads.delete(key);
+          // A chunk still in flight writes into the stream a cancel just destroyed; that is the cancel, not a failure.
+          if (entry.cancelled) return reject(abortError());
           log.error("modelStorage", `File write error on ${tempPath}: ${err.message}`, err);
           try {
             fs.unlinkSync(tempPath);
