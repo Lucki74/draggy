@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2, PowerOff, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Clock, Loader2, PowerOff, Search, Trash2 } from "lucide-react";
 import { Block, Group, Page, Row, Select } from "./Controls";
+import InView from "../chat/InView";
 import CompactLimitField from "./CompactLimitField";
-import PullProgress from "./PullProgress";
+import DownloadsMenu from "./DownloadsMenu";
 import { cannotGenerate, isEmbeddingModel } from "../modelKinds";
 import { describeFit, describeSplit } from "../vram";
 import { CONTEXT_BUCKETS } from "../ollama";
-import type { ModelManager } from "./useModelManager";
+import type { ModelManager, PullState } from "./useModelManager";
 import type { AppSettings, LibraryModel } from "../types";
 import type { SettingsTab } from "./pages";
 
@@ -27,7 +28,18 @@ function variantTags(model: LibraryModel) {
   return model.sizes.length > 0 ? model.sizes : ["latest"];
 }
 
+/** Titles repeat across repos, so downloads and sizes are addressed by repo when there is one. */
+const modelId = (model: LibraryModel) => model.repo ?? model.name;
+
 const FIT_COLOURS = { green: "#22c55e", amber: "#f59e0b", red: "#ef4444" } as const;
+
+const CAPABILITY_KEYS: Record<string, string> = {
+  tools: "capabilityTools",
+  thinking: "capabilityThinking",
+  completion: "capabilityCompletion",
+  embedding: "capabilityEmbedding",
+  vision: "capabilityVision",
+};
 
 /** What is installed, what can be downloaded, and the two models that serve everything else: the
  * one that indexes documents, and when a conversation gets folded. */
@@ -62,16 +74,16 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
   }, [query]);
 
   useEffect(() => {
-    const model = results.find((entry) => entry.name === expanded);
+    const model = results.find((entry) => modelId(entry) === expanded);
     if (!model) return;
 
     let cancelled = false;
     for (const size of variantTags(model)) {
-      const reference = `${model.name}:${size}`;
+      const reference = `${modelId(model)}:${size}`;
       if (sizes[reference]) continue;
 
       window.electronAPI
-        ?.modelSize(model.name, size)
+        ?.modelSize(modelId(model), size)
         .then((result) => {
           if (cancelled || !result?.success || !result.bytes) return;
           setSizes((previous) => ({ ...previous, [reference]: result.bytes as number }));
@@ -88,30 +100,29 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
 
   const contextSizeOptions = [
     { id: "", label: t("automatic") },
+    { id: "max", label: t("maxContext") },
     ...CONTEXT_BUCKETS.map((n) => ({ id: String(n), label: `${(n / 1024).toFixed(0)}k` })),
   ];
 
   return (
     <Page title={t("models")} description={t("modelsHint")}>
       <Group title={t("installed")}>
-        {/* Shortcut links to Chat and Code preference pages. */}
-        <div className="px-4 pb-2 flex items-center gap-1 text-[11px] font-bold text-[var(--text-muted)]">
-          <span>{t("chooseModel")}</span>
-          <button
-            type="button"
-            onClick={() => onNavigate("chat")}
-            className="underline hover:text-[var(--text-main)] transition-colors"
-          >
-            {t("chatMode")}
-          </button>
-          <span>·</span>
-          <button
-            type="button"
-            onClick={() => onNavigate("code")}
-            className="underline hover:text-[var(--text-main)] transition-colors"
-          >
-            {t("codeMode")}
-          </button>
+        {/* The model each mode runs is picked on its own page, so these jump straight there. */}
+        <div className="px-4 py-2.5 flex items-center justify-between gap-3 bg-[var(--hover-bg)]/40">
+          <span className="text-[11px] font-bold text-[var(--text-muted)]">{t("chooseModel")}</span>
+          <div className="flex items-center gap-2">
+            {(["chat", "code"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onNavigate(tab)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-[var(--text-main)] bg-[var(--bg-base)] border border-[var(--border-light)] hover:bg-[var(--hover-bg)] hover:border-[var(--text-muted)] transition-all shadow-xs"
+              >
+                {t(tab === "chat" ? "chatMode" : "codeMode")}
+                <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
+              </button>
+            ))}
+          </div>
         </div>
 
         {manager.installed.length === 0 ? (
@@ -180,11 +191,9 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
 
       <Group title={t("downloadModel")}>
         <Block>
-          {manager.pull ? (
-            <PullProgress state={manager.pull} onCancel={manager.cancelPull} t={t} />
-          ) : (
-            <div className="space-y-3">
-              <div className="relative">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   type="text"
@@ -198,31 +207,35 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                   <Loader2 className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
                 )}
               </div>
+              <DownloadsMenu pulls={manager.pulls} onCancel={manager.cancelPull} t={t} />
+            </div>
 
-              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                {results.length === 0 && !searching && (
-                  <p className="px-1 text-sm font-bold text-[var(--text-muted)]">{t("noSearchResults")}</p>
-                )}
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {results.length === 0 && !searching && (
+                <p className="px-1 text-sm font-bold text-[var(--text-muted)]">{t("noSearchResults")}</p>
+              )}
 
-                {results.map((model) => {
-                  const open = expanded === model.name;
+              {results.map((model) => {
+                const id = modelId(model);
+                const open = expanded === id;
 
-                  return (
+                return (
+                  <InView key={id} estimatedHeight={72} forceRender={open}>
                     <div
-                      key={model.name}
                       className="rounded-xl border-2 border-[var(--border-light)] bg-[var(--bg-base)] overflow-hidden"
                     >
                       <button
                         type="button"
-                        onClick={() => setExpanded(open ? null : model.name)}
+                        onClick={() => setExpanded(open ? null : id)}
                         aria-expanded={open}
                         className="w-full text-left p-3 hover:bg-[var(--hover-bg)] transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold truncate">{model.name}</span>
-                          {model.capabilities.map((capability) => (
-                            <Badge key={capability}>{capability}</Badge>
-                          ))}
+                          <span className="font-bold text-sm text-[var(--text-main)] truncate">{model.name}</span>
+                          {model.capabilities.map((capability) => {
+                            const key = CAPABILITY_KEYS[capability];
+                            return <Badge key={capability}>{key ? t(key) : capability}</Badge>;
+                          })}
                           <ChevronRight
                             className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
                           />
@@ -237,7 +250,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                       {open && (
                         <div className="border-t-2 border-[var(--border-light)] p-2 space-y-1">
                           {variantTags(model).map((size) => {
-                            const reference = `${model.name}:${size}`;
+                            const reference = `${id}:${size}`;
                             return (
                               <Variant
                                 key={size}
@@ -245,6 +258,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                                 bytes={sizes[reference]}
                                 vram={manager.vram}
                                 unifiedMemory={manager.unifiedMemory}
+                                phase={manager.pulls.find((pull) => pull.name === reference)?.phase}
                                 onPull={() => void manager.startPull(reference)}
                                 t={t}
                               />
@@ -253,11 +267,11 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                         </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                  </InView>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           {manager.error && <p className="mt-3 text-xs font-bold text-red-500">{manager.error}</p>}
         </Block>
@@ -285,7 +299,11 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
             label={t("fixedContextSize")}
             value={settings.fixedContextSize ? String(settings.fixedContextSize) : ""}
             options={contextSizeOptions}
-            onChange={(value) => onUpdate({ fixedContextSize: value ? Number(value) : null })}
+            onChange={(value) =>
+              onUpdate({
+                fixedContextSize: value === "max" ? "max" : value ? Number(value) : null,
+              })
+            }
           />
         </Row>
         <Block>
@@ -330,6 +348,7 @@ function Variant({
   bytes,
   vram,
   unifiedMemory,
+  phase,
   onPull,
   t,
 }: {
@@ -337,6 +356,8 @@ function Variant({
   bytes?: number;
   vram: number;
   unifiedMemory: boolean;
+  /** Set while this variant is already downloading or waiting in the queue. */
+  phase?: PullState["phase"];
   onPull: () => void;
   t: (key: string) => string;
 }) {
@@ -353,13 +374,24 @@ function Variant({
           {fit.sizeGB.toFixed(1)} GB{summary ? ` · ${summary}` : ""}
         </span>
       )}
-      <button
-        type="button"
-        onClick={onPull}
-        className="px-3 py-1.5 rounded-lg bg-[var(--bg-inverted)] text-[var(--text-inverted)] text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex-shrink-0"
-      >
-        {t("download")}
-      </button>
+      {phase ? (
+        <span
+          role="status"
+          aria-label={t(phase === "queued" ? "queuedDownload" : "downloadingModel")}
+          title={t(phase === "queued" ? "queuedDownload" : "downloadingModel")}
+          className="px-3 py-1.5 flex-shrink-0 text-[var(--text-muted)]"
+        >
+          {phase === "queued" ? <Clock className="w-3.5 h-3.5" /> : <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onPull}
+          className="px-3 py-1.5 rounded-lg bg-[var(--bg-inverted)] text-[var(--text-inverted)] text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex-shrink-0"
+        >
+          {t("download")}
+        </button>
+      )}
     </div>
   );
 }
