@@ -80,8 +80,7 @@ to work on the code.
 
 ## Upcoming
 
-Removing ollama dependency and using a custom llama.cpp server instead.
-Many QoL improvements and small features and chanegs to the app.
+Many QoL improvements, small features and changes.
 
 ## Installing and requirements
 
