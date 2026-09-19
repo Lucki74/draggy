@@ -159,6 +159,25 @@ describe("cancelDownloadGgufModel", () => {
     }
   });
 
+  it("hands a cancel to the caller as a result, not as an error the main process prints", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-cancel-"));
+    try {
+      const { url } = await stallingServer();
+      const pending = modelStorage.downloadGgufModelForIpc({ url, modelsDir: tmpDir, filename: "model.gguf" });
+      await modelStorage.cancelDownloadGgufModel(tmpDir, "model.gguf");
+
+      await expect(pending).resolves.toEqual({ success: false, cancelled: true });
+
+      // The real policy again, so this is refused before any request is made.
+      vi.restoreAllMocks();
+      await expect(
+        modelStorage.downloadGgufModelForIpc({ url: "http://192.168.1.1/m.gguf", modelsDir: tmpDir, filename: "x.gguf" }),
+      ).rejects.toThrow(/security policy/);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("lets the same file be downloaded again after a cancel", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-cancel-"));
     try {

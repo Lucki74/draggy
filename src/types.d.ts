@@ -1126,6 +1126,7 @@ declare global {
           success: boolean;
           path?: string;
           filename?: string;
+          cancelled?: boolean;
         }>;
         cancelDownload: (filename: string) => Promise<{ success: boolean }>;
         onProgress: (callback: (progress: {

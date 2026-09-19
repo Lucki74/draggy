@@ -534,6 +534,7 @@ export async function pullModel(
           ])
         : await download;
 
+      if (result?.cancelled) throw new DOMException("Aborted", "AbortError");
       if (!result?.success) throw new Error(`Could not download ${part.filename}`);
       finishedBytes += part.size ?? 0;
     }

@@ -75,6 +75,18 @@ describe("pullModel with several downloads at once", () => {
   });
 });
 
+describe("pullModel when the main process reports a cancel", () => {
+  it("rejects as an abort, so the caller treats it as the user's own doing", async () => {
+    installBridge();
+    (window as unknown as { electronAPI: { gguf: Record<string, unknown> } }).electronAPI.gguf.downloadModel = async () => ({
+      success: false,
+      cancelled: true,
+    });
+
+    await expect(pullModel("https://host/one.gguf", () => undefined)).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
 describe("pullModel with a name it cannot resolve", () => {
   it("says it could not find the model instead of sending the name to the downloader as a URL", async () => {
     const { downloads } = installBridge();

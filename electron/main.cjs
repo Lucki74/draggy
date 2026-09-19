@@ -1472,7 +1472,7 @@ ipcMain.handle("gguf:delete", async (_event, filename) => {
 
 ipcMain.handle("gguf:download", async (event, { url, filename } = {}) => {
   log.info("ipc", `gguf:download requested: ${filename} from ${url}`);
-  return modelStorage.downloadGgufModel({
+  return modelStorage.downloadGgufModelForIpc({
     url,
     modelsDir: ggufModelsDir(),
     filename,

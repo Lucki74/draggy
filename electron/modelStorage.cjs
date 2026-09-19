@@ -261,6 +261,16 @@ function downloadGgufModel({ url, modelsDir, filename, onProgress, maxRedirects 
   return promise;
 }
 
+/** A download whose cancel comes back as a result: rejecting an IPC call prints an error for what the user asked for. */
+async function downloadGgufModelForIpc(options) {
+  try {
+    return await downloadGgufModel(options);
+  } catch (error) {
+    if (error?.name === "AbortError") return { success: false, cancelled: true };
+    throw error;
+  }
+}
+
 /** Stops an in-flight download and removes every file it left behind. */
 async function cancelDownloadGgufModel(modelsDir, filename) {
   const safeName = safeGgufName(filename);
@@ -293,5 +303,6 @@ module.exports = {
   listGgufModels,
   deleteGgufModel,
   downloadGgufModel,
+  downloadGgufModelForIpc,
   cancelDownloadGgufModel,
 };
