@@ -127,7 +127,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
     <Page title={t("models")} description={t("modelsHint")}>
       <Group title={t("installed")}>
         {/* The model each mode runs is picked on its own page, so these jump straight there. */}
-        <div className="px-4 py-2.5 flex items-center justify-between gap-3 bg-[var(--hover-bg)]/40">
+        <div className="px-4 py-2.5 flex items-center gap-3 bg-[var(--hover-bg)]/40">
           <span className="text-[11px] font-bold text-[var(--text-muted)]">{t("chooseModel")}</span>
           <div className="flex items-center gap-2">
             {(["chat", "code"] as const).map((tab) => (
