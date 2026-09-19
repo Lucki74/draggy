@@ -57,6 +57,52 @@ describe("PermissionPicker for a model that cannot use tools", () => {
   });
 });
 
+describe("PermissionPicker warning", () => {
+  const renderClosed = (toolsUnavailable: boolean) =>
+    render(
+      <PermissionPicker
+        mode="plan"
+        open={false}
+        onOpenChange={vi.fn()}
+        onPick={vi.fn()}
+        toolsUnavailable={toolsUnavailable}
+        t={t}
+      />,
+    );
+
+  it("puts a warning icon in place of the shield when the model has no tools", () => {
+    renderClosed(true);
+
+    expect(screen.queryByTestId("permission-shield")).toBeNull();
+    // It leads the pill, where the shield would have been, ahead of the label.
+    const pill = screen.getByRole("button", { name: /Plan only/ });
+    expect(pill.firstElementChild).toBe(screen.getByTestId("no-tools-warning"));
+
+    const warning = screen.getByTestId("no-tools-warning");
+    expect(warning.getAttribute("aria-label")).toBe("Needs a model that supports tools");
+    expect(warning.getAttribute("class")).toContain("text-amber-500");
+    expect(screen.getByRole("button", { name: /Plan only/ }).title).toBe(
+      "Permissions: Plan only. Needs a model that supports tools",
+    );
+  });
+
+  it("shows no warning when the model can use tools", () => {
+    renderClosed(false);
+
+    expect(screen.queryByTestId("no-tools-warning")).toBeNull();
+    expect(screen.getByTestId("permission-shield")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Plan only/ }).title).toBe("Permissions: Plan only");
+  });
+
+  it("keeps the warning when the label is hidden for a narrow composer", () => {
+    render(
+      <PermissionPicker mode="plan" open={false} onOpenChange={vi.fn()} onPick={vi.fn()} toolsUnavailable t={t} compact />,
+    );
+
+    expect(screen.getByTestId("no-tools-warning")).toBeTruthy();
+  });
+});
+
 describe("CrossedIcon", () => {
   it("draws the icon in amber with a slash through it, hidden from screen readers", () => {
     render(<CrossedIcon icon={Brain} />);

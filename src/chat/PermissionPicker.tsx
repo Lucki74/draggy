@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Check, ChevronRight, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Check, ChevronRight, ShieldCheck } from "lucide-react";
 import { PERMISSION_MODES } from "../app/modes";
 import type { PermissionMode } from "../types";
 
@@ -53,10 +53,18 @@ export default function PermissionPicker({
         onClick={() => onOpenChange(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={`${t("permissionMode")}: ${t(current.label)}`}
+        title={`${t("permissionMode")}: ${t(current.label)}${toolsUnavailable ? `. ${t("needsToolModel")}` : ""}`}
         className={`composer-pill ${mode === "auto" ? "!text-amber-600" : ""}`}
       >
-        <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+        {toolsUnavailable ? (
+          <AlertTriangle
+            data-testid="no-tools-warning"
+            aria-label={t("needsToolModel")}
+            className="w-3.5 h-3.5 flex-shrink-0 text-amber-500"
+          />
+        ) : (
+          <ShieldCheck data-testid="permission-shield" className="w-3.5 h-3.5 flex-shrink-0" />
+        )}
         {!compact && t(current.label)}
         <ChevronRight
           className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
