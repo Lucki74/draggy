@@ -18,6 +18,30 @@ const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-shots-"));
 app.setPath("appData", path.join(scratch, "appdata"));
 app.setPath("userData", path.join(scratch, "userdata"));
 fs.mkdirSync(app.getPath("userData"), { recursive: true });
+
+// Junctions to the installed engine and models, so a capture run never downloads gigabytes again.
+const realUserData = path.join(process.env.APPDATA || "", "Draggy");
+const realBin = path.join(realUserData, "bin");
+const realModels = path.join(realUserData, "models");
+const targetBin = path.join(app.getPath("userData"), "bin");
+const targetModels = path.join(app.getPath("userData"), "models");
+if (fs.existsSync(realBin) && !fs.existsSync(targetBin)) fs.symlinkSync(realBin, targetBin, "junction");
+// The app falls back to the first model it lists, so the scratch app sees only the capture model: a
+// quick one that still handles tools. A hard link costs no disk and no copy.
+const captureModel = [
+  process.env.DRAGGY_SHOTS_MODEL,
+  "Qwen3.5-4B-Q8_0.gguf",
+  "Ornith-1.5-35B-A3B-Q4_K_M.gguf",
+  "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+].find((name) => name && fs.existsSync(path.join(realModels, name)));
+if (fs.existsSync(realModels) && !fs.existsSync(targetModels)) {
+  if (captureModel) {
+    fs.mkdirSync(targetModels);
+    fs.linkSync(path.join(realModels, captureModel), path.join(targetModels, captureModel));
+  } else {
+    fs.symlinkSync(realModels, targetModels, "junction");
+  }
+}
 // 1.6 fits a 1280 by 800 window on a 2560 by 1440 screen and captures at 2048 by 1280.
 app.commandLine.appendSwitch("force-device-scale-factor", process.env.DRAGGY_SHOTS_SCALE || "1.6");
 
@@ -94,11 +118,21 @@ function writeDemoProject() {
     fs.writeFileSync(path.join(PROJECT, name), text);
   }
 
-  const git = (...args) =>
-    execFileSync("git", ["-c", "user.email=demo@example.com", "-c", "user.name=Demo", ...args], {
-      cwd: PROJECT,
-      stdio: "ignore",
-    });
+  // Windows may hold a file the moment after it is written, and git then fails to index it. A second
+  // try a moment later succeeds, and a real failure says what git said instead of a bare exit code.
+  const git = (...args) => {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return execFileSync("git", ["-c", "user.email=demo@example.com", "-c", "user.name=Demo", ...args], {
+          cwd: PROJECT,
+          stdio: ["ignore", "ignore", "pipe"],
+        });
+      } catch (error) {
+        if (attempt >= 4) throw new Error(`git ${args.join(" ")} failed: ${error.stderr?.toString().trim() || error.message}`);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 750);
+      }
+    }
+  };
 
   git("init", "-q", "-b", "main");
   git("add", ".");
@@ -121,6 +155,7 @@ function seedDatabase() {
     permissionMode: "acceptEdits",
     settings: {},
   });
+  storage.setValue("draggy_settings", JSON.stringify({ modelName: captureModel }));
   storage.close();
 }
 
@@ -128,7 +163,49 @@ writeDemoProject();
 seedDatabase();
 
 // Loaded before ready, since the app registers its URL schemes as it loads.
+// Stands in for the network so the downloads panel can be captured mid-flight: each model at its own
+// point and speed, and none that ever finishes. Only the transfer is faked; the rest is the real app.
+function fakeDownloads() {
+  const modelStorage = require(path.join(__dirname, "..", "electron", "modelStorage.cjs"));
+  const plans = [
+    { total: 4.6 * 1024 ** 3, speed: 42 * 1024 ** 2, start: 0.38 },
+    { total: 9.4 * 1024 ** 3, speed: 31 * 1024 ** 2, start: 0.12 },
+    { total: 2.1 * 1024 ** 3, speed: 40 * 1024 ** 2, start: 0.02 },
+  ];
+  const running = new Map();
+  let started = 0;
+
+  modelStorage.downloadGgufModel = ({ filename, onProgress }) =>
+    new Promise((resolve, reject) => {
+      const plan = plans[started++ % plans.length];
+      let completed = plan.total * plan.start;
+      const timer = setInterval(() => {
+        completed = Math.min(plan.total - 1, completed + plan.speed / 5);
+        onProgress?.({
+          phase: "downloading",
+          completed,
+          total: plan.total,
+          percent: Number(((completed / plan.total) * 100).toFixed(1)),
+          remainingSeconds: Math.round((plan.total - completed) / plan.speed),
+        });
+      }, 200);
+      running.set(filename, () => {
+        clearInterval(timer);
+        const error = new Error("Download cancelled");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+
+  modelStorage.cancelDownloadGgufModel = async (_modelsDir, filename) => {
+    running.get(filename)?.();
+    running.delete(filename);
+    return { success: true };
+  };
+}
+
 require(path.join(__dirname, "..", "electron", "main.cjs"));
+if (ONLY.length === 0 || ONLY.includes("downloads")) fakeDownloads();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (...parts) => console.log("[shots]", ...parts);
@@ -223,7 +300,8 @@ async function send(win, text) {
       return Boolean(stop) || tray;
     });
 
-  await waitFor(generating, { timeout: 30_000, label: "the reply to start" });
+  // A large model can take over a minute to process the first token after loading weights.
+  await waitFor(generating, { timeout: 120_000, label: "the reply to start" });
   log("waiting for the reply to", JSON.stringify(text.slice(0, 50)));
   await waitFor(
     async () => {
@@ -390,6 +468,7 @@ async function run() {
 
     // A skill started by its command, then the context popover naming it as loaded.
     await send(win, "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.");
+    await shoot(win, "app-skill-request");
     await click(win, "Context window:");
     await inPage(win, () => {
       const header = document.querySelector("[role=dialog] button[aria-expanded]");
@@ -403,7 +482,7 @@ async function run() {
     await openWorkspace(win, "weather");
     await send(
       win,
-      "In src/format.ts, make formatTemperature round to one decimal place and add a °C suffix. Update the test to match.",
+      "In src/format.ts, make formatTemperature round to one decimal place and add a °C suffix. Update the test to match. Only edit the files; do not run or install anything.",
     );
     await click(win, "src", { exact: true });
     await sleep(800);
@@ -481,6 +560,79 @@ async function run() {
     }
   }
 
+  if (wanted("downloads")) {
+    await openWorkspace(win, "weather");
+    await click(win, "Settings", { exact: true });
+    await sleep(800);
+    await openSettingsPage(win, "App", "Models");
+
+    // A result row is the expandable button at the top of a bordered card; dropdowns and the downloads
+    // button also carry aria-expanded.
+    const ROW = ".overflow-hidden > button[aria-expanded].text-left";
+    await waitFor(() => inPage(win, (row) => document.querySelectorAll(row).length >= 3, ROW), {
+      timeout: 180_000,
+      label: "the model results",
+    });
+
+    // Three downloads against a limit of two, so one shows as queued.
+    for (let position = 0; position < 3; position += 1) {
+      await inPage(
+        win,
+        (index, row) => {
+          const head = [...document.querySelectorAll(row)][index];
+          if (head.getAttribute("aria-expanded") !== "true") head.click();
+        },
+        position,
+        ROW,
+      );
+      const started = await waitFor(
+        () =>
+          inPage(win, () => {
+            const download = [...document.querySelectorAll("button")].find((node) => node.textContent.trim() === "Download");
+            download?.click();
+            return Boolean(download);
+          }),
+        { timeout: 15_000, every: 300, label: "a Download button" },
+      ).catch(async (error) => {
+        const seen = await inPage(win, (row) => ({
+          rows: document.querySelectorAll(row).length,
+          buttons: [...document.querySelectorAll("button")].map((node) => node.textContent.trim().slice(0, 24)).filter(Boolean),
+        }), ROW);
+        log("no Download button; page shows", JSON.stringify(seen));
+        throw error;
+      });
+      if (!started) throw new Error("no Download button in the expanded model");
+      log("started download", position + 1);
+      await sleep(500);
+    }
+
+    // Tidy the list behind the panel: no model left open, and the section starts at the top of the page.
+    await inPage(
+      win,
+      (row) => {
+        document.querySelector(`${row}[aria-expanded="true"]`)?.click();
+        const heading = [...document.querySelectorAll("*")].find(
+          (node) => node.children.length === 0 && node.textContent.trim().toLowerCase() === "download a model",
+        );
+        heading?.scrollIntoView({ block: "start" });
+        const button = [...document.querySelectorAll("button")].find((node) =>
+          (node.getAttribute("aria-label") || "").startsWith("Downloads"),
+        );
+        button?.click();
+      },
+      ROW,
+    );
+    await sleep(3000);
+    await shoot(win, "app-settings-downloads");
+
+    // Leave nothing running for the scenes after this one.
+    for (let index = 0; index < 4; index += 1) {
+      await inPage(win, () => document.querySelector('[role=dialog] button[aria-label="Cancel"]')?.click());
+      await sleep(400);
+    }
+    await inPage(win, () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  }
+
   if (wanted("command")) {
     await openWorkspace(win, "weather");
     await submit(
@@ -520,12 +672,16 @@ async function run() {
 
     await click(win, "Allow once", { exact: true });
     log("waiting for the reply after the command");
+    // A model may ask to run the command again once it has the output, so keep allowing until the turn ends.
     await waitFor(
-      () =>
-        inPage(win, () => {
-          const stop = document.querySelector("form.composer button[type=submit] .lucide-square");
-          return !stop;
-        }),
+      async () => {
+        const allowed = await allowPending(win);
+        if (allowed) log("allowed once:", allowed);
+        return (
+          !allowed &&
+          (await inPage(win, () => !document.querySelector("form.composer button[type=submit] .lucide-square")))
+        );
+      },
       { timeout: 600_000, every: 1000, label: "the reply after the command" },
     );
     await sleep(1500);
@@ -580,6 +736,14 @@ async function run() {
 
 // A normal quit runs Draggy's own shutdown, which stops an Ollama it started; then the data goes.
 process.on("exit", () => {
+  // Unlinked first, so removing the scratch folder can never follow a junction into the real models.
+  for (const target of [targetBin, targetModels]) {
+    try {
+      fs.unlinkSync(target);
+    } catch {
+      // Never linked, or a real folder the scratch removal below deals with.
+    }
+  }
   try {
     fs.rmSync(scratch, { recursive: true, force: true });
   } catch {
