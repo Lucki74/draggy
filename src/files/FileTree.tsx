@@ -61,19 +61,38 @@ export default function FileTree({
     [workspaceId, revision],
   );
 
-  // Reloads the root when the disk changed, since `load` is rebuilt per revision. Queued, because
-  // the listing is an IPC round trip outside this render.
+  // Reloads all open folders when the disk changed, since `load` is rebuilt per revision.
   useEffect(() => {
     let cancelled = false;
 
     queueMicrotask(() => {
-      if (!cancelled) void load(root);
+      if (cancelled) return;
+      for (const folder of open) {
+        void load(folder);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [root, load]);
+  }, [open, load]);
+
+  // Listens directly to file changes so the tree updates in real time.
+  useEffect(() => {
+    const api = window.electronAPI?.files;
+    if (!api) return;
+
+    const stop = api.onChanged?.((change: { workspaceId?: string }) => {
+      if (change.workspaceId && change.workspaceId !== workspaceId) return;
+      for (const folder of open) {
+        void load(folder);
+      }
+    });
+
+    return () => {
+      stop?.();
+    };
+  }, [workspaceId, open, load]);
 
   const toggle = (folder: string) => {
     setOpen((prev) => {
@@ -129,7 +148,7 @@ export default function FileTree({
           const isOpen = open.has(entry.path);
 
           return (
-            <div key={entry.path}>
+            <div key={entry.path} className="flex flex-col render-viewport-only">
               <button
                 onClick={() =>
                   entry.isDirectory ? toggle(entry.path) : onSelect(entry)

@@ -103,4 +103,28 @@ describe("Explorer component", () => {
     expect(editor.value).toBe("MIT License\n");
     expect(editor.className).not.toContain("code-editor-textarea");
   });
+
+  it("reloads file list in real time when onChanged fires", async () => {
+    let changeCb: ((change: { workspaceId?: string }) => void) | null = null;
+    (window as unknown as { electronAPI: { files: { onChanged: unknown } } }).electronAPI.files.onChanged = (
+      cb: (change: { workspaceId?: string }) => void,
+    ) => {
+      changeCb = cb;
+      return () => {
+        changeCb = null;
+      };
+    };
+
+    await act(async () => {
+      render(<Explorer settings={settings} workspace={workspace} />);
+    });
+
+    expect(listMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      changeCb?.({ workspaceId: workspace.id });
+    });
+
+    expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
 });

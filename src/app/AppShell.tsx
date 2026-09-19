@@ -203,6 +203,18 @@ export default function AppShell({
   const treeFits =
     workAreaWidth >= TREE_WIDTH + CHAT_WIDTH_BESIDE_TREE + (canvasPath ? MIN_SIDE_WIDTH : 0);
   const gitStatus = useGitStatus(active.id, active.rootPath ?? null);
+  const [fileRevision, setFileRevision] = useState(0);
+
+  useEffect(() => {
+    const stop = window.electronAPI?.files?.onChanged?.((change: { workspaceId?: string }) => {
+      if (change.workspaceId && active && change.workspaceId !== active.id) return;
+      setFileRevision((r) => r + 1);
+    });
+    return () => {
+      stop?.();
+    };
+  }, [active]);
+
   const closeCanvas = useCallback(() => setCanvas(null), []);
   const followCanvas = useCallback(
     (path: string) =>
@@ -242,9 +254,9 @@ export default function AppShell({
       }
 
       updateSettings({ codeModel: name });
-      if (!isCloudModel(name)) warmModel(name, KEEP_ALIVE).catch(() => undefined);
+      if (!isCloudModel(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
     },
-    [mode, onSelectModel, updateSettings],
+    [mode, onSelectModel, updateSettings, settings.fixedContextSize],
   );
 
   // MCP servers start after the window is up: `npx` may fetch a package, and
@@ -969,6 +981,7 @@ export default function AppShell({
                           setCanvas({ workspaceId: active.id, path: entry.path })
                         }
                         t={t}
+                        revision={fileRevision}
                       />
                     </div>
 
@@ -985,7 +998,7 @@ export default function AppShell({
                   <div
                     onMouseDown={startResizeTree}
                     className="w-1.5 cursor-col-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none z-10 transition-colors"
-                    title="Resize file tree"
+                    title={t("resizeFileTree")}
                   />
                 </div>
               ) : (
@@ -1050,7 +1063,7 @@ export default function AppShell({
                 <div
                   onMouseDown={startResizeRightPane}
                   className="w-1.5 cursor-col-resize hover:bg-[var(--border-light)] active:bg-[var(--text-muted)] flex-shrink-0 select-none z-10 transition-colors"
-                  title="Resize pane"
+                  title={t("resizePane")}
                 />
                 <div
                   className="flex flex-col border-l-[3px] h-full overflow-hidden"
@@ -1107,7 +1120,7 @@ export default function AppShell({
             viewMode === "settings"
               ? // Opaque, or the chat's composer shows through underneath it.
                 "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)]"
-              : "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)] invisible pointer-events-none"
+              : "absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)] invisible pointer-events-none [content-visibility:hidden]"
           }
           aria-hidden={viewMode !== "settings"}
         >
