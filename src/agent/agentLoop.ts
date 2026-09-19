@@ -939,7 +939,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         stream: true,
         options: { num_ctx: numCtx, num_predict: -1 },
         messages: toLlamaMessages(wire),
-        ...(hasThinkingCapability ? { think: nativeThinking } : {}),
+        // llama-server ignores `think`; the template option is what switches the reasoning on or off.
+        ...(hasThinkingCapability
+          ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
+          : {}),
         ...(nativeTools ? { tools: definitions } : {}),
       });
 

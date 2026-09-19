@@ -7,6 +7,19 @@ const ggufParser = require("./ggufParser.cjs");
 const { log } = require("./logger.cjs");
 
 /** Scans directory for GGUF files and reads metadata headers. */
+/** Capabilities by file, so the chat template is read once per model rather than on every listing. */
+const capabilityCache = new Map();
+
+function capabilitiesOf(fullPath, stat) {
+  const key = `${fullPath}|${stat.size}|${stat.mtimeMs}`;
+  let capabilities = capabilityCache.get(key);
+  if (!capabilities) {
+    capabilities = ggufParser.capabilitiesFromTemplate(ggufParser.readChatTemplate(fullPath));
+    capabilityCache.set(key, capabilities);
+  }
+  return capabilities;
+}
+
 function listGgufModels(modelsDir) {
   log.debug("modelStorage", `Scanning GGUF directory: ${modelsDir}`);
   if (!fs.existsSync(modelsDir)) return [];
@@ -29,6 +42,7 @@ function listGgufModels(modelsDir) {
         contextLength: header?.contextLength || null,
         blockCount: header?.blockCount || null,
         fileType: header?.fileType || null,
+        capabilities: capabilitiesOf(fullPath, stat),
       });
       log.debug("modelStorage", `Found model ${file}: arch=${header?.architecture || "unknown"} size=${stat.size}`);
     } catch {

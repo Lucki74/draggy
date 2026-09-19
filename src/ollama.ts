@@ -43,8 +43,8 @@ export interface InstalledModel {
   size: number;
   parameterSize: string;
   family: string;
-  /** What the model can do. Fixed for the GGUF engine, which speaks the same OpenAI-style
-   * protocol for every model it loads. */
+  /** What the model can do, worked out from its chat template. Tools and completion for every model,
+   * thinking for one whose template supports it. */
   capabilities: string[];
 }
 
@@ -69,7 +69,7 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
 
     return {
       contextLength: entry.contextLength,
-      capabilities: (entry as { capabilities?: string[] }).capabilities ?? ["tools", "completion"],
+      capabilities: entry.capabilities ?? ["tools", "completion"],
       parameterCount: null,
       quantization: entry.fileType !== null && entry.fileType !== undefined ? String(entry.fileType) : null,
     };
@@ -277,7 +277,7 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
       size: m.size,
       parameterSize: m.blockCount ? `${m.blockCount}L` : "",
       family: m.architecture || "gguf",
-      capabilities: ["tools", "completion"],
+      capabilities: m.capabilities ?? ["tools", "completion"],
     }));
   } catch {
     return [];

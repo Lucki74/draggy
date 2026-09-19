@@ -1112,6 +1112,8 @@ declare global {
           contextLength: number | null;
           blockCount: number | null;
           fileType: number | null;
+          /** From the chat template: tools and completion for all, thinking where the template has it. */
+          capabilities?: string[];
         }[]>;
         deleteModel: (filename: string) => Promise<boolean>;
         downloadModel: (options: { url: string; filename: string }) => Promise<{

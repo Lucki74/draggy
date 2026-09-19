@@ -610,6 +610,7 @@ describe("native thinking models", () => {
     const result = await run([userMessage("2+2")]).promise;
 
     expect((requests[0] as { think?: boolean }).think).toBe(true);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: true });
     expect(result.textContent).toBe("Four.");
     expect(result.steps.find((s) => s.type === "thinking")?.content).toContain("let me see");
   });
@@ -622,6 +623,17 @@ describe("native thinking models", () => {
   });
 });
 
+describe("a model that cannot think", () => {
+  it("is sent no thinking option at all", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("think");
+    expect(requests[0]).not.toHaveProperty("chat_template_kwargs");
+  });
+});
+
 describe("fast thinking mode", () => {
   const FAST_SETTINGS = { ...SETTINGS, thinkingMode: "low" } as AppSettings;
 
@@ -631,6 +643,7 @@ describe("fast thinking mode", () => {
     await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
 
     expect((requests[0] as { think?: boolean }).think).toBe(false);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: false });
     const system = String(
       (requests[0] as { messages: { content: string }[] }).messages[0].content,
     );
