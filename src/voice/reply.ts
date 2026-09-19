@@ -1,15 +1,8 @@
-import { OLLAMA_HOST, beginOllamaWork, noteModelInUse, readNdjsonStream } from "../ollama";
-import { ggufModelName, isGgufModel } from "../ai/engineAdapter";
+import { beginOllamaWork } from "../ollama";
+import { ggufModelName } from "../ai/engineAdapter";
 import { sseToOllamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
-import {
-  KEEP_ALIVE,
-  VOICE_CONTEXT,
-  VOICE_NUM_PREDICT,
-  VOICE_REPEAT_PENALTY,
-  VOICE_TEMPERATURE,
-  VOICE_TOP_P,
-} from "./constants";
+import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
 
 /** Turns a question into words to say, handing text on the instant it can. Only the first seven
  * characters wait, in case they become a "SEARCH:" marker. */
@@ -120,65 +113,34 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
 }
 
 async function streamVoice(options: StreamOptions): Promise<void> {
-  noteModelInUse(options.model);
-
-  if (isGgufModel(options.model)) {
-    const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: ggufModelName(options.model),
-        stream: true,
-        temperature: VOICE_TEMPERATURE,
-        max_tokens: VOICE_NUM_PREDICT,
-        messages: options.messages,
-      }),
-      signal: options.signal,
-    });
-
-    if (!response.ok) throw new Error(`GGUF returned ${response.status}`);
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("GGUF sent no response stream");
-
-    for await (const chunk of sseToOllamaChunks(reader)) {
-      const delta = chunk.message?.content;
-      if (delta && options.onDelta(delta) === false) return;
+  if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+    const started = await window.electronAPI.gguf.start({ modelPath: ggufModelName(options.model) });
+    if (!started?.success && !started?.alreadyRunning) {
+      throw new Error(started?.error || "Could not start local GGUF model");
     }
-    return;
   }
 
-  const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: options.model,
+      model: ggufModelName(options.model),
       stream: true,
-      // `think` is deliberately unset. False stops Ollama parsing reasoning,
-      // not producing it, so deliberation arrives in `content` and is spoken.
-      keep_alive: KEEP_ALIVE,
-      options: {
-        num_ctx: VOICE_CONTEXT,
-        num_predict: VOICE_NUM_PREDICT,
-        temperature: VOICE_TEMPERATURE,
-        top_p: VOICE_TOP_P,
-        repeat_penalty: VOICE_REPEAT_PENALTY,
-      },
+      temperature: VOICE_TEMPERATURE,
+      max_tokens: VOICE_NUM_PREDICT,
       messages: options.messages,
     }),
     signal: options.signal,
   });
 
-  if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
-
+  if (!response.ok) throw new Error(`GGUF engine returned ${response.status}`);
   const reader = response.body?.getReader();
-  if (!reader) throw new Error("Ollama sent no response stream");
+  if (!reader) throw new Error("GGUF engine sent no response stream");
 
-  await readNdjsonStream(reader, (chunk) => {
-    const message = chunk.message as { content?: string } | undefined;
-    const delta = message?.content;
-    if (!delta) return;
-    return options.onDelta(delta);
-  });
+  for await (const chunk of sseToOllamaChunks(reader)) {
+    const delta = chunk.message?.content;
+    if (delta && options.onDelta(delta) === false) return;
+  }
 }
 
 export interface ReplyRequest {

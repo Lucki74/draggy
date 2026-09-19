@@ -141,51 +141,33 @@ describe("planning what Talk will run", () => {
   });
 });
 
-function pullStream(lines: unknown[]) {
-  const encoder = new TextEncoder();
-  let index = 0;
-
-  return new ReadableStream<Uint8Array>({
-    pull(controller) {
-      if (index >= lines.length) {
-        controller.close();
-        return;
-      }
-      controller.enqueue(encoder.encode(JSON.stringify(lines[index++]) + "\n"));
-    },
-  });
-}
-
 describe("fetching the planned model", () => {
   it("does nothing when there is nothing to fetch", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     const provided = await provideTalkModel(
       { model: "gemma3:4b", tier: null, source: "sized", download: null },
       { fallback: "llama3.1:8b" },
     );
 
     expect(provided).toEqual({ model: "gemma3:4b", substituted: false });
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("reports progress across the download", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            pullStream([
-              { status: "pulling manifest" },
-              { status: "pulling abc", digest: "abc", total: 100, completed: 50 },
-              { status: "pulling abc", digest: "abc", total: 100, completed: 100 },
-              { status: "success" },
-            ]),
-            { status: 200 },
-          ),
-      ),
-    );
+    let progressCallback: (progress: { phase: "preparing" | "downloading" | "done"; completed: number; total: number; percent: number }) => void = () => {};
+    vi.stubGlobal("window", {
+      electronAPI: {
+        gguf: {
+          onProgress: (cb: typeof progressCallback) => {
+            progressCallback = cb;
+            return () => {};
+          },
+          downloadModel: async () => {
+            progressCallback({ phase: "downloading", completed: 50, total: 100, percent: 50 });
+            progressCallback({ phase: "done", completed: 100, total: 100, percent: 100 });
+            return { success: true };
+          },
+        },
+      },
+    });
 
     const seen: number[] = [];
     const provided = await provideTalkModel(
@@ -203,10 +185,14 @@ describe("fetching the planned model", () => {
   });
 
   it("falls back to the chat model when the download fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("no", { status: 500 })),
-    );
+    vi.stubGlobal("window", {
+      electronAPI: {
+        gguf: {
+          onProgress: () => () => {},
+          downloadModel: async () => ({ success: false }),
+        },
+      },
+    });
 
     const provided = await provideTalkModel(
       {
@@ -223,10 +209,14 @@ describe("fetching the planned model", () => {
   });
 
   it("gives up when there is no chat model to fall back to", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("no", { status: 500 })),
-    );
+    vi.stubGlobal("window", {
+      electronAPI: {
+        gguf: {
+          onProgress: () => () => {},
+          downloadModel: async () => ({ success: false }),
+        },
+      },
+    });
 
     await expect(
       provideTalkModel(

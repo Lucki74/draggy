@@ -53,14 +53,11 @@ export const OUTPUT_PROB_BONUS = 0.15;
 /** Conversation turns kept in the prompt. */
 export const HISTORY_TURNS = 16;
 
-/** Ollama keeps the voice model resident for the length of a conversation. */
+/** The GGUF engine keeps the voice model resident for the length of a conversation. */
 export const KEEP_ALIVE = "30m";
 
-export const VOICE_CONTEXT = 4096;
 export const VOICE_NUM_PREDICT = 200;
 
 /** Sampling for speech, not prose. Two sentences leave no room to wander back, and a looped clause
  * is audio to sit through rather than text to skim. */
 export const VOICE_TEMPERATURE = 0.6;
-export const VOICE_TOP_P = 0.9;
-export const VOICE_REPEAT_PENALTY = 1.15;

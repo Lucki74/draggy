@@ -1,5 +1,5 @@
-import { KEEP_ALIVE, OLLAMA_HOST, beginOllamaWork } from "../ollama";
-import { ggufModelName, isGgufModel } from "../ai/engineAdapter";
+import { beginOllamaWork } from "../ollama";
+import { ggufModelName } from "../ai/engineAdapter";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
 
@@ -230,8 +230,7 @@ export interface CompactionRequest {
   signal?: AbortSignal;
 }
 
-/** Runs the fold, the only impure thing here. `numCtx` must pass through unchanged, or Ollama
- * reloads the weights and the fold stops being invisible. */
+/** Runs the fold, the only impure thing here. */
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
@@ -244,39 +243,23 @@ export async function runCompaction(
 }
 
 async function fold(request: CompactionRequest): Promise<CompactionState | null> {
-  const { model, numCtx, messages, plan, existing = null, signal } = request;
+  const { model, messages, plan, existing = null, signal } = request;
 
   const slice = messages.slice(plan.foldFrom, plan.foldThrough);
   if (slice.length === 0) return null;
 
-  const isGguf = isGgufModel(model);
   const summaryMessages = buildSummaryMessages(existing?.summary ?? null, slice);
-  const url = isGguf ? "http://127.0.0.1:11435/v1/chat/completions" : `${OLLAMA_HOST}/api/chat`;
-  const body = isGguf
-    ? JSON.stringify({
-        model: ggufModelName(model),
-        stream: false,
-        temperature: 0.2,
-        max_tokens: SUMMARY_NUM_PREDICT,
-        messages: summaryMessages,
-      })
-    : JSON.stringify({
-        model,
-        stream: false,
-        think: false,
-        keep_alive: KEEP_ALIVE,
-        options: {
-          num_ctx: numCtx,
-          num_predict: SUMMARY_NUM_PREDICT,
-          temperature: 0.2,
-        },
-        messages: summaryMessages,
-      });
 
-  const response = await fetch(url, {
+  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body,
+    body: JSON.stringify({
+      model: ggufModelName(model),
+      stream: false,
+      temperature: 0.2,
+      max_tokens: SUMMARY_NUM_PREDICT,
+      messages: summaryMessages,
+    }),
     signal,
   });
 
@@ -284,10 +267,9 @@ async function fold(request: CompactionRequest): Promise<CompactionState | null>
 
   const rawText = await response.text();
   const parsed = safeJsonParse<{
-    message?: { content?: string };
     choices?: [{ message?: { content?: string } }];
   }>(rawText);
-  const written = (isGguf ? parsed?.choices?.[0]?.message?.content : parsed?.message?.content)?.trim();
+  const written = parsed?.choices?.[0]?.message?.content?.trim();
 
   // A model that returns nothing has not compacted anything, and recording an
   // empty summary would throw the folded messages away for good.

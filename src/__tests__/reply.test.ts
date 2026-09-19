@@ -14,20 +14,23 @@ afterEach(() => {
 
 function chatStream(deltas: string[]) {
   const encoder = new TextEncoder();
+  const events = [
+    ...deltas.map(
+      (content) =>
+        `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`,
+    ),
+    `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
   let index = 0;
 
   return new ReadableStream<Uint8Array>({
     pull(controller) {
-      if (index >= deltas.length) {
-        controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n"));
+      if (index >= events.length) {
         controller.close();
         return;
       }
-      controller.enqueue(
-        encoder.encode(
-          JSON.stringify({ message: { content: deltas[index++] } }) + "\n",
-        ),
-      );
+      controller.enqueue(encoder.encode(events[index++]));
     },
   });
 }
@@ -293,12 +296,11 @@ describe("what the model is given to answer from", () => {
     expect(messages[1]).toEqual({ role: "user", content: "hello" });
   });
 
-  it("leaves the think flag unset so Ollama parses reasoning out for us", async () => {
+  it("sends no thinking flag, so a reasoning model's deliberation arrives untagged", async () => {
     const { result, bodies } = run([["Fine."]]);
     await result;
 
-    // Sending think:false makes Ollama stop separating a reasoning model's
-    // deliberation, which then arrives untagged in content and gets spoken.
+    // Untagged reasoning lands in content and gets spoken, same as ordinary text.
     expect(bodies[0]).not.toHaveProperty("think");
     expect(bodies[0].stream).toBe(true);
   });
