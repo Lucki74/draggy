@@ -481,3 +481,38 @@ describe("resolving model download URLs", () => {
     expect(resolved).toBeNull();
   });
 });
+
+describe("split models", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("resolves every part so none is left behind", async () => {
+    mockTree([
+      ["Big-Q4_K_M-00001-of-00003.gguf", 10],
+      ["Big-Q4_K_M-00002-of-00003.gguf", 20],
+      ["Big-Q4_K_M-00003-of-00003.gguf", 5],
+      ["Big-Q8_0.gguf", 99],
+    ]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/Split-GGUF:Q4_K_M");
+
+    expect(resolved.filename).toBe("Big-Q4_K_M-00001-of-00003.gguf");
+    expect(resolved.size).toBe(35);
+    expect(resolved.parts.map((part) => [part.filename, part.size])).toEqual([
+      ["Big-Q4_K_M-00001-of-00003.gguf", 10],
+      ["Big-Q4_K_M-00002-of-00003.gguf", 20],
+      ["Big-Q4_K_M-00003-of-00003.gguf", 5],
+    ]);
+    expect(resolved.parts[1].url).toBe(
+      "https://huggingface.co/acme/Split-GGUF/resolve/main/Big-Q4_K_M-00002-of-00003.gguf?download=true",
+    );
+  });
+
+  it("gives a model held in one file no parts", async () => {
+    mockTree([["Whole-Q4_K_M.gguf", 10]]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/Whole-GGUF:Q4_K_M");
+
+    expect(resolved.filename).toBe("Whole-Q4_K_M.gguf");
+    expect(resolved.parts).toBeUndefined();
+  });
+});

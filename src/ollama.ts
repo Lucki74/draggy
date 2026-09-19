@@ -447,7 +447,15 @@ export interface PullProgress {
   remainingSeconds?: number | null;
 }
 
-/** Downloads a GGUF model from Hugging Face or direct URL and tracks progress until complete. */
+/** One file of a download; a model split into parts has several. */
+interface DownloadPart {
+  url: string;
+  filename: string;
+  size?: number;
+}
+
+/** Downloads a GGUF model from Hugging Face or direct URL and tracks progress until complete. A model
+ * split into parts is fetched part by part and reported as one download. */
 export async function pullModel(
   reference: string,
   onProgress: (progress: PullProgress) => void,
@@ -458,49 +466,76 @@ export async function pullModel(
   }
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  let downloadUrl = reference;
-  let filename = reference.split("/").pop() || "model.gguf";
+  let parts: DownloadPart[] = [{ url: reference, filename: reference.split("/").pop() || "model.gguf" }];
 
   if (!reference.startsWith("http://") && !reference.startsWith("https://")) {
     const resolved = await window.electronAPI.resolveModelUrl?.(reference);
     if (resolved?.url) {
-      downloadUrl = resolved.url;
-      filename = resolved.filename;
+      parts = resolved.parts?.length ? resolved.parts : [{ url: resolved.url, filename: resolved.filename }];
     }
   }
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
+  const totalBytes = parts.reduce((sum, part) => sum + (part.size ?? 0), 0);
+  const combined = parts.length > 1 && totalBytes > 0;
+  const startedAt = Date.now();
+  let finishedBytes = 0;
+  let current = parts[0];
+
   const unsubscribe = window.electronAPI.gguf.onProgress((progress) => {
     // Downloads run side by side on one channel, and the engine setup reports here too.
-    if (progress.label && progress.label !== filename) return;
+    if (progress.label && progress.label !== current.filename) return;
+    if (!combined) {
+      onProgress({
+        phase: progress.phase,
+        completed: progress.completed,
+        total: progress.total,
+        percent: progress.percent,
+        remainingSeconds: progress.remainingSeconds,
+      });
+      return;
+    }
+
+    const completed = finishedBytes + progress.completed;
+    const elapsedSeconds = (Date.now() - startedAt) / 1000;
+    const speed = elapsedSeconds > 0 ? completed / elapsedSeconds : 0;
     onProgress({
-      phase: progress.phase,
-      completed: progress.completed,
-      total: progress.total,
-      percent: progress.percent,
-      remainingSeconds: progress.remainingSeconds,
+      // Only the last part finishing finishes the model.
+      phase: progress.phase === "done" && current !== parts[parts.length - 1] ? "downloading" : progress.phase,
+      completed,
+      total: totalBytes,
+      percent: Number(Math.min(100, (completed / totalBytes) * 100).toFixed(1)),
+      remainingSeconds: speed > 0 ? Math.max(0, Math.round((totalBytes - completed) / speed)) : null,
     });
   });
 
   try {
-    const download = window.electronAPI.gguf.downloadModel({ url: downloadUrl, filename });
-    const result = signal
-      ? await Promise.race([
-          download,
-          new Promise<never>((_, reject) => {
-            signal.addEventListener(
-              "abort",
-              () => {
-                window.electronAPI?.gguf?.cancelDownload?.(filename)?.catch(() => undefined);
-                reject(new DOMException("Aborted", "AbortError"));
-              },
-              { once: true },
-            );
-          }),
-        ])
-      : await download;
+    for (const part of parts) {
+      current = part;
+      const download = window.electronAPI.gguf.downloadModel({ url: part.url, filename: part.filename });
+      const result = signal
+        ? await Promise.race([
+            download,
+            new Promise<never>((_, reject) => {
+              signal.addEventListener(
+                "abort",
+                () => {
+                  window.electronAPI?.gguf?.cancelDownload?.(part.filename)?.catch(() => undefined);
+                  reject(new DOMException("Aborted", "AbortError"));
+                },
+                { once: true },
+              );
+            }),
+          ])
+        : await download;
 
-    if (!result?.success) throw new Error(`Could not download ${filename}`);
+      if (!result?.success) throw new Error(`Could not download ${part.filename}`);
+      finishedBytes += part.size ?? 0;
+    }
+  } catch (error) {
+    // Parts already on disk are useless without the rest, and would show up as a model that cannot load.
+    if (parts.length > 1) await window.electronAPI?.gguf?.deleteModel?.(parts[0].filename)?.catch(() => undefined);
+    throw error;
   } finally {
     unsubscribe?.();
   }

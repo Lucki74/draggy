@@ -765,7 +765,13 @@ declare global {
       ) => Promise<{ success: boolean; bytes?: number; error?: string }>;
       resolveModelUrl: (
         reference: string,
-      ) => Promise<{ url: string; filename: string; size?: number } | null>;
+      ) => Promise<{
+        url: string;
+        filename: string;
+        size?: number;
+        /** Every file of a model split into parts, in order; absent for a single-file model. */
+        parts?: { url: string; filename: string; size?: number }[];
+      } | null>;
 
       db: {
         loadChats: () => Promise<{ success: boolean; chats?: ChatSession[]; error?: string }>;

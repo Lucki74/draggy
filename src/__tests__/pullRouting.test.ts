@@ -4,7 +4,7 @@ import { pullModel } from "../ollama";
 import type { PullProgress } from "../ollama";
 
 type Handler = (progress: {
-  phase: "downloading";
+  phase: "downloading" | "done";
   completed: number;
   total: number;
   percent: number;
@@ -13,7 +13,7 @@ type Handler = (progress: {
 
 function installBridge() {
   const handlers = new Set<Handler>();
-  const downloads: { filename: string; finish: () => void }[] = [];
+  const downloads: { filename: string; finish: () => void; fail: () => void }[] = [];
 
   (window as unknown as { electronAPI: unknown }).electronAPI = {
     gguf: {
@@ -22,13 +22,21 @@ function installBridge() {
         return () => handlers.delete(handler);
       },
       downloadModel: ({ filename }: { filename: string }) =>
-        new Promise((resolve) => downloads.push({ filename, finish: () => resolve({ success: true, filename }) })),
+        new Promise((resolve) =>
+          downloads.push({
+            filename,
+            finish: () => resolve({ success: true, filename }),
+            fail: () => resolve({ success: false }),
+          }),
+        ),
       cancelDownload: vi.fn(async () => ({ success: true })),
+      deleteModel: vi.fn(async () => true),
     },
   };
 
   const emit: Handler = (progress) => handlers.forEach((handler) => handler(progress));
-  return { emit, downloads };
+  const api = (window as unknown as { electronAPI: { gguf: { deleteModel: ReturnType<typeof vi.fn> } } }).electronAPI;
+  return { emit, downloads, deleteModel: api.gguf.deleteModel };
 }
 
 afterEach(() => {
@@ -64,5 +72,71 @@ describe("pullModel with several downloads at once", () => {
     expect(seen).toHaveLength(0);
     downloads[0].finish();
     await pulling;
+  });
+});
+
+describe("pullModel with a model split into parts", () => {
+  const parts = [
+    { url: "https://host/m-00001-of-00003.gguf", filename: "m-00001-of-00003.gguf", size: 100 },
+    { url: "https://host/m-00002-of-00003.gguf", filename: "m-00002-of-00003.gguf", size: 100 },
+    { url: "https://host/m-00003-of-00003.gguf", filename: "m-00003-of-00003.gguf", size: 100 },
+  ];
+
+  const resolveTo = () => {
+    (window as unknown as { electronAPI: { resolveModelUrl: unknown } }).electronAPI.resolveModelUrl = async () => ({
+      url: parts[0].url,
+      filename: parts[0].filename,
+      size: 300,
+      parts,
+    });
+  };
+
+  it("downloads every part in turn and reports one download", async () => {
+    const { emit, downloads } = installBridge();
+    resolveTo();
+    const seen: PullProgress[] = [];
+
+    const pulling = pullModel("acme/M-GGUF:Q4_K_M", (progress) => seen.push(progress));
+
+    await vi.waitFor(() => expect(downloads).toHaveLength(1));
+    emit({ phase: "downloading", completed: 50, total: 100, percent: 50, label: parts[0].filename });
+    emit({ phase: "done", completed: 100, total: 100, percent: 100, label: parts[0].filename });
+    downloads[0].finish();
+
+    await vi.waitFor(() => expect(downloads).toHaveLength(2));
+    expect(downloads[1].filename).toBe(parts[1].filename);
+    emit({ phase: "downloading", completed: 100, total: 100, percent: 100, label: parts[1].filename });
+    downloads[1].finish();
+
+    await vi.waitFor(() => expect(downloads).toHaveLength(3));
+    emit({ phase: "done", completed: 100, total: 100, percent: 100, label: parts[2].filename });
+    downloads[2].finish();
+    await pulling;
+
+    expect(seen.map((progress) => [progress.completed, progress.total])).toEqual([
+      [50, 300],
+      [100, 300],
+      [200, 300],
+      [300, 300],
+    ]);
+    // Only the last part finishing finishes the model.
+    expect(seen.map((progress) => progress.phase)).toEqual(["downloading", "downloading", "downloading", "done"]);
+  });
+
+  it("removes the parts already downloaded when a later one fails", async () => {
+    const { downloads, deleteModel } = installBridge();
+    resolveTo();
+
+    const pulling = pullModel("acme/M-GGUF:Q4_K_M", () => undefined);
+    const failed = expect(pulling).rejects.toThrow("Could not download m-00002-of-00003.gguf");
+
+    await vi.waitFor(() => expect(downloads).toHaveLength(1));
+    downloads[0].finish();
+    await vi.waitFor(() => expect(downloads).toHaveLength(2));
+    downloads[1].fail();
+
+    await failed;
+    expect(downloads).toHaveLength(2);
+    expect(deleteModel).toHaveBeenCalledWith(parts[0].filename);
   });
 });

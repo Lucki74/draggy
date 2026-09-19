@@ -4,12 +4,15 @@ const os = require("node:os");
 const path = require("node:path");
 const platform = require("./platform.cjs");
 const binaryManager = require("./binaryManager.cjs");
+const { parseShard, shardNames } = require("./shards.cjs");
 const { log: defaultLog } = require("./logger.cjs");
 
 let activeProcess = null;
 let activeModel = null;
 let activePort = 11435;
 let activeContext = 8192;
+/** The start still loading weights, so a second request for the same model joins it instead of restarting it. */
+let starting = null;
 
 /** Overlays values on the inherited environment, dropping other-case twins such as Path. */
 function buildEnv(overrides) {
@@ -51,17 +54,33 @@ function pingHealth(port, timeoutMs = 1000) {
   });
 }
 
-/** Waits for llama-server to become responsive with a deadline. */
-async function waitForReady(port, maxWaitMs = 15000, logger = null) {
+/** Waits for llama-server to become responsive with a deadline, giving up as soon as `isAlive` says the process is gone. */
+async function waitForReady(port, maxWaitMs = 15000, logger = null, isAlive = () => true) {
   const start = Date.now();
   let attempt = 0;
   while (Date.now() - start < maxWaitMs) {
+    if (!isAlive()) return false;
     attempt++;
     if (logger) logger.debug("llama", `Health check #${attempt} on 127.0.0.1:${port}`);
-    if (await pingHealth(port, 1500)) return true;
+    // A server answering after ours died is someone else's, so it must not count as ready.
+    if ((await pingHealth(port, 1500)) && isAlive()) return true;
     await new Promise((r) => setTimeout(r, 500));
   }
   return false;
+}
+
+/** The shard files a split model still needs that are not in its folder. */
+function missingShards(modelPath) {
+  if (!parseShard(modelPath)) return [];
+  const dir = path.dirname(modelPath);
+  return shardNames(modelPath).filter((name) => !fs.existsSync(path.join(dir, name)));
+}
+
+/** Why the engine stopped, from the last error lines it printed. */
+function failureReason(lines) {
+  const errors = lines.filter((line) => /\b(error|failed|cannot|unable)\b/i.test(line)).slice(-2);
+  const shown = errors.length > 0 ? errors : lines.slice(-2);
+  return shown.map((line) => line.replace(/^\d+(\.\d+)+\s+[A-Z]\s+/, "")).join(" ");
 }
 
 /** Picks the KV cache type and a context that fits VRAM, since WDDM spills overflow into slow system RAM. */
@@ -85,7 +104,22 @@ function determineKvCache(modelPath, contextSize, vramGB = 0) {
 }
 
 /** Spawns llama-server hidden and returns once its health check answers. */
-async function startServer({
+function startServer(options) {
+  const { modelPath, contextSize = 8192, vramGB = 0 } = options;
+  const { effectiveContext } = determineKvCache(modelPath, contextSize, vramGB);
+  if (starting && starting.modelPath === modelPath && starting.context === effectiveContext) {
+    return starting.promise;
+  }
+
+  const entry = { modelPath, context: effectiveContext, promise: null };
+  entry.promise = launchServer(options).finally(() => {
+    if (starting === entry) starting = null;
+  });
+  starting = entry;
+  return entry.promise;
+}
+
+async function launchServer({
   binaryPath,
   modelPath,
   contextSize = 8192,
@@ -96,6 +130,18 @@ async function startServer({
   log,
 }) {
   const logger = log || defaultLog;
+
+  // llama-server opens the other parts itself and exits at once when one is absent.
+  const missing = missingShards(modelPath);
+  if (missing.length > 0) {
+    const total = shardNames(modelPath).length;
+    logger.error("llama", `Split model is incomplete: ${missing.join(", ")}`);
+    return {
+      success: false,
+      error: `${path.basename(modelPath)} is one of ${total} parts and ${missing.length} ${missing.length === 1 ? "is" : "are"} missing (${missing.join(", ")}). Delete it and download the model again to get every part.`,
+    };
+  }
+
   const { cacheType, effectiveContext } = determineKvCache(modelPath, contextSize, vramGB);
   if (activeProcess) {
     if (activeModel === modelPath && activeContext === effectiveContext && (await pingHealth(port))) {
@@ -161,12 +207,21 @@ async function startServer({
     activePort = port;
     activeContext = effectiveContext;
 
+    const recent = [];
     attachOutputLogger(child.stdout, "llama:out", (p, line) => logger.debug(p, line));
-    attachOutputLogger(child.stderr, "llama:err", (p, line) => logger.debug(p, line));
+    attachOutputLogger(child.stderr, "llama:err", (p, line) => {
+      logger.debug(p, line);
+      recent.push(line);
+      if (recent.length > 40) recent.shift();
+    });
 
+    // Still ours to report on only if nobody stopped or replaced it; an exit while it is still the active
+    // process is the engine failing on its own.
+    let crashed = null;
     child.on("exit", (code, signal) => {
       logger.info("llama", `llama-server exited (code=${code}, signal=${signal})`);
       if (activeProcess === child) {
+        crashed = { code, signal };
         activeProcess = null;
         activeModel = null;
       }
@@ -182,8 +237,21 @@ async function startServer({
     }
 
     const readyStart = Date.now();
-    const ready = await waitForReady(port, readyTimeoutMs, logger);
+    const ready = await waitForReady(port, readyTimeoutMs, logger, () => activeProcess === child && child.exitCode === null);
     if (!ready) {
+      if (crashed) {
+        const reason = failureReason(recent);
+        logger.error("llama", `llama-server stopped after ${Date.now() - readyStart}ms: ${reason}`);
+        return {
+          success: false,
+          error: `llama-server stopped while loading the model (exit code ${crashed.code ?? crashed.signal})${reason ? `: ${reason}` : ""}`,
+        };
+      }
+      if (activeProcess !== child) {
+        // Another model was started, or the server was stopped, while this one loaded; that one owns the engine now.
+        logger.info("llama", "Start abandoned: the engine was stopped or given another model");
+        return { success: false, error: "Another model was started before this one finished loading" };
+      }
       logger.error("llama", `Server failed health check after ${Date.now() - readyStart}ms`);
       stopServerSync();
       return { success: false, error: "Server failed to respond to health check in time" };
@@ -226,4 +294,5 @@ module.exports = {
   getServerStatus,
   pingHealth,
   determineKvCache,
+  missingShards,
 };

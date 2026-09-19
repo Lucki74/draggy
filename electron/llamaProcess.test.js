@@ -125,3 +125,110 @@ describe("llamaProcess.determineKvCache", () => {
     expect(effectiveContext).toBeLessThan(65536);
   });
 });
+
+describe("llamaProcess.startServer failures", () => {
+  const fakeChild = () => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.exitCode = null;
+    return child;
+  };
+
+  const freePort = async () => {
+    const probe = http.createServer();
+    await new Promise((resolve) => probe.listen(0, "127.0.0.1", resolve));
+    const { port } = probe.address();
+    await new Promise((resolve) => probe.close(resolve));
+    return port;
+  };
+
+  const start = (modelPath, port) => llamaProcess.startServer({ binaryPath: "llama-server", modelPath, port, log: quiet });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    llamaProcess.stopServerSync();
+  });
+
+  it("says which parts of a split model are missing instead of spawning", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-split-"));
+    fs.writeFileSync(path.join(dir, "big-Q4_K_M-00001-of-00003.gguf"), "x");
+    const spawn = vi.spyOn(platform, "spawnHidden");
+
+    try {
+      const result = await start(path.join(dir, "big-Q4_K_M-00001-of-00003.gguf"), await freePort());
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("big-Q4_K_M-00002-of-00003.gguf");
+      expect(result.error).toContain("big-Q4_K_M-00003-of-00003.gguf");
+      expect(spawn).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("finds nothing missing when every part, or a single file, is there", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-split-"));
+    try {
+      for (const name of ["m-00001-of-00002.gguf", "m-00002-of-00002.gguf"]) fs.writeFileSync(path.join(dir, name), "x");
+      expect(llamaProcess.missingShards(path.join(dir, "m-00001-of-00002.gguf"))).toEqual([]);
+      expect(llamaProcess.missingShards(path.join(dir, "single.gguf"))).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports why the engine stopped as soon as it does, not after the health check times out", async () => {
+    const child = fakeChild();
+    const spawn = vi.spyOn(platform, "spawnHidden").mockReturnValue(child);
+
+    const pending = start("m.gguf", await freePort());
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalled());
+    child.stderr.emit("data", Buffer.from("0.00.130.001 E llama_model_load: error loading model: no such tensor\n"));
+    child.emit("exit", 1, null);
+
+    const startedAt = Date.now();
+    const result = await pending;
+
+    expect(Date.now() - startedAt).toBeLessThan(3000);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("exit code 1");
+    expect(result.error).toContain("no such tensor");
+  });
+
+  it("gives up on a start that another model replaced, and leaves the newer engine running", async () => {
+    const kill = vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
+    const first = fakeChild();
+    const second = fakeChild();
+    const spawn = vi.spyOn(platform, "spawnHidden").mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const port = await freePort();
+
+    const older = start("a.gguf", port);
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1));
+    const newer = start("b.gguf", port);
+
+    const result = await older;
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/another model/i);
+    expect(kill).toHaveBeenCalledTimes(1);
+    expect(kill).toHaveBeenCalledWith(first);
+    expect(llamaProcess.getServerStatus().model).toBe("b.gguf");
+
+    llamaProcess.stopServerSync();
+    expect((await newer).success).toBe(false);
+  });
+
+  it("lets a second request for the same model wait on the first instead of restarting it", async () => {
+    const child = fakeChild();
+    const spawn = vi.spyOn(platform, "spawnHidden").mockReturnValue(child);
+    const port = await freePort();
+
+    const one = start("m.gguf", port);
+    const two = start("m.gguf", port);
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalled());
+    child.emit("exit", 1, null);
+
+    expect(await one).toEqual(await two);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+});

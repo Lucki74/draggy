@@ -4,6 +4,7 @@ const https = require("node:https");
 const http = require("node:http");
 const urlPolicy = require("./urlPolicy.cjs");
 const ggufParser = require("./ggufParser.cjs");
+const { parseShard, shardNames } = require("./shards.cjs");
 const { log } = require("./logger.cjs");
 
 /** Scans directory for GGUF files and reads metadata headers. */
@@ -25,18 +26,25 @@ function listGgufModels(modelsDir) {
   if (!fs.existsSync(modelsDir)) return [];
 
   const files = fs.readdirSync(modelsDir);
+  const present = new Set(files);
   const models = [];
 
   for (const file of files) {
     if (!file.toLowerCase().endsWith(".gguf")) continue;
+    const shard = parseShard(file);
+    // The later parts are read through the first, so they are one model, not several.
+    if (shard && shard.index > 1 && present.has(shardNames(file)[0])) continue;
     const fullPath = path.join(modelsDir, file);
     try {
       const stat = fs.statSync(fullPath);
       const header = ggufParser.parseGgufHeader(fullPath);
+      const size = shard
+        ? shardNames(file).reduce((sum, name) => sum + (present.has(name) ? fs.statSync(path.join(modelsDir, name)).size : 0), 0)
+        : stat.size;
       models.push({
         name: file,
         filename: file,
-        size: stat.size,
+        size,
         path: fullPath,
         architecture: header?.architecture || "unknown",
         contextLength: header?.contextLength || null,
@@ -54,13 +62,13 @@ function listGgufModels(modelsDir) {
   return models;
 }
 
-/** Deletes a GGUF model file from disk. */
+/** Deletes a GGUF model from disk, every part of it when it is split. */
 function deleteGgufModel(modelsDir, filename) {
   const safeName = path.basename(filename);
   const target = path.join(modelsDir, safeName);
   log.info("modelStorage", `Request to delete GGUF model: ${safeName}`);
   if (fs.existsSync(target)) {
-    fs.unlinkSync(target);
+    for (const name of shardNames(safeName)) fs.rmSync(path.join(modelsDir, name), { force: true });
     log.info("modelStorage", `Successfully deleted ${safeName}`);
     return true;
   }

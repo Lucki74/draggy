@@ -226,3 +226,45 @@ describe("downloadGgufModel time remaining", () => {
     }
   });
 });
+
+describe("split models on disk", () => {
+  const parts = ["big-Q4_K_M-00001-of-00003.gguf", "big-Q4_K_M-00002-of-00003.gguf", "big-Q4_K_M-00003-of-00003.gguf"];
+
+  it("lists the parts as one model with their combined size", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-split-"));
+    try {
+      for (const name of parts) writeDummyGguf(path.join(tmpDir, name));
+      writeDummyGguf(path.join(tmpDir, "small.gguf"));
+
+      const list = modelStorage.listGgufModels(tmpDir);
+
+      expect(list.map((model) => model.filename).sort()).toEqual([parts[0], "small.gguf"]);
+      expect(list.find((model) => model.filename === parts[0]).size).toBe(128 * 3);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("still lists a later part whose first part is gone, so it can be deleted", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-split-"));
+    try {
+      writeDummyGguf(path.join(tmpDir, parts[1]));
+      expect(modelStorage.listGgufModels(tmpDir).map((model) => model.filename)).toEqual([parts[1]]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("deletes every part along with the first", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-split-"));
+    try {
+      for (const name of parts) writeDummyGguf(path.join(tmpDir, name));
+      writeDummyGguf(path.join(tmpDir, "keep.gguf"));
+
+      expect(modelStorage.deleteGgufModel(tmpDir, parts[0])).toBe(true);
+      expect(fs.readdirSync(tmpDir)).toEqual(["keep.gguf"]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

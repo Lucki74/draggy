@@ -1,5 +1,6 @@
 const { log } = require("./logger.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
+const { parseShard } = require("./shards.cjs");
 
 /** Curated registry of premier open models from Hugging Face matching Draggy's download card design. */
 const CURATED_MODELS = [
@@ -671,11 +672,21 @@ async function resolveModelDownload(reference) {
     const files = await fetchRepoGgufFiles(name);
     const match = matchFilesForTag(files, tag);
     if (match) {
-      return {
-        url: `https://huggingface.co/${name}/resolve/main/${match.primary.path}?download=true`,
+      const urlOf = (file) => `https://huggingface.co/${name}/resolve/main/${file.path}?download=true`;
+      const download = {
+        url: urlOf(match.primary),
         filename: match.primary.path.split("/").pop(),
         size: match.bytes,
       };
+      // A model split into parts needs every one on disk; llama-server exits at once when one is missing.
+      if (match.files.length > 1 && match.files.every((file) => parseShard(file.path))) {
+        download.parts = match.files.map((file) => ({
+          url: urlOf(file),
+          filename: file.path.split("/").pop(),
+          size: file.size,
+        }));
+      }
+      return download;
     }
   }
 
