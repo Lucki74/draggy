@@ -1,0 +1,68 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { pullModel } from "../ollama";
+import type { PullProgress } from "../ollama";
+
+type Handler = (progress: {
+  phase: "downloading";
+  completed: number;
+  total: number;
+  percent: number;
+  label?: string;
+}) => void;
+
+function installBridge() {
+  const handlers = new Set<Handler>();
+  const downloads: { filename: string; finish: () => void }[] = [];
+
+  (window as unknown as { electronAPI: unknown }).electronAPI = {
+    gguf: {
+      onProgress: (handler: Handler) => {
+        handlers.add(handler);
+        return () => handlers.delete(handler);
+      },
+      downloadModel: ({ filename }: { filename: string }) =>
+        new Promise((resolve) => downloads.push({ filename, finish: () => resolve({ success: true, filename }) })),
+      cancelDownload: vi.fn(async () => ({ success: true })),
+    },
+  };
+
+  const emit: Handler = (progress) => handlers.forEach((handler) => handler(progress));
+  return { emit, downloads };
+}
+
+afterEach(() => {
+  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+});
+
+describe("pullModel with several downloads at once", () => {
+  it("passes on only the progress that is about its own file", async () => {
+    const { emit, downloads } = installBridge();
+    const first: PullProgress[] = [];
+    const second: PullProgress[] = [];
+
+    const one = pullModel("https://host/one.gguf", (progress) => first.push(progress));
+    const two = pullModel("https://host/two.gguf", (progress) => second.push(progress));
+
+    emit({ phase: "downloading", completed: 10, total: 100, percent: 10, label: "one.gguf" });
+    emit({ phase: "downloading", completed: 70, total: 100, percent: 70, label: "two.gguf" });
+
+    expect(first.map((progress) => progress.percent)).toEqual([10]);
+    expect(second.map((progress) => progress.percent)).toEqual([70]);
+
+    downloads.forEach((download) => download.finish());
+    await Promise.all([one, two]);
+  });
+
+  it("ignores the engine's own setup progress", async () => {
+    const { emit, downloads } = installBridge();
+    const seen: PullProgress[] = [];
+
+    const pulling = pullModel("https://host/one.gguf", (progress) => seen.push(progress));
+    emit({ phase: "downloading", completed: 5, total: 10, percent: 50, label: "AI Engine" });
+
+    expect(seen).toHaveLength(0);
+    downloads[0].finish();
+    await pulling;
+  });
+});
