@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unloadModel } from "../ollama";
-import type { InstalledModel, PullPhase, PullProgress } from "../ollama";
+import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unloadModel } from "../llama";
+import type { InstalledModel, PullPhase, PullProgress } from "../llama";
 
 /** Downloads that run at once. More than this wait their turn: several multi-gigabyte files sharing
  * one connection each crawl, and none of them is usable until it is whole. */

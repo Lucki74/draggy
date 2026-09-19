@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { MAX_PARALLEL_PULLS, useModelManager } from "../settings/useModelManager";
-import type { PullProgress } from "../ollama";
+import type { PullProgress } from "../llama";
 
 interface Call {
   name: string;
@@ -14,8 +14,8 @@ interface Call {
 
 const calls: Call[] = [];
 
-vi.mock("../ollama", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../ollama")>()),
+vi.mock("../llama", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../llama")>()),
   listInstalledModels: vi.fn(async () => []),
   describeLoadedModels: vi.fn(async () => []),
   deleteModel: vi.fn(async () => undefined),

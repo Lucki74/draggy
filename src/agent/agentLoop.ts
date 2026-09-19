@@ -1,6 +1,6 @@
 import {
   KEEP_ALIVE,
-  beginOllamaWork,
+  beginLlamaWork,
   contextSizeFor,
   getModelInfo,
   gpuShareFor,
@@ -9,13 +9,13 @@ import {
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
-  ollamaIsBusy,
-  onOllamaWork,
+  llamaIsBusy,
+  onLlamaWork,
   peekContextSize,
   readMetrics,
   recalledCapabilities,
-} from "../ollama";
-import type { GenerationMetrics } from "../ollama";
+} from "../llama";
+import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
 import {
@@ -47,7 +47,7 @@ import {
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
 import { ggufModelName } from "../ai/engineAdapter";
-import { ggufErrorMessage, sseToOllamaChunks, toLlamaMessages } from "../ai/llamaStream";
+import { ggufErrorMessage, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import {
   annotationsFor,
   availableTools,
@@ -78,8 +78,8 @@ import { describeEdit, describePlan, samePlan } from "../plan/plan";
 import type { PlanItem } from "../plan/plan";
 import {
   loggedFetch,
-  logOllamaInference,
-  logOllamaMetrics,
+  logLlamaInference,
+  logLlamaMetrics,
   logStreamChunk,
   logAgentStep,
   logToolCall,
@@ -100,15 +100,15 @@ export { KEEP_ALIVE };
 
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 
-interface OllamaToolCall {
+interface LlamaToolCall {
   function: { name: string; arguments: Record<string, unknown> };
 }
 
-interface OllamaChunk {
+interface LlamaChunk {
   message?: {
     content?: string;
     thinking?: string;
-    tool_calls?: OllamaToolCall[];
+    tool_calls?: LlamaToolCall[];
   };
   done?: boolean;
   done_reason?: string;
@@ -120,7 +120,7 @@ export interface WireMessage {
   /** An earlier reply's reasoning, sent back so the model keeps reasoning. */
   thinking?: string;
   images?: string[];
-  tool_calls?: OllamaToolCall[];
+  tool_calls?: LlamaToolCall[];
   tool_name?: string;
 }
 
@@ -308,7 +308,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   };
   const environment = cannotUseTools ? withoutTools(request.environment) : request.environment;
 
-  // A probe that failed is not proof a model cannot call tools: Ollama may
+  // A probe that failed is not proof a model cannot call tools: the engine may
   // have been busy. What it said last time stands in.
   const capabilities = info
     ? info.capabilities
@@ -498,7 +498,7 @@ export async function measureTurn(
   input: TurnInput,
   options: { signal: AbortSignal; allowLoad: boolean },
 ): Promise<ContextMeasurement | null> {
-  if (isCloudModel(input.model) || ollamaIsBusy()) return null;
+  if (isCloudModel(input.model) || llamaIsBusy()) return null;
 
   const turn = await prepareTurn(input);
   const chars = estimateChars(turn.wire);
@@ -514,7 +514,7 @@ export async function measureTurn(
     : peekContextSize(input.model, windowChars, maxContext, fixedContext);
 
   if (!options.allowLoad && (await isLoadedAt(input.model, numCtx)) !== true) return null;
-  if (options.signal.aborted || ollamaIsBusy()) return null;
+  if (options.signal.aborted || llamaIsBusy()) return null;
 
   if (options.allowLoad && typeof window !== "undefined" && window.electronAPI?.gguf) {
     const warmStart = await window.electronAPI.gguf.start({
@@ -528,8 +528,8 @@ export async function measureTurn(
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal.addEventListener("abort", abort);
-  const stopWatching = onOllamaWork(() => {
-    if (ollamaIsBusy()) controller.abort();
+  const stopWatching = onLlamaWork(() => {
+    if (llamaIsBusy()) controller.abort();
   });
 
   try {
@@ -562,7 +562,7 @@ export async function measureTurn(
 const LIVE_INTERVAL_MS = 250;
 
 export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
-  const end = beginOllamaWork();
+  const end = beginLlamaWork();
   try {
     return await runTurn(request, host);
   } finally {
@@ -799,7 +799,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   let numCtx: number;
   let metrics: GenerationMetrics | null = null;
 
-  // Stream chunks stand in for tokens until a pass ends and Ollama gives the real counts. Chunks
+  // Stream chunks stand in for tokens until a pass ends and the engine gives the real counts. Chunks
   // run a little under tokens, so each pass corrects the ratio for the next.
   let contextCheckpoint = request.contextBase ?? null;
   let finishedTokens = 0;
@@ -935,7 +935,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
     const requestStart = performance.now();
 
-    logOllamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
+    logLlamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
 
     try {
       if (typeof window !== "undefined" && window.electronAPI?.gguf) {
@@ -997,11 +997,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       let lastUpdateTime = performance.now();
       let lastEmittedLength = -1;
 
-      const nativeCalls: OllamaToolCall[] = [];
+      const nativeCalls: LlamaToolCall[] = [];
       let passChunks = 0;
       let finalChunk: Record<string, unknown> | null = null;
 
-      const readChunk = (parsed: OllamaChunk) => {
+      const readChunk = (parsed: LlamaChunk) => {
         if (parsed.message?.tool_calls) nativeCalls.push(...parsed.message.tool_calls);
         if (parsed.done) {
           finalChunk = { ...(finalChunk || {}), ...(parsed as unknown as Record<string, unknown>) };
@@ -1010,8 +1010,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       };
 
       const readStream = async function* () {
-        for await (const chunk of sseToOllamaChunks(reader)) {
-          yield chunk as OllamaChunk;
+        for await (const chunk of sseToLlamaChunks(reader)) {
+          yield chunk as LlamaChunk;
         }
       };
 
@@ -1122,7 +1122,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           numCtx,
           firstTokenAt === null ? null : firstTokenAt - requestStart,
         );
-        if (turnMetrics) logOllamaMetrics(turnMetrics, correlationId);
+        if (turnMetrics) logLlamaMetrics(turnMetrics, correlationId);
         metrics = mergeMetrics(metrics, turnMetrics);
 
         // The real counts for this pass: the checkpoint the meter and the speed line snap to.

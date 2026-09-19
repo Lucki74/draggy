@@ -1,8 +1,11 @@
 export interface ModelRecommendation {
   vram: number;
+  /** A Hugging Face repository and quantisation, which is also what the downloader resolves. */
   model: string;
   label: string;
   params: string;
+  /** The download, in gigabytes, checked against the repository when the rung was written. */
+  sizeGB: number;
 }
 
 /** Enough about the machine to pick a ladder, and nothing else. Kept as plain data so the choice
@@ -12,7 +15,7 @@ export interface RuntimeTarget {
   arch?: string;
   ram?: number;
   cpuModel?: string;
-  ollamaVersion?: string | null;
+  llamaVersion?: string | null;
 }
 
 /** The GGUF engine has to read the whole model into RAM before the GPU can use any of it, so a
@@ -36,19 +39,22 @@ export function chipClassOf(cpuModel: string | null | undefined): ChipClass {
 }
 
 export const ggufLadder: ModelRecommendation[] = [
-  { vram: 2.0,  model: "qwen3.5:0.8b",         label: "Qwen 3.5 0.8B",      params: "0.8B"     },
-  { vram: 4.0,  model: "qwen3.5:2b",           label: "Qwen 3.5 2B",        params: "2B"       },
-  { vram: 5.0,  model: "gemma4:e4b",           label: "Gemma 4 E4B",        params: "4B"       },
-  { vram: 6.0,  model: "mistral:7b",           label: "Mistral 7B",         params: "7B"       },
-  { vram: 8.0,  model: "qwen3.5:9b",           label: "Qwen 3.5 9B",        params: "9B"       },
-  { vram: 10.0, model: "gemma4:12b",           label: "Gemma 4 12B",        params: "12B"      },
-  { vram: 12.0, model: "phi4:14b",             label: "Phi-4 14B",          params: "14B"      },
-  { vram: 16.0, model: "gpt-oss:20b",          label: "GPT-OSS 20B",        params: "20B MoE"  },
-  { vram: 20.0, model: "qwen3.5:27b",          label: "Qwen 3.5 27B",       params: "27B MoE"  },
-  { vram: 22.0, model: "glm-4.7-flash:latest", label: "GLM 4.7 Flash",      params: "30B MoE"  },
-  { vram: 24.0, model: "gemma4:31b",           label: "Gemma 4 31B",        params: "31B"      },
-  { vram: 32.0, model: "qwen3.5:35b",          label: "Qwen 3.5 35B",       params: "35B MoE"  },
-  { vram: 96.0, model: "qwen3.5:122b",         label: "Qwen 3.5 122B",      params: "122B MoE" },
+  { vram: 1.0,  model: "unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M",                    label: "Qwen 3.5 0.8B",   params: "0.8B",     sizeGB: 0.53 },
+  { vram: 2.0,  model: "unsloth/Qwen3.5-2B-GGUF:Q4_K_M",                      label: "Qwen 3.5 2B",     params: "2B",       sizeGB: 1.28 },
+  { vram: 3.0,  model: "unsloth/Qwen3.5-4B-GGUF:Q4_K_M",                      label: "Qwen 3.5 4B",     params: "4B",       sizeGB: 2.74 },
+  { vram: 4.0,  model: "unsloth/gemma-4-E2B-it-GGUF:Q4_K_M",                  label: "Gemma 4 E2B",     params: "2B",       sizeGB: 3.11 },
+  { vram: 6.0,  model: "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",                  label: "Gemma 4 E4B",     params: "4B",       sizeGB: 4.98 },
+  { vram: 8.0,  model: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",                      label: "Qwen 3.5 9B",     params: "9B",       sizeGB: 5.68 },
+  { vram: 10.0, model: "unsloth/gemma-4-12b-it-GGUF:Q4_K_M",                  label: "Gemma 4 12B",     params: "12B",      sizeGB: 7.12 },
+  { vram: 12.0, model: "mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M", label: "Ministral 3 14B", params: "14B",      sizeGB: 8.24 },
+  { vram: 16.0, model: "ggml-org/gpt-oss-20b-GGUF:MXFP4",                     label: "GPT-OSS 20B",     params: "20B MoE",  sizeGB: 12.11 },
+  { vram: 20.0, model: "unsloth/Qwen3.8-27B-GGUF:Q4_K_M",                     label: "Qwen 3.8 27B",    params: "27B",      sizeGB: 16.46 },
+  { vram: 24.0, model: "unsloth/gemma-4-31B-it-GGUF:Q4_K_M",                  label: "Gemma 4 31B",     params: "31B",      sizeGB: 18.32 },
+  { vram: 32.0, model: "unsloth/Qwen3.6-35B-A3B-GGUF:Q4_K_M",                 label: "Qwen 3.6 35B",    params: "35B MoE",  sizeGB: 22.13 },
+  { vram: 40.0, model: "unsloth/Qwen3.8-27B-GGUF:Q8_0",                       label: "Qwen 3.8 27B Q8", params: "27B",      sizeGB: 29.05 },
+  { vram: 48.0, model: "unsloth/Qwen3.6-35B-A3B-GGUF:Q8_0",                   label: "Qwen 3.6 35B Q8", params: "35B MoE",  sizeGB: 36.9 },
+  { vram: 80.0, model: "ggml-org/gpt-oss-120b-GGUF:MXFP4",                    label: "GPT-OSS 120B",    params: "120B MoE", sizeGB: 63.39 },
+  { vram: 96.0, model: "unsloth/Qwen3.5-122B-A10B-GGUF:Q4_K_M",               label: "Qwen 3.5 122B",   params: "122B MoE", sizeGB: 76.54 },
 ];
 
 /** Kept as the name the rest of the app knows: there is only the one ladder now, since the GGUF
@@ -105,72 +111,24 @@ export function getRecommendedModel(vram: number, target: RuntimeTarget = {}): s
 export interface RecommendedDownload {
   model: string;
   label: string;
-  filename: string;
-  url: string;
+  /** What the downloader resolves into files, split ones included. */
+  reference: string;
+  /** Roughly what it takes on disk, in bytes, for checking free space before asking anywhere. */
   size: number;
 }
 
-export const RECOMMENDED_DOWNLOADS: Record<
-  string,
-  { filename: string; url: string; size: number }
-> = {
-  "qwen3.5:0.8b": {
-    filename: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-    url: "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true",
-    size: 398000000,
-  },
-  "qwen3.5:2b": {
-    filename: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    url: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true",
-    size: 986000000,
-  },
-  "gemma4:e4b": {
-    filename: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-    url: "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf?download=true",
-    size: 2020000000,
-  },
-  "mistral:7b": {
-    filename: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
-    url: "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf?download=true",
-    size: 4370000000,
-  },
-  "qwen3.5:9b": {
-    filename: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-    url: "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
-    size: 4920733696,
-  },
-  "gemma4:12b": {
-    filename: "phi-4-Q4_K_M.gguf",
-    url: "https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf?download=true",
-    size: 9140000000,
-  },
-  "phi4:14b": {
-    filename: "phi-4-Q4_K_M.gguf",
-    url: "https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf?download=true",
-    size: 9140000000,
-  },
-};
-
-const DEFAULT_DOWNLOAD = {
-  filename: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-  url: "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
-  size: 4920733696,
-};
-
-/** Resolves a recommended Hugging Face download package sized for the machine's hardware. */
+/** The rung the machine can carry, as something the downloader understands. */
 export function getRecommendedDownload(
   vram: number,
   target: RuntimeTarget = {},
 ): RecommendedDownload {
   const modelName = getRecommendedModel(vram, target);
-  const ladderEntry = ggufLadder.find((entry) => entry.model === modelName);
-  const download = RECOMMENDED_DOWNLOADS[modelName] || DEFAULT_DOWNLOAD;
+  const rung = ggufLadder.find((entry) => entry.model === modelName) ?? ggufLadder[0];
 
   return {
-    model: modelName,
-    label: ladderEntry?.label || "Recommended Model",
-    filename: download.filename,
-    url: download.url,
-    size: download.size,
+    model: rung.model,
+    label: rung.label,
+    reference: rung.model,
+    size: Math.round(rung.sizeGB * 1e9),
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { listInstalledModels } from "../ollama";
+import { listInstalledModels } from "../llama";
 import { answerApiRequest } from "./answer";
 import type { AppSettings } from "../types";
 

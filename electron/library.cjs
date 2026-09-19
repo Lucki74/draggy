@@ -3,8 +3,8 @@ const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 const { log } = require("./logger.cjs");
 const { extractText, DOCUMENT_TEXT_LIMIT } = require("./documents.cjs");
+const embedServer = require("./embedServer.cjs");
 
-const GGUF_ENGINE_URL = "http://127.0.0.1:11435";
 const DEFAULT_EMBED_MODEL = "nomic-embed-text";
 
 const CHUNK_TARGET_CHARS = 1200;
@@ -282,8 +282,10 @@ function normalise(vector) {
   return unit;
 }
 
+// Vectors come from their own llama-server: the chat one holds a chat model and is not started with --embedding.
 async function embed(model, inputs) {
-  const response = await fetch(`${GGUF_ENGINE_URL}/v1/embeddings`, {
+  const baseUrl = await embedServer.ensure(model);
+  const response = await fetch(`${baseUrl}/v1/embeddings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ input: inputs, model }),

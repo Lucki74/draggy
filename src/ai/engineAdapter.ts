@@ -1,4 +1,4 @@
-import type { GenerationMetrics } from "../ollama";
+import type { GenerationMetrics } from "../llama";
 import { readLlamaSseStream } from "./llamaStream";
 import type { ParsedToolCall } from "./llamaStream";
 import { logGgufChunk, logGgufInference, logGgufMetrics, logNetwork } from "../logger";
@@ -21,7 +21,7 @@ export interface EngineTurnOptions {
   correlationId?: string;
 }
 
-/** Tells whether a model identifier points to a local GGUF file or Ollama tag. */
+/** Tells whether a model identifier points to a local GGUF file or a bare model tag. */
 export function isGgufModel(model: string): boolean {
   if (!model) return false;
   const lower = model.toLowerCase();

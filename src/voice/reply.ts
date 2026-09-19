@@ -1,6 +1,6 @@
-import { beginOllamaWork } from "../ollama";
+import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
-import { sseToOllamaChunks } from "../ai/llamaStream";
+import { sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
 
@@ -104,7 +104,7 @@ export interface StreamOptions {
 }
 
 export async function streamVoiceChat(options: StreamOptions): Promise<void> {
-  const end = beginOllamaWork();
+  const end = beginLlamaWork();
   try {
     await streamVoice(options);
   } finally {
@@ -137,7 +137,7 @@ async function streamVoice(options: StreamOptions): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error("GGUF engine sent no response stream");
 
-  for await (const chunk of sseToOllamaChunks(reader)) {
+  for await (const chunk of sseToLlamaChunks(reader)) {
     const delta = chunk.message?.content;
     if (delta && options.onDelta(delta) === false) return;
   }

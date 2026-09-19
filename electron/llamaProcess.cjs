@@ -296,4 +296,8 @@ module.exports = {
   pingHealth,
   determineKvCache,
   missingShards,
+  waitForReady,
+  buildEnv,
+  attachOutputLogger,
+  failureReason,
 };

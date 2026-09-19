@@ -35,7 +35,7 @@ import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { useTranslator } from "../i18n";
 import { generateId } from "../utils";
-import { isCloudModel, warmModel } from "../ollama";
+import { isCloudModel, warmModel } from "../llama";
 import { KEEP_ALIVE } from "../agent/agentLoop";
 import { chatToMarkdown, exportFilename } from "../chat/export";
 import { unregisterGroup } from "../tools/registry";

@@ -10,7 +10,7 @@ import {
   supportsMlx,
 } from "../modelRecommendations";
 
-const MAC = { platform: "darwin", arch: "arm64", ollamaVersion: "0.33.3" };
+const MAC = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3" };
 
 const ladders = [
   { name: "gguf", ladder: ggufLadder, target: {} },
@@ -83,7 +83,7 @@ describe("choosing between the two ladders", () => {
 
   it("leaves Linux and Windows on the GGUF builds", () => {
     for (const platform of ["linux", "win32"]) {
-      expect(supportsMlx({ platform, arch: "arm64", ollamaVersion: "0.33.3" })).toBe(
+      expect(supportsMlx({ platform, arch: "arm64", llamaVersion: "0.33.3" })).toBe(
         false,
       );
       expect(ladderFor({ platform, arch: "x64" })).toBe(ggufLadder);
@@ -91,9 +91,9 @@ describe("choosing between the two ladders", () => {
   });
 
   it("falls back when the version cannot be read at all", () => {
-    expect(supportsMlx({ ...MAC, ollamaVersion: null })).toBe(false);
-    expect(supportsMlx({ ...MAC, ollamaVersion: "" })).toBe(false);
-    expect(supportsMlx({ ...MAC, ollamaVersion: "unknown" })).toBe(false);
+    expect(supportsMlx({ ...MAC, llamaVersion: null })).toBe(false);
+    expect(supportsMlx({ ...MAC, llamaVersion: "" })).toBe(false);
+    expect(supportsMlx({ ...MAC, llamaVersion: "unknown" })).toBe(false);
     expect(supportsMlx({ platform: "darwin", arch: "arm64" })).toBe(false);
   });
 
@@ -112,7 +112,7 @@ describe("RAM alongside VRAM, on a PC", () => {
   });
 
   it("caps a big card at what little RAM can actually hold", () => {
-    // Ollama has to read the whole model into RAM before the GPU touches it, so a
+    // The engine has to read the whole model into RAM before the GPU touches it, so a
     // 24 GB card in an 8 GB machine cannot really run what the card alone suggests.
     const uncapped = getRecommendedModel(24, {});
     const capped = getRecommendedModel(24, { ram: 8 });
@@ -152,7 +152,7 @@ describe("chip class on Apple Silicon", () => {
   });
 
   it("reads unified memory itself rather than the pre-reduced VRAM copy", () => {
-    const base = { platform: "darwin", arch: "arm64", ollamaVersion: "0.33.3" };
+    const base = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3" };
     const raw16 = mlxLadder.find((entry) => entry.vram === 16)!;
 
     // The old, already-reduced number would have missed this rung entirely.
@@ -162,7 +162,7 @@ describe("chip class on Apple Silicon", () => {
   });
 
   it("takes a wide-bandwidth Max or Ultra chip one rung above a base or Pro one", () => {
-    const base = { platform: "darwin", arch: "arm64", ollamaVersion: "0.33.3", ram: 32 };
+    const base = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3", ram: 32 };
     const climbing = [...mlxLadder].sort((a, b) => a.vram - b.vram);
     const atThirtyTwo = climbing.findIndex((entry) => entry.vram === 32);
 
@@ -185,7 +185,7 @@ describe("chip class on Apple Silicon", () => {
     const chosen = getRecommendedModel(0, {
       platform: "darwin",
       arch: "arm64",
-      ollamaVersion: "0.33.3",
+      llamaVersion: "0.33.3",
       ram: 999,
       cpuModel: "Apple M4 Ultra",
     });
@@ -223,8 +223,7 @@ describe("recommended download for automatic setup", () => {
       const download = getRecommendedDownload(vram);
       expect(download.model).toBeTruthy();
       expect(download.label).toBeTruthy();
-      expect(download.filename).toMatch(/\.gguf$/i);
-      expect(download.url).toMatch(/^https:\/\/huggingface\.co\//);
+      expect(download.reference).toMatch(/^[\w.-]+\/[\w.-]+:\w+$/);
       expect(download.size).toBeGreaterThan(100_000_000);
     }
   });
@@ -233,6 +232,28 @@ describe("recommended download for automatic setup", () => {
     const small = getRecommendedDownload(2);
     const large = getRecommendedDownload(16);
     expect(large.size).toBeGreaterThan(small.size);
+  });
+
+  it("gives every rung its own model, the one its label names", () => {
+    // The old table sent a "Qwen 3.5 9B" rung to Llama 3.1 and left every rung above 14 GB on
+    // the same default, so a 24 GB card was handed an 8B model under a 31B label.
+    const repos = ggufLadder.map((entry) => entry.model);
+    expect(new Set(repos).size).toBe(repos.length);
+    for (const entry of ggufLadder) {
+      const family = entry.label.split(" ")[0].toLowerCase();
+      expect(entry.model.toLowerCase(), entry.label).toContain(family);
+    }
+  });
+
+  it("never offers weights bigger than the memory the rung is for", () => {
+    for (const entry of ggufLadder) expect(entry.sizeGB, entry.label).toBeLessThanOrEqual(entry.vram);
+  });
+
+  it("climbs in size with the memory", () => {
+    const climbing = [...ggufLadder].sort((a, b) => a.vram - b.vram);
+    for (let index = 1; index < climbing.length; index++) {
+      expect(climbing[index].sizeGB, climbing[index].label).toBeGreaterThan(climbing[index - 1].sizeGB);
+    }
   });
 });
 

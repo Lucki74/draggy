@@ -4,12 +4,15 @@ import { EMBED_TIERS, isEmbedModel, planEmbedModel, tierForEmbed, tierOfEmbed } 
 describe("sizing the embedding model to the machine", () => {
   it("climbs the ladder as memory grows", () => {
     expect(tierForEmbed(0).model).toBe("all-minilm");
-    expect(tierForEmbed(1.5).model).toBe("all-minilm");
+    expect(tierForEmbed(0.5).model).toBe("all-minilm");
+    expect(tierForEmbed(1).model).toBe("embeddinggemma-300m");
     expect(tierForEmbed(2).model).toBe("nomic-embed-text");
-    expect(tierForEmbed(6.5).model).toBe("mxbai-embed-large");
-    expect(tierForEmbed(10).model).toBe("qwen3-embedding:0.6b");
-    expect(tierForEmbed(20).model).toBe("qwen3-embedding:4b");
-    expect(tierForEmbed(32).model).toBe("qwen3-embedding:8b");
+    expect(tierForEmbed(3.5).model).toBe("mxbai-embed-large");
+    expect(tierForEmbed(4).model).toBe("bge-m3");
+    expect(tierForEmbed(7).model).toBe("qwen3-embedding-0.6b");
+    expect(tierForEmbed(10).model).toBe("qwen3-embedding-4b");
+    expect(tierForEmbed(20).model).toBe("qwen3-embedding-8b");
+    expect(tierForEmbed(96).model).toBe("qwen3-embedding-8b");
   });
 
   it("falls to the smallest rung when the card cannot be read", () => {
@@ -34,24 +37,29 @@ describe("sizing the embedding model to the machine", () => {
   it("never asks for more than what a 400-chunk file can pay back in ten seconds", () => {
     // No hard numbers to check here, just that nothing above the tested
     // top rung sneaks in unreasoned about.
-    expect(EMBED_TIERS[EMBED_TIERS.length - 1].model).toBe("qwen3-embedding:8b");
+    expect(EMBED_TIERS[EMBED_TIERS.length - 1].model).toBe("qwen3-embedding-8b");
+  });
+
+  it("gives every rung something the downloader can resolve, never a bare name", () => {
+    for (const tier of EMBED_TIERS) expect(tier.reference).toMatch(/^[\w.-]+\/[\w.-]+:[\w]+$/);
   });
 });
 
 describe("planning what indexing will run", () => {
   it("uses the sized model when it is already installed", () => {
-    const plan = planEmbedModel({ installed: ["mxbai-embed-large"], vram: 6 });
+    const plan = planEmbedModel({ installed: ["mxbai-embed-large-v1.Q8_0.gguf"], vram: 3.5 });
 
-    expect(plan.model).toBe("mxbai-embed-large");
+    expect(plan.model).toBe("mxbai-embed-large-v1.Q8_0.gguf");
     expect(plan.source).toBe("sized");
     expect(plan.download).toBeNull();
   });
 
   it("asks for a download when the sized model is missing", () => {
-    const plan = planEmbedModel({ installed: ["llama3.2:3b"], vram: 6 });
+    const plan = planEmbedModel({ installed: ["llama3.2:3b"], vram: 3.5 });
 
     expect(plan.model).toBe("mxbai-embed-large");
     expect(plan.download?.model).toBe("mxbai-embed-large");
+    expect(plan.download?.reference).toBe("ChristianAzinn/mxbai-embed-large-v1-gguf:Q8_0");
     expect(plan.download?.downloadGB).toBeGreaterThan(0);
   });
 
@@ -89,11 +97,11 @@ describe("planning what indexing will run", () => {
 
   it("matches a re-quantised build already on disk", () => {
     const plan = planEmbedModel({
-      installed: ["qwen3-embedding:0.6b-q8_0"],
-      vram: 10,
+      installed: ["Qwen3-Embedding-0.6B-Q8_0.gguf"],
+      vram: 7,
     });
 
-    expect(plan.model).toBe("qwen3-embedding:0.6b-q8_0");
+    expect(plan.model).toBe("Qwen3-Embedding-0.6B-Q8_0.gguf");
     expect(plan.download).toBeNull();
   });
 });

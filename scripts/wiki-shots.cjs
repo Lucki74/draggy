@@ -266,7 +266,7 @@ async function run() {
   await openWorkspace(win, "default");
   await send(
     win,
-    "Explain what makes running local AI models with Ollama secure and private in two short bullet points.",
+    "Explain what makes running local AI models with llama.cpp secure and private in two short bullet points.",
   );
   await shoot(win, "app-mode-chat");
 

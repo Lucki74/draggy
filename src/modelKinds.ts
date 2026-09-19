@@ -1,4 +1,4 @@
-/** What a model can do, asked of Ollama rather than guessed from its name. The two questions fail
+/** What a model can do, asked of the engine rather than guessed from its name. The two questions fail
  * opposite ways: unknown may chat, but may not index. */
 
 /** Whether this model is unable to hold a conversation. Silence, meaning no capabilities at all, is

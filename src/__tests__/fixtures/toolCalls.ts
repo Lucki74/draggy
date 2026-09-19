@@ -29,8 +29,8 @@ export const TOOL_CALL_FIXTURES: ToolCallFixture[] = [
   },
   {
     label: "prose before a canonical call",
-    raw: 'Let me look that up.\n\n<tool>{"name": "search_web", "args": {"query": "ollama keep_alive"}}</tool>',
-    expect: { name: "search_web", args: { query: "ollama keep_alive" } },
+    raw: 'Let me look that up.\n\n<tool>{"name": "search_web", "args": {"query": "llama keep_alive"}}</tool>',
+    expect: { name: "search_web", args: { query: "llama keep_alive" } },
     visible: "Let me look that up.",
   },
   {

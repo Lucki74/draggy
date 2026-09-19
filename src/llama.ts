@@ -54,6 +54,11 @@ function bareModelName(model: string): string {
   return model.toLowerCase().startsWith("gguf:") ? model.slice(5) : model;
 }
 
+/** A model's name as shown to people: a split model's part counter says nothing to whoever picks it. */
+export function displayModelName(model: string): string {
+  return model.replace(/-\d{5}-of-\d{5}(?=\.gguf$)/i, "");
+}
+
 const modelInfoCache = new Map<string, Promise<ModelInfo | null>>();
 
 async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
@@ -235,7 +240,7 @@ export function peekContextSize(
 let generating = 0;
 const workListeners = new Set<() => void>();
 
-export function beginOllamaWork(): () => void {
+export function beginLlamaWork(): () => void {
   generating++;
   for (const listener of workListeners) listener();
   let ended = false;
@@ -247,9 +252,9 @@ export function beginOllamaWork(): () => void {
   };
 }
 
-export const ollamaIsBusy = () => generating > 0;
+export const llamaIsBusy = () => generating > 0;
 
-export function onOllamaWork(listener: () => void): () => void {
+export function onLlamaWork(listener: () => void): () => void {
   workListeners.add(listener);
   return () => {
     workListeners.delete(listener);
@@ -470,9 +475,9 @@ export async function pullModel(
 
   if (!reference.startsWith("http://") && !reference.startsWith("https://")) {
     const resolved = await window.electronAPI.resolveModelUrl?.(reference);
-    if (resolved?.url) {
-      parts = resolved.parts?.length ? resolved.parts : [{ url: resolved.url, filename: resolved.filename }];
-    }
+    // A bare name is not a URL: sent on as one, the downloader refuses it with a message about policy.
+    if (!resolved?.url) throw new Error(`Could not find ${reference} on Hugging Face.`);
+    parts = resolved.parts?.length ? resolved.parts : [{ url: resolved.url, filename: resolved.filename }];
   }
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 

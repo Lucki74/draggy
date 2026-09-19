@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareTurn } from "../agent/agentLoop";
 import type { TurnInput } from "../agent/agentLoop";
 import { defaultSettings } from "../app/settings";
-import { forgetContextSize, forgetModelInfo } from "../ollama";
+import { forgetContextSize, forgetModelInfo } from "../llama";
 import { resetRegistry } from "../tools/registry";
 import type { InstalledSkill } from "../types";
 

@@ -3,6 +3,7 @@ import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   contextSizeFor,
+  displayModelName,
   forgetContextSize,
   forgetModelInfo,
   isCloudModel,
@@ -11,7 +12,7 @@ import {
   peekContextSize,
   pickContextSize,
   readMetrics,
-} from "../ollama";
+} from "../llama";
 
 describe("context budgeting", () => {
   it("rounds a small conversation up to the smallest bucket", () => {
@@ -226,5 +227,16 @@ describe("holding a model in memory", () => {
   it("peekContextSize respects fixed context numbers and 'max'", () => {
     expect(peekContextSize(MODEL, 100, 131072, 16384)).toBe(16384);
     expect(peekContextSize(MODEL, 100, 131072, "max")).toBe(131072);
+  });
+});
+
+describe("displayModelName", () => {
+  it("drops the part counter of a split model", () => {
+    expect(displayModelName("Qwen3-Coder-Next-Q4_K_M-00001-of-00004.gguf")).toBe("Qwen3-Coder-Next-Q4_K_M.gguf");
+  });
+
+  it("leaves a single-file model and a name that only resembles a counter alone", () => {
+    expect(displayModelName("ornith-1.0-35b-Q4_K_M.gguf")).toBe("ornith-1.0-35b-Q4_K_M.gguf");
+    expect(displayModelName("model-00001-of-00004-final.gguf")).toBe("model-00001-of-00004-final.gguf");
   });
 });

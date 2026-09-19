@@ -4,8 +4,8 @@ import {
   flushLogs,
   loggedFetch,
   logNetwork,
-  logOllamaInference,
-  logOllamaMetrics,
+  logLlamaInference,
+  logLlamaMetrics,
   logStreamChunk,
   logGgufInference,
   logGgufMetrics,
@@ -117,22 +117,22 @@ describe("loggedFetch", () => {
   });
 });
 
-describe("ollama turn logging", () => {
+describe("llama turn logging", () => {
   it("tags inference, metrics and stream chunks with the same correlation id", () => {
     const logBatch = stubApi();
     const id = newCorrelationId();
 
-    logOllamaInference({ model: "llama3", numCtx: 8192 }, id);
+    logLlamaInference({ model: "llama3", numCtx: 8192 }, id);
     logStreamChunk("hello", id);
-    logOllamaMetrics({ promptTokens: 10, responseTokens: 20 }, id);
+    logLlamaMetrics({ promptTokens: 10, responseTokens: 20 }, id);
     flushLogs();
 
     const entries = logBatch.mock.calls[0][0];
     expect(entries.every((entry: { correlationId: string }) => entry.correlationId === id)).toBe(true);
     expect(entries.map((entry: { context: string }) => entry.context)).toEqual([
-      "ollama",
-      "ollama",
-      "ollama",
+      "llama",
+      "llama",
+      "llama",
     ]);
   });
 
@@ -140,7 +140,7 @@ describe("ollama turn logging", () => {
     const logBatch = stubApi();
     const longPrompt = "x".repeat(200);
 
-    logOllamaInference({ model: "llama3", content: longPrompt }, "corr-2");
+    logLlamaInference({ model: "llama3", content: longPrompt }, "corr-2");
     flushLogs();
 
     const [entry] = logBatch.mock.calls[0][0];

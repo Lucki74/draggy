@@ -85,7 +85,7 @@ export function logNetwork(
   });
 }
 
-/** Wraps `fetch` so every Ollama call is timed and logged without touching each call site's parsing. */
+/** Wraps `fetch` so every engine call is timed and logged without touching each call site's parsing. */
 export async function loggedFetch(
   url: string,
   init: RequestInit = {},
@@ -102,24 +102,24 @@ export async function loggedFetch(
   }
 }
 
-export function logOllamaInference(params: Record<string, unknown>, correlationId: string): void {
+export function logLlamaInference(params: Record<string, unknown>, correlationId: string): void {
   enqueue({
     level: "INFO",
-    context: "ollama",
+    context: "llama",
     message: "inference",
     correlationId,
     data: sanitizeValue(params),
   });
 }
 
-export function logOllamaMetrics(metrics: object, correlationId: string): void {
-  enqueue({ level: "INFO", context: "ollama", message: "metrics", correlationId, data: metrics });
+export function logLlamaMetrics(metrics: object, correlationId: string): void {
+  enqueue({ level: "INFO", context: "llama", message: "metrics", correlationId, data: metrics });
 }
 
 export function logStreamChunk(chunk: string, correlationId: string): void {
   enqueue({
     level: "DEBUG",
-    context: "ollama",
+    context: "llama",
     message: "chunk",
     correlationId,
     data: { chunk: sanitizeString(chunk) },

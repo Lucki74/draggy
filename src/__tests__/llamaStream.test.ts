@@ -7,7 +7,7 @@ import {
   toLlamaMessages,
   readLlamaMetrics,
   readLlamaSseStream,
-  sseToOllamaChunks,
+  sseToLlamaChunks,
 } from "../ai/llamaStream";
 import type { StreamChunk } from "../ai/llamaStream";
 
@@ -127,7 +127,7 @@ describe("readLlamaSseStream", () => {
     expect(toolChunk?.toolCalls?.[0]).toEqual({ name: "search", args: { q: "test" } });
   });
 
-  it("yields Ollama-compatible chunks through sseToOllamaChunks", async () => {
+  it("yields normalised chunks through sseToLlamaChunks", async () => {
     const sseLines = [
       'data: {"choices":[{"index":0,"delta":{"content":"Hi "}}]}\n\n',
       'data: {"choices":[{"index":0,"delta":{"content":"there"}}]}\n\n',
@@ -137,7 +137,7 @@ describe("readLlamaSseStream", () => {
 
     const reader = createMockReader(sseLines);
     const chunks = [];
-    for await (const chunk of sseToOllamaChunks(reader)) {
+    for await (const chunk of sseToLlamaChunks(reader)) {
       chunks.push(chunk);
     }
 
@@ -223,9 +223,9 @@ describe("tool calls are delivered once", () => {
     expect(delivered).toEqual(["read_file", "search_files"]);
   });
 
-  it("hands each call to sseToOllamaChunks once, not again at [DONE]", async () => {
+  it("hands each call to sseToLlamaChunks once, not again at [DONE]", async () => {
     const delivered: string[] = [];
-    for await (const chunk of sseToOllamaChunks(readerOf(finish))) {
+    for await (const chunk of sseToLlamaChunks(readerOf(finish))) {
       for (const call of chunk.message?.tool_calls ?? []) delivered.push(call.function.name);
     }
 
@@ -234,7 +234,7 @@ describe("tool calls are delivered once", () => {
 
   it("still delivers calls from a stream that ends without a finish reason", async () => {
     const delivered: string[] = [];
-    for await (const chunk of sseToOllamaChunks(readerOf([finish[0], "data: [DONE]\n\n"]))) {
+    for await (const chunk of sseToLlamaChunks(readerOf([finish[0], "data: [DONE]\n\n"]))) {
       for (const call of chunk.message?.tool_calls ?? []) delivered.push(call.function.name);
     }
 

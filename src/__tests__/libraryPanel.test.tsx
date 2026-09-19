@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import LibraryPanel from "../settings/LibraryPanel";
 import type { ModelManager, PullState } from "../settings/useModelManager";
 import { translations } from "../translations";
@@ -53,5 +53,28 @@ describe("LibraryPanel while a download is running", () => {
 
     expect(screen.getByText("nomic-embed-text")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add folder" })).toBeNull();
+  });
+});
+
+describe("LibraryPanel adding a folder before any embedding model is installed", () => {
+  it("downloads the size-matched model by its repository, then indexes with the file that landed", async () => {
+    const index = vi.fn(async () => ({ success: true }));
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      library: {
+        list: async () => ({ success: true, sources: [] }),
+        onProgress: () => () => {},
+        pickFolder: async () => ({ success: true, path: "/docs" }),
+        index,
+      },
+      gguf: { listModels: async () => [{ filename: "Qwen3-Embedding-0.6B-Q8_0.gguf" }] },
+    };
+    const manager = { ...managerPulling(null), vram: 7 };
+
+    render(<LibraryPanel workspaceId="chat" manager={manager} embedModel="" t={t} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add folder" }));
+
+    await waitFor(() => expect(index).toHaveBeenCalled());
+    expect(manager.startPull).toHaveBeenCalledWith("Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0", { immediate: true });
+    expect(index).toHaveBeenCalledWith("/docs", "Qwen3-Embedding-0.6B-Q8_0.gguf", "chat");
   });
 });

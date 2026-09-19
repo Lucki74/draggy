@@ -47,7 +47,7 @@ export default function SettingsPage(props: SettingsPageProps) {
   const { settings, request, onUpdate } = props;
   const t = useTranslator(settings.language);
   const [tab, setTab] = useState<SettingsTab>(request.tab);
-  // Read again on every page, so a model pulled from the startup screen or Ollama itself shows up.
+  // Read again on every page, so a model pulled from the startup screen or the engine itself shows up.
   const manager = useModelManager(tab);
 
   const [seenRequest, setSeenRequest] = useState(request.id);

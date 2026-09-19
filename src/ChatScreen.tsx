@@ -54,13 +54,14 @@ import {
 } from "./utils";
 import {
   FALLBACK_CONTEXT_LENGTH,
+  displayModelName,
   getModelInfo,
   isCloudModel,
   listInstalledModels,
   needsTextModeTools,
   warmModel,
   windowCeiling,
-} from "./ollama";
+} from "./llama";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { ContextMeasurement } from "./agent/agentLoop";
 import {
@@ -77,7 +78,7 @@ import {
 } from "./chat/slashCommands";
 import { isSpeechSupported, startRecording, transcribe } from "./speech";
 import type { Recorder } from "./speech";
-import type { InstalledModel, ModelInfo } from "./ollama";
+import type { InstalledModel, ModelInfo } from "./llama";
 
 const MAX_INPUT_HEIGHT = 150;
 
@@ -1064,7 +1065,7 @@ export default function ChatScreen({
                   handleSubmit();
                 }
               }}
-              placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${model}...`}
+              placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`}
               className="w-full bg-transparent px-5 pt-4 pb-2 text-[var(--text-main)] placeholder-[var(--text-muted)] font-bold resize-none overflow-y-auto focus:outline-none"
               rows={1}
               style={{ minHeight: "56px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
@@ -1175,7 +1176,7 @@ export default function ChatScreen({
                 className={`composer-pill ${thinkingUnavailable ? "cursor-not-allowed opacity-70" : ""}`}
                 title={
                   thinkingUnavailable
-                    ? `${model} ${t("thinkingNotSupported")}`
+                    ? `${displayModelName(model)} ${t("thinkingNotSupported")}`
                     : `${t("thinkingMode")}: ${t(settings.thinkingMode)}`
                 }
               >
@@ -1202,7 +1203,7 @@ export default function ChatScreen({
                 }`}
                 title={
                   toolsUnavailable
-                    ? `${model} ${t("toolsNotNative")}`
+                    ? `${displayModelName(model)} ${t("toolsNotNative")}`
                     : `${t("webSearch")}: ${t(WEB_MODE_LABELS[settings.webMode])}`
                 }
               >
@@ -1231,11 +1232,11 @@ export default function ChatScreen({
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                  title={model}
+                  title={displayModelName(model)}
                   className={`composer-pill min-w-0 ${compactToolbar ? "max-w-[130px]" : "max-w-[190px]"}`}
                 >
                   <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
-                  {!tightToolbar && <span className="truncate">{model}</span>}
+                  {!tightToolbar && <span className="truncate">{displayModelName(model)}</span>}
                   <ChevronRight
                     className={`w-3 h-3 flex-shrink-0 transition-transform ${
                       isModelMenuOpen ? "rotate-90" : "-rotate-90"
@@ -1273,7 +1274,7 @@ export default function ChatScreen({
                               }`}
                             >
                               <span className="flex-1 min-w-0 truncate text-[11px] font-bold">
-                                {entry.name}
+                                {displayModelName(entry.name)}
                               </span>
                               {entry.parameterSize && (
                                 <span className="text-[9px] font-bold opacity-60 flex-shrink-0">

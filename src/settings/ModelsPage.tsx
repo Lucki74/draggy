@@ -6,7 +6,7 @@ import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
 import { cannotGenerate, isEmbeddingModel } from "../modelKinds";
 import { describeFit, describeSplit } from "../vram";
-import { CONTEXT_BUCKETS } from "../ollama";
+import { CONTEXT_BUCKETS, displayModelName } from "../llama";
 import type { ModelManager, PullState } from "./useModelManager";
 import type { AppSettings, LibraryModel } from "../types";
 import type { SettingsTab } from "./pages";
@@ -160,7 +160,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
               <div key={entry.name} className="flex items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-bold">
-                    <span className="truncate">{entry.name}</span>
+                    <span className="truncate">{displayModelName(entry.name)}</span>
                     {entry.parameterSize && (
                       <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] flex-shrink-0">
                         {entry.parameterSize}
@@ -184,7 +184,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                   <button
                     type="button"
                     onClick={() => void manager.unload(entry.name)}
-                    aria-label={`${t("unloadModel")} ${entry.name}`}
+                    aria-label={`${t("unloadModel")} ${displayModelName(entry.name)}`}
                     title={t("unloadModel")}
                     className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
                   >
@@ -196,7 +196,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                   type="button"
                   onClick={() => void manager.remove(entry.name)}
                   disabled={usedBy.length > 0}
-                  aria-label={`${t("remove")} ${entry.name}`}
+                  aria-label={`${t("remove")} ${displayModelName(entry.name)}`}
                   title={usedBy.length > 0 ? t("inUse") : t("remove")}
                   className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
                 >
@@ -308,7 +308,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
               { id: "", label: t("automatic") },
               ...manager.installed
                 .filter((entry) => isEmbeddingModel(entry.capabilities))
-                .map((entry) => ({ id: entry.name, label: entry.name })),
+                .map((entry) => ({ id: entry.name, label: displayModelName(entry.name) })),
             ]}
             onChange={(embedModel) => onUpdate({ embedModel })}
           />

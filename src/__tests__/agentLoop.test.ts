@@ -7,7 +7,7 @@ import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
-import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../ollama";
+import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../llama";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -73,7 +73,7 @@ function sseStream(chunks: unknown[]) {
   });
 }
 
-/** Converts an Ollama-style turn description into SSE chunks the GGUF stream parser expects. */
+/** Converts a turn description into SSE chunks the GGUF stream parser expects. */
 function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unknown[] {
   const chunks: unknown[] = [];
   for (const piece of turn.thinking ?? []) {
@@ -329,7 +329,7 @@ describe("a model the GGUF engine has to load first", () => {
     await run([userMessage("hi")]).promise;
     const { num_ctx } = (first.requests[0] as { options: { num_ctx: number } }).options;
 
-    // Ollama lists the tag even when it was asked for without one.
+    // The engine may list the name with a tag even when it was asked for without one.
     installFetch([{ content: ["Hi"] }], [], [{ name: `${MODEL}:latest`, context_length: num_ctx }]);
     const { host, seen } = watchSteps();
     await run([userMessage("hi")], undefined, host).promise;
@@ -337,7 +337,7 @@ describe("a model the GGUF engine has to load first", () => {
     expect(loadingSteps(seen)).toEqual([]);
   });
 
-  it("says so when it is in memory at another window, which Ollama reloads for", async () => {
+  it("says so when it is in memory at another window, which the engine reloads for", async () => {
     installFetch([{ content: ["Hi"] }], [], [{ name: MODEL, context_length: 999 }]);
     const { host, seen } = watchSteps();
 

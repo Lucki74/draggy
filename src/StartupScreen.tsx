@@ -4,7 +4,7 @@ import { HardDrive, AlertCircle } from "lucide-react";
 import { getRecommendedDownload } from "./modelRecommendations";
 import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
-import { isCloudModel, listInstalledModels } from "./ollama";
+import { isCloudModel, listInstalledModels, pullModel } from "./llama";
 import Logo from "./Logo";
 
 interface StartupScreenProps {
@@ -169,23 +169,34 @@ export default function StartupScreen({
           }
 
           setStatus(tr("preparingDownload"));
+          const resolved = await window.electronAPI?.resolveModelUrl?.(target.reference);
+          if (!resolved?.url) {
+            setError({
+              message: `${tr("downloadFailed")}: ${target.label}`,
+              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
+            });
+            return;
+          }
           setDownloadProgress({
             percent: 0,
             completed: 0,
-            total: target.size,
-            label: target.filename,
+            total: resolved.size ?? target.size,
+            label: resolved.filename,
           });
 
           setStatus(tr("downloadingModel"));
-          const downloadRes = await window.electronAPI?.gguf?.downloadModel({
-            url: target.url,
-            filename: target.filename,
-          });
-
-          if (!downloadRes || (typeof downloadRes === "object" && "error" in downloadRes && downloadRes.error)) {
-            const msg = typeof downloadRes === "object" && "error" in downloadRes ? String(downloadRes.error) : tr("downloadFailed");
+          try {
+            await pullModel(target.reference, (progress) =>
+              setDownloadProgress({
+                percent: progress.percent,
+                completed: progress.completed,
+                total: progress.total,
+                label: resolved.filename,
+              }),
+            );
+          } catch (err: unknown) {
             setError({
-              message: `${tr("downloadFailed")}: ${msg}`,
+              message: `${tr("downloadFailed")}: ${err instanceof Error ? err.message : ""}`,
               icon: <AlertCircle className="w-10 h-10 text-red-400" />,
             });
             return;
@@ -195,7 +206,7 @@ export default function StartupScreen({
           setStatus(tr("systemCheckComplete"));
           await new Promise((r) => setTimeout(r, 700));
 
-          onReady(target.filename);
+          onReady(resolved.filename);
           return;
         }
 

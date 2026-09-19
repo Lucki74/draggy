@@ -50,6 +50,7 @@ import {
   REMARK_PLUGINS,
 } from "./markdown";
 import AppFrame from "./AppFrame";
+import { displayModelName } from "../llama";
 import StreamingMarkdown from "./StreamingMarkdown";
 import { useLiveTurn } from "../agent/liveTurn";
 import UnifiedDiff from "./UnifiedDiff";
@@ -150,7 +151,7 @@ function MetricsFooter({
 }
 
 /** The speed line while a reply is written. Counted from the stream, so close rather than exact, and
- * replaced by Ollama's own figures the moment the reply ends. */
+ * replaced by the engine's own figures the moment the reply ends. */
 function LiveSpeed({ chatId, t }: { chatId: string; t: (key: string) => string }) {
   const live = useLiveTurn(chatId);
   if (!live || live.responseTokens === 0) return null;
@@ -450,7 +451,7 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
 
   const label = step.model
     ? t("loadingModel")
-        .replace("{model}", step.model)
+        .replace("{model}", displayModelName(step.model))
         .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
     : step.content;
 

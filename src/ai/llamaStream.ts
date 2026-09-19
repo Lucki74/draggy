@@ -1,5 +1,5 @@
 import { safeJsonParse } from "../utils";
-import type { GenerationMetrics } from "../ollama";
+import type { GenerationMetrics } from "../llama";
 
 /** llama-server speaks the OpenAI shape, which wants a type on every tool call a history replays. */
 export function toLlamaMessages<M extends { tool_calls?: object[] }>(messages: M[]): M[] {
@@ -45,7 +45,7 @@ export interface StreamChunk {
   done?: boolean;
 }
 
-export interface AdaptedOllamaChunk {
+export interface AdaptedLlamaChunk {
   message?: {
     content?: string;
     thinking?: string;
@@ -245,10 +245,10 @@ export async function readLlamaSseStream(
   }
 }
 
-/** Yields normalized chunks matching Draggy's Ollama chunk format from an SSE stream. */
-export async function* sseToOllamaChunks(
+/** Yields normalized chunks matching Draggy's chunk format from an SSE stream. */
+export async function* sseToLlamaChunks(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-): AsyncGenerator<AdaptedOllamaChunk, void, unknown> {
+): AsyncGenerator<AdaptedLlamaChunk, void, unknown> {
   const decoder = new TextDecoder();
   let buffer = "";
   const pendingTools = new Map<number, PartialToolCall>();

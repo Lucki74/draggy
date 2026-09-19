@@ -4,12 +4,12 @@ import { estimateChars, measureTurn, prepareTurn, runAgentTurn } from "../agent/
 import type { TurnInput } from "../agent/agentLoop";
 import type { LiveTurn } from "../agent/liveTurn";
 import {
-  beginOllamaWork,
+  beginLlamaWork,
   forgetContextSize,
   forgetModelInfo,
   peekContextSize,
   pickContextSize,
-} from "../ollama";
+} from "../llama";
 import { SETTINGS_KEY } from "../storage";
 import { defaultSettings, loadSettings } from "../app/settings";
 import { resetRegistry } from "../tools/registry";
@@ -136,7 +136,7 @@ describe("counting the next turn", () => {
     const size = await windowFor(request);
     const chats = installGguf({ loadedAt: () => size, chat: () => json({ usage: { prompt_tokens: 5 } }) });
 
-    const end = beginOllamaWork();
+    const end = beginLlamaWork();
     try {
       expect(await measureTurn(request, { signal: new AbortController().signal, allowLoad: true })).toBeNull();
       expect(chats).toHaveLength(0);
@@ -163,7 +163,7 @@ describe("counting the next turn", () => {
     const counting = measureTurn(request, { signal: new AbortController().signal, allowLoad: false });
     await vi.waitFor(() => expect(chats).toHaveLength(1));
 
-    const end = beginOllamaWork();
+    const end = beginLlamaWork();
     try {
       expect(await counting).toBeNull();
       expect(aborted).toBe(true);

@@ -10,7 +10,7 @@ import {
   parseTokenCount,
 } from "../agent/contextBreakdown";
 import { foldedTokens, planManualCompaction } from "../agent/compaction";
-import { FALLBACK_CONTEXT_LENGTH, pickContextSize, windowCeiling } from "../ollama";
+import { FALLBACK_CONTEXT_LENGTH, pickContextSize, windowCeiling } from "../llama";
 import { SLASH_COMMANDS, matchSlashCommands, parseSlashArgument } from "../chat/slashCommands";
 import { settleSession } from "../storage";
 import type { ChatSession, Message } from "../types";

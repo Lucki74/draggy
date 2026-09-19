@@ -47,8 +47,8 @@ vi.mock("../agent/compaction", async (importOriginal) => {
   };
 });
 
-vi.mock("../ollama", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../ollama")>();
+vi.mock("../llama", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llama")>();
   return {
     ...actual,
     getModelInfo: async () => ({ contextLength: 128_000, capabilities: ["tools"] }),
@@ -57,7 +57,7 @@ vi.mock("../ollama", async (importOriginal) => {
 
 const { createTaskManager } = await import("../agent/taskManager");
 const { CHARS_PER_TOKEN, COMPACT_AT, conversationChars } = await import("../agent/compaction");
-const { contextSizeFor, forgetContextSize } = await import("../ollama");
+const { contextSizeFor, forgetContextSize } = await import("../llama");
 import type { TaskHost } from "../agent/taskManager";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));

@@ -143,7 +143,7 @@ describe("shutdown covers every module that starts a process", () => {
     const shutdown = main.slice(main.indexOf("function shutdown()"));
     const body = shutdown.slice(0, shutdown.indexOf("\n}"));
 
-    for (const call of ["mcp.stopAll()", "runner.stopAll()", "llamaProcess.stopServerSync()"]) {
+    for (const call of ["mcp.stopAll()", "runner.stopAll()", "llamaProcess.stopServerSync()", "embedServer.stopSync()"]) {
       expect(body).toContain(call);
     }
   });
@@ -176,6 +176,7 @@ describe("shutdown covers every module that starts a process", () => {
     const stopRuns = runnerSource.slice(runnerSource.indexOf("function stopAll()"));
 
     expect(llamaSource).toContain("platform.killTreeSync(child)");
+    expect(fs.readFileSync(path.join(HERE, "embedServer.cjs"), "utf8")).toContain("platform.killTreeSync(dying)");
     expect(mcp).toContain("stopServer(id, true)");
     expect(stopRuns.slice(0, stopRuns.indexOf("\n}"))).toContain("killTreeSync(child)");
   });

@@ -1,5 +1,5 @@
 import { Clock, Loader2, X } from "lucide-react";
-import { PULL_PHASE_KEYS } from "../ollama";
+import { PULL_PHASE_KEYS } from "../llama";
 import type { PullState } from "./useModelManager";
 
 /** Formats a remaining duration as `2m 05s`, or `1h 01m 05s` past an hour; empty when unknown. */

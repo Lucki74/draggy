@@ -1,7 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { explore, pickExploreModel } from "../agent/subagent";
-import { listInstalledModels } from "../ollama";
+import { listInstalledModels } from "../llama";
 
 /** Sends a smaller model to look something up, so twenty files of reading cost the conversation
  * only the summary that comes back. */

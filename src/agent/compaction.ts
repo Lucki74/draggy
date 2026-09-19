@@ -1,4 +1,4 @@
-import { beginOllamaWork } from "../ollama";
+import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
@@ -234,7 +234,7 @@ export interface CompactionRequest {
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
-  const end = beginOllamaWork();
+  const end = beginLlamaWork();
   try {
     return await fold(request);
   } finally {

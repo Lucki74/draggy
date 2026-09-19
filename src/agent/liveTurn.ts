@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
  * figures that change every quarter second are neither saved nor re-render the whole chat. */
 export interface LiveTurn {
   /** Tokens written so far. Counted from the stream while it runs, so an estimate until each pass
-   * ends, when Ollama gives the real figure. */
+   * ends, when the engine gives the real figure. */
   responseTokens: number;
   tokensPerSecond: number;
   /** What the context holds now, and whether that came from the model or is an estimate. */

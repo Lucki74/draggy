@@ -1,7 +1,7 @@
 import { runAgentTurn } from "./agentLoop";
 import type { AgentHost } from "./agentLoop";
 import type { ToolEnvironment } from "../tools/registry";
-import type { InstalledModel } from "../ollama";
+import type { InstalledModel } from "../llama";
 import type { AppSettings, Message } from "../types";
 
 /** A smaller model sent to explore, so reading a dozen files does not spend the main conversation's

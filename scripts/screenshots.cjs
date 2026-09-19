@@ -734,7 +734,7 @@ async function run() {
   }
 }
 
-// A normal quit runs Draggy's own shutdown, which stops an Ollama it started; then the data goes.
+// A normal quit runs Draggy's own shutdown, which stops the engine it started; then the data goes.
 process.on("exit", () => {
   // Unlinked first, so removing the scratch folder can never follow a junction into the real models.
   for (const target of [targetBin, targetModels]) {

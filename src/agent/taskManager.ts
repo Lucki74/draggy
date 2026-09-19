@@ -1,4 +1,4 @@
-import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../ollama";
+import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../llama";
 import { generateId, titleFromContent } from "../utils";
 import {
   CHARS_PER_TOKEN,

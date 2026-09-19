@@ -81,3 +81,53 @@ describe("StartupScreen engine setup", () => {
     expect(onReady).not.toHaveBeenCalled();
   });
 });
+
+/** A machine with the engine but no model, a 12 GB card, and a way to reach Hugging Face. */
+function installFreshMachine(resolved: { url: string; filename: string; size: number } | null) {
+  const resolveModelUrl = vi.fn(async () => resolved);
+  const downloadModel = vi.fn(async () => ({ success: true }));
+  (window as unknown as { electronAPI: unknown }).electronAPI = {
+    getSystemSpecs: async () => ({ vram: 12, ram: 64, platform: "win32", arch: "x64", cpu: "AMD" }),
+    checkInternet: async () => true,
+    checkDiskSpace: async () => 500,
+    resolveModelUrl,
+    gguf: {
+      status: async () => ({ hasBinary: true, ready: true, runnerType: "cuda" }),
+      listModels: async () => [],
+      onProgress: () => () => {},
+      downloadModel,
+    },
+    onDownloadProgress: () => () => {},
+  };
+  return { resolveModelUrl, downloadModel };
+}
+
+describe("StartupScreen first-run model", () => {
+  it("downloads the model sized to the card by its repository, then opens it by its file", async () => {
+    const { resolveModelUrl, downloadModel } = installFreshMachine({
+      url: "https://huggingface.co/x/resolve/main/m.gguf",
+      filename: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+      size: 8_240_000_000,
+    });
+    const onReady = vi.fn();
+    render(<StartupScreen modelName="" language="en" onReady={onReady} />);
+
+    await waitFor(() => expect(onReady).toHaveBeenCalled(), { timeout: 6000 });
+    expect(resolveModelUrl).toHaveBeenCalledWith("mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M");
+    expect(downloadModel).toHaveBeenCalledWith({
+      url: "https://huggingface.co/x/resolve/main/m.gguf",
+      filename: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+    });
+    expect(onReady).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-Q4_K_M.gguf");
+  });
+
+  it("says the download failed when the model cannot be found, and starts nothing", async () => {
+    const { downloadModel } = installFreshMachine(null);
+    const onReady = vi.fn();
+    render(<StartupScreen modelName="" language="en" onReady={onReady} />);
+
+    expect(await screen.findByText(/Download failed/, {}, { timeout: 4000 })).toBeTruthy();
+    expect(downloadModel).not.toHaveBeenCalled();
+    expect(onReady).not.toHaveBeenCalled();
+  });
+});

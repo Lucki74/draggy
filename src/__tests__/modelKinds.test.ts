@@ -5,7 +5,7 @@ import {
   selectableModels,
 } from "../modelKinds";
 
-/** The capability lists Ollama actually reports, by kind of model. */
+/** The capability lists the engine actually reports, by kind of model. */
 const CHAT = ["completion", "tools", "insert"];
 const REASONING = ["completion", "tools", "thinking", "vision"];
 const EMBEDDER = ["embedding"];

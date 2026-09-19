@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, FolderPlus, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "./Controls";
 import PullProgress from "./PullProgress";
-import { isEmbedModel, planEmbedModel } from "../embedModel";
+import { installedMatch, isEmbedModel, planEmbedModel } from "../embedModel";
 import type { ModelManager } from "./useModelManager";
 import type { LibraryProgress, LibrarySource } from "../types";
 
@@ -54,8 +54,12 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
       installed: manager.installed.map((entry) => entry.name),
       vram: manager.vram,
     });
-    if (plan.download && !(await manager.startPull(plan.model, { immediate: true }))) return null;
-    return plan.model;
+    if (!plan.download) return plan.model;
+    if (!(await manager.startPull(plan.download.reference, { immediate: true }))) return null;
+
+    // The file keeps the name the repository gave it, so it is looked up again once it has landed.
+    const files = (await window.electronAPI?.gguf?.listModels()) ?? [];
+    return installedMatch(plan.download.model, files.map((file) => file.filename));
   };
 
   const index = async (path: string) => {

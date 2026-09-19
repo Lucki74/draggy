@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pullModel } from "../ollama";
-import type { PullProgress } from "../ollama";
+import { pullModel } from "../llama";
+import type { PullProgress } from "../llama";
 
 type Handler = (progress: {
   phase: "downloading" | "done";
@@ -72,6 +72,16 @@ describe("pullModel with several downloads at once", () => {
     expect(seen).toHaveLength(0);
     downloads[0].finish();
     await pulling;
+  });
+});
+
+describe("pullModel with a name it cannot resolve", () => {
+  it("says it could not find the model instead of sending the name to the downloader as a URL", async () => {
+    const { downloads } = installBridge();
+    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.resolveModelUrl = async () => null;
+
+    await expect(pullModel("qwen3-embedding:0.6b", () => undefined)).rejects.toThrow(/qwen3-embedding:0\.6b/);
+    expect(downloads).toHaveLength(0);
   });
 });
 

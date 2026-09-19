@@ -1,29 +1,38 @@
-import { pullModel, warmModel } from "../ollama";
+import { pullModel, warmModel } from "../llama";
+import { installedMatch } from "../embedModel";
 import { KEEP_ALIVE } from "./constants";
 
-/** The model that does the talking, on its own VRAM-sized ladder. It stops early: past four billion
- * parameters a spoken answer is no better and costs a turn. */
+export { installedMatch };
+
+/** The model that does the talking, on its own VRAM-sized ladder. It stops early: a spoken answer
+ * is two sentences, and past fourteen billion parameters it costs a turn to be no better. */
 
 export interface TalkTier {
   /** Least VRAM, in gigabytes, that this rung is meant for. */
   vram: number;
+  /** The family name a file on disk starts with, so any build of it counts as installed. */
   model: string;
+  /** What the downloader resolves: a Hugging Face repository and the quantisation to fetch. */
+  reference: string;
   label: string;
   params: string;
-  /** Roughly what the first run has to download, in gigabytes. */
+  /** What the first run has to download, in gigabytes. */
   downloadGB: number;
 }
 
-/** Every rung answers immediately. Reasoning models are absent: asked to say hello, Qwen 3 4B
- * writes six hundred characters first, and cannot be stopped. */
+/** Every rung is tuned to chat rather than to reason: built for on-device conversation (Liquid, the
+ * Gemma E-series) or an instruct model that answers at once. Reasoning models are absent. */
 export const TALK_TIERS: readonly TalkTier[] = [
   // The floor is for machines with no usable graphics memory at all, where the
   // reply is generated on the processor and size is the whole latency budget.
-  { vram: 0, model: "smollm2:360m", label: "SmolLM2 360M", params: "360M", downloadGB: 0.3 },
-  { vram: 2, model: "llama3.2:1b", label: "Llama 3.2 1B", params: "1B", downloadGB: 1.3 },
-  { vram: 4, model: "llama3.2:3b", label: "Llama 3.2 3B", params: "3B", downloadGB: 2.0 },
-  { vram: 8, model: "gemma3:4b", label: "Gemma 3 4B", params: "4B", downloadGB: 3.3 },
-  { vram: 16, model: "llama3.1:8b", label: "Llama 3.1 8B", params: "8B", downloadGB: 4.7 },
+  { vram: 0, model: "lfm2.5-1.2b-instruct", reference: "LiquidAI/LFM2.5-1.2B-Instruct-GGUF:Q4_K_M", label: "LFM 2.5 1.2B", params: "1.2B", downloadGB: 0.73 },
+  { vram: 2, model: "lfm2.5-2.6b", reference: "LiquidAI/LFM2.5-2.6B-GGUF:Q4_K_M", label: "LFM 2.5 2.6B", params: "2.6B", downloadGB: 1.67 },
+  { vram: 3, model: "ministral-3-3b-instruct", reference: "mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M", label: "Ministral 3 3B", params: "3B", downloadGB: 2.15 },
+  { vram: 4, model: "gemma-4-e2b-it", reference: "unsloth/gemma-4-E2B-it-GGUF:Q4_K_M", label: "Gemma 4 E2B", params: "2B", downloadGB: 3.11 },
+  { vram: 6, model: "gemma-4-e4b-it", reference: "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M", label: "Gemma 4 E4B", params: "4B", downloadGB: 4.98 },
+  { vram: 8, model: "ministral-3-8b-instruct", reference: "mistralai/Ministral-3-8B-Instruct-2512-GGUF:Q4_K_M", label: "Ministral 3 8B", params: "8B", downloadGB: 5.2 },
+  { vram: 12, model: "gemma-4-12b-it", reference: "unsloth/gemma-4-12b-it-GGUF:Q4_K_M", label: "Gemma 4 12B", params: "12B", downloadGB: 7.12 },
+  { vram: 16, model: "ministral-3-14b-instruct", reference: "mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M", label: "Ministral 3 14B", params: "14B", downloadGB: 8.24 },
 ];
 
 export function tierFor(vram: number): TalkTier {
@@ -34,30 +43,7 @@ export function tierFor(vram: number): TalkTier {
 }
 
 export function tierOf(model: string): TalkTier | null {
-  return TALK_TIERS.find((tier) => tier.model === model) ?? null;
-}
-
-/** Whether something on disk counts as the model wanted. A re-quantised build is the same model
- * here, and calling it a miss re-downloads the weights. */
-export function installedMatch(
-  wanted: string,
-  installed: readonly string[],
-): string | null {
-  const target = wanted.trim().toLowerCase();
-  if (!target) return null;
-
-  const exact = installed.find((name) => name.trim().toLowerCase() === target);
-  if (exact) return exact;
-
-  const [family, tag] = target.split(":");
-  if (!tag) return null;
-
-  return (
-    installed.find((name) => {
-      const [otherFamily, otherTag] = name.trim().toLowerCase().split(":");
-      return otherFamily === family && otherTag?.startsWith(tag);
-    }) ?? null
-  );
+  return TALK_TIERS.find((tier) => tier.model === model || tier.reference === model) ?? null;
 }
 
 export interface TalkPlan {
@@ -127,7 +113,7 @@ export async function provideTalkModel(
 
   try {
     await pullModel(
-      plan.model,
+      plan.download.reference,
       (progress) =>
         options.onProgress?.({
           percent: Math.min(100, Math.round(progress.percent)),
@@ -135,7 +121,12 @@ export async function provideTalkModel(
         }),
       options.signal,
     );
-    return { model: plan.model, substituted: false };
+
+    // The file keeps the name its repository gave it, so it is looked up again once it has landed.
+    const files = (await window.electronAPI?.gguf?.listModels()) ?? [];
+    const landed = installedMatch(plan.download.model, files.map((file) => file.filename));
+    if (!landed) throw new Error(`${plan.download.label} was downloaded but is not in the models folder.`);
+    return { model: landed, substituted: false };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
     if (!options.fallback) throw error;

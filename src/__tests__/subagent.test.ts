@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { pickExploreModel } from "../agent/subagent";
 import { registerExploreTools } from "../tools/explore";
 import { availableTools, resetRegistry, registerTool } from "../tools/registry";
-import type { InstalledModel } from "../ollama";
+import type { InstalledModel } from "../llama";
 import type { ToolEnvironment } from "../tools/registry";
 
 /** The second model exists to save context, so what matters: it is smaller, it cannot act, and it

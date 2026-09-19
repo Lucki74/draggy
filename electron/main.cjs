@@ -45,6 +45,7 @@ const widgets = require("./widgets.cjs");
 const mcpCatalogue = require("./mcpCatalogue.cjs");
 const pdfWriter = require("./pdfWriter.cjs");
 const llamaProcess = require("./llamaProcess.cjs");
+const embedServer = require("./embedServer.cjs");
 const binaryManager = require("./binaryManager.cjs");
 const modelStorage = require("./modelStorage.cjs");
 const huggingface = require("./huggingface.cjs");
@@ -854,6 +855,7 @@ function shutdown() {
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
     ["llama", () => llamaProcess.stopServerSync()],
+    ["embeddings", () => embedServer.stopSync()],
     ["watchers", () => {
       for (const watcher of workspaceWatchers.values()) {
         try {
@@ -1391,6 +1393,17 @@ ipcMain.handle("browser-close", async () => {
 function ggufModelsDir() {
   return path.join(app.getPath("userData"), "models");
 }
+
+embedServer.configure(async () => {
+  const specs = await getSystemSpecs();
+  return {
+    binaryPath: binaryManager.findLlamaBinary(app.getPath("userData")),
+    userDataDir: app.getPath("userData"),
+    vramGB: specs?.vram || 0,
+    modelsDir: ggufModelsDir(),
+    log,
+  };
+});
 
 ipcMain.handle("gguf:status", async () => {
   log.debug("ipc", "gguf:status requested");

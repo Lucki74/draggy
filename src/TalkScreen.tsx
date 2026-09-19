@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { translations } from "./translations";
-import { listInstalledModels } from "./ollama";
+import { listInstalledModels } from "./llama";
 import { selectableModels } from "./modelKinds";
 import Orb from "./voice/Orb";
 import {
@@ -25,7 +25,7 @@ import {
   isNeuralVoiceAvailable,
 } from "./voice/neuralVoice";
 import { isSystemVoiceSupported } from "./voice/systemVoice";
-import type { InstalledModel } from "./ollama";
+import type { InstalledModel } from "./llama";
 import type {
   Activity,
   Conversation,

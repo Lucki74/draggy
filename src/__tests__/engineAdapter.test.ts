@@ -10,7 +10,7 @@ describe("engineAdapter", () => {
       expect(isGgufModel("gguf:models/deepseek-r1.gguf")).toBe(true);
     });
 
-    it("rejects non-gguf Ollama models", () => {
+    it("rejects tag-style model names", () => {
       expect(isGgufModel("llama3:8b")).toBe(false);
       expect(isGgufModel("deepseek-r1:7b")).toBe(false);
       expect(isGgufModel("")).toBe(false);

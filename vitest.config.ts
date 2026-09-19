@@ -23,7 +23,7 @@ export default defineConfig({
         "src/greetings.ts",
         "src/modelKinds.ts",
         "src/modelRecommendations.ts",
-        "src/ollama.ts",
+        "src/llama.ts",
         "src/storage.ts",
         "src/toolParsing.ts",
         "src/tools/registry.ts",

@@ -4,7 +4,7 @@
 /** The only two schemes anything on the web is actually served over. */
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
-/** Hosts on this machine or its network: a router panel, a staging box, Ollama itself. Checked
+/** Hosts on this machine or its network: a router panel, a staging box, the engine itself. Checked
  * literally, so a name resolving to 127.0.0.1 still gets through. */
 const PRIVATE_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 
