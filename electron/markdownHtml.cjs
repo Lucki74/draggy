@@ -280,6 +280,25 @@ const PRINT_STYLES = `
   tr { break-inside: avoid; page-break-inside: avoid; }
 `;
 
+// A closing tag with junk before the ">", like </script foo> or one broken across a newline, still
+// ends the element as far as a real browser is concerned; matching only "</script>" exactly let one
+// of those survive the strip with the opening tag intact.
+const SCRIPT_ELEMENT = /<script\b[^<]*(?:(?!<\/script\b)<[^<]*)*<\/script\b[^>]*>/gi;
+
+/** Takes every <script> element out of `html`. Removing one can join the text either side of it into
+ * another (`<scr<script></script>ipt>` leaves `<script>`), so each is replaced by a space, which
+ * separates what was either side of it, and the strip repeats until nothing changes. What is left of a
+ * script tag after that is not a whole element, an unclosed one for instance, and is escaped rather than
+ * left as a tag a browser would run to the end of the page. */
+function stripScripts(html) {
+  let current = String(html ?? "");
+  for (let previous = ""; previous !== current; ) {
+    previous = current;
+    current = current.replace(SCRIPT_ELEMENT, " ");
+  }
+  return current.replace(/<(\/?script)\b/gi, "&lt;$1");
+}
+
 /** The complete page handed to Chromium. Direct HTML is framed with print styles;
  * Markdown is converted block by block. The policy prevents any network fetch. */
 function buildDocument(content, title) {
@@ -287,10 +306,7 @@ function buildDocument(content, title) {
   const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />`;
 
   if (isHtml(content)) {
-    // A closing tag with junk before the ">", like </script foo> or one broken across a
-    // newline, still ends the element as far as a real browser is concerned; matching only
-    // "</script>" exactly let one of those survive the strip with the opening tag intact.
-    const raw = String(content ?? "").replace(/<script\b[^<]*(?:(?!<\/script\b)<[^<]*)*<\/script\b[^>]*>/gi, "");
+    const raw = stripScripts(content);
     if (/<!doctype\b/i.test(raw) || /<html\b/i.test(raw)) {
       if (/<head\b/i.test(raw)) {
         return raw.replace(/<head\b[^>]*>/i, (match) => `${match}\n${csp}\n<style>${PRINT_STYLES}</style>`);

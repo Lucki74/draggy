@@ -217,6 +217,35 @@ describe("HTML content in printable document", () => {
     expect(doc).not.toContain("<script>");
   });
 
+  it("does not let removing one script join the text around it into another", () => {
+    const joined = [
+      "<scr<script></script>ipt>alert(1)</script>",
+      "<scr<script></script><script></script>ipt>alert(1)</script>",
+      "<<script></script>script>alert(1)</script>",
+      "<scr<script>x</script>ipt>alert(1)</scr<script>x</script>ipt>",
+    ];
+
+    for (const html of joined) {
+      const doc = buildDocument(`<h1>Hi</h1>${html}`, "t");
+      expect(doc, html).not.toMatch(/<script/i);
+      expect(doc, html).not.toMatch(/<\/script/i);
+    }
+  });
+
+  it("does not leave an unclosed script tag to run to the end of the page", () => {
+    const doc = buildDocument('<h1>Hi</h1><script>alert("hack")', "t");
+
+    expect(doc).not.toMatch(/<script/i);
+    expect(doc).toContain("&lt;script");
+    expect(doc).toContain("<h1>Hi</h1>");
+  });
+
+  it("leaves ordinary HTML that only mentions scripts alone", () => {
+    const doc = buildDocument("<p>Use a &lt;script&gt; tag, or the word script.</p>", "t");
+
+    expect(doc).toContain("<p>Use a &lt;script&gt; tag, or the word script.</p>");
+  });
+
   it("still strips a script whose closing tag a real browser accepts but this one used to miss", () => {
     // A browser ends the element as soon as it sees "</script" regardless of
     // what junk or whitespace follows before the ">". Requiring exactly
