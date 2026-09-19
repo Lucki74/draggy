@@ -39,10 +39,11 @@ function createLineReader(onMessage) {
       if (!trimmed) continue;
 
       try {
-        onMessage(JSON.parse(trimmed));
+        const parsed = JSON.parse(trimmed);
+        log.debug("mcp:msg", trimmed.slice(0, 300));
+        onMessage(parsed);
       } catch {
-        // Servers write ordinary logging to stdout more often than they should.
-        // A line that is not JSON is not a protocol error worth killing over.
+        log.debug("mcp:stdout", trimmed);
       }
     }
   };
@@ -546,18 +547,19 @@ async function startServer(id, config = {}) {
 
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => {
-    // Kept, capped, and only surfaced when the server fails to start. Most
-    // servers write ordinary startup chatter here.
+    log.debug(`mcp:${id}:err`, chunk.trim());
     if (entry.stderr.length < MAX_STDERR_CHARS) entry.stderr += chunk;
   });
 
   child.on("error", (error) => {
+    log.error("mcp", `Server ${id} process error: ${error.message}`, error);
     entry.status = "error";
     entry.error = error.message;
     settle(error.message);
   });
 
   child.on("exit", (code) => {
+    log.info("mcp", `Server ${id} stopped (exit code: ${code})`);
     running.delete(id);
     entry.status = "stopped";
     settle(`The ${id} server stopped (exit code ${code}).`);
@@ -721,8 +723,13 @@ async function readWidget(entry, uri) {
 async function callTool(serverId, toolName, args, options = {}) {
   const entry = running.get(serverId);
   if (!entry) {
+    log.warn("mcp", `Cannot call tool: server ${serverId} is not running`);
     return { success: false, error: `The ${serverId} server is not running.` };
   }
+
+  const started = Date.now();
+  log.info("mcp", `Calling tool: ${serverId}/${toolName}`);
+  log.debug("mcp", `Tool args: ${serverId}/${toolName}`, args);
 
   try {
     const result = await entry.send(
@@ -732,22 +739,26 @@ async function callTool(serverId, toolName, args, options = {}) {
     );
 
     const text = renderToolResult(result);
+    const durationMs = Date.now() - started;
 
     // `isError` means the tool failed, as distinct from the call failing.
     // Both are worth reporting, and they mean different things.
     if (result?.isError) {
+      log.warn("mcp", `Tool ${serverId}/${toolName} returned error in ${durationMs}ms`);
       return { success: false, error: text || "The tool reported an error." };
     }
 
     const uri = options.widgets ? widgetUri(result) : null;
     const html = uri ? await readWidget(entry, uri) : null;
 
+    log.info("mcp", `Tool ${serverId}/${toolName} completed in ${durationMs}ms`);
     return {
       success: true,
       text: text || (html ? "(the tool answered with a widget)" : "(the tool returned nothing)"),
       ...(html ? { app: { uri, html } } : {}),
     };
   } catch (error) {
+    log.error("mcp", `Tool ${serverId}/${toolName} threw after ${Date.now() - started}ms: ${error.message}`, error);
     return { success: false, error: error.message };
   }
 }

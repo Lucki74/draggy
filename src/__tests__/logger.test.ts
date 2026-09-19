@@ -7,6 +7,11 @@ import {
   logOllamaInference,
   logOllamaMetrics,
   logStreamChunk,
+  logGgufInference,
+  logGgufMetrics,
+  logGgufChunk,
+  logAgentStep,
+  logToolCall,
   newCorrelationId,
 } from "../logger";
 
@@ -142,5 +147,47 @@ describe("ollama turn logging", () => {
     expect(entry.data.content).not.toBe(longPrompt);
     expect(entry.data.content).toContain("200 chars");
     expect(entry.data.model).toBe("llama3");
+  });
+});
+
+describe("gguf and agent turn logging", () => {
+  it("tags gguf inference, metrics and stream chunks with correlation id", () => {
+    const logBatch = stubApi();
+    const id = newCorrelationId();
+
+    logGgufInference({ model: "qwen2.5.gguf", contextSize: 8192 }, id);
+    logGgufChunk("token", id);
+    logGgufMetrics({ tokensPerSecond: 45 }, id);
+    flushLogs();
+
+    const entries = logBatch.mock.calls[0][0];
+    expect(entries.every((entry: { correlationId: string }) => entry.correlationId === id)).toBe(true);
+    expect(entries.map((entry: { context: string }) => entry.context)).toEqual([
+      "gguf",
+      "gguf",
+      "gguf",
+    ]);
+  });
+
+  it("records agent steps and tool execution timings", () => {
+    const logBatch = stubApi();
+    const id = newCorrelationId();
+
+    logAgentStep("turn_start", { model: "llama3" }, id);
+    logToolCall("readFile", "start", { path: "test.txt" }, id);
+    logToolCall("readFile", "complete", { durationMs: 15 }, id);
+    logAgentStep("turn_complete", { loops: 1 }, id);
+    flushLogs();
+
+    const entries = logBatch.mock.calls[0][0];
+    expect(entries).toHaveLength(4);
+    expect(entries[0].context).toBe("agent");
+    expect(entries[0].message).toBe("step:turn_start");
+    expect(entries[1].context).toBe("tools");
+    expect(entries[1].message).toBe("readFile:start");
+    expect(entries[2].context).toBe("tools");
+    expect(entries[2].message).toBe("readFile:complete");
+    expect(entries[3].context).toBe("agent");
+    expect(entries[3].message).toBe("step:turn_complete");
   });
 });

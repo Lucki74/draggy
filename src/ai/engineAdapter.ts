@@ -1,6 +1,7 @@
 import type { GenerationMetrics } from "../ollama";
 import { readLlamaSseStream } from "./llamaStream";
 import type { ParsedToolCall } from "./llamaStream";
+import { logGgufChunk, logGgufInference, logGgufMetrics, logNetwork } from "../logger";
 
 export interface NormalizedTurnChunk {
   content?: string;
@@ -17,6 +18,7 @@ export interface EngineTurnOptions {
   contextSize?: number;
   temperature?: number;
   signal?: AbortSignal;
+  correlationId?: string;
 }
 
 /** Tells whether a model identifier points to a local GGUF file or Ollama tag. */
@@ -41,6 +43,18 @@ export async function streamGgufTurn(
 ): Promise<void> {
   const modelFile = ggufModelName(options.model);
   const contextSize = options.contextSize || 8192;
+  const correlationId = options.correlationId || "gguf-turn";
+
+  logGgufInference(
+    {
+      model: modelFile,
+      contextSize,
+      messageCount: options.messages.length,
+      toolsCount: options.tools?.length || 0,
+      temperature: options.temperature,
+    },
+    correlationId,
+  );
 
   if (typeof window !== "undefined" && window.electronAPI?.gguf) {
     const started = await window.electronAPI.gguf.start({
@@ -63,12 +77,32 @@ export async function streamGgufTurn(
     payload.tools = options.tools;
   }
 
-  const res = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: options.signal,
-  });
+  const fetchStart = performance.now();
+  let res: Response;
+  try {
+    res = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: options.signal,
+    });
+    logNetwork(
+      "http://127.0.0.1:11435/v1/chat/completions",
+      "POST",
+      res.status,
+      performance.now() - fetchStart,
+      correlationId,
+    );
+  } catch (err) {
+    logNetwork(
+      "http://127.0.0.1:11435/v1/chat/completions",
+      "POST",
+      0,
+      performance.now() - fetchStart,
+      correlationId,
+    );
+    throw err;
+  }
 
   if (!res.ok) {
     throw new Error(`GGUF engine returned HTTP ${res.status}`);
@@ -78,6 +112,13 @@ export async function streamGgufTurn(
   if (!reader) throw new Error("Stream reader unavailable");
 
   await readLlamaSseStream(reader, modelFile, contextSize, (chunk) => {
+    if (chunk.content) {
+      logGgufChunk(chunk.content, correlationId);
+    }
+    if (chunk.metrics) {
+      logGgufMetrics(chunk.metrics, correlationId);
+    }
+
     const formattedTools = chunk.toolCalls?.map((t: ParsedToolCall) => ({
       function: { name: t.name, arguments: t.args },
     }));

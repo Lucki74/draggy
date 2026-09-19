@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { IS_WINDOWS, defaultShellEnv, killTree, killTreeSync, spawnHidden } = require("./platform.cjs");
+const { log } = require("./logger.cjs");
 
 /** Commands the model runs in a project: a real shell in the project folder, with no terminal to
  * wait on, stoppable, and output cut to a size a model can read. */
@@ -142,6 +143,8 @@ function run({ id, cwd, command, shell, timeoutMs }) {
   return new Promise((resolve) => {
     let child;
     try {
+      log.info("command", `Spawning: ${command.slice(0, 80)} in ${cwd} (${invocation.shell})`);
+      log.debug("command", `Invocation: ${invocation.file} ${invocation.args.join(" ")}`);
       child = spawnHidden(invocation.file, invocation.args, {
         cwd,
         env,
@@ -150,6 +153,7 @@ function run({ id, cwd, command, shell, timeoutMs }) {
         windowsVerbatimArguments: Boolean(invocation.verbatim),
       });
     } catch (error) {
+      log.error("command", `Spawn failed: ${error.message}`, error);
       resolve({ success: false, error: error.message, shell: invocation.shell });
       return;
     }
@@ -168,21 +172,33 @@ function run({ id, cwd, command, shell, timeoutMs }) {
       }
     };
 
-    child.stdout.on("data", collect);
-    child.stderr.on("data", collect);
+    child.stdout.on("data", (chunk) => {
+      collect(chunk);
+      log.debug("command:out", chunk.toString("utf8").trim());
+    });
+    child.stderr.on("data", (chunk) => {
+      collect(chunk);
+      log.debug("command:err", chunk.toString("utf8").trim());
+    });
 
     const timer = setTimeout(() => {
       timedOut = true;
+      log.warn("command", `Command timed out after ${limit}ms`);
       killTree(child);
     }, limit);
 
     const finish = (result) => {
       clearTimeout(timer);
       if (key && live.get(key) === child) live.delete(key);
-      resolve({ ...result, shell: invocation.shell, durationMs: Date.now() - started });
+      const durationMs = Date.now() - started;
+      log.info("command", `Finished in ${durationMs}ms (exitCode: ${result.exitCode ?? "none"})`);
+      resolve({ ...result, shell: invocation.shell, durationMs });
     };
 
-    child.on("error", (error) => finish({ success: false, error: error.message }));
+    child.on("error", (error) => {
+      log.error("command", `Process error: ${error.message}`, error);
+      finish({ success: false, error: error.message });
+    });
 
     child.on("close", (code, signal) => {
       const clipped = clip(output);
@@ -204,6 +220,7 @@ function cancel(id) {
   const child = live.get(String(id));
   if (!child) return false;
 
+  log.info("command", `Cancelling command: ${id}`);
   child.cancelled = true;
   live.delete(String(id));
   killTree(child);
@@ -212,6 +229,7 @@ function cancel(id) {
 
 /** Kills every command still going, synchronously, for a quit. */
 function stopAll() {
+  log.info("command", `Stopping all ${live.size} running commands`);
   for (const [id, child] of [...live]) {
     live.delete(id);
     child.cancelled = true;
