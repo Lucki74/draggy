@@ -139,11 +139,11 @@ const wait = setInterval(() => {
 describe("shutdown covers every module that starts a process", () => {
   const main = fs.readFileSync(path.join(HERE, "main.cjs"), "utf8");
 
-  it("stops MCP servers, code runs and its own Ollama on the way out", () => {
+  it("stops MCP servers, code runs and the local GGUF server on the way out", () => {
     const shutdown = main.slice(main.indexOf("function shutdown()"));
     const body = shutdown.slice(0, shutdown.indexOf("\n}"));
 
-    for (const call of ["mcp.stopAll()", "runner.stopAll()", "stopOllama"]) {
+    for (const call of ["mcp.stopAll()", "runner.stopAll()", "llamaProcess.stopServerSync()"]) {
       expect(body).toContain(call);
     }
   });
@@ -167,20 +167,15 @@ describe("shutdown covers every module that starts a process", () => {
     expect(body.indexOf("flushWindow(")).toBeLessThan(body.indexOf("shutdown();"));
   });
 
-  it("unloads its models from an Ollama it leaves running", () => {
-    // Kept warm for half an hour otherwise, each one a llama-server.
-    expect(main).toContain('ipcMain.on("model-in-use"');
-    expect(main).toContain("keep_alive: 0");
-  });
-
   it("finishes every kill before Draggy exits", () => {
     // A kill left to run in the background is Draggy's child too, and dies
     // with it before it has done anything.
     const mcp = fs.readFileSync(path.join(HERE, "mcp.cjs"), "utf8");
     const runnerSource = fs.readFileSync(path.join(HERE, "runner.cjs"), "utf8");
+    const llamaSource = fs.readFileSync(path.join(HERE, "llamaProcess.cjs"), "utf8");
     const stopRuns = runnerSource.slice(runnerSource.indexOf("function stopAll()"));
 
-    expect(main).toContain("platform.killTreeSync(child)");
+    expect(llamaSource).toContain("platform.killTreeSync(child)");
     expect(mcp).toContain("stopServer(id, true)");
     expect(stopRuns.slice(0, stopRuns.indexOf("\n}"))).toContain("killTreeSync(child)");
   });
@@ -190,12 +185,6 @@ describe("shutdown covers every module that starts a process", () => {
     // window left open kept the whole app alive with no main window.
     expect(main).toContain('mainWindow.on("closed", closeBrowserWindows)');
     expect(main).toContain('["browsers", closeBrowserWindows]');
-  });
-
-  it("never stops an Ollama it did not start", () => {
-    // Killing a shared service out from under another client would be worse
-    // than leaving it, so only the child Draggy spawned is touched.
-    expect(main).toContain("if (!ollamaStartedHere) return;");
   });
 
   it("kills process trees rather than lone children", () => {

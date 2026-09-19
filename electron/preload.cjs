@@ -18,10 +18,6 @@ ipcRenderer.on("app:flush-saves", async () => {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getSystemSpecs: () => ipcRenderer.invoke("get-system-specs"),
-  checkOllama: () => ipcRenderer.invoke("check-ollama"),
-  startOllama: () => ipcRenderer.invoke("start-ollama"),
-  modelInUse: (name) => ipcRenderer.send("model-in-use", name),
-  installOllama: () => ipcRenderer.invoke("install-ollama"),
   checkInternet: () => ipcRenderer.invoke("check-internet"),
   checkDiskSpace: () => ipcRenderer.invoke("check-disk-space"),
 
@@ -49,6 +45,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   searchModels: (query) => ipcRenderer.invoke("search-models", query),
   modelSize: (name, tag) => ipcRenderer.invoke("model-size", name, tag),
+  resolveModelUrl: (reference) => ipcRenderer.invoke("resolve-model-url", reference),
 
   db: {
     loadChats: () => ipcRenderer.invoke("db:load-chats"),
@@ -189,11 +186,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   gguf: {
     status: () => ipcRenderer.invoke("gguf:status"),
+    setupEngine: () => ipcRenderer.invoke("gguf:setup-engine"),
     start: (options) => ipcRenderer.invoke("gguf:start", options),
     stop: () => ipcRenderer.invoke("gguf:stop"),
     listModels: () => ipcRenderer.invoke("gguf:models"),
     deleteModel: (filename) => ipcRenderer.invoke("gguf:delete", filename),
     downloadModel: (options) => ipcRenderer.invoke("gguf:download", options),
+    cancelDownload: (filename) => ipcRenderer.invoke("gguf:cancel-download", filename),
     onProgress: (callback) => subscribe("gguf:progress", callback),
   },
 
