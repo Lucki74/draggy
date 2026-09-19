@@ -28,6 +28,7 @@ import MessageItem from "./chat/MessageItem";
 import ContextWheel from "./chat/ContextWheel";
 import CrossedIcon from "./chat/CrossedIcon";
 import PermissionPicker from "./chat/PermissionPicker";
+import { useToollessPlan } from "./chat/useToollessPlan";
 import {
   MIN_COMPACT_LIMIT,
   contextDetails,
@@ -256,6 +257,7 @@ export default function ChatScreen({
   // Only when the model has said so: a probe that has not answered yet is not proof of anything.
   const thinkingUnavailable = modelInfo !== null && !modelInfo.capabilities.includes("thinking");
   const toolsUnavailable = needsTextModeTools(modelInfo);
+  useToollessPlan({ active: surface === "code", toolsUnavailable, permissionMode, onPermissionMode });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
