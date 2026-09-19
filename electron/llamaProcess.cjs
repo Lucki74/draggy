@@ -124,7 +124,7 @@ async function launchServer({
   modelPath,
   contextSize = 8192,
   port = 11435,
-  gpuLayers = 99,
+  gpuLayers,
   userDataDir,
   vramGB = 0,
   log,
@@ -167,7 +167,8 @@ async function launchServer({
     "-c", String(effectiveContext),
     "-ctk", cacheType,
     "-ctv", cacheType,
-    "-ngl", String(gpuLayers),
+    // Any -ngl, even 99, disables llama.cpp's --fit, so a model bigger than VRAM spills into shared memory.
+    ...(Number.isInteger(gpuLayers) ? ["-ngl", String(gpuLayers)] : []),
     // One slot: each extra slot multiplies the KV cache and pushes layers back onto the CPU.
     "--parallel", "1",
     "-b", "2048",
@@ -185,7 +186,7 @@ async function launchServer({
   }
 
   try {
-    logger.info("llama", `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, gpuLayers=${gpuLayers}`);
+    logger.info("llama", `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, gpuLayers=${gpuLayers ?? "auto"}`);
     logger.debug("llama", `Spawning ${binaryPath} with args: ${args.join(" ")}`);
 
     const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB) : { env: {} };

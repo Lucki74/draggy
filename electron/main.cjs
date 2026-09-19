@@ -1433,7 +1433,7 @@ ipcMain.handle("gguf:start", async (_event, options = {}) => {
     vramGB: specs?.vram || 0,
     modelPath: targetPath,
     contextSize: options.contextSize || 8192,
-    gpuLayers: options.gpuLayers ?? 99,
+    gpuLayers: options.gpuLayers,
     port: options.port || 11435,
     log,
   });

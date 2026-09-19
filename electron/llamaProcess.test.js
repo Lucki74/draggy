@@ -66,7 +66,8 @@ describe("llamaProcess.startServer", () => {
     expect(flag("-ub")).toBe("512");
     expect(flag("-t")).toBe(String(Math.min(8, os.cpus().length)));
     expect(flag("--cache-reuse")).toBe("256");
-    expect(flag("-ngl")).toBe("99");
+    // Passing -ngl at all switches off llama.cpp's --fit, which is what keeps a big model off shared memory.
+    expect(args).not.toContain("-ngl");
     expect(flag("--host")).toBe("127.0.0.1");
     expect(args).toContain("--jinja");
     // A bare -fa would swallow the next flag as its value on current llama.cpp builds.
@@ -176,6 +177,24 @@ describe("llamaProcess.startServer failures", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("passes -ngl only when the caller asks for a layer count, so --fit decides otherwise", async () => {
+    vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
+    const spawn = vi.spyOn(platform, "spawnHidden").mockImplementation(() => fakeChild());
+    const launch = async (gpuLayers) => {
+      const before = spawn.mock.calls.length;
+      const pending = llamaProcess.startServer({ binaryPath: "llama-server", modelPath: "m.gguf", gpuLayers, port: await freePort(), log: quiet });
+      await vi.waitFor(() => expect(spawn.mock.calls.length).toBe(before + 1));
+      const args = spawn.mock.calls.at(-1)[1];
+      llamaProcess.stopServerSync();
+      await pending;
+      return args;
+    };
+
+    expect(await launch(undefined)).not.toContain("-ngl");
+    const args = await launch(20);
+    expect(args[args.indexOf("-ngl") + 1]).toBe("20");
   });
 
   it("reports why the engine stopped as soon as it does, not after the health check times out", async () => {
