@@ -6,23 +6,17 @@ export interface ModelRecommendation {
 }
 
 /** Enough about the machine to pick a ladder, and nothing else. Kept as plain data so the choice
- * can be tested without a Mac, a card or a running Ollama. */
+ * can be tested without a Mac or a card. */
 export interface RuntimeTarget {
   platform?: string;
   arch?: string;
-  ollamaVersion?: string | null;
-  /** Total system memory in GB, the number a spec sheet shows. On a PC it raises or caps the
-   * choice VRAM alone would make; on a Mac, with no separate VRAM, it is the whole budget. */
   ram?: number;
-  /** os.cpus()[0].model, e.g. "Apple M2 Pro". Only the Mac branch reads it, to tell a base chip
-   * from the wider-bandwidth Pro, Max and Ultra dies that ship with the same memory sizes. */
   cpuModel?: string;
+  ollamaVersion?: string | null;
 }
 
-export const MLX_MIN_OLLAMA = [0, 19];
-
-/** Ollama has to read the whole model into RAM before the GPU can use any of it, so a machine
- * short on system memory cannot run a model its VRAM alone would suggest. */
+/** The GGUF engine has to read the whole model into RAM before the GPU can use any of it, so a
+ * machine short on system memory cannot run a model its VRAM alone would suggest. */
 export const USABLE_RAM_FRACTION = 0.8;
 
 /** No dedicated GPU still means a real machine with a real CPU: floor the choice on a slice of
@@ -41,19 +35,6 @@ export function chipClassOf(cpuModel: string | null | undefined): ChipClass {
   return variant === "pro" || variant === "max" || variant === "ultra" ? variant : "base";
 }
 
-/** Raw unified memory, the number printed on the box: every configuration Apple has actually
- * sold since the first M1 in 2020, rounded to where the ladder needs a rung. */
-export const mlxLadder: ModelRecommendation[] = [
-  { vram: 8.0,   model: "qwen3.5:2b-mlx",           label: "Qwen 3.5 2B",     params: "2B"      },
-  { vram: 16.0,  model: "qwen3.5:4b-mlx",           label: "Qwen 3.5 4B",     params: "4B"      },
-  { vram: 24.0,  model: "qwen3.5:9b-mlx",           label: "Qwen 3.5 9B",     params: "9B"      },
-  { vram: 32.0,  model: "qwen3.5:27b-mlx",          label: "Qwen 3.5 27B",    params: "27B MoE" },
-  { vram: 48.0,  model: "gemma4:31b-mlx",           label: "Gemma 4 31B",     params: "31B"     },
-  { vram: 64.0,  model: "qwen3.5:35b-mlx",          label: "Qwen 3.5 35B",    params: "35B MoE" },
-  { vram: 96.0,  model: "glm-4.7-flash:latest-mlx", label: "GLM 4.7 Flash",   params: "30B MoE" },
-  { vram: 128.0, model: "qwen3.5:122b-mlx",         label: "Qwen 3.5 122B",   params: "122B MoE"},
-];
-
 export const ggufLadder: ModelRecommendation[] = [
   { vram: 2.0,  model: "qwen3.5:0.8b",         label: "Qwen 3.5 0.8B",      params: "0.8B"     },
   { vram: 4.0,  model: "qwen3.5:2b",           label: "Qwen 3.5 2B",        params: "2B"       },
@@ -70,35 +51,21 @@ export const ggufLadder: ModelRecommendation[] = [
   { vram: 96.0, model: "qwen3.5:122b",         label: "Qwen 3.5 122B",      params: "122B MoE" },
 ];
 
-/** Kept as the name the rest of the app knows: the ladder for a plain PC. */
+/** Kept as the name the rest of the app knows: there is only the one ladder now, since the GGUF
+ * engine cannot load anything else. */
 export const modelRecommendations = ggufLadder;
+export const mlxLadder: ModelRecommendation[] = ggufLadder;
 
-function atLeast(version: string | null | undefined, minimum: number[]): boolean {
-  if (!version) return false;
-
-  const parts = version.trim().replace(/^v/i, "").split(/[.\-+]/);
-
-  for (let index = 0; index < minimum.length; index++) {
-    const part = Number.parseInt(parts[index] ?? "", 10);
-    if (Number.isNaN(part)) return false;
-    if (part !== minimum[index]) return part > minimum[index];
-  }
-
-  return true;
+export function supportsMlx(_target?: RuntimeTarget): boolean {
+  return false;
 }
 
-/** MLX is Apple's framework and needs Apple's silicon: an Intel Mac has no unified memory and runs
- * the same GGUF builds a PC does. */
-export function supportsMlx(target: RuntimeTarget = {}): boolean {
-  return (
-    target.platform === "darwin" &&
-    target.arch === "arm64" &&
-    atLeast(target.ollamaVersion, MLX_MIN_OLLAMA)
-  );
+export function ladderFor(_target?: RuntimeTarget): ModelRecommendation[] {
+  return ggufLadder;
 }
 
-export function ladderFor(target: RuntimeTarget = {}): ModelRecommendation[] {
-  return supportsMlx(target) ? mlxLadder : ggufLadder;
+function isAppleSilicon(target: RuntimeTarget): boolean {
+  return target.platform === "darwin" && target.arch === "arm64";
 }
 
 /** What the ladder is climbed against. A Mac with its memory known ignores the VRAM argument
@@ -107,7 +74,7 @@ export function ladderFor(target: RuntimeTarget = {}): ModelRecommendation[] {
 function effectiveBudget(vram: number, target: RuntimeTarget): number {
   const safeVram = Number.isFinite(vram) && vram > 0 ? vram : 0;
 
-  if (supportsMlx(target)) {
+  if (isAppleSilicon(target)) {
     return target.ram && target.ram > 0 ? target.ram : safeVram;
   }
 
@@ -119,7 +86,7 @@ function effectiveBudget(vram: number, target: RuntimeTarget): number {
 }
 
 export function getRecommendedModel(vram: number, target: RuntimeTarget = {}): string {
-  const ladder = ladderFor(target);
+  const ladder = ggufLadder;
   const budget = effectiveBudget(vram, target);
 
   const climbing = [...ladder].sort((a, b) => a.vram - b.vram);
@@ -129,8 +96,81 @@ export function getRecommendedModel(vram: number, target: RuntimeTarget = {}): s
   // A wide-bandwidth Max or Ultra die pushes the same memory size through the model a base or Pro
   // chip would only just manage, so it takes the rung above what the raw number alone affords.
   const index = climbing.indexOf(affordable[affordable.length - 1]);
-  const chipClass = supportsMlx(target) ? chipClassOf(target.cpuModel) : "base";
+  const chipClass = isAppleSilicon(target) ? chipClassOf(target.cpuModel) : "base";
   const bump = chipClass === "max" || chipClass === "ultra" ? 1 : 0;
 
   return climbing[Math.min(index + bump, climbing.length - 1)].model;
+}
+
+export interface RecommendedDownload {
+  model: string;
+  label: string;
+  filename: string;
+  url: string;
+  size: number;
+}
+
+export const RECOMMENDED_DOWNLOADS: Record<
+  string,
+  { filename: string; url: string; size: number }
+> = {
+  "qwen3.5:0.8b": {
+    filename: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    url: "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true",
+    size: 398000000,
+  },
+  "qwen3.5:2b": {
+    filename: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    url: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true",
+    size: 986000000,
+  },
+  "gemma4:e4b": {
+    filename: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+    url: "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf?download=true",
+    size: 2020000000,
+  },
+  "mistral:7b": {
+    filename: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+    url: "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf?download=true",
+    size: 4370000000,
+  },
+  "qwen3.5:9b": {
+    filename: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+    url: "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+    size: 4920733696,
+  },
+  "gemma4:12b": {
+    filename: "phi-4-Q4_K_M.gguf",
+    url: "https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf?download=true",
+    size: 9140000000,
+  },
+  "phi4:14b": {
+    filename: "phi-4-Q4_K_M.gguf",
+    url: "https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf?download=true",
+    size: 9140000000,
+  },
+};
+
+const DEFAULT_DOWNLOAD = {
+  filename: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+  url: "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+  size: 4920733696,
+};
+
+/** Resolves a recommended Hugging Face download package sized for the machine's hardware. */
+export function getRecommendedDownload(
+  vram: number,
+  target: RuntimeTarget = {},
+): RecommendedDownload {
+  const modelName = getRecommendedModel(vram, target);
+  const ladderEntry = ggufLadder.find((entry) => entry.model === modelName);
+  const download = RECOMMENDED_DOWNLOADS[modelName] || DEFAULT_DOWNLOAD;
+
+  return {
+    model: modelName,
+    label: ladderEntry?.label || "Recommended Model",
+    filename: download.filename,
+    url: download.url,
+    size: download.size,
+  };
 }

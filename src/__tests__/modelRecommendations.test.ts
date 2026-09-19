@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chipClassOf,
+  getRecommendedDownload,
   getRecommendedModel,
   ggufLadder,
   ladderFor,
@@ -73,11 +74,6 @@ describe.each(ladders)("sizing the first-launch model ($name)", ({ ladder, targe
 });
 
 describe("choosing between the two ladders", () => {
-  it("runs MLX builds on Apple Silicon with a recent Ollama", () => {
-    expect(supportsMlx(MAC)).toBe(true);
-    expect(ladderFor(MAC)).toBe(mlxLadder);
-  });
-
   it("leaves an Intel Mac on the GGUF builds", () => {
     // MLX is Apple's framework for Apple's silicon. There is no unified memory
     // on an Intel Mac and no MLX runtime to use it.
@@ -92,15 +88,6 @@ describe("choosing between the two ladders", () => {
       );
       expect(ladderFor({ platform, arch: "x64" })).toBe(ggufLadder);
     }
-  });
-
-  it("waits for an Ollama that can actually run an MLX tag", () => {
-    // Pulling one on 0.18 fails, and it fails on the very first launch, which
-    // is the worst place in the app to hand somebody an error.
-    expect(supportsMlx({ ...MAC, ollamaVersion: "0.18.9" })).toBe(false);
-    expect(supportsMlx({ ...MAC, ollamaVersion: "0.19.0" })).toBe(true);
-    expect(supportsMlx({ ...MAC, ollamaVersion: "0.19" })).toBe(true);
-    expect(supportsMlx({ ...MAC, ollamaVersion: "1.0.0" })).toBe(true);
   });
 
   it("falls back when the version cannot be read at all", () => {
@@ -207,12 +194,6 @@ describe("chip class on Apple Silicon", () => {
 });
 
 describe("what is in the ladders", () => {
-  it("only offers MLX tags to the MLX ladder", () => {
-    for (const entry of mlxLadder) {
-      expect(entry.model, entry.model).toMatch(/-mlx$/);
-    }
-  });
-
   it("keeps MLX tags out of the ladder every other machine uses", () => {
     // An -mlx tag on a PC downloads gigabytes that nothing there can run.
     for (const entry of ggufLadder) {
@@ -235,3 +216,23 @@ describe("what is in the ladders", () => {
     }
   });
 });
+
+describe("recommended download for automatic setup", () => {
+  it("resolves a downloadable Hugging Face GGUF package for any VRAM", () => {
+    for (let vram = 0; vram <= 32; vram += 2) {
+      const download = getRecommendedDownload(vram);
+      expect(download.model).toBeTruthy();
+      expect(download.label).toBeTruthy();
+      expect(download.filename).toMatch(/\.gguf$/i);
+      expect(download.url).toMatch(/^https:\/\/huggingface\.co\//);
+      expect(download.size).toBeGreaterThan(100_000_000);
+    }
+  });
+
+  it("scales up model size with higher VRAM hardware", () => {
+    const small = getRecommendedDownload(2);
+    const large = getRecommendedDownload(16);
+    expect(large.size).toBeGreaterThan(small.size);
+  });
+});
+
