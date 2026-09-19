@@ -55,10 +55,10 @@ export default function App() {
       // Loading the weights takes seconds, and the first message is where that
       // hurts most. Sized for an empty chat; typing into a long one warms again.
       if (!isCloudModel(selectedModel)) {
-        warmModel(selectedModel, KEEP_ALIVE).catch(() => undefined);
+        warmModel(selectedModel, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
       }
     },
-    [setSettings],
+    [setSettings, settings.fixedContextSize],
   );
 
   if (isSplashMode) {
@@ -77,6 +77,14 @@ export default function App() {
   }
 
   if (!model) {
+    if (window.electronAPI) {
+      return (
+        <div
+          className="w-screen h-screen overflow-hidden flex items-center justify-center bg-[var(--bg-base)] text-[var(--text-main)]"
+        />
+      );
+    }
+
     return (
       <div
         className="w-screen h-screen overflow-hidden flex"

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
+import InView from "./chat/InView";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -50,6 +51,7 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
+  FALLBACK_CONTEXT_LENGTH,
   getModelInfo,
   isCloudModel,
   listInstalledModels,
@@ -121,7 +123,7 @@ const canDecodeImage = async (file: File): Promise<boolean> => {
 const MODEL_CAPABILITIES = [
   { id: "tools", label: "capabilityTools" },
   { id: "vision", label: "capabilityVision" },
-  { id: "thinking", label: "thinking" },
+  { id: "thinking", label: "capabilityThinking" },
 ];
 
 /** One shared empty list, so a screen without skills does not see a new one every render. */
@@ -789,7 +791,7 @@ export default function ChatScreen({
         allowLoad: true,
       }).catch(() => undefined);
     } else {
-      warmModel(model, KEEP_ALIVE).catch(() => undefined);
+      warmModel(model, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
     }
     // Only the first keystroke for a model loads it; later ones are counted above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -847,7 +849,11 @@ export default function ChatScreen({
     breakdown: contextBreakdown,
     draftTokens,
     exact: exactFigure,
-    windowTokens: windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+    windowTokens: settings.fixedContextSize === "max"
+      ? (modelInfo?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
+      : typeof settings.fixedContextSize === "number"
+      ? settings.fixedContextSize
+      : windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
     limitTokens: settings.compactLimit ?? null,
     details: contextDetails(parts, loadedSkillNames),
   });
@@ -929,34 +935,40 @@ export default function ChatScreen({
         )}
 
         {chat.messages.map((msg, idx) => (
-          <ErrorBoundary key={msg.id}>
-            {/* Messages above are folded into notes: still shown and searchable, but the model reads
-                the summary. Saying so turns "it forgot" into "it condensed". */}
-            {chat.compaction?.throughIndex === idx && (
-              <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[var(--border-light)]" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap">
-                  {t("earlierCondensed")}
-                </span>
-                <div className="h-px flex-1 bg-[var(--border-light)]" />
-              </div>
-            )}
-            <MessageItem
-              chatId={chat.id}
-              msg={msg}
-              idx={idx}
-              isGenerating={chat.isGenerating}
-              isLast={idx === chat.messages.length - 1}
-              onRegenerate={onRegenerate}
-              onSwitchVersion={onSwitchVersion}
-              copiedIndex={copiedIndex}
-              copyToClipboard={copyToClipboard}
-              settings={settings}
-              onEditMessage={onEditMessage}
-              onApproval={onApproval}
-              onRevert={onRevert}
-            />
-          </ErrorBoundary>
+          <InView
+            key={msg.id}
+            estimatedHeight={100}
+            forceRender={idx === chat.messages.length - 1 && chat.isGenerating}
+          >
+            <ErrorBoundary>
+              {/* Messages above are folded into notes: still shown and searchable, but the model reads
+                  the summary. Saying so turns "it forgot" into "it condensed". */}
+              {chat.compaction?.throughIndex === idx && (
+                <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[var(--border-light)]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap">
+                    {t("earlierCondensed")}
+                  </span>
+                  <div className="h-px flex-1 bg-[var(--border-light)]" />
+                </div>
+              )}
+              <MessageItem
+                chatId={chat.id}
+                msg={msg}
+                idx={idx}
+                isGenerating={chat.isGenerating}
+                isLast={idx === chat.messages.length - 1}
+                onRegenerate={onRegenerate}
+                onSwitchVersion={onSwitchVersion}
+                copiedIndex={copiedIndex}
+                copyToClipboard={copyToClipboard}
+                settings={settings}
+                onEditMessage={onEditMessage}
+                onApproval={onApproval}
+                onRevert={onRevert}
+              />
+            </ErrorBoundary>
+          </InView>
         ))}
         <div ref={messagesEndRef} />
       </div>

@@ -192,3 +192,39 @@ describe("erasing data", () => {
     expect(onClearSessions).not.toHaveBeenCalled();
   });
 });
+
+describe("context window settings", () => {
+  it("offers Automatic, Max, and bucket sizes", async () => {
+    const { onUpdate } = renderSettings("models");
+
+    const trigger = screen.getByRole("button", { name: "Context window" });
+    await act(async () => trigger.click());
+
+    const options = screen.getAllByRole("option");
+    const optionLabels = options.map((opt) => opt.textContent?.trim());
+
+    expect(optionLabels[0]).toBe("Automatic");
+    expect(optionLabels[1]).toBe("Max");
+    expect(optionLabels).toContain("32k");
+
+    await act(async () => {
+      const maxOption = options.find((opt) => opt.textContent?.includes("Max"));
+      maxOption?.click();
+    });
+    expect(onUpdate).toHaveBeenCalledWith({ fixedContextSize: "max" });
+
+    await act(async () => trigger.click());
+    await act(async () => {
+      const bucketOption = screen.getAllByRole("option").find((opt) => opt.textContent?.includes("32k"));
+      bucketOption?.click();
+    });
+    expect(onUpdate).toHaveBeenCalledWith({ fixedContextSize: 32768 });
+
+    await act(async () => trigger.click());
+    await act(async () => {
+      const autoOption = screen.getAllByRole("option").find((opt) => opt.textContent?.includes("Automatic"));
+      autoOption?.click();
+    });
+    expect(onUpdate).toHaveBeenCalledWith({ fixedContextSize: null });
+  });
+});
