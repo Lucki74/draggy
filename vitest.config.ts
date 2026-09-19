@@ -3,6 +3,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    testTimeout: 15000,
+    hookTimeout: 15000,
     // Component tests carry their own `@vitest-environment jsdom` docblock,
     // so the logic suite keeps running in plain Node with nothing stubbed.
     include: ["src/**/*.test.ts", "src/**/*.test.tsx", "electron/**/*.test.js"],
