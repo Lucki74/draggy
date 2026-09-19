@@ -335,3 +335,8 @@ body.browser-bar {
     color: transparent;
     -webkit-text-fill-color: transparent;
 }
+
+.render-viewport-only {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 24px;
+}

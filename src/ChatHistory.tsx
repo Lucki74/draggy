@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { CodeXml, Download, Search, MessageSquare, Trash } from "lucide-react";
 import type { ChatSession, AppSettings } from "./types";
+import InView from "./chat/InView";
 import { translations } from "./translations";
 import { plainPreview } from "./utils";
 
@@ -84,52 +85,53 @@ export default function ChatHistory({
             </div>
           ) : (
             filteredSessions.map((session) => (
-              <div
-                key={session.id}
-                onClick={() => onSelectChat(session.id)}
-                className="group relative flex flex-col p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] hover:bg-[var(--hover-bg)] hover:border-[var(--text-main)] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center space-x-3">
-                    {surface === "code" ? (
-                      <CodeXml className="w-4 h-4 text-[var(--text-main)]" />
-                    ) : (
-                      <MessageSquare className="w-4 h-4 text-[var(--text-main)]" />
-                    )}
-                    <h2 className="text-base font-bold text-[var(--text-main)] truncate">
-                      {session.title}
-                    </h2>
-                  </div>
-                  {/* The row itself opens the conversation, so an action on it has to keep its
-                    * click rather than doing both things at once. */}
-                  <div
-                    className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {onExportChat && (
-                      <button
-                        onClick={(e) => onExportChat(e, session.id)}
-                        title={t("exportChat")}
-                        aria-label={t("exportChat")}
-                        className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => onDeleteChat(e, session.id)}
-                      title={t("delete")}
-                      aria-label={t("delete")}
-                      className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+              <InView key={session.id} estimatedHeight={84}>
+                <div
+                  onClick={() => onSelectChat(session.id)}
+                  className="group relative flex flex-col p-4 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] hover:bg-[var(--hover-bg)] hover:border-[var(--text-main)] transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center space-x-3">
+                      {surface === "code" ? (
+                        <CodeXml className="w-4 h-4 text-[var(--text-main)]" />
+                      ) : (
+                        <MessageSquare className="w-4 h-4 text-[var(--text-main)]" />
+                      )}
+                      <h2 className="text-base font-bold text-[var(--text-main)] truncate">
+                        {session.title}
+                      </h2>
+                    </div>
+                    {/* The row itself opens the conversation, so an action on it has to keep its
+                      * click rather than doing both things at once. */}
+                    <div
+                      className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Trash className="w-4 h-4" />
-                    </button>
+                      {onExportChat && (
+                        <button
+                          onClick={(e) => onExportChat(e, session.id)}
+                          title={t("exportChat")}
+                          aria-label={t("exportChat")}
+                          className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => onDeleteChat(e, session.id)}
+                        title={t("delete")}
+                        aria-label={t("delete")}
+                        className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[var(--text-muted)] text-[13px] font-medium line-clamp-2 leading-relaxed">
+                    {getFirstAiResponse(session)}
                   </div>
                 </div>
-                <div className="text-[var(--text-muted)] text-[13px] font-medium line-clamp-2 leading-relaxed">
-                  {getFirstAiResponse(session)}
-                </div>
-              </div>
+              </InView>
             ))
           )}
         </div>
