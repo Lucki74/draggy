@@ -262,7 +262,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                     ...(entry.url ? { url: entry.url, name: entry.name } : {}),
                   });
                   if (res && !res.success) {
-                    setRegistryError(res.error || "Could not add server");
+                    setRegistryError(res.error || t("couldNotAddServer"));
                     return;
                   }
                   setRegistryError(null);
