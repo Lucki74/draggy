@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { readPdf, pageText, extractText } = require("./documents.cjs");
@@ -89,10 +89,16 @@ describe("pageText", () => {
 });
 
 describe("readPdf", () => {
+  // The first read imports pdf.js, which took 25s on a loaded CI runner. Pay that once here
+  // with its own budget so no single test inherits it.
+  beforeAll(async () => {
+    await readPdf(makePdf([["warm up"]]));
+  }, 120_000);
+
   it("reads the text of a single page", async () => {
     const text = await readPdf(makePdf([["Hello Draggy"]]));
     expect(text).toContain("Hello Draggy");
-  }, 30_000);
+  });
 
   it("marks each page so a passage can say where it came from", async () => {
     const text = await readPdf(makePdf([["First page"], ["Second page"]]));
