@@ -1,7 +1,9 @@
 const semver = require("semver");
 const { log } = require("./logger.cjs");
 
-const { owner: REPO_OWNER, repo: REPO_NAME } = require("../package.json").build.publish[0];
+/** electron-builder strips the build block from the packaged package.json, so these are literal. */
+const REPO_OWNER = "Lucki74";
+const REPO_NAME = "draggy";
 
 /** Checks after launch and every few hours, downloads in the background, installs on quit. The
  * first check is late: launch already competes for the network. */
