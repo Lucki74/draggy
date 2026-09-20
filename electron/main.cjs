@@ -1434,7 +1434,7 @@ ipcMain.handle("gguf:start", async (_event, options = {}) => {
   const binary = binaryManager.findLlamaBinary(app.getPath("userData"));
   if (!binary) {
     log.error("ipc", "gguf:start failed: llama-server binary not found");
-    return { success: false, error: "llama-server binary not found" };
+    return { success: false, error: "llama-server binary not found", kind: "engine-missing" };
   }
   const targetPath = path.isAbsolute(options.modelPath || "")
     ? options.modelPath

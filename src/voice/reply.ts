@@ -1,6 +1,7 @@
 import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
-import { sseToLlamaChunks } from "../ai/llamaStream";
+import { engineFailure, engineUnreachable } from "../ai/engineErrors";
+import { ggufErrorMessage, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
 
@@ -116,7 +117,7 @@ async function streamVoice(options: StreamOptions): Promise<void> {
   if (typeof window !== "undefined" && window.electronAPI?.gguf) {
     const started = await window.electronAPI.gguf.start({ modelPath: ggufModelName(options.model) });
     if (!started?.success && !started?.alreadyRunning) {
-      throw new Error(started?.error || "Could not start local GGUF model");
+      throw new Error(engineFailure(started));
     }
   }
 
@@ -133,9 +134,12 @@ async function streamVoice(options: StreamOptions): Promise<void> {
     signal: options.signal,
   });
 
-  if (!response.ok) throw new Error(`GGUF engine returned ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(engineFailure(ggufErrorMessage(body, response.statusText || `HTTP ${response.status}`)));
+  }
   const reader = response.body?.getReader();
-  if (!reader) throw new Error("GGUF engine sent no response stream");
+  if (!reader) throw new Error(engineUnreachable());
 
   for await (const chunk of sseToLlamaChunks(reader)) {
     const delta = chunk.message?.content;

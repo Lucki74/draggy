@@ -9,6 +9,7 @@ import {
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
+  noteEngineStart,
   llamaIsBusy,
   onLlamaWork,
   peekContextSize,
@@ -47,6 +48,7 @@ import {
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
 import { ggufModelName } from "../ai/engineAdapter";
+import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { ggufErrorMessage, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import {
   annotationsFor,
@@ -944,8 +946,9 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           contextSize: numCtx,
         });
         if (!started?.success && !started?.alreadyRunning) {
-          throw new Error(started?.error || "Could not start local GGUF model");
+          throw new Error(engineFailure(started, { markdown: true }));
         }
+        noteEngineStart(model, started);
       }
 
       const requestBody = JSON.stringify({
@@ -975,14 +978,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       } catch (error) {
         // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
         if (error instanceof TypeError) {
-          throw new Error("Failed to connect to local GGUF engine at http://127.0.0.1:11435", { cause: error });
+          throw new Error(engineUnreachable({ markdown: true }), { cause: error });
         }
         throw error;
       }
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GGUF Error: ${ggufErrorMessage(errorText, response.statusText)}`);
+        throw new Error(engineFailure(ggufErrorMessage(errorText, response.statusText), { markdown: true }));
       }
 
       const reader = response.body?.getReader();

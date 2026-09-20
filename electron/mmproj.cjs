@@ -17,10 +17,28 @@ function isCompanionFile(name) {
   return /mmproj/i.test(String(name));
 }
 
+/** Projectors the engine has refused this session. Keyed by size and modification time as well as path,
+ * so downloading the file again gets it another try. */
+const refused = new Set();
+
+function stampOf(file) {
+  try {
+    const stat = fs.statSync(file);
+    return `${file}|${stat.size}|${stat.mtimeMs}`;
+  } catch {
+    return file;
+  }
+}
+
+/** Remembers that the engine could not load this projector, so the model stops claiming to read images. */
+function markRefused(file) {
+  refused.add(stampOf(file));
+}
+
 /** The projector that sits beside this model, or null when it cannot read images. */
 function findCompanion(modelsDir, filename) {
   const candidate = path.join(modelsDir, companionName(filename));
-  return fs.existsSync(candidate) ? candidate : null;
+  return fs.existsSync(candidate) && !refused.has(stampOf(candidate)) ? candidate : null;
 }
 
-module.exports = { companionName, isCompanionFile, findCompanion };
+module.exports = { companionName, isCompanionFile, findCompanion, markRefused };

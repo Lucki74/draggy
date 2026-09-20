@@ -152,6 +152,22 @@ export function forgetModelInfo(model: string) {
   modelInfoCache.delete(model);
 }
 
+const modelInfoListeners = new Set<() => void>();
+
+/** Runs when what a model can do has changed under a screen that already asked. Returns the way to stop. */
+export function onModelInfoChange(listener: () => void): () => void {
+  modelInfoListeners.add(listener);
+  return () => modelInfoListeners.delete(listener);
+}
+
+/** Whether an image projector's refusal at start-up should take vision off this model. The listing
+ * cannot know: only the engine can say whether it reads the projector beside a model. */
+export function noteEngineStart(model: string, started?: { projectorRefused?: boolean } | null) {
+  if (!started?.projectorRefused) return;
+  forgetModelInfo(model);
+  for (const listener of modelInfoListeners) listener();
+}
+
 export function hasCapability(
   info: ModelInfo | null,
   capability: string,
@@ -413,10 +429,11 @@ export async function warmModel(
     fixedContext,
   );
 
-  await window.electronAPI?.gguf?.start({
+  const started = await window.electronAPI?.gguf?.start({
     modelPath: bareModelName(name),
     contextSize: numCtx,
   });
+  noteEngineStart(name, started);
 }
 
 export async function deleteModel(name: string): Promise<void> {

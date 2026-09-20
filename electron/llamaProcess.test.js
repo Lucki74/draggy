@@ -9,6 +9,7 @@ import fs from "node:fs";
 const require = createRequire(import.meta.url);
 const platform = require("./platform.cjs");
 const llamaProcess = require("./llamaProcess.cjs");
+const mmproj = require("./mmproj.cjs");
 
 const quiet = { info() {}, debug() {}, warn() {}, error() {} };
 
@@ -162,6 +163,8 @@ describe("llamaProcess.startServer failures", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("big-Q4_K_M-00002-of-00003.gguf");
       expect(result.error).toContain("big-Q4_K_M-00003-of-00003.gguf");
+      expect(result.kind).toBe("parts-missing");
+      expect(result.params.parts).toBe("big-Q4_K_M-00002-of-00003.gguf, big-Q4_K_M-00003-of-00003.gguf");
       expect(spawn).not.toHaveBeenCalled();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -253,6 +256,10 @@ describe("llamaProcess.startServer failures", () => {
       expect(launches).toHaveLength(2);
       expect(launches[0]).toContain("--mmproj");
       expect(launches[1]).not.toContain("--mmproj");
+
+      // The caller is told, and the projector is no longer counted as one the model has.
+      expect(result.projectorRefused).toBe(true);
+      expect(mmproj.findCompanion(dir, "seer.gguf")).toBeNull();
     } finally {
       llamaProcess.stopServerSync();
       await new Promise((resolve) => health.close(resolve));
@@ -276,6 +283,11 @@ describe("llamaProcess.startServer failures", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("exit code 1");
     expect(result.error).toContain("no such tensor");
+
+    // The app words this in the reader's language from the kind, not from the English above.
+    expect(result.kind).toBe("stopped-loading");
+    expect(result.params).toMatchObject({ model: "m.gguf", code: "1" });
+    expect(result.params.reason).toContain("no such tensor");
   });
 
   it("gives up on a start that another model replaced, and leaves the newer engine running", async () => {
@@ -292,6 +304,7 @@ describe("llamaProcess.startServer failures", () => {
     const result = await older;
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/another model/i);
+    expect(result.kind).toBe("another-model");
     expect(kill).toHaveBeenCalledTimes(1);
     expect(kill).toHaveBeenCalledWith(first);
     expect(llamaProcess.getServerStatus().model).toBe("b.gguf");

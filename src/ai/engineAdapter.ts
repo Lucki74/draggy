@@ -1,5 +1,6 @@
 import type { GenerationMetrics } from "../llama";
-import { readLlamaSseStream } from "./llamaStream";
+import { engineFailure } from "./engineErrors";
+import { ggufErrorMessage, readLlamaSseStream } from "./llamaStream";
 import type { ParsedToolCall } from "./llamaStream";
 import { logGgufChunk, logGgufInference, logGgufMetrics, logNetwork } from "../logger";
 
@@ -62,7 +63,7 @@ export async function streamGgufTurn(
       contextSize,
     });
     if (!started.success && !started.alreadyRunning) {
-      throw new Error(started.error || "Could not start local GGUF runtime");
+      throw new Error(engineFailure(started));
     }
   }
 
@@ -105,7 +106,8 @@ export async function streamGgufTurn(
   }
 
   if (!res.ok) {
-    throw new Error(`GGUF engine returned HTTP ${res.status}`);
+    const body = typeof res.text === "function" ? await res.text().catch(() => "") : "";
+    throw new Error(engineFailure(ggufErrorMessage(body, res.statusText || `HTTP ${res.status}`)));
   }
 
   const reader = res.body?.getReader();

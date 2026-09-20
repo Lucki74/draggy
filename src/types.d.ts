@@ -1107,7 +1107,17 @@ declare global {
           contextSize?: number;
           gpuLayers?: number;
           port?: number;
-        }) => Promise<{ success: boolean; port?: number; error?: string; alreadyRunning?: boolean }>;
+        }) => Promise<{
+          success: boolean;
+          port?: number;
+          error?: string;
+          alreadyRunning?: boolean;
+          /** The engine could not read the model's image projector, so the model runs without vision. */
+          projectorRefused?: boolean;
+          /** Which failure this is, so the reader is told in their own language. */
+          kind?: string;
+          params?: Record<string, string>;
+        }>;
         stop: () => Promise<{ success: boolean }>;
         listModels: () => Promise<{
           name: string;

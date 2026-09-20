@@ -59,6 +59,7 @@ import {
   isCloudModel,
   listInstalledModels,
   needsTextModeTools,
+  onModelInfoChange,
   warmModel,
   windowCeiling,
 } from "./llama";
@@ -293,9 +294,13 @@ export default function ChatScreen({
     };
     probe(0);
 
+    // Starting the model can show it reads fewer things than its files promised.
+    const stopListening = onModelInfoChange(() => probe(0));
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      stopListening();
     };
   }, [model]);
 

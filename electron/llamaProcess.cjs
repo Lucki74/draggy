@@ -142,6 +142,8 @@ async function launchServer(options) {
     return {
       success: false,
       error: `${path.basename(modelPath)} is one of ${total} parts and ${missing.length} ${missing.length === 1 ? "is" : "are"} missing (${missing.join(", ")}). Delete it and download the model again to get every part.`,
+      kind: "parts-missing",
+      params: { model: path.basename(modelPath), parts: missing.join(", ") },
     };
   }
 
@@ -252,22 +254,33 @@ async function launchServer(options) {
         // A projector this engine cannot read must not take the text side of the model down with it.
         if (projector && /multimodal|mmproj|clip_init|mtmd/i.test(recent.join("\n"))) {
           logger.warn("llama", `The image projector was refused (${reason}); starting ${path.basename(modelPath)} without image support`);
-          return launchServer({ ...options, skipProjector: true });
+          mmproj.markRefused(projector);
+          const fallback = await launchServer({ ...options, skipProjector: true });
+          // The caller has to know, or it keeps offering images to a model that can no longer take them.
+          return fallback.success ? { ...fallback, projectorRefused: true } : fallback;
         }
         logger.error("llama", `llama-server stopped after ${Date.now() - readyStart}ms: ${reason}`);
         return {
           success: false,
-          error: `llama-server stopped while loading the model (exit code ${crashed.code ?? crashed.signal})${reason ? `: ${reason}` : ""}`,
+          // The engine's own words follow, so the app can recognise a known cause and explain it.
+          error: `The model engine stopped while loading ${path.basename(modelPath)} (exit code ${crashed.code ?? crashed.signal})${reason ? `: ${reason}` : ""}`,
+          kind: "stopped-loading",
+          params: { model: path.basename(modelPath), code: String(crashed.code ?? crashed.signal), reason },
         };
       }
       if (activeProcess !== child) {
         // Another model was started, or the server was stopped, while this one loaded; that one owns the engine now.
         logger.info("llama", "Start abandoned: the engine was stopped or given another model");
-        return { success: false, error: "Another model was started before this one finished loading" };
+        return { success: false, error: "Another model was started before this one finished loading", kind: "another-model" };
       }
       logger.error("llama", `Server failed health check after ${Date.now() - readyStart}ms`);
       stopServerSync();
-      return { success: false, error: "Server failed to respond to health check in time" };
+      return {
+        success: false,
+        error: `${path.basename(modelPath)} took too long to load. Try again, or choose a smaller model.`,
+        kind: "load-timeout",
+        params: { model: path.basename(modelPath) },
+      };
     }
 
     logger.info("llama", `llama-server ready on 127.0.0.1:${port} in ${Date.now() - readyStart}ms`);

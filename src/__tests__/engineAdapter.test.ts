@@ -82,7 +82,7 @@ describe("engineAdapter", () => {
             },
             () => {}
           )
-        ).rejects.toThrow("GGUF engine returned HTTP 500");
+        ).rejects.toThrow("The model engine reported a problem: HTTP 500");
       } finally {
         globalThis.fetch = originalFetch;
       }

@@ -35,4 +35,22 @@ describe("the projector beside a vision model", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("is not offered again once the engine has refused it, until the file is replaced", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-mmproj-"));
+    try {
+      const projector = path.join(dir, "a-mmproj.gguf");
+      fs.writeFileSync(projector, "x");
+      expect(mmproj.findCompanion(dir, "a.gguf")).toBe(projector);
+
+      mmproj.markRefused(projector);
+      expect(mmproj.findCompanion(dir, "a.gguf")).toBeNull();
+
+      // Downloading it again is a new file, and gets another try.
+      fs.writeFileSync(projector, "a different projector");
+      expect(mmproj.findCompanion(dir, "a.gguf")).toBe(projector);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
