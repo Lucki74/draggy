@@ -73,7 +73,7 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
 
     // A crash whose last words are a known cause is that cause, not the generic crash.
     if (result.kind === "stopped-loading") {
-      const cause = known(params.reason ?? "");
+      const cause = known(`${params.log ?? ""}\n${params.reason ?? ""}`);
       if (cause) return withArticle(say(language, cause.key), cause.slug, language, options);
     }
 

@@ -260,6 +260,11 @@ describe("llamaProcess.startServer failures", () => {
       // The caller is told, and the projector is no longer counted as one the model has.
       expect(result.projectorRefused).toBe(true);
       expect(mmproj.findCompanion(dir, "seer.gguf")).toBeNull();
+
+      // Every later start says so again: a screen that was not listening the first time still learns.
+      const again = await start(path.join(dir, "seer.gguf"), port);
+      expect(again.alreadyRunning).toBe(true);
+      expect(again.projectorRefused).toBe(true);
     } finally {
       llamaProcess.stopServerSync();
       await new Promise((resolve) => health.close(resolve));
@@ -288,6 +293,7 @@ describe("llamaProcess.startServer failures", () => {
     expect(result.kind).toBe("stopped-loading");
     expect(result.params).toMatchObject({ model: "m.gguf", code: "1" });
     expect(result.params.reason).toContain("no such tensor");
+    expect(result.params.log).toContain("no such tensor");
   });
 
   it("gives up on a start that another model replaced, and leaves the newer engine running", async () => {

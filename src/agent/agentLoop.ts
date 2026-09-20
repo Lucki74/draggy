@@ -524,6 +524,7 @@ export async function measureTurn(
       contextSize: numCtx,
     });
     if (!warmStart?.success && !warmStart?.alreadyRunning) return null;
+    noteEngineStart(input.model, warmStart);
   }
 
   // Gives way the moment a reply starts. What it evaluated stays cached, so that reply loses nothing.

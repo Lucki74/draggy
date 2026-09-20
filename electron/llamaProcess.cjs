@@ -151,7 +151,9 @@ async function launchServer(options) {
   if (activeProcess) {
     if (activeModel === modelPath && activeContext === effectiveContext && (await pingHealth(port))) {
       logger.info("llama", `Reusing existing running instance on port ${port}`);
-      return { success: true, port, alreadyRunning: true };
+      // Said again on every start, so a screen that missed the first one still learns of it.
+      const noProjector = mmproj.wasRefused(path.dirname(modelPath), path.basename(modelPath));
+      return { success: true, port, alreadyRunning: true, ...(noProjector ? { projectorRefused: true } : {}) };
     }
     logger.info("llama", "Stopping previous instance before starting new model");
     stopServerSync();
@@ -265,7 +267,8 @@ async function launchServer(options) {
           // The engine's own words follow, so the app can recognise a known cause and explain it.
           error: `The model engine stopped while loading ${path.basename(modelPath)} (exit code ${crashed.code ?? crashed.signal})${reason ? `: ${reason}` : ""}`,
           kind: "stopped-loading",
-          params: { model: path.basename(modelPath), code: String(crashed.code ?? crashed.signal), reason },
+          // The last two error lines are always the generic wrapper; the cause is earlier in the output.
+          params: { model: path.basename(modelPath), code: String(crashed.code ?? crashed.signal), reason, log: recent.join("\n") },
         };
       }
       if (activeProcess !== child) {

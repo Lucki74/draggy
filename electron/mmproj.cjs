@@ -41,4 +41,10 @@ function findCompanion(modelsDir, filename) {
   return fs.existsSync(candidate) && !refused.has(stampOf(candidate)) ? candidate : null;
 }
 
-module.exports = { companionName, isCompanionFile, findCompanion, markRefused };
+/** Whether this model has a projector the engine already turned down. */
+function wasRefused(modelsDir, filename) {
+  const candidate = path.join(modelsDir, companionName(filename));
+  return fs.existsSync(candidate) && refused.has(stampOf(candidate));
+}
+
+module.exports = { companionName, isCompanionFile, findCompanion, markRefused, wasRefused };

@@ -72,6 +72,18 @@ describe("engineFailure", () => {
     });
     expect(memory).toContain("/error/out-of-memory");
 
+    // The engine's last two lines are always its own wrapper; the cause is earlier in the output.
+    const buried = engineFailure({
+      kind: "stopped-loading",
+      params: {
+        model: "new.gguf",
+        code: "1",
+        reason: "srv load_model: failed to load model srv llama_server: exiting due to model loading error",
+        log: "E llama_model_load: error loading model: unknown model architecture: 'newthing'\nE srv load_model: failed to load model",
+      },
+    });
+    expect(buried).toContain("/error/unsupported-architecture");
+
     const unknown = engineFailure({
       kind: "stopped-loading",
       params: { model: "big.gguf", code: "3", reason: "something nobody has seen" },

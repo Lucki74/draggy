@@ -46,6 +46,9 @@ describe("the projector beside a vision model", () => {
       mmproj.markRefused(projector);
       expect(mmproj.findCompanion(dir, "a.gguf")).toBeNull();
 
+      expect(mmproj.wasRefused(dir, "a.gguf")).toBe(true);
+      expect(mmproj.wasRefused(dir, "other.gguf")).toBe(false);
+
       // Downloading it again is a new file, and gets another try.
       fs.writeFileSync(projector, "a different projector");
       expect(mmproj.findCompanion(dir, "a.gguf")).toBe(projector);
