@@ -234,7 +234,8 @@ function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = fals
     if (vramGB > 0 && nvidia) {
       const main = byName(/^llama-b\d+-bin-win-cuda-12\.[\d.]+-x64\.zip$/);
       const version = main?.name.match(/cuda-([\d.]+)-x64/)?.[1];
-      const runtime = version && byName(new RegExp(`^cudart-llama-bin-win-cuda-${version.replace(/\./g, "\\.")}-x64\\.zip$`));
+      const runtimeName = `cudart-llama-bin-win-cuda-${version}-x64.zip`;
+      const runtime = version && assets.find((asset) => asset.name === runtimeName);
       if (main && runtime) return { main, extra: runtime };
     }
     const vulkan = byName(/^llama-b\d+-bin-win-vulkan-x64\.zip$/);

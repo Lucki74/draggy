@@ -7,15 +7,15 @@ const IS_WINDOWS = process.platform === "win32";
 const IS_MAC = process.platform === "darwin";
 const IS_LINUX = process.platform === "linux";
 
-/** Every child process, console window hidden. A GUI app starting a console program otherwise
- * flashes a new window; one call site means it cannot be forgotten. */
+/** Every child process, console window hidden and never through a shell. A GUI app starting a console
+ * program otherwise flashes a new window; one call site means it cannot be forgotten. */
 function spawnHidden(file, args, options = {}) {
-  return spawn(file, args, { ...options, windowsHide: true });
+  return spawn(file, args, { ...options, shell: false, windowsHide: true });
 }
 
-/** The same guarantee for the one-shot calls. */
+/** The same guarantees for the one-shot calls. */
 function execFileHidden(file, args, options, callback) {
-  return execFile(file, args, { ...options, windowsHide: true }, callback);
+  return execFile(file, args, { ...options, shell: false, windowsHide: true }, callback);
 }
 
 function runCommand(file, args, timeout) {

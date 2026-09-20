@@ -7,7 +7,10 @@ export interface RepetitionResult {
 }
 
 const REDACTED_MARKER = /==\s*\[REDACTED\]\s*==/gi;
-const REPEATED_CHAR_LINE = /^[-=~*#_`|/\\.,;:{}()[\]<>]+$/;
+// Whitespace is allowed so a spaced separator such as `| :--- | :--- |` counts as structure, not as a loop.
+const REPEATED_CHAR_LINE = /^[\s\-=~*#_`|/\\.,;:{}()[\]<>]+$/;
+// A comparison table repeats its cells legitimately, so a row must repeat far more before it is a loop.
+const TABLE_ROW_MIN_REPEATS = 20;
 
 /** Scans the end of a stream for degenerate repetition and returns the cleaned text. */
 export function detectRepetition(text: string): RepetitionResult {
@@ -98,9 +101,10 @@ export function detectRepetition(text: string): RepetitionResult {
   // Trailing phrase repetition loop within the most recent window.
   const windowSize = Math.min(text.length, 1000);
   const tail = text.slice(-windowSize);
+  const minRepeats = text.slice(text.lastIndexOf("\n") + 1).trimStart().startsWith("|") ? TABLE_ROW_MIN_REPEATS : 3;
 
   for (let len = 4; len <= 120; len++) {
-    if (tail.length < len * 3) break;
+    if (tail.length < len * minRepeats) break;
     const candidate = tail.slice(-len);
     const trimmedCandidate = candidate.trim();
 
@@ -109,7 +113,7 @@ export function detectRepetition(text: string): RepetitionResult {
     }
 
     const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(?:${escaped}\\s*){3,}$`);
+    const regex = new RegExp(`(?:${escaped}\\s*){${minRepeats},}$`);
     const match = tail.match(regex);
     if (match && match.index !== undefined) {
       const matchStartInTail = match.index;

@@ -197,6 +197,69 @@ describe("llamaProcess.startServer failures", () => {
     expect(args[args.indexOf("-ngl") + 1]).toBe("20");
   });
 
+  it("hands a vision model its projector, and only when it has one", async () => {
+    vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
+    const spawn = vi.spyOn(platform, "spawnHidden").mockImplementation(() => fakeChild());
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-vision-"));
+    const launch = async (modelPath) => {
+      const before = spawn.mock.calls.length;
+      const pending = llamaProcess.startServer({ binaryPath: "llama-server", modelPath, port: await freePort(), log: quiet });
+      await vi.waitFor(() => expect(spawn.mock.calls.length).toBe(before + 1));
+      const args = spawn.mock.calls.at(-1)[1];
+      llamaProcess.stopServerSync();
+      await pending;
+      return args;
+    };
+
+    try {
+      fs.writeFileSync(path.join(dir, "seer.gguf"), "x");
+      expect(await launch(path.join(dir, "seer.gguf"))).not.toContain("--mmproj");
+
+      fs.writeFileSync(path.join(dir, "seer-mmproj.gguf"), "x");
+      const args = await launch(path.join(dir, "seer.gguf"));
+      expect(args[args.indexOf("--mmproj") + 1]).toBe(path.join(dir, "seer-mmproj.gguf"));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("starts the model without image support when the engine refuses its projector", async () => {
+    vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-vision-"));
+    fs.writeFileSync(path.join(dir, "seer.gguf"), "x");
+    fs.writeFileSync(path.join(dir, "seer-mmproj.gguf"), "x");
+    const port = await freePort();
+    const health = http.createServer((_req, res) => res.end("ok"));
+    const launches = [];
+    vi.spyOn(platform, "spawnHidden").mockImplementation((_file, args) => {
+      launches.push(args);
+      const child = fakeChild();
+      if (args.includes("--mmproj")) {
+        setImmediate(() => {
+          child.stderr.emit("data", Buffer.from("0.00.100.001 E srv    load_model: failed to load multimodal model 'x'\n"));
+          child.emit("exit", 1, null);
+        });
+      } else {
+        health.listen(port, "127.0.0.1");
+      }
+      return child;
+    });
+
+    try {
+      const result = await start(path.join(dir, "seer.gguf"), port);
+
+      // A projector the engine cannot read costs the images, not the model.
+      expect(result.success).toBe(true);
+      expect(launches).toHaveLength(2);
+      expect(launches[0]).toContain("--mmproj");
+      expect(launches[1]).not.toContain("--mmproj");
+    } finally {
+      llamaProcess.stopServerSync();
+      await new Promise((resolve) => health.close(resolve));
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("reports why the engine stopped as soon as it does, not after the health check times out", async () => {
     const child = fakeChild();
     const spawn = vi.spyOn(platform, "spawnHidden").mockReturnValue(child);

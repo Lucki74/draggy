@@ -1,6 +1,7 @@
 const { log } = require("./logger.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const { parseShard } = require("./shards.cjs");
+const { companionName } = require("./mmproj.cjs");
 
 /** Curated registry of premier open models from Hugging Face matching Draggy's download card design. */
 const CURATED_MODELS = [
@@ -182,6 +183,7 @@ const CURATED_MODELS = [
 
 const sizeCache = new Map();
 const filesCache = new Map();
+const projectorsCache = new Map();
 
 const FALLBACK_SIZES = ["Q4_K_M", "Q5_K_M", "Q8_0"];
 const PREFERRED_QUANTS = [
@@ -196,6 +198,25 @@ const SHARD_PATTERN = /-[0-9]{5}-of-[0-9]{5}\.gguf$|\.part[0-9]+of[0-9]+\.gguf$/
  * matrix, and the multi-token-prediction draft heads (an `mtp` folder, or `mtp` set off in a file name),
  * which carry the same quantization names as the model and are a fraction of its size. */
 const HELPER_FILE = /mmproj|imatrix|(^|[/_.-])mtp([/_.-]|$)/;
+
+/** The file a vision model reads images through. */
+function isProjectorFile(filePath) {
+  const lower = typeof filePath === "string" ? filePath.toLowerCase() : "";
+  return lower.endsWith(".gguf") && /(^|\/)[^/]*mmproj[^/]*$/.test(lower);
+}
+
+/** The projector to fetch: half precision when the repository has it, since every backend reads it. */
+function pickProjector(files) {
+  const rank = (file) => {
+    const name = file.path.toLowerCase();
+    if (/(^|[-_.])f16/.test(name)) return 0;
+    if (/bf16/.test(name)) return 1;
+    if (/q8/.test(name)) return 2;
+    return /f32/.test(name) ? 4 : 3;
+  };
+  const folders = (file) => (file.path.includes("/") ? 1 : 0);
+  return [...files].sort((a, b) => folders(a) - folders(b) || rank(a) - rank(b) || a.path.localeCompare(b.path))[0] ?? null;
+}
 
 function isModelFile(filePath) {
   const lower = typeof filePath === "string" ? filePath.toLowerCase() : "";
@@ -247,6 +268,12 @@ function matchFilesForTag(files, tag) {
   return { files: [hits[0]], primary: hits[0], bytes: hits[0].size };
 }
 
+/** The projector of a vision model repository, or null when it has none. */
+async function fetchRepoProjector(repoId) {
+  await fetchRepoGgufFiles(repoId);
+  return pickProjector(projectorsCache.get(repoId) ?? []);
+}
+
 /** Resolves files and exact sizes for a Hugging Face model repository. */
 async function fetchRepoGgufFiles(repoId) {
   if (filesCache.has(repoId)) return filesCache.get(repoId);
@@ -266,6 +293,10 @@ async function fetchRepoGgufFiles(repoId) {
       .map((item) => ({ path: item.path, size: Number(item.size) || 0 }));
 
     filesCache.set(repoId, ggufFiles);
+    projectorsCache.set(
+      repoId,
+      tree.filter((item) => isProjectorFile(item?.path)).map((item) => ({ path: item.path, size: Number(item.size) || 0 })),
+    );
     return ggufFiles;
   } catch {
     return [];
@@ -685,6 +716,13 @@ async function resolveModelDownload(reference) {
           filename: file.path.split("/").pop(),
           size: file.size,
         }));
+      }
+
+      const projector = await fetchRepoProjector(name);
+      if (projector) {
+        const companion = { url: urlOf(projector), filename: companionName(download.filename), size: projector.size };
+        download.parts = [...(download.parts ?? [{ url: download.url, filename: download.filename, size: download.size }]), companion];
+        download.size += projector.size;
       }
       return download;
     }

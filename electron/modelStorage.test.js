@@ -314,3 +314,33 @@ describe("split models on disk", () => {
     }
   });
 });
+
+describe("vision models", () => {
+  const withFolder = (files, run) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-vision-"));
+    try {
+      for (const name of files) writeDummyGguf(path.join(dir, name));
+      return run(dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("marks a model as able to read images when its projector sits beside it, and lists it once", () => {
+    withFolder(["seer-Q4_K_M.gguf", "seer-Q4_K_M-mmproj.gguf", "plain-Q4_K_M.gguf"], (dir) => {
+      const models = modelStorage.listGgufModels(dir);
+      const byName = Object.fromEntries(models.map((model) => [model.filename, model]));
+
+      expect(models.map((model) => model.filename).sort()).toEqual(["plain-Q4_K_M.gguf", "seer-Q4_K_M.gguf"]);
+      expect(byName["seer-Q4_K_M.gguf"].capabilities).toContain("vision");
+      expect(byName["plain-Q4_K_M.gguf"].capabilities).not.toContain("vision");
+    });
+  });
+
+  it("removes the projector with the model", () => {
+    withFolder(["seer-Q4_K_M.gguf", "seer-Q4_K_M-mmproj.gguf"], (dir) => {
+      expect(modelStorage.deleteGgufModel(dir, "seer-Q4_K_M.gguf")).toBe(true);
+      expect(fs.readdirSync(dir)).toEqual([]);
+    });
+  });
+});

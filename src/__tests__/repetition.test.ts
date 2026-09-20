@@ -89,6 +89,52 @@ describe("detectRepetition", () => {
     expect(result.trimmedText).toBe(doc);
   });
 
+  describe("markdown tables", () => {
+    const header = "| Feature | Draggy | Continue | Aider | Cursor |";
+
+    it.each([
+      ["aligned with spaces", "| :--- | :--- | :--- | :--- | :--- |"],
+      ["compact", "|:---|:---|:---|:---|:---|"],
+      ["plain dashes with spaces", "| --- | --- | --- | --- | --- |"],
+      ["centred", "| :---: | :---: | :---: | :---: | :---: |"],
+    ])("does not stop a reply at the separator row (%s)", (_name, separator) => {
+      const text = `Summary Comparison Table\n\n${header}\n${separator}`;
+      const result = detectRepetition(text);
+
+      expect(result.hasLoop).toBe(false);
+      expect(result.trimmedText).toBe(text);
+    });
+
+    it("does not stop a reply while a separator is still being written", () => {
+      // Every prefix of a streamed table goes through the check, so each one has to pass.
+      const text = `${header}\n| :--- | :--- | :--- | :--- | :--- |\n| Local | Yes | Yes | Yes | Yes |`;
+      for (let end = 1; end <= text.length; end++) {
+        expect(detectRepetition(text.slice(0, end)).hasLoop, JSON.stringify(text.slice(0, end))).toBe(false);
+      }
+    });
+
+    it("lets cells repeat, since a comparison table is full of them", () => {
+      const text = [header, "| --- | --- | --- | --- | --- |", "| Tests | ✓ | ✓ | ✓ | ✓ |", "| Diffs | ✓ | ✓ | ✓ | ✓ |"].join("\n");
+      expect(detectRepetition(text).hasLoop).toBe(false);
+    });
+
+    it("lets a blank template table keep its empty rows", () => {
+      const text = [header, "| --- | --- | --- | --- | --- |", "|   |   |   |   |   |", "|   |   |   |   |   |", "|   |   |   |   |   |"].join("\n");
+      expect(detectRepetition(text).hasLoop).toBe(false);
+    });
+
+    it("still stops a table row that never ends", () => {
+      const text = `${header}\n| --- | --- | --- | --- | --- |\n| ${"same | ".repeat(60)}`;
+      expect(detectRepetition(text).hasLoop).toBe(true);
+    });
+
+    it("still stops a table whose whole row repeats without end", () => {
+      const row = "| Local first | Yes | No | No | Yes |";
+      const text = [header, "| --- | --- | --- | --- | --- |", row, row, row, row].join("\n");
+      expect(detectRepetition(text).hasLoop).toBe(true);
+    });
+  });
+
   it("does not trip on short text", () => {
     const short = "hello world";
     expect(detectRepetition(short)).toEqual({ hasLoop: false, trimmedText: short });

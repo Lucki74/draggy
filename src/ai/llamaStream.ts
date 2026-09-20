@@ -1,13 +1,40 @@
 import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../llama";
 
-/** llama-server speaks the OpenAI shape, which wants a type on every tool call a history replays. */
-export function toLlamaMessages<M extends { tool_calls?: object[] }>(messages: M[]): M[] {
-  return messages.map((message) =>
-    message.tool_calls
-      ? { ...message, tool_calls: message.tool_calls.map((call) => ({ type: "function", ...call })) }
-      : message,
-  );
+const IMAGE_SIGNATURES: [string, string][] = [
+  ["/9j/", "image/jpeg"],
+  ["iVBOR", "image/png"],
+  ["R0lGOD", "image/gif"],
+  ["UklGR", "image/webp"],
+  ["Qk", "image/bmp"],
+];
+
+/** The data URL for base64 image data, typed from its first bytes since the server wants a type. */
+function imageUrl(base64: string): string {
+  const type = IMAGE_SIGNATURES.find(([prefix]) => base64.startsWith(prefix))?.[1] ?? "image/png";
+  return `data:${type};base64,${base64}`;
+}
+
+/** llama-server speaks the OpenAI shape: a type on every tool call a history replays, and images as
+ * `image_url` parts of the content, not the `images` list an Ollama-style message carried. */
+export function toLlamaMessages<M extends { tool_calls?: object[]; images?: string[]; content?: unknown }>(
+  messages: M[],
+): M[] {
+  return messages.map((message) => {
+    if (!message.tool_calls && !message.images) return message;
+
+    const { images, ...rest } = message;
+    const shaped = rest.tool_calls
+      ? { ...rest, tool_calls: rest.tool_calls.map((call) => ({ type: "function", ...call })) }
+      : rest;
+    if (!images?.length) return shaped as unknown as M;
+
+    const content = [
+      { type: "text", text: String(message.content ?? "") },
+      ...images.map((data) => ({ type: "image_url", image_url: { url: imageUrl(data) } })),
+    ];
+    return { ...shaped, content } as unknown as M;
+  });
 }
 
 /** llama-server reports failures as {"error": {"code", "message", "type"}}, an object, not a string. */

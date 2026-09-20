@@ -41,7 +41,17 @@ describe("no console window ever appears", () => {
     // The caller's options are spread first, so this cannot be turned off by
     // accident, which is the whole reason the helpers exist.
     const source = fs.readFileSync(path.join(HERE, "platform.cjs"), "utf8");
-    expect(source).toMatch(/\.\.\.options,\s*windowsHide: true/);
+    expect(source).toMatch(/\.\.\.options,\s*shell: false,\s*windowsHide: true/);
+  });
+
+  it("never runs the file through a shell, whatever the caller asks", async () => {
+    // With shell: true Node starts cmd.exe or sh and hands it one command line, so a path or an
+    // argument that came from the environment could be read as more than a name.
+    const child = platform.spawnHidden(process.execPath, ["-e", "process.exit(0)"], { shell: true, stdio: "ignore" });
+    const started = child.spawnfile;
+    await new Promise((resolve) => child.on("exit", resolve));
+
+    expect(started).toBe(process.execPath);
   });
 
   it("exposes both helpers", () => {

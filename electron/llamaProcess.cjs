@@ -5,6 +5,7 @@ const path = require("node:path");
 const platform = require("./platform.cjs");
 const binaryManager = require("./binaryManager.cjs");
 const { parseShard, shardNames } = require("./shards.cjs");
+const mmproj = require("./mmproj.cjs");
 const { log: defaultLog } = require("./logger.cjs");
 
 let activeProcess = null;
@@ -119,16 +120,18 @@ function startServer(options) {
   return entry.promise;
 }
 
-async function launchServer({
-  binaryPath,
-  modelPath,
-  contextSize = 8192,
-  port = 11435,
-  gpuLayers,
-  userDataDir,
-  vramGB = 0,
-  log,
-}) {
+async function launchServer(options) {
+  const {
+    binaryPath,
+    modelPath,
+    contextSize = 8192,
+    port = 11435,
+    gpuLayers,
+    userDataDir,
+    vramGB = 0,
+    log,
+    skipProjector = false,
+  } = options;
   const logger = log || defaultLog;
 
   // llama-server opens the other parts itself and exits at once when one is absent.
@@ -177,6 +180,10 @@ async function launchServer({
     "--cache-reuse", "256",
     "--jinja",
   ];
+
+  // Without its projector a vision model answers as if no image had been sent.
+  const projector = skipProjector ? null : mmproj.findCompanion(path.dirname(modelPath), path.basename(modelPath));
+  if (projector) args.push("--mmproj", projector);
 
   // Adopt a server already on the port; spawning would fail to bind and stall the health check.
   if (!activeProcess && (await pingHealth(port, 1000))) {
@@ -242,6 +249,11 @@ async function launchServer({
     if (!ready) {
       if (crashed) {
         const reason = failureReason(recent);
+        // A projector this engine cannot read must not take the text side of the model down with it.
+        if (projector && /multimodal|mmproj|clip_init|mtmd/i.test(recent.join("\n"))) {
+          logger.warn("llama", `The image projector was refused (${reason}); starting ${path.basename(modelPath)} without image support`);
+          return launchServer({ ...options, skipProjector: true });
+        }
         logger.error("llama", `llama-server stopped after ${Date.now() - readyStart}ms: ${reason}`);
         return {
           success: false,

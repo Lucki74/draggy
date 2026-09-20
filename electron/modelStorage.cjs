@@ -5,6 +5,7 @@ const http = require("node:http");
 const urlPolicy = require("./urlPolicy.cjs");
 const ggufParser = require("./ggufParser.cjs");
 const { parseShard, shardNames } = require("./shards.cjs");
+const mmproj = require("./mmproj.cjs");
 const { log } = require("./logger.cjs");
 
 /** Scans directory for GGUF files and reads metadata headers. */
@@ -30,7 +31,7 @@ function listGgufModels(modelsDir) {
   const models = [];
 
   for (const file of files) {
-    if (!file.toLowerCase().endsWith(".gguf")) continue;
+    if (!file.toLowerCase().endsWith(".gguf") || mmproj.isCompanionFile(file)) continue;
     const shard = parseShard(file);
     // The later parts are read through the first, so they are one model, not several.
     if (shard && shard.index > 1 && present.has(shardNames(file)[0])) continue;
@@ -50,7 +51,10 @@ function listGgufModels(modelsDir) {
         contextLength: header?.contextLength || null,
         blockCount: header?.blockCount || null,
         fileType: header?.fileType || null,
-        capabilities: capabilitiesOf(fullPath, stat),
+        // The template cannot say whether images can be read; a projector beside the model can.
+        capabilities: mmproj.findCompanion(modelsDir, file)
+          ? [...capabilitiesOf(fullPath, stat), "vision"]
+          : capabilitiesOf(fullPath, stat),
       });
       log.debug("modelStorage", `Found model ${file}: arch=${header?.architecture || "unknown"} size=${stat.size}`);
     } catch {
@@ -69,6 +73,7 @@ function deleteGgufModel(modelsDir, filename) {
   log.info("modelStorage", `Request to delete GGUF model: ${safeName}`);
   if (fs.existsSync(target)) {
     for (const name of shardNames(safeName)) fs.rmSync(path.join(modelsDir, name), { force: true });
+    fs.rmSync(path.join(modelsDir, mmproj.companionName(safeName)), { force: true });
     log.info("modelStorage", `Successfully deleted ${safeName}`);
     return true;
   }

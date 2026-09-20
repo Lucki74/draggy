@@ -248,3 +248,32 @@ describe("tool calls are delivered once", () => {
     expect(drainToolCalls(pending)).toHaveLength(0);
   });
 });
+
+describe("toLlamaMessages with images", () => {
+  it("sends an image as an image_url part the server can read, typed from its bytes", () => {
+    const [message] = toLlamaMessages([{ role: "user", content: "What is this?", images: ["iVBORw0KGgo="] }]);
+
+    expect(message).not.toHaveProperty("images");
+    expect(message.content).toEqual([
+      { type: "text", text: "What is this?" },
+      { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgo=" } },
+    ]);
+  });
+
+  it("keeps every image in order and tells a jpeg from a png", () => {
+    const [message] = toLlamaMessages([{ role: "user", content: "Compare", images: ["/9j/4AAQ", "iVBORw0K"] }]);
+    const urls = (message.content as unknown as { image_url?: { url: string } }[]).flatMap((part) => (part.image_url ? [part.image_url.url] : []));
+
+    expect(urls).toEqual(["data:image/jpeg;base64,/9j/4AAQ", "data:image/png;base64,iVBORw0K"]);
+  });
+
+  it("leaves a message with no images exactly as it was", () => {
+    const plain = { role: "user", content: "hi" };
+    expect(toLlamaMessages([plain])[0]).toBe(plain);
+  });
+
+  it("drops an empty images list rather than sending it", () => {
+    const [message] = toLlamaMessages([{ role: "user", content: "hi", images: [] }]);
+    expect(message).toEqual({ role: "user", content: "hi" });
+  });
+});

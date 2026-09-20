@@ -516,3 +516,67 @@ describe("split models", () => {
     expect(resolved.parts).toBeUndefined();
   });
 });
+
+describe("vision model downloads", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("fetches the projector after the model, under a name that belongs to the model", async () => {
+    mockTree([
+      ["seer-Q4_K_M.gguf", 5_000_000_000],
+      ["mmproj-F16.gguf", 175_000_000],
+    ]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/VisionSeer-GGUF:Q4_K_M");
+
+    expect(resolved.filename).toBe("seer-Q4_K_M.gguf");
+    expect(resolved.size).toBe(5_175_000_000);
+    expect(resolved.parts.map((part) => part.filename)).toEqual(["seer-Q4_K_M.gguf", "seer-Q4_K_M-mmproj.gguf"]);
+    expect(resolved.parts[1].url).toContain("/resolve/main/mmproj-F16.gguf");
+  });
+
+  it("takes half precision over the wider or narrower builds", async () => {
+    mockTree([
+      ["m-Q4_K_M.gguf", 100],
+      ["mmproj-F32.gguf", 40],
+      ["mmproj-BF16.gguf", 20],
+      ["mmproj-F16.gguf", 20],
+    ]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/VisionHalf-GGUF:Q4_K_M");
+    expect(resolved.parts[1].url).toContain("mmproj-F16.gguf");
+  });
+
+  it("takes the only projector there is, whatever its name", async () => {
+    mockTree([
+      ["visionpsy-q4_k_m.gguf", 303],
+      ["mmproj-visionpsy-q8.gguf", 109],
+    ]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/VisionOnly-GGUF:Q4_K_M");
+    expect(resolved.parts[1].url).toContain("mmproj-visionpsy-q8.gguf");
+  });
+
+  it("adds it after every part of a split model", async () => {
+    mockTree([
+      ["big-Q4_K_M-00001-of-00002.gguf", 30],
+      ["big-Q4_K_M-00002-of-00002.gguf", 12],
+      ["mmproj-F16.gguf", 5],
+    ]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/VisionSplit-GGUF:Q4_K_M");
+    expect(resolved.parts.map((part) => part.filename)).toEqual([
+      "big-Q4_K_M-00001-of-00002.gguf",
+      "big-Q4_K_M-00002-of-00002.gguf",
+      "big-Q4_K_M-mmproj.gguf",
+    ]);
+    expect(resolved.size).toBe(47);
+  });
+
+  it("leaves a text model as it was", async () => {
+    mockTree([["plain-Q4_K_M.gguf", 7]]);
+
+    const resolved = await huggingface.resolveModelDownload("acme/VisionPlain-GGUF:Q4_K_M");
+    expect(resolved.parts).toBeUndefined();
+    expect(resolved.size).toBe(7);
+  });
+});
