@@ -1,6 +1,8 @@
 const semver = require("semver");
 const { log } = require("./logger.cjs");
 
+const { owner: REPO_OWNER, repo: REPO_NAME } = require("../package.json").build.publish[0];
+
 /** Checks after launch and every few hours, downloads in the background, installs on quit. The
  * first check is late: launch already competes for the network. */
 
@@ -16,6 +18,7 @@ let state = { status: "idle", version: null, percent: 0, notes: null, error: nul
 let broadcast = () => {};
 
 let automatic = false;
+let wantedChannel = "release";
 let firstCheckTimer = null;
 let intervalTimer = null;
 
@@ -30,6 +33,26 @@ function isNewer(candidate, current) {
   } catch {
     return false;
   }
+}
+
+/** The release to update to: the highest version on the channel. electron-updater's own pick comes
+ * from the installed version's prerelease name, so an rc3 build only ever matches rc3. */
+function pickReleaseTag(releases, channel) {
+  const usable = (Array.isArray(releases) ? releases : []).filter((entry) => {
+    if (!entry || entry.draft || !semver.valid(entry.tag_name)) return false;
+    return channel !== "release" || (!entry.prerelease && !semver.prerelease(entry.tag_name));
+  });
+  usable.sort((a, b) => semver.rcompare(a.tag_name, b.tag_name));
+  return usable[0]?.tag_name ?? null;
+}
+
+async function latestReleaseTag(channel) {
+  const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=30`, {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "Draggy-updater" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
+  return pickReleaseTag(await response.json(), channel);
 }
 
 function publish(next) {
@@ -142,6 +165,7 @@ function configure({ automatic: wanted, channel } = {}) {
     // "prerelease" adds a prerelease tag on top of that, not instead of it.
     updater.allowPrerelease = channel !== "release";
   }
+  wantedChannel = channel === "release" ? "release" : "prerelease";
 
   if (automatic) schedule();
   else unschedule();
@@ -153,6 +177,17 @@ async function check({ silent } = {}) {
   if (!updater) return { ...state };
 
   try {
+    let tag = null;
+    try {
+      tag = await latestReleaseTag(wantedChannel);
+    } catch (error) {
+      log.warn("updater", `Could not read the release list, using the library's own pick: ${error.message}`);
+    }
+    updater.setFeedURL(
+      tag
+        ? { provider: "generic", url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${tag}` }
+        : { provider: "github", owner: REPO_OWNER, repo: REPO_NAME },
+    );
     await updater.checkForUpdates();
   } catch (error) {
     if (!silent) publish({ status: "error", error: error.message });
@@ -202,4 +237,5 @@ module.exports = {
   current,
   dispose,
   isNewer,
+  pickReleaseTag,
 };
