@@ -611,6 +611,21 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     if (index !== -1) steps.splice(index, 1);
   };
 
+  const finishIncompleteSteps = () => {
+    let changed = false;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (!steps[i].isComplete) {
+        if (steps[i].type === "loading") {
+          steps.splice(i, 1);
+        } else {
+          steps[i] = { ...steps[i], isComplete: true };
+        }
+        changed = true;
+      }
+    }
+    if (changed) syncSteps();
+  };
+
   const toolContext: ToolContext = {
     t: host.t,
     settings,
@@ -646,6 +661,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     name: string,
     args: Record<string, unknown>,
   ): Promise<string> {
+    if (signal.aborted) return "Tool execution cancelled.";
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
     const target = targetFromArgs(args);
@@ -659,7 +675,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const toolStart = performance.now();
       logToolCall(name, "start", args, correlationId);
       try {
-        const toolOutput = await runTool(name, args, toolContext, environment);
+        const abortPromise = new Promise<string>((resolve) => {
+          signal.addEventListener("abort", () => resolve("Tool execution cancelled."), { once: true });
+        });
+        const toolOutput = await Promise.race([
+          runTool(name, args, toolContext, environment),
+          abortPromise,
+        ]);
         logToolCall(name, "complete", { durationMs: performance.now() - toolStart }, correlationId);
         return toolOutput;
       } catch (err) {
@@ -864,6 +886,22 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   let lastThought = "";
 
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
+    if (signal.aborted) {
+      finishIncompleteSteps();
+      host.onPatch(combine("", ""));
+      return {
+        content: fullFinalContent,
+        textContent: fullFinalTextContent,
+        steps,
+        metrics,
+        outOfContext,
+        loops: loopCount,
+        exhausted: false,
+        aborted: true,
+        toolCalls,
+      };
+    }
+
     loopCount++;
 
     /** The plan, if any. First pass it catches the model up, which is also how a resumed task
@@ -881,7 +919,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();
-    signal.addEventListener("abort", abortHandler);
+    if (signal.aborted) {
+      loopController.abort();
+    } else {
+      signal.addEventListener("abort", abortHandler, { once: true });
+    }
 
     const thinkStepId = generateId();
     let thinkStartTime: number | null = null;
@@ -1182,9 +1224,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const pendingCalls = nativeTools ? nativeCalls : [];
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
-      if (signal.aborted && !hasToolCall) {
+      if (signal.aborted) {
         // Stopping mid-sentence should keep what was already written.
         if (textStepId !== null) dropStep(textStepId);
+        finishIncompleteSteps();
+        host.onPatch(combine("", ""));
         return {
           content: fullFinalContent + rawChunk,
           textContent: textContent
@@ -1268,10 +1312,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
 
         for (const call of pendingCalls) {
+          if (signal.aborted) break;
           const result = await runGuardedTool(
             call.function?.name || "",
             call.function?.arguments || {},
           );
+          if (signal.aborted) break;
           wire.push({
             role: "tool",
             content: result,
@@ -1283,7 +1329,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         wire.push({ role: "assistant", content: rawChunk, ...kept });
         let { name, args } = parseToolCall(toolMatch as string);
 
-        if (!name) {
+        if (!name && !signal.aborted) {
           const repaired = await repairCall(
             toolMatch as string,
             definitions,
@@ -1293,8 +1339,29 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           args = repaired.args;
         }
 
-        const result = await runGuardedTool(name || "", args || {});
-        wire.push({ role: "user", content: result });
+        if (!signal.aborted) {
+          const result = await runGuardedTool(name || "", args || {});
+          wire.push({ role: "user", content: result });
+        }
+      }
+
+      if (signal.aborted) {
+        if (textStepId !== null) dropStep(textStepId);
+        finishIncompleteSteps();
+        host.onPatch(combine("", ""));
+        return {
+          content: fullFinalContent + rawChunk,
+          textContent: textContent
+            ? joinContinuation(fullFinalTextContent, textContent)
+            : fullFinalTextContent,
+          steps,
+          metrics,
+          outOfContext,
+          loops: loopCount,
+          exhausted: false,
+          aborted: true,
+          toolCalls,
+        };
       }
 
       // Tool results went in after the last count, so until the next pass ends this is an estimate.

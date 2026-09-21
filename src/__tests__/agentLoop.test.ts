@@ -1879,3 +1879,94 @@ describe("a reasoning model that stops without text after tools", () => {
     expect(result.textContent).toBe("Here is the summary of React.");
   });
 });
+
+describe("aborting during tool calls", () => {
+  it("halts immediately and leaves subsequent tools uncalled when aborted during tool execution", async () => {
+    const controller = new AbortController();
+    const slowTool: ToolSpec = {
+      name: "slow_tool",
+      group: "web",
+      description: "Slow tool.",
+      parameters: {},
+      required: [],
+      usage: "slow_tool",
+      run: async () => {
+        controller.abort();
+        return "slow tool finished";
+      },
+    };
+    registerTool(slowTool);
+
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [
+            { function: { name: "slow_tool", arguments: {} } },
+            { function: { name: "search_web", arguments: { query: "second" } } },
+          ],
+        },
+        { content: ["should not be reached"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("test abort")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    expect(requests).toHaveLength(1);
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("does not call tools when aborted before tool execution begins", async () => {
+    const controller = new AbortController();
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "abort test" } } }],
+        },
+      ],
+      ["tools"],
+    );
+
+    controller.abort();
+    const result = await run([userMessage("test pre-abort")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    expect(requests).toHaveLength(0);
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("marks incomplete tool steps as complete upon abort", async () => {
+    const controller = new AbortController();
+    let stepId = "";
+    const activeTool: ToolSpec = {
+      name: "active_tool",
+      group: "web",
+      description: "Active tool.",
+      parameters: {},
+      required: [],
+      usage: "active_tool",
+      run: async (_args, ctx) => {
+        stepId = ctx.newId();
+        ctx.pushStep({ id: stepId, type: "searching", content: "active...", isComplete: false });
+        controller.abort();
+        return "active done";
+      },
+    };
+    registerTool(activeTool);
+
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "active_tool", arguments: {} } }] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("test step complete")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    const step = result.steps.find((s) => s.id === stepId);
+    expect(step?.isComplete).toBe(true);
+  });
+});
+

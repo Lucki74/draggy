@@ -1067,7 +1067,11 @@ export default function ChatScreen({
                 }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit();
+                  if (chat.isGenerating) {
+                    onStopGeneration();
+                  } else {
+                    handleSubmit();
+                  }
                 }
               }}
               placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`}
@@ -1334,7 +1338,8 @@ export default function ChatScreen({
               />
 
               <button
-                type="submit"
+                type={chat.isGenerating ? "button" : "submit"}
+                onClick={chat.isGenerating ? () => onStopGeneration() : undefined}
                 disabled={
                   !input.trim() &&
                   attachedFiles.length === 0 &&

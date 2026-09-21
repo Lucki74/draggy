@@ -114,6 +114,7 @@ export function describeMcpTool(
     run: async (args, ctx) => {
       // An external tool has to appear in the timeline like a built-in one, or
       // a server that takes ten seconds looks like the app has stopped.
+      if (ctx.signal?.aborted) return "Tool execution cancelled.";
       const stepId = ctx.newId();
       ctx.pushStep({
         id: stepId,
@@ -122,7 +123,20 @@ export function describeMcpTool(
         isComplete: false,
       });
 
-      const result = await call(serverId, tool.name, args);
+      const abortPromise = new Promise<null>((resolve) => {
+        ctx.signal?.addEventListener("abort", () => resolve(null), { once: true });
+      });
+
+      const result = await Promise.race([
+        call(serverId, tool.name, args),
+        abortPromise,
+      ]);
+
+      if (ctx.signal?.aborted) {
+        ctx.patchStep(stepId, { isComplete: true });
+        ctx.syncSteps();
+        return "Tool execution cancelled.";
+      }
 
       if (!result) {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
