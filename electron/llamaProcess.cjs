@@ -200,7 +200,7 @@ async function launchServer(options) {
     logger.info("llama", `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, gpuLayers=${gpuLayers ?? "auto"}`);
     logger.debug("llama", `Spawning ${binaryPath} with args: ${args.join(" ")}`);
 
-    const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB) : { env: {} };
+    const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB, binaryPath) :{ env: {} };
     logger.debug("llama", `GPU runner: ${engine.runnerType || "none"}`);
 
     const child = platform.spawnHidden(binaryPath, args, {

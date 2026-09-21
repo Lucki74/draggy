@@ -1410,10 +1410,11 @@ ipcMain.handle("gguf:status", async () => {
   const specs = await getSystemSpecs();
   const engine = binaryManager.getEngineEnvironment(app.getPath("userData"), specs?.vram || 0);
   const status = llamaProcess.getServerStatus();
+  const wantsGpu = (specs?.vram || 0) > 0 && !platform.IS_MAC;
   return {
     ...status,
     hasBinary: Boolean(engine.binaryPath),
-    ready: Boolean(engine.binaryPath),
+    ready: Boolean(engine.binaryPath) && (engine.runnerType !== "cpu" || !wantsGpu),
     runnerType: engine.runnerType,
   };
 });

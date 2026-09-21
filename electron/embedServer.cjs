@@ -80,7 +80,7 @@ async function launch(info, file) {
   ];
   logger.info("embed", `Starting embedding server: ${path.basename(file)} on port ${activePort}`);
 
-  const engine = info.userDataDir ? binaryManager.getEngineEnvironment(info.userDataDir, info.vramGB || 0) : { env: {} };
+  const engine = info.userDataDir ? binaryManager.getEngineEnvironment(info.userDataDir, info.vramGB || 0, info.binaryPath) :{ env: {} };
   const proc = platform.spawnHidden(info.binaryPath, args, {
     cwd: path.dirname(info.binaryPath),
     env: llamaProcess.buildEnv({ ...engine.env }),

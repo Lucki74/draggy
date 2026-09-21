@@ -148,16 +148,21 @@ function detectGpuRunner(llamaDir, vramGB = 0) {
 }
 
 /** Environment the engine needs to find its GPU backend. Returns the binary too, so callers resolve everything once. */
-function getEngineEnvironment(userDataDir, vramGB = 0) {
-  const llamaDir = engineDir(userDataDir);
+function getEngineEnvironment(userDataDir, vramGB = 0, explicitBinary = null) {
+  const binaryPath = explicitBinary || findLlamaBinary(userDataDir);
+  // Runners sit beside the binary that runs, which may be an Ollama install rather than the app folder.
+  const llamaDir = binaryPath ? path.dirname(binaryPath) : engineDir(userDataDir);
   const { runnerDir, backendDll, runnerType } = detectGpuRunner(llamaDir, vramGB);
 
   const dirs = [...new Set([runnerDir, llamaDir])];
   const env = { PATH: [...dirs, process.env.PATH || ""].join(path.delimiter) };
+  if (!platform.IS_WINDOWS) {
+    env.LD_LIBRARY_PATH = [...dirs, process.env.LD_LIBRARY_PATH || ""].filter(Boolean).join(path.delimiter);
+  }
   // A flat layout is found beside the executable; loading it twice is pointless.
   if (backendDll && runnerDir !== llamaDir) env.GGML_BACKEND_PATH = backendDll;
 
-  return { env, runnerDir, runnerType, binaryPath: findLlamaBinary(userDataDir) };
+  return { env, runnerDir, runnerType, binaryPath };
 }
 
 /** True once the engine folder holds the server and, on a GPU machine, a GPU backend. */

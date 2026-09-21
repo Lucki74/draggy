@@ -208,6 +208,60 @@ describe("binaryManager", () => {
       });
     });
 
+    it("finds the runner beside an external binary when the app folder is empty", () => {
+      const saved = { local: process.env.LOCALAPPDATA, path: process.env.PATH };
+      try {
+        withPlatform({ win: true }, () => {
+          const local = tmp();
+          const ollama = path.join(local, "Programs", "Ollama", "lib", "ollama");
+          const exe = touch(ollama, "llama-server.exe");
+          const cuda = path.join(ollama, "cuda_v12");
+          touch(cuda, "ggml-cuda.dll");
+          process.env.LOCALAPPDATA = local;
+          process.env.PATH = "";
+
+          const engine = binaryManager.getEngineEnvironment(tmp(), 8);
+          expect(engine.binaryPath).toBe(exe);
+          expect(engine.runnerType).toBe("cuda");
+          expect(engine.runnerDir).toBe(cuda);
+          expect(engine.env.GGML_BACKEND_PATH).toBe(path.join(cuda, "ggml-cuda.dll"));
+          expect(engine.env.PATH.split(path.delimiter).slice(0, 2)).toEqual([cuda, ollama]);
+        });
+      } finally {
+        process.env.LOCALAPPDATA = saved.local;
+        process.env.PATH = saved.path;
+      }
+    });
+
+    it("prefers an explicit binary over the one discovered", () => {
+      withPlatform({ win: true }, () => {
+        const userData = tmp();
+        touch(userData, "bin", "llama", "llama-server.exe");
+        const external = tmp();
+        const exe = touch(external, "llama-server.exe");
+        const cuda = path.join(external, "cuda_v12");
+        fs.mkdirSync(cuda);
+
+        const engine = binaryManager.getEngineEnvironment(userData, 8, exe);
+        expect(engine.binaryPath).toBe(exe);
+        expect(engine.runnerDir).toBe(cuda);
+        expect(engine.env.GGML_BACKEND_PATH).toBe(path.join(cuda, "ggml-cuda.dll"));
+      });
+    });
+
+    it("also sets LD_LIBRARY_PATH to the runner folder off Windows", () => {
+      withPlatform({ linux: true }, () => {
+        const dir = tmp();
+        const exe = touch(dir, "llama-server");
+        const vulkan = path.join(dir, "vulkan");
+        fs.mkdirSync(vulkan);
+
+        const engine = binaryManager.getEngineEnvironment(tmp(), 8, exe);
+        expect(engine.env.LD_LIBRARY_PATH.split(path.delimiter).slice(0, 2)).toEqual([vulkan, dir]);
+        expect(engine.env.GGML_BACKEND_PATH).toBe(path.join(vulkan, "libggml-vulkan.so"));
+      });
+    });
+
     it("reports ready without touching anything when the engine is already inside", async () => {
       await withPlatform({ win: true }, async () => {
         const userData = tmp();
