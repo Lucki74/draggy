@@ -103,6 +103,7 @@ export { KEEP_ALIVE };
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 
 interface LlamaToolCall {
+  id?: string;
   function: { name: string; arguments: Record<string, unknown> };
 }
 
@@ -123,6 +124,7 @@ export interface WireMessage {
   thinking?: string;
   images?: string[];
   tool_calls?: LlamaToolCall[];
+  tool_call_id?: string;
   tool_name?: string;
 }
 
@@ -859,6 +861,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     steps: [...steps],
   });
 
+  let lastThought = "";
+
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
     loopCount++;
 
@@ -1214,9 +1218,26 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         }
       }
 
+      lastThought = currentThought;
       host.onOutOfContext(outOfContext);
 
       if (!hasToolCall) {
+        // When reasoning finishes with no text and tools were run, prompt for the answer.
+        if (
+          !textContent.trim() &&
+          loopCount < MAX_TOOL_LOOPS &&
+          (thinkingText.trim() || wire.some((m) => m.role === "tool"))
+        ) {
+          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
+          wire.push({
+            role: "user",
+            content:
+              "Please provide your final answer to the user based on your reasoning and the gathered information.",
+          });
+          continue;
+        }
+
         // Nothing follows this, so it is the reply. It moves out of the
         // timeline and into the message body.
         if (textStepId !== null) dropStep(textStepId);
@@ -1254,6 +1275,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           wire.push({
             role: "tool",
             content: result,
+            tool_call_id: call.id,
             tool_name: call.function?.name || "",
           });
         }
@@ -1291,6 +1313,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
     if (!fullFinalTextContent) fullFinalTextContent = EXHAUSTED_MESSAGE;
     host.onSteps([...steps]);
+  } else if (!fullFinalTextContent.trim() && lastThought.trim()) {
+    fullFinalTextContent = lastThought;
   }
 
   if (metrics) {

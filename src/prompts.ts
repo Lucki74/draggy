@@ -102,7 +102,7 @@ export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search th
 
 export const NO_BROWSING_PROMPT = `Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched.`;
 
-export const NATIVE_TOOL_PROMPT = `Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered.`;
+export const NATIVE_TOOL_PROMPT = `Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning.`;
 
 /** How to write the files create_file makes, which only Chat has. */
 export const FILE_FORMAT_PROMPT = `When creating files with create_file:
@@ -243,6 +243,10 @@ export function buildSystemPrompt(
   } else if (!mode.nativeThinking) {
     parts.push(THINK_TAG_PROMPT);
     parts.push(THINKING_PROMPTS[settings.thinkingMode]);
+  } else {
+    parts.push(
+      "Reasoning is internal. Always output your actual answer and response to the user clearly after reasoning.",
+    );
   }
 
   if (settings.customInstructions.length > 0) {

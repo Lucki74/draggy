@@ -42,8 +42,8 @@ describe("llamaStream tool accumulator", () => {
 
     const finalized = finalizeToolCalls(pending);
     expect(finalized).toHaveLength(2);
-    expect(finalized[0]).toEqual({ name: "toolA", args: { a: 1 } });
-    expect(finalized[1]).toEqual({ name: "toolB", args: { b: "hello" } });
+    expect(finalized[0]).toEqual({ id: "call_a", name: "toolA", args: { a: 1 } });
+    expect(finalized[1]).toEqual({ id: "call_b", name: "toolB", args: { b: "hello" } });
   });
 
   it("gracefully falls back to empty object on invalid JSON arguments", () => {

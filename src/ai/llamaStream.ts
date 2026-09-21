@@ -17,16 +17,22 @@ function imageUrl(base64: string): string {
 
 /** llama-server speaks the OpenAI shape: a type on every tool call a history replays, and images as
  * `image_url` parts of the content, not the `images` list an Ollama-style message carried. */
-export function toLlamaMessages<M extends { tool_calls?: object[]; images?: string[]; content?: unknown }>(
-  messages: M[],
-): M[] {
+export function toLlamaMessages<
+  M extends { tool_calls?: object[]; images?: string[]; content?: unknown; thinking?: string },
+>(messages: M[]): M[] {
   return messages.map((message) => {
-    if (!message.tool_calls && !message.images) return message;
+    if (!message.tool_calls && !message.images && !message.thinking) return message;
 
     const { images, ...rest } = message;
-    const shaped = rest.tool_calls
-      ? { ...rest, tool_calls: rest.tool_calls.map((call) => ({ type: "function", ...call })) }
+    const withThinking = message.thinking
+      ? { ...rest, thinking: message.thinking, reasoning_content: message.thinking }
       : rest;
+    const shaped = withThinking.tool_calls
+      ? {
+          ...withThinking,
+          tool_calls: withThinking.tool_calls.map((call) => ({ type: "function", ...call })),
+        }
+      : withThinking;
     if (!images?.length) return shaped as unknown as M;
 
     const content = [
@@ -60,6 +66,7 @@ export interface ToolCallDelta {
 }
 
 export interface ParsedToolCall {
+  id?: string;
   name: string;
   args: Record<string, unknown>;
 }
@@ -76,7 +83,7 @@ export interface AdaptedLlamaChunk {
   message?: {
     content?: string;
     thinking?: string;
-    tool_calls?: { function: { name: string; arguments: Record<string, unknown> } }[];
+    tool_calls?: { id?: string; function: { name: string; arguments: Record<string, unknown> } }[];
   };
   done?: boolean;
   done_reason?: string;
@@ -121,7 +128,7 @@ export function finalizeToolCalls(
   for (const call of pending.values()) {
     if (!call.name) continue;
     const parsedArgs = safeJsonParse<Record<string, unknown>>(call.argsString) ?? {};
-    result.push({ name: call.name, args: parsedArgs });
+    result.push({ id: call.id || undefined, name: call.name, args: parsedArgs });
   }
 
   return result;
@@ -307,7 +314,7 @@ export async function* sseToLlamaChunks(
         if (remaining.length > 0) {
           yield {
             message: {
-              tool_calls: remaining.map((t) => ({ function: { name: t.name, arguments: t.args } })),
+              tool_calls: remaining.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } })),
             },
           };
         }
@@ -347,7 +354,7 @@ export async function* sseToLlamaChunks(
           content: delta?.content || "",
           thinking: delta?.reasoning_content || "",
           tool_calls: readyTools.length > 0
-            ? readyTools.map((t) => ({ function: { name: t.name, arguments: t.args } }))
+            ? readyTools.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } }))
             : undefined,
         },
         done: Boolean(choice?.finish_reason),

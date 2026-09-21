@@ -1853,3 +1853,29 @@ describe("a model that cannot think", () => {
     expect(medium.requests[0]).not.toHaveProperty("chat_template_kwargs");
   });
 });
+
+describe("a reasoning model that stops without text after tools", () => {
+  it("prompts the model for its final answer instead of ending on an empty reply", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["Looking up documentation."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }],
+        },
+        {
+          thinking: ["Let me summarize the findings."],
+          content: [],
+        },
+        {
+          content: ["Here is the summary of React."],
+        },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const result = await run([userMessage("look up react")]).promise;
+
+    expect(requests).toHaveLength(3);
+    expect(result.textContent).toBe("Here is the summary of React.");
+  });
+});
