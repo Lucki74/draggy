@@ -687,8 +687,7 @@ function widgetUri(result) {
   return null;
 }
 
-/** Reads a widget's HTML from its server, only when the user switched widgets on for it: someone
- * else's interface is a bigger step than text. */
+/** Reads a widget's HTML from its server for tools that respond with an interface. */
 async function readWidget(entry, uri) {
   try {
     const resource = await entry.send("resources/read", { uri }, CALL_TIMEOUT_MS);
@@ -748,7 +747,7 @@ async function callTool(serverId, toolName, args, options = {}) {
       return { success: false, error: text || "The tool reported an error." };
     }
 
-    const uri = options.widgets ? widgetUri(result) : null;
+    const uri = options.widgets !== false ? widgetUri(result) : null;
     const html = uri ? await readWidget(entry, uri) : null;
 
     log.info("mcp", `Tool ${serverId}/${toolName} completed in ${durationMs}ms`);

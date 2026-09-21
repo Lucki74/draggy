@@ -294,6 +294,10 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
           const live = stateOf(entry.id);
           const missing = missingFor(entry);
           const open = expanded === entry.id;
+          const hasConfig = Boolean(
+            (entry.arguments && entry.arguments.length > 0) ||
+              (entry.env && entry.env.length > 0),
+          );
 
           return (
             <div
@@ -385,15 +389,17 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
-                  <button
-                    onClick={() => setExpanded(open ? null : entry.id)}
-                    className="p-2 rounded-lg hover:bg-[var(--hover-bg)]"
-                    aria-label={t("mcpConfigure")}
-                  >
-                    <ChevronDown
-                      className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
-                    />
-                  </button>
+                  {hasConfig && (
+                    <button
+                      onClick={() => setExpanded(open ? null : entry.id)}
+                      className="p-2 rounded-lg hover:bg-[var(--hover-bg)]"
+                      aria-label={t("mcpConfigure")}
+                    >
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  )}
                   <Toggle
                     checked={current.enabled}
                     onChange={(value) => {
@@ -409,7 +415,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                 </div>
               </div>
 
-              {open && (
+              {open && hasConfig && (
                 <div className="px-4 pb-4 space-y-3 border-t-[3px] border-[var(--border-light)] pt-3">
                   {(entry.arguments || []).map((argument) => (
                     <label key={argument.key} className="block">
@@ -458,23 +464,6 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                       />
                     </label>
                   ))}
-
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                        {t("mcpWidgets")}
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-                        {t("mcpWidgetsHint")}
-                      </p>
-                    </div>
-                    <Toggle
-                      checked={Boolean(current.apps)}
-                      onChange={(value) =>
-                        void persist(entry.id, { ...current, apps: value })
-                      }
-                    />
-                  </div>
                 </div>
               )}
             </div>

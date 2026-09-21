@@ -2472,7 +2472,6 @@ ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
           source: "registry",
         }
       : {}),
-    ...(entry?.apps ? { apps: true } : {}),
   };
 
   saveMcpConfig(config);
@@ -2516,11 +2515,8 @@ ipcMain.handle("widget:release", wrap("widget", async (event, token) => ({
 })));
 
 ipcMain.handle("mcp:call", wrap("mcp", async (event, serverId, toolName, args) => {
-  // Widgets are per server and off until the user says otherwise.
-  const entry = mcpConfig()[String(serverId)];
-
   return mcp.callTool(String(serverId), String(toolName), args || {}, {
-    widgets: Boolean(entry?.apps),
+    widgets: true,
   });
 }));
 

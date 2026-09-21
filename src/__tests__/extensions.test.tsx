@@ -363,5 +363,34 @@ describe("adding an npm server from the registry", () => {
 
     expect(calls).toContainEqual({ method: "forget", args: ["weather"] });
   });
+
+  it("does not offer a toggle to enable or disable interfaces", async () => {
+    stubBridge({
+      catalogue: async () => ({
+        success: true,
+        servers: [
+          {
+            id: "github",
+            name: "GitHub",
+            description: "GitHub issues and PRs",
+            package: "@modelcontextprotocol/server-github",
+            docs: "https://www.npmjs.com/package/@modelcontextprotocol/server-github",
+            args: [],
+            env: [{ key: "GITHUB_PERSONAL_ACCESS_TOKEN", label: "Token", secret: true, required: true }],
+          },
+        ],
+      }),
+    });
+
+    await act(async () => {
+      render(<McpPanel t={t} />);
+    });
+
+    const configureButton = screen.getByRole("button", { name: "Configure" });
+    await act(async () => fireEvent.click(configureButton));
+
+    expect(screen.queryByText("Interfaces")).toBeNull();
+    expect(screen.queryByText("Let this server answer with a small interface instead of text.")).toBeNull();
+  });
 });
 
