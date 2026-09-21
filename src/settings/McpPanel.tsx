@@ -360,11 +360,13 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                     </p>
                   )}
 
-                  {live?.status === "error" && live.error && (
-                    <p className="text-[11px] mt-2 font-medium text-red-500 break-words">
-                      {live.error}
-                    </p>
-                  )}
+                  {live?.status === "error" &&
+                    live.error &&
+                    (!live.error.startsWith("Not configured yet") || missing.length > 0) && (
+                      <p className="text-[11px] mt-2 font-medium text-red-500 break-words">
+                        {live.error}
+                      </p>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -429,7 +431,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                             : String(current.arguments[argument.key] || "")
                         }
                         placeholder={argument.placeholder}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           persist(entry.id, {
                             ...current,
                             arguments: {
@@ -438,8 +440,11 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                                 ? event.target.value.split("\n").filter(Boolean)
                                 : event.target.value,
                             },
-                          })
-                        }
+                          });
+                          if (live?.status === "error" && live.error?.startsWith("Not configured yet")) {
+                            setRunning((prev) => prev.filter((s) => s.id !== entry.id));
+                          }
+                        }}
                         className="w-full mt-1 px-3 py-2 rounded-lg border-[3px] border-[var(--border-light)] bg-[var(--bg-base)] text-sm outline-none focus:border-[var(--text-muted)]"
                       />
                     </label>
@@ -454,12 +459,15 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                       <input
                         type={variable.secret ? "password" : "text"}
                         value={String(current.env[variable.key] || "")}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           persist(entry.id, {
                             ...current,
                             env: { ...current.env, [variable.key]: event.target.value },
-                          })
-                        }
+                          });
+                          if (live?.status === "error" && live.error?.startsWith("Not configured yet")) {
+                            setRunning((prev) => prev.filter((s) => s.id !== entry.id));
+                          }
+                        }}
                         className="w-full mt-1 px-3 py-2 rounded-lg border-[3px] border-[var(--border-light)] bg-[var(--bg-base)] text-sm outline-none focus:border-[var(--text-muted)]"
                       />
                     </label>

@@ -392,5 +392,47 @@ describe("adding an npm server from the registry", () => {
     expect(screen.queryByText("Interfaces")).toBeNull();
     expect(screen.queryByText("Let this server answer with a small interface instead of text.")).toBeNull();
   });
+
+  it("hides stale not configured error once the required secret is typed in", async () => {
+    stubBridge({
+      catalogue: async () => ({
+        success: true,
+        servers: [
+          {
+            id: "composio",
+            name: "Composio",
+            description: "Connect to apps",
+            package: "composio-mcp-server",
+            docs: "https://composio.dev",
+            args: [],
+            env: [{ key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true }],
+          },
+        ],
+      }),
+      running: async () => ({
+        success: true,
+        servers: [{ id: "composio", status: "error", error: "Not configured yet: Composio API key.", tools: [] }],
+      }),
+    });
+
+    await act(async () => {
+      render(<McpPanel t={t} />);
+    });
+
+    expect(screen.getByText("Not configured yet: Composio API key.")).toBeTruthy();
+
+    const configureButton = screen.getByRole("button", { name: "Configure" });
+    await act(async () => fireEvent.click(configureButton));
+
+    // Fill in the secret input.
+    const inputs = screen.getAllByDisplayValue("");
+    const secretInput = inputs.find((el) => (el as HTMLInputElement).type === "password");
+    expect(secretInput).toBeTruthy();
+    await act(async () => {
+      fireEvent.change(secretInput!, { target: { value: "comp_secret_key" } });
+    });
+
+    expect(screen.queryByText("Not configured yet: Composio API key.")).toBeNull();
+  });
 });
 

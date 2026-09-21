@@ -888,6 +888,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   let lastThought = "";
   let lastToolResult = "";
   let answerAsked = false;
+  // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
+  let toolsRan = false;
 
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
     if (signal.aborted) {
@@ -1276,7 +1278,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           !textContent.trim() &&
           !answerAsked &&
           loopCount < MAX_TOOL_LOOPS &&
-          (thinkingText.trim() || wire.some((m) => m.role === "tool"))
+          (thinkingText.trim() || toolsRan || wire.some((m) => m.role === "tool"))
         ) {
           answerAsked = true;
           const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
@@ -1325,6 +1327,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             call.function?.arguments || {},
           );
           if (signal.aborted) break;
+          toolsRan = true;
           lastToolResult = result;
           wire.push({
             role: "tool",
@@ -1349,6 +1352,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
         if (!signal.aborted) {
           const result = await runGuardedTool(name || "", args || {});
+          toolsRan = true;
           lastToolResult = result;
           wire.push({ role: "user", content: result });
         }

@@ -461,7 +461,10 @@ async function startServer(id, config = {}) {
 
   if (definition.transport === "http") return startRemote(id, definition);
 
-  const missing = catalogue.missingRequirements(definition, config);
+  // Credentials live in the encrypted store, so they have to be merged before checking requirements.
+  const fullConfig = { ...config, env: secrets.withSecrets(id, config.env) };
+
+  const missing = catalogue.missingRequirements(definition, fullConfig);
   if (missing.length > 0) {
     return {
       id,
@@ -471,7 +474,7 @@ async function startServer(id, config = {}) {
     };
   }
 
-  const spec = catalogue.commandFor(definition, config);
+  const spec = catalogue.commandFor(definition, fullConfig);
 
   if (!serverRoot) {
     return { id, status: "error", error: "Extensions are not ready yet.", tools: [] };

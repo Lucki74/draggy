@@ -554,3 +554,26 @@ describe("a tool that answers with an interface", () => {
     expect(text).toBe("hi");
   });
 });
+
+describe("starting a server with credentials in the keystore", () => {
+  it("satisfies requirements when secret credentials are in keystore rather than config", async () => {
+    const secrets = require("./secrets.cjs");
+    const os = require("node:os");
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-mcp-secrets-"));
+    secrets.init(workdir, {
+      isEncryptionAvailable: () => true,
+      encryptString: (t) => Buffer.from(t).toString("base64"),
+      decryptString: (b) => Buffer.from(String(b), "base64").toString("utf8"),
+    });
+
+    secrets.set("composio", { COMPOSIO_API_KEY: "secret_123" });
+
+    const result = await mcp.startServer("composio", { enabled: true, env: {} });
+    expect(result.error).not.toMatch(/Not configured yet/i);
+
+    secrets.close();
+    fs.rmSync(workdir, { recursive: true, force: true });
+  });
+});

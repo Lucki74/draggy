@@ -2408,7 +2408,15 @@ ipcMain.handle("skills:open", wrap("skills", async () => {
   return shell.openPath(folder);
 }));
 
-ipcMain.handle("mcp:config", () => ({ success: true, config: mcpConfig() }));
+ipcMain.handle("mcp:config", () => {
+  const config = mcpConfig();
+  // Credentials stay encrypted on disk; the interface needs them to show what is configured.
+  const enriched = {};
+  for (const [id, entry] of Object.entries(config)) {
+    enriched[id] = { ...entry, env: secrets.withSecrets(id, entry?.env) };
+  }
+  return { success: true, config: enriched };
+});
 
 ipcMain.handle("mcp:save", wrap("mcp", async (event, id, entry) => {
   const config = mcpConfig();
