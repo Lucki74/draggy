@@ -115,8 +115,9 @@ diagnostic traces) in the application data folder. See
 
 ## Known rough edges
 
-Tracked in the wiki's [Troubleshooting](https://draggy.org/wiki/troubleshooting)
-page, along with what actually fixes each one.
+- Noise cancelling in voice mode, the model will answer itself on speakers
+- The quality of answers can vary a lot depending on the model choosen
+- Generation speed depends heavily on the hardware of the user
 
 ## License
 
