@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import App from "../App";
 import { SETTINGS_KEY } from "../storage";
+import { allTools } from "../tools/registry";
 import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
 import type { FakeApi } from "./helpers/electronApi";
 
@@ -118,6 +119,29 @@ describe("the app shell", () => {
     // A later state change must not bring it back and interrupt the user again.
     await act(async () => api.updater.emit({ status: "ready", version: "9.9.9" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("registers MCP tools when a server is switched on", async () => {
+    render(<App />);
+    await screen.findByRole("radio", { name: "Chat" });
+
+    const serverState = {
+      id: "context7",
+      status: "ready",
+      error: null,
+      tools: [
+        {
+          name: "query-docs",
+          qualifiedName: "context7__query_docs",
+          description: "Search docs",
+          inputSchema: { properties: {}, required: [] },
+        },
+      ],
+    };
+
+    await act(async () => api.mcp.emit({ servers: [serverState] }));
+
+    expect(allTools().map((tool) => tool.name)).toContain("context7__query_docs");
   });
 });
 

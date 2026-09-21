@@ -2531,8 +2531,7 @@ ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
   const states = [];
 
   for (const id of enabledServers()) {
-    const entry = config[id];
-    if (!entry) continue;
+    const entry = config[id] || {};
 
     // A remote server reaches the network, so it waits to be asked rather than
     // connecting itself every time Draggy opens.

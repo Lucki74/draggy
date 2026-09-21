@@ -273,24 +273,12 @@ export default function AppShell({
     ) => api.call(serverId, toolName, args);
 
     // The servers switched on. Extensions are global, so Chat and every project share them.
-    let allowed: string[] | null = null;
-
-    const sync = (servers: McpServerState[]) =>
-      syncMcpTools(
-        allowed === null
-          ? servers
-          : servers.filter((server) => allowed?.includes(server.id)),
-        call,
-      );
+    const sync = (servers: McpServerState[]) => syncMcpTools(servers, call);
 
     const stopWatching = api.onState((state) => sync(state.servers));
 
     api
-      .enabled()
-      .then((result) => {
-        allowed = result?.ids ?? null;
-        return api.startEnabled();
-      })
+      .startEnabled()
       .then((result) => sync(result.servers ?? []))
       .catch(() => undefined);
 
