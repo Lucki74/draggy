@@ -48,15 +48,10 @@ app is built, in the same twelve languages the app speaks. Start with
 [Building and architecture](https://draggy.org/wiki/development) if you are here
 to work on the code.
 
-## What it does
+## Features
 
 - **Chat with a local model.** Draggy picks a model that fits your graphics card,
-  downloads it, and lets you swap it any time. A Hugging Face browser lists the
-  top 100 trending GGUFs, searches, and finds each quantization variant.
-  Queue as many downloads as you like: two run at a time and the rest wait
-  their turn. A download icon beside the search bar carries a red badge with the
-  count, and opens a panel with each one's progress, time remaining (such as
-  `2m 14s`) and a cancel button that deletes the partial `.download` file.
+  downloads it, and lets you swap it any time.
 - **Stay quick on small models.** An efficient system prompt keeps 1B to 7B
   models responsive without cutting any instructions.
 - **Keep chats and code apart.** A switch at the top of the sidebar, and each
@@ -102,9 +97,9 @@ npm run electron:dev
 
 Vite and Electron together with hot reload. See
 [Building and architecture](https://draggy.org/wiki/development) for how the
-code is laid out and where the two security boundaries are,
+code is laid out,
 [CONTRIBUTING.md](CONTRIBUTING.md) before sending a patch, and
-[RELEASING.md](RELEASING.md) for how versions are cut.
+[RELEASING.md](RELEASING.md) for how versions are published.
 
 ## Logging and diagnostics
 
@@ -122,8 +117,3 @@ diagnostic traces) in the application data folder. See
 ## License
 
 GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
-
-Draggy is free software: you may use, study, change and share it. If you pass it
-on, modified or not, you have to pass those same freedoms on with it and make
-your source available under the same licence. There is no warranty, to the
-extent the law allows.
