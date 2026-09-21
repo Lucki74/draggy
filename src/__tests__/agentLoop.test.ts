@@ -1878,6 +1878,44 @@ describe("a reasoning model that stops without text after tools", () => {
     expect(requests).toHaveLength(3);
     expect(result.textContent).toBe("Here is the summary of React.");
   });
+
+  it("asks once, then shows the last thought and patches it into the message", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["Looking up documentation."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }],
+        },
+        { thinking: ["Several React libraries found; I should ask which topic."], content: [] },
+        { content: [] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const { promise, host } = run([userMessage("look up react")]);
+    const result = await promise;
+
+    expect(requests).toHaveLength(3);
+    expect(result.textContent).toBe("Several React libraries found; I should ask which topic.");
+    expect(host.patches.at(-1)?.textContent).toBe(result.textContent);
+  });
+
+  it("falls back to the tool output when the model never says anything", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }] },
+        { content: [] },
+        { content: [] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const { promise, host } = run([userMessage("look up react")]);
+    const result = await promise;
+
+    expect(result.textContent.trim()).not.toBe("");
+    expect(host.patches.at(-1)?.textContent).toBe(result.textContent);
+  });
 });
 
 describe("aborting during tool calls", () => {

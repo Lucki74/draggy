@@ -186,6 +186,16 @@ describe("toLlamaMessages", () => {
     expect(history[1].tool_calls?.[0]).not.toHaveProperty("type");
   });
 
+  it("gives a blank assistant turn a space, since the server rejects one with neither content nor calls", () => {
+    const [, blank, withCalls] = toLlamaMessages([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "", thinking: "hmm" },
+      { role: "assistant", content: "", tool_calls: [{ function: { name: "x" } }] },
+    ]);
+    expect(blank).toMatchObject({ content: " ", reasoning_content: "hmm" });
+    expect(withCalls.content).toBe("");
+  });
+
   it("keeps a type that is already there", () => {
     const [call] = toLlamaMessages([{ tool_calls: [{ type: "function", function: { name: "x" } }] }])[0].tool_calls ?? [];
     expect(call).toEqual({ type: "function", function: { name: "x" } });

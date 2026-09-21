@@ -274,6 +274,8 @@ export interface AgentResult {
 const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
+const FALLBACK_RESULT_CHARS = 2000;
+
 export type TurnInput = Pick<
   AgentRequest,
   "model" | "settings" | "environment" | "messages" | "isContinuation" | "seed" | "compaction" | "workspaceId"
@@ -884,6 +886,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   });
 
   let lastThought = "";
+  let lastToolResult = "";
+  let answerAsked = false;
 
   while (!isFinished && loopCount < MAX_TOOL_LOOPS) {
     if (signal.aborted) {
@@ -1262,16 +1266,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         }
       }
 
-      lastThought = currentThought;
+      // A retry pass that reasons nothing must not wipe the thought the fallback reply is built from.
+      if (currentThought.trim()) lastThought = currentThought;
       host.onOutOfContext(outOfContext);
 
       if (!hasToolCall) {
-        // When reasoning finishes with no text and tools were run, prompt for the answer.
+        // Asked once only: a model that stays silent twice would otherwise burn every remaining loop.
         if (
           !textContent.trim() &&
+          !answerAsked &&
           loopCount < MAX_TOOL_LOOPS &&
           (thinkingText.trim() || wire.some((m) => m.role === "tool"))
         ) {
+          answerAsked = true;
           const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
           wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
           wire.push({
@@ -1318,6 +1325,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             call.function?.arguments || {},
           );
           if (signal.aborted) break;
+          lastToolResult = result;
           wire.push({
             role: "tool",
             content: result,
@@ -1341,6 +1349,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
         if (!signal.aborted) {
           const result = await runGuardedTool(name || "", args || {});
+          lastToolResult = result;
           wire.push({ role: "user", content: result });
         }
       }
@@ -1380,9 +1389,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
     if (!fullFinalTextContent) fullFinalTextContent = EXHAUSTED_MESSAGE;
     host.onSteps([...steps]);
-  } else if (!fullFinalTextContent.trim() && lastThought.trim()) {
-    fullFinalTextContent = lastThought;
+  } else if (!fullFinalTextContent.trim() && !signal.aborted) {
+    // A blank bubble reads as a crash; the thought, or failing that the tool output, beats it.
+    fullFinalTextContent = lastThought.trim() || lastToolResult.trim().slice(0, FALLBACK_RESULT_CHARS);
   }
+
+  if (!signal.aborted) host.onPatch(combine("", ""));
 
   if (metrics) {
     metrics = {

@@ -18,12 +18,21 @@ function imageUrl(base64: string): string {
 /** llama-server speaks the OpenAI shape: a type on every tool call a history replays, and images as
  * `image_url` parts of the content, not the `images` list an Ollama-style message carried. */
 export function toLlamaMessages<
-  M extends { tool_calls?: object[]; images?: string[]; content?: unknown; thinking?: string },
+  M extends {
+    role?: string;
+    tool_calls?: object[];
+    images?: string[];
+    content?: unknown;
+    thinking?: string;
+  },
 >(messages: M[]): M[] {
   return messages.map((message) => {
-    if (!message.tool_calls && !message.images && !message.thinking) return message;
+    // llama-server rejects an assistant turn with neither content nor calls; a space is enough.
+    const bare = message.role === "assistant" && !message.tool_calls && !String(message.content ?? "").trim();
+    if (!message.tool_calls && !message.images && !message.thinking && !bare) return message;
 
-    const { images, ...rest } = message;
+    const { images, ...restMessage } = message;
+    const rest = bare ? { ...restMessage, content: " " } : restMessage;
     const withThinking = message.thinking
       ? { ...rest, thinking: message.thinking, reasoning_content: message.thinking }
       : rest;

@@ -482,7 +482,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         });
       }
 
-      if (result.exhausted) {
+      // The closing text can be a fallback the stream never carried, so it is written on every finish.
+      if (result.exhausted || !result.aborted) {
         host.patchActiveMessage(
           chatId,
           { steps: result.steps, textContent: result.textContent },
