@@ -204,10 +204,15 @@ describe("the server catalogue", () => {
       "datadog",
       "shopify",
       "contentful",
+      "composio",
     ];
     for (const id of added) {
       expect(ids).toContain(id);
     }
+  });
+
+  it("offers at least one hundred servers in the catalogue", () => {
+    expect(entries.length).toBeGreaterThanOrEqual(100);
   });
 
   it("links every server to its package documentation", () => {

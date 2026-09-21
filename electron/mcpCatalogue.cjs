@@ -528,6 +528,764 @@ const CATALOGUE = [
     caution:
       "YouTube blocks transcript reads for some videos. The server reports the failure rather than returning a partial transcript.",
   },
+  {
+    id: "composio",
+    name: "Composio",
+    description:
+      "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
+    package: "composio-mcp-server",
+    site: "https://composio.dev",
+    args: [],
+    env: [
+      { key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true },
+      { key: "COMPOSIO_APPS", label: "Enabled apps (comma-separated, e.g. github,slack)", required: false },
+    ],
+  },
+  {
+    id: "discord",
+    name: "Discord",
+    description:
+      "Send messages, manage channels, and interact with Discord servers.",
+    package: "discord-mcp",
+    site: "https://discord.com",
+    args: [],
+    env: [
+      { key: "DISCORD_TOKEN", label: "Discord bot token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    description:
+      "Send messages, read channels and interact with Telegram bots.",
+    package: "telegram-mcp",
+    site: "https://telegram.org",
+    args: [],
+    env: [
+      { key: "TELEGRAM_BOT_TOKEN", label: "Telegram bot token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "trello",
+    name: "Trello",
+    description:
+      "Manage boards, lists, cards, checklists and comments on Trello.",
+    package: "trello-mcp",
+    site: "https://trello.com",
+    args: [],
+    env: [
+      { key: "TRELLO_API_KEY", label: "Trello API key", secret: true, required: true },
+      { key: "TRELLO_TOKEN", label: "Trello token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "strapi",
+    name: "Strapi",
+    description:
+      "Query content types, entries and media in a headless Strapi CMS.",
+    package: "strapi-mcp",
+    site: "https://strapi.io",
+    args: [],
+    env: [
+      { key: "STRAPI_URL", label: "Strapi server URL", required: true },
+      { key: "STRAPI_API_TOKEN", label: "Strapi API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "spotify",
+    name: "Spotify",
+    description:
+      "Search tracks and artists, control playback and manage playlists on Spotify.",
+    package: "spotify-mcp",
+    site: "https://spotify.com",
+    args: [],
+    env: [
+      { key: "SPOTIFY_CLIENT_ID", label: "Spotify client ID", required: true },
+      { key: "SPOTIFY_CLIENT_SECRET", label: "Spotify client secret", secret: true, required: true },
+    ],
+  },
+  {
+    id: "resend",
+    name: "Resend",
+    description:
+      "Send transactional emails, manage domains and check deliverability with Resend.",
+    package: "resend-mcp-server",
+    site: "https://resend.com",
+    args: [],
+    env: [
+      { key: "RESEND_API_KEY", label: "Resend API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "sendgrid",
+    name: "SendGrid",
+    description:
+      "Send transactional emails, manage templates and monitor email delivery with SendGrid.",
+    package: "sendgrid-mcp",
+    site: "https://sendgrid.com",
+    args: [],
+    env: [
+      { key: "SENDGRID_API_KEY", label: "SendGrid API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "mailjet",
+    name: "Mailjet",
+    description:
+      "Send marketing and transactional emails, manage contact lists and parse statistics.",
+    package: "@mailjet/mailjet-mcp-server",
+    site: "https://www.mailjet.com",
+    args: [],
+    env: [
+      { key: "MJ_APIKEY_PUBLIC", label: "Mailjet public key", required: true },
+      { key: "MJ_APIKEY_PRIVATE", label: "Mailjet private key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "clickhouse",
+    name: "ClickHouse",
+    description:
+      "Run fast analytical queries, inspect tables and examine schemas in ClickHouse.",
+    package: "clickhouse-mcp",
+    site: "https://clickhouse.com",
+    args: [],
+    env: [
+      { key: "CLICKHOUSE_HOST", label: "ClickHouse host URL", required: true },
+      { key: "CLICKHOUSE_USER", label: "Username", required: false },
+      { key: "CLICKHOUSE_PASSWORD", label: "Password", secret: true, required: false },
+      { key: "CLICKHOUSE_DATABASE", label: "Database name", required: false },
+    ],
+  },
+  {
+    id: "snowflake",
+    name: "Snowflake",
+    description:
+      "Execute SQL queries, inspect tables and manage data warehouses in Snowflake.",
+    package: "snowflake-mcp-server",
+    site: "https://www.snowflake.com",
+    args: [],
+    env: [
+      { key: "SNOWFLAKE_ACCOUNT", label: "Snowflake account identifier", required: true },
+      { key: "SNOWFLAKE_USER", label: "Snowflake user", required: true },
+      { key: "SNOWFLAKE_PASSWORD", label: "Snowflake password", secret: true, required: true },
+    ],
+  },
+  {
+    id: "qdrant",
+    name: "Qdrant",
+    description:
+      "Search vector embeddings, manage collections and query vector payloads in Qdrant.",
+    package: "qdrant-mcp-server",
+    site: "https://qdrant.tech",
+    args: [],
+    env: [
+      { key: "QDRANT_URL", label: "Qdrant cluster URL", required: true },
+      { key: "QDRANT_API_KEY", label: "Qdrant API key", secret: true, required: false },
+    ],
+  },
+  {
+    id: "upstash",
+    name: "Upstash",
+    description:
+      "Manage serverless Redis databases, QStash message queues and vector indexes on Upstash.",
+    package: "@upstash/mcp-server",
+    site: "https://upstash.com",
+    args: [],
+    env: [
+      { key: "UPSTASH_EMAIL", label: "Upstash account email", required: true },
+      { key: "UPSTASH_API_KEY", label: "Upstash API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "couchdb",
+    name: "Apache CouchDB",
+    description:
+      "Query documents, manage views and inspect databases in Apache CouchDB.",
+    package: "couchdb-mcp",
+    site: "https://couchdb.apache.org",
+    args: [],
+    env: [
+      { key: "COUCHDB_URL", label: "CouchDB URL", required: true },
+      { key: "COUCHDB_USER", label: "CouchDB username", required: false },
+      { key: "COUCHDB_PASSWORD", label: "CouchDB password", secret: true, required: false },
+    ],
+  },
+  {
+    id: "meilisearch",
+    name: "Meilisearch",
+    description:
+      "Search documents, manage indexes and configure ranking rules in Meilisearch.",
+    package: "meilisearch-mcp",
+    site: "https://www.meilisearch.com",
+    args: [],
+    env: [
+      { key: "MEILISEARCH_HOST", label: "Meilisearch host URL", required: true },
+      { key: "MEILISEARCH_API_KEY", label: "Master or search API key", secret: true, required: false },
+    ],
+  },
+  {
+    id: "typesense",
+    name: "Typesense",
+    description:
+      "Perform typo-tolerant search, manage collections and query documents in Typesense.",
+    package: "typesense-mcp",
+    site: "https://typesense.org",
+    args: [],
+    env: [
+      { key: "TYPESENSE_HOST", label: "Typesense host", required: true },
+      { key: "TYPESENSE_API_KEY", label: "Typesense API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "aws-s3",
+    name: "AWS S3",
+    description:
+      "List S3 buckets, inspect bucket contents and read or write objects in Amazon S3.",
+    package: "aws-s3-mcp",
+    site: "https://aws.amazon.com/s3",
+    args: [],
+    env: [
+      { key: "AWS_ACCESS_KEY_ID", label: "AWS access key ID", required: true },
+      { key: "AWS_SECRET_ACCESS_KEY", label: "AWS secret access key", secret: true, required: true },
+      { key: "AWS_REGION", label: "AWS region (e.g. us-east-1)", required: true },
+    ],
+  },
+  {
+    id: "kafka",
+    name: "Apache Kafka",
+    description:
+      "Inspect topics, consumer groups and stream messages from an Apache Kafka cluster.",
+    package: "kafka-mcp",
+    site: "https://kafka.apache.org",
+    args: [],
+    env: [
+      { key: "KAFKA_BROKERS", label: "Broker addresses (comma-separated)", required: true },
+    ],
+  },
+  {
+    id: "rabbitmq",
+    name: "RabbitMQ",
+    description:
+      "Inspect message queues, exchanges, bindings and consumers on a RabbitMQ broker.",
+    package: "rabbitmq-mcp",
+    site: "https://www.rabbitmq.com",
+    args: [],
+    env: [
+      { key: "RABBITMQ_URL", label: "RabbitMQ connection URL", required: true },
+    ],
+  },
+  {
+    id: "mqtt",
+    name: "MQTT",
+    description:
+      "Publish and subscribe to MQTT topics and inspect telemetry messages across brokers.",
+    package: "mqtt-mcp",
+    site: "https://mqtt.org",
+    args: [],
+    env: [
+      { key: "MQTT_BROKER_URL", label: "MQTT broker URL (mqtt://...)", required: true },
+    ],
+  },
+  {
+    id: "graphql",
+    name: "GraphQL",
+    description:
+      "Introspect GraphQL schemas, execute queries and run mutations against GraphQL endpoints.",
+    package: "graphql-mcp",
+    site: "https://graphql.org",
+    args: [],
+    env: [
+      { key: "GRAPHQL_ENDPOINT", label: "GraphQL endpoint URL", required: true },
+      { key: "GRAPHQL_TOKEN", label: "Authorization bearer token", secret: true, required: false },
+    ],
+  },
+  {
+    id: "openapi",
+    name: "OpenAPI",
+    description:
+      "Load an OpenAPI or Swagger specification and make exploratory API requests.",
+    package: "openapi-mcp",
+    site: "https://www.openapis.org",
+    args: [],
+    env: [
+      { key: "OPENAPI_SPEC_URL", label: "URL to OpenAPI/Swagger specification", required: true },
+    ],
+  },
+  {
+    id: "railway",
+    name: "Railway",
+    description:
+      "Deploy projects, inspect services, manage environment variables and read Railway logs.",
+    package: "railway-mcp",
+    site: "https://railway.com",
+    args: [],
+    env: [
+      { key: "RAILWAY_API_TOKEN", label: "Railway API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "vercel",
+    name: "Vercel",
+    description:
+      "List deployments, inspect projects, manage domains and check build logs in Vercel.",
+    package: "vercel-mcp",
+    site: "https://vercel.com",
+    args: [],
+    env: [
+      { key: "VERCEL_TOKEN", label: "Vercel API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "newrelic",
+    name: "New Relic",
+    description:
+      "Query NRQL metrics, inspect application traces and check alert policies in New Relic.",
+    package: "newrelic-mcp",
+    site: "https://newrelic.com",
+    args: [],
+    env: [
+      { key: "NEW_RELIC_API_KEY", label: "New Relic user API key", secret: true, required: true },
+      { key: "NEW_RELIC_ACCOUNT_ID", label: "Account ID", required: true },
+    ],
+  },
+  {
+    id: "coda",
+    name: "Coda",
+    description:
+      "Search documents, read tables and update rows across Coda collaborative workspaces.",
+    package: "coda-mcp",
+    site: "https://coda.io",
+    args: [],
+    env: [
+      { key: "CODA_API_TOKEN", label: "Coda API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "bitbucket",
+    name: "Bitbucket",
+    description:
+      "Browse repositories, review pull requests and track branch activity in Bitbucket.",
+    package: "bitbucket-mcp",
+    site: "https://bitbucket.org",
+    args: [],
+    env: [
+      { key: "BITBUCKET_USERNAME", label: "Bitbucket username", required: true },
+      { key: "BITBUCKET_APP_PASSWORD", label: "Bitbucket app password", secret: true, required: true },
+    ],
+  },
+  {
+    id: "docker",
+    name: "Docker",
+    description:
+      "Inspect containers, list images, check container status and execute container commands.",
+    package: "mcp-server-docker",
+    site: "https://www.docker.com",
+    args: [],
+    env: [],
+  },
+  {
+    id: "postman",
+    name: "Postman",
+    description:
+      "Search workspaces, inspect collections and run API requests through Postman.",
+    package: "@postman/postman-mcp-server",
+    site: "https://www.postman.com",
+    args: [],
+    env: [
+      { key: "POSTMAN_API_KEY", label: "Postman API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "axiom",
+    name: "Axiom",
+    description:
+      "Query event logs, analyze high-volume streaming datasets and run APL queries in Axiom.",
+    package: "mcp-server-axiom",
+    site: "https://axiom.co",
+    args: [],
+    env: [
+      { key: "AXIOM_TOKEN", label: "Axiom API token", secret: true, required: true },
+      { key: "AXIOM_DATASET", label: "Dataset name", required: true },
+    ],
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    description:
+      "Search email threads, inspect message contents and send emails through Gmail.",
+    package: "@gongrzhe/server-gmail-autoauth-mcp",
+    site: "https://mail.google.com",
+    args: [],
+    env: [
+      { key: "GMAIL_CLIENT_ID", label: "Google OAuth client ID", required: true },
+      { key: "GMAIL_CLIENT_SECRET", label: "Google OAuth client secret", secret: true, required: true },
+    ],
+  },
+  {
+    id: "mastra",
+    name: "Mastra Docs",
+    description:
+      "Search technical documentation, agentic frameworks and reference guides for Mastra.",
+    package: "@mastra/mcp-docs-server",
+    site: "https://mastra.ai",
+    args: [],
+    env: [],
+  },
+  {
+    id: "serper",
+    name: "Serper Search",
+    description:
+      "Query Google search results, news, places and images via Serper developer API.",
+    package: "serper-search-scrape-mcp-server",
+    site: "https://serper.dev",
+    args: [],
+    env: [
+      { key: "SERPER_API_KEY", label: "Serper API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "jamf",
+    name: "Jamf Docs",
+    description:
+      "Search Apple enterprise device management documentation and API references on Jamf.",
+    package: "@get-technology-inc/jamf-docs-mcp-server",
+    site: "https://learn.jamf.com",
+    args: [],
+    env: [],
+  },
+  {
+    id: "openweather",
+    name: "OpenWeather",
+    description:
+      "Look up real-time weather forecasts, current conditions and weather history by city.",
+    package: "openweather-mcp",
+    site: "https://openweathermap.org",
+    args: [],
+    env: [
+      { key: "OPENWEATHER_API_KEY", label: "OpenWeatherMap API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "twilio",
+    name: "Twilio SMS",
+    description:
+      "Send SMS messages, inspect message delivery logs and lookup phone carrier details.",
+    package: "twilio-mcp",
+    site: "https://www.twilio.com",
+    args: [],
+    env: [
+      { key: "TWILIO_ACCOUNT_SID", label: "Twilio account SID", required: true },
+      { key: "TWILIO_AUTH_TOKEN", label: "Twilio auth token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "zendesk",
+    name: "Zendesk",
+    description:
+      "Manage support tickets, search help center articles and update customer records.",
+    package: "zendesk-mcp",
+    site: "https://www.zendesk.com",
+    args: [],
+    env: [
+      { key: "ZENDESK_SUBDOMAIN", label: "Zendesk subdomain (e.g. yourcompany)", required: true },
+      { key: "ZENDESK_EMAIL", label: "Admin or agent email", required: true },
+      { key: "ZENDESK_API_TOKEN", label: "API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "salesforce",
+    name: "Salesforce",
+    description:
+      "Describe Salesforce schemas, query standard and custom sObjects, and inspect fields.",
+    package: "salesforce-mcp",
+    site: "https://www.salesforce.com",
+    args: [],
+    env: [
+      { key: "SALESFORCE_INSTANCE_URL", label: "Instance URL (https://...)", required: true },
+      { key: "SALESFORCE_ACCESS_TOKEN", label: "OAuth access token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "transcend",
+    name: "Transcend Privacy",
+    description:
+      "Manage data privacy requests, data inventory and compliance workflows in Transcend.",
+    package: "@transcend-io/mcp",
+    site: "https://transcend.io",
+    args: [],
+    env: [
+      { key: "TRANSCEND_API_KEY", label: "Transcend API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "postgrest",
+    name: "PostgREST",
+    description:
+      "Query RESTful database endpoints and filter records served by PostgREST.",
+    package: "@supabase/mcp-server-postgrest",
+    site: "https://postgrest.org",
+    args: [],
+    env: [
+      { key: "POSTGREST_URL", label: "PostgREST endpoint URL", required: true },
+      { key: "POSTGREST_TOKEN", label: "JWT authorization token", secret: true, required: false },
+    ],
+  },
+  {
+    id: "argocd",
+    name: "Argo CD",
+    description:
+      "Inspect Kubernetes deployments, sync application states and query clusters in Argo CD.",
+    package: "argocd-mcp",
+    site: "https://argo-cd.readthedocs.io",
+    args: [],
+    env: [
+      { key: "ARGOCD_SERVER", label: "Argo CD server URL", required: true },
+      { key: "ARGOCD_AUTH_TOKEN", label: "Auth token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "prometheus",
+    name: "Prometheus",
+    description:
+      "Query PromQL metrics, check target health and inspect alerts in Prometheus.",
+    package: "prometheus-mcp",
+    site: "https://prometheus.io",
+    args: [],
+    env: [
+      { key: "PROMETHEUS_URL", label: "Prometheus server URL", required: true },
+    ],
+  },
+  {
+    id: "coinmarketcap",
+    name: "CoinMarketCap",
+    description:
+      "Fetch live cryptocurrency prices, market capitalization and volume rankings.",
+    package: "coinmarketcap-mcp",
+    site: "https://coinmarketcap.com",
+    args: [],
+    env: [
+      { key: "COINMARKETCAP_API_KEY", label: "CoinMarketCap API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "finnhub",
+    name: "Finnhub Financial",
+    description:
+      "Look up stock market quotes, company profiles, analyst ratings and financial news.",
+    package: "finnhub-mcp",
+    site: "https://finnhub.io",
+    args: [],
+    env: [
+      { key: "FINNHUB_API_KEY", label: "Finnhub API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "unsplash",
+    name: "Unsplash",
+    description:
+      "Search high-resolution royalty-free photography, photos and image collections.",
+    package: "unsplash-mcp",
+    site: "https://unsplash.com",
+    args: [],
+    env: [
+      { key: "UNSPLASH_ACCESS_KEY", label: "Unsplash access key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "pexels",
+    name: "Pexels",
+    description:
+      "Search free stock photos and videos from photographers and creators on Pexels.",
+    package: "pexels-mcp",
+    site: "https://www.pexels.com",
+    args: [],
+    env: [
+      { key: "PEXELS_API_KEY", label: "Pexels API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "newsapi",
+    name: "NewsAPI",
+    description:
+      "Search global news articles, track events and read media headlines via Event Registry.",
+    package: "newsapi-mcp",
+    site: "https://newsapi.ai",
+    args: [],
+    env: [
+      { key: "NEWSAPI_API_KEY", label: "NewsAPI.ai API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "wikipedia",
+    name: "Wikipedia",
+    description:
+      "Search articles, read summaries and extract reference sections from Wikipedia.",
+    package: "wikipedia-mcp",
+    site: "https://www.wikipedia.org",
+    args: [],
+    env: [],
+  },
+  {
+    id: "polygon-crypto",
+    name: "Polygon Crypto",
+    description:
+      "Query onchain balances, smart contract events and transactions on Polygon network.",
+    package: "polygon-mcp",
+    site: "https://polygon.technology",
+    args: [],
+    env: [
+      { key: "POLYGON_RPC_URL", label: "Polygon RPC URL", required: false },
+    ],
+  },
+  {
+    id: "swagger",
+    name: "Swagger API Docs",
+    description:
+      "Parse and test REST endpoints from Swagger and OpenAPI documentation schemas.",
+    package: "swagger-mcp",
+    site: "https://swagger.io",
+    args: [],
+    env: [
+      { key: "SWAGGER_URL", label: "Swagger schema URL", required: true },
+    ],
+  },
+  {
+    id: "runpod",
+    name: "RunPod",
+    description:
+      "Manage GPU cloud pods, monitor serverless endpoints and check resource billing.",
+    package: "@runpod/mcp-server",
+    site: "https://runpod.io",
+    args: [],
+    env: [
+      { key: "RUNPOD_API_KEY", label: "RunPod API key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "xero",
+    name: "Xero Accounting",
+    description:
+      "Manage invoices, bank transactions, contacts and accounting records in Xero.",
+    package: "@xeroapi/xero-mcp-server",
+    site: "https://www.xero.com",
+    args: [],
+    env: [
+      { key: "XERO_CLIENT_ID", label: "Xero client ID", required: true },
+      { key: "XERO_CLIENT_SECRET", label: "Xero client secret", secret: true, required: true },
+    ],
+  },
+  {
+    id: "browserstack",
+    name: "BrowserStack",
+    description:
+      "Run cross-browser tests, automate device sessions and inspect test run logs.",
+    package: "@browserstack/mcp-server",
+    site: "https://www.browserstack.com",
+    args: [],
+    env: [
+      { key: "BROWSERSTACK_USERNAME", label: "BrowserStack username", required: true },
+      { key: "BROWSERSTACK_ACCESS_KEY", label: "BrowserStack access key", secret: true, required: true },
+    ],
+  },
+  {
+    id: "qase",
+    name: "Qase TestOps",
+    description:
+      "Create test cases, organize test suites and log manual or automated test runs in Qase.",
+    package: "@qase/mcp-server",
+    site: "https://qase.io",
+    args: [],
+    env: [
+      { key: "QASE_API_TOKEN", label: "Qase API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "mantine",
+    name: "Mantine UI Docs",
+    description:
+      "Search component specifications, hooks and style guides for Mantine React library.",
+    package: "@mantine/mcp-server",
+    site: "https://mantine.dev",
+    args: [],
+    env: [],
+  },
+  {
+    id: "pandacss",
+    name: "Panda CSS Docs",
+    description:
+      "Search build-time CSS-in-JS documentation, recipes and tokens for Panda CSS.",
+    package: "@pandacss/mcp",
+    site: "https://panda-css.com",
+    args: [],
+    env: [],
+  },
+  {
+    id: "hostinger",
+    name: "Hostinger Cloud",
+    description:
+      "Manage VPS servers, DNS zones, domain records and cloud hosting via Hostinger API.",
+    package: "hostinger-api-mcp",
+    site: "https://www.hostinger.com",
+    args: [],
+    env: [
+      { key: "HOSTINGER_API_TOKEN", label: "Hostinger API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "dataforseo",
+    name: "DataForSEO",
+    description:
+      "Query search engine SERPs, keyword search volumes, backlinks and SEO metrics.",
+    package: "dataforseo-mcp-server",
+    site: "https://dataforseo.com",
+    args: [],
+    env: [
+      { key: "DATAFORSEO_LOGIN", label: "DataForSEO login", required: true },
+      { key: "DATAFORSEO_PASSWORD", label: "DataForSEO password", secret: true, required: true },
+    ],
+  },
+  {
+    id: "next-devtools",
+    name: "Next.js DevTools",
+    description:
+      "Inspect App Router routes, server components and build output in Next.js projects.",
+    package: "next-devtools-mcp",
+    site: "https://nextjs.org",
+    args: [],
+    env: [],
+  },
+  {
+    id: "clarity",
+    name: "Microsoft Clarity",
+    description:
+      "Export user session recordings, heatmaps and behavioural analytics from Microsoft Clarity.",
+    package: "@microsoft/clarity-mcp-server",
+    site: "https://clarity.microsoft.com",
+    args: [],
+    env: [
+      { key: "CLARITY_API_TOKEN", label: "Clarity API token", secret: true, required: true },
+    ],
+  },
+  {
+    id: "phantom",
+    name: "Phantom Wallet",
+    description:
+      "Inspect multichain crypto balances, tokens and account addresses across Solana and Ethereum.",
+    package: "@phantom/mcp-server",
+    site: "https://phantom.app",
+    args: [],
+    env: [],
+  },
+  {
+    id: "scryfall",
+    name: "Scryfall MTG",
+    description:
+      "Search Magic: The Gathering cards, rulings, set symbols, printings and market prices.",
+    package: "scryfall-mcp-server",
+    site: "https://scryfall.com",
+    args: [],
+    env: [],
+  },
 ];
 
 /** The package's page on npm, which renders its README. Derived rather than stored, so the link can
