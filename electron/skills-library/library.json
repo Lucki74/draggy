@@ -25,6 +25,13 @@
       "summary": "Fix spelling and grammar"
     },
     {
+      "id": "human",
+      "category": "writing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Remove AI writing patterns"
+    },
+    {
       "id": "summarizer",
       "category": "writing",
       "surface": "chat",
