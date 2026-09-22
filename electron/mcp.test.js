@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const {
@@ -452,6 +452,7 @@ describe("a server that is a URL rather than a program", () => {
 
   it("says which servers reach the network", () => {
     expect(mcp.isRemote("custom", { url: "https://tools.example/mcp" })).toBe(true);
+    expect(mcp.isRemote("composio", {})).toBe(true);
     expect(mcp.isRemote("github", {})).toBe(false);
   });
 });
@@ -569,11 +570,47 @@ describe("starting a server with credentials in the keystore", () => {
     });
 
     secrets.set("composio", { COMPOSIO_API_KEY: "secret_123" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
-    const result = await mcp.startServer("composio", { enabled: true, env: {} });
-    expect(result.error).not.toMatch(/Not configured yet/i);
+    try {
+      const result = await mcp.startServer("composio", { enabled: true, env: {} });
+      expect(result.error).not.toMatch(/Not configured yet/i);
+    } finally {
+      vi.unstubAllGlobals();
+      secrets.close();
+      fs.rmSync(workdir, { recursive: true, force: true });
+    }
+  });
 
-    secrets.close();
-    fs.rmSync(workdir, { recursive: true, force: true });
+  it("passes api key headers when starting a remote server", async () => {
+    let capturedHeaders = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, options) => {
+        capturedHeaders = options.headers;
+        return {
+          ok: true,
+          status: 200,
+          headers: new Map([["content-type", "application/json"]]),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              result: { protocolVersion: "2025-06-18", capabilities: {} },
+            }),
+        };
+      }),
+    );
+
+    try {
+      await mcp.startServer("composio", {
+        enabled: true,
+        env: { COMPOSIO_API_KEY: "ck_test_123" },
+      });
+      expect(capturedHeaders?.["x-consumer-api-key"]).toBe("ck_test_123");
+    } finally {
+      mcp.stopServer("composio", true);
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -71,6 +71,14 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
     api.config().then((result) => setConfig(result.config || {}));
     api.running().then((result) => setRunning(result.servers || []));
     api.enabled().then((result) => setEnabled(result.ids || []));
+
+    const stopWatching = api.onState?.((state) => {
+      setRunning(state.servers || []);
+    });
+
+    return () => {
+      stopWatching?.();
+    };
   }, [api]);
 
   const stateOf = (id: string) => running.find((server) => server.id === id) || null;
@@ -360,13 +368,14 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                     </p>
                   )}
 
-                  {live?.status === "error" &&
-                    live.error &&
-                    (!live.error.startsWith("Not configured yet") || missing.length > 0) && (
-                      <p className="text-[11px] mt-2 font-medium text-red-500 break-words">
-                        {live.error}
-                      </p>
-                    )}
+                  {((live?.status === "error" && live.error) ||
+                    (current.enabled && missing.length > 0)) && (
+                    <p className="text-[11px] mt-2 font-medium text-red-500 break-words">
+                      {live?.status === "error" && live.error
+                        ? live.error
+                        : `Not configured yet: ${missing.join(", ")}.`}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">

@@ -138,6 +138,16 @@ describe("a session the server opened", () => {
     expect(received[1].headers["mcp-session-id"]).toBe("session-7");
   });
 
+  it("recognises a session id sent under session-id", async () => {
+    handler = (request, response, message) =>
+      json(response, result(message, {}), { "Session-Id": "session-8" });
+
+    const transport = createHttpTransport({ url });
+    await transport.send("initialize", {});
+
+    expect(transport.sessionId).toBe("session-8");
+  });
+
   it("says goodbye when it is closed", async () => {
     handler = (request, response, message) => {
       if (request.method === "DELETE") {
@@ -165,6 +175,18 @@ describe("a server that wants a token", () => {
     await transport.send("tools/list", {});
 
     expect(received[0].headers.authorization).toBe("Bearer token-abc");
+  });
+
+  it("sends custom headers when provided", async () => {
+    handler = (request, response, message) => json(response, result(message, {}));
+
+    const transport = createHttpTransport({
+      url,
+      getHeaders: () => ({ "x-consumer-api-key": "ck-xyz" }),
+    });
+    await transport.send("tools/list", {});
+
+    expect(received[0].headers["x-consumer-api-key"]).toBe("ck-xyz");
   });
 
   it("refreshes once when the token has expired, then carries on", async () => {

@@ -533,12 +533,13 @@ const CATALOGUE = [
     name: "Composio",
     description:
       "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
-    package: "composio-mcp-server",
+    transport: "http",
+    url: "https://connect.composio.dev/mcp",
+    package: "composio-mcp",
     site: "https://composio.dev",
     args: [],
     env: [
       { key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true },
-      { key: "COMPOSIO_APPS", label: "Enabled apps (comma-separated, e.g. github,slack)", required: false },
     ],
   },
   {

@@ -2544,8 +2544,9 @@ ipcMain.handle("mcp:start-enabled", wrap("mcp", async () => {
     states.push(await mcp.startServer(id, entry));
   }
 
-  broadcast("mcp-state", { servers: mcp.listRunning() });
-  return { success: true, servers: states };
+  const servers = mcp.listRunning();
+  broadcast("mcp-state", { servers });
+  return { success: true, servers };
 }));
 
 ipcMain.handle("logs:open", async () => shell.openPath(logger.logFolder()));

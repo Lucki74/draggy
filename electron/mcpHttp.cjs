@@ -52,6 +52,7 @@ function createHttpTransport(options) {
     url,
     fetchImpl = fetch,
     getToken = () => null,
+    getHeaders = () => null,
     onUnauthorized = null,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   } = options;
@@ -61,11 +62,13 @@ function createHttpTransport(options) {
 
   async function post(body, { retrying = false } = {}) {
     const token = await getToken();
+    const customHeaders = (await getHeaders()) || {};
 
     const headers = {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
       "MCP-Protocol-Version": PROTOCOL_VERSION,
+      ...customHeaders,
     };
 
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -92,7 +95,7 @@ function createHttpTransport(options) {
       );
     }
 
-    const session = response.headers.get("mcp-session-id");
+    const session = response.headers.get("mcp-session-id") || response.headers.get("session-id");
     if (session) sessionId = session;
 
     if (response.status === 202) return null;
@@ -138,11 +141,13 @@ function createHttpTransport(options) {
       // Politeness, and it frees the session on the other side. A server that
       // does not support it says so with a 405, which is not a problem.
       try {
+        const customHeaders = (await getHeaders()) || {};
         await fetchImpl(url, {
           method: "DELETE",
           headers: {
             "Mcp-Session-Id": sessionId,
             "MCP-Protocol-Version": PROTOCOL_VERSION,
+            ...customHeaders,
           },
           signal: AbortSignal.timeout(5000),
         });

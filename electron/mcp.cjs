@@ -397,10 +397,20 @@ async function refreshTokens(id, url) {
 }
 
 /** Brings a remote server up: no process, one handshake over HTTP. */
-async function startRemote(id, definition) {
+async function startRemote(id, definition, fullConfig = {}) {
   const transport = createHttpTransport({
     url: definition.url,
     getToken: async () => (await tokensFor(id))?.access_token ?? null,
+    getHeaders: async () => {
+      const headers = {};
+      const env = fullConfig.env || {};
+      const apiKey = env.COMPOSIO_API_KEY || env.API_KEY || env.MCP_API_KEY;
+      if (apiKey) {
+        headers["x-consumer-api-key"] = apiKey;
+        headers["x-api-key"] = apiKey;
+      }
+      return headers;
+    },
     onUnauthorized: () => refreshTokens(id, definition.url),
   });
 
@@ -443,9 +453,10 @@ async function startRemote(id, definition) {
     return {
       id,
       status: "error",
-      error: /401|403/.test(error.message)
-        ? "That server wants you to sign in first."
-        : error.message,
+      error:
+        /401|403/.test(error.message) && !definition.env?.length
+          ? "That server wants you to sign in first."
+          : error.message,
       tools: [],
     };
   }
@@ -459,8 +470,6 @@ async function startServer(id, config = {}) {
     return { id, status: "error", error: `There is no server called "${id}".`, tools: [] };
   }
 
-  if (definition.transport === "http") return startRemote(id, definition);
-
   // Credentials live in the encrypted store, so they have to be merged before checking requirements.
   const fullConfig = { ...config, env: secrets.withSecrets(id, config.env) };
 
@@ -473,6 +482,8 @@ async function startServer(id, config = {}) {
       tools: [],
     };
   }
+
+  if (definition.transport === "http") return startRemote(id, definition, fullConfig);
 
   const spec = catalogue.commandFor(definition, fullConfig);
 

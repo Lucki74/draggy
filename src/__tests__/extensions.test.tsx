@@ -402,7 +402,7 @@ describe("adding an npm server from the registry", () => {
             id: "composio",
             name: "Composio",
             description: "Connect to apps",
-            package: "composio-mcp-server",
+            package: "composio-mcp",
             docs: "https://composio.dev",
             args: [],
             env: [{ key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true }],
