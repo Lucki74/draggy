@@ -86,6 +86,25 @@ Models are downloaded directly to your machine on first launch. See
 [Installation](https://draggy.org/wiki/installation) for hardware requirements, the
 code-signing warnings each system shows once, and how updates arrive.
 
+### macOS: "Draggy" not opened
+
+The macOS build is not notarised by Apple, so the first launch is blocked with
+*Apple could not verify "Draggy" is free of malware*. Click **Done**, not
+**Move to Trash**, then either:
+
+- open **System Settings → Privacy & Security**, scroll down to *"Draggy" was
+  blocked* and click **Open Anyway**, then confirm with your password; or
+- clear the quarantine flag from Terminal after copying the app to
+  Applications:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Draggy.app
+```
+
+This is needed once per install. Because the app is not notarised it also
+cannot update itself on macOS: download the new `.dmg` from the
+[Releases page](https://github.com/Lucki74/draggy/releases) and repeat the step.
+
 ## Building it yourself
 
 ```bash
