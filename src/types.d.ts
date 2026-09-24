@@ -1100,6 +1100,7 @@ declare global {
           hasBinary: boolean;
           ready: boolean;
           runnerType?: string;
+          engineBuild?: string | null;
         }>;
         setupEngine: () => Promise<{ success: boolean; runnerType?: string; error?: string }>;
         start: (options: {

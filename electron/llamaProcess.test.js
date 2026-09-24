@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const platform = require("./platform.cjs");
 const llamaProcess = require("./llamaProcess.cjs");
 const mmproj = require("./mmproj.cjs");
+const cpuTopology = require("./cpuTopology.cjs");
 
 const quiet = { info() {}, debug() {}, warn() {}, error() {} };
 
@@ -64,8 +65,13 @@ describe("llamaProcess.startServer", () => {
     const flag = (name) => args[args.indexOf(name) + 1];
     expect(flag("--parallel")).toBe("1");
     expect(flag("-b")).toBe("2048");
+    // Vulkan keeps the default micro-batch; CUDA gets a bigger one (see batchSizes).
     expect(flag("-ub")).toBe("512");
-    expect(flag("-t")).toBe(String(Math.min(8, os.cpus().length)));
+    const cores = await cpuTopology.getCpuTopology();
+    expect(flag("-t")).toBe(String(cores.performance));
+    expect(flag("-tb")).toBe(String(Math.max(cores.performance, cores.physical)));
+    // The stand-in binary does not exist, so no --help answer: nothing newer than the base flags is passed.
+    expect(args).not.toContain("--spec-default");
     expect(flag("--cache-reuse")).toBe("256");
     // Passing -ngl at all switches off llama.cpp's --fit, which is what keeps a big model off shared memory.
     expect(args).not.toContain("-ngl");
@@ -331,5 +337,69 @@ describe("llamaProcess.startServer failures", () => {
 
     expect(await one).toEqual(await two);
     expect(spawn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("llamaProcess speed tuning", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    llamaProcess.stopServerSync();
+  });
+
+  it("gives CUDA a bigger micro-batch, and MoE the biggest", () => {
+    expect(llamaProcess.batchSizes("cuda", 12, false)).toEqual({ batch: 2048, ubatch: 2048 });
+    expect(llamaProcess.batchSizes("cuda", 8, false)).toEqual({ batch: 2048, ubatch: 1024 });
+    expect(llamaProcess.batchSizes("cuda", 8, true)).toEqual({ batch: 2048, ubatch: 2048 });
+    expect(llamaProcess.batchSizes("vulkan", 12, false)).toEqual({ batch: 2048, ubatch: 512 });
+    expect(llamaProcess.batchSizes("metal", 36, true)).toEqual({ batch: 2048, ubatch: 512 });
+    expect(llamaProcess.batchSizes(undefined, 0, false)).toEqual({ batch: 2048, ubatch: 512 });
+  });
+
+  it("leaves a mixture-of-experts model its q8_0 cache and full context, since --fit moves experts first", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "statSync").mockReturnValue({ size: 16 * 1024 ** 3 });
+    expect(llamaProcess.determineKvCache("moe.gguf", 32768, 8, { moe: true })).toEqual({ cacheType: "q8_0", effectiveContext: 32768 });
+    expect(llamaProcess.determineKvCache("dense.gguf", 32768, 8).cacheType).toBe("q4_0");
+  });
+
+  it.skipIf(process.platform === "win32")("turns on n-gram speculation only when the engine lists it", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-flags-"));
+    const bin = (name, flags) => {
+      const file = path.join(dir, name);
+      const help = Array.from({ length: 30 }, (_, i) => `--flag-${i}`).concat(flags).join("\n");
+      fs.writeFileSync(file, `#!/bin/sh\ncat <<'EOF'\n${help}\nEOF\n`);
+      fs.chmodSync(file, 0o755);
+      return file;
+    };
+    const health = http.createServer((_req, res) => res.end("ok"));
+    await new Promise((resolve) => health.listen(0, "127.0.0.1", resolve));
+    const port = health.address().port;
+    await new Promise((resolve) => health.close(resolve));
+
+    const calls = [];
+    vi.spyOn(platform, "spawnHidden").mockImplementation((file, args) => {
+      calls.push(args);
+      if (!health.listening) health.listen(port, "127.0.0.1");
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.exitCode = null;
+      return child;
+    });
+
+    try {
+      const start = (binaryPath, modelPath) =>
+        llamaProcess.startServer({ binaryPath, modelPath, port, log: quiet });
+      expect((await start(bin("new-server", ["--spec-default"]), "a.gguf")).success).toBe(true);
+      llamaProcess.stopServerSync();
+      // The port has to be free again, or the second start adopts the first "server".
+      await new Promise((resolve) => health.close(resolve));
+      expect((await start(bin("old-server", []), "b.gguf")).success).toBe(true);
+    } finally {
+      if (health.listening) await new Promise((resolve) => health.close(resolve));
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    expect(calls[0]).toContain("--spec-default");
+    expect(calls[1]).not.toContain("--spec-default");
   });
 });

@@ -1,11 +1,12 @@
 const fs = require("node:fs");
 const http = require("node:http");
-const os = require("node:os");
 const path = require("node:path");
 const platform = require("./platform.cjs");
 const binaryManager = require("./binaryManager.cjs");
 const { parseShard, shardNames } = require("./shards.cjs");
 const mmproj = require("./mmproj.cjs");
+const cpuTopology = require("./cpuTopology.cjs");
+const { parseGgufHeader } = require("./ggufParser.cjs");
 const { log: defaultLog } = require("./logger.cjs");
 
 let activeProcess = null;
@@ -85,7 +86,10 @@ function failureReason(lines) {
 }
 
 /** Picks the KV cache type and a context that fits VRAM, since WDDM spills overflow into slow system RAM. */
-function determineKvCache(modelPath, contextSize, vramGB = 0) {
+function determineKvCache(modelPath, contextSize, vramGB = 0, { moe = false } = {}) {
+  // A mixture-of-experts file is mostly expert weights, which --fit parks in system RAM before it
+  // gives up any of the cache: the file size says nothing about what stays on the card.
+  if (moe) return { cacheType: "q8_0", effectiveContext: contextSize };
   const usableGB = vramGB > 0 ? vramGB * 0.9 - 0.8 : 0;
   let modelSizeGB = 0;
   try {
@@ -104,10 +108,90 @@ function determineKvCache(modelPath, contextSize, vramGB = 0) {
   return { cacheType, effectiveContext };
 }
 
+/** What the header says about a model, read once per file. */
+const traitsCache = new Map();
+function modelTraits(modelPath) {
+  let key;
+  try {
+    key = `${modelPath}|${fs.statSync(modelPath).mtimeMs}`;
+  } catch {
+    return { moe: false };
+  }
+  if (!traitsCache.has(key)) {
+    const header = parseGgufHeader(modelPath);
+    traitsCache.set(key, { moe: (header?.expertCount || 0) > 1 });
+  }
+  return traitsCache.get(key);
+}
+
+/** The flags this llama-server build accepts, from its own --help, so a newer flag never crashes an
+ * older engine. Null when the build could not be asked. Kept on disk, since asking starts the GPU
+ * backends and costs a second or two. */
+const flagsCache = new Map();
+function engineFlags(binaryPath, env, cacheDir = null) {
+  let key;
+  try {
+    const stat = fs.statSync(binaryPath);
+    key = `${binaryPath}|${stat.size}|${stat.mtimeMs}`;
+  } catch {
+    return Promise.resolve(null);
+  }
+  if (flagsCache.has(key)) return flagsCache.get(key);
+
+  const cacheFile = cacheDir ? path.join(cacheDir, "engine-flags.json") : null;
+  try {
+    const saved = cacheFile && JSON.parse(fs.readFileSync(cacheFile, "utf8"));
+    if (saved && saved.key === key && Array.isArray(saved.flags)) {
+      const flags = new Set(saved.flags);
+      flagsCache.set(key, Promise.resolve(flags));
+      return flagsCache.get(key);
+    }
+  } catch {
+    // No usable cache yet: ask the engine.
+  }
+
+  const pending = new Promise((resolve) => {
+    platform.execFileHidden(
+      binaryPath,
+      ["--help"],
+      { cwd: path.dirname(binaryPath), env, encoding: "utf8", timeout: 20000, maxBuffer: 8 * 1024 * 1024 },
+      (_err, stdout, stderr) => {
+        const flags = new Set(`${stdout || ""}\n${stderr || ""}`.match(/--[a-z0-9][a-z0-9-]*/g) || []);
+        if (flags.size <= 20) return resolve(null);
+        try {
+          if (cacheFile) fs.writeFileSync(cacheFile, JSON.stringify({ key, flags: [...flags] }));
+        } catch {
+          // Asking again next launch is fine.
+        }
+        resolve(flags);
+      },
+    );
+  });
+  flagsCache.set(key, pending);
+  return pending;
+}
+
+/** Prompt batch sizes. A bigger micro-batch processes a long prompt much faster on CUDA, and with
+ * experts in system RAM it amortises streaming them to the card; --fit budgets the larger compute
+ * buffer, so it is paid for with weights moved off the card rather than a failed load. */
+function batchSizes(runnerType, vramGB, moe) {
+  let ubatch = 512;
+  if (runnerType === "cuda") ubatch = moe || vramGB >= 10 ? 2048 : 1024;
+  else if (runnerType === "rocm" && vramGB >= 12) ubatch = 1024;
+  return { batch: Math.max(2048, ubatch), ubatch };
+}
+
+/** Generation on the performance cores; prompt processing on every physical core. */
+async function threadCounts(requested) {
+  const { physical, performance } = await cpuTopology.getCpuTopology();
+  const threads = Number.isInteger(requested) && requested > 0 ? requested : performance;
+  return { threads, threadsBatch: Math.max(threads, physical) };
+}
+
 /** Spawns llama-server hidden and returns once its health check answers. */
 function startServer(options) {
   const { modelPath, contextSize = 8192, vramGB = 0 } = options;
-  const { effectiveContext } = determineKvCache(modelPath, contextSize, vramGB);
+  const { effectiveContext } = determineKvCache(modelPath, contextSize, vramGB, modelTraits(modelPath));
   if (starting && starting.modelPath === modelPath && starting.context === effectiveContext) {
     return starting.promise;
   }
@@ -131,6 +215,8 @@ async function launchServer(options) {
     vramGB = 0,
     log,
     skipProjector = false,
+    threads: requestedThreads,
+    speculative = true,
   } = options;
   const logger = log || defaultLog;
 
@@ -147,7 +233,8 @@ async function launchServer(options) {
     };
   }
 
-  const { cacheType, effectiveContext } = determineKvCache(modelPath, contextSize, vramGB);
+  const traits = modelTraits(modelPath);
+  const { cacheType, effectiveContext } = determineKvCache(modelPath, contextSize, vramGB, traits);
   if (activeProcess) {
     if (activeModel === modelPath && activeContext === effectiveContext && (await pingHealth(port))) {
       logger.info("llama", `Reusing existing running instance on port ${port}`);
@@ -167,6 +254,18 @@ async function launchServer(options) {
     return { success: true, port };
   }
 
+  const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB, binaryPath) : { env: {} };
+  const engineEnv = buildEnv({
+    ...engine.env,
+    LLAMA_ARG_FLASH_ATTN: "on",
+    LLAMA_ARG_CACHE_TYPE_K: cacheType,
+    LLAMA_ARG_CACHE_TYPE_V: cacheType,
+  });
+  const flags = await engineFlags(binaryPath, engineEnv, userDataDir);
+  const supports = (flag) => Boolean(flags && flags.has(flag));
+  const { batch, ubatch } = batchSizes(engine.runnerType, vramGB, traits.moe);
+  const { threads, threadsBatch } = await threadCounts(requestedThreads);
+
   const args = [
     "-m", modelPath,
     "--port", String(port),
@@ -175,15 +274,20 @@ async function launchServer(options) {
     "-ctk", cacheType,
     "-ctv", cacheType,
     // Any -ngl, even 99, disables llama.cpp's --fit, so a model bigger than VRAM spills into shared memory.
+    // --fit also places a mixture-of-experts model: attention on the card, experts in RAM as needed.
     ...(Number.isInteger(gpuLayers) ? ["-ngl", String(gpuLayers)] : []),
     // One slot: each extra slot multiplies the KV cache and pushes layers back onto the CPU.
     "--parallel", "1",
-    "-b", "2048",
-    "-ub", "512",
-    "-t", String(Math.min(8, os.cpus().length)),
+    "-b", String(batch),
+    "-ub", String(ubatch),
+    "-t", String(threads),
+    "-tb", String(threadsBatch),
     "--cache-reuse", "256",
     "--jinja",
   ];
+  // Drafts from n-grams already in the context: no second model, near-zero cost when nothing
+  // repeats, and a large speed-up when the model rewrites code or text it has already seen.
+  if (speculative && supports("--spec-default")) args.push("--spec-default");
 
   // Without its projector a vision model answers as if no image had been sent.
   const projector = skipProjector ? null : mmproj.findCompanion(path.dirname(modelPath), path.basename(modelPath));
@@ -197,20 +301,17 @@ async function launchServer(options) {
   }
 
   try {
-    logger.info("llama", `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, gpuLayers=${gpuLayers ?? "auto"}`);
+    logger.info(
+      "llama",
+      `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, ` +
+        `gpuLayers=${gpuLayers ?? "auto"}, runner=${engine.runnerType || "none"}, moe=${traits.moe}, ` +
+        `ubatch=${ubatch}, threads=${threads}/${threadsBatch}, speculative=${args.includes("--spec-default")}`,
+    );
     logger.debug("llama", `Spawning ${binaryPath} with args: ${args.join(" ")}`);
-
-    const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB, binaryPath) :{ env: {} };
-    logger.debug("llama", `GPU runner: ${engine.runnerType || "none"}`);
 
     const child = platform.spawnHidden(binaryPath, args, {
       cwd: path.dirname(binaryPath),
-      env: buildEnv({
-        ...engine.env,
-        LLAMA_ARG_FLASH_ATTN: "on",
-        LLAMA_ARG_CACHE_TYPE_K: cacheType,
-        LLAMA_ARG_CACHE_TYPE_V: cacheType,
-      }),
+      env: engineEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -323,6 +424,8 @@ module.exports = {
   getServerStatus,
   pingHealth,
   determineKvCache,
+  batchSizes,
+  engineFlags,
   missingShards,
   waitForReady,
   buildEnv,

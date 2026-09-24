@@ -137,6 +137,8 @@ function parseGgufBuffer(buf) {
   const embeddingLength = Number(meta[`${arch}.embedding_length`]) || null;
   const fileType = typeof meta["general.file_type"] === "number" ? meta["general.file_type"] : null;
   const name = typeof meta["general.name"] === "string" ? meta["general.name"] : null;
+  // Mixture-of-experts models keep most weights in experts that llama.cpp can leave in system RAM.
+  const expertCount = Number(meta[`${arch}.expert_count`]) || 0;
 
   return {
     architecture: arch,
@@ -145,6 +147,7 @@ function parseGgufBuffer(buf) {
     embeddingLength,
     fileType,
     name,
+    expertCount,
     version,
   };
 }
