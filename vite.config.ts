@@ -3,6 +3,7 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
+import { loadRnnoiseWasm } from "./scripts/rnnoiseWasm";
 
 // onnxruntime-web may be nested under transformers.js or hoisted, so check both. The .mjs glue and
 // .wasm must come from one install or it aborts.
@@ -59,8 +60,26 @@ function onnxRuntimeAssets(): PluginOption {
   };
 }
 
+/** RNNoise for the microphone, served and emitted as rnnoise/rnnoise.wasm beside the app. */
+function rnnoiseAsset(): PluginOption {
+  const fileName = "rnnoise/rnnoise.wasm";
+  return {
+    name: "rnnoise-asset",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url !== `/${fileName}`) return next();
+        res.setHeader("Content-Type", "application/wasm");
+        res.end(loadRnnoiseWasm());
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName, source: loadRnnoiseWasm() });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), onnxRuntimeAssets()],
+  plugins: [react(), onnxRuntimeAssets(), rnnoiseAsset()],
   base: "./",
   optimizeDeps: {
     /** Speech deps load only via dynamic imports in workers, which the crawler misses. Found late,
