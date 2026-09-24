@@ -1,5 +1,7 @@
 import { SUPERTONIC_LANGUAGES, SUPERTONIC_VOICES } from "./supertonic";
+import { synthesizeSound } from "./vocalSounds";
 import { DUCK_GAIN } from "./voiceEngine";
+import type { VocalSound } from "./vocalSounds";
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
 /** Playback for the neural voice. Fragments are scheduled back to back on the audio clock, so each
@@ -67,7 +69,8 @@ export async function createNeuralVoice(
   let device: "webgpu" | "wasm" = "wasm";
   let nextId = 1;
 
-  const pending: string[] = [];
+  /** Text waiting to be synthesised, and sounds waiting their turn behind it. */
+  const pending: ({ text: string } | { sound: VocalSound })[] = [];
   let inFlight = false;
   let awaitingId = 0;
 
@@ -88,8 +91,14 @@ export async function createNeuralVoice(
   };
 
   const pump = () => {
+    // A sound needs no worker: it is scheduled the moment the text before it has been, so a breath
+    // at the start of a reply plays while the first sentence is still being synthesised.
+    while (!inFlight && pending.length > 0 && "sound" in pending[0]) {
+      const { sound } = pending.shift() as { sound: VocalSound };
+      schedule(synthesizeSound(sound, { rate: context.sampleRate, register: options.register }), context.sampleRate);
+    }
     if (inFlight || pending.length === 0) return;
-    const text = pending.shift()!;
+    const { text } = pending.shift() as { text: string };
     inFlight = true;
     awaitingId = nextId++;
     worker.postMessage({
@@ -221,10 +230,19 @@ export async function createNeuralVoice(
     id: "neural",
     device,
 
+    // Supertonic voices a laugh itself, and far better than one built from noise.
+    inlineCues: new Set<VocalSound>(["laugh"]),
+
     enqueue(text) {
       const trimmed = text.trim();
       if (!trimmed) return;
-      pending.push(trimmed);
+      pending.push({ text: trimmed });
+      setSpeaking(true);
+      pump();
+    },
+
+    playSound(sound) {
+      pending.push({ sound });
       setSpeaking(true);
       pump();
     },

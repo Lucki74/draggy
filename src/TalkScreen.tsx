@@ -121,6 +121,7 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
         neuralVoice: resolveNeuralVoice(settings.neuralVoice),
         rate,
         searchEnabled: settings.webMode !== "off",
+        sounds: settings.voiceSounds !== false,
       }),
     [names, rate, settings, vram],
   );
@@ -164,6 +165,7 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
           neuralVoice: resolveNeuralVoice(settings.neuralVoice),
           rate,
           searchEnabled: settings.webMode !== "off",
+          sounds: settings.voiceSounds !== false,
         },
         {
           onView: setView,

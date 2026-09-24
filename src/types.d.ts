@@ -648,6 +648,8 @@ export interface AppSettings {
   voiceEngine: "system" | "neural";
   neuralVoice: string;
   voiceRate: number;
+  /** Breaths, sighs, hums and laughs in Talk, so the voice sounds like a person rather than a reader. */
+  voiceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
   braveApiKey: string;

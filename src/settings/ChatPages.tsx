@@ -148,6 +148,13 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
             onChange={(id) => onUpdate(neural ? { neuralVoice: id } : { voiceName: id })}
           />
         </Row>
+        <Row label={t("voiceSounds")} description={t("voiceSoundsHint")}>
+          <Toggle
+            label={t("voiceSounds")}
+            checked={settings.voiceSounds !== false}
+            onChange={(voiceSounds) => onUpdate({ voiceSounds })}
+          />
+        </Row>
         <Row label={t("speed")}>
           <Segmented
             label={t("speed")}

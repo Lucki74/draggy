@@ -1,3 +1,5 @@
+import { protectCues, restoreCues } from "./vocalSounds";
+
 /** Cuts generated tokens into things worth saying aloud. The first cut is eager, because until it
  * lands the user hears silence; the rest are patient. */
 
@@ -30,7 +32,8 @@ const MARKUP = /[*_~#>|]|\p{Extended_Pictographic}|️/gu;
 /** Strips everything a synthesiser would either read out as punctuation noise or silently mangle.
  * Link text survives, link targets do not. */
 export function speakableText(text: string): string {
-  return text
+  // Sound cues (<breath>, <laugh>...) are the one markup that must survive: MARKUP eats their ">".
+  return restoreCues(protectCues(text)
     .replace(CODE_FENCE, " ")
     .replace(MARKDOWN_LINK, "$1")
     .replace(INLINE_CODE, "$1")
@@ -40,7 +43,7 @@ export function speakableText(text: string): string {
     .replace(/\.{2,}/g, ".")
     .replace(/\s+([.,!?;:])/g, "$1")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim());
 }
 
 function endsOnAbbreviation(text: string): boolean {

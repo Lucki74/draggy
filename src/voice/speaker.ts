@@ -1,9 +1,12 @@
 import { createSentenceChunker, speakableText } from "./chunker";
+import { createBreathing, splitCues } from "./vocalSounds";
 import type { SentenceChunker } from "./chunker";
+import type { Segment } from "./vocalSounds";
 import type { VoiceEngine, VoiceEngineId } from "./voiceEngine";
 
 /** What the assistant says, and when. Text arrives a token at a time and a synthesiser wants
- * clauses, so this cuts at the earliest phrase-shaped point. */
+ * clauses, so this cuts at the earliest phrase-shaped point. Sound cues in the text become sounds
+ * in the same order, and breaths are added where a speaker would take them. */
 
 export interface Speaker {
   engineId: VoiceEngineId;
@@ -24,15 +27,36 @@ export interface Speaker {
   dispose: () => void;
 }
 
-export function createSpeaker(engine: VoiceEngine): Speaker {
-  const chunker: SentenceChunker = createSentenceChunker();
+export interface SpeakerOptions {
+  /** Breaths, sighs, hums and laughs. Off, every cue is dropped and nothing is added. */
+  sounds?: boolean;
+  random?: () => number;
+}
 
-  let held: string[] = [];
+export function createSpeaker(engine: VoiceEngine, options: SpeakerOptions = {}): Speaker {
+  const chunker: SentenceChunker = createSentenceChunker();
+  const soundsOn = Boolean(options.sounds && engine.playSound);
+  const inline = soundsOn ? (engine.inlineCues ?? new Set()) : new Set<never>();
+  const breathing = createBreathing(options.random);
+
+  let held: Segment[] = [];
   let suspended = false;
 
+  const deliver = (segment: Segment) => {
+    if (segment.kind === "sound") engine.playSound?.(segment.sound);
+    else engine.enqueue(segment.text);
+  };
+
   const emit = (piece: string) => {
-    if (suspended) held.push(piece);
-    else engine.enqueue(piece);
+    for (const segment of splitCues(piece, inline)) {
+      if (!soundsOn && segment.kind === "sound") continue;
+      const withBreath: Segment[] =
+        soundsOn && breathing.before(segment) ? [{ kind: "sound", sound: "breath" }, segment] : [segment];
+      for (const part of withBreath) {
+        if (suspended) held.push(part);
+        else deliver(part);
+      }
+    }
   };
 
   return {
@@ -46,6 +70,7 @@ export function createSpeaker(engine: VoiceEngine): Speaker {
       const rest = chunker.flush();
       if (rest) emit(rest);
       chunker.reset();
+      breathing.reset();
     },
 
     say(text) {
@@ -63,7 +88,7 @@ export function createSpeaker(engine: VoiceEngine): Speaker {
 
     resume() {
       suspended = false;
-      for (const piece of held) engine.enqueue(piece);
+      for (const segment of held) deliver(segment);
       held = [];
     },
 
@@ -75,6 +100,7 @@ export function createSpeaker(engine: VoiceEngine): Speaker {
       suspended = false;
       held = [];
       chunker.reset();
+      breathing.reset();
       engine.cancel();
     },
 
