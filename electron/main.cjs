@@ -1458,8 +1458,10 @@ ipcMain.handle("gguf:start", async (_event, options = {}) => {
       userDataDir,
       vramGB: specs?.vram || 0,
       modelPath: targetPath,
-      contextSize: options.contextSize || 8192,
+      // Left unset when the caller does not say, so the running window is kept rather than reloaded.
+      contextSize: options.contextSize || undefined,
       gpuLayers: options.gpuLayers,
+      exactContext: Boolean(options.exactContext),
       port: options.port || 11435,
       log,
     });

@@ -403,3 +403,97 @@ describe("llamaProcess speed tuning", () => {
     expect(calls[1]).not.toContain("--spec-default");
   });
 });
+
+describe("llamaProcess context and memory sizing", () => {
+  const GB = 1024 ** 3;
+  afterEach(() => {
+    vi.restoreAllMocks();
+    llamaProcess.stopServerSync();
+  });
+  const withModelSize = (bytes) => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "statSync").mockReturnValue({ size: bytes });
+  };
+
+  it("rounds a small window up when the card has room, so a growing chat does not reload", () => {
+    withModelSize(4 * GB);
+    const traits = { trainedContext: 131072, kvBytesQ8: 72 * 1024 };
+    expect(llamaProcess.determineKvCache("m.gguf", 4096, 12, traits)).toEqual({ cacheType: "q8_0", effectiveContext: 32768 });
+    // Never past what the model was trained for.
+    expect(llamaProcess.determineKvCache("m.gguf", 4096, 12, { ...traits, trainedContext: 8192 }).effectiveContext).toBe(8192);
+    // Asking for more than the rounding still gets what was asked.
+    expect(llamaProcess.determineKvCache("m.gguf", 65536, 24, traits).effectiveContext).toBe(65536);
+  });
+
+  it("does not round up when the cache already had to shrink", () => {
+    withModelSize(9.05 * GB);
+    expect(llamaProcess.determineKvCache("m.gguf", 16384, 12, { trainedContext: 131072 })).toEqual({
+      cacheType: "q4_0",
+      effectiveContext: 16384,
+    });
+  });
+
+  it("prices the cache from the model's own attention shape", () => {
+    withModelSize(6 * GB);
+    // 12 GB card: 4 GB free, 3.2 GB of it usable for rounding up.
+    const heavy = { trainedContext: 131072, kvBytesQ8: 300 * 1024 };
+    const light = { trainedContext: 131072, kvBytesQ8: 40 * 1024 };
+    expect(llamaProcess.determineKvCache("m.gguf", 4096, 12, heavy).effectiveContext).toBe(8192);
+    expect(llamaProcess.determineKvCache("m.gguf", 4096, 12, light).effectiveContext).toBe(32768);
+  });
+
+  it("starts a mixture-of-experts model at 16K at least", () => {
+    expect(llamaProcess.determineKvCache("moe.gguf", 4096, 8, { moe: true, trainedContext: 262144 }).effectiveContext).toBe(16384);
+    expect(llamaProcess.determineKvCache("moe.gguf", 4096, 8, { moe: true, trainedContext: 8192 }).effectiveContext).toBe(8192);
+  });
+
+  it("sizes the prompt RAM cache from what the weights leave", () => {
+    withModelSize(16 * GB);
+    expect(llamaProcess.promptCacheMiB("m.gguf", 64 * GB)).toBe(16384);
+    expect(llamaProcess.promptCacheMiB("m.gguf", 32 * GB)).toBe(5120);
+    expect(llamaProcess.promptCacheMiB("m.gguf", 16 * GB)).toBe(1024);
+  });
+
+  it("keeps the running window for a caller that does not name one", async () => {
+    const health = http.createServer((_req, res) => res.end("ok"));
+    await new Promise((resolve) => health.listen(0, "127.0.0.1", resolve));
+    const port = health.address().port;
+    await new Promise((resolve) => health.close(resolve));
+    let spawns = 0;
+    vi.spyOn(platform, "spawnHidden").mockImplementation(() => {
+      spawns++;
+      if (!health.listening) health.listen(port, "127.0.0.1");
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.exitCode = null;
+      return child;
+    });
+    try {
+      const base = { binaryPath: "llama-server", modelPath: "chat.gguf", port, log: quiet };
+      expect((await llamaProcess.startServer({ ...base, contextSize: 32768 })).success).toBe(true);
+      // A voice reply names no window: it must not reload the chat model at 8K.
+      expect(await llamaProcess.startServer(base)).toMatchObject({ success: true, alreadyRunning: true });
+      expect(spawns).toBe(1);
+      expect(llamaProcess.getServerStatus().contextSize).toBe(32768);
+
+      // A smaller automatic window is served by the bigger one; a window the user fixed is loaded as asked.
+      expect(await llamaProcess.startServer({ ...base, contextSize: 8192 })).toMatchObject({ alreadyRunning: true, contextSize: 32768 });
+      expect(spawns).toBe(1);
+      // Stand-in for the reload stopping the old engine, whose port the fake health check holds.
+      await new Promise((resolve) => health.close(resolve));
+      await llamaProcess.startServer({ ...base, contextSize: 8192, exactContext: true });
+      expect(spawns).toBe(2);
+      expect(llamaProcess.getServerStatus().contextSize).toBe(8192);
+    } finally {
+      if (health.listening) await new Promise((resolve) => health.close(resolve));
+    }
+  });
+
+  it("never rounds up a window the user fixed", () => {
+    withModelSize(4 * GB);
+    const traits = { trainedContext: 131072, kvBytesQ8: 72 * 1024, exact: true };
+    expect(llamaProcess.determineKvCache("m.gguf", 4096, 12, traits).effectiveContext).toBe(4096);
+    expect(llamaProcess.determineKvCache("moe.gguf", 4096, 12, { ...traits, moe: true }).effectiveContext).toBe(4096);
+  });
+});

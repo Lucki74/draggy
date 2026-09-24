@@ -139,6 +139,11 @@ function parseGgufBuffer(buf) {
   const name = typeof meta["general.name"] === "string" ? meta["general.name"] : null;
   // Mixture-of-experts models keep most weights in experts that llama.cpp can leave in system RAM.
   const expertCount = Number(meta[`${arch}.expert_count`]) || 0;
+  // What the KV cache costs per token. Per-layer arrays (a few hybrid models) read as null here.
+  const headCount = Number(meta[`${arch}.attention.head_count`]) || null;
+  const headCountKv = Number(meta[`${arch}.attention.head_count_kv`]) || headCount;
+  const keyLength = Number(meta[`${arch}.attention.key_length`]) || (headCount && embeddingLength ? embeddingLength / headCount : null);
+  const valueLength = Number(meta[`${arch}.attention.value_length`]) || keyLength;
 
   return {
     architecture: arch,
@@ -148,6 +153,9 @@ function parseGgufBuffer(buf) {
     fileType,
     name,
     expertCount,
+    headCountKv,
+    keyLength,
+    valueLength,
     version,
   };
 }

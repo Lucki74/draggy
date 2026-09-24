@@ -162,7 +162,15 @@ export function onModelInfoChange(listener: () => void): () => void {
 
 /** Whether an image projector's refusal at start-up should take vision off this model. The listing
  * cannot know: only the engine can say whether it reads the projector beside a model. */
-export function noteEngineStart(model: string, started?: { projectorRefused?: boolean } | null) {
+export function noteEngineStart(
+  model: string,
+  started?: { projectorRefused?: boolean; contextSize?: number } | null,
+) {
+  // The engine may load a bigger window than asked when the card has room. Asking for that one from
+  // now on keeps every later start a reuse, and the meter honest.
+  if (started?.contextSize && started.contextSize > (loadedContextSizes.get(model) ?? 0)) {
+    loadedContextSizes.set(model, started.contextSize);
+  }
   if (!started?.projectorRefused) return;
   forgetModelInfo(model);
   for (const listener of modelInfoListeners) listener();
@@ -347,7 +355,8 @@ export async function isLoadedAt(
     const target = bareModelName(model);
     if (status.model !== target && status.model !== model) return false;
 
-    return status.contextSize === contextSize;
+    // A bigger window serves a smaller request: the engine reuses it rather than reloading.
+    return status.contextSize >= contextSize;
   } catch {
     return null;
   }
@@ -432,6 +441,7 @@ export async function warmModel(
   const started = await window.electronAPI?.gguf?.start({
     modelPath: bareModelName(name),
     contextSize: numCtx,
+    exactContext: typeof fixedContext === "number",
   });
   noteEngineStart(name, started);
 }

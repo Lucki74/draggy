@@ -1106,6 +1106,8 @@ declare global {
         start: (options: {
           modelPath: string;
           contextSize?: number;
+          /** The window was fixed by the user: load exactly this, never rounded up. */
+          exactContext?: boolean;
           gpuLayers?: number;
           port?: number;
         }) => Promise<{
@@ -1113,6 +1115,8 @@ declare global {
           port?: number;
           error?: string;
           alreadyRunning?: boolean;
+          /** The window the model is actually loaded at, which can exceed the one asked for. */
+          contextSize?: number;
           /** The engine could not read the model's image projector, so the model runs without vision. */
           projectorRefused?: boolean;
           /** Which failure this is, so the reader is told in their own language. */
