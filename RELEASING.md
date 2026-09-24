@@ -97,6 +97,13 @@ notarised. Squirrel.Mac refuses to apply an update to an app that is not
 notarised, so a copy installed this way never updates itself again. `npm run
 electron:build:mac` still produces one for manual distribution.
 
+Because of that, Gatekeeper blocks the first launch of a downloaded copy
+("Apple could not verify..."). Since macOS 15 the right-click → Open bypass is
+gone; users have to click **Open Anyway** in System Settings → Privacy &
+Security, or run `xattr -dr com.apple.quarantine /Applications/Draggy.app`.
+The README's install section explains this; keep it in step if the build
+changes.
+
 To add macOS properly you need an Apple Developer certificate, `CSC_LINK` and
 `CSC_KEY_PASSWORD` as repository secrets, and notarisation credentials; then add
 a `macos-latest` entry to the workflow matrix.
