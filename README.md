@@ -77,7 +77,6 @@ to work on the code.
 
 Many QoL improvements, small features and changes.
 Suppport for ai providers other than draggy’s local engine.
-Human-like writing skill designed to make AI generated text less detectable by AI detection tools
 
 ## Installing and requirements
 
