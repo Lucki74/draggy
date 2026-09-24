@@ -1,3 +1,4 @@
+import { SUPERTONIC_LANGUAGES, SUPERTONIC_VOICES } from "./supertonic";
 import { DUCK_GAIN } from "./voiceEngine";
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
@@ -11,31 +12,32 @@ const CACHE_HOST = "draggy://models/";
 const DUCK_RAMP_S = 0.08;
 const CANCEL_RAMP_S = 0.05;
 
-/** Kokoro covers English only; everything else keeps the system voice. */
-export const NEURAL_LANGUAGES = new Set(["en"]);
+/** Supertonic 3 speaks eleven of the interface's twelve languages; Chinese keeps the system voice. */
+export const NEURAL_LANGUAGES = SUPERTONIC_LANGUAGES;
 
 export interface NeuralVoiceOption {
   id: string;
   name: string;
-  accent: "American" | "British";
-  gender: string;
+  gender: "Female" | "Male";
 }
 
-export const NEURAL_VOICES: NeuralVoiceOption[] = [
-  { id: "af_heart", name: "Heart", accent: "American", gender: "Female" },
-  { id: "af_bella", name: "Bella", accent: "American", gender: "Female" },
-  { id: "af_nicole", name: "Nicole", accent: "American", gender: "Female" },
-  { id: "af_aoede", name: "Aoede", accent: "American", gender: "Female" },
-  { id: "am_michael", name: "Michael", accent: "American", gender: "Male" },
-  { id: "am_fenrir", name: "Fenrir", accent: "American", gender: "Male" },
-  { id: "am_puck", name: "Puck", accent: "American", gender: "Male" },
-  { id: "bf_emma", name: "Emma", accent: "British", gender: "Female" },
-  { id: "bf_isabella", name: "Isabella", accent: "British", gender: "Female" },
-  { id: "bm_george", name: "George", accent: "British", gender: "Male" },
-  { id: "bm_fable", name: "Fable", accent: "British", gender: "Male" },
-];
+/** The ten voices that ship with Supertonic's open weights. They carry no accent of their own: each
+ * speaks every supported language natively. */
+export const NEURAL_VOICES: NeuralVoiceOption[] = SUPERTONIC_VOICES.map((voice) => ({
+  id: voice.id,
+  name: voice.id,
+  gender: voice.gender,
+}));
 
-export const DEFAULT_NEURAL_VOICE = "af_heart";
+export const DEFAULT_NEURAL_VOICE = "F1";
+
+/** A saved voice id, as one of today's. Earlier versions stored Kokoro ids (af_heart, bm_george...);
+ * those keep their gender rather than falling back to whoever is first. */
+export function resolveNeuralVoice(id: string | null | undefined): string {
+  if (id && NEURAL_VOICES.some((voice) => voice.id === id)) return id;
+  if (id && /^[ab]m_/.test(id)) return "M1";
+  return DEFAULT_NEURAL_VOICE;
+}
 
 export function isNeuralVoiceAvailable(language: string): boolean {
   return NEURAL_LANGUAGES.has(language);
@@ -54,7 +56,7 @@ export async function createNeuralVoice(
   context: AudioContext,
   options: NeuralVoiceOptions,
 ): Promise<VoiceEngine & { device: "webgpu" | "wasm" }> {
-  const worker = new Worker(new URL("./kokoroWorker.ts", import.meta.url), {
+  const worker = new Worker(new URL("./supertonicWorker.ts", import.meta.url), {
     type: "module",
   });
 
@@ -94,8 +96,9 @@ export async function createNeuralVoice(
       type: "generate",
       id: awaitingId,
       text,
-      voice: options.voice || DEFAULT_NEURAL_VOICE,
+      voice: resolveNeuralVoice(options.voice),
       speed: options.rate,
+      lang: options.language,
     });
   };
 

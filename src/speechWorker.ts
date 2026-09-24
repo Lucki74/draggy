@@ -26,7 +26,10 @@ interface TranscribeRequest {
 type Request = InitRequest | TranscribeRequest;
 
 let transcriber: Transcriber | null = null;
+let loadedModel = "";
 let device: "webgpu" | "wasm" = "wasm";
+
+const isWhisper = () => loadedModel.includes("whisper");
 
 async function detectDevice(): Promise<"webgpu" | "wasm"> {
   try {
@@ -55,6 +58,8 @@ async function load(request: InitRequest): Promise<void> {
 
   device = await detectDevice();
   const track = createFileProgressTracker();
+  transcriber = null;
+  loadedModel = "";
 
   const instance = await pipeline(
     "automatic-speech-recognition",
@@ -84,9 +89,8 @@ async function load(request: InitRequest): Promise<void> {
   );
 
   transcriber = instance as unknown as Transcriber;
-  await transcriber(new Float32Array(SAMPLE_RATE), {
-    return_timestamps: false,
-  });
+  loadedModel = request.model;
+  await transcriber(new Float32Array(SAMPLE_RATE), isWhisper() ? { return_timestamps: false } : {});
 }
 
 self.onmessage = async (event: MessageEvent<Request>) => {
@@ -94,7 +98,7 @@ self.onmessage = async (event: MessageEvent<Request>) => {
 
   try {
     if (request.type === "init") {
-      if (!transcriber) await load(request);
+      if (!transcriber || loadedModel !== request.model) await load(request);
       self.postMessage({ type: "ready", id: request.id, device });
       return;
     }
@@ -105,12 +109,13 @@ self.onmessage = async (event: MessageEvent<Request>) => {
 
     // Telling Whisper the language up front skips its detection pass and stops
     // it from switching language halfway through a conversation.
-    const options: Record<string, unknown> = { return_timestamps: false };
-    if (request.language) {
+    // Moonshine takes no language, task or chunking options; they are Whisper's.
+    const options: Record<string, unknown> = isWhisper() ? { return_timestamps: false } : {};
+    if (isWhisper() && request.language) {
       options.language = request.language;
       options.task = "transcribe";
     }
-    if (samples.length > CHUNKING_THRESHOLD) {
+    if (isWhisper() && samples.length > CHUNKING_THRESHOLD) {
       options.chunk_length_s = 30;
       options.stride_length_s = 5;
     }

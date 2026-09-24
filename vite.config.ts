@@ -84,7 +84,7 @@ export default defineConfig({
   optimizeDeps: {
     /** Speech deps load only via dynamic imports in workers, which the crawler misses. Found late,
      * Vite re-hashes URLs and breaks running workers, so name them. */
-    include: ["onnxruntime-web", "@huggingface/transformers", "kokoro-js"],
+    include: ["onnxruntime-web", "onnxruntime-web/webgpu", "@huggingface/transformers"],
   },
   server: {
     host: "127.0.0.1",

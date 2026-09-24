@@ -48,6 +48,7 @@ const llamaProcess = require("./llamaProcess.cjs");
 const embedServer = require("./embedServer.cjs");
 const binaryManager = require("./binaryManager.cjs");
 const engineUpdater = require("./engineUpdater.cjs");
+const modelCache = require("./modelCache.cjs");
 const modelStorage = require("./modelStorage.cjs");
 const huggingface = require("./huggingface.cjs");
 
@@ -110,18 +111,6 @@ protocol.registerSchemesAsPrivileged([
 
 const modelCacheDir = () => path.join(app.getPath("userData"), "model-cache");
 
-function modelFileHeaders(relative, size) {
-  const extension = path.extname(relative).toLowerCase();
-  return {
-    "Content-Length": String(size),
-    "Content-Type":
-      extension === ".json"
-        ? "application/json"
-        : extension === ".txt"
-          ? "text/plain"
-          : "application/octet-stream",
-  };
-}
 
 const faviconCacheDir = () => path.join(app.getPath("userData"), "favicon-cache");
 
@@ -153,34 +142,7 @@ async function serveCachedModelFile(request) {
   }
 
   const relative = decodeURIComponent(url.pathname).replace(/^\/+/, "");
-  if (!relative) return new Response("Bad request", { status: 400 });
-
-  const root = path.resolve(modelCacheDir());
-  const target = path.resolve(path.join(root, relative));
-  const inside = path.relative(root, target);
-  if (!inside || inside.startsWith("..") || path.isAbsolute(inside)) {
-    return new Response("Bad request", { status: 400 });
-  }
-
-  if (fs.existsSync(target)) {
-    const cached = fs.readFileSync(target);
-    return new Response(cached, {
-      headers: modelFileHeaders(relative, cached.length),
-    });
-  }
-
-  const upstream = await fetch(MODEL_CACHE_ORIGIN + "/" + relative);
-  if (!upstream.ok) {
-    return new Response(upstream.statusText, { status: upstream.status });
-  }
-
-  const body = Buffer.from(await upstream.arrayBuffer());
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, body);
-
-  return new Response(body, {
-    headers: modelFileHeaders(relative, body.length),
-  });
+  return modelCache.serveModelFile(relative, { root: modelCacheDir(), origin: MODEL_CACHE_ORIGIN });
 }
 
 const RENDERER_ORIGIN = "app://draggy";

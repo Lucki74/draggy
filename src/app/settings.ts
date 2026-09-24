@@ -16,7 +16,7 @@ export const defaultSettings: AppSettings = {
   voiceName: "",
   voiceModel: "",
   voiceEngine: "system",
-  neuralVoice: "af_heart",
+  neuralVoice: "F1",
   voiceRate: 1,
   searchProvider: "auto",
   searxngUrl: "",

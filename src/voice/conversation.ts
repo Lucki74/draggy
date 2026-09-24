@@ -549,8 +549,9 @@ export async function openConversation(
     const warming = warmTalkModel(provided.model);
 
     step(hooks.strings.loadingSpeechModel, 0, true);
-    await prepareSpeech((progress) =>
-      step(hooks.strings.loadingSpeechModel, progress.percent, true),
+    await prepareSpeech(
+      (progress) => step(hooks.strings.loadingSpeechModel, progress.percent, true),
+      config.language,
     );
 
     const onSpeakingChange = (active: boolean) => {

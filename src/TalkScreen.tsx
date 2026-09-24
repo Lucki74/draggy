@@ -20,9 +20,9 @@ import {
   planFor,
 } from "./voice/conversation";
 import {
-  DEFAULT_NEURAL_VOICE,
   NEURAL_VOICES,
   isNeuralVoiceAvailable,
+  resolveNeuralVoice,
 } from "./voice/neuralVoice";
 import { isSystemVoiceSupported } from "./voice/systemVoice";
 import type { InstalledModel } from "./llama";
@@ -118,7 +118,7 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
         vram,
         engine: settings.voiceEngine === "neural" ? "neural" : "system",
         systemVoice: settings.voiceName,
-        neuralVoice: settings.neuralVoice || DEFAULT_NEURAL_VOICE,
+        neuralVoice: resolveNeuralVoice(settings.neuralVoice),
         rate,
         searchEnabled: settings.webMode !== "off",
       }),
@@ -161,7 +161,7 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
           vram,
           engine: settings.voiceEngine === "neural" ? "neural" : "system",
           systemVoice: settings.voiceName,
-          neuralVoice: settings.neuralVoice || DEFAULT_NEURAL_VOICE,
+          neuralVoice: resolveNeuralVoice(settings.neuralVoice),
           rate,
           searchEnabled: settings.webMode !== "off",
         },
@@ -263,9 +263,8 @@ export default function TalkScreen({ settings }: TalkScreenProps) {
   const error = failure || view.error;
 
   const voiceLabel = useNeural
-    ? (NEURAL_VOICES.find(
-        (voice) => voice.id === (settings.neuralVoice || DEFAULT_NEURAL_VOICE),
-      )?.name ?? t("naturalVoice"))
+    ? (NEURAL_VOICES.find((voice) => voice.id === resolveNeuralVoice(settings.neuralVoice))?.name ??
+      t("naturalVoice"))
     : settings.voiceName || t("systemVoice");
 
   const modelLabel = live
