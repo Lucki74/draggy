@@ -526,6 +526,7 @@ export async function measureTurn(
     const warmStart = await window.electronAPI.gguf.start({
       modelPath: ggufModelName(input.model),
       contextSize: numCtx,
+      exactContext: typeof fixedContext === "number",
     });
     if (!warmStart?.success && !warmStart?.alreadyRunning) return null;
     noteEngineStart(input.model, warmStart);
@@ -997,6 +998,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         const started = await window.electronAPI.gguf.start({
           modelPath: ggufModelName(model),
           contextSize: numCtx,
+          exactContext: typeof settings.fixedContextSize === "number",
         });
         if (!started?.success && !started?.alreadyRunning) {
           throw new Error(engineFailure(started, { markdown: true }));

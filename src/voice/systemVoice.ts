@@ -1,3 +1,5 @@
+import { synthesizeSound } from "./vocalSounds";
+import type { VocalSound } from "./vocalSounds";
 import type { EngineOptions, VoiceEngine } from "./voiceEngine";
 
 /** The system voice: free, instant, every installed language, and the default. Chromium stalls it
@@ -53,6 +55,10 @@ export function createSystemVoice(options: EngineOptions): VoiceEngine {
   let speaking = false;
   let watchdog: ReturnType<typeof setInterval> | null = null;
   let generation = 0;
+  /** Items held back behind a sound: the synthesiser has its own queue, but no way to pause it for
+   * audio played elsewhere, so what follows a sound waits here until the sound has finished. */
+  const waiting: ({ text: string } | { sound: VocalSound })[] = [];
+  let sounding: AudioBufferSourceNode | null = null;
 
   const pickVoice = () => {
     const voices = listVoices(options.language);
@@ -80,44 +86,108 @@ export function createSystemVoice(options: EngineOptions): VoiceEngine {
     watchdog = null;
   };
 
+  const settleIfIdle = () => {
+    if (queued === 0 && !sounding && waiting.length === 0) {
+      stopWatchdog();
+      setSpeaking(false);
+    }
+  };
+
+  const speak = (text: string) => {
+    const mine = generation;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = pickVoice();
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice?.lang || tag;
+    utterance.rate = options.rate;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    queued++;
+    setSpeaking(true);
+    startWatchdog();
+
+    const done = () => {
+      if (mine !== generation) return;
+      queued = Math.max(0, queued - 1);
+      if (queued === 0) drain();
+      settleIfIdle();
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    speechSynthesis.speak(utterance);
+  };
+
+  const playNow = (sound: VocalSound) => {
+    const context = options.context;
+    if (!context) return;
+    const samples = synthesizeSound(sound, { rate: context.sampleRate, register: options.register });
+    const buffer = context.createBuffer(1, samples.length, context.sampleRate);
+    buffer.getChannelData(0).set(samples);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    const mine = generation;
+    sounding = source;
+    setSpeaking(true);
+    source.onended = () => {
+      if (mine !== generation) return;
+      sounding = null;
+      drain();
+      settleIfIdle();
+    };
+    source.start();
+  };
+
+  /** Hands on what was waiting, up to the next sound that has to wait for speech to end. */
+  const drain = () => {
+    while (waiting.length > 0 && !sounding) {
+      const next = waiting[0];
+      if ("sound" in next) {
+        if (queued > 0) return;
+        waiting.shift();
+        playNow(next.sound);
+        return;
+      }
+      waiting.shift();
+      speak(next.text);
+    }
+  };
+
   return {
     id: "system",
 
     enqueue(text) {
       const trimmed = text.trim();
       if (!trimmed || !isSystemVoiceSupported()) return;
+      if (sounding || waiting.length > 0) {
+        waiting.push({ text: trimmed });
+        setSpeaking(true);
+        return;
+      }
+      speak(trimmed);
+    },
 
-      const mine = generation;
-      const utterance = new SpeechSynthesisUtterance(trimmed);
-      const voice = pickVoice();
-      if (voice) utterance.voice = voice;
-      utterance.lang = voice?.lang || tag;
-      utterance.rate = options.rate;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-
-      queued++;
+    playSound(sound) {
+      if (!options.context) return;
+      waiting.push({ sound });
       setSpeaking(true);
-      startWatchdog();
-
-      const done = () => {
-        if (mine !== generation) return;
-        queued = Math.max(0, queued - 1);
-        if (queued === 0) {
-          stopWatchdog();
-          setSpeaking(false);
-        }
-      };
-
-      utterance.onend = done;
-      utterance.onerror = done;
-
-      speechSynthesis.speak(utterance);
+      drain();
     },
 
     cancel() {
       generation++;
       queued = 0;
+      waiting.length = 0;
+      if (sounding) {
+        sounding.onended = null;
+        try {
+          sounding.stop();
+        } catch {
+          // Already over.
+        }
+        sounding = null;
+      }
       stopWatchdog();
       if (isSystemVoiceSupported()) speechSynthesis.cancel();
       setSpeaking(false);
@@ -129,6 +199,9 @@ export function createSystemVoice(options: EngineOptions): VoiceEngine {
 
     dispose() {
       generation++;
+      waiting.length = 0;
+      sounding?.stop();
+      sounding = null;
       stopWatchdog();
       if (isSystemVoiceSupported()) speechSynthesis.cancel();
     },

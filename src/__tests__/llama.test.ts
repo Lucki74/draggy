@@ -7,8 +7,10 @@ import {
   forgetContextSize,
   forgetModelInfo,
   isCloudModel,
+  isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
+  noteEngineStart,
   peekContextSize,
   pickContextSize,
   readMetrics,
@@ -238,5 +240,30 @@ describe("displayModelName", () => {
   it("leaves a single-file model and a name that only resembles a counter alone", () => {
     expect(displayModelName("ornith-1.0-35b-Q4_K_M.gguf")).toBe("ornith-1.0-35b-Q4_K_M.gguf");
     expect(displayModelName("model-00001-of-00004-final.gguf")).toBe("model-00001-of-00004-final.gguf");
+  });
+});
+
+describe("engine-chosen windows", () => {
+  const MODEL = "roomy-test.gguf";
+  afterEach(() => {
+    forgetContextSize(MODEL);
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("asks for the window the engine actually loaded from then on", () => {
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+    noteEngineStart(MODEL, { contextSize: 32768 });
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(32768);
+    // Never lowered by a smaller report.
+    noteEngineStart(MODEL, { contextSize: 8192 });
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(32768);
+  });
+
+  it("counts a bigger loaded window as loaded", async () => {
+    const status = { running: true, model: MODEL, contextSize: 32768 };
+    (globalThis as { window?: unknown }).window = { electronAPI: { gguf: { status: async () => status } } };
+    expect(await isLoadedAt(MODEL, 8192)).toBe(true);
+    expect(await isLoadedAt(MODEL, 32768)).toBe(true);
+    expect(await isLoadedAt(MODEL, 65536)).toBe(false);
   });
 });

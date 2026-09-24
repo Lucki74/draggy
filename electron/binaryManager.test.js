@@ -178,6 +178,34 @@ describe("binaryManager", () => {
       });
     });
 
+    it("prefers a flat CUDA build over a leftover vulkan folder on NVIDIA", () => {
+      withPlatform({ win: true }, () => {
+        const dir = tmp();
+        touch(dir, "ggml-cuda.dll");
+        fs.mkdirSync(path.join(dir, "vulkan"));
+        expect(binaryManager.detectGpuRunner(dir, 12)).toMatchObject({ runnerType: "cuda", runnerDir: dir });
+      });
+    });
+
+    it("uses CUDA on Linux when the NVIDIA driver is there", () => {
+      const realExists = fs.existsSync;
+      const driver = (on) =>
+        (fs.existsSync = (file) => (String(file).endsWith("libcuda.so.1") ? on : realExists(file)));
+      try {
+        withPlatform({ linux: true }, () => {
+          const dir = tmp();
+          touch(dir, "libggml-cuda.so");
+          touch(dir, "libggml-vulkan.so");
+          driver(true);
+          expect(binaryManager.detectGpuRunner(dir, 12).runnerType).toBe("cuda");
+          driver(false);
+          expect(binaryManager.detectGpuRunner(dir, 12).runnerType).toBe("vulkan");
+        });
+      } finally {
+        fs.existsSync = realExists;
+      }
+    });
+
     it("uses Metal on macOS and Vulkan or ROCm on Linux", () => {
       withPlatform({ mac: true }, () => {
         expect(binaryManager.detectGpuRunner(tmp(), 0)).toMatchObject({ runnerType: "metal", backendDll: null });
@@ -379,6 +407,11 @@ describe("binaryManager", () => {
         "llama-b1-bin-macos-arm64.tar.gz",
         "llama-b1-bin-ubuntu-x64.tar.gz",
         "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+        "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+        "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+        "cudart-llama-bin-win-cuda-13.4-x64.zip",
       ].map((name) => ({ name }));
       const pick = (flags, options) => withPlatform(flags, () => binaryManager.pickReleaseAssets(names, options));
 
@@ -390,9 +423,35 @@ describe("binaryManager", () => {
         expect(pick({ win: true }, { vramGB: 0 }).main.name).toContain("win-cpu");
       });
 
+      it("gives Blackwell cards CUDA 13, and falls back to 12 without its runtime", () => {
+        const win = pick({ win: true }, { vramGB: 16, nvidia: true, cuda13: true });
+        expect(win.main.name).toBe("llama-b1-bin-win-cuda-13.4-x64.zip");
+        expect(win.extra.name).toBe("cudart-llama-bin-win-cuda-13.4-x64.zip");
+        expect(win.variant).toBe("cuda-13.4");
+        const linux = pick({ linux: true }, { vramGB: 16, arch: "x64", nvidia: true, cuda13: true });
+        expect(linux.extra.name).toBe("cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz");
+        const noRuntime = names.filter((asset) => asset.name !== "cudart-llama-bin-win-cuda-13.4-x64.zip");
+        const fallback = withPlatform({ win: true }, () =>
+          binaryManager.pickReleaseAssets(noRuntime, { vramGB: 16, nvidia: true, cuda13: true }),
+        );
+        expect(fallback.variant).toBe("cuda-12.4");
+      });
+
+      it("names the variant and build of an archive", () => {
+        expect(binaryManager.variantOf("llama-b9-bin-win-vulkan-x64.zip")).toBe("vulkan");
+        expect(binaryManager.variantOf("llama-b9-bin-ubuntu-x64.tar.gz")).toBe("cpu");
+        expect(binaryManager.variantOf("llama-b9-bin-macos-arm64.tar.gz")).toBe("metal");
+        expect(binaryManager.variantOf("llama-b9-bin-ubuntu-cuda-12.8-x64.tar.gz")).toBe("cuda-12.8");
+        expect(binaryManager.buildNumber("b11146")).toBe(11146);
+        expect(binaryManager.buildNumber("v0.5.0")).toBe(0);
+      });
+
       it("matches macOS and Linux archives", () => {
         expect(pick({ mac: true }, { arch: "arm64" }).main.name).toContain("macos-arm64");
         expect(pick({ linux: true }, { vramGB: 8, arch: "x64" }).main.name).toContain("ubuntu-vulkan-x64");
+        const cuda = pick({ linux: true }, { vramGB: 8, arch: "x64", nvidia: true });
+        expect(cuda.main.name).toBe("llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz");
+        expect(cuda.extra.name).toBe("cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz");
         expect(pick({ linux: true }, { vramGB: 0, arch: "x64" }).main.name).toBe("llama-b1-bin-ubuntu-x64.tar.gz");
       });
     });

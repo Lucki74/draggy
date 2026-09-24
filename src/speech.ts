@@ -1,5 +1,16 @@
 export const SPEECH_MODEL = "onnx-community/whisper-base";
 
+/** Moonshine was trained for live speech rather than 30-second broadcast clips: it encodes only the
+ * audio it is given instead of padding every utterance to half a minute, so a two-second answer is
+ * transcribed several times faster than by Whisper, at better accuracy than Whisper base. English
+ * only, so every other language keeps Whisper. */
+export const LIVE_SPEECH_MODEL = "onnx-community/moonshine-base-ONNX";
+
+/** The recogniser for a conversation in `language`; dictation without a language keeps Whisper. */
+export function speechModelFor(language?: string | null): string {
+  return language === "en" ? LIVE_SPEECH_MODEL : SPEECH_MODEL;
+}
+
 const CACHE_HOST = "draggy://models/";
 const ORT_ASSET_DIR = "ort/";
 const SAMPLE_RATE = 16000;
@@ -31,6 +42,8 @@ interface WorkerReply {
 
 let worker: Worker | null = null;
 let readyPromise: Promise<void> | null = null;
+/** The model the worker has, or is loading. */
+let readyModel = "";
 let nextId = 1;
 
 const pending = new Map<
@@ -95,22 +108,26 @@ function ensureWorker(): Worker {
 
 export function prepareSpeech(
   onProgress?: (progress: SpeechProgress) => void,
+  language?: string | null,
 ): Promise<void> {
   progressListener = onProgress || null;
+  const model = language === undefined && readyModel ? readyModel : speechModelFor(language);
 
-  if (!readyPromise) {
+  if (!readyPromise || readyModel !== model) {
+    readyModel = model;
     readyPromise = new Promise<void>((resolve, reject) => {
       const id = nextId++;
       pending.set(id, { resolve: () => resolve(), reject });
       ensureWorker().postMessage({
         type: "init",
         id,
-        model: SPEECH_MODEL,
+        model,
         cacheHost: window.electronAPI ? CACHE_HOST : null,
         wasmPath: new URL(ORT_ASSET_DIR, document.baseURI).href,
       });
     }).catch((error) => {
       readyPromise = null;
+      readyModel = "";
       throw error;
     });
   }

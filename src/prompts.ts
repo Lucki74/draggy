@@ -171,10 +171,16 @@ SEARCH: a few plain keywords
 
 Nothing before it, nothing after it, no URL, no sentence. Everything that does not change (history, geography, definitions, maths, how something works) you answer yourself without searching.`;
 
-export function buildVoicePrompt(searchEnabled: boolean): string {
-  return searchEnabled
-    ? `${VOICE_SEARCH_PROMPT}\n\n${VOICE_BASE_PROMPT}`
-    : VOICE_BASE_PROMPT;
+/** The one exception to "no symbols": cues the voice turns into sounds instead of reading out. */
+const VOICE_SOUNDS_PROMPT = `You can make the small sounds a person makes while talking by writing one of these cues exactly where the sound belongs: <laugh> <sigh> <hmm> <breath>. They are heard, never read out.
+
+Use one only when a real person would: <laugh> when something is actually funny, <sigh> at something tiring, sad or a relief, <hmm> just before thinking over a hard question, <breath> before saying something difficult. Most replies need none, and never use more than one per reply. Never describe a sound in words and never write any other cue.`;
+
+export function buildVoicePrompt(searchEnabled: boolean, sounds = false): string {
+  const parts = [VOICE_BASE_PROMPT];
+  if (sounds) parts.push(VOICE_SOUNDS_PROMPT);
+  if (searchEnabled) parts.unshift(VOICE_SEARCH_PROMPT);
+  return parts.join("\n\n");
 }
 
 export interface PromptMode {

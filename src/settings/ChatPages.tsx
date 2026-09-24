@@ -5,7 +5,7 @@ import InstructionsEditor from "./InstructionsEditor";
 import LibraryPanel from "./LibraryPanel";
 import { selectableModels } from "../modelKinds";
 import { thinkingOptions, webOptions } from "./pages";
-import { DEFAULT_NEURAL_VOICE, NEURAL_VOICES, isNeuralVoiceAvailable } from "../voice/neuralVoice";
+import { NEURAL_VOICES, isNeuralVoiceAvailable, resolveNeuralVoice } from "../voice/neuralVoice";
 import { isSystemVoiceSupported, listVoices } from "../voice/systemVoice";
 import { DEFAULT_WORKSPACE_ID } from "../workspaces";
 import type { ModelManager } from "./useModelManager";
@@ -98,7 +98,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
     ? NEURAL_VOICES.map((voice) => ({
         id: voice.id,
         label: voice.name,
-        hint: `${voice.accent} · ${voice.gender}`,
+        hint: voice.gender,
       }))
     : systemVoices.map((voice) => ({ id: voice.name, label: voice.name, hint: voice.lang }));
 
@@ -132,7 +132,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
             <EngineButton
               selected={neural}
               disabled={!neuralPossible}
-              title={neuralPossible ? undefined : t("naturalVoiceEnglishOnly")}
+              title={neuralPossible ? undefined : t("naturalVoiceUnavailable")}
               onClick={() => onUpdate({ voiceEngine: "neural" })}
               label={t("naturalVoice")}
               icon
@@ -142,10 +142,17 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
         <Row label={t("voiceLabel")}>
           <Select
             label={t("voiceLabel")}
-            value={neural ? settings.neuralVoice || DEFAULT_NEURAL_VOICE : settings.voiceName}
+            value={neural ? resolveNeuralVoice(settings.neuralVoice) : settings.voiceName}
             options={voices}
             placeholder={t("automatic")}
             onChange={(id) => onUpdate(neural ? { neuralVoice: id } : { voiceName: id })}
+          />
+        </Row>
+        <Row label={t("voiceSounds")} description={t("voiceSoundsHint")}>
+          <Toggle
+            label={t("voiceSounds")}
+            checked={settings.voiceSounds !== false}
+            onChange={(voiceSounds) => onUpdate({ voiceSounds })}
           />
         </Row>
         <Row label={t("speed")}>

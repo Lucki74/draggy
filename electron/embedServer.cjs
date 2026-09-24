@@ -1,9 +1,9 @@
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
 const platform = require("./platform.cjs");
 const binaryManager = require("./binaryManager.cjs");
 const llamaProcess = require("./llamaProcess.cjs");
+const cpuTopology = require("./cpuTopology.cjs");
 const { log: defaultLog } = require("./logger.cjs");
 
 const DEFAULT_PORT = 11436;
@@ -76,14 +76,20 @@ async function launch(info, file) {
     "--parallel", "4",
     "-b", "2048",
     "-ub", "2048",
-    "-t", String(Math.min(8, os.cpus().length)),
   ];
+  // Same thread split as the chat model; and no prompt cache in RAM, since no embedding request
+  // ever continues an earlier one and llama.cpp would otherwise hold up to 8 GB for nothing.
+  const engine = info.userDataDir ? binaryManager.getEngineEnvironment(info.userDataDir, info.vramGB || 0, info.binaryPath) :{ env: {} };
+  const cores = await cpuTopology.getCpuTopology();
+  args.push("-t", String(cores.performance), "-tb", String(Math.max(cores.performance, cores.physical)));
+  const env = llamaProcess.buildEnv({ ...engine.env });
+  const flags = await llamaProcess.engineFlags(info.binaryPath, env, info.userDataDir);
+  if (flags?.has("--cache-ram")) args.push("--cache-ram", "0");
   logger.info("embed", `Starting embedding server: ${path.basename(file)} on port ${activePort}`);
 
-  const engine = info.userDataDir ? binaryManager.getEngineEnvironment(info.userDataDir, info.vramGB || 0, info.binaryPath) :{ env: {} };
   const proc = platform.spawnHidden(info.binaryPath, args, {
     cwd: path.dirname(info.binaryPath),
-    env: llamaProcess.buildEnv({ ...engine.env }),
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   child = proc;

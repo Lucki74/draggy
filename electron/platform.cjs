@@ -131,6 +131,27 @@ async function detectVideoMemoryGB() {
   return 0;
 }
 
+/** The first NVIDIA GPU's compute capability and driver version, from nvidia-smi (installed with the
+ * driver on Windows and Linux). Null when there is no NVIDIA driver or it cannot be asked. */
+let nvidiaInfoPromise = null;
+function parseNvidiaInfo(out) {
+  const [cap, driver] = String(out || "").trim().split("\n")[0].split(",").map((part) => part.trim());
+  const computeCapability = parseFloat(cap);
+  const driverMajor = parseInt(driver, 10);
+  if (!(computeCapability > 0) || !(driverMajor > 0)) return null;
+  return { computeCapability, driverVersion: driver, driverMajor };
+}
+function nvidiaInfo() {
+  if (!nvidiaInfoPromise) {
+    nvidiaInfoPromise = runCommand(
+      "nvidia-smi",
+      ["--query-gpu=compute_cap,driver_version", "--format=csv,noheader"],
+      5000,
+    ).then(parseNvidiaInfo);
+  }
+  return nvidiaInfoPromise;
+}
+
 function hasUnifiedMemory() {
   return IS_MAC && os.arch() === "arm64";
 }
@@ -247,6 +268,8 @@ module.exports = {
   IS_LINUX,
   runCommand,
   detectVideoMemoryGB,
+  nvidiaInfo,
+  parseNvidiaInfo,
   hasUnifiedMemory,
   defaultShellEnv,
   pythonCandidates,

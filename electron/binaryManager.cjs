@@ -115,31 +115,32 @@ function detectGpuRunner(llamaDir, vramGB = 0) {
 
   if (platform.IS_MAC) return found(llamaDir, null, "metal");
 
+  // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
+  const cudaUsable = vramGB > 0 && hasNvidiaDriver();
+
   if (platform.IS_WINDOWS) {
-    // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
-    const cudaUsable = vramGB > 0 && hasNvidiaDriver();
+    // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
     if (cudaUsable) {
       for (const name of ["cuda_v12", "cuda_v13"]) {
         const dir = path.join(llamaDir, name);
         if (isDirectory(dir)) return found(dir, "ggml-cuda.dll", "cuda");
       }
+      if (fs.existsSync(path.join(llamaDir, "ggml-cuda.dll"))) return found(llamaDir, "ggml-cuda.dll", "cuda");
     }
     const vulkanDir = path.join(llamaDir, "vulkan");
     if (isDirectory(vulkanDir)) return found(vulkanDir, "ggml-vulkan.dll", "vulkan");
-
-    if (cudaUsable && fs.existsSync(path.join(llamaDir, "ggml-cuda.dll"))) {
-      return found(llamaDir, "ggml-cuda.dll", "cuda");
-    }
     if (fs.existsSync(path.join(llamaDir, "ggml-vulkan.dll"))) {
       return found(llamaDir, "ggml-vulkan.dll", "vulkan");
     }
     return found(llamaDir, null, "cpu");
   }
 
-  for (const [name, library, runnerType] of [
+  const linuxRunners = [
+    ...(cudaUsable ? [["cuda_v12", "libggml-cuda.so", "cuda"], ["cuda_v13", "libggml-cuda.so", "cuda"]] : []),
     ["vulkan", "libggml-vulkan.so", "vulkan"],
     ["rocm", "libggml-hip.so", "rocm"],
-  ]) {
+  ];
+  for (const [name, library, runnerType] of linuxRunners) {
     const dir = path.join(llamaDir, name);
     if (isDirectory(dir)) return found(dir, library, runnerType);
     if (fs.existsSync(path.join(llamaDir, library))) return found(llamaDir, library, runnerType);
@@ -165,13 +166,45 @@ function getEngineEnvironment(userDataDir, vramGB = 0, explicitBinary = null) {
   return { env, runnerDir, runnerType, binaryPath };
 }
 
-/** True once the engine folder holds the server and, on a GPU machine, a GPU backend. */
+/** True once the engine folder holds the server and, on a GPU machine, a GPU backend. Moving to a
+ * faster build (Vulkan to CUDA, CUDA 12 to 13) is engineUpdater's job, in the background. */
 function engineState(llamaDir, vramGB) {
   const binaryPath = path.join(llamaDir, serverName());
   const { runnerType } = detectGpuRunner(llamaDir, vramGB);
   const present = fs.existsSync(binaryPath);
   const wantsGpu = vramGB > 0 && !platform.IS_MAC;
   return { present, complete: present && (runnerType !== "cpu" || !wantsGpu), binaryPath, runnerType };
+}
+
+/** What is installed: release tag and build variant, written beside the engine. */
+const META_FILE = "engine.json";
+
+function readEngineMeta(llamaDir) {
+  try {
+    const meta = JSON.parse(fs.readFileSync(path.join(llamaDir, META_FILE), "utf8"));
+    return meta && typeof meta === "object" ? meta : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeEngineMeta(llamaDir, meta) {
+  try {
+    fs.writeFileSync(path.join(llamaDir, META_FILE), JSON.stringify(meta, null, 2));
+  } catch (err) {
+    log.warn("binaryManager", `Could not record engine details: ${err.message}`);
+  }
+}
+
+/** The build flavour named in a release archive: "cuda-12.4", "vulkan", "cpu", or "metal" on macOS. */
+function variantOf(assetName) {
+  if (/-bin-macos-/.test(assetName || "")) return "metal";
+  return String(assetName || "").match(/-bin-(?:win|ubuntu)-(.+?)-(?:x64|arm64)\./)?.[1] || "cpu";
+}
+
+/** The build number of a tag such as "b11146", or 0. */
+function buildNumber(tag) {
+  return Number(String(tag || "").match(/^b(\d+)$/)?.[1]) || 0;
 }
 
 /** A folder is worth copying only if the server sits beside its own libraries. */
@@ -206,10 +239,22 @@ function adoptLocalEngine(llamaDir, stageDir) {
   return null;
 }
 
-/** Moves a finished staging folder into place, keeping anything already there. */
-function installStaged(stageDir, llamaDir) {
+/** Moves a finished staging folder into place, keeping anything already there. A replacement swaps whole
+ * folders, so a locked file leaves the old engine untouched rather than half-overwritten. */
+function installStaged(stageDir, llamaDir, { replace = false } = {}) {
   fs.mkdirSync(path.dirname(llamaDir), { recursive: true });
-  if (!fs.existsSync(llamaDir)) {
+  if (replace && fs.existsSync(llamaDir)) {
+    const old = `${llamaDir}.old`;
+    fs.rmSync(old, { recursive: true, force: true });
+    fs.renameSync(llamaDir, old);
+    try {
+      fs.renameSync(stageDir, llamaDir);
+    } catch (err) {
+      fs.renameSync(old, llamaDir);
+      throw err;
+    }
+    fs.rmSync(old, { recursive: true, force: true });
+  } else if (!fs.existsSync(llamaDir)) {
     fs.renameSync(stageDir, llamaDir);
   } else {
     fs.cpSync(stageDir, llamaDir, { recursive: true, force: true });
@@ -218,38 +263,67 @@ function installStaged(stageDir, llamaDir) {
   if (!platform.IS_WINDOWS) fs.chmodSync(path.join(llamaDir, serverName()), 0o755);
 }
 
+/** Where distributions put the NVIDIA driver library: Debian/Ubuntu, Fedora/openSUSE, Arch, WSL. */
+const NVIDIA_LINUX_DRIVER = [
+  "/usr/lib/x86_64-linux-gnu/libcuda.so.1",
+  "/usr/lib/aarch64-linux-gnu/libcuda.so.1",
+  "/usr/lib64/libcuda.so.1",
+  "/usr/lib/libcuda.so.1",
+  "/usr/lib/wsl/lib/libcuda.so.1",
+];
+
 /** Whether an NVIDIA driver is installed. AMD and Intel cards report VRAM too but cannot run CUDA. */
 function hasNvidiaDriver() {
   if (platform.IS_WINDOWS) {
     return fs.existsSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "nvcuda.dll"));
   }
-  return fs.existsSync("/usr/lib/x86_64-linux-gnu/libcuda.so.1");
+  return NVIDIA_LINUX_DRIVER.some((file) => fs.existsSync(file));
 }
 
-/** Chooses release assets for this machine: the engine archive, plus the CUDA runtime when it is not bundled. */
-function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false } = {}) {
+/** Chooses release assets for this machine: the engine archive, plus the CUDA runtime when it is not
+ * bundled. CUDA 13 goes to Blackwell cards (RTX 50) with a new enough driver: the 12.x builds carry no
+ * native code for them. Older cards stay on 12, since 13 dropped the oldest architectures. */
+function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false } = {}) {
   const byName = (pattern) => assets.find((asset) => pattern.test(asset.name));
   const arm = arch === "arm64";
   const cpu = arm ? "arm64" : "x64";
+  const withVariant = (picked) => (picked.main ? { ...picked, variant: variantOf(picked.main.name) } : picked);
 
-  if (platform.IS_MAC) return { main: byName(new RegExp(`^llama-b\\d+-bin-macos-${cpu}\\.tar\\.gz$`)) };
+  if (platform.IS_MAC) return withVariant({ main: byName(new RegExp(`^llama-b\\d+-bin-macos-${cpu}\\.tar\\.gz$`)) });
+
+  const os_ = platform.IS_WINDOWS ? "win" : "ubuntu";
+  const ext = platform.IS_WINDOWS ? "zip" : "tar\\.gz";
+  if (vramGB > 0 && nvidia && !arm) {
+    for (const major of cuda13 ? ["13", "12"] : ["12"]) {
+      const main = byName(new RegExp(`^llama-(b\\d+)-bin-${os_}-cuda-${major}\\.[\\d.]+-x64\\.${ext}$`));
+      const [, build, version] = main?.name.match(/^llama-(b\d+)-bin-\w+-cuda-([\d.]+)-x64/) || [];
+      // Windows names the runtime without the build number, Linux with it.
+      const runtimeNames = platform.IS_WINDOWS
+        ? [`cudart-llama-bin-win-cuda-${version}-x64.zip`]
+        : [`cudart-llama-${build}-bin-ubuntu-cuda-${version}-x64.tar.gz`];
+      const runtime = version && assets.find((asset) => runtimeNames.includes(asset.name));
+      if (main && runtime) return withVariant({ main, extra: runtime });
+    }
+  }
 
   if (platform.IS_WINDOWS) {
-    if (arm) return { main: byName(/^llama-b\d+-bin-win-cpu-arm64\.zip$/) };
-    if (vramGB > 0 && nvidia) {
-      const main = byName(/^llama-b\d+-bin-win-cuda-12\.[\d.]+-x64\.zip$/);
-      const version = main?.name.match(/cuda-([\d.]+)-x64/)?.[1];
-      const runtimeName = `cudart-llama-bin-win-cuda-${version}-x64.zip`;
-      const runtime = version && assets.find((asset) => asset.name === runtimeName);
-      if (main && runtime) return { main, extra: runtime };
-    }
+    if (arm) return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-arm64\.zip$/) });
     const vulkan = byName(/^llama-b\d+-bin-win-vulkan-x64\.zip$/);
-    if (vramGB > 0 && vulkan) return { main: vulkan };
-    return { main: byName(/^llama-b\d+-bin-win-cpu-x64\.zip$/) };
+    if (vramGB > 0 && vulkan) return withVariant({ main: vulkan });
+    return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-x64\.zip$/) });
   }
 
   const variant = vramGB > 0 ? "vulkan-" : "";
-  return { main: byName(new RegExp(`^llama-b\\d+-bin-ubuntu-${variant}${cpu}\\.tar\\.gz$`)) };
+  return withVariant({ main: byName(new RegExp(`^llama-b\\d+-bin-ubuntu-${variant}${cpu}\\.tar\\.gz$`)) });
+}
+
+/** What pickReleaseAssets needs to know about the GPU. */
+async function gpuProfile(vramGB) {
+  const nvidia = vramGB > 0 && hasNvidiaDriver();
+  const info = nvidia ? await platform.nvidiaInfo() : null;
+  // Blackwell is compute capability 10.x and 12.x; CUDA 13 needs the 580 driver series.
+  const cuda13 = Boolean(info && info.computeCapability >= 10 && info.driverMajor >= 580);
+  return { vramGB, nvidia, cuda13 };
 }
 
 /** GET that follows redirects but never leaves https or the outbound URL policy. */
@@ -317,15 +391,20 @@ function unwrap(dir) {
   return entries.length === 1 && entries[0].isDirectory() ? path.join(dir, entries[0].name) : dir;
 }
 
-async function downloadEngine(stageDir, vramGB, onProgress) {
-  const releases = await fetchJson(RELEASES_URL);
-  const pick = (release) =>
-    pickReleaseAssets(release.assets || [], { vramGB, nvidia: hasNvidiaDriver() });
-  // llama.cpp flags every build a prerelease, so only drafts are skipped.
-  const release = releases.find((entry) => !entry.draft && pick(entry).main);
-  if (!release) throw new Error("No llama.cpp release matches this platform");
+/** Downloads the engine for this machine from `release`, or from the newest release that has one.
+ * Returns the unpacked folder with the release tag and build variant. */
+async function downloadEngine(stageDir, vramGB, onProgress, { gpu = null, release: wanted = null } = {}) {
+  const profile = gpu || (await gpuProfile(vramGB));
+  const pick = (entry) => pickReleaseAssets(entry.assets || [], profile);
+  let release = wanted;
+  if (!release) {
+    const releases = await fetchJson(RELEASES_URL);
+    // llama.cpp flags every build a prerelease, so only drafts are skipped.
+    release = releases.find((entry) => !entry.draft && pick(entry).main);
+  }
+  if (!release || !pick(release).main) throw new Error("No llama.cpp release matches this platform");
 
-  const { main, extra } = pick(release);
+  const { main, extra, variant } = pick(release);
   const assets = [main, extra].filter(Boolean);
   const total = assets.reduce((sum, asset) => sum + (asset.size || 0), 0);
   log.info("binaryManager", `Downloading engine ${release.tag_name}: ${assets.map((a) => a.name).join(", ")}`);
@@ -357,7 +436,7 @@ async function downloadEngine(stageDir, vramGB, onProgress) {
     fs.cpSync(unwrap(unpacked), outDir, { recursive: true, force: true });
   }
   onProgress({ percent: 100, completed: total, total, phase: "extracting", label: ENGINE_LABEL });
-  return outDir;
+  return { outDir, tag: release.tag_name, variant };
 }
 
 let setupInFlight = null;
@@ -383,12 +462,19 @@ async function runSetup(userDataDir, vramGB, onProgress) {
   fs.rmSync(stageDir, { recursive: true, force: true });
   try {
     let stagedRoot = stageDir;
-    if (!adoptLocalEngine(llamaDir, stageDir)) {
+    let meta = { variant: "adopted", installedAt: new Date().toISOString() };
+    const adopted = adoptLocalEngine(llamaDir, stageDir);
+    if (adopted) {
+      meta.source = adopted;
+    } else {
       log.info("binaryManager", "No local engine to adopt, downloading a prebuilt release");
-      stagedRoot = await downloadEngine(stageDir, vramGB, onProgress);
+      const downloaded = await downloadEngine(stageDir, vramGB, onProgress);
+      stagedRoot = downloaded.outDir;
+      meta = { tag: downloaded.tag, variant: downloaded.variant, installedAt: meta.installedAt };
     }
     if (!fs.existsSync(path.join(stagedRoot, serverName()))) throw new Error("Engine files are incomplete");
 
+    writeEngineMeta(stagedRoot, meta);
     installStaged(stagedRoot, llamaDir);
   } catch (err) {
     log.error("binaryManager", `Engine setup failed: ${err.message}`, err);
@@ -412,4 +498,16 @@ module.exports = {
   getEngineEnvironment,
   ensureEngineReady,
   pickReleaseAssets,
+  engineState,
+  engineDir,
+  serverName,
+  fetchJson,
+  downloadEngine,
+  installStaged,
+  gpuProfile,
+  readEngineMeta,
+  writeEngineMeta,
+  variantOf,
+  buildNumber,
+  RELEASES_URL,
 };

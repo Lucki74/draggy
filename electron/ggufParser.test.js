@@ -89,3 +89,46 @@ describe("ggufParser", () => {
     expect(parseGgufHeader(path.join(os.tmpdir(), "non-existent-draggy-model.gguf"))).toBeNull();
   });
 });
+
+describe("ggufParser attention shape", () => {
+  /** A header of u32 values after the architecture string. */
+  function headerWith(arch, values) {
+    const buf = Buffer.alloc(4096);
+    buf.writeUInt32LE(GGUF_MAGIC, 0);
+    buf.writeUInt32LE(3, 4);
+    buf.writeBigUInt64LE(0n, 8);
+    buf.writeBigUInt64LE(BigInt(1 + Object.keys(values).length), 16);
+    let offset = writeGgufString(buf, 24, "general.architecture");
+    buf.writeUInt32LE(8, offset);
+    offset = writeGgufString(buf, offset + 4, arch);
+    for (const [key, value] of Object.entries(values)) {
+      offset = writeGgufString(buf, offset, `${arch}.${key}`);
+      buf.writeUInt32LE(4, offset);
+      buf.writeUInt32LE(value, offset + 4);
+      offset += 8;
+    }
+    return buf.subarray(0, offset);
+  }
+
+  it("reads the KV heads and head sizes a cache estimate needs, and the expert count", () => {
+    const parsed = parseGgufBuffer(headerWith("qwen3moe", {
+      block_count: 48,
+      embedding_length: 2048,
+      "attention.head_count": 32,
+      "attention.head_count_kv": 4,
+      "attention.key_length": 128,
+      expert_count: 128,
+    }));
+    expect(parsed).toMatchObject({ blockCount: 48, headCountKv: 4, keyLength: 128, valueLength: 128, expertCount: 128 });
+  });
+
+  it("derives the head size from the embedding when the header leaves it out", () => {
+    const parsed = parseGgufBuffer(headerWith("llama", {
+      block_count: 32,
+      embedding_length: 4096,
+      "attention.head_count": 32,
+      "attention.head_count_kv": 8,
+    }));
+    expect(parsed).toMatchObject({ headCountKv: 8, keyLength: 128, valueLength: 128, expertCount: 0 });
+  });
+});

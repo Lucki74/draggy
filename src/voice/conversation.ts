@@ -12,6 +12,7 @@ import { createGate } from "./gate";
 import { createNeuralVoice, isNeuralVoiceAvailable } from "./neuralVoice";
 import { generateReply, summariseResults } from "./reply";
 import { createSpeaker } from "./speaker";
+import { registerForVoice, stripCues } from "./vocalSounds";
 import { createSystemVoice, isSystemVoiceSupported } from "./systemVoice";
 import { planTalkModel, provideTalkModel, warmTalkModel } from "./talkModel";
 import { endpointDelay } from "./turnDetector";
@@ -80,6 +81,8 @@ export interface ConversationConfig {
   neuralVoice: string;
   rate: number;
   searchEnabled: boolean;
+  /** Breaths, sighs, hums and laughs around the words. */
+  sounds: boolean;
   /** Cancels the preparation. Leaving voice mode mid-download must stop the download and release
    * the microphone, not carry both on in the background. */
   signal?: AbortSignal;
@@ -142,6 +145,9 @@ export function planFor(config: ConversationConfig): TalkPlan {
 
 interface Answer {
   id: number;
+  /** What the model wrote, sound cues included, for the speaker. */
+  raw: string;
+  /** What was said, as it is shown and kept. */
   spoken: string;
   controller: AbortController;
   filed: boolean;
@@ -186,7 +192,7 @@ export async function openConversation(
   /** Settled during startup, once it is known what could actually be fetched. */
   let answering = "";
 
-  const system = buildVoicePrompt(config.searchEnabled);
+  const system = buildVoicePrompt(config.searchEnabled, config.sounds);
   const language = () => config.language || "en";
 
   const publish = (patch: Partial<ConversationView>) => {
@@ -323,6 +329,7 @@ export async function openConversation(
   const respond = async (question: string) => {
     const current: Answer = {
       id: ++counter,
+      raw: "",
       spoken: "",
       controller: new AbortController(),
       filed: false,
@@ -363,7 +370,8 @@ export async function openConversation(
           onSpeech: (piece) => {
             if (!mine()) return;
 
-            current.spoken += piece;
+            current.raw += piece;
+            current.spoken = stripCues(current.raw);
             if (!heard) {
               heard = true;
               publish({ replyMs: Math.round(performance.now() - silenceAt) });
@@ -549,8 +557,9 @@ export async function openConversation(
     const warming = warmTalkModel(provided.model);
 
     step(hooks.strings.loadingSpeechModel, 0, true);
-    await prepareSpeech((progress) =>
-      step(hooks.strings.loadingSpeechModel, progress.percent, true),
+    await prepareSpeech(
+      (progress) => step(hooks.strings.loadingSpeechModel, progress.percent, true),
+      config.language,
     );
 
     const onSpeakingChange = (active: boolean) => {
@@ -565,6 +574,7 @@ export async function openConversation(
         const neural = await createNeuralVoice(capture.context, {
           language: config.language,
           voice: config.neuralVoice,
+          register: registerForVoice(config.neuralVoice),
           rate: config.rate,
           onSpeakingChange,
           onProgress: (progress) =>
@@ -582,6 +592,7 @@ export async function openConversation(
     if (!engine) {
       if (!isSystemVoiceSupported()) throw new Error(hooks.strings.noVoiceOutput);
       engine = createSystemVoice({
+        context: capture.context,
         language: config.language,
         voice: config.systemVoice,
         rate: config.rate,
@@ -589,7 +600,7 @@ export async function openConversation(
       });
     }
 
-    speaker = createSpeaker(engine);
+    speaker = createSpeaker(engine, { sounds: config.sounds });
 
     step(hooks.strings.warmingUp, 100, false);
     await warming;

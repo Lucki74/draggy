@@ -47,6 +47,8 @@ const pdfWriter = require("./pdfWriter.cjs");
 const llamaProcess = require("./llamaProcess.cjs");
 const embedServer = require("./embedServer.cjs");
 const binaryManager = require("./binaryManager.cjs");
+const engineUpdater = require("./engineUpdater.cjs");
+const modelCache = require("./modelCache.cjs");
 const modelStorage = require("./modelStorage.cjs");
 const huggingface = require("./huggingface.cjs");
 
@@ -109,18 +111,6 @@ protocol.registerSchemesAsPrivileged([
 
 const modelCacheDir = () => path.join(app.getPath("userData"), "model-cache");
 
-function modelFileHeaders(relative, size) {
-  const extension = path.extname(relative).toLowerCase();
-  return {
-    "Content-Length": String(size),
-    "Content-Type":
-      extension === ".json"
-        ? "application/json"
-        : extension === ".txt"
-          ? "text/plain"
-          : "application/octet-stream",
-  };
-}
 
 const faviconCacheDir = () => path.join(app.getPath("userData"), "favicon-cache");
 
@@ -152,34 +142,7 @@ async function serveCachedModelFile(request) {
   }
 
   const relative = decodeURIComponent(url.pathname).replace(/^\/+/, "");
-  if (!relative) return new Response("Bad request", { status: 400 });
-
-  const root = path.resolve(modelCacheDir());
-  const target = path.resolve(path.join(root, relative));
-  const inside = path.relative(root, target);
-  if (!inside || inside.startsWith("..") || path.isAbsolute(inside)) {
-    return new Response("Bad request", { status: 400 });
-  }
-
-  if (fs.existsSync(target)) {
-    const cached = fs.readFileSync(target);
-    return new Response(cached, {
-      headers: modelFileHeaders(relative, cached.length),
-    });
-  }
-
-  const upstream = await fetch(MODEL_CACHE_ORIGIN + "/" + relative);
-  if (!upstream.ok) {
-    return new Response(upstream.statusText, { status: upstream.status });
-  }
-
-  const body = Buffer.from(await upstream.arrayBuffer());
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, body);
-
-  return new Response(body, {
-    headers: modelFileHeaders(relative, body.length),
-  });
+  return modelCache.serveModelFile(relative, { root: modelCacheDir(), origin: MODEL_CACHE_ORIGIN });
 }
 
 const RENDERER_ORIGIN = "app://draggy";
@@ -773,6 +736,13 @@ app.whenReady().then(() => {
   logger.init(app);
   for (const note of adopted) log.info("appData", note);
 
+  // Before anything can start llama-server: a build staged last session takes over now.
+  try {
+    engineUpdater.applyPendingEngine(app.getPath("userData"), { log });
+  } catch (error) {
+    log.warn("engineUpdate", `could not apply the staged engine: ${error.message}`);
+  }
+
   try {
     storage.init(app.getPath("userData"));
   } catch (error) {
@@ -848,6 +818,7 @@ function shutdown() {
   const steps = [
     ["browsers", closeBrowserWindows],
     ["updater", () => updater.dispose()],
+    ["engine-updater", () => engineUpdater.dispose()],
     // Servers and code runs are children of this process and would otherwise
     // be left running after the window is gone.
     ["api", () => void apiServer?.stop()],
@@ -1416,6 +1387,7 @@ ipcMain.handle("gguf:status", async () => {
     hasBinary: Boolean(engine.binaryPath),
     ready: Boolean(engine.binaryPath) && (engine.runnerType !== "cpu" || !wantsGpu),
     runnerType: engine.runnerType,
+    engineBuild: binaryManager.readEngineMeta(binaryManager.engineDir(app.getPath("userData"))).tag || null,
   };
 });
 
@@ -1441,16 +1413,32 @@ ipcMain.handle("gguf:start", async (_event, options = {}) => {
     ? options.modelPath
     : path.join(ggufModelsDir(), options.modelPath || "");
   const specs = await getSystemSpecs();
-  const result = await llamaProcess.startServer({
-    binaryPath: binary,
-    userDataDir: app.getPath("userData"),
-    vramGB: specs?.vram || 0,
-    modelPath: targetPath,
-    contextSize: options.contextSize || 8192,
-    gpuLayers: options.gpuLayers,
-    port: options.port || 11435,
-    log,
-  });
+  const userDataDir = app.getPath("userData");
+  const start = (binaryPath) =>
+    llamaProcess.startServer({
+      binaryPath,
+      userDataDir,
+      vramGB: specs?.vram || 0,
+      modelPath: targetPath,
+      // Left unset when the caller does not say, so the running window is kept rather than reloaded.
+      contextSize: options.contextSize || undefined,
+      gpuLayers: options.gpuLayers,
+      exactContext: Boolean(options.exactContext),
+      port: options.port || 11435,
+      log,
+    });
+  let result = await start(binary);
+  if (result.success) {
+    engineUpdater.confirmEngine(userDataDir);
+  } else if (result.kind === "stopped-loading" && engineUpdater.isUnconfirmed(userDataDir)) {
+    // The first load on a freshly updated engine crashed: go back to the build that worked.
+    const { rolledBack } = engineUpdater.rollbackEngine(userDataDir, { log });
+    const restored = rolledBack && binaryManager.findLlamaBinary(userDataDir);
+    if (restored) {
+      result = await start(restored);
+      if (result.success) engineUpdater.confirmEngine(userDataDir);
+    }
+  }
   log.info("ipc", `gguf:start result: success=${result.success}`);
   return result;
 });
@@ -2208,9 +2196,16 @@ ipcMain.handle("run-code", wrap("runner", async (event, language, source, timeou
 ));
 
 ipcMain.handle("updater:state", () => updater.current());
-ipcMain.handle("updater:configure", (event, options) =>
-  updater.configure(options || {}),
-);
+ipcMain.handle("updater:configure", (event, options) => {
+  // The engine follows the same setting as the app: automatic, or not at all.
+  engineUpdater.configure({
+    automatic: Boolean(options?.automatic),
+    userDataDir: app.getPath("userData"),
+    getVramGB: async () => (await getSystemSpecs())?.vram || 0,
+    log,
+  });
+  return updater.configure(options || {});
+});
 ipcMain.handle("updater:check", (event, options) => updater.check(options || {}));
 ipcMain.handle("updater:download", () => updater.download());
 ipcMain.handle("updater:install", () => updater.install());
