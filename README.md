@@ -66,8 +66,8 @@ to work on the code.
   adverts, and Word, PowerPoint, Excel and PDF files.
 - **Search your own documents.** Point it at a folder, indexed on your machine
   and searched by meaning and keywords at once.
-- **Extend it.** Forty-five MCP servers, the official registry and remote
-  servers, plus 64 skills you start with / or leave to the model.
+- **Extend it.** A 107 MCP servers, the official registry and remote
+  servers, plus 66 skills you start with / or leave to the model.
 - **Talk to it.** A voice mode that knows when you have finished, answers out
   loud, and stops when you interrupt.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
