@@ -1919,6 +1919,52 @@ describe("a reasoning model that stops without text after tools", () => {
   });
 });
 
+describe("a model that announces a tool call and stops", () => {
+  const lastUserText = (request: Record<string, unknown>) =>
+    String((request.messages as { role: string; content: string }[]).filter((m) => m.role === "user").at(-1)?.content);
+
+  it("is asked to act on it, and the tool runs", async () => {
+    const { requests } = installFetch(
+      [
+        { content: ["Let me search the web for that."] },
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "capital of France" } } }] },
+        { content: ["Paris."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(3);
+    expect(lastUserText(requests[1])).toMatch(/did not do it/);
+    expect(toolCalls).toEqual([{ name: "search_web", args: { query: "capital of France" } }]);
+    expect(result.textContent).toBe("Paris.");
+    expect(result.steps.some((step) => step.type === "text" && step.content.includes("Let me search"))).toBe(true);
+  });
+
+  it("is asked only once, and the second announcement is shown as the reply", async () => {
+    const { requests } = installFetch(
+      [{ content: ["Let me search the web for that."] }, { content: ["I'll search for it now."] }],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(2);
+    expect(toolCalls).toHaveLength(0);
+    expect(result.textContent).toBe("I'll search for it now.");
+  });
+
+  it("is not asked anything after a plain answer", async () => {
+    const { requests } = installFetch([{ content: ["Paris is the capital of France."] }], ["tools"]);
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(1);
+    expect(result.textContent).toBe("Paris is the capital of France.");
+  });
+});
+
 describe("aborting during tool calls", () => {
   it("halts immediately and leaves subsequent tools uncalled when aborted during tool execution", async () => {
     const controller = new AbortController();

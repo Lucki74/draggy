@@ -47,6 +47,7 @@ import {
 } from "../toolParsing";
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
+import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { ggufErrorMessage, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
@@ -275,6 +276,9 @@ const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
 const FALLBACK_RESULT_CHARS = 2000;
+
+const ACT_ON_ANNOUNCEMENT =
+  "You said what you would do next but did not do it. Make that tool call now, or if you have finished, give your final answer.";
 
 export type TurnInput = Pick<
   AgentRequest,
@@ -889,6 +893,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   let lastThought = "";
   let lastToolResult = "";
   let answerAsked = false;
+  let actionAsked = false;
   // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
   let toolsRan = false;
 
@@ -1290,6 +1295,25 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             content:
               "Please provide your final answer to the user based on your reasoning and the gathered information.",
           });
+          continue;
+        }
+
+        // "Let me check the source." followed by nothing: asked once to act on it, not saved as the answer.
+        if (
+          !actionAsked &&
+          definitions.length > 0 &&
+          loopCount < MAX_TOOL_LOOPS &&
+          announcesAction(textContent)
+        ) {
+          actionAsked = true;
+          showText(textContent);
+          if (textStepId !== null) patchStep(textStepId, { content: textContent, isComplete: true });
+          fullFinalContent += rawChunk + "\n";
+          host.onPatch(combine("", ""));
+
+          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          wire.push({ role: "assistant", content: rawChunk, ...kept });
+          wire.push({ role: "user", content: ACT_ON_ANNOUNCEMENT });
           continue;
         }
 
