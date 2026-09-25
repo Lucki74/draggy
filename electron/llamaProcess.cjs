@@ -57,6 +57,53 @@ function pingHealth(port, timeoutMs = 1000) {
   });
 }
 
+/** The model file a server on the port says it holds, or null when it does not say. */
+function servedModel(port, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://127.0.0.1:${port}/v1/models`, { timeout: timeoutMs }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(body);
+          const entry = parsed?.data?.[0] ?? parsed?.models?.[0];
+          const name = entry?.id ?? entry?.model ?? entry?.name;
+          resolve(typeof name === "string" && name ? name : null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
+
+/** Whether a server already on the port may stand in for ours. One holding another model answered
+ * every voice turn with the wrong model, so only a server that says nothing, or names ours, is adopted. */
+async function adoptable(port, modelPath) {
+  const served = await servedModel(port);
+  if (!served) return { ok: true, served: null };
+  const base = (file) => path.basename(String(file).replace(/\\/g, "/")).toLowerCase();
+  return { ok: base(served) === base(modelPath), served };
+}
+
+/** The refusal for a port held by a server running some other model. */
+function portTaken(port, served, modelPath) {
+  return {
+    success: false,
+    error: `Port ${port} is held by another engine serving ${path.basename(String(served).replace(/\\/g, "/"))}, not ${path.basename(modelPath)}.`,
+    kind: "port-in-use",
+    params: { model: path.basename(modelPath) },
+  };
+}
+
 /** Waits for llama-server to become responsive with a deadline, giving up as soon as `isAlive` says the process is gone. */
 async function waitForReady(port, maxWaitMs = 15000, logger = null, isAlive = () => true) {
   const start = Date.now();
@@ -323,6 +370,11 @@ async function launchServer(options) {
 
   // Avoid a conflicting spawn when an external process already owns the port.
   if (!activeProcess && (await pingHealth(port, 1000))) {
+    const check = await adoptable(port, modelPath);
+    if (!check.ok) {
+      logger.warn("llama", `Port ${port} is held by an engine serving ${check.served}; refusing to adopt it for ${path.basename(modelPath)}`);
+      return portTaken(port, check.served, modelPath);
+    }
     logger.info("llama", `Adopting external server already running on port ${port}`);
     activeModel = modelPath;
     activePort = port;
@@ -371,6 +423,8 @@ async function launchServer(options) {
 
   // Adopt a server already on the port; spawning would fail to bind and stall the health check.
   if (!activeProcess && (await pingHealth(port, 1000))) {
+    const check = await adoptable(port, modelPath);
+    if (!check.ok) return portTaken(port, check.served, modelPath);
     activeModel = modelPath;
     activePort = port;
     return { success: true, port };
@@ -499,6 +553,7 @@ module.exports = {
   stopServerSync,
   getServerStatus,
   pingHealth,
+  servedModel,
   determineKvCache,
   batchSizes,
   promptCacheMiB,

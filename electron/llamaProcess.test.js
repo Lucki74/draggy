@@ -88,6 +88,53 @@ describe("llamaProcess.startServer", () => {
     expect(options.env.PATH.startsWith(path.join(llama, "vulkan") + path.delimiter + llama)).toBe(true);
     expect(options.cwd).toBe(llama);
   });
+
+  /** A server already on a free port that lists `served` as its model, as llama-server does. */
+  async function foreignServer(served) {
+    const server = http.createServer((req, res) => {
+      if (req.url === "/v1/models") {
+        res.setHeader("Content-Type", "application/json");
+        return res.end(JSON.stringify({ object: "list", data: [{ id: served, object: "model" }] }));
+      }
+      res.end("ok");
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    return server;
+  }
+
+  it("refuses to adopt a server on the port that holds another model", async () => {
+    const server = await foreignServer("C:\\Users\\me\\Draggy\\models\\Qwen3.6-35B-A3B-UD-Q4_K_M.gguf");
+    const spawn = vi.spyOn(platform, "spawnHidden");
+    try {
+      const result = await llamaProcess.startServer({
+        binaryPath: "llama-server.exe",
+        modelPath: path.join("models", "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf"),
+        port: server.address().port,
+        log: quiet,
+      });
+      expect(result.success).toBe(false);
+      expect(result.kind).toBe("port-in-use");
+      expect(result.error).toContain("Qwen3.6-35B-A3B-UD-Q4_K_M.gguf");
+      expect(spawn).not.toHaveBeenCalled();
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  it("adopts a server on the port that holds the model asked for", async () => {
+    const server = await foreignServer("C:\\Users\\me\\Draggy\\models\\Ministral-3-8B-Instruct-2512-Q4_K_M.gguf");
+    try {
+      const result = await llamaProcess.startServer({
+        binaryPath: "llama-server.exe",
+        modelPath: path.join("models", "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf"),
+        port: server.address().port,
+        log: quiet,
+      });
+      expect(result.success).toBe(true);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
 });
 
 describe("llamaProcess.determineKvCache", () => {

@@ -464,6 +464,8 @@ function closeBrowserWindows() {
     if (!entry.win.isDestroyed()) entry.win.destroy();
   }
   browserWindows.clear();
+  // The agent's hidden browser is a window as well, and kept the process and its engine alive.
+  if (browserSession && !browserSession.isDestroyed()) browserSession.destroy();
 }
 
 /** The window a toolbar belongs to, found from the message it just sent. */
@@ -584,6 +586,21 @@ if (process.platform === "win32") {
   app.setAppUserModelId(APP_NAME);
 }
 
+// A second copy shares the engine port, the database and the downloads folder with the first, and
+// adopted whatever model the first had loaded. Opening Draggy again brings back the one running.
+const ownsInstance = app.requestSingleInstanceLock();
+if (!ownsInstance) {
+  app.exit(0);
+} else {
+  app.on("second-instance", () => {
+    const win = bootCompleted ? mainWindow : splashWindow;
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+}
+
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
     width: 400,
@@ -702,6 +719,10 @@ function createWindow() {
   // The browser belongs to the app, not the other way round. A browser window
   // left open kept Draggy running with its own window already gone.
   mainWindow.on("closed", closeBrowserWindows);
+  // Hidden scraping windows count too, so window-all-closed never came and Draggy lived on unseen.
+  mainWindow.on("closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
 
   // Closing the window saves first as well, or its last writes race the quit that follows.
   const win = mainWindow;
@@ -731,6 +752,7 @@ function broadcast(channel, payload) {
 }
 
 app.whenReady().then(() => {
+  if (!ownsInstance) return;
   const adopted = adoptLegacyDataFolder();
 
   logger.init(app);

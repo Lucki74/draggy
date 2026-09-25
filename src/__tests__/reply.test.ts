@@ -296,12 +296,12 @@ describe("what the model is given to answer from", () => {
     expect(messages[1]).toEqual({ role: "user", content: "hello" });
   });
 
-  it("sends no thinking flag, so a reasoning model's deliberation arrives untagged", async () => {
+  it("switches a reasoning model's thinking off, or it spends every spoken token on it", async () => {
     const { result, bodies } = run([["Fine."]]);
     await result;
 
-    // Untagged reasoning lands in content and gets spoken, same as ordinary text.
-    expect(bodies[0]).not.toHaveProperty("think");
+    // llama-server routes reasoning to reasoning_content, which is never spoken.
+    expect(bodies[0].chat_template_kwargs).toEqual({ enable_thinking: false });
     expect(bodies[0].stream).toBe(true);
   });
 

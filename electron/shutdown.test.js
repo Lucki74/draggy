@@ -188,6 +188,22 @@ describe("shutdown covers every module that starts a process", () => {
     expect(main).toContain('["browsers", closeBrowserWindows]');
   });
 
+  it("quits when the main window closes, whatever hidden windows remain", () => {
+    // The agent's hidden browser kept a windowless Draggy and its engine running after a close.
+    const close = main.slice(main.indexOf("function closeBrowserWindows()"));
+    expect(close.slice(0, close.indexOf("\n}"))).toContain("browserSession.destroy()");
+    const created = main.slice(main.indexOf("function createWindow()"));
+    expect(created.slice(0, created.indexOf("\n}"))).toMatch(/mainWindow\.on\("closed", \(\) => \{\s+if \(process\.platform !== "darwin"\) app\.quit\(\);/);
+  });
+
+  it("runs as a single instance", () => {
+    // A second copy adopted the first one's engine and answered with its model.
+    expect(main).toContain("app.requestSingleInstanceLock()");
+    expect(main).toContain('app.on("second-instance"');
+    const ready = main.slice(main.indexOf("app.whenReady().then("));
+    expect(ready.slice(0, 200)).toContain("if (!ownsInstance) return;");
+  });
+
   it("kills process trees rather than lone children", () => {
     // A server or a script that spawned something leaves it behind otherwise.
     const mcp = fs.readFileSync(path.join(HERE, "mcp.cjs"), "utf8");

@@ -63,6 +63,9 @@ describe("engineFailure", () => {
 
     expect(engineFailure({ error: "x", kind: "another-model" })).toContain("/error/another-model-started");
     expect(engineFailure({ error: "x", kind: "engine-missing" })).toContain("/error/engine-would-not-start");
+    const taken = engineFailure({ error: "x", kind: "port-in-use", params: { model: "m.gguf" } });
+    expect(taken).toContain("Another program is using the port");
+    expect(taken).toContain("/error/port-in-use");
   });
 
   it("explains a crash by its last words when they are a known cause, and by the crash when they are not", () => {

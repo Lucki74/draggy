@@ -24,6 +24,7 @@ const BY_KIND: Record<string, string> = {
   "parts-missing": "model-parts-missing",
   "another-model": "another-model-started",
   "engine-missing": "engine-would-not-start",
+  "port-in-use": "port-in-use",
 };
 
 export interface EngineResult {
@@ -83,6 +84,7 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
       "parts-missing": "engineModelPartsMissing",
       "another-model": "engineAnotherModelStarted",
       "engine-missing": "missingGgufEngine",
+      "port-in-use": "enginePortInUse",
     }[result.kind] as string;
 
     const detail = params.reason ? `: ${params.reason}` : "";

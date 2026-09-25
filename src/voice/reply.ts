@@ -130,6 +130,8 @@ async function streamVoice(options: StreamOptions): Promise<void> {
       temperature: VOICE_TEMPERATURE,
       max_tokens: VOICE_NUM_PREDICT,
       messages: options.messages,
+      // A reasoning model otherwise spends the whole spoken budget thinking and says nothing at all.
+      chat_template_kwargs: { enable_thinking: false },
     }),
     signal: options.signal,
   });
