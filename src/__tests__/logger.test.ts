@@ -150,6 +150,31 @@ describe("llama turn logging", () => {
   });
 });
 
+describe("stream chunk privacy", () => {
+  const token = " source";
+  const long = "The quarterly figures my accountant sent me show a loss of 4,200 euros.";
+
+  it.each([
+    ["logStreamChunk", logStreamChunk],
+    ["logGgufChunk", logGgufChunk],
+  ])("%s never hands the chunk text to the bridge, only its length", (_name, logChunk) => {
+    const logBatch = stubApi();
+
+    logChunk(token, "corr-3");
+    logChunk(long, "corr-3");
+    flushLogs();
+
+    const entries = logBatch.mock.calls[0][0];
+    const written = JSON.stringify(entries);
+    expect(written).not.toContain(token);
+    expect(written).not.toContain(long.slice(0, 20));
+    expect(entries.map((entry: { data: unknown }) => entry.data)).toEqual([
+      { chars: token.length },
+      { chars: long.length },
+    ]);
+  });
+});
+
 describe("gguf and agent turn logging", () => {
   it("tags gguf inference, metrics and stream chunks with correlation id", () => {
     const logBatch = stubApi();

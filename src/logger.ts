@@ -116,13 +116,15 @@ export function logLlamaMetrics(metrics: object, correlationId: string): void {
   enqueue({ level: "INFO", context: "llama", message: "metrics", correlationId, data: metrics });
 }
 
+// Length only: a token's hash is reversed by hashing the vocabulary,
+// and the stream of chunks would otherwise rebuild the whole reply in debug.log.
 export function logStreamChunk(chunk: string, correlationId: string): void {
   enqueue({
     level: "DEBUG",
     context: "llama",
     message: "chunk",
     correlationId,
-    data: { chunk: sanitizeString(chunk) },
+    data: { chars: chunk.length },
   });
 }
 
@@ -146,7 +148,7 @@ export function logGgufChunk(chunk: string, correlationId: string): void {
     context: "gguf",
     message: "chunk",
     correlationId,
-    data: { chunk: sanitizeString(chunk) },
+    data: { chars: chunk.length },
   });
 }
 
