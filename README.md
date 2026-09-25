@@ -75,8 +75,10 @@ to work on the code.
 
 ## Upcoming
 
-Many QoL improvements, small features and changes.
-Suppport for ai providers other than draggy’s local engine.
+- Many small improvements, small features and changes.
+- Suppport for ai providers other than draggy’s local engine.
+- App onboarding for a better UX.
+- And more!
 
 ## Installing and requirements
 
