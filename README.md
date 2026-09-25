@@ -5,7 +5,7 @@
 # Draggy
 
 
-[![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat)](https://draggy.org)
+[![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat&logo=vercel&logoColor=white)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
 [![Wiki](https://img.shields.io/badge/Wiki-draggy.org%2Fwiki-2b2b2b?style=flat&logo=readthedocs&logoColor=white)](https://draggy.org/wiki)
 
@@ -83,8 +83,7 @@ Suppport for ai providers other than draggy’s local engine.
 Pick your system on [draggy.org](https://draggy.org), or take the installer
 straight from the [Releases page](https://github.com/Lucki74/draggy/releases).
 Models are downloaded directly to your machine on first launch. See
-[Installation](https://draggy.org/wiki/installation) for hardware requirements, the
-code-signing warnings each system shows once, and how updates arrive.
+[Installation](https://draggy.org/wiki/installation) for hardware requirements.
 
 ### macOS: "Draggy" not opened
 
@@ -130,7 +129,6 @@ diagnostic traces) in the application data folder. See
 
 ## Known rough edges
 
-- Noise cancelling in voice mode, the model will answer itself on speakers
 - The quality of answers can vary a lot depending on the model choosen
 - Generation speed depends heavily on the hardware of the user
 
