@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 function loadPreload() {
   const listeners = new Map();
   const sent = [];
+  const invoked = [];
 
   const ipcRenderer = {
     on(channel, listener) {
@@ -23,7 +24,9 @@ function loadPreload() {
     removeAllListeners(channel) {
       listeners.set(channel, []);
     },
-    invoke: async () => undefined,
+    invoke: async (...args) => {
+      invoked.push(args);
+    },
     send: (channel) => sent.push(channel),
   };
 
@@ -54,7 +57,7 @@ function loadPreload() {
     for (const listener of [...(listeners.get(channel) || [])]) listener({}, payload);
   };
 
-  return { api, emit, sent, count: (channel) => (listeners.get(channel) || []).length };
+  return { api, emit, sent, invoked, count: (channel) => (listeners.get(channel) || []).length };
 }
 
 describe("preload channel subscriptions", () => {
@@ -148,5 +151,24 @@ describe("saving before a quit", () => {
     emit("app:flush-saves");
     await settle();
     expect(sent).toEqual(["app:saves-flushed", "app:saves-flushed"]);
+  });
+});
+
+describe("the first-run setup's bridge", () => {
+  it("exposes exactly the four calls the spec allows, each on its own channel", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api.onboarding).sort()).toEqual(["complete", "reset", "start", "state"]);
+    await api.onboarding.state();
+    await api.onboarding.start();
+    await api.onboarding.complete("local");
+    await api.onboarding.reset();
+
+    expect(invoked).toEqual([
+      ["onboarding:state"],
+      ["onboarding:start"],
+      ["onboarding:complete", "local"],
+      ["onboarding:reset"],
+    ]);
   });
 });

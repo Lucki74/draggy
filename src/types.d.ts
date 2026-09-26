@@ -633,6 +633,17 @@ export type SearchProvider =
   | "brave"
   | "brave-html";
 
+/** How the first-run setup ended. "adopted" is an existing install that never saw it. */
+export type OnboardingPath = "local" | "provider" | "both" | "skipped";
+
+export interface OnboardingRecord {
+  version: number;
+  status: "in-progress" | "done";
+  path?: OnboardingPath | "adopted";
+  startedAt?: string;
+  completedAt?: string;
+}
+
 export interface AppSettings {
   theme: "light" | "dark";
   fontSize: "sm" | "base" | "lg";
@@ -1067,6 +1078,15 @@ declare global {
           url?: string;
         }>;
         release: (token: string) => Promise<{ success: boolean }>;
+      };
+
+      onboarding: {
+        /** The plan main settled on at boot, and the record as stored now. */
+        state: () => Promise<{ plan: "show" | "done"; record: OnboardingRecord | null }>;
+        start: () => Promise<{ success: boolean; record: OnboardingRecord | null }>;
+        complete: (path: OnboardingPath) => Promise<{ success: boolean; record?: OnboardingRecord; error?: string }>;
+        /** Marks the setup as not done and relaunches into it. */
+        reset: () => Promise<{ success: boolean }>;
       };
 
       appInfo: () => Promise<AppInfo>;

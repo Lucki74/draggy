@@ -100,9 +100,20 @@ describe("loading the main process", () => {
       "widget:stage",
       "api-server:status",
       "mcp:call",
+      "onboarding:state",
+      "onboarding:start",
+      "onboarding:complete",
+      "onboarding:reset",
     ]) {
       expect(handlers.has(channel), channel).toBe(true);
     }
     expect(listeners.has("api-server:done")).toBe(true);
+
+    // The setup may only end on a path it can take; "adopted" is main's verdict, not the renderer's.
+    const complete = handlers.get("onboarding:complete");
+    for (const refused of ["adopted", "cloud", undefined]) {
+      expect(complete({}, refused), String(refused)).toMatchObject({ success: false });
+    }
+    expect(complete({}, "skipped")).toMatchObject({ success: true, record: { status: "done", path: "skipped" } });
   });
 });

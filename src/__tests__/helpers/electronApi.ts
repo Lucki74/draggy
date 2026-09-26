@@ -36,6 +36,10 @@ export interface FakeApi {
   /** What workspaces.list answers. Empty leaves the app on its stand-in default workspace. */
   workspaces: Record<string, unknown>[];
   savedWorkspaces: Record<string, unknown>[];
+  /** The setup's record as the fake main holds it, and the paths it was completed with. */
+  onboardingRecord: Record<string, unknown> | null;
+  completed: string[];
+  resets: number;
 }
 
 /** Anything not spelled out below answers with an empty result rather than throwing, so a component
@@ -62,6 +66,9 @@ export function installFakeElectronApi(): FakeApi {
     created: [],
     workspaces: [],
     savedWorkspaces: [],
+    onboardingRecord: null,
+    completed: [],
+    resets: 0,
   };
 
   const api = {
@@ -141,6 +148,22 @@ export function installFakeElectronApi(): FakeApi {
       onProgress: () => () => {},
     },
     db: { stats: async () => ({ stats: null }) },
+    onboarding: {
+      state: async () => ({ plan: "done", record: fake.onboardingRecord }),
+      start: async () => {
+        fake.onboardingRecord ??= { version: 1, status: "in-progress" };
+        return { success: true, record: fake.onboardingRecord };
+      },
+      complete: async (path: string) => {
+        fake.completed.push(path);
+        fake.onboardingRecord = { version: 1, status: "done", path };
+        return { success: true, record: fake.onboardingRecord };
+      },
+      reset: async () => {
+        fake.resets++;
+        return { success: true };
+      },
+    },
   };
 
   (window as unknown as { electronAPI: unknown }).electronAPI = new Proxy(api, {

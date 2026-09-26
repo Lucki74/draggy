@@ -196,6 +196,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onProgress: (callback) => subscribe("gguf:progress", callback),
   },
 
+  onboarding: {
+    state: () => ipcRenderer.invoke("onboarding:state"),
+    start: () => ipcRenderer.invoke("onboarding:start"),
+    complete: (path) => ipcRenderer.invoke("onboarding:complete", path),
+    reset: () => ipcRenderer.invoke("onboarding:reset"),
+  },
+
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
   readLogs: (target, bytes) => ipcRenderer.invoke("logs:tail", target, bytes),

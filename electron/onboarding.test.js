@@ -129,3 +129,12 @@ describe("wired into the boot", () => {
     expect(body).toContain('process.env.DRAGGY_ONBOARDING === "1"');
   });
 });
+
+describe("starting the setup", () => {
+  it("records a start once, and keeps the first start on a resume", () => {
+    const now = new Date("2026-09-26T10:00:00Z");
+    expect(onboarding.recordOnStart(null, now)).toEqual(inProgressRecord(now));
+    expect(onboarding.recordOnStart({ version: 1, status: "in-progress", startedAt: "x" }, now)).toBeNull();
+    expect(onboarding.recordOnStart({ version: 1, status: "done", path: "adopted" }, now)).toEqual(inProgressRecord(now));
+  });
+});

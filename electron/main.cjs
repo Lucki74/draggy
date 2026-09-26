@@ -943,6 +943,45 @@ ipcMain.on("boot-finished", (event, model) => {
 
 ipcMain.on("quit-app", () => app.quit());
 
+function readOnboardingRecord() {
+  return onboarding.readRecord(storage.getValue(onboarding.RECORD_KEY));
+}
+
+function writeOnboardingRecord(record) {
+  return storage.setValue(onboarding.RECORD_KEY, JSON.stringify(record));
+}
+
+ipcMain.handle("onboarding:state", () => ({
+  plan: onboardingPlan === "show" ? "show" : "done",
+  record: readOnboardingRecord(),
+}));
+
+ipcMain.handle("onboarding:start", () => {
+  const record = onboarding.recordOnStart(readOnboardingRecord());
+  if (record) writeOnboardingRecord(record);
+  return { success: true, record: record ?? readOnboardingRecord() };
+});
+
+ipcMain.handle("onboarding:complete", (event, setupPath) => {
+  // "adopted" is main's own verdict on an existing install; the setup itself never ends that way.
+  if (!onboarding.isValidPath(setupPath) || setupPath === "adopted") {
+    return { success: false, error: "Unknown setup path." };
+  }
+  const record = onboarding.doneRecord(setupPath, new Date(), readOnboardingRecord()?.startedAt);
+  writeOnboardingRecord(record);
+  onboardingPlan = "done";
+  return { success: true, record };
+});
+
+// Quit rather than exit, so the window saves and the engine stops before the new instance starts.
+ipcMain.handle("onboarding:reset", () => {
+  writeOnboardingRecord(onboarding.inProgressRecord());
+  log.info("onboarding", "setup requested again, relaunching");
+  app.relaunch();
+  app.quit();
+  return { success: true };
+});
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

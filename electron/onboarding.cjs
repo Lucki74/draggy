@@ -72,7 +72,13 @@ function doneRecord(path, now = new Date(), startedAt) {
   return startedAt ? { ...record, startedAt } : record;
 }
 
+/** What starting the setup writes: nothing over a start already recorded, so a resume keeps its date. */
+function recordOnStart(existing, now = new Date()) {
+  return existing?.status === "in-progress" ? null : inProgressRecord(now);
+}
+
 module.exports = {
+  recordOnStart,
   CURRENT_VERSION,
   RECORD_KEY,
   PATHS,
