@@ -262,7 +262,29 @@ function killTreeSync(child) {
   }
 }
 
+/** Adapters that draw without a GPU: naming one of them would describe the machine wrongly. */
+const SOFTWARE_RENDERER = /basic render|swiftshader|llvmpipe|softpipe|microsoft basic/i;
+
+/** The graphics card's name from Electron's GPU report, for telling the user what Draggy sized a
+ * model to. The active device first, then the renderer string; null when neither names one. */
+function gpuNameFrom(info) {
+  const tidy = (name) => String(name).replace(/\((TM|R)\)/gi, "").replace(/\s+/g, " ").trim();
+  const devices = (Array.isArray(info?.gpuDevice) ? info.gpuDevice : []).filter(
+    (device) => device?.deviceString && !SOFTWARE_RENDERER.test(device.deviceString),
+  );
+  const device = devices.find((one) => one.active) ?? devices[0];
+  if (device) return tidy(device.deviceString);
+
+  const renderer = String(info?.auxAttributes?.glRenderer || "");
+  if (!renderer || SOFTWARE_RENDERER.test(renderer)) return null;
+  const metal = renderer.match(/Metal Renderer: ([^,)]+)/);
+  if (metal) return tidy(metal[1]);
+  const angle = renderer.match(/^ANGLE \([^,]+, (.+?)(?: \(0x[0-9a-f]+\))?(?: Direct3D| OpenGL| Vulkan|,)/i);
+  return tidy(angle ? angle[1] : renderer);
+}
+
 module.exports = {
+  gpuNameFrom,
   IS_WINDOWS,
   IS_MAC,
   IS_LINUX,

@@ -1019,16 +1019,12 @@ async function getSystemSpecs() {
   const unified = platform.hasUnifiedMemory();
 
   let vram = 0;
+  const gpuInfo = await app.getGPUInfo("complete").catch(() => null);
 
   if (!unified) {
-    try {
-      const gpuInfo = await app.getGPUInfo("complete");
-      const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
-      if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
-        vram = videoMemoryMb / 1024;
-      }
-    } catch {
-      vram = 0;
+    const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
+    if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
+      vram = videoMemoryMb / 1024;
     }
   }
 
@@ -1039,13 +1035,15 @@ async function getSystemSpecs() {
     ram: Number(totalMemGB.toFixed(1)),
     vram: Number(vram.toFixed(1)),
     unifiedMemory: unified,
+    // On unified memory the chip is the graphics card, and its name is the CPU's.
+    gpu: platform.gpuNameFrom(gpuInfo) || (unified ? cpuModel : null),
     platform: process.platform,
     arch: os.arch(),
   };
 
   log.info(
     "specs",
-    `${cpuModel} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM${unified ? " (unified)" : ""}`,
+    `${cpuModel} | ${cachedSpecs.gpu || "no GPU name"} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM${unified ? " (unified)" : ""}`,
   );
 
   return cachedSpecs;

@@ -6,6 +6,8 @@ export interface SystemSpecs {
   ram: number;
   vram: number;
   unifiedMemory?: boolean;
+  /** The graphics card's name, when Electron's GPU report gives one. */
+  gpu?: string | null;
   platform?: string;
   arch?: string;
 }
