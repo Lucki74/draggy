@@ -15,7 +15,7 @@ export interface PullState {
 }
 
 /** Fallback for when the main process sent no estimate: the average speed since the first byte seen. */
-function estimateRemaining(progress: PullProgress, first: { time: number; completed: number } | null): number | null {
+export function estimateRemaining(progress: PullProgress, first: { time: number; completed: number } | null): number | null {
   if (!first || progress.total <= progress.completed) return null;
   const elapsed = (Date.now() - first.time) / 1000;
   const speed = elapsed > 0 ? (progress.completed - first.completed) / elapsed : 0;

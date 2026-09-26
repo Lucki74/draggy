@@ -18,6 +18,8 @@ export interface BootProgress {
   completed: number;
   total: number;
   label: string;
+  /** Seconds left when the downloader can tell; the engine's own setup never can. */
+  remainingSeconds?: number | null;
 }
 
 /** Null clears the bar, as the splash does once the engine is in place. */
@@ -165,6 +167,7 @@ async function transfer(
           completed: progress.completed,
           total: progress.total,
           label: resolved.filename,
+          remainingSeconds: progress.remainingSeconds,
         }),
       signal,
     );
