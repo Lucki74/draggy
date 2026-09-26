@@ -44,6 +44,9 @@ export function describeFit(input: FitInput): ModelFit {
   };
 }
 
+/** The dot beside a model, the same wherever a fit is shown. */
+export const FIT_COLOURS = { green: "#22c55e", amber: "#f59e0b", red: "#ef4444" } as const;
+
 export function describeSplit(fit: ModelFit): string {
   if (fit.tone === "unknown") return "";
   if (fit.gpuPercent >= 100) return "100% GPU";

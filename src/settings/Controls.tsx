@@ -319,6 +319,30 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
+/** A small label beside a name: what a model can do, or where it is used. */
+export function Badge({
+  children,
+  strong,
+  title,
+}: {
+  children: React.ReactNode;
+  strong?: boolean;
+  title?: string;
+}) {
+  return (
+    <span
+      title={title}
+      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0 ${
+        strong
+          ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+          : "border border-[var(--border-light)] text-[var(--text-muted)]"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
