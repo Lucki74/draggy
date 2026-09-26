@@ -156,6 +156,9 @@ function seedDatabase() {
     settings: {},
   });
   storage.setValue("draggy_settings", JSON.stringify({ modelName: captureModel }));
+  // Recorded as set up, or every capture would open on the first-run setup instead of the app.
+  const onboarding = require(path.join(__dirname, "..", "electron", "onboarding.cjs"));
+  storage.setValue(onboarding.RECORD_KEY, JSON.stringify(onboarding.doneRecord("adopted")));
   storage.close();
 }
 

@@ -138,3 +138,17 @@ describe("starting the setup", () => {
     expect(onboarding.recordOnStart({ version: 1, status: "done", path: "adopted" }, now)).toEqual(inProgressRecord(now));
   });
 });
+
+describe("the capture scripts", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  it("record the setup as done before the app loads, so captures open on the app", () => {
+    for (const script of ["screenshots.cjs", "wiki-shots.cjs"]) {
+      const source = fs.readFileSync(path.join(__dirname, "..", "scripts", script), "utf8");
+      const seeded = source.indexOf('onboarding.doneRecord("adopted")');
+      expect(seeded, script).toBeGreaterThan(-1);
+      expect(seeded, script).toBeLessThan(source.indexOf('"electron", "main.cjs"'));
+    }
+  });
+});
