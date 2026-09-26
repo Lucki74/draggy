@@ -294,20 +294,25 @@ export function isCloudModel(name: string): boolean {
   return tag === "cloud" || tag.endsWith("-cloud");
 }
 
+type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["electronAPI"]>["gguf"]>["listModels"]>>;
+
+/** The engine's listing in the shape the rest of the app reads; empty for anything but a list. */
+export function describeInstalled(models: GgufListing | null | undefined): InstalledModel[] {
+  if (!Array.isArray(models)) return [];
+  return models.map((m) => ({
+    name: m.filename,
+    size: m.size,
+    parameterSize: m.blockCount ? `${m.blockCount}L` : "",
+    family: m.architecture || "gguf",
+    capabilities: m.capabilities ?? ["tools", "completion"],
+  }));
+}
+
 export async function listInstalledModels(): Promise<InstalledModel[]> {
   if (typeof window === "undefined") return [];
 
   try {
-    const models = await window.electronAPI?.gguf?.listModels();
-    if (!Array.isArray(models)) return [];
-
-    return models.map((m) => ({
-      name: m.filename,
-      size: m.size,
-      parameterSize: m.blockCount ? `${m.blockCount}L` : "",
-      family: m.architecture || "gguf",
-      capabilities: m.capabilities ?? ["tools", "completion"],
-    }));
+    return describeInstalled(await window.electronAPI?.gguf?.listModels());
   } catch {
     return [];
   }
