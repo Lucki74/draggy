@@ -6,6 +6,7 @@ const {
   dialog,
   ipcMain,
   Menu,
+  nativeTheme,
   safeStorage,
   shell,
   protocol,
@@ -40,6 +41,7 @@ const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
 const onboarding = require("./onboarding.cjs");
+const themes = require("./theme.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -571,6 +573,19 @@ let mainWindow;
 let splashWindow;
 let bootCompleted = false;
 
+/** The saved theme, kept so native pieces and new windows follow it. Read from the database before
+ * any window exists, because localStorage cannot be read from here. */
+let themeSetting = "system";
+
+function applyThemeSetting(rawSettings) {
+  const setting = themes.themeSetting(rawSettings);
+  if (setting === themeSetting && nativeTheme.themeSource === setting) return;
+  themeSetting = setting;
+  nativeTheme.themeSource = setting;
+}
+
+const windowBackground = () => themes.backgroundFor(themeSetting, nativeTheme.shouldUseDarkColors);
+
 /** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
 let onboardingPlan = "done";
 
@@ -631,7 +646,7 @@ function createSplashWindow() {
     width: 400,
     height: 500,
     frame: false,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: windowBackground(),
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
@@ -680,7 +695,7 @@ function createWindow() {
     minWidth: Math.min(MIN_WINDOW_WIDTH, screenWidth),
     minHeight: Math.min(MIN_WINDOW_HEIGHT, screenHeight),
     show: false,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: windowBackground(),
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
@@ -797,6 +812,11 @@ app.whenReady().then(() => {
   }
 
   onboardingPlan = decideOnboarding();
+  try {
+    applyThemeSetting(storage.getValue("draggy_settings"));
+  } catch (error) {
+    log.warn("theme", `could not read the saved theme: ${error.message}`);
+  }
   log.info("onboarding", `plan: ${onboardingPlan}`);
 
   try {
@@ -2172,9 +2192,11 @@ ipcMain.handle("db:get", wrap("db", async (event, key) => ({
   value: storage.getValue(String(key)),
 })));
 
-ipcMain.handle("db:set", wrap("db", async (event, key, value) =>
-  storage.setValue(String(key), value),
-));
+ipcMain.handle("db:set", wrap("db", async (event, key, value) => {
+  const result = storage.setValue(String(key), value);
+  if (key === "draggy_settings") applyThemeSetting(value);
+  return result;
+}));
 
 ipcMain.handle("db:import", wrap("db", async (event, sessions) =>
   storage.importSessions(sessions),

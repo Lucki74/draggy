@@ -65,7 +65,7 @@ export default function App() {
     return (
       <div
         className="w-screen h-screen overflow-hidden flex"
-        style={{ backgroundColor: "#1e1e1e" }}
+        style={{ backgroundColor: "var(--bg-base)" }}
       >
         <StartupScreen
           modelName={settings.modelName}

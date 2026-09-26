@@ -645,7 +645,8 @@ export interface OnboardingRecord {
 }
 
 export interface AppSettings {
-  theme: "light" | "dark";
+  /** "system" follows the operating system, and is what a new install starts on. */
+  theme: "light" | "dark" | "system";
   fontSize: "sm" | "base" | "lg";
   language: string;
   modelName: string;

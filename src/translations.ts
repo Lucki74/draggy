@@ -564,6 +564,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Resize pane",
     couldNotAddServer: "Could not add server",
     maxContext: "Max",
+    themeSystem: "Match system",
   },
   fr: {
     exploring: "Recherche de",
@@ -1115,6 +1116,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Redimensionner le panneau",
     couldNotAddServer: "Impossible d'ajouter le serveur",
     maxContext: "Maximum",
+    themeSystem: "Comme le système",
   },
   es: {
     exploring: "Buscando",
@@ -1666,6 +1668,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Redimensionar panel",
     couldNotAddServer: "No se pudo añadir el servidor",
     maxContext: "Máximo",
+    themeSystem: "Según el sistema",
   },
   de: {
     exploring: "Sucht nach",
@@ -2217,6 +2220,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Bereichsgröße ändern",
     couldNotAddServer: "Server konnte nicht hinzugefügt werden",
     maxContext: "Maximum",
+    themeSystem: "Wie das System",
   },
   it: {
     exploring: "Cerca",
@@ -2768,6 +2772,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Ridimensiona riquadro",
     couldNotAddServer: "Impossibile aggiungere il server",
     maxContext: "Massimo",
+    themeSystem: "Come il sistema",
   },
   pt: {
     exploring: "A procurar",
@@ -3319,6 +3324,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Redimensionar painel",
     couldNotAddServer: "Não foi possível adicionar o servidor",
     maxContext: "Máximo",
+    themeSystem: "Igual ao sistema",
   },
   nl: {
     exploring: "Zoekt naar",
@@ -3870,6 +3876,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Deelvenster vergroten/verkleinen",
     couldNotAddServer: "Kon server niet toevoegen",
     maxContext: "Maximum",
+    themeSystem: "Zoals het systeem",
   },
   ru: {
     exploring: "Ищет",
@@ -4421,6 +4428,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "Изменить размер панели",
     couldNotAddServer: "Не удалось добавить сервер",
     maxContext: "Максимум",
+    themeSystem: "Как в системе",
   },
   zh: {
     exploring: "正在查找",
@@ -4972,6 +4980,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "调整窗格大小",
     couldNotAddServer: "无法添加服务器",
     maxContext: "最大值",
+    themeSystem: "跟随系统",
   },
   ja: {
     exploring: "調べています",
@@ -5523,6 +5532,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "ペインのサイズ変更",
     couldNotAddServer: "サーバーを追加できませんでした",
     maxContext: "最大",
+    themeSystem: "システムに合わせる",
   },
   ko: {
     exploring: "찾는 중",
@@ -6074,6 +6084,7 @@ export const translations: Record<string, Record<string, string>> = {
     resizePane: "창 크기 조정",
     couldNotAddServer: "서버를 추가할 수 없습니다",
     maxContext: "최대",
+    themeSystem: "시스템 설정에 맞춤",
   },
   ar: {
     exploring: "يبحث عن",
@@ -6625,5 +6636,6 @@ export const translations: Record<string, Record<string, string>> = {
     resizeFileTree: "تغيير حجم شجرة الملفات",
     resizePane: "تغيير حجم الجزء",
     couldNotAddServer: "تعذر إضافة الخادم",
+    themeSystem: "مطابقة النظام",
   }
 };

@@ -26,6 +26,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             options={[
               { id: "light", label: t("light") },
               { id: "dark", label: t("dark") },
+              { id: "system", label: t("themeSystem") },
             ]}
             onChange={(theme) => onUpdate({ theme })}
           />

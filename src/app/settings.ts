@@ -4,7 +4,8 @@ import { SETTINGS_KEY, storageBackend } from "../storage";
 import { safeJsonParse, writeLocalStorage } from "../utils";
 
 export const defaultSettings: AppSettings = {
-  theme: "dark",
+  // Only a new install gets this: anyone with saved settings keeps the theme they saved.
+  theme: "system",
   fontSize: "base",
   language: "en",
   // Empty means "not chosen yet": the startup screen adopts whatever is
@@ -37,6 +38,13 @@ export const defaultSettings: AppSettings = {
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
+
+export function resolveTheme(setting: AppSettings["theme"], prefersDark: boolean): "light" | "dark" {
+  if (setting === "system") return prefersDark ? "dark" : "light";
+  return setting === "light" ? "light" : "dark";
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 /** Read synchronously from localStorage rather than awaited from sqlite: the first paint needs the
  * theme and the language before any IPC can answer. */
@@ -82,17 +90,27 @@ export function useSettings(isSplashMode: boolean) {
       .catch(() => undefined);
   }, [settings.autoUpdate, settings.updateChannel, isSplashMode]);
 
+  // Matching the system means following it while the app is open, not just reading it once.
   useEffect(() => {
-    if (settings.theme === "dark") document.body.classList.add("dark");
-    else document.body.classList.remove("dark");
+    const query = typeof window.matchMedia === "function" ? window.matchMedia(DARK_QUERY) : null;
+    const apply = () => {
+      const theme = resolveTheme(settings.theme, query?.matches ?? true);
+      document.body.classList.toggle("dark", theme === "dark");
+    };
+    apply();
+    if (settings.theme !== "system" || !query) return;
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, [settings.theme]);
 
+  useEffect(() => {
     document.documentElement.lang = settings.language;
 
     document.documentElement.style.setProperty(
       "--chat-font-size",
       FONT_SIZES[settings.fontSize],
     );
-  }, [settings.theme, settings.fontSize, settings.language]);
+  }, [settings.fontSize, settings.language]);
 
   return [settings, setSettings] as const;
 }
