@@ -15,7 +15,6 @@ const {
 } = require("electron");
 const path = require("path");
 const os = require("os");
-const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
 const adblocker = require("./adblocker.cjs");
@@ -42,6 +41,7 @@ const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
 const onboarding = require("./onboarding.cjs");
 const themes = require("./theme.cjs");
+const connectivity = require("./connectivity.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -1053,19 +1053,7 @@ async function getSystemSpecs() {
 
 ipcMain.handle("get-system-specs", getSystemSpecs);
 
-ipcMain.handle("check-internet", async () => {
-  return new Promise((resolve) => {
-    const req = https.get("https://www.google.com", (res) => {
-      resolve(res.statusCode === 200);
-    });
-    req.on("error", () => resolve(false));
-    req.setTimeout(3000, () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.end();
-  });
-});
+ipcMain.handle("check-internet", () => connectivity.checkConnectivity());
 
 ipcMain.handle("check-disk-space", async () => {
   try {
