@@ -39,6 +39,7 @@ const { flushWindow } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
+const onboarding = require("./onboarding.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -570,6 +571,30 @@ let mainWindow;
 let splashWindow;
 let bootCompleted = false;
 
+/** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
+let onboardingPlan = "done";
+
+/** An existing install is recorded as done on the spot, so later launches need one read to know. */
+function decideOnboarding() {
+  const inputs = onboarding.collectInputs({
+    readRaw: () => storage.getValue(onboarding.RECORD_KEY),
+    readSettings: () => storage.getValue("draggy_settings"),
+    countModels: () => modelStorage.listGgufModels(ggufModelsDir()).length,
+    countChats: () => storage.stats().chats,
+    forced: process.env.DRAGGY_ONBOARDING === "1",
+  });
+  const plan = onboarding.planOnboarding(inputs);
+  if (plan !== "adopt") return plan;
+
+  try {
+    storage.setValue(onboarding.RECORD_KEY, JSON.stringify(onboarding.doneRecord("adopted")));
+    log.info("onboarding", "existing install, setup recorded as done");
+  } catch (error) {
+    log.warn("onboarding", `could not record the setup as done: ${error.message}`);
+  }
+  return "done";
+}
+
 const isDevelopment = () => {
   if (process.env.DRAGGY_RENDERER === "dist") return false;
   if (process.env.DRAGGY_RENDERER === "vite") return true;
@@ -770,6 +795,9 @@ app.whenReady().then(() => {
   } catch (error) {
     log.error("storage", "could not open the chat database", error);
   }
+
+  onboardingPlan = decideOnboarding();
+  log.info("onboarding", `plan: ${onboardingPlan}`);
 
   try {
     library.init(app.getPath("userData"));
