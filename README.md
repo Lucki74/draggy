@@ -50,8 +50,11 @@ to work on the code.
 
 ## Features
 
-- **Chat with a local model.** Draggy picks a model that fits your graphics card,
-  downloads it, and lets you swap it any time.
+- **Set up in a minute.** The first launch asks your language, a light, dark or
+  system theme, and which model to download, and downloads nothing before you
+  choose. Skip takes the defaults.
+- **Chat with a local model.** Draggy suggests a model that fits your computer,
+  downloads the one you pick, and lets you swap it any time.
 - **Stay quick on small models.** An efficient system prompt keeps 1B to 7B
   models responsive without cutting any instructions.
 - **Keep chats and code apart.** A switch at the top of the sidebar, and each
@@ -77,14 +80,14 @@ to work on the code.
 
 - Many small improvements, small features and changes.
 - Suppport for ai providers other than draggy’s local engine.
-- App onboarding for a better UX.
 - And more!
 
 ## Installing and requirements
 
 Pick your system on [draggy.org](https://draggy.org), or take the installer
 straight from the [Releases page](https://github.com/Lucki74/draggy/releases).
-Models are downloaded directly to your machine on first launch. See
+On first launch Draggy suggests a model sized to your hardware and downloads the
+one you choose, straight to your machine. See
 [Installation](https://draggy.org/wiki/installation) for hardware requirements.
 
 ### macOS: "Draggy" not opened

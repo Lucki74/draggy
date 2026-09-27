@@ -35,7 +35,7 @@ That starts Vite and Electron together with hot reload.
 npm run check
 ```
 
-Typecheck, lint and the full test suite, around 1,960 tests in about six
+Typecheck, lint and the full test suite, around 2,420 tests in about twenty
 seconds. CI runs the same command on every push and pull request, so a mistake
 will be caught either way, faster on your own machine.
 
@@ -49,6 +49,9 @@ already do.
 folder layout and the two boundaries that matter most: `electron/preload.cjs`,
 the only way from the renderer to the filesystem, network and database, and
 the session split between Draggy's own window and any external page it opens.
+
+A new install opens on the first-run setup in `src/onboarding/`; returning users
+get the splash, and both share the start-up steps in `src/boot/bootSequence.ts`.
 
 Behind the preload: `electron/fsGuard.cjs` is the only way to a user's file,
 and every tool declares what it can do (`readOnly`, `destructive`, and so on)

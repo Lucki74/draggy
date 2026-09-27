@@ -85,6 +85,19 @@ $env:NODE_OPTIONS = "--use-system-ca"
 
 The workflow runners are unaffected either way; their trust stores are clean.
 
+## The website goes with the release
+
+The site at draggy.org lives in its own repository (`../draggy-website`) and
+describes the released app, so it changes on the day of the release, not before.
+Before tagging, check that:
+
+- the wiki and site pages describe what the release changed, in all twelve
+  languages;
+- the screenshots show the release's interface, retaken with
+  `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs` after `npm run build`;
+- the privacy policy's date moved if anything the app sends over the network
+  changed, and its table lists every host the app contacts.
+
 How updates actually behave once installed is in the wiki's
 [Installation](https://draggy.org/wiki/installation) page.
 
