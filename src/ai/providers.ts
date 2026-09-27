@@ -5,6 +5,8 @@ export type ModelRef =
   | { kind: "builtin"; file: string }
   | { kind: "remote"; instanceId: string; modelId: string; valid: boolean };
 
+import type { Message } from "../types";
+
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
 export interface ProviderState {
   instanceId: string;
@@ -41,11 +43,33 @@ export function chatEndpoint(_model: string): string {
 
 /** The engine gets no provider fields, so its bodies stay byte-identical; a provider gets only the
  * states its own instance wrote, so a switch away and back sends the older ones again. */
-export function scopeToTarget<M extends { provider_state?: ProviderState }>(messages: M[], model: string): M[] {
+export function scopeToTarget<M extends { provider_state?: ProviderState; draggy_ref?: DraggyRef }>(
+  messages: M[],
+  model: string,
+): M[] {
   const instance = providerOf(model);
   return messages.map((message) => {
-    if (!message.provider_state || message.provider_state.instanceId === instance) return message;
-    const { provider_state: _other, ...rest } = message;
-    return rest as M;
+    const foreign = message.provider_state !== undefined && message.provider_state.instanceId !== instance;
+    const engine = instance === null && message.draggy_ref !== undefined;
+    if (!foreign && !engine) return message;
+    const kept = { ...message };
+    if (foreign) delete kept.provider_state;
+    if (engine) delete kept.draggy_ref;
+    return kept;
   });
+}
+
+/** Which stored message a wire message is, so a stateful provider can tell what its thread has seen. */
+export interface DraggyRef {
+  id: string;
+  hash: string;
+}
+
+/** Over the message as stored, never the wire: the time note and skill text change every turn and
+ * would make each turn's history look rewritten. */
+export async function draggyRef(message: Message): Promise<DraggyRef> {
+  const attachments = (message.attachments ?? []).map(({ name, type, content }) => [name, type, content]);
+  const bytes = new TextEncoder().encode(JSON.stringify([message.role, message.content ?? "", attachments]));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return { id: message.id, hash: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("") };
 }

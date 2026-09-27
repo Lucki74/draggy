@@ -2,7 +2,7 @@ import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../llama";
 import type { EngineResult } from "./engineErrors";
 import { scopeToTarget } from "./providers";
-import type { ProviderState } from "./providers";
+import type { DraggyRef, ProviderState } from "./providers";
 
 const IMAGE_SIGNATURES: [string, string][] = [
   ["/9j/", "image/jpeg"],
@@ -28,6 +28,7 @@ export function toLlamaMessages<
     content?: unknown;
     thinking?: string;
     provider_state?: ProviderState;
+    draggy_ref?: DraggyRef;
   },
 >(messages: M[], model = ""): M[] {
   return scopeToTarget(messages, model).map((message) => {

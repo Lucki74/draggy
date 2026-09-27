@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { chatEndpoint, isRemote, parseRef, providerOf, scopeToTarget } from "../ai/providers";
+import { chatEndpoint, draggyRef, isRemote, parseRef, providerOf, scopeToTarget } from "../ai/providers";
 import { toLlamaMessages } from "../ai/llamaStream";
 
 describe("model references", () => {
@@ -82,5 +82,25 @@ describe("a provider's state, sent only to the instance that wrote it", () => {
   it("keeps the rest of each message as it was", () => {
     expect(scopeToTarget(history, "@openai/gpt-x")[1]).toEqual({ role: "assistant", content: "two" });
     expect(scopeToTarget(history, "@anthropic/claude-x")[0]).toBe(history[0]);
+  });
+});
+
+describe("each stored message's reference", () => {
+  const message = { id: "m1", role: "user" as const, content: "hello", attachments: [{ name: "a.txt", type: "text/plain", content: "x" }] };
+
+  it("is a SHA-256 over the stored role, content and attachments", async () => {
+    const ref = await draggyRef(message);
+    expect(ref.id).toBe("m1");
+    expect(ref.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect((await draggyRef({ ...message })).hash).toBe(ref.hash);
+    expect((await draggyRef({ ...message, content: "hello!" })).hash).not.toBe(ref.hash);
+    expect((await draggyRef({ ...message, role: "assistant" })).hash).not.toBe(ref.hash);
+    expect((await draggyRef({ ...message, attachments: [] })).hash).not.toBe(ref.hash);
+  });
+
+  it("never reaches the built-in engine, and reaches every provider", () => {
+    const wire = [{ role: "user", content: "hi", draggy_ref: { id: "m1", hash: "h" } }];
+    expect(toLlamaMessages(wire, "Qwen3.5-9B-Q4_K_M.gguf")).toEqual([{ role: "user", content: "hi" }]);
+    expect(toLlamaMessages(wire, "@codex/gpt-x")).toEqual(wire);
   });
 });

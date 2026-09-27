@@ -15,8 +15,8 @@ import {
   readMetrics,
   recalledCapabilities,
 } from "../llama";
-import { chatEndpoint, isRemote, providerOf, scopeToTarget } from "../ai/providers";
-import type { ProviderState } from "../ai/providers";
+import { chatEndpoint, draggyRef, isRemote, providerOf, scopeToTarget } from "../ai/providers";
+import type { DraggyRef, ProviderState } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
@@ -132,6 +132,7 @@ export interface WireMessage {
   tool_call_id?: string;
   tool_name?: string;
   provider_state?: ProviderState;
+  draggy_ref?: DraggyRef;
 }
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
@@ -396,6 +397,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       : null;
 
   const carried = compaction ? history.slice(compaction.throughIndex) : history;
+  // Only a provider matches turns by these; hashing every attachment each turn would be wasted on the engine.
+  const refs = isRemote(model) ? await Promise.all(carried.map(draggyRef)) : [];
 
   // What the fixed parts of the prompt cost, so the context view can say where
   // the window went rather than only how full it is.
@@ -431,7 +434,10 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...(compaction
       ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
       : []),
-    ...carried.map((message) => toWireMessage(message, nativeVision, nativeThinking)),
+    ...carried.map((message, index) => ({
+      ...toWireMessage(message, nativeVision, nativeThinking),
+      ...(refs[index] ? { draggy_ref: refs[index] } : {}),
+    })),
   ];
 
   if (request.isContinuation) {

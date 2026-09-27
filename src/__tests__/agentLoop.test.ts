@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { llamaIsBusy } from "../llama";
 import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
+import { draggyRef } from "../ai/providers";
 import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
 import { parsePlan } from "../plan/plan";
@@ -2171,10 +2172,50 @@ describe("a provider's state through a turn", () => {
     const remote = installFetch([{ content: ["ok"] }], []);
     await runAgentTurn(turnInput("@anthropic/claude-x", history), makeHost().host);
     const sent = (remote.requests[0] as { messages: { provider_state?: unknown }[] }).messages;
-    expect(sent.filter((m) => m.provider_state)).toEqual([{ role: "assistant", content: "hello", provider_state: signed }]);
+    expect(sent.filter((m) => m.provider_state)).toMatchObject([{ role: "assistant", content: "hello", provider_state: signed }]);
 
     const local = installFetch([{ content: ["ok"] }], []);
     await runAgentTurn(turnInput(MODEL, history), makeHost().host);
     expect(JSON.stringify(local.requests[0])).not.toContain("provider_state");
+  });
+});
+
+describe("each stored message's reference on the wire", () => {
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+  type Sent = { messages: { role: string; content: string; draggy_ref?: { id: string; hash: string } }[] };
+
+  it("stays the same when the message has lost its time note by the next turn", async () => {
+    const first = userMessage("what time is it");
+    const one = installFetch([{ content: ["Noon."] }], []);
+    await runAgentTurn(turnInput("@codex/gpt-x", [first]), makeHost().host);
+    const before = (one.requests[0] as Sent).messages.find((m) => m.draggy_ref?.id === "u1");
+
+    const two = installFetch([{ content: ["Still noon."] }], []);
+    const history = [first, { ...assistantMessage("Noon."), id: "a1" }, { ...userMessage("and now"), id: "u2" }];
+    await runAgentTurn(turnInput("@codex/gpt-x", history), makeHost().host);
+    const sent = (two.requests[0] as Sent).messages;
+    const after = sent.find((m) => m.draggy_ref?.id === "u1");
+
+    // The note was on the wire the first time, and is gone the second; the reference did not move.
+    expect(before?.content).not.toBe(after?.content);
+    expect(after?.draggy_ref).toEqual(before?.draggy_ref);
+    expect(before?.draggy_ref).toEqual(await draggyRef(first));
+    expect(sent.filter((m) => m.draggy_ref).map((m) => m.draggy_ref?.id)).toEqual(["u1", "a1", "u2"]);
+    expect(sent.find((m) => m.role === "system")?.draggy_ref).toBeUndefined();
+  });
+
+  it("is never sent to the built-in engine", async () => {
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, [userMessage("hi")]), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("draggy_ref");
   });
 });
