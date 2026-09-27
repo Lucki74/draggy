@@ -20,9 +20,20 @@ function init(userDataPath, safeStorage) {
 
 function available() {
   try {
-    return Boolean(vault && vault.isEncryptionAvailable());
+    if (!vault || !vault.isEncryptionAvailable()) return false;
   } catch {
     return false;
+  }
+  return backend() !== "basic_text";
+}
+
+/** Linux with no keyring falls back to `basic_text`: "encrypted" with a fixed key, so plain text in
+ * all but name. The call exists on Linux only, hence the guard. */
+function backend() {
+  try {
+    return typeof vault.getSelectedStorageBackend === "function" ? vault.getSelectedStorageBackend() : null;
+  } catch {
+    return null;
   }
 }
 

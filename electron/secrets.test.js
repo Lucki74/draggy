@@ -93,6 +93,25 @@ describe("when the operating system will not help", () => {
 
     expect(fs.existsSync(storeFile())).toBe(false);
   });
+
+  it("counts Linux's basic_text backend as no keystore, since it is plain text in all but name", () => {
+    secrets.close();
+    secrets.init(workdir, { ...fakeVault(), getSelectedStorageBackend: () => "basic_text" });
+
+    expect(secrets.available()).toBe(false);
+    secrets.set("provider:openai", { apiKey: "sk-secret" });
+    expect(fs.existsSync(storeFile())).toBe(false);
+  });
+
+  it("still trusts a real keyring, and a platform that has no backend call", () => {
+    secrets.close();
+    secrets.init(workdir, { ...fakeVault(), getSelectedStorageBackend: () => "gnome_libsecret" });
+    expect(secrets.available()).toBe(true);
+
+    secrets.close();
+    secrets.init(workdir, { ...fakeVault(), getSelectedStorageBackend: () => { throw new Error("Linux only"); } });
+    expect(secrets.available()).toBe(true);
+  });
 });
 
 describe("a store it cannot read", () => {
