@@ -1105,6 +1105,47 @@ describe("keeping prose where the model wrote it", () => {
     const result = await promise;
     expect(result.textContent).toContain("Half a thought");
   });
+
+  it("saves the text of a reply stopped mid-stream as the reply, for the next turn's history", async () => {
+    installFetch([{ content: ["unused"] }], []);
+    const encoder = new TextEncoder();
+
+    // Counts until stopped, as the Qwen run did: the stream is still open when Stop lands.
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      let count = 0;
+      let timer: ReturnType<typeof setInterval> | undefined;
+      const body = new ReadableStream<Uint8Array>({
+        start(stream) {
+          timer = setInterval(() => {
+            const chunk = { choices: [{ delta: { content: `${++count}, ` }, finish_reason: null }] };
+            stream.enqueue(encoder.encode("data: " + JSON.stringify(chunk) + "\n\n"));
+          }, 5);
+          init?.signal?.addEventListener("abort", () => {
+            clearInterval(timer);
+            stream.error(Object.assign(new Error("aborted"), { name: "AbortError" }));
+          });
+        },
+        cancel: () => clearInterval(timer),
+      });
+      return new Response(body, { status: 200 });
+    }));
+
+    const controller = new AbortController();
+    const probe = makeHost();
+    const { promise } = run([userMessage("Count to five hundred")], controller.signal, probe);
+
+    await vi.waitFor(() => expect(probe.steps.some((step) => step.type === "text")).toBe(true));
+    controller.abort();
+    const result = await promise;
+
+    const saved = probe.patches[probe.patches.length - 1];
+    expect(saved.textContent).toMatch(/^1, 2, /);
+    expect(saved.content).toMatch(/^1, 2, /);
+    expect(saved).toEqual({ content: result.content, textContent: result.textContent });
+    expect(probe.steps.some((step) => step.type === "text")).toBe(false);
+    expect(toWireMessage({ ...assistantMessage(saved.content), textContent: saved.textContent }, false).content)
+      .toMatch(/^1, 2, /);
+  });
 });
 
 describe("carrying on a reply that was cut short", () => {
