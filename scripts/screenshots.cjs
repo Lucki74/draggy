@@ -434,6 +434,11 @@ async function runOnboarding() {
       button.click();
       return true;
     }, which === "next");
+  // Moving between steps focuses the next one's first control; a mouse user never sees that ring.
+  const shootStep = async (name) => {
+    await inPage(win, () => document.activeElement?.blur());
+    await shoot(win, name);
+  };
   const move = async (which) => {
     const before = await heading();
     await waitFor(() => footerButton(which), { label: `the ${which} button` });
@@ -443,20 +448,20 @@ async function runOnboarding() {
 
   await waitFor(async () => (await heading()).length > 0, { label: "the welcome step" });
   await sleep(1500);
-  await shoot(win, "app-onboarding-welcome");
+  await shootStep("app-onboarding-welcome");
   await move("next");
-  await shoot(win, "app-onboarding-appearance");
+  await shootStep("app-onboarding-appearance");
   await move("next");
   await waitFor(() => inPage(win, () => document.querySelectorAll('main [role="radio"]').length > 0), {
     label: "the model options",
   });
   await move("next");
   await sleep(2500);
-  await shoot(win, "app-onboarding-ready");
+  await shootStep("app-onboarding-ready");
   // Back on the model step, the download stays pinned under it.
   await move("back");
   await sleep(1000);
-  await shoot(win, "app-onboarding-model");
+  await shootStep("app-onboarding-model");
 }
 
 async function run() {
