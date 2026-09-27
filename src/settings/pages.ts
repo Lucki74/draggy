@@ -84,6 +84,13 @@ type Translate = (key: string) => string;
 export const thinkingOptions = (t: Translate) =>
   (["low", "medium", "high"] as const).map((id) => ({ id, label: t(id) }));
 
+/** The web search providers, for the Web search page and the setup's Preferences step alike. */
+export const searchProviderOptions = (t: Translate) =>
+  (["auto", "brave-html", "duckduckgo", "startpage", "brave", "searxng"] as const).map((id) => ({
+    id,
+    label: t(`provider_${id.replace(/-/g, "_")}`),
+  }));
+
 export const webOptions = (t: Translate) => [
   { id: "auto" as const, label: t("webAuto") },
   { id: "on" as const, label: t("webOn") },

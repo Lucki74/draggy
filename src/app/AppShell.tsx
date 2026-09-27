@@ -87,6 +87,8 @@ interface AppShellProps {
   settings: AppSettings;
   onUpdateSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   onSelectModel: (name: string) => void;
+  /** Downloads the first-run setup left unfinished, for the Downloads menu to carry on showing. */
+  startDownloads?: string[];
 }
 
 /** The window around the screens: the sidebar, the current surface, and the two interruptions any
@@ -96,6 +98,7 @@ export default function AppShell({
   settings,
   onUpdateSettings,
   onSelectModel,
+  startDownloads,
 }: AppShellProps) {
   const t = useTranslator(settings.language);
 
@@ -1132,6 +1135,7 @@ export default function AppShell({
             onClearSessions={() => clearSide("code")}
             onLibraryChange={refreshLibraryReadiness}
             onTabChange={setSettingsTab}
+            startDownloads={startDownloads}
           />
         </div>
       </div>

@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
+import { searchProviderOptions } from "./pages";
 import type { AppSettings, SearchProvider, StorageStats, UpdaterState } from "../types";
 
 type Translate = (key: string) => string;
@@ -89,8 +90,6 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   );
 }
 
-const PROVIDERS: SearchProvider[] = ["auto", "brave-html", "duckduckgo", "startpage", "brave", "searxng"];
-
 export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
   const provider = settings.searchProvider;
 
@@ -101,7 +100,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
           <Select
             label={t("searchProvider")}
             value={provider}
-            options={PROVIDERS.map((id) => ({ id, label: t(`provider_${id.replace(/-/g, "_")}`) }))}
+            options={searchProviderOptions(t)}
             onChange={(searchProvider) => onUpdate({ searchProvider: searchProvider as SearchProvider })}
           />
         </Row>

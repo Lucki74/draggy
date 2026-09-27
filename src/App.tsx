@@ -70,9 +70,12 @@ export default function App() {
     [setSettings],
   );
 
+  const [handedDownloads, setHandedDownloads] = useState<string[]>([]);
+
   const handleOnboardingFinish = useCallback(
-    (selectedModel: string) => {
+    (selectedModel: string, downloads: string[] = []) => {
       window.history.replaceState(null, "", window.location.pathname);
+      setHandedDownloads(downloads);
       setOnboarding(false);
       handleModelReady(selectedModel);
     },
@@ -127,6 +130,7 @@ export default function App() {
       settings={settings}
       onUpdateSettings={setSettings}
       onSelectModel={handleModelReady}
+      startDownloads={handedDownloads}
     />
   );
 }

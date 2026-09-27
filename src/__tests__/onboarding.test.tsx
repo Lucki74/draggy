@@ -59,8 +59,17 @@ function freshMachine({ online = true, installed = [] as string[] } = {}) {
   return { api, order, finish: (filename: string) => pending.get(filename)?.({ success: true }) };
 }
 
-function Harness({ language = "en", onFinish }: { language?: string; onFinish: (model: string) => void }) {
+function Harness({
+  language = "en",
+  onFinish,
+  onSettings,
+}: {
+  language?: string;
+  onFinish: (model: string, downloads?: string[]) => void;
+  onSettings?: (settings: AppSettings) => void;
+}) {
   const [settings, setSettings] = useState<AppSettings>({ ...defaultSettings, language });
+  onSettings?.(settings);
   return (
     <Onboarding
       settings={settings}
@@ -168,6 +177,8 @@ describe("finishing", () => {
     await toLocalStep();
     await waitFor(() => expect(continueButton().disabled).toBe(false));
     fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbPrefsTitle") });
+    fireEvent.click(continueButton());
 
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
     const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
@@ -178,7 +189,7 @@ describe("finishing", () => {
     await waitFor(() => expect(start.disabled).toBe(false));
 
     fireEvent.click(start);
-    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf"));
+    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", []));
     expect(api.onboarding.complete).toHaveBeenCalledWith("local");
   });
 
@@ -193,7 +204,7 @@ describe("finishing", () => {
     expect(within(dialog).getByText(en("onbSkipBodyInstalled"))).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: en("onbSkipConfirm") }));
 
-    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("have.gguf"), { timeout: 4000 });
+    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("have.gguf", []), { timeout: 4000 });
     expect(api.onboarding.complete).toHaveBeenCalledWith("skipped");
     expect(api.gguf.downloadModel).not.toHaveBeenCalled();
   });
@@ -239,6 +250,8 @@ describe("from the setup into the app", () => {
     await toLocalStep();
     await waitFor(() => expect(continueButton().disabled).toBe(false));
     fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbPrefsTitle") });
+    fireEvent.click(continueButton());
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
     // No update check, app or engine, may be scheduled before the user has chosen.
     expect(configure).not.toHaveBeenCalled();
@@ -266,5 +279,91 @@ describe("running the setup again", () => {
     expect(fake.resets).toBe(0);
     fireEvent.click(within(dialog).getByRole("button", { name: en("onbRunAgainConfirm") }));
     await waitFor(() => expect(fake.resets).toBe(1));
+  });
+});
+
+describe("the preferences step", () => {
+  async function toPreferences() {
+    await toLocalStep();
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbPrefsTitle") });
+  }
+
+  it("writes each preference where the app reads it", async () => {
+    freshMachine();
+    let latest = defaultSettings;
+    render(<Harness onFinish={() => {}} onSettings={(settings) => (latest = settings)} />);
+    await toPreferences();
+
+    expect(screen.queryByRole("radiogroup", { name: en("onbPermissionTitle") })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: en("codeMode") }));
+    expect(localStorage.getItem("draggy_mode")).toBe("code");
+    const permissions = screen.getByRole("radiogroup", { name: en("onbPermissionTitle") });
+    fireEvent.click(within(permissions).getAllByRole("radio")[0]);
+    expect(latest.codePermissionMode).not.toBe("acceptEdits");
+
+    fireEvent.click(screen.getByRole("switch", { name: en("onbUpdates") }));
+    expect(latest.autoUpdate).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: en("onbMore") }));
+    fireEvent.click(screen.getByRole("switch", { name: en("showMetrics") }));
+    expect(latest.showMetrics).toBe(true);
+    expect(latest.metricsChosen).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: en("high") }));
+    expect(latest.thinkingMode).toBe("high");
+  });
+
+  it("queues a ticked extra after the model, and hands it on if Start comes first", async () => {
+    const { api, order, finish } = freshMachine();
+    const onFinish = vi.fn();
+    render(<Harness onFinish={onFinish} />);
+    await toPreferences();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: en("onbExtraVoice") }));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbReadyTitle") });
+    await waitFor(() => expect(api.gguf.downloadModel).toHaveBeenCalled());
+    expect(order.filter((entry) => entry.startsWith("download"))).toEqual(["download Ministral-3-14B-Instruct-2512-GGUF.gguf"]);
+
+    finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    // A 12 GB card gets Gemma 4 12B for voice.
+    await waitFor(() => expect(order).toContain("download gemma-4-12b-it-GGUF.gguf"));
+    fireEvent.click(screen.getByRole("button", { name: en("onbStart") }));
+    await waitFor(() =>
+      expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", ["unsloth/gemma-4-12b-it-GGUF:Q4_K_M"]),
+    );
+  });
+});
+
+describe("an extra still downloading at Start", () => {
+  it("is taken on by the app's own downloads", async () => {
+    installFakeElectronApi();
+    const fake = window.electronAPI as unknown as Record<string, unknown>;
+    const machine = freshMachine();
+    const parts = machine.api as unknown as Record<string, unknown>;
+    for (const key of Object.keys(parts)) fake[key] = parts[key];
+    (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+    window.history.pushState(null, "", "/?onboarding=true");
+
+    render(<App />);
+    await screen.findByRole("heading", { name: en("onbWelcomeTitle") });
+    await toLocalStep();
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbPrefsTitle") });
+    fireEvent.click(screen.getByRole("checkbox", { name: en("onbExtraVoice") }));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbReadyTitle") });
+    await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
+    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    await waitFor(() => expect(machine.order).toContain("download gemma-4-12b-it-GGUF.gguf"));
+
+    fireEvent.click(screen.getByRole("button", { name: en("onbStart") }));
+    expect(await screen.findByRole("button", { name: "Settings" })).toBeTruthy();
+    // Asked for again by the model manager, which the main process joins to the transfer under way.
+    await waitFor(() =>
+      expect(machine.order.filter((entry) => entry === "download gemma-4-12b-it-GGUF.gguf")).toHaveLength(2),
+    );
   });
 });

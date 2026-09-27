@@ -4,14 +4,15 @@ import { canContinue, nextStep, previousStep, stepsFor, type FlowState } from ".
 const blank: FlowState = { online: null, choice: null, modelOnDisk: false, engineReady: false };
 
 describe("the setup's screens", () => {
-  it("runs welcome, appearance, the local model and ready on the local path", () => {
-    expect(stepsFor("local")).toEqual(["welcome", "appearance", "local", "ready"]);
+  it("runs welcome, appearance, the local model, preferences and ready on the local path", () => {
+    expect(stepsFor("local")).toEqual(["welcome", "appearance", "local", "preferences", "ready"]);
   });
 
   it("moves forward and back without running off either end", () => {
     const steps = stepsFor("local");
     expect(nextStep(steps, "welcome")).toBe("appearance");
-    expect(nextStep(steps, "local")).toBe("ready");
+    expect(nextStep(steps, "local")).toBe("preferences");
+    expect(nextStep(steps, "preferences")).toBe("ready");
     expect(nextStep(steps, "ready")).toBe("ready");
     expect(previousStep(steps, "appearance")).toBe("welcome");
     expect(previousStep(steps, "welcome")).toBe("welcome");
@@ -19,9 +20,10 @@ describe("the setup's screens", () => {
 });
 
 describe("when a screen may be left", () => {
-  it("always lets the first two go", () => {
+  it("always lets welcome, appearance and preferences go", () => {
     expect(canContinue("welcome", blank)).toBe(true);
     expect(canContinue("appearance", blank)).toBe(true);
+    expect(canContinue("preferences", blank)).toBe(true);
   });
 
   it("needs a model that fits, and the network to fetch it", () => {

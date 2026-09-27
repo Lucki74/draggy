@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Block, Group, Page } from "./Controls";
 import { SETTINGS_GROUPS } from "./pages";
 import type { SettingsTab } from "./pages";
@@ -39,6 +39,8 @@ interface SettingsPageProps {
   onLibraryChange?: () => void;
   /** Which page is open, for the shell: an update notice is noise on the Updates page. */
   onTabChange?: (tab: SettingsTab) => void;
+  /** Downloads the first-run setup left unfinished, so they show among the rest. */
+  startDownloads?: string[];
 }
 
 /** Settings, in three groups: the app, Chat and Code. It stays mounted for the app's life, since a
@@ -58,7 +60,16 @@ export default function SettingsPage(props: SettingsPageProps) {
     setTab(request.tab);
   }
 
-  const { onLibraryChange, onTabChange } = props;
+  const { onLibraryChange, onTabChange, startDownloads } = props;
+  const takenOver = useRef(new Set<string>());
+  // A file already downloading is joined in the main process, not fetched a second time.
+  useEffect(() => {
+    for (const reference of startDownloads ?? []) {
+      if (takenOver.current.has(reference)) continue;
+      takenOver.current.add(reference);
+      void manager.startPull(reference);
+    }
+  }, [startDownloads, manager]);
   const libraryChanged = useCallback(() => onLibraryChange?.(), [onLibraryChange]);
 
   useEffect(() => {

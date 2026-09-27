@@ -1,7 +1,7 @@
 /** Which screens the setup shows and when each may be left. Plain data, so the whole flow is a unit
  * test rather than a fresh install. */
 
-export type StepId = "welcome" | "appearance" | "local" | "ready";
+export type StepId = "welcome" | "appearance" | "local" | "preferences" | "ready";
 
 /** How the user chose to run the AI. Only "local" exists until providers ship (spec M5). */
 export type SetupPath = "local";
@@ -9,7 +9,7 @@ export type SetupPath = "local";
 export function stepsFor(path: SetupPath): StepId[] {
   switch (path) {
     case "local":
-      return ["welcome", "appearance", "local", "ready"];
+      return ["welcome", "appearance", "local", "preferences", "ready"];
   }
 }
 
@@ -36,6 +36,7 @@ export function canContinue(step: StepId, state: FlowState): boolean {
   switch (step) {
     case "welcome":
     case "appearance":
+    case "preferences":
       return true;
     case "local":
       if (!state.choice) return false;
