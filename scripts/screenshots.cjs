@@ -421,6 +421,9 @@ async function runOnboarding() {
   fs.mkdirSync(OUT, { recursive: true });
   const win = await waitFor(() => appWindow(), { label: "the setup window" });
   await waitFor(() => win.isVisible(), { label: "the setup to open" });
+  // A covered window stops animating, and each step waits for the last one's fade to end.
+  win.webContents.setBackgroundThrottling(false);
+  win.setAlwaysOnTop(true);
   win.setIgnoreMouseEvents(true);
   win.setContentSize(WIDTH, HEIGHT);
   win.setPosition(0, 0);
@@ -465,6 +468,15 @@ async function runOnboarding() {
   await move("back");
   await sleep(1000);
   await shootStep("app-onboarding-model");
+
+  // Start with the download under way: the app opens with it as a banner, the composer waiting.
+  await move("next");
+  await move("next");
+  await waitFor(() => inPage(win, () => Boolean(document.querySelector("main .ui-btn:not(:disabled)"))), { label: "Start" });
+  await inPage(win, () => document.querySelector("main .ui-btn").click());
+  await waitFor(() => inPage(win, () => Boolean(document.querySelector("form.composer textarea"))), { label: "the app" });
+  await sleep(2000);
+  await shootStep("app-onboarding-banner");
 }
 
 async function run() {
