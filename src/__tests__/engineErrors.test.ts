@@ -95,6 +95,12 @@ describe("engineFailure", () => {
     expect(unknown).toContain("/error/engine-stopped-loading");
   });
 
+  it("shows a failure whose kind it has no message for in the provider's own words", () => {
+    const said = engineFailure({ kind: "provider-something-new", error: "Your key has expired" });
+    expect(said).toContain("Your key has expired");
+    expect(said).toContain("/error/unknown-engine-error");
+  });
+
   it("has a message for an engine that cannot be reached", () => {
     expect(engineUnreachable()).toContain("could not reach");
     expect(engineUnreachable()).toContain("/error/engine-unreachable");

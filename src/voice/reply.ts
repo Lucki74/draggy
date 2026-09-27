@@ -1,7 +1,7 @@
 import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
-import { ggufErrorMessage, sseToLlamaChunks } from "../ai/llamaStream";
+import { failureOf, readFailure, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
 import { chatEndpoint, isRemote } from "../ai/providers";
@@ -139,12 +139,13 @@ async function streamVoice(options: StreamOptions): Promise<void> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(engineFailure(ggufErrorMessage(body, response.statusText || `HTTP ${response.status}`)));
+    throw new Error(engineFailure(readFailure(body, response.statusText || `HTTP ${response.status}`)));
   }
   const reader = response.body?.getReader();
   if (!reader) throw new Error(engineUnreachable());
 
   for await (const chunk of sseToLlamaChunks(reader)) {
+    if (chunk.error) throw new Error(engineFailure(failureOf(chunk.error)));
     const delta = chunk.message?.content;
     if (delta && options.onDelta(delta) === false) return;
   }

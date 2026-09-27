@@ -335,3 +335,17 @@ describe("a voice reply from a provider's model", () => {
     expect(deltas.join("")).toBe("Hello");
   });
 });
+
+describe("a voice reply from a provider that fails", () => {
+  it("says the provider's error, whether before the stream or inside it", async () => {
+    vi.stubGlobal("window", undefined);
+    const failure = JSON.stringify({ error: { kind: "provider-unknown-error", providerMessage: "no such key" } });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(failure, { status: 401 })));
+    const options = { model: "@openai/gpt-x", messages: [{ role: "user" as const, content: "hi" }], onDelta: () => {} };
+    await expect(streamVoiceChat(options)).rejects.toThrow("no such key");
+
+    const event = 'data: {"error":{"kind":"provider-unknown-error","providerMessage":"cut off"}}\n\ndata: [DONE]\n\n';
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(event, { status: 200 })));
+    await expect(streamVoiceChat(options)).rejects.toThrow("cut off");
+  });
+});

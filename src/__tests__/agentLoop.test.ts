@@ -2079,3 +2079,34 @@ describe("a provider's model", () => {
     expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");
   });
 });
+
+describe("a provider that fails once its stream is open", () => {
+  it("ends the turn with the provider's error instead of an empty reply", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"choices":[{"index":0,"delta":{"content":"Hel"}}]}\n\n',
+      'data: {"error":{"kind":"provider-unknown-error","status":500,"providerMessage":"upstream fell over"}}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const turn = runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+    await expect(turn).rejects.toThrow("upstream fell over");
+  });
+});

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   COMPACT_AT,
   KEEP_RECENT_MESSAGES,
@@ -12,6 +12,7 @@ import {
   planCompaction,
   renderCompactionBlock,
   renderTranscript,
+  runCompaction,
   trimSummary,
 } from "../agent/compaction";
 import type { CompactionState, Message } from "../types";
@@ -285,5 +286,17 @@ describe("the constants agree with each other", () => {
   it("folds well before the window is full", () => {
     expect(COMPACT_AT).toBeGreaterThan(0);
     expect(COMPACT_AT).toBeLessThan(0.8);
+  });
+});
+
+describe("a fold a provider refuses", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps the conversation as it was, with no summary", async () => {
+    const failure = JSON.stringify({ error: { kind: "provider-rate-limited", status: 429, message: "Rate limited" } });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(failure, { status: 429 })));
+    const messages = [say("user", "one"), say("assistant", "two"), say("user", "three")];
+    const folded = await runCompaction({ model: "@openai/gpt-x", numCtx: 8192, messages, plan: { foldFrom: 0, foldThrough: 2 } });
+    expect(folded).toBeNull();
   });
 });

@@ -5,6 +5,12 @@ export type ModelRef =
   | { kind: "builtin"; file: string }
   | { kind: "remote"; instanceId: string; modelId: string; valid: boolean };
 
+/** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
+export interface ProviderState {
+  instanceId: string;
+  state: unknown;
+}
+
 /** The gateway every model request goes through, built-in or remote; the body's model says which. */
 export const CHAT_ENDPOINT = "draggy-ai://chat";
 

@@ -17,14 +17,15 @@ const BY_TEXT: ReadonlyArray<{ pattern: RegExp; slug: string; key: string }> = [
   { pattern: /couldn't bind HTTP server socket|address already in use/i, slug: "port-in-use", key: "enginePortInUse" },
 ];
 
-/** What the main process names its own failures, so nothing has to parse its English. */
-const BY_KIND: Record<string, string> = {
-  "load-timeout": "load-timeout",
-  "stopped-loading": "engine-stopped-loading",
-  "parts-missing": "model-parts-missing",
-  "another-model": "another-model-started",
-  "engine-missing": "engine-would-not-start",
-  "port-in-use": "port-in-use",
+/** What the main process and the gateway name their failures, so nothing has to parse their English.
+ * A kind missing here is shown in its own words, with the unknown-error article. */
+const BY_KIND: Record<string, { slug: string; key: string }> = {
+  "load-timeout": { slug: "load-timeout", key: "engineLoadTimeout" },
+  "stopped-loading": { slug: "engine-stopped-loading", key: "engineStoppedLoading" },
+  "parts-missing": { slug: "model-parts-missing", key: "engineModelPartsMissing" },
+  "another-model": { slug: "another-model-started", key: "engineAnotherModelStarted" },
+  "engine-missing": { slug: "engine-would-not-start", key: "missingGgufEngine" },
+  "port-in-use": { slug: "port-in-use", key: "enginePortInUse" },
 };
 
 export interface EngineResult {
@@ -70,22 +71,13 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
   const params = result.params ?? {};
 
   if (result.kind && BY_KIND[result.kind]) {
-    const slug = BY_KIND[result.kind];
+    const { slug, key } = BY_KIND[result.kind];
 
     // A crash whose last words are a known cause is that cause, not the generic crash.
     if (result.kind === "stopped-loading") {
       const cause = known(`${params.log ?? ""}\n${params.reason ?? ""}`);
       if (cause) return withArticle(say(language, cause.key), cause.slug, language, options);
     }
-
-    const key = {
-      "load-timeout": "engineLoadTimeout",
-      "stopped-loading": "engineStoppedLoading",
-      "parts-missing": "engineModelPartsMissing",
-      "another-model": "engineAnotherModelStarted",
-      "engine-missing": "missingGgufEngine",
-      "port-in-use": "enginePortInUse",
-    }[result.kind] as string;
 
     const detail = params.reason ? `: ${params.reason}` : "";
     return withArticle(say(language, key, { ...params, detail }), slug, language, options);

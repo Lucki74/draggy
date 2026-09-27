@@ -50,7 +50,8 @@ import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
-import { ggufErrorMessage, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
+import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
+import type { GatewayError } from "../ai/llamaStream";
 import {
   annotationsFor,
   availableTools,
@@ -116,6 +117,7 @@ interface LlamaChunk {
   };
   done?: boolean;
   done_reason?: string;
+  error?: GatewayError;
 }
 
 export interface WireMessage {
@@ -1046,7 +1048,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(engineFailure(ggufErrorMessage(errorText, response.statusText), { markdown: true }));
+        throw new Error(engineFailure(readFailure(errorText, response.statusText), { markdown: true }));
       }
 
       const reader = response.body?.getReader();
@@ -1081,6 +1083,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       try {
         for await (const parsed of readStream()) {
+          // A provider that fails after the stream opened says so in it, since the status is already 200.
+          if (parsed.error) throw new Error(engineFailure(failureOf(parsed.error), { markdown: true }));
           doneLoading();
           const added = parsed.message?.content || "";
           const thinkingAdded = parsed.message?.thinking || "";
