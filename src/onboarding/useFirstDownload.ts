@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadModel, type BootBridge } from "../boot/bootSequence";
 import { estimateRemaining } from "../settings/useModelManager";
 
@@ -22,9 +22,18 @@ export interface ModelDownload {
   error?: string;
 }
 
+/** Voice and document search, ticked on the Preferences step. */
+export interface ExtraDownload {
+  reference: string;
+  label: string;
+  phase: "queued" | "downloading" | "done" | "error";
+  percent: number;
+}
+
 export interface FirstDownload {
   engine: EngineDownload;
   model: ModelDownload;
+  extras: ExtraDownload[];
   /** Starts the engine if it is missing and this model, cancelling a different one still running.
    * An installed model is adopted as it is, with nothing downloaded. */
   chooseModel(reference: string, installed?: string): void;
@@ -32,6 +41,12 @@ export interface FirstDownload {
   cancelAll(): void;
   /** Settles once no engine setup is running, so Skip never starts a second one beside it. */
   engineIdle(): Promise<void>;
+  /** Waits for the model, then runs one at a time: never beside the model, which matters most. */
+  queueExtra(reference: string, label: string): void;
+  /** Takes an extra out of the queue, or stops it and removes what it wrote. */
+  dropExtra(reference: string): void;
+  /** Stops starting extras and names those not finished, for the app's own downloads to take on. */
+  handOff(): string[];
 }
 
 const ENGINE_LABEL = "AI Engine";
@@ -45,6 +60,58 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
   const controllerRef = useRef<AbortController | null>(null);
   const engineRef = useRef<Promise<void> | null>(null);
   const lastRef = useRef<{ reference: string; installed?: string } | null>(null);
+  const [extras, setExtras] = useState<ExtraDownload[]>([]);
+  const extrasRef = useRef<ExtraDownload[]>([]);
+  const extraControllers = useRef(new Map<string, AbortController>());
+  const modelDoneRef = useRef(false);
+  const handedOffRef = useRef(false);
+  const pumpRef = useRef<() => void>(() => {});
+
+  const updateExtras = useCallback((change: (list: ExtraDownload[]) => ExtraDownload[]) => {
+    extrasRef.current = change(extrasRef.current);
+    setExtras(extrasRef.current);
+  }, []);
+
+  const patchExtra = useCallback(
+    (reference: string, patch: Partial<ExtraDownload>) =>
+      updateExtras((list) => list.map((extra) => (extra.reference === reference ? { ...extra, ...patch } : extra))),
+    [updateExtras],
+  );
+
+  const pump = useCallback(() => {
+    if (!api || !modelDoneRef.current || handedOffRef.current) return;
+    if (extrasRef.current.some((extra) => extra.phase === "downloading")) return;
+    const next = extrasRef.current.find((extra) => extra.phase === "queued");
+    if (!next) return;
+
+    const controller = new AbortController();
+    extraControllers.current.set(next.reference, controller);
+    patchExtra(next.reference, { phase: "downloading" });
+    downloadModel(
+      api,
+      next.reference,
+      (progress) => {
+        if (progress && !controller.signal.aborted) patchExtra(next.reference, { percent: progress.percent });
+      },
+      controller.signal,
+    )
+      .then(
+        () => {
+          if (!controller.signal.aborted) patchExtra(next.reference, { phase: "done", percent: 100 });
+        },
+        () => {
+          if (!controller.signal.aborted) patchExtra(next.reference, { phase: "error" });
+        },
+      )
+      .finally(() => {
+        extraControllers.current.delete(next.reference);
+        pumpRef.current();
+      });
+  }, [api, patchExtra]);
+
+  useEffect(() => {
+    pumpRef.current = pump;
+  }, [pump]);
 
   const startEngine = useCallback(() => {
     if (!api?.gguf) return;
@@ -86,9 +153,12 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
       controllerRef.current?.abort();
       controllerRef.current = null;
       lastRef.current = { reference, installed };
+      modelDoneRef.current = false;
 
       if (installed) {
         setModel({ ...IDLE_MODEL, reference, filename: installed, phase: "done", percent: 100 });
+        modelDoneRef.current = true;
+        pumpRef.current();
         return;
       }
       if (!api) return;
@@ -122,6 +192,8 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
         (filename) => {
           if (controller.signal.aborted) return;
           setModel((current) => ({ ...current, filename, phase: "done", percent: 100, remainingSeconds: 0 }));
+          modelDoneRef.current = true;
+          pumpRef.current();
         },
         (error: unknown) => {
           if (controller.signal.aborted || isAbort(error)) return;
@@ -155,10 +227,44 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     controllerRef.current?.abort();
     controllerRef.current = null;
     lastRef.current = null;
+    modelDoneRef.current = false;
     setModel(IDLE_MODEL);
-  }, []);
+    for (const controller of extraControllers.current.values()) controller.abort();
+    extraControllers.current.clear();
+    updateExtras(() => []);
+  }, [updateExtras]);
 
   const engineIdle = useCallback(() => engineRef.current ?? Promise.resolve(), []);
 
-  return { engine, model, chooseModel, retry, cancelAll, engineIdle };
+  const queueExtra = useCallback(
+    (reference: string, label: string) => {
+      const existing = extrasRef.current.find((extra) => extra.reference === reference);
+      if (existing && existing.phase !== "error") return;
+      updateExtras((list) => [
+        ...list.filter((extra) => extra.reference !== reference),
+        { reference, label, phase: "queued", percent: 0 },
+      ]);
+      pumpRef.current();
+    },
+    [updateExtras],
+  );
+
+  const dropExtra = useCallback(
+    (reference: string) => {
+      extraControllers.current.get(reference)?.abort();
+      extraControllers.current.delete(reference);
+      updateExtras((list) => list.filter((extra) => extra.reference !== reference));
+      pumpRef.current();
+    },
+    [updateExtras],
+  );
+
+  const handOff = useCallback(() => {
+    handedOffRef.current = true;
+    return extrasRef.current
+      .filter((extra) => extra.phase === "queued" || extra.phase === "downloading")
+      .map((extra) => extra.reference);
+  }, []);
+
+  return { engine, model, extras, chooseModel, retry, cancelAll, engineIdle, queueExtra, dropExtra, handOff };
 }

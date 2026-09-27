@@ -120,3 +120,63 @@ describe("the setup's downloads", () => {
     await waitFor(() => expect(result.current.engine).toMatchObject({ phase: "error", error: "missingGgufEngine" }));
   });
 });
+
+describe("the optional downloads", () => {
+  it("waits for the model, then runs them one at a time", async () => {
+    const { order, finish } = bridge();
+    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
+    act(() => {
+      result.current.queueExtra("org/Voice-GGUF:Q4", "Voice");
+      result.current.queueExtra("org/Embed-GGUF:Q8", "Library");
+    });
+    await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(order.filter((entry) => entry.startsWith("download"))).toEqual(["download Main-GGUF-Q4.gguf"]);
+
+    act(() => finish("Main-GGUF-Q4.gguf"));
+    await waitFor(() => expect(order).toContain("download Voice-GGUF-Q4.gguf"));
+    expect(order).not.toContain("download Embed-GGUF-Q8.gguf");
+
+    act(() => finish("Voice-GGUF-Q4.gguf"));
+    await waitFor(() => expect(order).toContain("download Embed-GGUF-Q8.gguf"));
+    act(() => finish("Embed-GGUF-Q8.gguf"));
+    await waitFor(() => expect(result.current.extras.map((extra) => extra.phase)).toEqual(["done", "done"]));
+  });
+
+  it("stops an extra that is dropped, removing what it wrote", async () => {
+    const { api, order, finish } = bridge();
+    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
+    act(() => result.current.queueExtra("org/Voice-GGUF:Q4", "Voice"));
+    await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
+    act(() => finish("Main-GGUF-Q4.gguf"));
+    await waitFor(() => expect(order).toContain("download Voice-GGUF-Q4.gguf"));
+
+    act(() => result.current.dropExtra("org/Voice-GGUF:Q4"));
+    await waitFor(() => expect(api.gguf.cancelDownload).toHaveBeenCalledWith("Voice-GGUF-Q4.gguf"));
+    expect(result.current.extras).toEqual([]);
+  });
+
+  it("hands over what is unfinished and starts nothing more", async () => {
+    const { order, finish } = bridge();
+    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
+    act(() => {
+      result.current.queueExtra("org/Voice-GGUF:Q4", "Voice");
+      result.current.queueExtra("org/Embed-GGUF:Q8", "Library");
+    });
+    await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
+    act(() => finish("Main-GGUF-Q4.gguf"));
+    await waitFor(() => expect(order).toContain("download Voice-GGUF-Q4.gguf"));
+
+    let handed: string[] = [];
+    act(() => {
+      handed = result.current.handOff();
+    });
+    expect(handed).toEqual(["org/Voice-GGUF:Q4", "org/Embed-GGUF:Q8"]);
+    act(() => finish("Voice-GGUF-Q4.gguf"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(order).not.toContain("download Embed-GGUF-Q8.gguf");
+  });
+});
