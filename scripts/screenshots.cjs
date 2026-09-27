@@ -12,6 +12,10 @@ const OUT = path.resolve(
 const ONLY = (process.env.DRAGGY_SHOTS_ONLY || "").split(",").filter(Boolean);
 const WIDTH = 1280;
 const HEIGHT = 800;
+// The first-run setup is its own run: forced on, on an install with no model, in one language.
+const ONBOARDING = ONLY.includes("onboarding");
+const LANGUAGE = process.env.DRAGGY_SHOTS_LANG || "";
+if (ONBOARDING) process.env.DRAGGY_ONBOARDING = "1";
 
 // A fresh appData too, so the one-time 1.x folder adoption cannot reach the real one.
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-shots-"));
@@ -34,7 +38,7 @@ const captureModel = [
   "Ornith-1.5-35B-A3B-Q4_K_M.gguf",
   "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
 ].find((name) => name && fs.existsSync(path.join(realModels, name)));
-if (fs.existsSync(realModels) && !fs.existsSync(targetModels)) {
+if (!ONBOARDING && fs.existsSync(realModels) && !fs.existsSync(targetModels)) {
   if (captureModel) {
     fs.mkdirSync(targetModels);
     fs.linkSync(path.join(realModels, captureModel), path.join(targetModels, captureModel));
@@ -44,6 +48,8 @@ if (fs.existsSync(realModels) && !fs.existsSync(targetModels)) {
 }
 // 1.6 fits a 1280 by 800 window on a 2560 by 1440 screen and captures at 2048 by 1280.
 app.commandLine.appendSwitch("force-device-scale-factor", process.env.DRAGGY_SHOTS_SCALE || "1.6");
+// The setup guesses its language from the system's, so the capture names it rather than inherit this machine's.
+if (ONBOARDING) app.commandLine.appendSwitch("lang", LANGUAGE || "en-US");
 
 const PROJECT = path.join(scratch, "weather-cli");
 
@@ -208,7 +214,7 @@ function fakeDownloads() {
 }
 
 require(path.join(__dirname, "..", "electron", "main.cjs"));
-if (ONLY.length === 0 || ONLY.includes("downloads")) fakeDownloads();
+if (ONLY.length === 0 || ONLY.includes("downloads") || ONBOARDING) fakeDownloads();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (...parts) => console.log("[shots]", ...parts);
@@ -409,6 +415,50 @@ async function openSettingsPage(win, group, label) {
   await sleep(900);
 }
 
+// The setup's own screens, from a first launch: each step, then Ready with the download under way.
+async function runOnboarding() {
+  log("data folder", scratch);
+  fs.mkdirSync(OUT, { recursive: true });
+  const win = await waitFor(() => appWindow(), { label: "the setup window" });
+  await waitFor(() => win.isVisible(), { label: "the setup to open" });
+  win.setIgnoreMouseEvents(true);
+  win.setContentSize(WIDTH, HEIGHT);
+  win.setPosition(0, 0);
+
+  const heading = () => inPage(win, () => document.querySelector("main h1")?.textContent ?? "");
+  const footerButton = (which) =>
+    inPage(win, (last) => {
+      const buttons = [...document.querySelectorAll("footer > div button")];
+      const button = last ? buttons[buttons.length - 1] : buttons[0];
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    }, which === "next");
+  const move = async (which) => {
+    const before = await heading();
+    await waitFor(() => footerButton(which), { label: `the ${which} button` });
+    await waitFor(async () => (await heading()) !== before, { label: "the next step" });
+    await sleep(1200);
+  };
+
+  await waitFor(async () => (await heading()).length > 0, { label: "the welcome step" });
+  await sleep(1500);
+  await shoot(win, "app-onboarding-welcome");
+  await move("next");
+  await shoot(win, "app-onboarding-appearance");
+  await move("next");
+  await waitFor(() => inPage(win, () => document.querySelectorAll('main [role="radio"]').length > 0), {
+    label: "the model options",
+  });
+  await move("next");
+  await sleep(2500);
+  await shoot(win, "app-onboarding-ready");
+  // Back on the model step, the download stays pinned under it.
+  await move("back");
+  await sleep(1000);
+  await shoot(win, "app-onboarding-model");
+}
+
 async function run() {
   log("data folder", scratch);
   fs.mkdirSync(OUT, { recursive: true });
@@ -423,6 +473,16 @@ async function run() {
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("form.composer"))), {
     label: "the chat screen",
   });
+  if (LANGUAGE) {
+    await inPage(win, (language) => {
+      const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
+      localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, language }));
+    }, LANGUAGE);
+    win.webContents.reload();
+    await waitFor(() => inPage(win, () => Boolean(document.querySelector("form.composer"))), {
+      label: "the chat screen in the chosen language",
+    });
+  }
   const placeholder = await inPage(win, () => document.querySelector("form.composer textarea").placeholder);
   log("composer says", JSON.stringify(placeholder));
   await sleep(2000);
@@ -755,7 +815,7 @@ process.on("exit", () => {
 });
 
 app.whenReady().then(() => {
-  run()
+  (ONBOARDING ? runOnboarding : run)()
     .then(() => {
       log("done");
       app.quit();

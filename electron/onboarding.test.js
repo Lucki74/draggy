@@ -162,4 +162,11 @@ describe("the capture scripts", () => {
       expect(seeded, script).toBeLessThan(source.indexOf('"electron", "main.cjs"'));
     }
   });
+
+  it("can capture the setup itself, forced on before the app loads", () => {
+    const source = fs.readFileSync(path.join(__dirname, "..", "scripts", "screenshots.cjs"), "utf8");
+    const forced = source.indexOf('process.env.DRAGGY_ONBOARDING = "1"');
+    expect(forced).toBeGreaterThan(-1);
+    expect(forced).toBeLessThan(source.indexOf('"electron", "main.cjs"'));
+  });
 });
