@@ -42,6 +42,7 @@ const appData = require("./appData.cjs");
 const onboarding = require("./onboarding.cjs");
 const themes = require("./theme.cjs");
 const connectivity = require("./connectivity.cjs");
+const { createGateway } = require("./providers/gateway.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -103,6 +104,11 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: true,
       stream: true,
     },
+  },
+  {
+    // Every model request, built-in or not. CORS because the app's pages are another origin.
+    scheme: "draggy-ai",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
   },
   {
     // Extension widgets. Standard so each one gets an origin from its token,
@@ -210,7 +216,7 @@ const CSP_DIRECTIVES = [
   "font-src 'self' app: draggy: data:",
   "img-src 'self' app: draggy: data: blob: https:",
   "media-src 'self' app: draggy: data: blob:",
-  "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
+  "connect-src 'self' app: draggy: draggy-ai: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
   "object-src 'none'",
   "frame-src widget:",
@@ -858,6 +864,14 @@ app.whenReady().then(() => {
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
   protocol.handle("widget", widgets.serve);
+  // On the app's own session only: the web partition never gets a handler that reaches the engine.
+  protocol.handle(
+    "draggy-ai",
+    createGateway({
+      enginePort: () => llamaProcess.getServerStatus().port,
+      isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
+    }),
+  );
 
   // The renderer's own policy, and deliberately only the renderer's: the web
   // session below is left with whatever policy each site sends for itself.
