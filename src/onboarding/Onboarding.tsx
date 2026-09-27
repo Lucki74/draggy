@@ -305,7 +305,7 @@ export default function Onboarding({ settings, onUpdateSettings, onFinish }: Onb
           <button
             type="button"
             onClick={() => void openSkip()}
-            className="mr-auto text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] underline-offset-2 hover:underline"
+            className="me-auto text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] underline-offset-2 hover:underline"
           >
             {t("onbSkip")}
           </button>

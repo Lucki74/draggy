@@ -54,7 +54,7 @@ export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: G
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-[var(--hover-bg)] transition-colors"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-start hover:bg-[var(--hover-bg)] transition-colors"
       >
         <GitBranch className="w-3.5 h-3.5 flex-shrink-0 text-[var(--text-muted)]" />
         <span className="min-w-0 truncate font-bold" title={branch}>
@@ -74,7 +74,7 @@ export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: G
           </span>
         )}
 
-        <span className="ml-auto flex-shrink-0 text-[10px] text-[var(--text-muted)]">
+        <span className="ms-auto flex-shrink-0 text-[10px] text-[var(--text-muted)]">
           {files.length === 0
             ? t("gitClean")
             : t("gitChangedFiles").replace("{count}", String(files.length))}
@@ -106,7 +106,7 @@ export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: G
                   onClick={() => change.kind !== "deleted" && onOpenFile(changePath(root, change.path))}
                   disabled={change.kind === "deleted"}
                   title={change.path}
-                  className="min-w-0 flex-1 truncate text-left disabled:line-through disabled:opacity-60"
+                  className="min-w-0 flex-1 truncate text-start disabled:line-through disabled:opacity-60"
                 >
                   {change.path}
                 </button>

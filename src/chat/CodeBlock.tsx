@@ -25,7 +25,7 @@ export function CodeBlock({ language, value }: CodeBlockProps) {
   };
 
   return (
-    <div className="my-3 rounded-xl overflow-x-auto border-[3px] border-[var(--border-light)] bg-[#1e1e1e] max-w-full">
+    <div dir="ltr" className="my-3 rounded-xl overflow-x-auto border-[3px] border-[var(--border-light)] bg-[#1e1e1e] max-w-full">
       <div className="flex items-center justify-between px-4 py-2 bg-[#2b2b2b] border-b-[3px] border-[var(--border-light)] min-w-max">
         <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {language}

@@ -61,7 +61,7 @@ export default function DownloadBar({
           <div className="flex items-center gap-2 text-xs font-bold">
             <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
             <span className="flex-1 min-w-0 truncate">{label}</span>
-            <span className="flex-shrink-0 text-[var(--text-muted)]">{detail}</span>
+            <span dir="ltr" className="flex-shrink-0 text-[var(--text-muted)]">{detail}</span>
           </div>
           <div className="h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]">
             <div

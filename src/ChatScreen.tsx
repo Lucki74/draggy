@@ -979,7 +979,7 @@ export default function ChatScreen({
       <div className="p-6 bg-[var(--bg-base)] border-t-[3px] border-[var(--border-light)] shadow-[0_-4px_0_var(--border-light)] z-10">
         <div className="max-w-5xl mx-auto relative">
           {slashMatches.length > 0 && (
-            <div className="absolute bottom-full mb-2 left-0 right-0 ui-box p-2 z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
+            <div className="absolute bottom-full mb-2 start-0 end-0 ui-box p-2 z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
               {slashMatches.map((command, index) => (
                 <button
                   key={command.id}
@@ -990,7 +990,7 @@ export default function ChatScreen({
                     event.preventDefault();
                     runSlashCommand(command.id);
                   }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-start transition-colors ${
                     index === activeSlashIndex
                       ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                       : "hover:bg-[var(--hover-bg)]"
@@ -1236,7 +1236,7 @@ export default function ChatScreen({
                 />
               )}
 
-              <div className="ml-auto flex items-center gap-1 min-w-0">
+              <div className="ms-auto flex items-center gap-1 min-w-0">
               <div className="relative min-w-0" ref={modelMenuRef}>
                 <button
                   type="button"
@@ -1260,9 +1260,9 @@ export default function ChatScreen({
                       initial={{ opacity: 0, y: 8, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                      className="absolute bottom-[42px] right-0 w-72 ui-box p-3 z-50 flex flex-col gap-2"
+                      className="absolute bottom-[42px] end-0 w-72 ui-box p-3 z-50 flex flex-col gap-2"
                     >
-                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                      <div className="max-h-56 overflow-y-auto space-y-1 pe-1">
                         {installedModels.length === 0 ? (
                           <p className="text-[11px] font-bold text-[var(--text-muted)] px-1 py-1">
                             {t("noModelsFound")}
@@ -1276,7 +1276,7 @@ export default function ChatScreen({
                                 onSelectModel(entry.name);
                                 setIsModelMenuOpen(false);
                               }}
-                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
+                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors ${
                                 entry.name === model
                                   ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                                   : "hover:bg-[var(--hover-bg)]"
@@ -1321,7 +1321,7 @@ export default function ChatScreen({
                           setIsModelMenuOpen(false);
                           onOpenSettings("models");
                         }}
-                        className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
+                        className="w-full text-start px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
                       >
                         {t("manageModels")}
                       </button>

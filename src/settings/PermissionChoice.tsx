@@ -23,7 +23,7 @@ export default function PermissionChoice({ value, onChange, label, t }: Permissi
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.id)}
-            className={`flex items-start gap-2 rounded-lg border-2 px-3 py-2.5 text-left transition-colors ${
+            className={`flex items-start gap-2 rounded-lg border-2 px-3 py-2.5 text-start transition-colors ${
               selected
                 ? "border-[var(--text-main)] bg-[var(--hover-bg)]"
                 : "border-[var(--border-light)] bg-[var(--bg-base)] hover:bg-[var(--hover-bg)]"

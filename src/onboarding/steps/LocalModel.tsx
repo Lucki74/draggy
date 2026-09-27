@@ -62,11 +62,12 @@ export default function LocalModel({
   }
 
   const { specs } = plan;
+  const memory = (gigabytes: number) => `${number.format(gigabytes)} GB`;
   const hardware = [
     specs?.gpu || (specs?.vram ? "" : t("onbNoGpu")),
     specs?.unifiedMemory
-      ? fill(t("onbUnified"), { n: number.format(specs.ram) })
-      : [specs?.vram ? fill(t("onbVram"), { n: number.format(specs.vram) }) : "", specs ? fill(t("onbRam"), { n: number.format(specs.ram) }) : ""]
+      ? fill(t("onbUnified"), { size: memory(specs.ram) })
+      : [specs?.vram ? fill(t("onbVram"), { size: memory(specs.vram) }) : "", specs ? fill(t("onbRam"), { size: memory(specs.ram) }) : ""]
           .filter(Boolean)
           .join(" · "),
   ]
@@ -91,7 +92,7 @@ export default function LocalModel({
       aria-disabled={disabled}
       disabled={disabled}
       onClick={onSelect}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-[3px] bg-[var(--bg-panel)] text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-[3px] bg-[var(--bg-panel)] text-start transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
         selected ? "border-[var(--text-main)]" : "border-[var(--border-light)] enabled:hover:border-[var(--text-muted)]"
       }`}
     >

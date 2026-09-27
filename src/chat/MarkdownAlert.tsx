@@ -53,7 +53,7 @@ export function MarkdownBlockquote({ children, ...props }: React.ComponentPropsW
     const Icon = config.Icon;
     return (
       <div
-        className="my-4 pl-4 py-1.5 border-l-[3.5px] text-[var(--text-main)]"
+        className="my-4 ps-4 py-1.5 border-s-[3.5px] text-[var(--text-main)]"
         style={{ borderColor: config.color }}
       >
         <div
@@ -72,7 +72,7 @@ export function MarkdownBlockquote({ children, ...props }: React.ComponentPropsW
 
   return (
     <blockquote
-      className="my-3 border-l-4 border-[var(--border-light)] pl-4 py-1 text-[var(--text-muted)] italic"
+      className="my-3 border-s-4 border-[var(--border-light)] ps-4 py-1 text-[var(--text-muted)] italic"
       {...props}
     >
       {children}

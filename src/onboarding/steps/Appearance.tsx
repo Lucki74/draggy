@@ -70,7 +70,7 @@ export default function Appearance({
               role="radio"
               aria-checked={selected}
               onClick={() => onTheme(card.id)}
-              className={`p-2 rounded-xl border-[3px] bg-[var(--bg-panel)] text-left transition-colors ${
+              className={`p-2 rounded-xl border-[3px] bg-[var(--bg-panel)] text-start transition-colors ${
                 selected ? "border-[var(--text-main)]" : "border-[var(--border-light)] hover:border-[var(--text-muted)]"
               }`}
             >

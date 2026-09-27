@@ -723,12 +723,12 @@ export default function AppShell({
             openChat(finishedChatId);
             setFinishedChatId(null);
           }}
-          className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] px-4 py-3 shadow-lg"
+          className="fixed bottom-4 end-4 z-[100] flex items-center gap-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] px-4 py-3 shadow-lg"
         >
           <Check className="h-4 w-4 text-[var(--text-muted)]" />
           <span className="text-xs font-bold tracking-tight">
             {t("taskFinished")}
-            <span className="ml-2 font-normal text-[var(--text-muted)]">
+            <span className="ms-2 font-normal text-[var(--text-muted)]">
               {store.sessions.find((one) => one.id === finishedChatId)?.title}
             </span>
           </span>
@@ -751,7 +751,7 @@ export default function AppShell({
       )}
 
       <div
-        className="group w-[68px] hover:w-[260px] transition-all duration-300 relative z-50 h-full flex flex-col flex-shrink-0 overflow-hidden border-r-[3px]"
+        className="group w-[68px] hover:w-[260px] transition-all duration-300 relative z-50 h-full flex flex-col flex-shrink-0 overflow-hidden border-e-[3px]"
         style={{
           backgroundColor: "var(--bg-panel)",
           borderColor: "var(--border-light)",
@@ -775,21 +775,21 @@ export default function AppShell({
           <div className="flex flex-col gap-3 px-[14px] py-3 mt-0 no-drag">
             <button onClick={codeHome ? handleNewProject : handleNewChat} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <Plus className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {mode === "code" ? t("newSession") : t("newDiscussion")}
               </span>
             </button>
 
             <button onClick={() => setViewMode("history")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <MessageSquare className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {mode === "code" ? t("sessions") : t("chatHistory")}
               </span>
             </button>
 
             <button onClick={() => setViewMode("files")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <FolderOpen className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {mode === "code" ? t("projectFiles") : t("createdFiles")}
               </span>
             </button>
@@ -797,10 +797,10 @@ export default function AppShell({
             {mode === "chat" && (
               <button onClick={() => setViewMode("talk")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
                 <AudioLines className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-                <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                   {t("talk")}
                 </span>
-                <span className="ml-2 px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="ms-2 px-1.5 py-0.5 rounded border border-[var(--border-light)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                   {t("beta")}
                 </span>
               </button>
@@ -808,7 +808,7 @@ export default function AppShell({
 
             <button onClick={() => openSettings("general")} className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/btn overflow-hidden">
               <Settings className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-              <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {t("settings")}
               </span>
             </button>
@@ -843,7 +843,7 @@ export default function AppShell({
                         className="flex items-center flex-1 min-w-0 p-2 overflow-hidden"
                       >
                         <Folder className="w-6 h-6 flex-shrink-0 text-[var(--text-main)]" />
-                        <span className="ml-4 font-bold tracking-wider text-sm truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="ms-4 font-bold tracking-wider text-sm truncate opacity-0 group-hover:opacity-100 transition-opacity">
                           {workspaceLabel(one, t)}
                         </span>
                       </button>
@@ -852,7 +852,7 @@ export default function AppShell({
                         onClick={(event) => handleRemoveWorkspace(event, one.id)}
                         aria-label={t("removeProject")}
                         title={t("removeProject")}
-                        className="hidden group-hover:block flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                        className="hidden group-hover:block flex-shrink-0 me-2 p-1 rounded opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
                       >
                         <X className="w-4 h-4 text-[var(--text-muted)]" />
                       </button>
@@ -864,7 +864,7 @@ export default function AppShell({
                     className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
                   >
                     <FolderPlus className="w-6 h-6 flex-shrink-0 text-[var(--text-muted)]" />
-                    <span className="ml-4 font-bold tracking-wider text-sm whitespace-nowrap text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="ms-4 font-bold tracking-wider text-sm whitespace-nowrap text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
                       {t("newProject")}
                     </span>
                   </button>
@@ -891,7 +891,7 @@ export default function AppShell({
                         className="flex items-center w-full p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors overflow-hidden"
                       >
                         <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin text-[var(--text-muted)]" />
-                        <span className="ml-4 text-xs font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="ms-4 text-xs font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
                           {session?.title || t("newDiscussion")}
                         </span>
                       </button>
@@ -935,7 +935,7 @@ export default function AppShell({
               (treeOpen && treeFits ? (
                 <div className="flex flex-shrink-0 h-full">
                   <div
-                    className="flex flex-col overflow-hidden border-r-[3px]"
+                    className="flex flex-col overflow-hidden border-e-[3px]"
                     style={{ width: `${treeWidth}px`, borderColor: "var(--border-light)" }}
                   >
                     <div
@@ -945,7 +945,7 @@ export default function AppShell({
                       <button
                         onClick={() => void openProjectMemory()}
                         title={t("projectMemory")}
-                        className="flex-1 min-w-0 truncate rounded-lg px-2 py-1 text-left text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+                        className="flex-1 min-w-0 truncate rounded-lg px-2 py-1 text-start text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
                       >
                         {t("projectMemory")}
                       </button>
@@ -994,7 +994,7 @@ export default function AppShell({
                   onClick={() => setTreeOpen(true)}
                   aria-label={t("showFiles")}
                   title={t("showFiles")}
-                  className="w-8 flex-shrink-0 flex items-start justify-center pt-3 border-r-[3px] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  className="w-8 flex-shrink-0 flex items-start justify-center pt-3 border-e-[3px] text-[var(--text-muted)] hover:text-[var(--text-main)]"
                   style={{ borderColor: "var(--border-light)" }}
                 >
                   <PanelLeftOpen className="w-4 h-4" />
@@ -1054,7 +1054,7 @@ export default function AppShell({
                   title={t("resizePane")}
                 />
                 <div
-                  className="flex flex-col border-l-[3px] h-full overflow-hidden"
+                  className="flex flex-col border-s-[3px] h-full overflow-hidden"
                   style={{ width: `${rightPaneWidth}px`, borderColor: "var(--border-light)" }}
                 >
                   {hasPlan && currentSession?.plan && (

@@ -114,23 +114,23 @@ export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, tra
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("searchModelsPlaceholder")}
             aria-label={t("searchModelsPlaceholder")}
-            className="w-full p-2.5 pl-10 ui-input text-sm font-bold"
+            className="w-full p-2.5 ps-10 ui-input text-sm font-bold"
           />
           {searching && (
-            <Loader2 className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
+            <Loader2 className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
           )}
         </div>
         {trailing}
       </div>
 
-      <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[420px] overflow-y-auto pe-1">
         {results.length === 0 && !searching && (
           <p className="px-1 text-sm font-bold text-[var(--text-muted)]">{t("noSearchResults")}</p>
         )}
@@ -148,7 +148,7 @@ export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, tra
                   type="button"
                   onClick={() => setExpanded(open ? null : id)}
                   aria-expanded={open}
-                  className="w-full text-left p-3 hover:bg-[var(--hover-bg)] transition-colors"
+                  className="w-full text-start p-3 hover:bg-[var(--hover-bg)] transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-[var(--text-main)] truncate">{model.name}</span>
@@ -160,7 +160,7 @@ export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, tra
                         return <Badge key={capability}>{key ? t(key) : capability}</Badge>;
                       })}
                     <ChevronRight
-                      className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+                      className={`w-4 h-4 ms-auto flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
                     />
                   </div>
                   {model.description && (

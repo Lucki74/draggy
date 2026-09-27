@@ -123,7 +123,7 @@ export function Toggle({
     >
       <span
         className={`block w-[14px] h-[14px] rounded-full transition-transform ${
-          checked ? "translate-x-5" : ""
+          checked ? "translate-x-5 rtl:-translate-x-5" : ""
         }`}
         style={{ backgroundColor: checked ? "var(--text-inverted)" : "var(--text-muted)" }}
       />
@@ -228,7 +228,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={label}
-        className="w-full px-3 py-2 ui-input text-sm font-bold flex items-center gap-2 text-left"
+        className="w-full px-3 py-2 ui-input text-sm font-bold flex items-center gap-2 text-start"
       >
         <span className="flex-1 min-w-0 truncate">{selected?.label || placeholder}</span>
         <ChevronDown
@@ -242,7 +242,7 @@ export function Select({
         <div
           role="listbox"
           aria-label={label}
-          className="absolute top-full left-0 right-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-64 overflow-y-auto"
+          className="absolute top-full start-0 end-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-64 overflow-y-auto"
         >
           {listed.length === 0 ? (
             <p className="px-2 py-1.5 text-xs font-bold text-[var(--text-muted)]">{placeholder}</p>
@@ -257,7 +257,7 @@ export function Select({
                   onChange(option.id);
                   setOpen(false);
                 }}
-                className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${
+                className={`flex items-center gap-2 px-2 py-2 rounded-lg text-start transition-colors ${
                   option.id === value
                     ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                     : "hover:bg-[var(--hover-bg)]"

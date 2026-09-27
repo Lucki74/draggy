@@ -29,7 +29,7 @@ export default function CodeHome({ projects, onOpenFolder, onSelectProject, t }:
         </button>
 
         {projects.length > 0 && (
-          <ul className="space-y-2 text-left">
+          <ul className="space-y-2 text-start">
             {projects.map((project) => (
               <li key={project.id}>
                 <button

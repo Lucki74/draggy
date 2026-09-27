@@ -280,7 +280,7 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
           <p className="text-sm font-bold tabular-nums">
             {info ? `v${info.version}` : "…"}
             {info && !info.packaged && (
-              <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 {t("development")}
               </span>
             )}

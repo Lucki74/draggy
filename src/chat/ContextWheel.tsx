@@ -29,7 +29,7 @@ const LABEL_KEYS: Record<ContextRow["id"], string> = {
 /** The skills whose instructions are in the window, each with what it costs when that was measured. */
 function LoadedSkillList({ skills }: { skills: ContextWindowView["details"]["loadedSkills"] }) {
   return (
-    <ul className="mt-1 ml-[18px] space-y-1 border-l-2 border-[var(--border-light)] pl-2">
+    <ul className="mt-1 ms-[18px] space-y-1 border-s-2 border-[var(--border-light)] ps-2">
       {skills.map((skill) => (
         <li key={skill.id} className="flex items-center gap-2 text-[10px]">
           <span className="flex-1 truncate font-mono font-bold">{skill.name}</span>
@@ -130,13 +130,13 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full right-0 mb-2 w-72 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-3 shadow-xl z-50 space-y-2.5"
+            className="absolute bottom-full end-0 mb-2 w-72 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] p-3 shadow-xl z-50 space-y-2.5"
           >
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
               aria-expanded={expanded}
-              className="w-full flex items-center gap-2 text-left"
+              className="w-full flex items-center gap-2 text-start"
             >
               <span className="flex-1 text-xs font-bold">{t("contextWindow")}</span>
               <span className="text-[11px] font-bold tabular-nums text-[var(--text-muted)]">
@@ -197,7 +197,7 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
                         <span className="flex-1 font-bold">
                           {t(LABEL_KEYS[row.id])}
                           {count !== null && (
-                            <span className="ml-1 font-normal tabular-nums text-[var(--text-muted)]">
+                            <span className="ms-1 font-normal tabular-nums text-[var(--text-muted)]">
                               · {count}
                             </span>
                           )}
@@ -205,7 +205,7 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
                         <span className="tabular-nums text-[var(--text-muted)]">
                           {formatTokenCount(row.tokens)}
                         </span>
-                        <span className="w-11 text-right tabular-nums font-bold">
+                        <span className="w-11 text-end tabular-nums font-bold">
                           {formatPercent(row.percent)}
                         </span>
                       </div>
@@ -227,7 +227,7 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
                       />
                       <span className="flex-1 font-bold">
                         {t("contextLoadedSkills")}
-                        <span className="ml-1 font-normal tabular-nums text-[var(--text-muted)]">
+                        <span className="ms-1 font-normal tabular-nums text-[var(--text-muted)]">
                           · {loadedSkills.length}
                         </span>
                       </span>

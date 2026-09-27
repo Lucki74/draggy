@@ -72,7 +72,7 @@ export default function SettingsPage(props: SettingsPageProps) {
       <div className="flex-1 flex min-h-0">
         <nav
           aria-label={t("settings")}
-          className="w-56 flex-shrink-0 overflow-y-auto border-r-[3px] border-[var(--border-light)] px-3 pb-6"
+          className="w-56 flex-shrink-0 overflow-y-auto border-e-[3px] border-[var(--border-light)] px-3 pb-6"
         >
           <h1 className="px-3 pt-2 pb-3 text-lg font-bold uppercase tracking-wider text-[var(--text-main)]">
             {t("settings")}
@@ -89,7 +89,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                   type="button"
                   onClick={() => setTab(id)}
                   aria-current={tab === id ? "page" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-start transition-colors ${
                     tab === id
                       ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                       : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"

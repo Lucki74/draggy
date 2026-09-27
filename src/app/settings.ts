@@ -105,6 +105,7 @@ export function useSettings(isSplashMode: boolean) {
 
   useEffect(() => {
     document.documentElement.lang = settings.language;
+    document.documentElement.dir = settings.language === "ar" ? "rtl" : "ltr";
 
     document.documentElement.style.setProperty(
       "--chat-font-size",
