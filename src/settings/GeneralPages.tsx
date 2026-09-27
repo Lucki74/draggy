@@ -16,6 +16,8 @@ interface SettingsProps {
 /** The pages about the app as a whole: how it looks, where searches go, what it keeps, updates. */
 
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
+  const [confirmSetup, setConfirmSetup] = useState(false);
+
   return (
     <Page title={t("settingsGeneral")}>
       <Group title={t("appearance")}>
@@ -62,6 +64,27 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
           />
         </Row>
       </Group>
+
+      <Group>
+        <Row label={t("onbRunAgain")} description={t("onbRunAgainHint")}>
+          <Button onClick={() => setConfirmSetup(true)}>{t("onbRunAgainButton")}</Button>
+        </Row>
+      </Group>
+
+      {confirmSetup && (
+        <ConfirmDialog
+          title={t("onbRunAgain")}
+          body={t("onbRunAgainBody")}
+          confirmLabel={t("onbRunAgainConfirm")}
+          cancelLabel={t("cancel")}
+          tone="primary"
+          onConfirm={() => {
+            setConfirmSetup(false);
+            void window.electronAPI?.onboarding?.reset();
+          }}
+          onCancel={() => setConfirmSetup(false)}
+        />
+      )}
     </Page>
   );
 }

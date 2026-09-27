@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { useState } from "react";
 import Onboarding from "../onboarding/Onboarding";
 import App from "../App";
+import { GeneralPage } from "../settings/GeneralPages";
 import { installFakeElectronApi } from "./helpers/electronApi";
 import { THEME_PALETTES } from "../onboarding/palettes";
 import { defaultSettings } from "../app/settings";
@@ -246,5 +247,18 @@ describe("from the setup into the app", () => {
     expect(screen.queryByRole("heading", { name: en("onbReadyTitle") })).toBeNull();
     expect(window.location.search).toBe("");
     expect(machine.api.onboarding.complete).toHaveBeenCalledWith("local");
+  });
+});
+
+describe("running the setup again", () => {
+  it("asks first, then has main reopen the setup", async () => {
+    const fake = installFakeElectronApi();
+    render(<GeneralPage settings={defaultSettings} onUpdate={() => {}} t={en} />);
+
+    fireEvent.click(screen.getByRole("button", { name: en("onbRunAgainButton") }));
+    const dialog = await screen.findByRole("dialog");
+    expect(fake.resets).toBe(0);
+    fireEvent.click(within(dialog).getByRole("button", { name: en("onbRunAgainConfirm") }));
+    await waitFor(() => expect(fake.resets).toBe(1));
   });
 });
