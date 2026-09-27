@@ -24,6 +24,27 @@ function isExecutableName(filename) {
   return EXECUTABLE_EXTENSIONS.has(path.extname(String(filename)).toLowerCase());
 }
 
+const EMOJI_RE = /(?:\p{Extended_Pictographic}(?:[\uFE0E\uFE0F\u200D]|[\u{1F3FB}-\u{1F3FF}]|\p{Extended_Pictographic})*|[\u{1F1E6}-\u{1F1FF}]{2})/gu;
+
+function pushFormattedRun(docx, runs, opts) {
+  const text = typeof opts === "string" ? opts : opts.text || "";
+  const base = typeof opts === "string" ? {} : opts;
+  if (!text) return;
+  let lastIdx = 0;
+  let match;
+  EMOJI_RE.lastIndex = 0;
+  while ((match = EMOJI_RE.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      runs.push(new docx.TextRun({ ...base, text: text.slice(lastIdx, match.index) }));
+    }
+    runs.push(new docx.TextRun({ ...base, text: match[0], font: "Segoe UI Emoji" }));
+    lastIdx = EMOJI_RE.lastIndex;
+  }
+  if (lastIdx < text.length) {
+    runs.push(new docx.TextRun({ ...base, text: text.slice(lastIdx) }));
+  }
+}
+
 function parseInlineFormatting(docx, text) {
   const runs = [];
   const regex = /(\*\*\*([^*]+)\*\*\*)|(\*\*([^*]+)\*\*)|(\*([^*]+)\*)/g;
@@ -32,18 +53,19 @@ function parseInlineFormatting(docx, text) {
 
   while ((match = regex.exec(text)) !== null) {
     if (match.index > currentPos) {
-      runs.push(new docx.TextRun(text.substring(currentPos, match.index)));
+      pushFormattedRun(docx, runs, text.substring(currentPos, match.index));
     }
-    if (match[1]) runs.push(new docx.TextRun({ text: match[2], bold: true, italics: true }));
-    else if (match[3]) runs.push(new docx.TextRun({ text: match[4], bold: true }));
-    else if (match[5]) runs.push(new docx.TextRun({ text: match[6], italics: true }));
+    if (match[1]) pushFormattedRun(docx, runs, { text: match[2], bold: true, italics: true });
+    else if (match[3]) pushFormattedRun(docx, runs, { text: match[4], bold: true });
+    else if (match[5]) pushFormattedRun(docx, runs, { text: match[6], italics: true });
     currentPos = regex.lastIndex;
   }
 
-  if (currentPos < text.length) runs.push(new docx.TextRun(text.substring(currentPos)));
+  if (currentPos < text.length) pushFormattedRun(docx, runs, text.substring(currentPos));
   if (runs.length === 0) runs.push(new docx.TextRun(text));
   return runs;
 }
+
 
 function writeDocx(filepath, content) {
   if (htmlDocument.isHtml(content)) {

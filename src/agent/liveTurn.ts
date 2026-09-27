@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import type { PromptParts } from "./contextBreakdown";
 
 /** A turn as it runs, for the speed line and the context meter. Kept out of the conversation, so
  * figures that change every quarter second are neither saved nor re-render the whole chat. */
@@ -11,7 +12,9 @@ export interface LiveTurn {
   contextTokens: number;
   contextExact: boolean;
   contextWindow: number;
+  parts?: PromptParts | null;
 }
+
 
 const turns = new Map<string, LiveTurn>();
 const listeners = new Set<() => void>();

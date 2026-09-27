@@ -104,13 +104,56 @@ function decodeEntities(text) {
     .replace(/&amp;/g, "&");
 }
 
+/** Extracts border width and color from CSS border shorthand. */
+function parseBorder(borderStr) {
+  if (!borderStr || typeof borderStr !== "string") return null;
+  const parts = borderStr.trim().split(/\s+/);
+  let color = null;
+  let size = 4;
+  for (const p of parts) {
+    const c = parseColor(p);
+    if (c) color = c;
+    const s = parseInt(p, 10);
+    if (!isNaN(s) && s > 0) size = Math.round(s * 8);
+  }
+  return { color: color || "3182CE", size };
+}
+
+/** Extracts CSS declaration maps from embedded style tags. */
+function extractCssRules(html) {
+  const rules = {};
+  const styleRegex = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
+  let sm;
+  while ((sm = styleRegex.exec(html)) !== null) {
+    const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
+    let rm;
+    while ((rm = ruleRegex.exec(sm[1])) !== null) {
+      const decls = parseStyle(rm[2].trim());
+      for (const sel of rm[1].trim().split(",")) {
+        const s = sel.trim().toLowerCase();
+        if (s) rules[s] = { ...(rules[s] || {}), ...decls };
+      }
+    }
+  }
+  return rules;
+}
+
 const VOID_TAGS = new Set([
   "area", "base", "br", "col", "embed", "hr", "img", "input",
   "link", "meta", "param", "source", "track", "wbr",
 ]);
 
+const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+const AUTO_CLOSE_P = new Set([
+  "address", "article", "aside", "blockquote", "div", "dl", "figure", "footer",
+  "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "main", "nav",
+  "ol", "p", "pre", "section", "table", "ul",
+]);
+const EMOJI_RE = /(?:\p{Extended_Pictographic}(?:[\uFE0E\uFE0F\u200D]|[\u{1F3FB}-\u{1F3FF}]|\p{Extended_Pictographic})*|[\u{1F1E6}-\u{1F1FF}]{2})/gu;
+
 /** Lightweight pure-JavaScript HTML parser building an AST without DOM dependencies. */
 function parseHtml(html) {
+  const cssRules = extractCssRules(html);
   const root = { type: "root", children: [] };
   const stack = [root];
   // The attribute name excludes "=" too: without that, "!=" in unquoted junk parses two ways
@@ -126,7 +169,10 @@ function parseHtml(html) {
     if (textContent) {
       const text = decodeEntities(textContent);
       if (text) {
-        stack[stack.length - 1].children.push({ type: "text", text });
+        const parentTag = stack[stack.length - 1]?.tag;
+        if (parentTag !== "style" && parentTag !== "head" && parentTag !== "script") {
+          stack[stack.length - 1].children.push({ type: "text", text });
+        }
       }
       continue;
     }
@@ -144,6 +190,28 @@ function parseHtml(html) {
       continue;
     }
 
+    // Unclosed lists, items or paragraphs close when block containers follow.
+    if (tag === "li") {
+      if (stack[stack.length - 1]?.tag === "li") stack.pop();
+    } else if (HEADING_TAGS.has(tag) || tag === "hr" || tag === "section" || tag === "article") {
+      while (stack.length > 1) {
+        const top = stack[stack.length - 1].tag;
+        if (top === "p" || top === "li" || top === "ul" || top === "ol" || top === "dl") {
+          stack.pop();
+        } else {
+          break;
+        }
+      }
+    } else if (tag === "table") {
+      while (stack.length > 1) {
+        const top = stack[stack.length - 1].tag;
+        if (top === "p" || top === "li") stack.pop();
+        else break;
+      }
+    } else if (AUTO_CLOSE_P.has(tag)) {
+      if (stack[stack.length - 1]?.tag === "p") stack.pop();
+    }
+
     const attrs = {};
     if (rawAttrs) {
       const attrRegex = /([a-zA-Z0-9:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
@@ -153,11 +221,25 @@ function parseHtml(html) {
       }
     }
 
+    let computedStyle = {};
+    if (cssRules[tag]) computedStyle = { ...computedStyle, ...cssRules[tag] };
+    if (attrs.class) {
+      for (const cls of attrs.class.trim().split(/\s+/)) {
+        const classSelector = "." + cls.toLowerCase();
+        if (cssRules[classSelector]) computedStyle = { ...computedStyle, ...cssRules[classSelector] };
+        const tagClassSelector = tag + "." + cls.toLowerCase();
+        if (cssRules[tagClassSelector]) computedStyle = { ...computedStyle, ...cssRules[tagClassSelector] };
+      }
+    }
+    if (attrs.style) {
+      computedStyle = { ...computedStyle, ...parseStyle(attrs.style) };
+    }
+
     const elem = {
       type: "element",
       tag,
       attrs,
-      style: parseStyle(attrs.style),
+      style: computedStyle,
       children: [],
     };
 
@@ -170,6 +252,7 @@ function parseHtml(html) {
 
   return root;
 }
+
 
 /** Extracts all plain text recursively from a node. */
 function nodeText(node) {
@@ -217,17 +300,42 @@ function collectDocxRuns(docx, node, parentStyle = {}) {
     if (item.type === "text") {
       const text = item.text || "";
       if (!text) return;
-      const runOpts = { text };
-      if (inherited.bold) runOpts.bold = true;
-      if (inherited.italics) runOpts.italics = true;
-      if (inherited.underline) runOpts.underline = { type: docx.UnderlineType.SINGLE };
-      if (inherited.strike) runOpts.strike = true;
-      if (inherited.color) runOpts.color = inherited.color;
-      if (inherited.size) runOpts.size = inherited.size * 2;
-      if (inherited.font) runOpts.font = inherited.font;
-      runs.push(new docx.TextRun(runOpts));
+
+      let lastIdx = 0;
+      let match;
+      EMOJI_RE.lastIndex = 0;
+      while ((match = EMOJI_RE.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+          const runOpts = { text: text.slice(lastIdx, match.index) };
+          if (inherited.bold) runOpts.bold = true;
+          if (inherited.italics) runOpts.italics = true;
+          if (inherited.underline) runOpts.underline = { type: docx.UnderlineType.SINGLE };
+          if (inherited.strike) runOpts.strike = true;
+          if (inherited.color) runOpts.color = inherited.color;
+          if (inherited.size) runOpts.size = inherited.size * 2;
+          if (inherited.font) runOpts.font = inherited.font;
+          runs.push(new docx.TextRun(runOpts));
+        }
+        const emojiOpts = { text: match[0], font: "Segoe UI Emoji" };
+        if (inherited.size) emojiOpts.size = inherited.size * 2;
+        runs.push(new docx.TextRun(emojiOpts));
+        lastIdx = EMOJI_RE.lastIndex;
+      }
+
+      if (lastIdx < text.length) {
+        const runOpts = { text: text.slice(lastIdx) };
+        if (inherited.bold) runOpts.bold = true;
+        if (inherited.italics) runOpts.italics = true;
+        if (inherited.underline) runOpts.underline = { type: docx.UnderlineType.SINGLE };
+        if (inherited.strike) runOpts.strike = true;
+        if (inherited.color) runOpts.color = inherited.color;
+        if (inherited.size) runOpts.size = inherited.size * 2;
+        if (inherited.font) runOpts.font = inherited.font;
+        runs.push(new docx.TextRun(runOpts));
+      }
       return;
     }
+
 
     if (item.type !== "element") return;
 
@@ -357,7 +465,18 @@ async function writeDocxFromHtml(filepath, html) {
     const headingMatch = node.tag.match(/^h([1-6])$/);
     if (headingMatch) {
       const level = parseInt(headingMatch[1], 10) - 1;
-      const runs = collectDocxRuns(docx, node, { bold: true });
+      const inheritedStyle = { bold: true };
+      if (node.style?.color) {
+        const c = parseColor(node.style.color);
+        if (c) inheritedStyle.color = c;
+      }
+      if (node.style?.["font-family"]) {
+        inheritedStyle.font = firstFont(node.style["font-family"]);
+      }
+      if (node.style?.["font-size"]) {
+        inheritedStyle.size = parsePt(node.style["font-size"]);
+      }
+      const runs = collectDocxRuns(docx, node, inheritedStyle);
       docChildren.push(
         new docx.Paragraph({
           heading: headingLevels[level],
@@ -383,7 +502,27 @@ async function writeDocxFromHtml(filepath, html) {
       if (align === "right") pOpts.alignment = docx.AlignmentType.END;
       if (align === "justify") pOpts.alignment = docx.AlignmentType.JUSTIFIED;
 
-      const runs = collectDocxRuns(docx, node);
+      const bgColor = parseColor(style["background-color"] || style.background);
+      if (bgColor) {
+        pOpts.shading = { fill: bgColor, type: docx.ShadingType.CLEAR };
+      }
+
+      const borderLeft = parseBorder(style["border-left"] || style.border);
+      if (borderLeft) {
+        pOpts.border = {
+          left: {
+            color: borderLeft.color,
+            size: borderLeft.size,
+            style: docx.BorderStyle.SINGLE,
+          },
+        };
+      }
+
+      const runs = collectDocxRuns(docx, node, {
+        color: parseColor(style.color),
+        font: style["font-family"] ? firstFont(style["font-family"]) : undefined,
+        size: style["font-size"] ? parsePt(style["font-size"]) : undefined,
+      });
       pOpts.children = runs.length > 0 ? runs : [new docx.TextRun("")];
       docChildren.push(new docx.Paragraph(pOpts));
       return;
@@ -427,21 +566,25 @@ async function writeDocxFromHtml(filepath, html) {
 
     if (node.tag === "ul" || node.tag === "ol") {
       const isOrdered = node.tag === "ol";
-      for (const li of node.children || []) {
-        if (li.type !== "element" || li.tag !== "li") continue;
-        const runs = collectDocxRuns(docx, li);
-        const pOpts = {
-          children: runs.length > 0 ? runs : [new docx.TextRun("")],
-        };
-        if (isOrdered) {
-          pOpts.numbering = { reference: "numList", level: 0 };
+      for (const child of node.children || []) {
+        if (child.type === "element" && child.tag === "li") {
+          const runs = collectDocxRuns(docx, child);
+          const pOpts = {
+            children: runs.length > 0 ? runs : [new docx.TextRun("")],
+          };
+          if (isOrdered) {
+            pOpts.numbering = { reference: "numList", level: 0 };
+          } else {
+            pOpts.bullet = { level: 0 };
+          }
+          docChildren.push(new docx.Paragraph(pOpts));
         } else {
-          pOpts.bullet = { level: 0 };
+          visitNode(child);
         }
-        docChildren.push(new docx.Paragraph(pOpts));
       }
       return;
     }
+
 
     if (node.tag === "table") {
       docChildren.push(convertHtmlTableToDocx(docx, node));

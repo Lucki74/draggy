@@ -53,6 +53,7 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
+  CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   displayModelName,
   getModelInfo,
@@ -62,6 +63,7 @@ import {
   warmModel,
   windowCeiling,
 } from "./llama";
+
 import { isRemote } from "./ai/providers";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { ContextMeasurement } from "./agent/agentLoop";
@@ -855,7 +857,7 @@ export default function ChatScreen({
   }
 
   // The total is the model's; the parts are its prompt pieces measured out of that total.
-  const parts = measured?.value.parts ?? null;
+  const parts = live?.parts ?? measured?.value.parts ?? null;
   const contextBreakdown: ContextBreakdown | null =
     usedTokens === null
       ? null
@@ -879,10 +881,16 @@ export default function ChatScreen({
       ? (modelInfo?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
       : typeof settings.fixedContextSize === "number"
       ? settings.fixedContextSize
-      : windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+      : isRemote(model)
+      ? windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0)
+      : Math.min(
+          CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1],
+          windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+        ),
     limitTokens: settings.compactLimit ?? null,
     details: contextDetails(parts, loadedSkillNames),
   });
+
   const speechSupported = isSpeechSupported();
   const documentsSupported = Boolean(window.electronAPI);
   const visionSupported =

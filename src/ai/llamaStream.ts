@@ -138,7 +138,9 @@ export interface AdaptedLlamaChunk {
     content?: string;
     thinking?: string;
     tool_calls?: { id?: string; function: { name: string; arguments: Record<string, unknown> } }[];
+    streaming_tool_calls?: { id?: string; name: string; argsString: string }[];
   };
+
   done?: boolean;
   done_reason?: string;
   prompt_eval_count?: number;
@@ -422,6 +424,10 @@ export async function* sseToLlamaChunks(
 
       if (choice?.finish_reason) yieldedDone = true;
 
+      const partialCalls = pendingTools.size > 0
+        ? Array.from(pendingTools.values()).map((t) => ({ id: t.id || undefined, name: t.name, argsString: t.argsString }))
+        : undefined;
+
       yield {
         message: {
           content: delta?.content || "",
@@ -429,7 +435,9 @@ export async function* sseToLlamaChunks(
           tool_calls: readyTools.length > 0
             ? readyTools.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } }))
             : undefined,
+          streaming_tool_calls: partialCalls,
         },
+
         done: Boolean(choice?.finish_reason),
         done_reason: choice?.finish_reason || undefined,
         prompt_eval_count: payload.usage?.prompt_tokens ?? payload.timings?.prompt_n,

@@ -8,6 +8,7 @@ import { parsePlan } from "../plan/plan";
 import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
+import { BUILTIN_TOOLS } from "../tools/builtin";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../llama";
 import type {
@@ -99,7 +100,17 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
     chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
   }
   if (turn.state) chunks.push({ provider_state: turn.state });
-  if (turn.toolCalls) {
+  if (turn.toolCallChunks) {
+    for (const group of turn.toolCallChunks) {
+      chunks.push({ choices: [{ delta: { tool_calls: group }, finish_reason: null }] });
+    }
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else if (turn.toolCalls) {
     const deltas = turn.toolCalls.map((tc, i) => ({
       index: i,
       id: `call_${i}`,
@@ -128,6 +139,7 @@ interface Turn {
   content?: string[];
   thinking?: string[];
   toolCalls?: { function: { name: string; arguments: Record<string, unknown> } }[];
+  toolCallChunks?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[][];
   final?: Record<string, unknown>;
   /** A `provider_state` event the gateway sends with this pass. */
   state?: { instanceId: string; state: unknown };
@@ -207,6 +219,7 @@ function installFetch(
 function makeHost() {
   const patches: { content: string; textContent: string }[] = [];
   let steps: SearchStep[] = [];
+  const recordedSteps: SearchStep[][] = [];
   let metrics: TurnMetrics | null = null;
   let outOfContext = false;
 
@@ -215,9 +228,11 @@ function makeHost() {
     onPatch: (patch) => {
       patches.push({ content: patch.content, textContent: patch.textContent });
       steps = patch.steps;
+      recordedSteps.push(JSON.parse(JSON.stringify(patch.steps)));
     },
     onSteps: (next) => {
       steps = next;
+      recordedSteps.push(JSON.parse(JSON.stringify(next)));
     },
     onOutOfContext: (flag) => {
       outOfContext = flag;
@@ -230,6 +245,7 @@ function makeHost() {
   return {
     host,
     patches,
+    recordedSteps,
     get steps() {
       return steps;
     },
@@ -2219,3 +2235,85 @@ describe("each stored message's reference on the wire", () => {
     expect(JSON.stringify(local.requests[0])).not.toContain("draggy_ref");
   });
 });
+
+describe("live streaming file creation", () => {
+  const createFileTool = BUILTIN_TOOLS.find((t) => t.name === "create_file")!;
+
+  beforeEach(() => {
+    registerTool(createFileTool);
+  });
+
+  it("emits an in-progress step during streaming and finalizes it on completion", async () => {
+    const jsonP1 = '{"filename": "report.docx", "content": "# Part 1';
+    const jsonP2 = '\\n\\nBody content"}';
+    const host = makeHost();
+
+    installFetch(
+      [
+        {
+          toolCallChunks: [
+            [{ index: 0, id: "call_file_1", function: { name: "create_file", arguments: jsonP1 } }],
+            [{ index: 0, function: { arguments: jsonP2 } }],
+          ],
+        },
+        { content: ["File created successfully."] },
+      ],
+      ["tools"],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/report.docx",
+    });
+
+    const result = await run([userMessage("create report.docx")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("report.docx");
+    expect(inProgress?.fileContent).toBe("# Part 1");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
+    expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("streams file creation in text mode and reuses the in-progress step", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          content: [
+            '<tool>{"name": "create_file", "args": {"filename": "streamed.txt", "content": "Hello ',
+            'world!"}}</tool>',
+          ],
+        },
+        { content: ["Here is your file."] },
+      ],
+      [],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/streamed.txt",
+    });
+
+    const result = await run([userMessage("write streamed.txt")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("streamed.txt");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filename).toBe("streamed.txt");
+  });
+});
+

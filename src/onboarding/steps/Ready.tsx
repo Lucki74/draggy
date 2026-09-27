@@ -30,7 +30,7 @@ export default function Ready({
 }) {
   return (
     <div className="space-y-6">
-      <StepHeader title={t("onbReadyTitle")} body={t("onbReadyBody")} />
+      <StepHeader title={t("onbReadyTitle")} />
 
       <Group>
         {summary.map((item) => (

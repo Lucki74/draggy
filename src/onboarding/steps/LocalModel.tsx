@@ -25,7 +25,6 @@ function choiceFrom(option: DownloadOption): ModelChoice {
 export default function LocalModel({
   plan,
   installed,
-  modelsDir,
   online,
   onRetryOnline,
   choice,
@@ -35,7 +34,6 @@ export default function LocalModel({
 }: {
   plan: FirstDownloadPlan | null;
   installed: string | null;
-  modelsDir: string;
   online: boolean | null;
   onRetryOnline: () => void;
   choice: ModelChoice | null;
@@ -50,7 +48,7 @@ export default function LocalModel({
   if (!plan) {
     return (
       <div className="space-y-8">
-        <StepHeader title={t("onbModelTitle")} body={t("onbModelBody")} />
+        <StepHeader title={t("onbModelTitle")} />
         <div aria-busy="true" className="space-y-2">
           <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbLoadingHardware")}</p>
           {[0, 1, 2].map((row) => (
@@ -108,7 +106,7 @@ export default function LocalModel({
 
   return (
     <div className="space-y-6">
-      <StepHeader title={t("onbModelTitle")} body={t("onbModelBody")} />
+      <StepHeader title={t("onbModelTitle")} />
       {hardware && <p className="text-center text-xs font-bold text-[var(--text-muted)]">{hardware}</p>}
 
       {offline && (
@@ -188,13 +186,6 @@ export default function LocalModel({
           />
         )}
       </div>
-
-      <p className="text-center text-[11px] font-bold text-[var(--text-muted)]">
-        {fill(t("onbDiskFooter"), {
-          free: plan.freeBytes > 0 ? gb(plan.freeBytes) : "?",
-          folder: modelsDir,
-        })}
-      </p>
     </div>
   );
 }

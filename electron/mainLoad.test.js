@@ -115,5 +115,7 @@ describe("loading the main process", () => {
       expect(complete({}, refused), String(refused)).toMatchObject({ success: false });
     }
     expect(complete({}, "skipped")).toMatchObject({ success: true, record: { status: "done", path: "skipped" } });
+    const reset = handlers.get("onboarding:reset");
+    expect(reset({})).toMatchObject({ success: true });
   });
 });

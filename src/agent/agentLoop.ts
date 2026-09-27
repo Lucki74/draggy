@@ -42,10 +42,12 @@ import {
   TOOL_MARKER_OVERLAP,
   TOOL_MARKER_RE,
   detectToolCall,
+  extractFileStreamingArgs,
   extractThought,
   parseToolCall,
   stripToolSyntax,
 } from "../toolParsing";
+
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
@@ -115,6 +117,7 @@ interface LlamaChunk {
     content?: string;
     thinking?: string;
     tool_calls?: LlamaToolCall[];
+    streaming_tool_calls?: { id?: string; name: string; argsString: string }[];
   };
   done?: boolean;
   done_reason?: string;
@@ -525,9 +528,10 @@ export async function measureTurn(
   if (isRemote(input.model) || llamaIsBusy()) return null;
 
   const turn = await prepareTurn(input);
-  const chars = estimateChars(turn.wire);
-  // The window has to hold the tool definitions too; the checkpoint below counts the wire alone.
-  const windowChars = estimateChars(turn.wire, turn.nativeTools ? JSON.stringify(turn.definitions).length : 0);
+  const toolChars = turn.nativeTools ? JSON.stringify(turn.definitions).length : 0;
+  const chars = estimateChars(turn.wire, toolChars);
+  const windowChars = chars;
+
   // A user-fixed window overrides the automatic bucket; null means let Draggy choose.
   const maxContext = turn.info?.contextLength ?? null;
   const fixedContext = input.settings.fixedContextSize ?? null;
@@ -662,8 +666,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     },
     pushStep,
     patchStep,
+    findStep: (predicate) => steps.find(predicate),
     syncSteps,
     newId: generateId,
+
     signal,
     memo: new Map<string, unknown>(),
   };
@@ -829,6 +835,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     invokedSkill,
   } = await prepareTurn(request);
 
+  const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
+
   // A slash command's skill shows where it loaded, as one the model asked for does.
   if (invokedSkill) {
     pushStep({
@@ -867,7 +875,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       liveRate = streamed / ((now - passStartedAt) / 1000);
     }
 
-    const wireChars = estimateChars(wire);
+    const wireChars = estimateChars(wire, toolChars);
     // Nothing added since the model last counted: that count still stands exactly.
     const unchanged = contextCheckpoint !== null && passChunks === 0 && wireChars === contextCheckpoint.chars;
     const known = contextCheckpoint
@@ -882,8 +890,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       ),
       contextExact: (exact || unchanged) && contextCheckpoint !== null,
       contextWindow: numCtx,
+      parts: promptParts,
     });
   };
+
 
   let fullFinalContent = request.seed?.content ?? "";
   let fullFinalTextContent = request.seed?.textContent ?? "";
@@ -1030,8 +1040,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const requestBody = JSON.stringify({
         model: ggufModelName(model),
         stream: true,
+        stream_options: { include_usage: true },
         options: { num_ctx: numCtx, num_predict: -1 },
         messages: toLlamaMessages(wire, model),
+
         // llama-server ignores `think`; the template option is what switches the reasoning on or off.
         ...(hasThinkingCapability
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
@@ -1073,6 +1085,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       let textContent = "";
       let toolMatch: string | null = null;
       let maybeToolCall = false;
+      let fileStepId: string | null = null;
       let lastUpdateTime = performance.now();
       let lastEmittedLength = -1;
 
@@ -1156,6 +1169,43 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             }
           }
 
+          // Live feedback while the model generates a file.
+          let streamingCallStr: string | null = null;
+          if (parsed.message?.streaming_tool_calls) {
+            const fileCall = parsed.message.streaming_tool_calls.find(
+              (t) => t.name === "create_file" || t.name === "write_file",
+            );
+            if (fileCall?.argsString) streamingCallStr = fileCall.argsString;
+          } else if (rawChunk.includes("create_file") || rawChunk.includes("write_file")) {
+            streamingCallStr = rawChunk;
+          }
+
+          if (streamingCallStr) {
+            const { filename: sFn, content: sContent } = extractFileStreamingArgs(streamingCallStr);
+            if (sFn || sContent !== undefined) {
+              const displayFn = sFn || "";
+              if (fileStepId === null) {
+                fileStepId = generateId();
+                if (thinkStepId) patchStep(thinkStepId, { isComplete: true });
+                pushStep({
+                  id: fileStepId,
+                  type: "create_file",
+                  content: `${host.t("creatingFile")} **${displayFn}**`,
+                  isComplete: false,
+                  filename: sFn || "",
+                  fileContent: sContent || "",
+                  filepath: "",
+                });
+              } else {
+                patchStep(fileStepId, {
+                  filename: sFn || "",
+                  fileContent: sContent || "",
+                  content: `${host.t("creatingFile")} **${displayFn}**`,
+                });
+              }
+            }
+          }
+
           if (!nativeTools && maybeToolCall) {
             toolMatch = detectToolCall(rawChunk);
             if (toolMatch) {
@@ -1165,7 +1215,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           }
 
           const now = performance.now();
-          const emitted = rawChunk.length + thinkingText.length;
+          const toolCallLength = streamingCallStr?.length ?? 0;
+          const emitted = rawChunk.length + thinkingText.length + toolCallLength;
 
           if (
             now - lastUpdateTime > STREAM_UI_INTERVAL_MS &&
@@ -1191,6 +1242,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             // The reply body only ever holds text from passes that are already
             // finished; whatever is being written now belongs to the timeline.
             showText(textContent);
+            if (fileStepId !== null) syncSteps();
             host.onPatch(combine("", ""));
             emitLive(passChunks, firstTokenAt);
           }
@@ -1198,6 +1250,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       } catch (error: unknown) {
         if (error instanceof Error && error.name !== "AbortError") throw error;
       }
+
 
       // Signatures belong to the tool cycle under way, so the state rides on this pass's reply.
       const carried = passState ? { provider_state: passState } : {};
@@ -1225,11 +1278,29 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (promptTokens > 0) {
           contextCheckpoint = {
             tokens: promptTokens + writtenTokens,
-            chars: estimateChars(wire) + rawChunk.length + thinkingText.length,
+            chars: estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length,
           };
         }
         emitLive(0, null, true);
+      } else if (passChunks > 0) {
+        // Stream aborted mid-pass (such as on tool calls); keep counts for later passes.
+        const passWritten = Math.round(passChunks * tokensPerChunk);
+        finishedTokens += passWritten;
+        const currentWireChars = estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length;
+        if (contextCheckpoint) {
+          contextCheckpoint = {
+            tokens: contextCheckpoint.tokens + passWritten,
+            chars: currentWireChars,
+          };
+        } else {
+          contextCheckpoint = {
+            tokens: Math.round(currentWireChars / CHARS_PER_TOKEN),
+            chars: currentWireChars,
+          };
+        }
+        emitLive(0, null, false);
       }
+
 
       currentThought = nativeThinking
         ? thinkingText
@@ -1305,7 +1376,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       host.onOutOfContext(outOfContext);
 
       if (!hasToolCall) {
+        if (fileStepId !== null) {
+          dropStep(fileStepId);
+          fileStepId = null;
+          syncSteps();
+        }
         // Asked once only: a model that stays silent twice would otherwise burn every remaining loop.
+
         if (
           !textContent.trim() &&
           !answerAsked &&

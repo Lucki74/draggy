@@ -1,4 +1,5 @@
-import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+
 import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
 import {
@@ -203,13 +204,17 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const settings = host.getSettings();
     const limit = settings.compactLimit ?? null;
     const info = await getModelInfo(model).catch(() => null);
+    const maxLocal = CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1];
     const windowTokens = settings.fixedContextSize === "max"
       ? (info?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
       : typeof settings.fixedContextSize === "number"
       ? settings.fixedContextSize
-      : windowCeiling(info?.contextLength ?? null, numCtx);
+      : isRemote(model)
+      ? windowCeiling(info?.contextLength ?? null, numCtx)
+      : Math.min(maxLocal, windowCeiling(info?.contextLength ?? null, numCtx));
 
     return compactThreshold(windowTokens, limit).tokens * CHARS_PER_TOKEN;
+
   }
 
   /** Folds older conversation into notes, in the idle gap after a turn or now when `manual`. A

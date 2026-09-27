@@ -50,6 +50,11 @@ describe("context budgeting", () => {
     expect(pickContextSize(1_000_000, null)).toBe(FALLBACK_CONTEXT_LENGTH);
   });
 
+  it("caps automatic bucket selection at the maximum local context bucket", () => {
+    expect(pickContextSize(1_000_000, 262144)).toBe(131072);
+  });
+
+
   it("is monotonic in conversation length", () => {
     let previous = 0;
     for (const chars of [0, 10_000, 50_000, 120_000, 300_000, 900_000]) {

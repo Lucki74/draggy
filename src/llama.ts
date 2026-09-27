@@ -206,8 +206,9 @@ export function pickContextSize(
   for (const bucket of CONTEXT_BUCKETS) {
     if (bucket >= needed) return Math.min(bucket, cap);
   }
-  return cap;
+  return Math.min(cap, CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1]);
 }
+
 
 /** The window each model is loaded at. Changing context size restarts the server,
  * so it is kept once per model and only resets when fixed settings change. */

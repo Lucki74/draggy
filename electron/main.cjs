@@ -693,6 +693,17 @@ function createSplashWindow() {
 
   logger.attachWindow(splashWindow, "splash");
 
+  // Falls back to the built bundle when no dev server was started.
+  splashWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, validatedURL) => {
+    if (errorCode === -102 && String(validatedURL).startsWith("http://127.0.0.1:5173")) {
+      const distTarget = path.join(rendererRoot(), "index.html");
+      if (fs.existsSync(distTarget)) {
+        log.info("splash", "dev server unreachable, falling back to dist");
+        splashWindow.loadURL(`${RENDERER_ORIGIN}/index.html?splash=true`);
+      }
+    }
+  });
+
   if (isDevelopment()) {
     splashWindow.loadURL("http://127.0.0.1:5173/?splash=true");
   } else {
@@ -800,6 +811,17 @@ function createWindow({ onboarding: showSetup = false } = {}) {
   logger.attachWindow(mainWindow, "main");
 
   const query = showSetup ? "?onboarding=true" : "";
+  // Falls back to the built bundle when no dev server was started.
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, validatedURL) => {
+    if (errorCode === -102 && String(validatedURL).startsWith("http://127.0.0.1:5173")) {
+      const distTarget = path.join(rendererRoot(), "index.html");
+      if (fs.existsSync(distTarget)) {
+        log.info("window", "dev server unreachable, falling back to dist");
+        mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
+      }
+    }
+  });
+
   if (isDevelopment()) {
     mainWindow.loadURL(`http://127.0.0.1:5173/${query}`);
   } else {
@@ -1028,12 +1050,22 @@ ipcMain.handle("onboarding:complete", (event, setupPath) => {
   return { success: true, record };
 });
 
-// Quit rather than exit, so the window saves and the engine stops before the new instance starts.
+// Navigates in place so the dev server survives and no restart races the lock.
 ipcMain.handle("onboarding:reset", () => {
   writeOnboardingRecord(onboarding.inProgressRecord());
-  log.info("onboarding", "setup requested again, relaunching");
-  app.relaunch();
-  app.quit();
+  log.info("onboarding", "setup requested again");
+  onboardingPlan = "show";
+  setImmediate(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const query = "?onboarding=true";
+      if (!mainWindow.isVisible()) mainWindow.show();
+      if (isDevelopment()) {
+        mainWindow.loadURL(`http://127.0.0.1:5173/${query}`);
+      } else {
+        mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
+      }
+    }
+  });
   return { success: true };
 });
 

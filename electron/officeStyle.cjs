@@ -15,8 +15,8 @@ const SHEET_FONT = "Aptos Narrow";
 
 const MONO_FONT = "Cascadia Mono";
 
-/** Word's own heading colour in the Office theme. */
-const HEADING_COLOR = "0F4761";
+/** Black by default so unstyled documents match plain HTML and markdown. */
+const HEADING_COLOR = "000000";
 
 /** Half-points, which is what docx measures a run in. */
 const pt = (points) => points * 2;

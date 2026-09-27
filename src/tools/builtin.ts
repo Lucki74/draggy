@@ -468,19 +468,29 @@ const createFile: ToolSpec = {
   run: async (args, ctx) => {
     const filename = String(args.filename);
     const content = String(args.content);
-    const stepId = ctx.newId();
+    const existing = ctx.findStep?.((s) => s.type === "create_file" && !s.isComplete);
+    const stepId = existing ? existing.id : ctx.newId();
 
-    ctx.pushStep({
-      id: stepId,
-      type: "create_file",
-      content: `${ctx.t("creatingFile")} **${filename}**`,
-      isComplete: false,
-      filename,
-      fileContent: content,
-      filepath: "",
-    });
+    if (!existing) {
+      ctx.pushStep({
+        id: stepId,
+        type: "create_file",
+        content: `${ctx.t("creatingFile")} **${filename}**`,
+        isComplete: false,
+        filename,
+        fileContent: content,
+        filepath: "",
+      });
+    } else {
+      ctx.patchStep(stepId, {
+        filename,
+        fileContent: content,
+        content: `${ctx.t("creatingFile")} **${filename}**`,
+      });
+    }
 
     const result = await api()?.createFile(filename, content);
+
 
     if (!result?.success) {
       ctx.patchStep(stepId, {

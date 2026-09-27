@@ -307,9 +307,12 @@ function FileCard({
     return () => cancelAnimationFrame(frame);
   }, [animate, content]);
 
-  const writing = (animate && revealed < content.length) || !step.isComplete;
+  const writing = !step.isComplete || (animate && revealed < content.length);
   const showingPreview = viewMode === "preview" && !writing;
-  const shown = animate ? content.slice(0, Math.min(revealed, content.length)) : content;
+  const shown = !step.isComplete
+    ? content
+    : (animate ? content.slice(0, Math.min(revealed, content.length)) : content);
+
 
   useEffect(() => {
     if (!writing) return;

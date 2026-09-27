@@ -96,8 +96,8 @@ Draggy's tools are an SDK-type MCP server that Draggy itself answers; no second 
   signature kept. The adapter holds the `tools/call` open until the gateway request with the
   result arrives, as Codex mode A does.
 - **Pending call timeout:** answers after 150 s were accepted with and without
-  `sdkMcpServerConfigs.draggy.timeout`; a 10-minute answer was still running when this was written
-  (**unverified**, rerun `pending600` from the spike rig). The timeout is a hard wall-clock
+  `sdkMcpServerConfigs.draggy.timeout`, and after 10 minutes with the timeout set to 24 h: the turn
+  completed with the result in the next request. The timeout is a hard wall-clock
   limit per call; Draggy sets it far above any approval wait.
 - **Stop while a call is pending:** the `interrupt` control request (§5).
 

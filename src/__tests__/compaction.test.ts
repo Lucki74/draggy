@@ -300,3 +300,65 @@ describe("a fold a provider refuses", () => {
     expect(folded).toBeNull();
   });
 });
+
+describe("compaction on native thinking models", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("turns thinking off in the request body so reasoning models summarize directly", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: "Clean summary of earlier conversation." } }] }),
+          { status: 200 },
+        );
+      }),
+    );
+    const messages = [say("user", "one"), say("assistant", "two"), say("user", "three")];
+    await runCompaction({ model: "qwen-model", numCtx: 8192, messages, plan: { foldFrom: 0, foldThrough: 2 } });
+
+    expect(capturedBody).toMatchObject({
+      think: false,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+  });
+
+  it("extracts the summary even when wrapped in thinking tags", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "<think>Let me summarize this.</think>Extracted notes." } }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const messages = [say("user", "one"), say("assistant", "two"), say("user", "three")];
+    const folded = await runCompaction({ model: "qwen-model", numCtx: 8192, messages, plan: { foldFrom: 0, foldThrough: 2 } });
+
+    expect(folded?.summary).toBe("Extracted notes.");
+  });
+
+  it("falls back to reasoning_content if content is empty", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "", reasoning_content: "Notes from reasoning." } }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const messages = [say("user", "one"), say("assistant", "two"), say("user", "three")];
+    const folded = await runCompaction({ model: "qwen-model", numCtx: 8192, messages, plan: { foldFrom: 0, foldThrough: 2 } });
+
+    expect(folded?.summary).toBe("Notes from reasoning.");
+  });
+});
+

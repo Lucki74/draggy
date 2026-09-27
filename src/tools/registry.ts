@@ -57,7 +57,9 @@ export interface ToolContext {
   onPlan?: (items: PlanItem[]) => void;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
+  findStep?: (predicate: (step: SearchStep) => boolean) => SearchStep | undefined;
   syncSteps: () => void;
+
   newId: () => string;
   signal: AbortSignal;
   /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to

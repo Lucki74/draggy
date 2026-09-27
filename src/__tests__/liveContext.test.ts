@@ -12,7 +12,8 @@ import {
 } from "../llama";
 import { SETTINGS_KEY } from "../storage";
 import { defaultSettings, loadSettings } from "../app/settings";
-import { resetRegistry } from "../tools/registry";
+import { registerTool, resetRegistry } from "../tools/registry";
+
 
 /** The context meter counts with the model itself rather than guessing, and a running turn reports
  * its speed and size as it goes, without a single extra request while it generates. */
@@ -233,7 +234,121 @@ describe("a turn as it runs", () => {
     // The clock in the prompt can gain a character between the count and the turn.
     expect(Math.abs(seen[0].contextTokens - 777)).toBeLessThanOrEqual(1);
   });
+
+  it("provides prompt parts in LiveTurn events", async () => {
+    installGguf({
+      loadedAt: () => null,
+      chat: () =>
+        sseStream([
+          { choices: [{ delta: { content: "reply" }, finish_reason: "stop" }] },
+          "[DONE]",
+        ]),
+    });
+
+    const seen: LiveTurn[] = [];
+    await runAgentTurn(
+      { ...input(), signal: new AbortController().signal },
+      {
+        t: (key) => key,
+        onPatch: () => {},
+        onSteps: () => {},
+        onOutOfContext: () => {},
+        onLive: (live) => seen.push(live),
+      },
+    );
+
+    expect(seen[0]?.parts).toBeDefined();
+    expect(seen[0]?.parts?.systemChars).toBeGreaterThan(0);
+  });
+
+  it("carries generated tokens across tool calls when pass 1 ends without a final chunk", async () => {
+    registerTool({
+      name: "test_lookup",
+      group: "files",
+      description: "Lookup data",
+      parameters: { q: { type: "string", description: "query" } },
+      required: ["q"],
+      usage: "test_lookup: { q: string }",
+      run: async () => "result payload",
+    });
+
+    let pass = 0;
+    installGguf({
+      loadedAt: () => null,
+      chat: () => {
+        pass++;
+        if (pass === 1) {
+          return sseStream([
+            { choices: [{ delta: { content: "Calling tool: " } }] },
+            { choices: [{ delta: { content: '{"name": "test_lookup", "args": {"q": "1"}}' } }] },
+          ]);
+        }
+        return sseStream([
+          { choices: [{ delta: { content: "Final answer after tool." } }] },
+          {
+            choices: [{ delta: {}, finish_reason: "stop" }],
+            usage: { prompt_tokens: 400, completion_tokens: 20 },
+            timings: { predicted_ms: 500, predicted_n: 20, prompt_ms: 100, prompt_n: 400 },
+          },
+          "[DONE]",
+        ]);
+      },
+    });
+
+    const seen: LiveTurn[] = [];
+    await runAgentTurn(
+      { ...input(), signal: new AbortController().signal },
+      {
+        t: (key) => key,
+        onPatch: () => {},
+        onSteps: () => {},
+        onOutOfContext: () => {},
+        onLive: (live) => seen.push(live),
+      },
+    );
+
+    const last = seen.at(-1);
+    expect(last?.responseTokens).toBeGreaterThan(20);
+  });
+
+  it("includes tool definitions in character estimation so context does not start too low", async () => {
+    registerTool({
+      name: "heavy_tool",
+      group: "files",
+      description: "H".repeat(12000),
+      parameters: { q: { type: "string", description: "query" } },
+      required: ["q"],
+      usage: "heavy_tool: { q: string }",
+      run: async () => "ok",
+    });
+
+    installGguf({
+      loadedAt: () => null,
+      chat: () =>
+        sseStream([
+          { choices: [{ delta: { content: "Done" }, finish_reason: "stop" }] },
+          "[DONE]",
+        ]),
+    });
+
+    const seen: LiveTurn[] = [];
+    await runAgentTurn(
+      { ...input(), signal: new AbortController().signal },
+      {
+        t: (key) => key,
+        onPatch: () => {},
+        onSteps: () => {},
+        onOutOfContext: () => {},
+        onLive: (live) => seen.push(live),
+      },
+    );
+
+    expect(seen[0].contextTokens).toBeGreaterThan(4000);
+  });
+
+
 });
+
 
 describe("the speed line", () => {
   it("is off unless the user turns it on", () => {

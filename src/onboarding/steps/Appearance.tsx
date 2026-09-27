@@ -58,7 +58,7 @@ export default function Appearance({
 
   return (
     <div className="space-y-8">
-      <StepHeader title={t("onbAppearanceTitle")} body={t("onbAppearanceBody")} />
+      <StepHeader title={t("onbAppearanceTitle")} />
 
       <div role="radiogroup" aria-label={t("theme")} className="grid grid-cols-3 gap-3">
         {cards.map((card) => {

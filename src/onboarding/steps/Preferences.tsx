@@ -65,10 +65,10 @@ export default function Preferences({
 
   return (
     <div className="space-y-6">
-      <StepHeader title={t("onbPrefsTitle")} body={t("onbPrefsBody")} />
+      <StepHeader title={t("onbPrefsTitle")} />
 
       <Group>
-        <Row label={t("onbStartIn")} description={t("onbStartInHint")}>
+        <Row label={t("onbStartIn")}>
           <Segmented
             label={t("onbStartIn")}
             value={mode}
@@ -92,7 +92,7 @@ export default function Preferences({
             </Block>
           </>
         )}
-        <Row label={t("searchProvider")} description={t("onbSearchHint")}>
+        <Row label={t("searchProvider")}>
           <Select
             label={t("searchProvider")}
             value={settings.searchProvider}
@@ -100,7 +100,7 @@ export default function Preferences({
             onChange={(searchProvider) => onUpdateSettings({ searchProvider: searchProvider as SearchProvider })}
           />
         </Row>
-        <Row label={t("onbUpdates")} description={t("onbUpdatesHint")}>
+        <Row label={t("onbUpdates")}>
           <Toggle label={t("onbUpdates")} checked={settings.autoUpdate} onChange={(autoUpdate) => onUpdateSettings({ autoUpdate })} />
         </Row>
       </Group>
@@ -140,8 +140,6 @@ export default function Preferences({
           </Group>
         )}
       </div>
-
-      <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbPrefsFooter")}</p>
     </div>
   );
 }

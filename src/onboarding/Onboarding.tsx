@@ -332,7 +332,6 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
               <LocalModel
                 plan={surroundings?.plan ?? null}
                 installed={surroundings?.installed ?? null}
-                modelsDir={surroundings?.modelsDir ?? ""}
                 online={online}
                 onRetryOnline={() => {
                   setOnline(null);
