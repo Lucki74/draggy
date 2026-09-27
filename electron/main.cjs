@@ -43,6 +43,7 @@ const onboarding = require("./onboarding.cjs");
 const themes = require("./theme.cjs");
 const connectivity = require("./connectivity.cjs");
 const { createGateway } = require("./providers/gateway.cjs");
+const { createRegistry } = require("./providers/registry.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -607,6 +608,7 @@ const windowBackground = () => themes.backgroundFor(themeSetting, nativeTheme.sh
 
 /** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
 let onboardingPlan = "done";
+let providers = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
 function decideOnboarding() {
@@ -877,6 +879,7 @@ app.whenReady().then(() => {
   skills.init(app.getPath("userData"));
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
+  providers = createRegistry({ storage, secrets });
 
   // Draggy's own storage is out of bounds to the file tools, whatever folder
   // the user has opened. The database is not a document.
@@ -893,6 +896,7 @@ app.whenReady().then(() => {
       enginePort: () => llamaProcess.getServerStatus().port,
       isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
       onRefused: (origin, url) => log.warn("gateway", `refused ${url} from origin ${origin}`),
+      registry: providers,
     }),
   );
 

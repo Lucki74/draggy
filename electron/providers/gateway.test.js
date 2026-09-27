@@ -124,7 +124,7 @@ describe("the built-in engine, passed through unchanged", () => {
 });
 
 describe("what it refuses", () => {
-  it("keeps a provider's model away from the engine until providers exist", async () => {
+  it("keeps a provider's model away from the engine when no provider is set up", async () => {
     engine.requests = [];
     const response = await gateway()(chat('{"model":"@anthropic/claude-x"}'));
     expect(response.status).toBe(404);
