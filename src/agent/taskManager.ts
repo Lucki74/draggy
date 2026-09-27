@@ -316,6 +316,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             thoughtTime: lastMsg.thoughtTime,
             steps: lastMsg.steps,
             metrics: lastMsg.metrics,
+            provider_state: lastMsg.provider_state,
           };
           lastMsg.versions = [...(lastMsg.versions || []), oldVersion];
           lastMsg.currentVersionIndex = lastMsg.versions.length;
@@ -325,6 +326,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           lastMsg.thoughtTime = undefined;
           lastMsg.steps = [];
           lastMsg.metrics = null;
+          delete lastMsg.provider_state;
           msgs[lastIdx] = lastMsg;
         }
       } else {
@@ -487,7 +489,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       if (result.exhausted || !result.aborted) {
         host.patchActiveMessage(
           chatId,
-          { steps: result.steps, textContent: result.textContent },
+          {
+            steps: result.steps,
+            textContent: result.textContent,
+            ...(result.providerState && !result.aborted ? { provider_state: result.providerState } : {}),
+          },
           { updatedAt: Date.now(), isOutOfContext: result.outOfContext },
         );
       }

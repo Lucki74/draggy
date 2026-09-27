@@ -75,6 +75,16 @@ describe("round-tripping a conversation", () => {
     expect(restored.currentVersionIndex).toBe(0);
   });
 
+  it("keeps a provider's state on a reply and its versions", () => {
+    const state = { instanceId: "codex", state: { threadId: "t1", consumed: 3, prefixHash: "abc" } };
+    storage.saveChat(
+      session("a", [message("m1", "assistant", "answer", { provider_state: state, versions: [{ content: "old", provider_state: state }] })]),
+    );
+    const restored = storage.loadChats()[0].messages[0];
+    expect(restored.provider_state).toEqual(state);
+    expect(restored.versions[0].provider_state).toEqual(state);
+  });
+
   it("always reloads with generation stopped", () => {
     storage.saveChat({ ...session("a", []), isGenerating: true });
     expect(storage.loadChats()[0].isGenerating).toBe(false);

@@ -1,6 +1,7 @@
 import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../llama";
 import type { EngineResult } from "./engineErrors";
+import { scopeToTarget } from "./providers";
 import type { ProviderState } from "./providers";
 
 const IMAGE_SIGNATURES: [string, string][] = [
@@ -26,9 +27,10 @@ export function toLlamaMessages<
     images?: string[];
     content?: unknown;
     thinking?: string;
+    provider_state?: ProviderState;
   },
->(messages: M[]): M[] {
-  return messages.map((message) => {
+>(messages: M[], model = ""): M[] {
+  return scopeToTarget(messages, model).map((message) => {
     // llama-server rejects an assistant turn with neither content nor calls; a space is enough.
     const bare = message.role === "assistant" && !message.tool_calls && !String(message.content ?? "").trim();
     if (!message.tool_calls && !message.images && !message.thinking && !bare) return message;

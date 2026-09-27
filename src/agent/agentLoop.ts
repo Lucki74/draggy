@@ -15,7 +15,8 @@ import {
   readMetrics,
   recalledCapabilities,
 } from "../llama";
-import { chatEndpoint, isRemote } from "../ai/providers";
+import { chatEndpoint, isRemote, providerOf, scopeToTarget } from "../ai/providers";
+import type { ProviderState } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
@@ -118,6 +119,7 @@ interface LlamaChunk {
   done?: boolean;
   done_reason?: string;
   error?: GatewayError;
+  provider_state?: ProviderState;
 }
 
 export interface WireMessage {
@@ -129,6 +131,7 @@ export interface WireMessage {
   tool_calls?: LlamaToolCall[];
   tool_call_id?: string;
   tool_name?: string;
+  provider_state?: ProviderState;
 }
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
@@ -186,6 +189,7 @@ export function toWireMessage(
     content: content.trim() || " ",
     ...(thinking ? { thinking } : {}),
     ...(images.length > 0 ? { images } : {}),
+    ...(message.provider_state ? { provider_state: message.provider_state } : {}),
   };
 }
 
@@ -272,6 +276,8 @@ export interface AgentResult {
   aborted: boolean;
   /** How many times the model reached for each tool, refused calls included. */
   toolCalls: Record<string, number>;
+  /** The last state the provider handed back, stored on the reply for its next turn. */
+  providerState?: ProviderState;
 }
 
 const EXHAUSTED_MESSAGE =
@@ -554,7 +560,7 @@ export async function measureTurn(
         model: ggufModelName(input.model),
         stream: false,
         max_tokens: 1,
-        messages: toLlamaMessages(turn.wire),
+        messages: toLlamaMessages(turn.wire, input.model),
         ...(turn.nativeTools ? { tools: turn.definitions } : {}),
       }),
       signal: controller.signal,
@@ -784,7 +790,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           max_tokens: 500,
           response_format: { type: "json_schema", json_schema: { name: "tool_call", schema: repairSchema(definitions) } },
           messages: [
-            ...wire,
+            ...scopeToTarget(wire, model),
             { role: "user", content: repairPrompt(broken) },
           ],
         }),
@@ -830,6 +836,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
   let loopCount = 0;
   let isFinished = false;
+  let turnState: ProviderState | undefined;
   let outOfContext = false;
   // Assigned on the first pass of the loop below, which always runs.
   let numCtx: number;
@@ -1018,7 +1025,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         model: ggufModelName(model),
         stream: true,
         options: { num_ctx: numCtx, num_predict: -1 },
-        messages: toLlamaMessages(wire),
+        messages: toLlamaMessages(wire, model),
         // llama-server ignores `think`; the template option is what switches the reasoning on or off.
         ...(hasThinkingCapability
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
@@ -1066,9 +1073,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const nativeCalls: LlamaToolCall[] = [];
       let passChunks = 0;
       let finalChunk: Record<string, unknown> | null = null;
+      let passState: ProviderState | undefined;
 
       const readChunk = (parsed: LlamaChunk) => {
         if (parsed.message?.tool_calls) nativeCalls.push(...parsed.message.tool_calls);
+        // A state tagged for another instance could only be misdirected later, so it is not kept.
+        if (parsed.provider_state?.instanceId === providerOf(model)) passState = parsed.provider_state;
         if (parsed.done) {
           finalChunk = { ...(finalChunk || {}), ...(parsed as unknown as Record<string, unknown>) };
           if (parsed.done_reason === "length") outOfContext = true;
@@ -1183,6 +1193,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (error instanceof Error && error.name !== "AbortError") throw error;
       }
 
+      // Signatures belong to the tool cycle under way, so the state rides on this pass's reply.
+      const carried = passState ? { provider_state: passState } : {};
+      if (passState) turnState = passState;
+
       if (finalChunk) {
         const turnMetrics = readMetrics(
           finalChunk,
@@ -1293,7 +1307,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           (thinkingText.trim() || toolsRan || wire.some((m) => m.role === "tool"))
         ) {
           answerAsked = true;
-          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
           wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
           wire.push({
             role: "user",
@@ -1316,7 +1330,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           fullFinalContent += rawChunk + "\n";
           host.onPatch(combine("", ""));
 
-          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
           wire.push({ role: "assistant", content: rawChunk, ...kept });
           wire.push({ role: "user", content: ACT_ON_ANNOUNCEMENT });
           continue;
@@ -1346,7 +1360,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       // The reasoning goes back with the call, since a model that cannot see
       // it reasoned before one stops reasoning before the next.
-      const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+      const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
 
       if (nativeTools) {
         wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
@@ -1466,5 +1480,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     exhausted,
     aborted: signal.aborted,
     toolCalls,
+    ...(turnState ? { providerState: turnState } : {}),
   };
 }

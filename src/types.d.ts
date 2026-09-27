@@ -1,3 +1,5 @@
+import type { ProviderState } from "./ai/providers";
+
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
 
@@ -441,6 +443,8 @@ export interface MessageVersion {
   thoughtTime?: number;
   steps?: SearchStep[];
   metrics?: TurnMetrics | null;
+  /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
+  provider_state?: ProviderState;
 }
 
 export interface Message {
@@ -456,6 +460,7 @@ export interface Message {
   currentVersionIndex?: number;
   metrics?: TurnMetrics | null;
   fold?: FoldMarker;
+  provider_state?: ProviderState;
 }
 
 /** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what

@@ -21,6 +21,19 @@ import type {
 
 const MODEL = "test-model";
 
+// Phase 1 lists a provider's models with what they can do; until then this one stands in, with tools.
+const TOOL_PROVIDER_MODEL = "@anthropic/claude-tools";
+vi.mock("../llama", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llama")>();
+  return {
+    ...actual,
+    getModelInfo: (model: string) =>
+      model === "@anthropic/claude-tools"
+        ? Promise.resolve({ contextLength: 200000, capabilities: ["tools"], parameterCount: null, quantization: null })
+        : actual.getModelInfo(model),
+  };
+});
+
 const SETTINGS = {
   theme: "light",
   fontSize: "base",
@@ -84,6 +97,7 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
   for (const piece of turn.content ?? []) {
     chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
   }
+  if (turn.state) chunks.push({ provider_state: turn.state });
   if (turn.toolCalls) {
     const deltas = turn.toolCalls.map((tc, i) => ({
       index: i,
@@ -114,6 +128,8 @@ interface Turn {
   thinking?: string[];
   toolCalls?: { function: { name: string; arguments: Record<string, unknown> } }[];
   final?: Record<string, unknown>;
+  /** A `provider_state` event the gateway sends with this pass. */
+  state?: { instanceId: string; state: unknown };
 }
 
 function installFetch(
@@ -2108,5 +2124,57 @@ describe("a provider that fails once its stream is open", () => {
       makeHost().host,
     );
     await expect(turn).rejects.toThrow("upstream fell over");
+  });
+});
+
+describe("a provider's state through a turn", () => {
+  const signed = { instanceId: "anthropic", state: { signature: "sig-1" } };
+  const later = { instanceId: "anthropic", state: { signature: "sig-2" } };
+
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+
+  it("rides on the assistant's tool call into the next request of the same turn", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }], state: signed },
+        { content: ["Done."], state: later },
+      ],
+      ["tools"],
+    );
+    const result = await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL, [userMessage("go")]), makeHost().host);
+
+    const second = requests[1] as { messages: { role: string; tool_calls?: unknown; provider_state?: unknown }[] };
+    const call = second.messages.find((m) => m.role === "assistant" && m.tool_calls);
+    expect(call?.provider_state).toEqual(signed);
+    expect(result.providerState).toEqual(later);
+  });
+
+  it("is dropped when the gateway tags it for another instance", async () => {
+    installFetch([{ content: ["Hi"], state: { instanceId: "openai", state: {} } }], []);
+    const result = await runAgentTurn(turnInput("@anthropic/claude-x", [userMessage("hi")]), makeHost().host);
+    expect(result.providerState).toBeUndefined();
+  });
+
+  it("goes back to its own instance next turn, and never to the built-in engine", async () => {
+    const history: Message[] = [userMessage("hi"), { ...assistantMessage("hello"), provider_state: signed }, { ...userMessage("again"), id: "u2" }];
+    expect(toWireMessage(history[1], false).provider_state).toEqual(signed);
+
+    const remote = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput("@anthropic/claude-x", history), makeHost().host);
+    const sent = (remote.requests[0] as { messages: { provider_state?: unknown }[] }).messages;
+    expect(sent.filter((m) => m.provider_state)).toEqual([{ role: "assistant", content: "hello", provider_state: signed }]);
+
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, history), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("provider_state");
   });
 });

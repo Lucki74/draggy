@@ -38,3 +38,14 @@ export function providerOf(model: string): string | null {
 export function chatEndpoint(_model: string): string {
   return CHAT_ENDPOINT;
 }
+
+/** The engine gets no provider fields, so its bodies stay byte-identical; a provider gets only the
+ * states its own instance wrote, so a switch away and back sends the older ones again. */
+export function scopeToTarget<M extends { provider_state?: ProviderState }>(messages: M[], model: string): M[] {
+  const instance = providerOf(model);
+  return messages.map((message) => {
+    if (!message.provider_state || message.provider_state.instanceId === instance) return message;
+    const { provider_state: _other, ...rest } = message;
+    return rest as M;
+  });
+}
