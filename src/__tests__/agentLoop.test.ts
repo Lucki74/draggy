@@ -2142,6 +2142,38 @@ describe("the thinking pill's level", () => {
   });
 });
 
+describe("a provider that is retried", () => {
+  it("shows each wait as a loading step counting down, gone once the answer starts", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"draggy_retry":{"attempt":1,"of":2,"retryAfterMs":4000}}\n\n',
+      'data: {"draggy_retry":{"attempt":2,"of":2,"retryAfterMs":8000}}\n\n',
+      'data: {"choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const host = makeHost();
+    const started = Date.now();
+    const result = await runAgentTurn(
+      { model: "@openai/gpt-x", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      host.host,
+    );
+    const retries = host.recordedSteps.flat().filter((step) => step.retry);
+    expect([...new Set(retries.map((step) => `${step.type} ${step.retry?.attempt} of ${step.retry?.of}`))]).toEqual(["loading 1 of 2", "loading 2 of 2"]);
+    expect(retries.at(-1)!.retry!.until - started).toBeGreaterThanOrEqual(8000);
+    expect(new Set(retries.map((step) => step.id)).size).toBe(1);
+    expect(host.steps.some((step) => step.retry)).toBe(false);
+    expect(result.textContent).toBe("Hi");
+  });
+});
+
 describe("a provider that fails once its stream is open", () => {
   it("ends the turn with the provider's error instead of an empty reply", async () => {
     installFetch([{ content: ["Hi"] }], []);

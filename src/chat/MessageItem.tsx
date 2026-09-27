@@ -445,6 +445,8 @@ function FileCard({
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
   const [elapsedMs, setElapsedMs] = useState(0);
 
+  const [now, setNow] = useState(() => Date.now());
+
   useEffect(() => {
     if (step.startedAt === undefined) return;
     const startedAt = step.startedAt;
@@ -452,11 +454,22 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
     return () => clearInterval(timer);
   }, [step.startedAt]);
 
-  const label = step.model
-    ? t("loadingModel")
-        .replace("{model}", displayModelName(step.model))
-        .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
-    : step.content;
+  useEffect(() => {
+    if (!step.retry) return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [step.retry]);
+
+  const label = step.retry
+    ? t("providerRetrying")
+        .replace("{seconds}", String(Math.max(0, Math.ceil((step.retry.until - now) / 1000))))
+        .replace("{attempt}", String(step.retry.attempt))
+        .replace("{of}", String(step.retry.of))
+    : step.model
+      ? t("loadingModel")
+          .replace("{model}", displayModelName(step.model))
+          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
+      : step.content;
 
   return (
     <div className="flex items-center space-x-3 mb-3 text-[var(--text-muted)]">

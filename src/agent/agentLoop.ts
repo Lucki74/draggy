@@ -54,7 +54,7 @@ import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
-import type { GatewayError } from "../ai/llamaStream";
+import type { GatewayError, GatewayRetry } from "../ai/llamaStream";
 import {
   annotationsFor,
   availableTools,
@@ -122,6 +122,7 @@ interface LlamaChunk {
   done?: boolean;
   done_reason?: string;
   error?: GatewayError;
+  retry?: GatewayRetry;
   provider_state?: ProviderState;
 }
 
@@ -1013,10 +1014,27 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
 
     let loading = loadStepId !== null;
+    // A provider's retry is a wait like a load, so it shows as one, counting down to the next attempt.
+    let retryStepId: string | null = null;
     const doneLoading = () => {
+      if (retryStepId !== null) {
+        dropStep(retryStepId);
+        retryStepId = null;
+        syncSteps();
+      }
       if (!loading) return;
       loading = false;
       dropStep(loadStepId as string);
+      syncSteps();
+    };
+    const showRetry = ({ attempt, of, retryAfterMs }: GatewayRetry) => {
+      const retry = { attempt, of, until: Date.now() + retryAfterMs };
+      if (retryStepId !== null) {
+        patchStep(retryStepId, { retry });
+      } else {
+        retryStepId = generateId();
+        pushStep({ id: retryStepId, type: "loading", content: "", isComplete: false, retry });
+      }
       syncSteps();
     };
 
@@ -1117,6 +1135,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         for await (const parsed of readStream()) {
           // A provider that fails after the stream opened says so in it, since the status is already 200.
           if (parsed.error) throw new Error(engineFailure(failureOf(parsed.error), { markdown: true }));
+          if (parsed.retry) {
+            showRetry(parsed.retry);
+            continue;
+          }
           doneLoading();
           const added = parsed.message?.content || "";
           const thinkingAdded = parsed.message?.thinking || "";

@@ -317,6 +317,8 @@ export interface SearchStep {
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
+  /** On a "loading" step: a provider's retry, counted down to when the next attempt goes out. */
+  retry?: { attempt: number; of: number; until: number };
 }
 
 /** How far an approval goes: this call only, the rest of this task, or every time in this
