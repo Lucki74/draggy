@@ -456,9 +456,12 @@ async function runOnboarding() {
     label: "the model options",
   });
   await move("next");
+  await shootStep("app-onboarding-preferences");
+  await move("next");
   await sleep(2500);
   await shootStep("app-onboarding-ready");
   // Back on the model step, the download stays pinned under it.
+  await move("back");
   await move("back");
   await sleep(1000);
   await shootStep("app-onboarding-model");
