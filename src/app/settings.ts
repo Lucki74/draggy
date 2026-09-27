@@ -22,7 +22,6 @@ export const defaultSettings: AppSettings = {
   voiceRate: 1,
   searchProvider: "auto",
   searxngUrl: "",
-  braveApiKey: "",
   codeModel: "",
   codeInstructions: [],
   codeThinkingMode: "medium",
@@ -46,12 +45,19 @@ export function resolveTheme(setting: AppSettings["theme"], prefersDark: boolean
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
+let legacyBraveKey = "";
+
 /** Read synchronously from localStorage rather than awaited from sqlite: the first paint needs the
  * theme and the language before any IPC can answer. */
 export function loadSettings(): AppSettings {
   const saved = localStorage.getItem(SETTINGS_KEY);
-  const parsed = saved ? safeJsonParse<Partial<AppSettings>>(saved) : null;
+  const parsed = saved ? safeJsonParse<Partial<AppSettings> & { braveApiKey?: string }>(saved) : null;
   if (!parsed) return defaultSettings;
+  // Earlier versions kept the Brave key here in the clear; it leaves for the keystore on the first save.
+  if ("braveApiKey" in parsed) {
+    legacyBraveKey = String(parsed.braveApiKey || "").trim();
+    delete parsed.braveApiKey;
+  }
 
   // Earlier versions saved the speed line switched on without anyone asking for it.
   return parsed.metricsChosen ? { ...defaultSettings, ...parsed } : { ...defaultSettings, ...parsed, showMetrics: false };
@@ -78,10 +84,21 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
       ?.setSearchConfig({
         searchProvider: settings.searchProvider,
         searxngUrl: settings.searxngUrl,
-        braveApiKey: settings.braveApiKey,
       })
       .catch(() => undefined);
-  }, [settings.searchProvider, settings.searxngUrl, settings.braveApiKey]);
+  }, [settings.searchProvider, settings.searxngUrl]);
+
+  useEffect(() => {
+    const key = legacyBraveKey;
+    legacyBraveKey = "";
+    const api = window.electronAPI;
+    if (!key || !api?.braveKeyStatus) return;
+    // Main has usually moved it already, from its own copy; a key set since then is never replaced.
+    void api
+      .braveKeyStatus()
+      .then((status) => (status.hasKey ? undefined : api.setBraveKey(key)))
+      .catch(() => undefined);
+  }, []);
 
   // The main process owns the update schedule, so it has to be told what the
   // setting says, at startup as much as when it is changed.

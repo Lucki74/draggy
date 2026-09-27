@@ -736,7 +736,6 @@ export interface AppSettings {
   voiceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
-  braveApiKey: string;
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
@@ -781,8 +780,10 @@ declare global {
       setSearchConfig: (config: {
         searchProvider: string;
         searxngUrl: string;
-        braveApiKey: string;
       }) => Promise<{ success: boolean }>;
+      /** Write-only; an empty key removes it. `kept` is false when no keystore holds it past this run. */
+      setBraveKey: (key: string) => Promise<{ success: boolean; kept: boolean }>;
+      braveKeyStatus: () => Promise<{ hasKey: boolean; keyHint: string; keystore: boolean }>;
       readUrl: (url: string) => Promise<{
         title: string;
         text: string;

@@ -52,7 +52,6 @@ const SETTINGS = {
   voiceRate: 1,
   searchProvider: "auto",
   searxngUrl: "",
-  braveApiKey: "",
   codeModel: "",
   codeInstructions: [],
   codeThinkingMode: "medium",

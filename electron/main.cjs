@@ -47,6 +47,7 @@ const { createRegistry } = require("./providers/registry.cjs");
 const { createModels } = require("./providers/models.cjs");
 const { createDiscovery } = require("./providers/discovery.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
+const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -612,6 +613,7 @@ const windowBackground = () => themes.backgroundFor(themeSetting, nativeTheme.sh
 /** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
 let onboardingPlan = "done";
 let providers = null;
+let searchKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
 function decideOnboarding() {
@@ -882,6 +884,12 @@ app.whenReady().then(() => {
   skills.init(app.getPath("userData"));
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
+  searchKey = createSearchKey({ secrets, storage });
+  try {
+    searchKey.adopt();
+  } catch (error) {
+    log.warn("search", `could not move the Brave key into the store: ${error.message}`);
+  }
   providers = createRegistry({ storage, secrets });
   const providerHandlers = createProviderHandlers({
     registry: providers,
@@ -1174,7 +1182,7 @@ async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }
   }
 }
 
-let searchConfig = { searchProvider: "auto", searxngUrl: "", braveApiKey: "" };
+let searchConfig = { searchProvider: "auto", searxngUrl: "" };
 
 ipcMain.handle("set-search-config", (event, config) => {
   searchConfig = {
@@ -1182,20 +1190,24 @@ ipcMain.handle("set-search-config", (event, config) => {
       ? config.searchProvider
       : "auto",
     searxngUrl: String(config?.searxngUrl || "").trim(),
-    braveApiKey: String(config?.braveApiKey || "").trim(),
   };
   return { success: true };
 });
 
+// The key is read from the keystore per search, so it never sits in the settings the renderer holds.
+const searchSettings = () => ({ ...searchConfig, braveApiKey: searchKey?.get() || "" });
+ipcMain.handle("search:set-brave-key", (event, key) => searchKey.set(key));
+ipcMain.handle("search:brave-key-status", () => searchKey.status());
+
 ipcMain.handle("search-web", async (event, query) => {
-  const { results } = await runSearch(query, searchConfig, {
+  const { results } = await runSearch(query, searchSettings(), {
     scrape: scrapeInHiddenWindow,
   });
   return results;
 });
 
 ipcMain.handle("search-web-detailed", async (event, query) =>
-  runSearch(query, searchConfig, { scrape: scrapeInHiddenWindow }),
+  runSearch(query, searchSettings(), { scrape: scrapeInHiddenWindow }),
 );
 
 ipcMain.handle("get-page-content", async (event, url) => {

@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchWeb: (query) => ipcRenderer.invoke("search-web", query),
   searchWebDetailed: (query) => ipcRenderer.invoke("search-web-detailed", query),
   setSearchConfig: (config) => ipcRenderer.invoke("set-search-config", config),
+  // Write-only, like a provider's key: the status says whether one is set and its last four.
+  setBraveKey: (key) => ipcRenderer.invoke("search:set-brave-key", key),
+  braveKeyStatus: () => ipcRenderer.invoke("search:brave-key-status"),
   readUrl: (url) => ipcRenderer.invoke("get-page-content", url),
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),

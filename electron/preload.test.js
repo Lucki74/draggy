@@ -183,6 +183,17 @@ describe("the providers bridge", () => {
   });
 });
 
+describe("the Brave Search key", () => {
+  it("can be set and asked about, never read", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api).filter((key) => /brave/i.test(key)).sort()).toEqual(["braveKeyStatus", "setBraveKey"]);
+    await api.setBraveKey("BSA-x");
+    await api.braveKeyStatus();
+    expect(invoked).toEqual([["search:set-brave-key", "BSA-x"], ["search:brave-key-status"]]);
+  });
+});
+
 describe("the first-run setup's bridge", () => {
   it("exposes exactly the four calls the spec allows, each on its own channel", async () => {
     const { api, invoked } = loadPreload();

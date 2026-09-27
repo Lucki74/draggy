@@ -120,17 +120,8 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
         )}
 
         {(provider === "auto" || provider === "brave") && (
-          <Row label={t("braveApiKey")}>
-            <input
-              type="password"
-              value={settings.braveApiKey}
-              onChange={(event) => onUpdate({ braveApiKey: event.target.value })}
-              placeholder="BSA..."
-              aria-label={t("braveApiKey")}
-              className="w-full sm:w-64 px-3 py-2 ui-input text-sm font-bold"
-              spellCheck={false}
-            />
-          </Row>
+          <BraveKeyRow t={t} />
+
         )}
       </Group>
     </Page>
@@ -340,5 +331,45 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
         </Row>
       </Group>
     </Page>
+  );
+}
+
+type BraveKeyStatus = Awaited<ReturnType<NonNullable<Window["electronAPI"]>["braveKeyStatus"]>>;
+
+/** Write-only, like a provider's key: what is typed goes to the keystore, and only its last four come back. */
+function BraveKeyRow({ t }: { t: Translate }) {
+  const [status, setStatus] = useState<BraveKeyStatus | null>(null);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    window.electronAPI?.braveKeyStatus?.().then(setStatus).catch(() => undefined);
+  }, []);
+
+  const save = async (value: string) => {
+    const api = window.electronAPI;
+    if (!api?.setBraveKey) return;
+    await api.setBraveKey(value).catch(() => undefined);
+    setDraft("");
+    setStatus(await api.braveKeyStatus().catch(() => null));
+  };
+
+  return (
+    <Row label={t("braveApiKey")} description={status && !status.keystore ? t("braveKeyThisRun") : undefined}>
+      <div className="flex w-full items-center gap-2 sm:w-auto">
+        <input
+          type="password"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => draft.trim() && void save(draft)}
+          onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
+          placeholder={status?.hasKey ? `•••• ${status.keyHint}` : "BSA..."}
+          aria-label={t("braveApiKey")}
+          className="w-full sm:w-64 px-3 py-2 ui-input text-sm font-bold"
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {status?.hasKey && <Button onClick={() => void save("")}>{t("remove")}</Button>}
+      </div>
+    </Row>
   );
 }
