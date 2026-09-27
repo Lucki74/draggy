@@ -265,6 +265,16 @@ function batchSizes(runnerType, vramGB, moe) {
   return { batch: Math.max(2048, ubatch), ubatch };
 }
 
+/** Headroom --fit reserves so the desktop, Electron and browser do not push
+ * allocations over physical VRAM into PCIe shared memory (crushing tok/s). */
+function fitTargetMiB(vramGB) {
+  if (!vramGB || vramGB <= 0) return 1024;
+  const reservedGB = platform.IS_WINDOWS
+    ? Math.max(2.0, Math.min(vramGB * 0.25, vramGB * 0.15 + 0.8))
+    : Math.max(1.0, vramGB * 0.1);
+  return Math.round(reservedGB * 1024);
+}
+
 /** How much RAM llama-server may keep earlier prompts in, so returning to another chat skips
  * reprocessing it. llama.cpp's fixed 8 GB is too little on 64 GB and dangerous on 16 GB, where the
  * weights that did not fit on the card already live in RAM. */
@@ -416,6 +426,9 @@ async function launchServer(options) {
   // repeats, and a large speed-up when the model rewrites code or text it has already seen.
   if (speculative && supports("--spec-default")) args.push("--spec-default");
   if (supports("--cache-ram")) args.push("--cache-ram", String(promptCacheMiB(modelPath)));
+  if (!Number.isInteger(gpuLayers) && supports("--fit-target") && vramGB > 0) {
+    args.push("--fit-target", String(fitTargetMiB(vramGB)));
+  }
 
   // Without its projector a vision model answers as if no image had been sent.
   const projector = skipProjector ? null : mmproj.findCompanion(path.dirname(modelPath), path.basename(modelPath));
@@ -435,7 +448,8 @@ async function launchServer(options) {
       "llama",
       `Starting llama-server: model=${modelPath}, port=${port}, context=${effectiveContext}, kvCache=${cacheType}, ` +
         `gpuLayers=${gpuLayers ?? "auto"}, runner=${engine.runnerType || "none"}, moe=${traits.moe}, ` +
-        `ubatch=${ubatch}, threads=${threads}/${threadsBatch}, speculative=${args.includes("--spec-default")}`,
+        `ubatch=${ubatch}, threads=${threads}/${threadsBatch}, speculative=${args.includes("--spec-default")}` +
+        (args.includes("--fit-target") ? `, fitTarget=${args[args.indexOf("--fit-target") + 1]}` : ""),
     );
     logger.debug("llama", `Spawning ${binaryPath} with args: ${args.join(" ")}`);
 
@@ -556,6 +570,7 @@ module.exports = {
   servedModel,
   determineKvCache,
   batchSizes,
+  fitTargetMiB,
   promptCacheMiB,
   engineFlags,
   missingShards,

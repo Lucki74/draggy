@@ -85,6 +85,9 @@ async function launch(info, file) {
   const env = llamaProcess.buildEnv({ ...engine.env });
   const flags = await llamaProcess.engineFlags(info.binaryPath, env, info.userDataDir);
   if (flags?.has("--cache-ram")) args.push("--cache-ram", "0");
+  if (flags?.has("--fit-target") && info.vramGB > 0) {
+    args.push("--fit-target", String(llamaProcess.fitTargetMiB(info.vramGB)));
+  }
   logger.info("embed", `Starting embedding server: ${path.basename(file)} on port ${activePort}`);
 
   const proc = platform.spawnHidden(info.binaryPath, args, {
