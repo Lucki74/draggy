@@ -26,9 +26,9 @@ registerCommandTools();
  * screen or the app. Everything else lives in `app/`. */
 export default function App() {
   const isSplashMode = window.location.search.includes("splash=true");
-  const [settings, setSettings] = useSettings(isSplashMode);
   // Main loads the page this way only for a new install; finishing drops it, so a reload opens the app.
   const [onboarding, setOnboarding] = useState(() => window.location.search.includes("onboarding=true"));
+  const [settings, setSettings] = useSettings(isSplashMode, onboarding);
 
   const [model, setModel] = useState<string | null>(
     isSplashMode || isCloudModel(settings.modelName) ? null : settings.modelName,

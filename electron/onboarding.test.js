@@ -133,6 +133,14 @@ describe("wired into the boot", () => {
     expect(created.slice(0, created.indexOf("\n}"))).toContain("?onboarding=true");
   });
 
+  it("keeps a new install off the network until its setup is done", () => {
+    // The filter lists come from three hosts; a new install fetches them only after choosing.
+    expect(ready).toContain('if (onboardingPlan !== "show") startAdblocker();');
+    expect(ready).not.toContain("adblocker.primeAdblocker(");
+    const complete = main.slice(main.indexOf('ipcMain.handle("onboarding:complete"'));
+    expect(complete.slice(0, complete.indexOf("\n});"))).toContain("startAdblocker();");
+  });
+
   it("records an existing install as adopted", () => {
     const decide = main.slice(main.indexOf("function decideOnboarding()"));
     const body = decide.slice(0, decide.indexOf("\n}"));

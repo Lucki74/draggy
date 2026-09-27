@@ -288,6 +288,19 @@ function adblockEnabled() {
   }
 }
 
+let adblockerStarted = false;
+
+/** The filter lists come from GitHub and two list hosts, so a new install fetches them only once
+ * its setup is over: before a choice, the only request is the connectivity check. */
+function startAdblocker() {
+  if (adblockerStarted) return;
+  adblockerStarted = true;
+  adblocker.primeAdblocker(app.getPath("userData"));
+  applyAdblockSetting().catch((error) =>
+    log.warn("adblocker", `could not apply the setting: ${error.message}`),
+  );
+}
+
 async function applyAdblockSetting() {
   const ses = getWebSession();
   const userData = app.getPath("userData");
@@ -850,10 +863,7 @@ app.whenReady().then(() => {
   // session below is left with whatever policy each site sends for itself.
   applyContentSecurityPolicy(session.defaultSession, !isDevelopment());
 
-  adblocker.primeAdblocker(app.getPath("userData"));
-  applyAdblockSetting().catch((error) =>
-    log.warn("adblocker", `could not apply the setting: ${error.message}`),
-  );
+  if (onboardingPlan !== "show") startAdblocker();
 
   session.defaultSession.setPermissionRequestHandler(
     (contents, permission, callback, details) => {
@@ -999,6 +1009,7 @@ ipcMain.handle("onboarding:complete", (event, setupPath) => {
   const record = onboarding.doneRecord(setupPath, new Date(), readOnboardingRecord()?.startedAt);
   writeOnboardingRecord(record);
   onboardingPlan = "done";
+  startAdblocker();
   return { success: true, record };
 });
 

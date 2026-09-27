@@ -59,7 +59,9 @@ export function loadSettings(): AppSettings {
 
 /** The settings object and everything that has to happen when it changes: saved in both places,
  * pushed to the main process, and applied to the document. */
-export function useSettings(isSplashMode: boolean) {
+/** `holdUpdates` keeps the updaters unscheduled while the first-run setup is showing: nothing may
+ * reach the network before the user has chosen, and they choose on its Preferences step. */
+export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
 
   useEffect(() => {
@@ -84,11 +86,11 @@ export function useSettings(isSplashMode: boolean) {
   // The main process owns the update schedule, so it has to be told what the
   // setting says, at startup as much as when it is changed.
   useEffect(() => {
-    if (isSplashMode) return;
+    if (isSplashMode || holdUpdates) return;
     window.electronAPI?.updater
       .configure({ automatic: settings.autoUpdate, channel: settings.updateChannel })
       .catch(() => undefined);
-  }, [settings.autoUpdate, settings.updateChannel, isSplashMode]);
+  }, [settings.autoUpdate, settings.updateChannel, isSplashMode, holdUpdates]);
 
   // Matching the system means following it while the app is open, not just reading it once.
   useEffect(() => {
