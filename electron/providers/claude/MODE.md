@@ -131,7 +131,8 @@ Draggy's tools are an SDK-type MCP server that Draggy itself answers; no second 
   later. Measured: the new process sent the earlier exchange as proper history. This needs session
   persistence, which writes the conversation as plain-text `.jsonl` under
   `<CLAUDE_CONFIG_DIR>/projects/`. `--no-session-persistence` writes nothing, but then a stopped
-  process means a reseed. **Question for the maintainer:** persist (deleted with the chat) or not.
+  process means a reseed. **Decided by the maintainer (2026-09-27):** a conversation must resume normally, as with a local
+  model, so sessions are persisted in the private folder and deleted with the chat.
 - **Rewind for edit and regenerate:** `--resume <id> --resume-session-at=<assistant uuid>
   --fork-session`. Measured: the request carried only the history up to that reply plus the new
   message, under a new session id. So an edit or a regenerate needs no reseed.

@@ -12,8 +12,23 @@ listed at the end, for the Phase 2b checklist.
 
 - The maintainer confirmed on **2026-09-26** that Google allows a third-party app to offer Gemini
   sign-in with a Google account through the official Gemini CLI. Not re-checked, by instruction.
-- **Data use per tier, for the privacy policy: not recorded.** The spike was told not to look up
-  vendor terms, and Google's privacy notice for the CLI is one. The maintainer writes this wording.
+- **Data use, as given by the maintainer on 2026-09-27** from the Gemini Apps Privacy Notice (last
+  updated 2026-06-29), for the privacy policy's wording; not looked up by the spike:
+  - Prompts count as "information you provide". Google uses it to provide, maintain and improve its
+    services, develop new ones, personalize them, measure performance and protect Google, its users
+    and the public, including for the generative models behind them.
+  - Human reviewers, some from service providers, read some of it; users are told not to enter
+    anything confidential.
+  - Activity on: chats are kept and used to improve services, including training models, and are
+    auto-deleted after 18 months by default (3 or 36 months, or never). Activity off: not used for
+    training unless the user sends feedback, but kept 72 hours. Reviewed chats: kept up to 3 years,
+    disconnected from the account, even after deletion. Not used for ads.
+  - **To confirm:** a personal Google account signed in through the Gemini CLI may fall under the
+    notice for Gemini Code Assist for individuals rather than Gemini Apps. The policy should cite the
+    one that applies.
+- **Resuming:** decided by the maintainer (2026-09-27): a conversation must resume normally, as
+  with a local model. Since `session/load` did not work in the spike, the adapter reseeds whenever it
+  cannot load, so the user never notices.
 
 ## 2. Install and launch
 

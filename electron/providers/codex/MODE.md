@@ -212,7 +212,7 @@ Needed, at `initialize` (`capabilities.experimentalApi: true`). Measured: withou
   per `CODEX_HOME` or shared with the user's own Codex could not be checked without signing in.
   A shared entry would mean reading another app's keychain item (hard rule 11). The Codex keyring
   entry for auth itself is `Codex Auth` / `cli|<hash of CODEX_HOME>` (per instance).
-  **Question for the maintainer:** file storage in the private folder, or keyring once verified.
+  **Decided by the maintainer (2026-09-27):** file storage in the private folder.
 
 ## 8. Runtime and process
 
