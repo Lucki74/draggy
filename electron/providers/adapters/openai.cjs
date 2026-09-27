@@ -23,7 +23,8 @@ function buildRequest(body, { baseUrl, apiKey, headers, entry }, modelId) {
 
   const think = body.think ?? body.chat_template_kwargs?.enable_thinking;
   const level = LEVELS.has(body.thinking_level) ? body.thinking_level : "medium";
-  if (quirks.reasoningEffort && think === true) payload.reasoning_effort = level;
+  // A reasoning model always reasons; "low" is the least the pill can ask, never an omitted default.
+  if (quirks.reasoningEffort && typeof think === "boolean") payload.reasoning_effort = think ? level : "low";
   if (quirks.enableThinking && typeof think === "boolean") payload.enable_thinking = think;
   if (quirks.templateKwargs && body.chat_template_kwargs) payload.chat_template_kwargs = body.chat_template_kwargs;
   if (quirks.templateKwargs && body.response_format) payload.response_format = body.response_format;

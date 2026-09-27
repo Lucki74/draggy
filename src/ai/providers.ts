@@ -5,7 +5,7 @@ export type ModelRef =
   | { kind: "builtin"; file: string }
   | { kind: "remote"; instanceId: string; modelId: string; valid: boolean };
 
-import type { Message } from "../types";
+import type { Message, ProviderModel } from "../types";
 
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
 export interface ProviderState {
@@ -39,6 +39,53 @@ export function providerOf(model: string): string | null {
 
 export function chatEndpoint(_model: string): string {
   return CHAT_ENDPOINT;
+}
+
+/** A provider's model as its provider lists it; null when the provider is gone, off or unreachable. */
+export async function remoteModelInfo(model: string): Promise<ProviderModel | null> {
+  const ref = parseRef(model);
+  if (ref.kind !== "remote" || !ref.valid || typeof window === "undefined") return null;
+  try {
+    const answer = await window.electronAPI?.providers?.models(ref.instanceId);
+    return answer?.success ? (answer.models.find((m) => m.id === ref.modelId) ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface ModelGroup {
+  instanceId: string;
+  label: string;
+  kind: "cloud" | "local";
+  models: ProviderModel[];
+}
+
+/** Every enabled provider's ticked models, under its label; the engine's own come from `listInstalledModels`.
+ * A ticked model its listing lacks still shows, knowing nothing, so an offline provider keeps its place. */
+export async function listAllModels(): Promise<ModelGroup[]> {
+  const api = typeof window === "undefined" ? undefined : window.electronAPI?.providers;
+  if (!api) return [];
+  const instances = (await api.list().catch(() => [])).filter((instance) => instance.enabled);
+  return Promise.all(
+    instances.map(async (instance) => {
+      const answer = await api.models(instance.id).catch(() => null);
+      const listed = answer?.success ? answer.models : [];
+      const models = instance.pinnedModels.map(
+        (id) =>
+          listed.find((model) => model.id === id) ?? {
+            id,
+            ref: `@${instance.id}/${id}`,
+            contextLength: null,
+            maxOutputTokens: null,
+            capabilities: ["completion"],
+            cloud: instance.kind === "cloud",
+            pinned: true,
+            override: null,
+          },
+      );
+      return { instanceId: instance.id, label: instance.label, kind: instance.kind, models };
+    }),
+  );
 }
 
 /** The engine gets no provider fields, so its bodies stay byte-identical; a provider gets only the

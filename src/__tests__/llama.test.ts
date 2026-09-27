@@ -280,6 +280,16 @@ describe("a provider's model, which the engine never holds", () => {
     expect(gguf.listModels).not.toHaveBeenCalled();
   });
 
+  it("is described by its provider's listing instead", async () => {
+    const gguf = { listModels: vi.fn() };
+    const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"] }] })) };
+    vi.stubGlobal("window", { electronAPI: { gguf, providers } });
+    expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null });
+    expect(providers.models).toHaveBeenCalledWith("openai");
+    expect(gguf.listModels).not.toHaveBeenCalled();
+    forgetModelInfo("@openai/gpt-x");
+  });
+
   it("gets its whole window at once, with no buckets and nothing fixed", () => {
     expect(contextSizeFor("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
     expect(peekContextSize("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);

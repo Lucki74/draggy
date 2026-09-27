@@ -1,5 +1,5 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
-import { isRemote } from "./ai/providers";
+import { isRemote, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
@@ -132,10 +132,17 @@ export async function recalledCapabilities(model: string): Promise<string[]> {
 }
 
 export function getModelInfo(model: string): Promise<ModelInfo | null> {
-  // A provider's models are listed by the provider, from Phase 1; until then nothing is known.
-  if (isRemote(model)) return Promise.resolve(null);
   const cached = modelInfoCache.get(model);
   if (cached) return cached;
+  // A provider's model is described by its provider's listing, which main keeps for a day.
+  if (isRemote(model)) {
+    const remote = remoteModelInfo(model).then((found) => {
+      if (!found) modelInfoCache.delete(model);
+      return found ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null } : null;
+    });
+    modelInfoCache.set(model, remote);
+    return remote;
+  }
 
   const pending = fetchModelInfo(model).then(async (value) => {
     if (value === null) {

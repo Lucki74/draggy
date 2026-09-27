@@ -70,6 +70,9 @@ describe("the request that leaves", () => {
 
   it("maps the thinking pill per provider", () => {
     expect(payloadOf(openai.buildRequest(RENDERER_BODY, connection("openai"), "gpt-5.5")).reasoning_effort).toBe("high");
+    const off = { ...RENDERER_BODY, think: false, thinking_level: "low", chat_template_kwargs: { enable_thinking: false } };
+    expect(payloadOf(openai.buildRequest(off, connection("openai"), "gpt-5.5")).reasoning_effort).toBe("low");
+    expect(payloadOf(openai.buildRequest({ ...RENDERER_BODY, think: undefined, chat_template_kwargs: undefined }, connection("openai"), "gpt-4o")).reasoning_effort).toBeUndefined();
     expect(payloadOf(openai.buildRequest(RENDERER_BODY, connection("qwen"), "qwen3-max")).enable_thinking).toBe(true);
     const local = payloadOf(openai.buildRequest(RENDERER_BODY, connection("llamacpp", { apiKey: "" }), "m"));
     expect(local.chat_template_kwargs).toEqual({ enable_thinking: true });

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { chatEndpoint, draggyRef, isRemote, parseRef, providerOf, scopeToTarget } from "../ai/providers";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { chatEndpoint, draggyRef, isRemote, listAllModels, parseRef, providerOf, remoteModelInfo, scopeToTarget } from "../ai/providers";
 import { toLlamaMessages } from "../ai/llamaStream";
 
 describe("model references", () => {
@@ -102,5 +102,43 @@ describe("each stored message's reference", () => {
     const wire = [{ role: "user", content: "hi", draggy_ref: { id: "m1", hash: "h" } }];
     expect(toLlamaMessages(wire, "Qwen3.5-9B-Q4_K_M.gguf")).toEqual([{ role: "user", content: "hi" }]);
     expect(toLlamaMessages(wire, "@codex/gpt-x")).toEqual(wire);
+  });
+});
+
+describe("the models the menus offer", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const listed = (id: string, extra = {}) => ({ id, ref: `@openai/${id}`, contextLength: 400000, maxOutputTokens: null, capabilities: ["completion", "tools"], cloud: true, pinned: true, override: null, ...extra });
+
+  function stub(listing: { success: boolean; models?: unknown[] }) {
+    const models = vi.fn(async () => listing);
+    vi.stubGlobal("window", {
+      electronAPI: {
+        providers: {
+          list: async () => [
+            { id: "openai", label: "OpenAI", kind: "cloud", enabled: true, pinnedModels: ["gpt-5.5", "gone"] },
+            { id: "groq", label: "Groq", kind: "cloud", enabled: false, pinnedModels: ["x"] },
+          ],
+          models,
+        },
+      },
+    });
+    return models;
+  }
+
+  it("groups only enabled providers' ticked models, and keeps a ticked one the listing lacks", async () => {
+    stub({ success: true, models: [listed("gpt-5.5"), listed("gpt-4o", { pinned: false })] });
+    const groups = await listAllModels();
+    expect(groups.map((g) => [g.instanceId, g.label, g.models.map((m) => m.ref)])).toEqual([["openai", "OpenAI", ["@openai/gpt-5.5", "@openai/gone"]]]);
+    expect(groups[0].models[1]).toMatchObject({ capabilities: ["completion"], cloud: true });
+  });
+
+  it("describes a provider's model from its listing, and nothing when it cannot be reached", async () => {
+    const models = stub({ success: true, models: [listed("gpt-5.5")] });
+    expect(await remoteModelInfo("@openai/gpt-5.5")).toMatchObject({ contextLength: 400000, capabilities: ["completion", "tools"] });
+    expect(models).toHaveBeenCalledWith("openai");
+    stub({ success: false });
+    expect(await remoteModelInfo("@openai/gpt-5.5")).toBeNull();
+    expect(await remoteModelInfo("model.gguf")).toBeNull();
   });
 });

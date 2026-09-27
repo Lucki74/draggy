@@ -23,15 +23,15 @@ import type {
 
 const MODEL = "test-model";
 
-// Phase 1 lists a provider's models with what they can do; until then this one stands in, with tools.
+// Main lists a provider's models with what they can do; these stand in, one with tools and one thinking.
 const TOOL_PROVIDER_MODEL = "@anthropic/claude-tools";
 vi.mock("../llama", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../llama")>();
   return {
     ...actual,
     getModelInfo: (model: string) =>
-      model === "@anthropic/claude-tools"
-        ? Promise.resolve({ contextLength: 200000, capabilities: ["tools"], parameterCount: null, quantization: null })
+      model === "@anthropic/claude-tools" || model === "@openai/thinker"
+        ? Promise.resolve({ contextLength: 200000, capabilities: model.endsWith("thinker") ? ["tools", "thinking"] : ["tools"], parameterCount: null, quantization: null })
         : actual.getModelInfo(model),
   };
 });
@@ -1742,6 +1742,15 @@ describe("a tool call the model got wrong", () => {
     expect(toolCalls).toEqual([{ name: "search_web", args: { query: "paris" } }]);
   });
 
+  it("is never asked for again from a provider, where a repair would double the turn's cost", async () => {
+    const { repairs } = installFetch([{ content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] }, { content: ["Paris."] }], null, undefined, GOOD);
+    await runAgentTurn(
+      { model: "@openai/unlisted", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("where is Paris")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+    expect(repairs).toEqual([]);
+  });
+
   it("constrains the repair to the tools that exist", async () => {
     const { repairs } = await textModeFetch(
       [
@@ -2110,6 +2119,27 @@ describe("a provider's model", () => {
     expect(result.textContent).toBe("Hi");
     expect(starts).toEqual([]);
     expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");
+  });
+});
+
+describe("the thinking pill's level", () => {
+  const turn = (model: string) =>
+    runAgentTurn(
+      { model, settings: { ...SETTINGS, thinkingMode: "high" }, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+
+  it("reaches a provider, which maps it to its own parameter", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], []);
+    await turn("@openai/thinker");
+    expect(requests[0]).toMatchObject({ think: true, thinking_level: "high" });
+  });
+
+  it("never reaches the engine, whose body stays as it was", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], ["tools", "thinking"]);
+    await turn(MODEL);
+    expect(requests[0]).toMatchObject({ think: true });
+    expect("thinking_level" in requests[0]).toBe(false);
   });
 });
 

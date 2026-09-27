@@ -789,7 +789,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     definitions: ToolDefinition[],
     abort: AbortSignal,
   ): Promise<RepairedCall> {
-    if (repairsLeft <= 0) return {};
+    // A repair resends the whole conversation: on a provider that doubles the turn's cost, for calls hosted models rarely break.
+    if (repairsLeft <= 0 || isRemote(model)) return {};
     repairsLeft--;
 
     try {
@@ -1048,6 +1049,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         ...(hasThinkingCapability
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
           : {}),
+        // The pill's level, for a provider that takes one; the engine's body stays as it always was.
+        ...(hasThinkingCapability && isRemote(model) ? { thinking_level: settings.thinkingMode } : {}),
         ...(nativeTools ? { tools: definitions } : {}),
       });
 
