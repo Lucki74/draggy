@@ -119,7 +119,18 @@ describe("wired into the boot", () => {
     expect(decided).toBeGreaterThan(ready.indexOf("storage.init("));
     expect(decided).toBeGreaterThan(ready.indexOf("adoptLegacyDataFolder()"));
     expect(decided).toBeLessThan(ready.indexOf("createSplashWindow()"));
-    expect(decided).toBeLessThan(ready.indexOf("createWindow()"));
+    expect(decided).toBeLessThan(ready.indexOf("createWindow("));
+  });
+
+  it("opens a new install on the setup, with the boot already counted as finished", () => {
+    const show = ready.slice(ready.indexOf('if (onboardingPlan === "show") {'));
+    const branch = show.slice(0, show.indexOf("} else {"));
+    expect(branch).toContain("createWindow({ onboarding: true })");
+    expect(branch).not.toContain("createSplashWindow()");
+    expect(branch.indexOf("bootCompleted = true")).toBeGreaterThan(-1);
+    expect(branch.indexOf("bootCompleted = true")).toBeLessThan(branch.indexOf("createWindow("));
+    const created = main.slice(main.indexOf("function createWindow("));
+    expect(created.slice(0, created.indexOf("\n}"))).toContain("?onboarding=true");
   });
 
   it("records an existing install as adopted", () => {

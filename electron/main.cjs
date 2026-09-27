@@ -686,7 +686,9 @@ function createSplashWindow() {
 const MIN_WINDOW_WIDTH = 760;
 const MIN_WINDOW_HEIGHT = 480;
 
-function createWindow() {
+/** With `onboarding`, the window opens straight away on the first-run setup instead of waiting behind
+ * the splash for the boot to finish. */
+function createWindow({ onboarding: showSetup = false } = {}) {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
@@ -694,7 +696,7 @@ function createWindow() {
     height: 800,
     minWidth: Math.min(MIN_WINDOW_WIDTH, screenWidth),
     minHeight: Math.min(MIN_WINDOW_HEIGHT, screenHeight),
-    show: false,
+    show: showSetup,
     backgroundColor: windowBackground(),
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
@@ -778,10 +780,11 @@ function createWindow() {
 
   logger.attachWindow(mainWindow, "main");
 
+  const query = showSetup ? "?onboarding=true" : "";
   if (isDevelopment()) {
-    mainWindow.loadURL("http://127.0.0.1:5173");
+    mainWindow.loadURL(`http://127.0.0.1:5173/${query}`);
   } else {
-    mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html`);
+    mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
   }
 }
 
@@ -865,8 +868,14 @@ app.whenReady().then(() => {
     },
   );
 
-  createSplashWindow();
-  createWindow();
+  if (onboardingPlan === "show") {
+    // No splash to close later: without this, a second launch would look for one that never existed.
+    bootCompleted = true;
+    createWindow({ onboarding: true });
+  } else {
+    createSplashWindow();
+    createWindow();
+  }
 
   updater.init(app, (state) => broadcast("updater-state", state));
 

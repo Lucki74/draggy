@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import StartupScreen from "./StartupScreen";
+import Onboarding from "./onboarding/Onboarding";
 import AppShell from "./app/AppShell";
 import { useSettings } from "./app/settings";
 import { isCloudModel, warmModel } from "./llama";
@@ -11,6 +12,7 @@ import { registerExploreTools } from "./tools/explore";
 import { registerGitTools } from "./tools/git";
 import { registerCommandTools } from "./tools/commands";
 import { KEEP_ALIVE } from "./agent/agentLoop";
+import type { AppSettings } from "./types";
 
 registerBuiltinTools();
 registerFileTools();
@@ -25,6 +27,8 @@ registerCommandTools();
 export default function App() {
   const isSplashMode = window.location.search.includes("splash=true");
   const [settings, setSettings] = useSettings(isSplashMode);
+  // Main loads the page this way only for a new install; finishing drops it, so a reload opens the app.
+  const [onboarding, setOnboarding] = useState(() => window.location.search.includes("onboarding=true"));
 
   const [model, setModel] = useState<string | null>(
     isSplashMode || isCloudModel(settings.modelName) ? null : settings.modelName,
@@ -60,6 +64,24 @@ export default function App() {
     },
     [setSettings, settings.fixedContextSize],
   );
+
+  const updateSettings = useCallback(
+    (patch: Partial<AppSettings>) => setSettings((prev) => ({ ...prev, ...patch })),
+    [setSettings],
+  );
+
+  const handleOnboardingFinish = useCallback(
+    (selectedModel: string) => {
+      window.history.replaceState(null, "", window.location.pathname);
+      setOnboarding(false);
+      handleModelReady(selectedModel);
+    },
+    [handleModelReady],
+  );
+
+  if (onboarding) {
+    return <Onboarding settings={settings} onUpdateSettings={updateSettings} onFinish={handleOnboardingFinish} />;
+  }
 
   if (isSplashMode) {
     return (

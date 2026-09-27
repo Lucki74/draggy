@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import Onboarding from "../onboarding/Onboarding";
+import App from "../App";
+import { installFakeElectronApi } from "./helpers/electronApi";
 import { THEME_PALETTES } from "../onboarding/palettes";
 import { defaultSettings } from "../app/settings";
 import { translations } from "../translations";
@@ -215,5 +217,34 @@ describe("the appearance cards", () => {
       expect(light, token).toContain(`${token}: ${THEME_PALETTES.light[key as keyof typeof tokens]};`);
       expect(dark, token).toContain(`${token}: ${THEME_PALETTES.dark[key as keyof typeof tokens]};`);
     }
+  });
+});
+
+describe("from the setup into the app", () => {
+  it("lands in the app on Start, and a reload would no longer open the setup", async () => {
+    installFakeElectronApi();
+    const fake = window.electronAPI as unknown as Record<string, unknown>;
+    const machine = freshMachine();
+    const parts = machine.api as unknown as Record<string, unknown>;
+    for (const key of Object.keys(parts)) fake[key] = parts[key];
+    (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+    window.history.pushState(null, "", "/?onboarding=true");
+
+    render(<App />);
+    await screen.findByRole("heading", { name: en("onbWelcomeTitle") });
+    await toLocalStep();
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbReadyTitle") });
+    await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
+    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
+    await waitFor(() => expect(start.disabled).toBe(false));
+    fireEvent.click(start);
+
+    expect(await screen.findByRole("button", { name: "Settings" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: en("onbReadyTitle") })).toBeNull();
+    expect(window.location.search).toBe("");
+    expect(machine.api.onboarding.complete).toHaveBeenCalledWith("local");
   });
 });

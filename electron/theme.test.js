@@ -35,7 +35,7 @@ describe("the window colour before the page paints", () => {
 
   it("gives both of Draggy's own windows that colour, and keeps it in step with a saved change", () => {
     const main = fs.readFileSync(path.join(HERE, "main.cjs"), "utf8");
-    for (const fn of ["function createSplashWindow()", "function createWindow()"]) {
+    for (const fn of ["function createSplashWindow()", "function createWindow("]) {
       const body = main.slice(main.indexOf(fn));
       expect(body.slice(0, body.indexOf("\n}")), fn).toContain("backgroundColor: windowBackground()");
     }
