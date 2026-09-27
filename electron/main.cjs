@@ -1483,6 +1483,8 @@ ipcMain.handle("gguf:status", async () => {
     ready: Boolean(engine.binaryPath) && (engine.runnerType !== "cpu" || !wantsGpu),
     runnerType: engine.runnerType,
     engineBuild: binaryManager.readEngineMeta(binaryManager.engineDir(app.getPath("userData"))).tag || null,
+    // Where a download lands, so the first-run setup can say so before it starts one.
+    modelsDir: ggufModelsDir(),
   };
 });
 

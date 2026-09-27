@@ -362,6 +362,7 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  tone = "danger",
 }: {
   title: string;
   body: string;
@@ -369,6 +370,8 @@ export function ConfirmDialog({
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Red for what cannot be undone; the primary look for a choice that only goes ahead. */
+  tone?: "danger" | "primary";
 }) {
   return (
     <div
@@ -385,7 +388,11 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-lg bg-red-500 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-600"
+            className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+              tone === "danger"
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "bg-[var(--bg-inverted)] text-[var(--text-inverted)] hover:opacity-90"
+            }`}
           >
             {confirmLabel}
           </button>

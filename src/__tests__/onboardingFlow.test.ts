@@ -34,7 +34,7 @@ describe("when a screen may be left", () => {
   });
 
   it("lets an installed model through offline, since nothing downloads", () => {
-    const choice = { reference: "m.gguf", fitsOnDisk: true, installed: true };
+    const choice = { reference: "m.gguf", fitsOnDisk: true, installed: "m.gguf" };
     expect(canContinue("local", { ...blank, choice, online: false })).toBe(true);
   });
 

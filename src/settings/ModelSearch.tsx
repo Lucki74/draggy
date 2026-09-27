@@ -51,10 +51,13 @@ interface ModelSearchProps {
   onPick: (reference: string, bytes?: number) => void;
   /** Beside the search field, like the Models page's downloads menu. */
   trailing?: React.ReactNode;
+  /** The variant chosen in the setup, marked as pressed; the Models page leaves it unset. */
+  picked?: string;
+  pickLabel?: string;
   t: (key: string) => string;
 }
 
-export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, trailing, t }: ModelSearchProps) {
+export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, trailing, picked, pickLabel, t }: ModelSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LibraryModel[]>([]);
   const [searching, setSearching] = useState(false);
@@ -179,6 +182,8 @@ export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, tra
                           vram={vram}
                           unifiedMemory={unifiedMemory}
                           phase={phaseFor(reference)}
+                          picked={picked === undefined ? undefined : picked === reference}
+                          pickLabel={pickLabel}
                           onPull={() => onPick(reference, sizes[reference])}
                           t={t}
                         />
@@ -201,6 +206,8 @@ function Variant({
   vram,
   unifiedMemory,
   phase,
+  picked,
+  pickLabel,
   onPull,
   t,
 }: {
@@ -210,6 +217,8 @@ function Variant({
   unifiedMemory: boolean;
   /** Set while this variant is already downloading or waiting in the queue. */
   phase?: PullState["phase"];
+  picked?: boolean;
+  pickLabel?: string;
   onPull: () => void;
   t: (key: string) => string;
 }) {
@@ -239,9 +248,12 @@ function Variant({
         <button
           type="button"
           onClick={onPull}
-          className="px-3 py-1.5 rounded-lg bg-[var(--bg-inverted)] text-[var(--text-inverted)] text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex-shrink-0"
+          aria-pressed={picked}
+          className={`px-3 py-1.5 rounded-lg bg-[var(--bg-inverted)] text-[var(--text-inverted)] text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex-shrink-0 ${
+            picked ? "ring-2 ring-offset-2 ring-[var(--text-main)] ring-offset-[var(--bg-base)]" : ""
+          }`}
         >
-          {t("download")}
+          {pickLabel ?? t("download")}
         </button>
       )}
     </div>

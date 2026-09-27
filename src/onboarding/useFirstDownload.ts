@@ -30,6 +30,8 @@ export interface FirstDownload {
   chooseModel(reference: string, installed?: string): void;
   retry(): void;
   cancelAll(): void;
+  /** Settles once no engine setup is running, so Skip never starts a second one beside it. */
+  engineIdle(): Promise<void>;
 }
 
 const ENGINE_LABEL = "AI Engine";
@@ -156,5 +158,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     setModel(IDLE_MODEL);
   }, []);
 
-  return { engine, model, chooseModel, retry, cancelAll };
+  const engineIdle = useCallback(() => engineRef.current ?? Promise.resolve(), []);
+
+  return { engine, model, chooseModel, retry, cancelAll, engineIdle };
 }

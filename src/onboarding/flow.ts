@@ -27,7 +27,7 @@ export interface FlowState {
   /** Null while the connectivity check has not answered. */
   online: boolean | null;
   /** The model picked on the Local model step. An installed one needs no download and no network. */
-  choice: { reference: string; fitsOnDisk: boolean; installed?: boolean } | null;
+  choice: { reference: string; fitsOnDisk: boolean; installed?: string } | null;
   modelOnDisk: boolean;
   engineReady: boolean;
 }
@@ -39,7 +39,7 @@ export function canContinue(step: StepId, state: FlowState): boolean {
       return true;
     case "local":
       if (!state.choice) return false;
-      return state.choice.installed === true || (state.choice.fitsOnDisk && state.online === true);
+      return Boolean(state.choice.installed) || (state.choice.fitsOnDisk && state.online === true);
     case "ready":
       return state.modelOnDisk && state.engineReady;
   }

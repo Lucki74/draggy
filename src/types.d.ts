@@ -1126,6 +1126,7 @@ declare global {
           ready: boolean;
           runnerType?: string;
           engineBuild?: string | null;
+          modelsDir?: string;
         }>;
         setupEngine: () => Promise<{ success: boolean; runnerType?: string; error?: string }>;
         start: (options: {
