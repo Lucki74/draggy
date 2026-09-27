@@ -999,7 +999,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     logLlamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
 
     try {
-      if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+      // A provider's model has no file to load; starting the engine for it fails as a missing model.
+      if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(model)) {
         const started = await window.electronAPI.gguf.start({
           modelPath: ggufModelName(model),
           contextSize: numCtx,

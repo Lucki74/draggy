@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  streamVoiceChat,
   createThinkFilter,
   generateReply,
   isMarker,
@@ -320,5 +321,17 @@ describe("what the model is given to answer from", () => {
       snippet: "s",
     }));
     expect(summariseResults(many).split("\n")).toHaveLength(5);
+  });
+});
+
+describe("a voice reply from a provider's model", () => {
+  it("never starts the engine", async () => {
+    const start = vi.fn(async () => ({ success: true }));
+    vi.stubGlobal("window", { electronAPI: { gguf: { start } } });
+    installChat([["Hello"]]);
+    const deltas: string[] = [];
+    await streamVoiceChat({ model: "@anthropic/claude-x", messages: [{ role: "user", content: "hi" }], onDelta: (delta) => void deltas.push(delta) });
+    expect(start).not.toHaveBeenCalled();
+    expect(deltas.join("")).toBe("Hello");
   });
 });

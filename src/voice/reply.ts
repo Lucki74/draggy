@@ -4,7 +4,7 @@ import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { ggufErrorMessage, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
-import { chatEndpoint } from "../ai/providers";
+import { chatEndpoint, isRemote } from "../ai/providers";
 
 /** Turns a question into words to say, handing text on the instant it can. Only the first seven
  * characters wait, in case they become a "SEARCH:" marker. */
@@ -115,7 +115,7 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
 }
 
 async function streamVoice(options: StreamOptions): Promise<void> {
-  if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+  if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(options.model)) {
     const started = await window.electronAPI.gguf.start({ modelPath: ggufModelName(options.model) });
     if (!started?.success && !started?.alreadyRunning) {
       throw new Error(engineFailure(started));

@@ -2055,3 +2055,23 @@ describe("aborting during tool calls", () => {
   });
 });
 
+describe("a provider's model", () => {
+  it("never starts the engine, and names the model whole in the request", async () => {
+    const { requests, starts } = installFetch([{ content: ["Hi"] }], []);
+    const host = makeHost();
+    const result = await runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      host.host,
+    );
+    expect(result.textContent).toBe("Hi");
+    expect(starts).toEqual([]);
+    expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");
+  });
+});
