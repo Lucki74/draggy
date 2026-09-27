@@ -651,6 +651,71 @@ export interface OnboardingRecord {
   completedAt?: string;
 }
 
+/** A provider's failure by kind, as main names it; `providerMessage` is the provider's own words. */
+export interface ProviderFailure {
+  kind: string;
+  status?: number;
+  message?: string;
+  providerMessage?: string;
+  retryAfter?: number;
+}
+
+export type ProviderCapability = "tools" | "vision" | "thinking";
+
+/** One provider the user set up, as main shows it: whether a key is stored, never the key. */
+export interface ProviderInstance {
+  id: string;
+  type: string;
+  label: string;
+  name: string;
+  kind: "cloud" | "local";
+  protocol: string;
+  baseUrl: string;
+  enabled: boolean;
+  pinnedModels: string[];
+  promptProfile: "auto" | "compact" | "full";
+  modelOverrides: Record<string, Partial<Record<ProviderCapability, boolean>>>;
+  headers?: Record<string, string>;
+  hasKey: boolean;
+  keyHint: string;
+  needsKey: boolean;
+}
+
+export interface ProviderCatalogEntry {
+  id: string;
+  name: string;
+  kind: "cloud" | "local";
+  protocol: string;
+  keyUrl: string | null;
+  needsKey: boolean;
+  baseUrl: string | null;
+  editableBaseUrl: boolean;
+}
+
+export interface ProviderModel {
+  id: string;
+  /** `@instance/model`, the name every model request carries. */
+  ref: string;
+  contextLength: number | null;
+  maxOutputTokens: number | null;
+  capabilities: string[];
+  /** Whether what it reads leaves this computer. */
+  cloud: boolean;
+  pinned: boolean;
+  override: Partial<Record<ProviderCapability, boolean>> | null;
+}
+
+export interface DiscoveredServer {
+  type: string;
+  name: string;
+  port: number;
+  baseUrl: string;
+  /** Named after the port's usual server, since it answered only a model listing. */
+  guessed: boolean;
+}
+
+type ProviderResult<T> = ({ success: true } & T) | { success: false; error: ProviderFailure };
+
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
@@ -1095,6 +1160,20 @@ declare global {
         complete: (path: OnboardingPath) => Promise<{ success: boolean; record?: OnboardingRecord; error?: string }>;
         /** Marks the setup as not done and relaunches into it. */
         reset: () => Promise<{ success: boolean }>;
+      };
+
+      providers: {
+        catalog: () => Promise<ProviderCatalogEntry[]>;
+        list: () => Promise<ProviderInstance[]>;
+        add: (input: { type: string; label?: string; baseUrl?: string; headers?: Record<string, string> }) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        update: (id: string, patch: Partial<Pick<ProviderInstance, "label" | "baseUrl" | "headers" | "enabled" | "pinnedModels" | "promptProfile" | "modelOverrides">>) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        remove: (id: string) => Promise<ProviderResult<object>>;
+        /** Write-only: an empty key removes it and switches the provider off. */
+        setKey: (id: string, apiKey: string) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        test: (id: string) => Promise<ProviderResult<{ count: number }>>;
+        models: (id: string, options?: { refresh?: boolean }) => Promise<ProviderResult<{ models: ProviderModel[] }>>;
+        /** Loopback only; run when the Providers page opens or on Scan, never in the background. */
+        scan: () => Promise<ProviderResult<{ servers: DiscoveredServer[] }>>;
       };
 
       appInfo: () => Promise<AppInfo>;

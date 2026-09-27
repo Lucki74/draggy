@@ -44,6 +44,9 @@ const themes = require("./theme.cjs");
 const connectivity = require("./connectivity.cjs");
 const { createGateway } = require("./providers/gateway.cjs");
 const { createRegistry } = require("./providers/registry.cjs");
+const { createModels } = require("./providers/models.cjs");
+const { createDiscovery } = require("./providers/discovery.cjs");
+const { createProviderHandlers } = require("./providers/ipc.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -880,6 +883,15 @@ app.whenReady().then(() => {
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
   providers = createRegistry({ storage, secrets });
+  const providerHandlers = createProviderHandlers({
+    registry: providers,
+    models: createModels({ registry: providers }),
+    discovery: createDiscovery({
+      excludedPorts: () => [llamaProcess.getServerStatus().port || 11435, apiServer?.port() ?? readApiServerConfig().port],
+      isDev: isDevelopment,
+    }),
+  });
+  for (const [channel, handler] of Object.entries(providerHandlers)) ipcMain.handle(channel, (event, ...args) => handler(...args));
 
   // Draggy's own storage is out of bounds to the file tools, whatever folder
   // the user has opened. The database is not a document.

@@ -154,6 +154,35 @@ describe("saving before a quit", () => {
   });
 });
 
+describe("the providers bridge", () => {
+  it("exposes exactly the Phase 1 calls, each on its own channel, and none that reads a key", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api.providers).sort()).toEqual(["add", "catalog", "list", "models", "remove", "scan", "setKey", "test", "update"]);
+    await api.providers.catalog();
+    await api.providers.list();
+    await api.providers.add({ type: "openai" });
+    await api.providers.update("openai", { enabled: true });
+    await api.providers.remove("openai");
+    await api.providers.setKey("openai", "sk-test");
+    await api.providers.test("openai");
+    await api.providers.models("openai", { refresh: true });
+    await api.providers.scan();
+
+    expect(invoked).toEqual([
+      ["providers:catalog"],
+      ["providers:list"],
+      ["providers:add", { type: "openai" }],
+      ["providers:update", "openai", { enabled: true }],
+      ["providers:remove", "openai"],
+      ["providers:set-key", "openai", "sk-test"],
+      ["providers:test", "openai"],
+      ["providers:models", "openai", { refresh: true }],
+      ["providers:scan"],
+    ]);
+  });
+});
+
 describe("the first-run setup's bridge", () => {
   it("exposes exactly the four calls the spec allows, each on its own channel", async () => {
     const { api, invoked } = loadPreload();

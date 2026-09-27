@@ -203,6 +203,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     reset: () => ipcRenderer.invoke("onboarding:reset"),
   },
 
+  // A key crosses once, into main's keystore: nothing here can read one back.
+  providers: {
+    catalog: () => ipcRenderer.invoke("providers:catalog"),
+    list: () => ipcRenderer.invoke("providers:list"),
+    add: (input) => ipcRenderer.invoke("providers:add", input),
+    update: (id, patch) => ipcRenderer.invoke("providers:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("providers:remove", id),
+    setKey: (id, apiKey) => ipcRenderer.invoke("providers:set-key", id, apiKey),
+    test: (id) => ipcRenderer.invoke("providers:test", id),
+    models: (id, options) => ipcRenderer.invoke("providers:models", id, options),
+    scan: () => ipcRenderer.invoke("providers:scan"),
+  },
+
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
   readLogs: (target, bytes) => ipcRenderer.invoke("logs:tail", target, bytes),
