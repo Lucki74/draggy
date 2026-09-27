@@ -216,7 +216,7 @@ const CSP_DIRECTIVES = [
   "font-src 'self' app: draggy: data:",
   "img-src 'self' app: draggy: data: blob: https:",
   "media-src 'self' app: draggy: data: blob:",
-  "connect-src 'self' app: draggy: draggy-ai: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
+  "connect-src 'self' app: draggy: draggy-ai: blob: data: ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
   "object-src 'none'",
   "frame-src widget:",

@@ -22,13 +22,20 @@ describe("the app's content security policy", () => {
       "font-src 'self' app: draggy: data:",
       "img-src 'self' app: draggy: data: blob: https:",
       "media-src 'self' app: draggy: data: blob:",
-      "connect-src 'self' app: draggy: draggy-ai: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
+      "connect-src 'self' app: draggy: draggy-ai: blob: data: ws://127.0.0.1:5173 http://127.0.0.1:5173",
       "worker-src 'self' app: draggy: blob:",
       "object-src 'none'",
       "frame-src widget:",
       "base-uri 'self'",
       "form-action 'none'",
     ]);
+  });
+
+  it("gives the renderer no road to the engine but the gateway", () => {
+    const connect = cspDirectives().find((directive) => directive.startsWith("connect-src ")) ?? "";
+    const loopback = connect.split(" ").filter((source) => /127\.0\.0\.1|localhost/.test(source));
+    expect(loopback).toEqual(["ws://127.0.0.1:5173", "http://127.0.0.1:5173"]);
+    expect(connect).toContain("draggy-ai:");
   });
 
   it("keeps extension widgets, the one other page on that session, from fetching anything", () => {
