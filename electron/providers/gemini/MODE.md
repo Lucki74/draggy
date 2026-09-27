@@ -91,9 +91,11 @@ by Draggy before every start:
 
 **What the CLI still adds:**
 - A `<session_context>` user message: date, OS, the project's temporary directory and workspace
-  directory (paths under the private folder, which contain the Windows user name) and, unless
-  `context.includeDirectoryTree` is false, a listing of the workspace. **Question for the
-  maintainer:** a working directory whose path has no user name, or accept it.
+  directory and, unless `context.includeDirectoryTree` is false, a listing of the workspace.
+  **Decided by the maintainer (2026-09-27): no user name reaches the model.** The temporary
+  directory lies inside `GEMINI_CLI_HOME`, so both the working folder and the private home need
+  paths without the user name (for example under `%ProgramData%\Draggy` on Windows). Check the
+  message again in Phase 2b.
 
 ## 4. Tools: Draggy's MCP server (mode B), over HTTP
 
@@ -161,8 +163,9 @@ by Draggy before every start:
 - **Workable route, unverified:** a dedicated one-off `--acp` process used only for sign-in, whose
   stdin Draggy answers with raw lines (consent, then the pasted code) instead of JSON-RPC, after
   which the credentials cached in the private home serve every later session. It depends on
-  undocumented interleaving and must be proven signed in (Phase 2b). **Question for the
-  maintainer:** accept that, or wait for a CLI version with a protocol-level sign-in.
+  undocumented interleaving and must be proven signed in (Phase 2b). **Decided by the maintainer
+  (2026-09-27): build it in Phase 2b**; if it fails on a real account, Google sign-in waits for a
+  CLI version with a protocol-level sign-in.
 - Other auth methods offered: `gemini-api-key`, `vertex-ai`, `gateway`; never used for the account
   provider.
 

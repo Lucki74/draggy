@@ -77,8 +77,9 @@ being asked. Run it on every bump, since a tool new in that version must be prov
   (`x-anthropic-billing-header: cc_version=2.1.274…; cc_entrypoint=sdk-cli;`) and the line
   "You are a Claude agent, built on Anthropic's Claude Agent SDK." Draggy's prompt follows intact.
 - An environment message in the conversation: working directory, platform, OS version, date. The
-  working directory is the private folder, whose path contains the Windows user name. **Question
-  for the maintainer:** choose a working directory without the user name, or accept it.
+  working directory is the private folder, whose path contains the Windows user name. **Decided by
+  the maintainer (2026-09-27):** run it from an empty working folder whose path has no user name
+  (for example under `%ProgramData%\Draggy` on Windows); check the message again in Phase 2b.
 - Occasionally a `<total_tokens>… tokens left</total_tokens>` system message.
 
 ## 4. Tools mode: in-process MCP over the control channel
