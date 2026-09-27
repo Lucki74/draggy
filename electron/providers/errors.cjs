@@ -43,7 +43,7 @@ function classify(status, text) {
   if (/context.?length|context window|maximum context|too many tokens|prompt is too long|reduce the length/.test(t)) return "provider-context-too-long";
   if (/content.?filter|content policy|safety|flagged|moderation/.test(t)) return "provider-refused";
   if (status === 401 || status === 403 || /invalid.?api.?key|incorrect api key|unauthorized|authentication/.test(t)) return "provider-invalid-key";
-  if (status === 404 || /model.?not.?found|does not exist|no such model|unknown model/.test(t)) return "provider-model-not-found";
+  if (status === 404 || /model\b.{0,80}\bnot.?found|does not exist|no such model|unknown model/.test(t)) return "provider-model-not-found";
   if (status === 429 || /rate.?limit/.test(t)) return "provider-rate-limited";
   return "provider-unknown-error";
 }

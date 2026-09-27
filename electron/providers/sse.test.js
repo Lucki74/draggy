@@ -85,6 +85,7 @@ describe("naming a provider's failure", () => {
     expect(fromResponse(429, body("You exceeded your current quota", { code: "insufficient_quota" })).kind).toBe("provider-no-credit");
     expect(fromResponse(429, body("Rate limit reached")).kind).toBe("provider-rate-limited");
     expect(fromResponse(404, body("The model `gpt-x` does not exist")).kind).toBe("provider-model-not-found");
+    expect(fromResponse(500, body('model "qwen3:8b" not found, try pulling it first')).kind).toBe("provider-model-not-found");
     expect(fromResponse(400, body("This model's maximum context length is 8192 tokens")).kind).toBe("provider-context-too-long");
     expect(fromResponse(403, body("Country, region, or territory not supported")).kind).toBe("provider-region-unavailable");
     expect(fromResponse(400, body("flagged by content filter")).kind).toBe("provider-refused");
