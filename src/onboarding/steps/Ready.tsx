@@ -23,7 +23,8 @@ export default function Ready({
   onEdit: (step: StepId) => void;
   download: FirstDownload;
   canStart: boolean;
-  onStart: () => void;
+  /** With a prompt, the app opens with it in the composer, not sent. */
+  onStart: (prompt?: string) => void;
   language: string;
   t: (key: string) => string;
 }) {
@@ -46,7 +47,7 @@ export default function Ready({
         ))}
       </Group>
 
-      {!canStart && (
+      {(download.model.phase !== "done" || download.engine.phase === "running") && (
         <div className="space-y-2">
           <DownloadBar download={download} large language={language} t={t} />
           <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbReadyWaiting")}</p>
@@ -54,9 +55,26 @@ export default function Ready({
       )}
 
       <div className="flex justify-center">
-        <button type="button" onClick={onStart} disabled={!canStart} className="ui-btn px-8 py-3 disabled:opacity-40 disabled:cursor-not-allowed">
+        <button type="button" onClick={() => onStart()} disabled={!canStart} className="ui-btn px-8 py-3 disabled:opacity-40 disabled:cursor-not-allowed">
           {t("onbStart")}
         </button>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbPromptsTitle")}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {[t("onbPrompt1"), t("onbPrompt2"), t("onbPrompt3")].map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => onStart(prompt)}
+              disabled={!canStart}
+              className="px-3 py-1.5 rounded-full border-2 border-[var(--border-light)] bg-[var(--bg-panel)] text-xs font-bold text-[var(--text-main)] enabled:hover:border-[var(--text-muted)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

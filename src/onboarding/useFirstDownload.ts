@@ -45,8 +45,6 @@ export interface FirstDownload {
   queueExtra(reference: string, label: string): void;
   /** Takes an extra out of the queue, or stops it and removes what it wrote. */
   dropExtra(reference: string): void;
-  /** Stops starting extras and names those not finished, for the app's own downloads to take on. */
-  handOff(): string[];
 }
 
 const ENGINE_LABEL = "AI Engine";
@@ -64,7 +62,6 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
   const extrasRef = useRef<ExtraDownload[]>([]);
   const extraControllers = useRef(new Map<string, AbortController>());
   const modelDoneRef = useRef(false);
-  const handedOffRef = useRef(false);
   const pumpRef = useRef<() => void>(() => {});
 
   const updateExtras = useCallback((change: (list: ExtraDownload[]) => ExtraDownload[]) => {
@@ -79,7 +76,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
   );
 
   const pump = useCallback(() => {
-    if (!api || !modelDoneRef.current || handedOffRef.current) return;
+    if (!api || !modelDoneRef.current) return;
     if (extrasRef.current.some((extra) => extra.phase === "downloading")) return;
     const next = extrasRef.current.find((extra) => extra.phase === "queued");
     if (!next) return;
@@ -259,12 +256,5 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     [updateExtras],
   );
 
-  const handOff = useCallback(() => {
-    handedOffRef.current = true;
-    return extrasRef.current
-      .filter((extra) => extra.phase === "queued" || extra.phase === "downloading")
-      .map((extra) => extra.reference);
-  }, []);
-
-  return { engine, model, extras, chooseModel, retry, cancelAll, engineIdle, queueExtra, dropExtra, handOff };
+  return { engine, model, extras, chooseModel, retry, cancelAll, engineIdle, queueExtra, dropExtra };
 }

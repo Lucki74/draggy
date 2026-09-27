@@ -4,7 +4,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
-import Onboarding from "../onboarding/Onboarding";
+import Onboarding, { type SetupOutcome } from "../onboarding/Onboarding";
+import { useFirstDownload } from "../onboarding/useFirstDownload";
 import App from "../App";
 import { GeneralPage } from "../settings/GeneralPages";
 import { installFakeElectronApi } from "./helpers/electronApi";
@@ -65,15 +66,17 @@ function Harness({
   onSettings,
 }: {
   language?: string;
-  onFinish: (model: string, downloads?: string[]) => void;
+  onFinish: (model: string, outcome: SetupOutcome) => void;
   onSettings?: (settings: AppSettings) => void;
 }) {
   const [settings, setSettings] = useState<AppSettings>({ ...defaultSettings, language });
+  const download = useFirstDownload(window.electronAPI);
   onSettings?.(settings);
   return (
     <Onboarding
       settings={settings}
       onUpdateSettings={(patch) => setSettings((previous) => ({ ...previous, ...patch }))}
+      download={download}
       onFinish={onFinish}
     />
   );
@@ -170,8 +173,8 @@ describe("nothing downloads before the user chooses", () => {
 });
 
 describe("finishing", () => {
-  it("opens Start once the model is on disk, and records the local path", async () => {
-    const { api, finish } = freshMachine();
+  it("opens Start once the download is under way, leaving the record to the app", async () => {
+    const { api } = freshMachine();
     const onFinish = vi.fn();
     render(<Harness onFinish={onFinish} />);
     await toLocalStep();
@@ -182,15 +185,16 @@ describe("finishing", () => {
 
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
     const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
-    expect(start.disabled).toBe(true);
-
     await waitFor(() => expect(api.gguf.downloadModel).toHaveBeenCalled());
-    finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
     await waitFor(() => expect(start.disabled).toBe(false));
+    expect(screen.getByText(en("onbReadyWaiting"))).toBeTruthy();
 
     fireEvent.click(start);
-    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", []));
-    expect(api.onboarding.complete).toHaveBeenCalledWith("local");
+    await waitFor(() =>
+      expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", expect.objectContaining({ path: "local" })),
+    );
+    // Written by the app once the model is on disk, or a quit now would skip the setup next time.
+    expect(api.onboarding.complete).not.toHaveBeenCalled();
   });
 
   it("runs the splash's own setup on Skip, and records it as skipped", async () => {
@@ -204,7 +208,9 @@ describe("finishing", () => {
     expect(within(dialog).getByText(en("onbSkipBodyInstalled"))).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: en("onbSkipConfirm") }));
 
-    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("have.gguf", []), { timeout: 4000 });
+    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("have.gguf", expect.objectContaining({ path: "skipped" })), {
+      timeout: 4000,
+    });
     expect(api.onboarding.complete).toHaveBeenCalledWith("skipped");
     expect(api.gguf.downloadModel).not.toHaveBeenCalled();
   });
@@ -314,7 +320,7 @@ describe("the preferences step", () => {
     expect(latest.thinkingMode).toBe("high");
   });
 
-  it("queues a ticked extra after the model, and hands it on if Start comes first", async () => {
+  it("queues a ticked extra behind the model", async () => {
     const { api, order, finish } = freshMachine();
     const onFinish = vi.fn();
     render(<Harness onFinish={onFinish} />);
@@ -329,10 +335,6 @@ describe("the preferences step", () => {
     finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
     // A 12 GB card gets Gemma 4 12B for voice.
     await waitFor(() => expect(order).toContain("download gemma-4-12b-it-GGUF.gguf"));
-    fireEvent.click(screen.getByRole("button", { name: en("onbStart") }));
-    await waitFor(() =>
-      expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", ["unsloth/gemma-4-12b-it-GGUF:Q4_K_M"]),
-    );
   });
 });
 
@@ -365,5 +367,67 @@ describe("an extra still downloading at Start", () => {
     await waitFor(() =>
       expect(machine.order.filter((entry) => entry === "download gemma-4-12b-it-GGUF.gguf")).toHaveLength(2),
     );
+  });
+});
+
+/** The whole app on a new install, with the fake main process standing in for the real one. */
+function freshApp() {
+  installFakeElectronApi();
+  const fake = window.electronAPI as unknown as Record<string, unknown>;
+  const machine = freshMachine();
+  const parts = machine.api as unknown as Record<string, unknown>;
+  for (const key of Object.keys(parts)) fake[key] = parts[key];
+  (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+  window.history.pushState(null, "", "/?onboarding=true");
+  render(<App />);
+  return machine;
+}
+
+async function toReady() {
+  await screen.findByRole("heading", { name: en("onbWelcomeTitle") });
+  await toLocalStep();
+  await waitFor(() => expect(continueButton().disabled).toBe(false));
+  fireEvent.click(continueButton());
+  await screen.findByRole("heading", { name: en("onbPrefsTitle") });
+  fireEvent.click(continueButton());
+  await screen.findByRole("heading", { name: en("onbReadyTitle") });
+}
+
+describe("entering the app while the model downloads", () => {
+  it("shows the download, holds the first message, and sends it once the model lands", async () => {
+    const machine = freshApp();
+    await toReady();
+    await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
+    const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
+    await waitFor(() => expect(start.disabled).toBe(false));
+    fireEvent.click(start);
+
+    const composer = (await screen.findByPlaceholderText(en("onbStillDownloading"))) as HTMLTextAreaElement;
+    expect(screen.getByText("Ministral-3-14B-Instruct-2512-GGUF.gguf", { selector: "[aria-live] *" })).toBeTruthy();
+    fireEvent.change(composer, { target: { value: "Hello" } });
+    const send = composer.closest("form")!.querySelector("button[type=submit]") as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    expect(machine.api.onboarding.complete).not.toHaveBeenCalled();
+
+    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    await waitFor(() => expect(screen.queryByPlaceholderText(en("onbStillDownloading"))).toBeNull());
+    expect(screen.queryByText("Ministral-3-14B-Instruct-2512-GGUF.gguf", { selector: "[aria-live] *" })).toBeNull();
+    expect((composer.closest("form")!.querySelector("button[type=submit]") as HTMLButtonElement).disabled).toBe(false);
+    await waitFor(() => expect(machine.api.onboarding.complete).toHaveBeenCalledWith("local"));
+  });
+
+  it("puts a suggested prompt in the composer, not sent", async () => {
+    const machine = freshApp();
+    await toReady();
+    await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
+    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    const chip = screen.getByRole("button", { name: en("onbPrompt2") }) as HTMLButtonElement;
+    await waitFor(() => expect(chip.disabled).toBe(false));
+    fireEvent.click(chip);
+
+    const composer = (await screen.findByRole("textbox")) as HTMLTextAreaElement;
+    await waitFor(() => expect(composer.value).toBe(en("onbPrompt2")));
+    expect(localStorage.getItem("draggy_mode")).toBe("chat");
+    expect(screen.queryByText(en("onbPrompt2"), { selector: ".markdown-body *" })).toBeNull();
   });
 });

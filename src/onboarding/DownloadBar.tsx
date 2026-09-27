@@ -8,11 +8,14 @@ import type { FirstDownload } from "./useFirstDownload";
 export default function DownloadBar({
   download,
   large,
+  placement = "bottom",
   language,
   t,
 }: {
   download: FirstDownload;
   large?: boolean;
+  /** Pinned under the setup's steps, or above the app's own content while it waits. */
+  placement?: "top" | "bottom";
   language: string;
   t: (key: string) => string;
 }) {
@@ -48,7 +51,7 @@ export default function DownloadBar({
   return (
     <div
       aria-live="polite"
-      className={`w-full ${large ? "ui-box p-5 space-y-3" : "border-t-2 border-[var(--border-light)] bg-[var(--bg-panel)] px-6 py-3 space-y-2"}`}
+      className={`w-full ${large ? "ui-box p-5 space-y-3" : `${placement === "top" ? "border-b-2" : "border-t-2"} border-[var(--border-light)] bg-[var(--bg-panel)] px-6 py-3 space-y-2`}`}
     >
       {error ? (
         <div className="flex items-center gap-3">

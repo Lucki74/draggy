@@ -29,7 +29,10 @@ export interface FlowState {
   /** The model picked on the Local model step. An installed one needs no download and no network. */
   choice: { reference: string; fitsOnDisk: boolean; installed?: string } | null;
   modelOnDisk: boolean;
+  /** Downloading, with its file known, so the app can open on it and wait. */
+  modelUnderWay?: boolean;
   engineReady: boolean;
+  engineUnderWay?: boolean;
 }
 
 export function canContinue(step: StepId, state: FlowState): boolean {
@@ -42,6 +45,7 @@ export function canContinue(step: StepId, state: FlowState): boolean {
       if (!state.choice) return false;
       return Boolean(state.choice.installed) || (state.choice.fitsOnDisk && state.online === true);
     case "ready":
-      return state.modelOnDisk && state.engineReady;
+      // The app can be entered while both are still arriving; it waits for them itself.
+      return (state.modelOnDisk || state.modelUnderWay === true) && (state.engineReady || state.engineUnderWay === true);
   }
 }

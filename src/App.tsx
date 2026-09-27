@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import StartupScreen from "./StartupScreen";
-import Onboarding from "./onboarding/Onboarding";
+import Onboarding, { type SetupOutcome } from "./onboarding/Onboarding";
+import { useFirstDownload } from "./onboarding/useFirstDownload";
+import { MODE_KEY } from "./app/modes";
+import { writeLocalStorage } from "./utils";
 import AppShell from "./app/AppShell";
 import { useSettings } from "./app/settings";
 import { isCloudModel, warmModel } from "./llama";
@@ -70,20 +73,66 @@ export default function App() {
     [setSettings],
   );
 
-  const [handedDownloads, setHandedDownloads] = useState<string[]>([]);
+  // Held here rather than in the setup, so a download it started carries on once the app is open.
+  const firstDownload = useFirstDownload(window.electronAPI);
+  const [waitingFor, setWaitingFor] = useState<string | null>(null);
+  const [landed, setLanded] = useState<string | null>(null);
+  const [seedPrompt, setSeedPrompt] = useState<string | undefined>();
+  const usable = firstDownload.model.phase === "done" && firstDownload.engine.phase === "done";
+
+  // The model the app opened on has arrived: remembered, then recorded and warmed below.
+  if (waitingFor && usable) {
+    setLanded(waitingFor);
+    setWaitingFor(null);
+    setSettings((prev) => (prev.modelName === waitingFor ? prev : { ...prev, modelName: waitingFor }));
+  }
+
+  useEffect(() => {
+    if (!landed) return;
+    // Only now: a record written before the model was on disk would skip the setup after a quit.
+    window.electronAPI?.onboarding?.complete("local").catch(() => undefined);
+    warmModel(landed, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
+  }, [landed, settings.fixedContextSize]);
+
+  // The optional downloads join the app's own list once the model is in, never beside it.
+  const takeOver = useMemo(
+    () =>
+      !onboarding && firstDownload.model.phase === "done"
+        ? firstDownload.extras
+            .filter((extra) => extra.phase === "queued" || extra.phase === "downloading")
+            .map((extra) => extra.reference)
+        : [],
+    [onboarding, firstDownload.model.phase, firstDownload.extras],
+  );
 
   const handleOnboardingFinish = useCallback(
-    (selectedModel: string, downloads: string[] = []) => {
+    (selectedModel: string, outcome: SetupOutcome) => {
       window.history.replaceState(null, "", window.location.pathname);
-      setHandedDownloads(downloads);
       setOnboarding(false);
-      handleModelReady(selectedModel);
+      // A suggested prompt is a chat one, so the app opens on Chat to show it.
+      if (outcome.prompt) {
+        writeLocalStorage(MODE_KEY, "chat");
+        setSeedPrompt(outcome.prompt);
+      }
+      if (outcome.path === "skipped") {
+        handleModelReady(selectedModel);
+        return;
+      }
+      setModel(selectedModel);
+      setWaitingFor(selectedModel);
     },
     [handleModelReady],
   );
 
   if (onboarding) {
-    return <Onboarding settings={settings} onUpdateSettings={updateSettings} onFinish={handleOnboardingFinish} />;
+    return (
+      <Onboarding
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        download={firstDownload}
+        onFinish={handleOnboardingFinish}
+      />
+    );
   }
 
   if (isSplashMode) {
@@ -130,7 +179,10 @@ export default function App() {
       settings={settings}
       onUpdateSettings={setSettings}
       onSelectModel={handleModelReady}
-      startDownloads={handedDownloads}
+      startDownloads={takeOver}
+      arrivingModel={waitingFor ? firstDownload : undefined}
+      seedPrompt={seedPrompt}
+      onSeedUsed={() => setSeedPrompt(undefined)}
     />
   );
 }

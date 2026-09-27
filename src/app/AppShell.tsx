@@ -48,6 +48,8 @@ import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
 import ModeSwitch from "./ModeSwitch";
 import CodeHome from "./CodeHome";
+import DownloadBar from "../onboarding/DownloadBar";
+import type { FirstDownload } from "../onboarding/useFirstDownload";
 import {
   LAST_PROJECT_KEY,
   MODE_KEY,
@@ -89,6 +91,11 @@ interface AppShellProps {
   onSelectModel: (name: string) => void;
   /** Downloads the first-run setup left unfinished, for the Downloads menu to carry on showing. */
   startDownloads?: string[];
+  /** The setup's model, still downloading: shown as a banner, and nothing is sent until it lands. */
+  arrivingModel?: FirstDownload;
+  /** A first message suggested at the end of the setup, put in the composer once. */
+  seedPrompt?: string;
+  onSeedUsed?: () => void;
 }
 
 /** The window around the screens: the sidebar, the current surface, and the two interruptions any
@@ -99,6 +106,9 @@ export default function AppShell({
   onUpdateSettings,
   onSelectModel,
   startDownloads,
+  arrivingModel,
+  seedPrompt,
+  onSeedUsed,
 }: AppShellProps) {
   const t = useTranslator(settings.language);
 
@@ -908,6 +918,9 @@ export default function AppShell({
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
+        {arrivingModel && viewMode !== "settings" && (
+          <DownloadBar download={arrivingModel} placement="top" language={settings.language} t={t} />
+        )}
         {codeHome && viewMode !== "settings" ? (
           <CodeHome
             projects={projects}
@@ -1037,6 +1050,9 @@ export default function AppShell({
             onNewChat={handleNewChat}
             surface={mode}
             skills={skills}
+            unavailable={arrivingModel ? t("onbStillDownloading") : undefined}
+            seedDraft={mode === "chat" ? seedPrompt : undefined}
+            onSeedUsed={onSeedUsed}
             settings={effectiveSettings}
             onPatchSettings={patchFromComposer}
             permissionMode={mode === "code" ? active.permissionMode : undefined}

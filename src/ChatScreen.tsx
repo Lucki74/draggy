@@ -177,6 +177,11 @@ interface ChatScreenProps {
   onInitProject?: () => void;
   /** Folds the older conversation into notes now. */
   onCompact?: () => Promise<CompactOutcome>;
+  /** Why nothing can be sent yet, such as the first model still downloading. Typing still works. */
+  unavailable?: string;
+  /** A first message suggested by the setup, used once when there is no draft of the user's own. */
+  seedDraft?: string;
+  onSeedUsed?: () => void;
   /** Asks the model how many tokens the next turn takes, draft included. */
   onMeasureContext?: (
     draft: string,
@@ -210,6 +215,9 @@ export default function ChatScreen({
   onInitProject,
   onCompact,
   onMeasureContext,
+  unavailable,
+  seedDraft,
+  onSeedUsed,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -219,8 +227,13 @@ export default function ChatScreen({
 
   const draftKey = `draft_${chat.id}`;
   const [input, setInput] = useState(
-    () => localStorage.getItem(draftKey) || "",
+    () => localStorage.getItem(draftKey) || seedDraft || "",
   );
+  // The suggestion lands in the draft once; after that the draft is the user's own.
+  useEffect(() => {
+    if (seedDraft) onSeedUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey);
 
   if (loadedDraftKey !== draftKey) {
@@ -677,6 +690,7 @@ export default function ChatScreen({
       onStopGeneration();
       return;
     }
+    if (unavailable) return;
 
     let sanitizedInput = input.trim();
     if (isBinary(sanitizedInput)) {
@@ -1074,7 +1088,7 @@ export default function ChatScreen({
                   }
                 }
               }}
-              placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`}
+              placeholder={unavailable ?? (compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`)}
               className="w-full bg-transparent px-5 pt-4 pb-2 text-[var(--text-main)] placeholder-[var(--text-muted)] font-bold resize-none overflow-y-auto focus:outline-none"
               rows={1}
               style={{ minHeight: "56px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
@@ -1341,10 +1355,10 @@ export default function ChatScreen({
                 type={chat.isGenerating ? "button" : "submit"}
                 onClick={chat.isGenerating ? () => onStopGeneration() : undefined}
                 disabled={
-                  !input.trim() &&
-                  attachedFiles.length === 0 &&
-                  !chat.isGenerating
+                  (!input.trim() && attachedFiles.length === 0 && !chat.isGenerating) ||
+                  (Boolean(unavailable) && !chat.isGenerating)
                 }
+                title={unavailable}
                 className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--bg-inverted)] text-[var(--text-inverted)] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
               >
                 {chat.isGenerating ? (

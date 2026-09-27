@@ -40,9 +40,12 @@ describe("when a screen may be left", () => {
     expect(canContinue("local", { ...blank, choice, online: false })).toBe(true);
   });
 
-  it("opens the app only once the model is on disk and the engine is ready", () => {
+  it("opens the app once the model and engine are on disk or on their way, never after a failure", () => {
     expect(canContinue("ready", { ...blank, modelOnDisk: true })).toBe(false);
     expect(canContinue("ready", { ...blank, engineReady: true })).toBe(false);
     expect(canContinue("ready", { ...blank, modelOnDisk: true, engineReady: true })).toBe(true);
+    expect(canContinue("ready", { ...blank, modelUnderWay: true, engineReady: true })).toBe(true);
+    expect(canContinue("ready", { ...blank, modelUnderWay: true, engineUnderWay: true })).toBe(true);
+    expect(canContinue("ready", { ...blank, modelUnderWay: false, engineReady: true })).toBe(false);
   });
 });

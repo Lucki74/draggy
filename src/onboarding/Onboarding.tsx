@@ -16,7 +16,7 @@ import type { AppSettings, OnboardingPath } from "../types";
 import { canContinue, nextStep, previousStep, stepsFor, type StepId } from "./flow";
 import { localeToLanguage } from "./locale";
 import { fill } from "./text";
-import { useFirstDownload } from "./useFirstDownload";
+import type { FirstDownload } from "./useFirstDownload";
 import DownloadBar from "./DownloadBar";
 import Welcome from "./steps/Welcome";
 import Appearance from "./steps/Appearance";
@@ -24,11 +24,19 @@ import LocalModel, { type ModelChoice } from "./steps/LocalModel";
 import Ready from "./steps/Ready";
 import Preferences, { type ExtraKind, type ExtraOffer } from "./steps/Preferences";
 
+export interface SetupOutcome {
+  path: OnboardingPath;
+  /** A suggested first message, for the composer, not sent. */
+  prompt?: string;
+}
+
 interface OnboardingProps {
   settings: AppSettings;
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
-  /** `downloads` are extras still unfinished, for the app's own download list to take on. */
-  onFinish: (model: string, downloads?: string[]) => void;
+  /** Held by the app, so a download started here carries on once the app has opened. */
+  download: FirstDownload;
+  /** The local path is recorded by the app once the model is on disk; Skip's is recorded here. */
+  onFinish: (model: string, outcome: SetupOutcome) => void;
 }
 
 interface Surroundings {
@@ -47,10 +55,9 @@ const CODES = languages.map((language) => language.code);
 
 /** The first-run setup, in the main window. Nothing downloads until the Local model step's Continue,
  * and Skip, on every screen, runs the splash's own automatic setup instead. */
-export default function Onboarding({ settings, onUpdateSettings, onFinish }: OnboardingProps) {
+export default function Onboarding({ settings, onUpdateSettings, download, onFinish }: OnboardingProps) {
   const t = useTranslator(settings.language);
   const api = window.electronAPI;
-  const download = useFirstDownload(api);
   const steps = useMemo(() => stepsFor("local"), []);
 
   const [step, setStep] = useState<StepId>(steps[0]);
@@ -145,9 +152,11 @@ export default function Onboarding({ settings, onUpdateSettings, onFinish }: Onb
       online,
       choice,
       modelOnDisk: download.model.phase === "done",
+      modelUnderWay: download.model.phase === "downloading" && Boolean(download.model.filename),
       engineReady: download.engine.phase === "done",
+      engineUnderWay: download.engine.phase === "running",
     }),
-    [online, choice, download.model.phase, download.engine.phase],
+    [online, choice, download.model.phase, download.model.filename, download.engine.phase],
   );
   const allowed = canContinue(step, flowState);
   const isFirst = step === steps[0];
@@ -188,11 +197,11 @@ export default function Onboarding({ settings, onUpdateSettings, onFinish }: Onb
   const back = useCallback(() => setStep((current) => previousStep(steps, current)), [steps]);
 
   const finish = useCallback(
-    async (path: OnboardingPath, model: string) => {
-      await api?.onboarding?.complete(path).catch(() => undefined);
-      onFinish(model, path === "skipped" ? [] : download.handOff());
+    async (path: OnboardingPath, model: string, prompt?: string) => {
+      if (path === "skipped") await api?.onboarding?.complete(path).catch(() => undefined);
+      onFinish(model, { path, prompt });
     },
-    [api, onFinish, download],
+    [api, onFinish],
   );
 
   const openSkip = useCallback(async () => {
@@ -354,8 +363,8 @@ export default function Onboarding({ settings, onUpdateSettings, onFinish }: Onb
                 onEdit={goTo}
                 download={download}
                 canStart={allowed}
-                onStart={() => {
-                  if (finished) void finish("local", finished);
+                onStart={(prompt) => {
+                  if (download.model.filename) void finish("local", download.model.filename, prompt);
                 }}
                 language={settings.language}
                 t={t}
