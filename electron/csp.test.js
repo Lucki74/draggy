@@ -31,6 +31,15 @@ describe("the app's content security policy", () => {
     ]);
   });
 
+  it("keeps extension widgets, the one other page on that session, from fetching anything", () => {
+    const widgets = fs.readFileSync(path.join(HERE, "widgets.cjs"), "utf8");
+    const start = widgets.indexOf('"default-src') + 1;
+    const policy = widgets.slice(start, widgets.indexOf(";", start));
+    expect(policy).toBe("default-src 'none'");
+    expect(widgets).not.toMatch(/connect-src/);
+    expect(widgets).not.toContain("draggy-ai");
+  });
+
   it("serves the gateway on the app's own session, and nowhere else", () => {
     expect(main.match(/protocol\.handle\(\s*"draggy-ai"/g)).toHaveLength(1);
     expect(main).not.toMatch(/\.protocol\.handle\(\s*"draggy-ai"/);

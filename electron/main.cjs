@@ -870,6 +870,7 @@ app.whenReady().then(() => {
     createGateway({
       enginePort: () => llamaProcess.getServerStatus().port,
       isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
+      onRefused: (origin, url) => log.warn("gateway", `refused ${url} from origin ${origin}`),
     }),
   );
 

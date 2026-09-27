@@ -8,7 +8,7 @@ const DROPPED_HEADERS = new Set(["content-length", "content-encoding", "transfer
 
 function corsHeaders(origin) {
   return {
-    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Origin": origin || "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type",
     Vary: "Origin",
@@ -76,12 +76,15 @@ async function passThrough(fetchImpl, url, contentType, text, cors) {
   return new Response(body, { status: upstream.status, statusText: upstream.statusText, headers });
 }
 
-/** `enginePort` is read on every request, since the engine can move; `isAllowedOrigin` names the
- * app's own pages, the only ones that may use a handler that will one day attach API keys. */
-function createGateway({ enginePort, isAllowedOrigin, fetchImpl = globalThis.fetch }) {
+/** `enginePort` is read on every request, since the engine can move. Electron 42 hands the handler
+ * no Origin, so the session is the boundary; an Origin, when one comes, must be the app's. */
+function createGateway({ enginePort, isAllowedOrigin, fetchImpl = globalThis.fetch, onRefused = () => {} }) {
   return async function handle(request) {
     const origin = request.headers.get("origin") || "";
-    if (!isAllowedOrigin(origin)) return errorResponse(403, "provider-unknown-error", "This origin may not use the gateway.");
+    if (origin && !isAllowedOrigin(origin)) {
+      onRefused(origin || "(none)", request.url);
+      return errorResponse(403, "provider-unknown-error", "This origin may not use the gateway.");
+    }
     const cors = corsHeaders(origin);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 

@@ -47,10 +47,17 @@ const chat = (body, origin = APP, method = "POST") =>
   });
 
 describe("who may use the gateway", () => {
-  it("refuses any origin but the app's own, and a request with none", async () => {
+  it("refuses any origin but the app's own", async () => {
     const handle = gateway();
     expect((await handle(chat("{}", "https://evil.example"))).status).toBe(403);
-    expect((await handle(chat("{}", ""))).status).toBe(403);
+    expect((await handle(chat("{}", "null"))).status).toBe(403);
+  });
+
+  it("accepts the app's own pages, which on Electron 42 send no origin at all", async () => {
+    engine.mode = "stream";
+    const response = await gateway()(chat('{"model":"m.gguf"}', ""));
+    expect(response.status).toBe(200);
+    await response.body.cancel();
   });
 
   it("answers the app's preflight for its JSON requests", async () => {
