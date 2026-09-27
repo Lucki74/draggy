@@ -79,12 +79,14 @@ export interface GatewayError {
   retryAfter?: number;
   resetsAt?: string | number;
   providerMessage?: string;
+  /** The instance's label, which the message names. */
+  provider?: string;
 }
 
 /** A gateway error, as `engineFailure` reads it: the provider's own words stay for the unknown ones. */
 export function failureOf(error: GatewayError): EngineResult {
   const params: Record<string, string> = {};
-  for (const name of ["status", "retryAfter", "resetsAt"] as const) {
+  for (const name of ["status", "retryAfter", "resetsAt", "provider"] as const) {
     if (error[name] !== undefined) params[name] = String(error[name]);
   }
   return { error: error.providerMessage || error.message || "", kind: error.kind, params };

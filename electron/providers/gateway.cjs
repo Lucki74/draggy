@@ -140,14 +140,15 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors }) {
   if (!allowed) return errorResponse(403, "provider-unknown-error", "That address is not a configured provider's.", cors);
 
   const controller = new AbortController();
-  if (!body.stream) return answerOnce(adapter, fetchImpl, request, controller.signal, cors);
+  const named = (failure) => ({ ...failure, provider: connection.instance.label });
+  if (!body.stream) return answerOnce(adapter, fetchImpl, request, controller.signal, cors, named);
 
   const stream = new ReadableStream({
     async start(out) {
       const sse = createSse(out);
       const settle = (failure) => {
         if (controller.signal.aborted) return;
-        if (failure) sse.error(failure);
+        if (failure) sse.error(named(failure));
         sse.done();
       };
       const { upstream, failure } = await fetchWithRetries(fetchImpl, request, controller.signal, (attempt, waitMs) => {
@@ -169,9 +170,9 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors }) {
 }
 
 /** The non-streaming form: the answer in llama-server's shape, or the upstream status with a named error. */
-async function answerOnce(adapter, fetchImpl, request, signal, cors) {
+async function answerOnce(adapter, fetchImpl, request, signal, cors, named) {
   const { upstream, failure } = await fetchWithRetries(fetchImpl, request, signal, () => {});
-  const fail = (f) => new Response(JSON.stringify({ error: f }), { status: f.status >= 400 ? f.status : 502, headers: { ...cors, "Content-Type": "application/json" } });
+  const fail = (f) => new Response(JSON.stringify({ error: named(f) }), { status: f.status >= 400 ? f.status : 502, headers: { ...cors, "Content-Type": "application/json" } });
   if (failure) return fail(failure);
   try {
     const answer = adapter.translateJson(await upstream.json());

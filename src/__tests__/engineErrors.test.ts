@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { articleUrl, engineFailure, engineUnreachable } from "../ai/engineErrors";
+import { failureOf } from "../ai/llamaStream";
 import { languages, translations } from "../translations";
 
 function speak(language: string) {
@@ -107,6 +108,27 @@ describe("engineFailure", () => {
   });
 });
 
+describe("a provider's failure", () => {
+  it("names the provider by its label, with the article for the kind", () => {
+    const said = engineFailure(failureOf({ kind: "provider-invalid-key", status: 401, provider: "Anthropic (API key)", providerMessage: "invalid x-api-key" }), { markdown: true });
+    expect(said).toContain("Anthropic (API key) did not accept the API key");
+    expect(said).toContain("(https://draggy.org/error/provider-invalid-key)");
+    expect(said).not.toContain("invalid x-api-key");
+  });
+
+  it("keeps the provider's own words when the kind says nothing more", () => {
+    const said = engineFailure(failureOf({ kind: "provider-unknown-error", provider: "Groq", providerMessage: "upstream fell over" }));
+    expect(said).toContain("Groq reported a problem: upstream fell over");
+    expect(said).toContain("/error/provider-unknown-error");
+  });
+
+  it("says who when no instance was named, in the reader's language", () => {
+    expect(engineFailure(failureOf({ kind: "provider-unreachable" }))).toContain("The provider could not be reached");
+    speak("fr");
+    expect(engineFailure(failureOf({ kind: "provider-no-credit", provider: "OpenAI" }))).toContain("OpenAI indique que le compte n'a plus de crédit");
+  });
+});
+
 describe("in another language", () => {
   it("answers in the reader's language and links to the article in it", () => {
     speak("fr");
@@ -130,7 +152,7 @@ describe("in another language", () => {
 });
 
 describe("the messages in every language", () => {
-  const keys = Object.keys(translations.en).filter((key) => /^engine[A-Z]/.test(key));
+  const keys = Object.keys(translations.en).filter((key) => /^(engine|provider)[A-Z]/.test(key));
   const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
   it("finds the engine messages to check", () => {

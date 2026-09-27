@@ -129,7 +129,7 @@ describe("retries and failures, as the renderer reads them", () => {
   it("gives up after two retries, and names the failure", async () => {
     upstream.replies = [0, 1, 2].map(() => fail(429, { message: "Rate limit reached" }, { "Retry-After": "0" }));
     const chunks = await read(await gateway()(chat({ ...RENDERER, model: "@custom/m" })));
-    expect(chunks.find((c) => c.error).error).toMatchObject({ kind: "provider-rate-limited", status: 429 });
+    expect(chunks.find((c) => c.error).error).toMatchObject({ kind: "provider-rate-limited", status: 429, provider: registry.get("custom").label });
     expect(upstream.requests).toHaveLength(3);
   });
 
@@ -177,7 +177,7 @@ describe("the non-streaming form", () => {
     upstream.replies = [fail(404, { message: "The model `m` does not exist" })];
     const missing = await gateway()(chat({ ...RENDERER, stream: false, model: "@custom/m" }));
     expect(missing.status).toBe(404);
-    expect((await missing.json()).error.kind).toBe("provider-model-not-found");
+    expect((await missing.json()).error).toMatchObject({ kind: "provider-model-not-found", provider: registry.get("custom").label });
     registry.update("ollama", { baseUrl: "http://127.0.0.1:9" });
     const gone = await gateway()(chat({ ...RENDERER, stream: false, model: "@ollama/m" }));
     expect(gone.status).toBe(502);

@@ -26,6 +26,15 @@ const BY_KIND: Record<string, { slug: string; key: string }> = {
   "another-model": { slug: "another-model-started", key: "engineAnotherModelStarted" },
   "engine-missing": { slug: "engine-would-not-start", key: "missingGgufEngine" },
   "port-in-use": { slug: "port-in-use", key: "enginePortInUse" },
+  "provider-unreachable": { slug: "provider-unreachable", key: "providerUnreachable" },
+  "provider-invalid-key": { slug: "provider-invalid-key", key: "providerInvalidKey" },
+  "provider-no-credit": { slug: "provider-no-credit", key: "providerNoCredit" },
+  "provider-rate-limited": { slug: "provider-rate-limited", key: "providerRateLimited" },
+  "provider-model-not-found": { slug: "provider-model-not-found", key: "providerModelNotFound" },
+  "provider-context-too-long": { slug: "provider-context-too-long", key: "providerContextTooLong" },
+  "provider-refused": { slug: "provider-refused", key: "providerRefused" },
+  "provider-region-unavailable": { slug: "provider-region-unavailable", key: "providerRegionUnavailable" },
+  "provider-unknown-error": { slug: "provider-unknown-error", key: "providerUnknownError" },
 };
 
 export interface EngineResult {
@@ -80,7 +89,9 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
     }
 
     const detail = params.reason ? `: ${params.reason}` : "";
-    return withArticle(say(language, key, { ...params, detail }), slug, language, options);
+    // A provider's failure names the provider, so "Claude (plan)" and "Anthropic (API key)" are never confused.
+    const provider = params.provider || say(language, "providerFallbackName");
+    return withArticle(say(language, key, { ...params, detail, provider, text }), slug, language, options);
   }
 
   if (!text) return withArticle(say(language, "engineWouldNotStart"), "engine-would-not-start", language, options);
