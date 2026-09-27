@@ -15,7 +15,7 @@ import {
   readMetrics,
   recalledCapabilities,
 } from "../llama";
-import { isRemote } from "../ai/providers";
+import { chatEndpoint, isRemote } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
@@ -545,7 +545,7 @@ export async function measureTurn(
   });
 
   try {
-    const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
+    const response = await loggedFetch(chatEndpoint(input.model), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -773,7 +773,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     repairsLeft--;
 
     try {
-      const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
+      const response = await loggedFetch(chatEndpoint(model), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1026,7 +1026,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       let response: Response;
       try {
         response = await loggedFetch(
-          "http://127.0.0.1:11435/v1/chat/completions",
+          chatEndpoint(model),
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

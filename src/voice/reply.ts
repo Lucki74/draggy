@@ -4,6 +4,7 @@ import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { ggufErrorMessage, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
+import { chatEndpoint } from "../ai/providers";
 
 /** Turns a question into words to say, handing text on the instant it can. Only the first seven
  * characters wait, in case they become a "SEARCH:" marker. */
@@ -121,7 +122,7 @@ async function streamVoice(options: StreamOptions): Promise<void> {
     }
   }
 
-  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
+  const response = await fetch(chatEndpoint(options.model), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

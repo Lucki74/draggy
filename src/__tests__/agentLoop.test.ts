@@ -161,7 +161,7 @@ function installFetch(
   });
 
   const impl = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/v1/chat/completions")) {
+    if (url === "draggy-ai://chat") {
       const body = JSON.parse(String(init?.body));
 
       if (body.response_format || body.format) {

@@ -2,6 +2,7 @@ import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
+import { chatEndpoint } from "../ai/providers";
 
 /** Folds the older part of a chat into notes, so it never hits the context wall. Appends rather
  * than rewrites, triggers off the model's maximum, and runs after a turn. */
@@ -250,7 +251,7 @@ async function fold(request: CompactionRequest): Promise<CompactionState | null>
 
   const summaryMessages = buildSummaryMessages(existing?.summary ?? null, slice);
 
-  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
+  const response = await fetch(chatEndpoint(model), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

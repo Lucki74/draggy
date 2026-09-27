@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { chatEndpoint, isRemote, parseRef, providerOf } from "../ai/providers";
 
@@ -30,5 +32,21 @@ describe("model references", () => {
   it("sends every model to the one gateway", () => {
     expect(chatEndpoint("model.gguf")).toBe("draggy-ai://chat");
     expect(chatEndpoint("@anthropic/claude-x")).toBe("draggy-ai://chat");
+  });
+});
+
+/** Every renderer source file, tests aside. */
+function sources(dir: string): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "__tests__" ? [] : sources(full);
+    return /\.tsx?$/.test(entry.name) ? [full] : [];
+  });
+}
+
+describe("the one way to a model", () => {
+  it("never calls the engine's port directly from the renderer", () => {
+    const direct = sources(path.join(__dirname, "..")).filter((file) => fs.readFileSync(file, "utf8").includes("127.0.0.1:11435"));
+    expect(direct).toEqual([]);
   });
 });

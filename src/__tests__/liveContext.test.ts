@@ -71,7 +71,7 @@ function installGguf(options: {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/v1/chat/completions")) {
+      if (url === "draggy-ai://chat") {
         const body = JSON.parse(String(init?.body));
         chats.push(body);
         return options.chat(body, init);
