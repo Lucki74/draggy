@@ -63,7 +63,8 @@ function createRegistry({ storage, secrets }) {
       type,
       label: String(label || entry.name).slice(0, 80),
       enabled: false,
-      pinnedModels: [],
+      // The catalog's curated models come pre-ticked; anything listed later waits to be ticked.
+      pinnedModels: [...(entry.defaultModels || [])],
       promptProfile: "auto",
       modelOverrides: {},
     };

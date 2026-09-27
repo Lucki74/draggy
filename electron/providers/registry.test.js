@@ -29,9 +29,9 @@ beforeEach(() => {
 });
 
 describe("adding a provider", () => {
-  it("starts it switched off, under its catalog name, with nothing pinned", () => {
+  it("starts it switched off, under its catalog name, with its curated models ticked", () => {
     const added = registry.add({ type: "openai" });
-    expect(added).toMatchObject({ id: "openai", type: "openai", label: "OpenAI", enabled: false, pinnedModels: [], hasKey: false });
+    expect(added).toMatchObject({ id: "openai", type: "openai", label: "OpenAI", enabled: false, pinnedModels: ["gpt-5.5", "gpt-5-mini"], hasKey: false });
     expect(added.baseUrl).toBe("https://api.openai.com/v1");
   });
 
