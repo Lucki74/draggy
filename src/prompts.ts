@@ -183,10 +183,17 @@ export function buildVoicePrompt(searchEnabled: boolean, sounds = false): string
   return parts.join("\n\n");
 }
 
+/** `compact` is what the built-in engine has always been sent; `full` only ever adds to it. */
+export type PromptProfile = "compact" | "full";
+
 export interface PromptMode {
   nativeTools: boolean;
   nativeThinking: boolean;
+  profile?: PromptProfile;
 }
+
+// Filled in with the providers that get it (Phase 1); until then `full` is `compact` exactly.
+const FULL_PROFILE_PARTS: string[] = [];
 
 /** The clock, at the tail rather than in the system prompt. A timestamp at the front ends the
  * cached prefix, re-evaluating the whole chat every turn. */
@@ -271,6 +278,8 @@ export function buildSystemPrompt(
     // the web.
     parts.push(BROWSING_WORKFLOW_PROMPT);
   }
+
+  if (mode.profile === "full") parts.push(...FULL_PROFILE_PARTS);
 
   return parts.join("\n\n");
 }
