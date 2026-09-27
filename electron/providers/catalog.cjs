@@ -30,7 +30,8 @@ const local = (id, name, port, probe, extra = {}) => ({
   discovery: { port, probe },
   capabilityPatterns: [],
   defaultModels: [],
-  quirks: {},
+  // Local servers take llama.cpp's template switches, which is how thinking is turned on or off.
+  quirks: { templateKwargs: true, reasoningContent: true },
   ...extra,
 });
 
@@ -42,7 +43,7 @@ const CATALOG = [
       { match: "^gpt-", capabilities: [TOOLS] },
     ],
     defaultModels: ["gpt-5.5", "gpt-5-mini"],
-    quirks: { maxTokensField: "max_completion_tokens", systemRole: "developer" },
+    quirks: { maxTokensField: "max_completion_tokens", reasoningEffort: true },
   }),
   cloud("xai", "xAI", "https://api.x.ai/v1", "https://console.x.ai", {
     capabilityPatterns: [
@@ -50,6 +51,7 @@ const CATALOG = [
       { match: "vision|grok-4", capabilities: [TOOLS, VISION] },
       { match: "^grok", capabilities: [TOOLS] },
     ],
+    quirks: { reasoningEffort: true },
   }),
   cloud("deepseek", "DeepSeek", "https://api.deepseek.com/v1", "https://platform.deepseek.com/api_keys", {
     capabilityPatterns: [
@@ -96,7 +98,7 @@ const CATALOG = [
       { match: "qwen3|qwq|plus|max|turbo", capabilities: [TOOLS, THINKING] },
       { match: "", capabilities: [TOOLS] },
     ],
-    quirks: { reasoningContent: true },
+    quirks: { reasoningContent: true, enableThinking: true },
   }),
   cloud("moonshot", "Moonshot (Kimi)", "https://api.moonshot.ai/v1", "https://platform.moonshot.ai/console/api-keys", {
     capabilityPatterns: [
@@ -115,10 +117,6 @@ const CATALOG = [
   }),
   cloud("minimax", "MiniMax", "https://api.minimax.io/v1", "https://www.minimax.io/platform", {
     capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
-  }),
-  cloud("perplexity", "Perplexity", "https://api.perplexity.ai", "https://www.perplexity.ai/settings/api", {
-    // Its Sonar models search the web on their own; that is a hosted tool, so none is offered.
-    capabilityPatterns: [],
   }),
   cloud("cohere", "Cohere", "https://api.cohere.ai/compatibility/v1", "https://dashboard.cohere.com/api-keys", {
     capabilityPatterns: [
