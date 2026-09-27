@@ -574,7 +574,7 @@ export async function measureTurn(
 const LIVE_INTERVAL_MS = 250;
 
 export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(request.model);
   try {
     return await runTurn(request, host);
   } finally {

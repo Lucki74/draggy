@@ -106,7 +106,7 @@ export interface StreamOptions {
 }
 
 export async function streamVoiceChat(options: StreamOptions): Promise<void> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(options.model);
   try {
     await streamVoice(options);
   } finally {

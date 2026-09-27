@@ -235,7 +235,7 @@ export interface CompactionRequest {
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(request.model);
   try {
     return await fold(request);
   } finally {

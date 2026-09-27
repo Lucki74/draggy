@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { llamaIsBusy } from "../llama";
 import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
@@ -2059,7 +2060,7 @@ describe("a provider's model", () => {
   it("never starts the engine, and names the model whole in the request", async () => {
     const { requests, starts } = installFetch([{ content: ["Hi"] }], []);
     const host = makeHost();
-    const result = await runAgentTurn(
+    const turn = runAgentTurn(
       {
         model: "@openai/gpt-x",
         settings: SETTINGS,
@@ -2070,6 +2071,9 @@ describe("a provider's model", () => {
       },
       host.host,
     );
+    // Local measurements and background work go on while a provider answers.
+    expect(llamaIsBusy()).toBe(false);
+    const result = await turn;
     expect(result.textContent).toBe("Hi");
     expect(starts).toEqual([]);
     expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");

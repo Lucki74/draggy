@@ -6,6 +6,8 @@ import {
   displayModelName,
   forgetContextSize,
   forgetModelInfo,
+  beginLlamaWork,
+  llamaIsBusy,
   getModelInfo,
   gpuShareFor,
   unloadModel,
@@ -284,5 +286,20 @@ describe("a provider's model, which the engine never holds", () => {
     vi.stubGlobal("window", { electronAPI: { gguf } });
     await unloadModel("Qwen3.5-9B-Q4_K_M.gguf");
     expect(gguf.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("who counts as engine work", () => {
+  it("counts a built-in turn, and never a provider's", () => {
+    const remote = beginLlamaWork("@openai/gpt-x");
+    expect(llamaIsBusy()).toBe(false);
+    const local = beginLlamaWork("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(llamaIsBusy()).toBe(true);
+    local();
+    remote();
+    expect(llamaIsBusy()).toBe(false);
+    const unnamed = beginLlamaWork();
+    expect(llamaIsBusy()).toBe(true);
+    unnamed();
   });
 });

@@ -269,7 +269,10 @@ export function peekContextSize(
 let generating = 0;
 const workListeners = new Set<() => void>();
 
-export function beginLlamaWork(): () => void {
+/** `model` leaves a provider's turn out of the count: it never touches the engine, so it neither
+ * waits for local work nor holds it up. */
+export function beginLlamaWork(model?: string): () => void {
+  if (model && isRemote(model)) return () => {};
   generating++;
   for (const listener of workListeners) listener();
   let ended = false;
