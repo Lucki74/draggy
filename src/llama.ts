@@ -1,4 +1,5 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
+import { isRemote } from "./ai/providers";
 import { safeJsonParse } from "./utils";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
@@ -131,6 +132,8 @@ export async function recalledCapabilities(model: string): Promise<string[]> {
 }
 
 export function getModelInfo(model: string): Promise<ModelInfo | null> {
+  // A provider's models are listed by the provider, from Phase 1; until then nothing is known.
+  if (isRemote(model)) return Promise.resolve(null);
   const cached = modelInfoCache.get(model);
   if (cached) return cached;
 
@@ -224,6 +227,8 @@ export function contextSizeFor(
   maxContext: number | null,
   fixedContext?: number | "max" | null,
 ): number {
+  // A provider holds the whole window already: no buckets to grow through, and nothing to reload.
+  if (isRemote(model)) return maxContext ?? FALLBACK_CONTEXT_LENGTH;
   syncFixedContext(fixedContext);
   if (fixedContext === "max") {
     const size = maxContext ?? FALLBACK_CONTEXT_LENGTH;
@@ -250,7 +255,7 @@ export function peekContextSize(
   maxContext: number | null,
   fixedContext?: number | "max" | null,
 ): number {
-  if (fixedContext === "max") {
+  if (isRemote(model) || fixedContext === "max") {
     return maxContext ?? FALLBACK_CONTEXT_LENGTH;
   }
   if (typeof fixedContext === "number") {
@@ -328,15 +333,17 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
 }
 
 export async function gpuShareFor(model: string): Promise<number | null> {
+  if (isRemote(model)) return null;
   const loaded = await describeLoadedModels();
   const target = bareModelName(model);
   const match = loaded.find((entry) => entry.name === target || entry.name === model);
   return match ? match.gpuPercent : null;
 }
 
-/** Stops the GGUF engine, which unloads whatever model it was holding. */
-export async function unloadModel(_model: string): Promise<void> {
-  if (typeof window === "undefined") return;
+/** Stops the GGUF engine, which unloads whatever model it was holding. A provider's model is not in
+ * it, and stopping the engine for one would take the local model away instead. */
+export async function unloadModel(model: string): Promise<void> {
+  if (typeof window === "undefined" || isRemote(model)) return;
   await window.electronAPI?.gguf?.stop();
 }
 
@@ -345,6 +352,8 @@ export async function isLoadedAt(
   model: string,
   contextSize: number,
 ): Promise<boolean | null> {
+  // Nothing loads locally for a provider's model, so no loading step is shown for one.
+  if (isRemote(model)) return true;
   if (typeof window === "undefined") return null;
 
   try {
@@ -428,7 +437,7 @@ export async function warmModel(
   charEstimate = 0,
   fixedContext?: number | "max" | null,
 ): Promise<void> {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || isRemote(name)) return;
 
   const info = await getModelInfo(name);
   const numCtx = contextSizeFor(

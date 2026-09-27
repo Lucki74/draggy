@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
@@ -6,6 +6,10 @@ import {
   displayModelName,
   forgetContextSize,
   forgetModelInfo,
+  getModelInfo,
+  gpuShareFor,
+  unloadModel,
+  warmModel,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -247,5 +251,38 @@ describe("engine-chosen windows", () => {
     expect(await isLoadedAt(MODEL, 8192)).toBe(true);
     expect(await isLoadedAt(MODEL, 32768)).toBe(true);
     expect(await isLoadedAt(MODEL, 65536)).toBe(false);
+  });
+});
+
+describe("a provider's model, which the engine never holds", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("never starts, stops or asks the engine about it", async () => {
+    const gguf = { start: vi.fn(), stop: vi.fn(), status: vi.fn(), listModels: vi.fn() };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    const model = "@anthropic/claude-x";
+
+    await warmModel(model, "5m", 1000);
+    await unloadModel(model);
+    expect(await isLoadedAt(model, 32768)).toBe(true);
+    expect(await gpuShareFor(model)).toBeNull();
+    expect(await getModelInfo(model)).toBeNull();
+    expect(gguf.start).not.toHaveBeenCalled();
+    expect(gguf.stop).not.toHaveBeenCalled();
+    expect(gguf.status).not.toHaveBeenCalled();
+    expect(gguf.listModels).not.toHaveBeenCalled();
+  });
+
+  it("gets its whole window at once, with no buckets and nothing fixed", () => {
+    expect(contextSizeFor("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(peekContextSize("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(contextSizeFor("@openai/gpt-x", 100, null)).toBe(FALLBACK_CONTEXT_LENGTH);
+  });
+
+  it("still unloads the built-in engine for a built-in model", async () => {
+    const gguf = { stop: vi.fn(async () => ({ success: true })) };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    await unloadModel("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(gguf.stop).toHaveBeenCalledTimes(1);
   });
 });
