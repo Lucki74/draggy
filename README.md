@@ -48,6 +48,11 @@ app is built, in the same twelve languages the app speaks. Start with
 [Building and architecture](https://draggy.org/wiki/development) if you are here
 to work on the code.
 
+## Current development branches
+
+- [onboarding - functioning build](https://github.com/Lucki74/draggy/tree/onboarding)
+- [providers - backend indev](https://github.com/Lucki74/draggy/tree/providers)
+
 ## Features
 
 - **Chat with a local model.** Draggy picks a model that fits your graphics card,
@@ -72,13 +77,6 @@ to work on the code.
   loud, and stops when you interrupt.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key.
-
-## Upcoming
-
-- Many small improvements, small features and changes.
-- Suppport for ai providers other than draggy’s local engine.
-- App onboarding for a better UX.
-- And more!
 
 ## Installing and requirements
 
