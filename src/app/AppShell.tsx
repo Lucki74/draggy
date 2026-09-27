@@ -35,7 +35,8 @@ import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { useTranslator } from "../i18n";
 import { generateId } from "../utils";
-import { isCloudModel, warmModel } from "../llama";
+import { warmModel } from "../llama";
+import { isRemote } from "../ai/providers";
 import { KEEP_ALIVE } from "../agent/agentLoop";
 import { chatToMarkdown, exportFilename } from "../chat/export";
 import { unregisterGroup } from "../tools/registry";
@@ -267,7 +268,7 @@ export default function AppShell({
       }
 
       updateSettings({ codeModel: name });
-      if (!isCloudModel(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
+      if (!isRemote(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
     },
     [mode, onSelectModel, updateSettings, settings.fixedContextSize],
   );

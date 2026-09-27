@@ -1,7 +1,8 @@
 import type { SystemSpecs } from "../types";
 import { getRecommendedDownload, ggufLadder, type ModelRecommendation } from "../modelRecommendations";
 import { selectableModels } from "../modelKinds";
-import { describeInstalled, isCloudModel, pullModel } from "../llama";
+import { describeInstalled, pullModel } from "../llama";
+import { isRemote } from "../ai/providers";
 import { describeFit, type ModelFit } from "../vram";
 
 /** The start of a new install, shared by the splash, the setup's Skip and its Ready screen. Each
@@ -200,7 +201,7 @@ export async function autoSetup(
   onStatus: StatusFn,
   onProgress: ProgressFn,
 ): Promise<string> {
-  const saved = isCloudModel(preferred) ? "" : preferred;
+  const saved = isRemote(preferred) ? "" : preferred;
 
   onStatus("checkingService");
   const engine = await ensureEngine(api, onProgress, onStatus);

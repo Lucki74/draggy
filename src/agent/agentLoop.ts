@@ -5,7 +5,6 @@ import {
   getModelInfo,
   gpuShareFor,
   hasCapability,
-  isCloudModel,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -16,6 +15,7 @@ import {
   readMetrics,
   recalledCapabilities,
 } from "../llama";
+import { isRemote } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
@@ -508,7 +508,7 @@ export async function measureTurn(
   input: TurnInput,
   options: { signal: AbortSignal; allowLoad: boolean },
 ): Promise<ContextMeasurement | null> {
-  if (isCloudModel(input.model) || llamaIsBusy()) return null;
+  if (isRemote(input.model) || llamaIsBusy()) return null;
 
   const turn = await prepareTurn(input);
   const chars = estimateChars(turn.wire);

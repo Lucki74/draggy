@@ -56,13 +56,13 @@ import {
   FALLBACK_CONTEXT_LENGTH,
   displayModelName,
   getModelInfo,
-  isCloudModel,
   listInstalledModels,
   needsTextModeTools,
   onModelInfoChange,
   warmModel,
   windowCeiling,
 } from "./llama";
+import { isRemote } from "./ai/providers";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { ContextMeasurement } from "./agent/agentLoop";
 import {
@@ -808,7 +808,7 @@ export default function ChatScreen({
       warmedForModelRef.current = null;
       return;
     }
-    if (warmedForModelRef.current === model || isCloudModel(model)) return;
+    if (warmedForModelRef.current === model || isRemote(model)) return;
     warmedForModelRef.current = model;
 
     if (onMeasureContext) {

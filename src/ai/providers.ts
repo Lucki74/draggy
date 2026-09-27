@@ -1,0 +1,34 @@
+/** Which engine a model reference points at. A name starting with `@` is a provider's model and never
+ * reaches the built-in engine; anything else is a GGUF file, as every saved setting already is. */
+
+export type ModelRef =
+  | { kind: "builtin"; file: string }
+  | { kind: "remote"; instanceId: string; modelId: string; valid: boolean };
+
+/** The gateway every model request goes through, built-in or remote; the body's model says which. */
+export const CHAT_ENDPOINT = "draggy-ai://chat";
+
+export function parseRef(model: string): ModelRef {
+  const name = String(model ?? "");
+  if (!name.startsWith("@")) return { kind: "builtin", file: name.replace(/^gguf:/, "") };
+
+  // The model id may itself hold "/" or ":", so only the first slash separates the two.
+  const slash = name.indexOf("/");
+  const instanceId = slash === -1 ? name.slice(1) : name.slice(1, slash);
+  const modelId = slash === -1 ? "" : name.slice(slash + 1);
+  return { kind: "remote", instanceId, modelId, valid: instanceId.length > 0 && modelId.length > 0 };
+}
+
+export function isRemote(model: string): boolean {
+  return parseRef(model).kind === "remote";
+}
+
+/** The provider instance a remote model belongs to; null for the built-in engine. */
+export function providerOf(model: string): string | null {
+  const ref = parseRef(model);
+  return ref.kind === "remote" ? ref.instanceId : null;
+}
+
+export function chatEndpoint(_model: string): string {
+  return CHAT_ENDPOINT;
+}

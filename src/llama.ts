@@ -289,11 +289,6 @@ export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
 }
 
-export function isCloudModel(name: string): boolean {
-  const tag = name.toLowerCase().split(":").pop() || "";
-  return tag === "cloud" || tag.endsWith("-cloud");
-}
-
 type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["electronAPI"]>["gguf"]>["listModels"]>>;
 
 /** The engine's listing in the shape the rest of the app reads; empty for anything but a list. */

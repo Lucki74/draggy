@@ -6,7 +6,8 @@ import { MODE_KEY } from "./app/modes";
 import { writeLocalStorage } from "./utils";
 import AppShell from "./app/AppShell";
 import { useSettings } from "./app/settings";
-import { isCloudModel, warmModel } from "./llama";
+import { warmModel } from "./llama";
+import { isRemote } from "./ai/providers";
 import { registerBuiltinTools } from "./tools/builtin";
 import { registerFileTools } from "./tools/files";
 import { registerPlanTools } from "./tools/plan";
@@ -34,7 +35,7 @@ export default function App() {
   const [settings, setSettings] = useSettings(isSplashMode, onboarding);
 
   const [model, setModel] = useState<string | null>(
-    isSplashMode || isCloudModel(settings.modelName) ? null : settings.modelName,
+    isSplashMode || isRemote(settings.modelName) ? null : settings.modelName,
   );
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function App() {
       );
       // Loading the weights takes seconds, and the first message is where that
       // hurts most. Sized for an empty chat; typing into a long one warms again.
-      if (!isCloudModel(selectedModel)) {
+      if (!isRemote(selectedModel)) {
         warmModel(selectedModel, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
       }
     },

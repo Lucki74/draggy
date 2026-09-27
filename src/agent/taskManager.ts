@@ -1,4 +1,5 @@
-import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../llama";
+import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
 import {
   CHARS_PER_TOKEN,
@@ -218,7 +219,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (inFlight) return inFlight.done;
 
     const model = host.getModel();
-    if (!model || isCloudModel(model)) return Promise.resolve("nothing");
+    if (!model || isRemote(model)) return Promise.resolve("nothing");
 
     const session = host.getSession(chatId);
     if (!session) return Promise.resolve("nothing");

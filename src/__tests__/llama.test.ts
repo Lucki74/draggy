@@ -6,7 +6,6 @@ import {
   displayModelName,
   forgetContextSize,
   forgetModelInfo,
-  isCloudModel,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -52,23 +51,6 @@ describe("context budgeting", () => {
       expect(chosen).toBeGreaterThanOrEqual(previous);
       previous = chosen;
     }
-  });
-});
-
-describe("cloud model exclusion", () => {
-  const cloud = ["gpt-oss:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud"];
-  const local = ["qwen3:8b", "llama3.2", "phi4-mini", "gemma3:27b", "nomic-embed-text"];
-
-  for (const name of cloud) {
-    it(`treats ${name} as cloud`, () => expect(isCloudModel(name)).toBe(true));
-  }
-
-  for (const name of local) {
-    it(`treats ${name} as local`, () => expect(isCloudModel(name)).toBe(false));
-  }
-
-  it("is not fooled by the word cloud inside a model name", () => {
-    expect(isCloudModel("cloudy-llm:7b")).toBe(false);
   });
 });
 
