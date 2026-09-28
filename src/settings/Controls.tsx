@@ -176,6 +176,8 @@ export interface SelectOption {
   id: string;
   label: string;
   hint?: string;
+  /** A heading shown above the first option of each run with the same group. */
+  group?: string;
 }
 
 /** A choice of many, in a menu. A value missing from the options is still shown, or a removed
@@ -247,7 +249,12 @@ export function Select({
           {listed.length === 0 ? (
             <p className="px-2 py-1.5 text-xs font-bold text-[var(--text-muted)]">{placeholder}</p>
           ) : (
-            listed.map((option) => (
+            listed.map((option, index) => [
+              option.group && option.group !== listed[index - 1]?.group && (
+                <p key={`group-${option.group}`} className="px-2 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">
+                  {option.group}
+                </p>
+              ),
               <button
                 key={option.id || "automatic"}
                 type="button"
@@ -270,8 +277,8 @@ export function Select({
                   </span>
                 )}
                 {option.id === value && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-              </button>
-            ))
+              </button>,
+            ])
           )}
         </div>
       )}
