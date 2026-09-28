@@ -51,7 +51,7 @@ to work on the code.
 ## Current development branches
 
 - [onboarding - functioning build](https://github.com/Lucki74/draggy/tree/onboarding)
-- [providers - backend indev](https://github.com/Lucki74/draggy/tree/providers)
+- [providers - indev](https://github.com/Lucki74/draggy/tree/providers)
 
 ## Features
 
