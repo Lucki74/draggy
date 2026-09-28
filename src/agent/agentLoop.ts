@@ -1365,15 +1365,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
       if (signal.aborted) {
-        // Stopping mid-sentence should keep what was already written.
+        // Stopping mid-sentence keeps what was written as the reply, or the saved turn is blank
+        // and the next turn's model sees its question unanswered and starts over.
         if (textStepId !== null) dropStep(textStepId);
         finishIncompleteSteps();
+        fullFinalContent += rawChunk;
+        if (textContent) fullFinalTextContent = joinContinuation(fullFinalTextContent, textContent);
         host.onPatch(combine("", ""));
         return {
-          content: fullFinalContent + rawChunk,
-          textContent: textContent
-            ? joinContinuation(fullFinalTextContent, textContent)
-            : fullFinalTextContent,
+          content: fullFinalContent,
+          textContent: fullFinalTextContent,
           steps,
           metrics,
           outOfContext,
