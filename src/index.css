@@ -8,12 +8,17 @@
     --border-light: #a3a3a3;
     --border-dark: #111111;
     --text-main: #111111;
-    --text-muted: #737373;
+    --text-muted: #5f5f5f;
     --text-inverted: #ffffff;
     --hover-bg: #d4d4d4;
     --chat-font-size: 15px;
     /* The voice orb: one flat colour, opposite the page it sits on. */
     --orb: #111111;
+    /* The website's accent, defined here first so the two palettes stay one. */
+    --accent: #b45309;
+    --accent-text: #ffffff;
+    --accent-ink: #92400e;
+    --accent-soft: #fef3c7;
 }
 
 body.dark {
@@ -28,6 +33,10 @@ body.dark {
     --text-inverted: #ffffff;
     --hover-bg: #2a2a2a;
     --orb: #ffffff;
+    --accent: #fbbf24;
+    --accent-text: #111111;
+    --accent-ink: #fbbf24;
+    --accent-soft: #3a2a08;
 }
 
 @layer base {
