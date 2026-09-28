@@ -170,6 +170,12 @@ export function onModelInfoChange(listener: () => void): () => void {
   return () => modelInfoListeners.delete(listener);
 }
 
+/** A provider was set up, changed or removed: what its models can do is asked again, by every screen. */
+export function forgetRemoteModelInfo() {
+  for (const model of [...modelInfoCache.keys()]) if (isRemote(model)) modelInfoCache.delete(model);
+  for (const listener of modelInfoListeners) listener();
+}
+
 /** Whether an image projector's refusal at start-up should take vision off this model. The listing
  * cannot know: only the engine can say whether it reads the projector beside a model. */
 export function noteEngineStart(

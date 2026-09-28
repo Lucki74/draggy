@@ -893,6 +893,7 @@ app.whenReady().then(() => {
   providers = createRegistry({ storage, secrets });
   const providerHandlers = createProviderHandlers({
     registry: providers,
+    keystore: () => secrets.available(),
     models: createModels({ registry: providers }),
     discovery: createDiscovery({
       excludedPorts: () => [llamaProcess.getServerStatus().port || 11435, apiServer?.port() ?? readApiServerConfig().port],

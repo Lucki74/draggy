@@ -68,5 +68,7 @@ describe("what the renderer can ask", () => {
     expect(openai).toMatchObject({ name: "OpenAI", kind: "cloud", needsKey: true, editableBaseUrl: false });
     expect(Object.keys(openai)).not.toContain("quirks");
     expect(handlers["providers:catalog"]().find((entry) => entry.id === "custom")).toMatchObject({ needsKey: false, editableBaseUrl: true });
+    const without = createProviderHandlers({ registry: null, models: null, discovery: null, keystore: () => false })["providers:catalog"]();
+    expect(Object.fromEntries(without.filter((e) => ["openai", "custom", "ollama"].includes(e.id)).map((e) => [e.id, e.available]))).toEqual({ openai: false, custom: true, ollama: true });
   });
 });

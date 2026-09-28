@@ -2,6 +2,7 @@ import {
   AudioLines,
   BarChart3,
   Blocks,
+  Cloud,
   CodeXml,
   Cpu,
   Database,
@@ -20,6 +21,7 @@ import {
 export type SettingsTab =
   | "general"
   | "models"
+  | "providers"
   | "web"
   | "usage"
   | "data"
@@ -51,6 +53,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     pages: [
       { id: "general", label: "settingsGeneral", icon: Palette },
       { id: "models", label: "models", icon: Cpu },
+      { id: "providers", label: "providers", icon: Cloud },
       { id: "web", label: "webSearchPage", icon: Globe },
       { id: "usage", label: "statistics", icon: BarChart3 },
       { id: "data", label: "data", icon: Database },

@@ -4,6 +4,7 @@ import { SETTINGS_GROUPS } from "./pages";
 import type { SettingsTab } from "./pages";
 import { useModelManager } from "./useModelManager";
 import ModelsPage from "./ModelsPage";
+import ProvidersPage from "./ProvidersPage";
 import { DataPage, ExtensionsPage, GeneralPage, UpdatesPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, ProjectsPage } from "./CodePages";
@@ -128,6 +129,8 @@ export default function SettingsPage(props: SettingsPageProps) {
                 t={t}
               />
             )}
+
+            {tab === "providers" && <ProvidersPage engineModels={manager.installed.length} t={t} />}
 
             {tab === "web" && <WebSearchPage settings={settings} onUpdate={onUpdate} t={t} />}
 

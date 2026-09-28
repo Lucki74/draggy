@@ -5,7 +5,7 @@ const { catalog } = require("./catalog.cjs");
 const failed = (error) => ({ success: false, error: error?.failure || { kind: "provider-unknown-error", message: String(error?.message || error) } });
 
 /** The catalog as the Add list needs it; quirks and patterns stay in main. */
-function catalogView() {
+function catalogView(keystore = true) {
   return catalog().map((entry) => ({
     id: entry.id,
     name: entry.name,
@@ -13,12 +13,14 @@ function catalogView() {
     protocol: entry.protocol,
     keyUrl: entry.keyUrl || null,
     needsKey: entry.auth !== "none" && !entry.keyOptional,
+    // Without a keystore a key could only be kept in the clear, so such a provider cannot be switched on.
+    available: entry.auth === "none" || Boolean(entry.keyOptional) || keystore,
     baseUrl: entry.baseUrl || null,
     editableBaseUrl: entry.kind === "local" || entry.id === "custom",
   }));
 }
 
-function createProviderHandlers({ registry, models, discovery }) {
+function createProviderHandlers({ registry, models, discovery, keystore = () => true }) {
   const attempt = (work) => {
     try {
       return { success: true, ...work() };
@@ -27,7 +29,7 @@ function createProviderHandlers({ registry, models, discovery }) {
     }
   };
   return {
-    "providers:catalog": () => catalogView(),
+    "providers:catalog": () => catalogView(keystore()),
     "providers:list": () => registry.list(),
     "providers:add": (input) => attempt(() => ({ instance: registry.add(input || {}) })),
     "providers:update": (id, patch) =>

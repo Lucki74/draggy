@@ -690,6 +690,8 @@ export interface ProviderCatalogEntry {
   protocol: string;
   keyUrl: string | null;
   needsKey: boolean;
+  /** False when it needs a key and this system has no keystore to keep one in. */
+  available: boolean;
   baseUrl: string | null;
   editableBaseUrl: boolean;
 }
