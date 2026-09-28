@@ -88,6 +88,8 @@ async function toLocalStep(t = en) {
   fireEvent.click(continueButton(t));
   await screen.findByRole("heading", { name: t("onbAppearanceTitle") });
   fireEvent.click(continueButton(t));
+  await screen.findByRole("heading", { name: t("onbSourceTitle") });
+  fireEvent.click(continueButton(t));
   await screen.findByRole("heading", { name: t("onbModelTitle") });
 }
 

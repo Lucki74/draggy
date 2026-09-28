@@ -1,16 +1,28 @@
 /** Which screens the setup shows and when each may be left. Plain data, so the whole flow is a unit
  * test rather than a fresh install. */
 
-export type StepId = "welcome" | "appearance" | "local" | "preferences" | "ready";
+import { ggufLadder } from "../modelRecommendations";
 
-/** How the user chose to run the AI. Only "local" exists until providers ship (spec M5). */
-export type SetupPath = "local";
+export type StepId = "welcome" | "appearance" | "source" | "local" | "provider" | "preferences" | "ready";
+
+/** How the user chose to run the AI, on the where-the-AI-runs step. */
+export type SetupPath = "local" | "provider" | "both";
 
 export function stepsFor(path: SetupPath): StepId[] {
   switch (path) {
     case "local":
-      return ["welcome", "appearance", "local", "preferences", "ready"];
+      return ["welcome", "appearance", "source", "local", "preferences", "ready"];
+    case "provider":
+      return ["welcome", "appearance", "source", "provider", "preferences", "ready"];
+    case "both":
+      return ["welcome", "appearance", "source", "local", "provider", "preferences", "ready"];
   }
+}
+
+/** A rung under ~2B parameters (budget under 3 GB): local still works, but a provider deserves a mention. */
+export function smallModelsOnly(reference: string): boolean {
+  const rung = ggufLadder.find((entry) => entry.model === reference);
+  return rung !== undefined && rung.vram < 3;
 }
 
 export function nextStep(steps: StepId[], current: StepId): StepId {
@@ -24,6 +36,7 @@ export function previousStep(steps: StepId[], current: StepId): StepId {
 }
 
 export interface FlowState {
+  path?: SetupPath;
   /** Null while the connectivity check has not answered. */
   online: boolean | null;
   /** The model picked on the Local model step. An installed one needs no download and no network. */
@@ -33,18 +46,25 @@ export interface FlowState {
   modelUnderWay?: boolean;
   engineReady: boolean;
   engineUnderWay?: boolean;
+  /** The provider's `@instance/model`, set only once that provider answered with its models. */
+  providerModel?: string | null;
 }
 
 export function canContinue(step: StepId, state: FlowState): boolean {
   switch (step) {
     case "welcome":
     case "appearance":
+    case "source":
     case "preferences":
       return true;
     case "local":
       if (!state.choice) return false;
       return Boolean(state.choice.installed) || (state.choice.fitsOnDisk && state.online === true);
+    case "provider":
+      return Boolean(state.providerModel);
     case "ready":
+      // A provider's model answers at once; the engine it still sets up only serves the Library.
+      if (state.path === "provider") return Boolean(state.providerModel);
       // The app can be entered while both are still arriving; it waits for them itself.
       return (state.modelOnDisk || state.modelUnderWay === true) && (state.engineReady || state.engineUnderWay === true);
   }

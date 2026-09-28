@@ -13,13 +13,15 @@ import { tierFor } from "../voice/talkModel";
 import { installedMatch, tierForEmbed } from "../embedModel";
 import { adoptInstalled, planFirstDownload, type FirstDownloadPlan } from "../boot/bootSequence";
 import type { AppSettings, OnboardingPath } from "../types";
-import { canContinue, nextStep, previousStep, stepsFor, type StepId } from "./flow";
+import { useProviders } from "../providers/useProviders";
+import { canContinue, nextStep, previousStep, stepsFor, type SetupPath, type StepId } from "./flow";
 import { localeToLanguage } from "./locale";
 import { fill } from "./text";
 import type { FirstDownload } from "./useFirstDownload";
 import DownloadBar from "./DownloadBar";
 import Welcome from "./steps/Welcome";
 import Appearance from "./steps/Appearance";
+import AiSource from "./steps/AiSource";
 import LocalModel, { type ModelChoice } from "./steps/LocalModel";
 import Ready from "./steps/Ready";
 import Preferences, { type ExtraKind, type ExtraOffer } from "./steps/Preferences";
@@ -58,7 +60,9 @@ const CODES = languages.map((language) => language.code);
 export default function Onboarding({ settings, onUpdateSettings, download, onFinish }: OnboardingProps) {
   const t = useTranslator(settings.language);
   const api = window.electronAPI;
-  const steps = useMemo(() => stepsFor("local"), []);
+  const [path, setPath] = useState<SetupPath>("local");
+  const steps = useMemo(() => stepsFor(path), [path]);
+  const providers = useProviders({ scanOnOpen: false });
 
   const [step, setStep] = useState<StepId>(steps[0]);
   const [surroundings, setSurroundings] = useState<Surroundings | null>(null);
@@ -134,9 +138,11 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   }, [api, settings.modelName]);
 
   useEffect(() => {
-    if (step !== "local") return;
+    if (step !== "source" && step !== "local") return;
     void loadSurroundings();
     if (online === null) probeOnline();
+    // Loopback only, and only as the step opens (providers spec rule 4, decision 4).
+    if (step === "source") void providers.scan();
     // The check runs when the step opens and on Retry, not on every render of it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
@@ -149,6 +155,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
 
   const flowState = useMemo(
     () => ({
+      path,
       online,
       choice,
       modelOnDisk: download.model.phase === "done",
@@ -156,7 +163,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       engineReady: download.engine.phase === "done",
       engineUnderWay: download.engine.phase === "running",
     }),
-    [online, choice, download.model.phase, download.model.filename, download.engine.phase],
+    [path, online, choice, download.model.phase, download.model.filename, download.engine.phase],
   );
   const allowed = canContinue(step, flowState);
   const isFirst = step === steps[0];
@@ -325,6 +332,22 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
                 fontSize={settings.fontSize}
                 onTheme={(theme) => onUpdateSettings({ theme })}
                 onFontSize={(fontSize) => onUpdateSettings({ fontSize })}
+                t={t}
+              />
+            )}
+            {step === "source" && (
+              <AiSource
+                path={path}
+                onPath={setPath}
+                plan={surroundings?.plan ?? null}
+                installed={surroundings?.installed ?? null}
+                online={online}
+                onRetryOnline={() => {
+                  setOnline(null);
+                  probeOnline();
+                }}
+                servers={providers.servers}
+                language={settings.language}
                 t={t}
               />
             )}
