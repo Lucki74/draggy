@@ -15,6 +15,7 @@ export default function Ready({
   onEdit,
   download,
   canStart,
+  moreProviders = false,
   onStart,
   language,
   t,
@@ -23,11 +24,16 @@ export default function Ready({
   onEdit: (step: StepId) => void;
   download: FirstDownload;
   canStart: boolean;
+  /** A provider was set up here; others are added in Settings. */
+  moreProviders?: boolean;
   /** With a prompt, the app opens with it in the composer, not sent. */
   onStart: (prompt?: string) => void;
   language: string;
   t: (key: string) => string;
 }) {
+  const pending = download.modelless
+    ? download.engine.phase === "running"
+    : download.model.phase !== "done" || download.engine.phase === "running";
   return (
     <div className="space-y-6">
       <StepHeader title={t("onbReadyTitle")} />
@@ -47,12 +53,14 @@ export default function Ready({
         ))}
       </Group>
 
-      {(download.model.phase !== "done" || download.engine.phase === "running") && (
+      {pending && (
         <div className="space-y-2">
           <DownloadBar download={download} large language={language} t={t} />
-          <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbReadyWaiting")}</p>
+          {!download.modelless && <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbReadyWaiting")}</p>}
         </div>
       )}
+
+      {moreProviders && <p className="text-center text-xs font-bold text-[var(--text-muted)]">{t("onbReadyMoreProviders")}</p>}
 
       <div className="flex justify-center">
         <button type="button" onClick={() => onStart()} disabled={!canStart} className="ui-btn px-8 py-3 disabled:opacity-40 disabled:cursor-not-allowed">

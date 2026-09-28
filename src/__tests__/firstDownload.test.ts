@@ -144,6 +144,21 @@ describe("the optional downloads", () => {
     await waitFor(() => expect(result.current.extras.map((extra) => extra.phase)).toEqual(["done", "done"]));
   });
 
+  it("runs them with the engine alone on a provider's path, cancelling a model chosen before", async () => {
+    const { api, order } = bridge({ engineReady: false });
+    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
+    await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
+
+    act(() => result.current.withoutModel());
+    act(() => result.current.queueExtra("org/Embed-GGUF:Q8", "Library"));
+    await waitFor(() => expect(order).toContain("download Embed-GGUF-Q8.gguf"));
+    expect(api.gguf.cancelDownload).toHaveBeenCalledWith("Main-GGUF-Q4.gguf");
+    expect(api.gguf.setupEngine).toHaveBeenCalledTimes(1);
+    expect(result.current.model.phase).toBe("idle");
+    expect(result.current.modelless).toBe(true);
+  });
+
   it("stops an extra that is dropped, removing what it wrote", async () => {
     const { api, order, finish } = bridge();
     const { result } = renderHook(() => useFirstDownload(window.electronAPI));

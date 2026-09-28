@@ -23,6 +23,7 @@ import Welcome from "./steps/Welcome";
 import Appearance from "./steps/Appearance";
 import AiSource from "./steps/AiSource";
 import LocalModel, { type ModelChoice } from "./steps/LocalModel";
+import Provider from "./steps/Provider";
 import Ready from "./steps/Ready";
 import Preferences, { type ExtraKind, type ExtraOffer } from "./steps/Preferences";
 
@@ -68,6 +69,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const [surroundings, setSurroundings] = useState<Surroundings | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [choice, setChoice] = useState<ModelChoice | null>(null);
+  const [providerModel, setProviderModel] = useState<string | null>(null);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [mode, setMode] = useState<AppMode>(() => {
@@ -162,8 +164,9 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       modelUnderWay: download.model.phase === "downloading" && Boolean(download.model.filename),
       engineReady: download.engine.phase === "done",
       engineUnderWay: download.engine.phase === "running",
+      providerModel,
     }),
-    [path, online, choice, download.model.phase, download.model.filename, download.engine.phase],
+    [path, online, choice, download.model.phase, download.model.filename, download.engine.phase, providerModel],
   );
   const allowed = canContinue(step, flowState);
   const isFirst = step === steps[0];
@@ -190,6 +193,8 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const next = useCallback(() => {
     if (!canContinue(step, flowState)) return;
     if (step === "local" && choice) download.chooseModel(choice.reference, choice.installed);
+    // The engine still installs for the Library and voice; no model of Draggy's own is fetched.
+    if (step === "provider" && path === "provider") download.withoutModel();
     if (step === "preferences" && surroundings) {
       const tiers = extraTiers(surroundings.plan.specs?.vram ?? 0);
       for (const kind of ["voice", "library"] as const) {
@@ -199,13 +204,14 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       }
     }
     setStep(nextStep(steps, step));
-  }, [step, flowState, choice, download, steps, surroundings, extrasChosen, offers]);
+  }, [step, flowState, choice, download, path, steps, surroundings, extrasChosen, offers]);
 
   const back = useCallback(() => setStep((current) => previousStep(steps, current)), [steps]);
 
   const finish = useCallback(
     async (path: OnboardingPath, model: string, prompt?: string) => {
-      if (path === "skipped") await api?.onboarding?.complete(path).catch(() => undefined);
+      // A provider's model needs nothing on disk; the local and both paths are recorded once it lands.
+      if (path === "skipped" || path === "provider") await api?.onboarding?.complete(path).catch(() => undefined);
       onFinish(model, { path, prompt });
     },
     [api, onFinish],
@@ -278,7 +284,8 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const summary = [
     { label: t("language"), value: languages.find((entry) => entry.code === settings.language)?.name ?? settings.language, step: "welcome" as const },
     { label: t("theme"), value: `${themeLabel} · ${sizeLabel}`, step: "appearance" as const },
-    { label: t("model"), value: choice?.label ?? "", step: "local" as const },
+    ...(path === "provider" ? [] : [{ label: t("model"), value: choice?.label ?? "", step: "local" as const }]),
+    ...(path === "local" ? [] : [{ label: t("providers"), value: providerModel ? displayModelName(providerModel) : "", step: "provider" as const }]),
     {
       label: t("onbPrefsTitle"),
       value: [
@@ -366,6 +373,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
                 t={t}
               />
             )}
+            {step === "provider" && <Provider providers={providers} model={providerModel} onModel={setProviderModel} t={t} />}
             {step === "preferences" && (
               <Preferences
                 settings={settings}
@@ -385,8 +393,11 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
                 onEdit={goTo}
                 download={download}
                 canStart={allowed}
+                moreProviders={path !== "local"}
                 onStart={(prompt) => {
-                  if (download.model.filename) void finish("local", download.model.filename, prompt);
+                  if (path === "provider") {
+                    if (providerModel) void finish("provider", providerModel, prompt);
+                  } else if (download.model.filename) void finish(path, download.model.filename, prompt);
                 }}
                 language={settings.language}
                 t={t}

@@ -91,6 +91,7 @@ export default function App() {
   const firstDownload = useFirstDownload(window.electronAPI);
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
   const [landed, setLanded] = useState<string | null>(null);
+  const [landingPath, setLandingPath] = useState<"local" | "both">("local");
   const [seedPrompt, setSeedPrompt] = useState<string | undefined>();
   const usable = firstDownload.model.phase === "done" && firstDownload.engine.phase === "done";
 
@@ -104,19 +105,19 @@ export default function App() {
   useEffect(() => {
     if (!landed) return;
     // Only now: a record written before the model was on disk would skip the setup after a quit.
-    window.electronAPI?.onboarding?.complete("local").catch(() => undefined);
+    window.electronAPI?.onboarding?.complete(landingPath).catch(() => undefined);
     warmModel(landed, KEEP_ALIVE, 0, settings.fixedContextSize).catch(() => undefined);
-  }, [landed, settings.fixedContextSize]);
+  }, [landed, landingPath, settings.fixedContextSize]);
 
   // The optional downloads join the app's own list once the model is in, never beside it.
   const takeOver = useMemo(
     () =>
-      !onboarding && firstDownload.model.phase === "done"
+      !onboarding && (firstDownload.model.phase === "done" || firstDownload.modelless)
         ? firstDownload.extras
             .filter((extra) => extra.phase === "queued" || extra.phase === "downloading")
             .map((extra) => extra.reference)
         : [],
-    [onboarding, firstDownload.model.phase, firstDownload.extras],
+    [onboarding, firstDownload.model.phase, firstDownload.modelless, firstDownload.extras],
   );
 
   const handleOnboardingFinish = useCallback(
@@ -128,10 +129,11 @@ export default function App() {
         writeLocalStorage(MODE_KEY, "chat");
         setSeedPrompt(outcome.prompt);
       }
-      if (outcome.path === "skipped") {
+      if (outcome.path === "skipped" || outcome.path === "provider") {
         handleModelReady(selectedModel);
         return;
       }
+      setLandingPath(outcome.path === "both" ? "both" : "local");
       setModel(selectedModel);
       setWaitingFor(selectedModel);
     },

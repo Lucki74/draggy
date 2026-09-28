@@ -34,9 +34,13 @@ export interface FirstDownload {
   engine: EngineDownload;
   model: ModelDownload;
   extras: ExtraDownload[];
+  /** True on a provider's path: no model of Draggy's own is coming, so the extras need not wait. */
+  modelless: boolean;
   /** Starts the engine if it is missing and this model, cancelling a different one still running.
    * An installed model is adopted as it is, with nothing downloaded. */
   chooseModel(reference: string, installed?: string): void;
+  /** The engine alone, for the Library and voice: a provider's model needs no download. */
+  withoutModel(): void;
   retry(): void;
   cancelAll(): void;
   /** Settles once no engine setup is running, so Skip never starts a second one beside it. */
@@ -62,6 +66,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
   const extrasRef = useRef<ExtraDownload[]>([]);
   const extraControllers = useRef(new Map<string, AbortController>());
   const modelDoneRef = useRef(false);
+  const [modelless, setModelless] = useState(false);
   const pumpRef = useRef<() => void>(() => {});
 
   const updateExtras = useCallback((change: (list: ExtraDownload[]) => ExtraDownload[]) => {
@@ -151,6 +156,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
       controllerRef.current = null;
       lastRef.current = { reference, installed };
       modelDoneRef.current = false;
+      setModelless(false);
 
       if (installed) {
         setModel({ ...IDLE_MODEL, reference, filename: installed, phase: "done", percent: 100 });
@@ -214,6 +220,17 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     [model.phase, startEngine, startModel],
   );
 
+  const withoutModel = useCallback(() => {
+    startEngine();
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    lastRef.current = null;
+    setModel(IDLE_MODEL);
+    setModelless(true);
+    modelDoneRef.current = true;
+    pumpRef.current();
+  }, [startEngine]);
+
   const retry = useCallback(() => {
     if (engine.phase === "error") startEngine();
     const last = lastRef.current;
@@ -225,6 +242,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     controllerRef.current = null;
     lastRef.current = null;
     modelDoneRef.current = false;
+    setModelless(false);
     setModel(IDLE_MODEL);
     for (const controller of extraControllers.current.values()) controller.abort();
     extraControllers.current.clear();
@@ -256,5 +274,5 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     [updateExtras],
   );
 
-  return { engine, model, extras, chooseModel, retry, cancelAll, engineIdle, queueExtra, dropExtra };
+  return { engine, model, extras, modelless, chooseModel, withoutModel, retry, cancelAll, engineIdle, queueExtra, dropExtra };
 }
