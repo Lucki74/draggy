@@ -143,6 +143,25 @@ describe("the app shell", () => {
 
     expect(allTools().map((tool) => tool.name)).toContain("context7__query_docs");
   });
+  it("opens on Providers when the splash hands over there", async () => {
+    render(<App />);
+    const overlay = await settingsOverlay();
+    expect(overlay?.getAttribute("aria-hidden")).toBe("true");
+
+    await act(async () => api.bootOpen.emit("providers"));
+    expect(overlay?.getAttribute("aria-hidden")).toBe("false");
+    expect(await screen.findByText(/Nothing is sent anywhere until you add a provider/)).toBeTruthy();
+  });
+
+  it("opens on Providers with no local model at all", async () => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ modelName: "", language: "en" }));
+    render(<App />);
+    expect(screen.queryByText("Appearance")).toBeNull();
+
+    await act(async () => api.bootOpen.emit("providers"));
+    expect(await screen.findByText(/Nothing is sent anywhere until you add a provider/)).toBeTruthy();
+  });
+
 });
 
 describe("the chat and code switch", () => {

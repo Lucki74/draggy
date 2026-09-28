@@ -801,7 +801,7 @@ export default function ChatScreen({
       warmedForModelRef.current = null;
       return;
     }
-    if (warmedForModelRef.current === model || isRemote(model)) return;
+    if (!model || warmedForModelRef.current === model || isRemote(model)) return;
     warmedForModelRef.current = model;
 
     if (onMeasureContext) {

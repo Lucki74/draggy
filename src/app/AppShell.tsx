@@ -97,6 +97,8 @@ interface AppShellProps {
   /** A first message suggested at the end of the setup, put in the composer once. */
   seedPrompt?: string;
   onSeedUsed?: () => void;
+  /** The Settings page to open on, when the splash handed over to it. */
+  openSettingsOn?: SettingsTab;
 }
 
 /** The window around the screens: the sidebar, the current surface, and the two interruptions any
@@ -110,6 +112,7 @@ export default function AppShell({
   arrivingModel,
   seedPrompt,
   onSeedUsed,
+  openSettingsOn,
 }: AppShellProps) {
   const t = useTranslator(settings.language);
 
@@ -247,6 +250,13 @@ export default function AppShell({
     setSettingsRequest((current) => ({ tab, id: current.id + 1 }));
     setViewMode("settings");
   }, []);
+
+  // Set during render, not in an effect, so the shell never paints the chat first.
+  const [openedOn, setOpenedOn] = useState<SettingsTab | undefined>();
+  if (openSettingsOn !== openedOn) {
+    setOpenedOn(openSettingsOn);
+    if (openSettingsOn) openSettings(openSettingsOn);
+  }
 
   /** A change to settings, merged into the latest ones rather than a copy from an older render. */
   const updateSettings = useCallback(

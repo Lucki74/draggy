@@ -227,7 +227,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   onDownloadProgress: (callback) => subscribe("download-progress", callback),
   onBootModel: (callback) => subscribe("boot-model", callback),
-  bootFinished: (model) => ipcRenderer.send("boot-finished", model),
+  onBootOpen: (callback) => subscribe("boot-open", callback),
+  // Only the one page the splash can hand over to; anything else is dropped here.
+  bootFinished: (model, open) => ipcRenderer.send("boot-finished", model, open === "providers" ? "providers" : undefined),
   quitApp: () => ipcRenderer.send("quit-app"),
   onBeforeQuit: (handler) => {
     beforeQuit.add(handler);

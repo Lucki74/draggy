@@ -29,6 +29,8 @@ export class Channel<T> {
 export interface FakeApi {
   updater: Channel<Record<string, unknown>>;
   mcp: Channel<Record<string, unknown>>;
+  /** The page the splash asked the main window to open on. */
+  bootOpen: Channel<string>;
   updaterState: Record<string, unknown>;
   install: ReturnType<typeof vi.fn>;
   check: ReturnType<typeof vi.fn>;
@@ -57,9 +59,11 @@ function stub(): unknown {
 export function installFakeElectronApi(): FakeApi {
   const updater = new Channel<Record<string, unknown>>();
   const mcp = new Channel<Record<string, unknown>>();
+  const bootOpen = new Channel<string>();
   const fake: FakeApi = {
     updater,
     mcp,
+    bootOpen,
     updaterState: { status: "idle", version: null, percent: 0, error: null },
     install: vi.fn(async () => ({})),
     check: vi.fn(async () => ({})),
@@ -72,6 +76,11 @@ export function installFakeElectronApi(): FakeApi {
   };
 
   const api = {
+    providers: {
+      list: async () => [],
+      catalog: async () => [],
+      scan: async () => ({ success: true, servers: [] }),
+    },
     updater: {
       state: async () => fake.updaterState,
       configure: async () => ({}),
@@ -103,6 +112,7 @@ export function installFakeElectronApi(): FakeApi {
     // Subscriptions have to hand back a disposer: React calls what an effect
     // returns, and the catch-all below answers with a promise.
     onBootModel: () => () => {},
+    onBootOpen: bootOpen.subscribe,
     onDownloadProgress: () => () => {},
     onBeforeQuit: () => () => {},
     appInfo: async () => ({ version: "1.2.4", packaged: true }),

@@ -9,6 +9,8 @@ interface StartupScreenProps {
   modelName: string;
   language: string;
   onReady: (model: string) => void;
+  /** Leaves the setup for Settings, Providers. Returning users only: a new install has its own step. */
+  onUseProvider?: () => void;
 }
 
 interface DownloadProgress {
@@ -32,6 +34,7 @@ export default function StartupScreen({
   modelName,
   language,
   onReady,
+  onUseProvider,
 }: StartupScreenProps) {
   const t = useCallback(
     (key: string) => {
@@ -259,6 +262,16 @@ export default function StartupScreen({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {onUseProvider && (
+        <button
+          type="button"
+          onClick={onUseProvider}
+          className="mb-6 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:underline underline-offset-2 transition-colors"
+        >
+          {t("useProviderInstead")}
+        </button>
+      )}
     </div>
   );
 }

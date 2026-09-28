@@ -1191,7 +1191,9 @@ declare global {
         callback: (progress: DownloadProgressEvent) => void,
       ) => Unsubscribe;
       onBootModel: (callback: (model: string) => void) => Unsubscribe;
-      bootFinished: (model: string) => void;
+      /** The Settings page the splash handed over to, instead of a model. */
+      onBootOpen?: (callback: (page: "providers") => void) => Unsubscribe;
+      bootFinished: (model: string, open?: "providers") => void;
       quitApp: () => void;
       /** Runs before Draggy quits and storage closes; the quit waits for it, up to a few seconds. */
       onBeforeQuit: (handler: () => Promise<void> | void) => Unsubscribe;

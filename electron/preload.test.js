@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 function loadPreload() {
   const listeners = new Map();
   const sent = [];
+  const messages = [];
   const invoked = [];
 
   const ipcRenderer = {
@@ -27,7 +28,10 @@ function loadPreload() {
     invoke: async (...args) => {
       invoked.push(args);
     },
-    send: (channel) => sent.push(channel),
+    send: (channel, ...args) => {
+      sent.push(channel);
+      messages.push([channel, ...args]);
+    },
   };
 
   let api = null;
@@ -57,7 +61,7 @@ function loadPreload() {
     for (const listener of [...(listeners.get(channel) || [])]) listener({}, payload);
   };
 
-  return { api, emit, sent, invoked, count: (channel) => (listeners.get(channel) || []).length };
+  return { api, emit, sent, messages, invoked, count: (channel) => (listeners.get(channel) || []).length };
 }
 
 describe("preload channel subscriptions", () => {
@@ -101,6 +105,7 @@ describe("preload channel subscriptions", () => {
       () => api.browserBar.onState(() => {}),
       () => api.onDownloadProgress(() => {}),
       () => api.onBootModel(() => {}),
+      () => api.onBootOpen(() => {}),
       () => api.onBeforeQuit(() => {}),
     ];
 
@@ -118,6 +123,30 @@ describe("preload channel subscriptions", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("the splash's handoff", () => {
+  it("asks main to open only the Providers page, whatever else the renderer passes", () => {
+    const { api, messages } = loadPreload();
+    api.bootFinished("m.gguf");
+    api.bootFinished("", "providers");
+    api.bootFinished("", "../settings");
+    expect(messages).toEqual([
+      ["boot-finished", "m.gguf", undefined],
+      ["boot-finished", "", "providers"],
+      ["boot-finished", "", undefined],
+    ]);
+  });
+
+  it("delivers the page to open to the main window's listener", () => {
+    const { api, emit } = loadPreload();
+    const opened = [];
+    const dispose = api.onBootOpen((page) => opened.push(page));
+    emit("boot-open", "providers");
+    dispose();
+    emit("boot-open", "providers");
+    expect(opened).toEqual(["providers"]);
   });
 });
 

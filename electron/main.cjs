@@ -1015,7 +1015,7 @@ app.on("before-quit", (event) => {
   });
 });
 
-ipcMain.on("boot-finished", (event, model) => {
+ipcMain.on("boot-finished", (event, model, open) => {
   bootCompleted = true;
 
   const closeSplash = () => {
@@ -1030,6 +1030,7 @@ ipcMain.on("boot-finished", (event, model) => {
   const reveal = () => {
     if (!mainWindow.isDestroyed()) {
       if (model) mainWindow.webContents.send("boot-model", model);
+      if (open === "providers") mainWindow.webContents.send("boot-open", "providers");
       mainWindow.show();
     }
     closeSplash();

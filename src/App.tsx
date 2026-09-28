@@ -38,6 +38,15 @@ export default function App() {
     isSplashMode || isRemote(settings.modelName) ? null : settings.modelName,
   );
 
+  // The splash handed over to Settings, Providers: the app opens there, with no local model if need be.
+  const [openSettingsOn, setOpenSettingsOn] = useState<"providers" | undefined>();
+  useEffect(() => {
+    if (isSplashMode) return;
+    return window.electronAPI?.onBootOpen?.((page) => {
+      if (page === "providers") setOpenSettingsOn(page);
+    });
+  }, [isSplashMode]);
+
   useEffect(() => {
     if (isSplashMode) return;
     return window.electronAPI?.onBootModel((bootModel) => {
@@ -50,6 +59,10 @@ export default function App() {
 
   const handleSplashReady = useCallback((selectedModel: string) => {
     window.electronAPI?.bootFinished(selectedModel);
+  }, []);
+
+  const handleUseProvider = useCallback(() => {
+    window.electronAPI?.bootFinished("", "providers");
   }, []);
 
   const handleModelReady = useCallback(
@@ -146,12 +159,13 @@ export default function App() {
           modelName={settings.modelName}
           language={settings.language}
           onReady={handleSplashReady}
+          onUseProvider={handleUseProvider}
         />
       </div>
     );
   }
 
-  if (!model) {
+  if (!model && !openSettingsOn) {
     if (window.electronAPI) {
       return (
         <div
@@ -176,7 +190,8 @@ export default function App() {
 
   return (
     <AppShell
-      model={model}
+      model={model ?? ""}
+      openSettingsOn={openSettingsOn}
       settings={settings}
       onUpdateSettings={setSettings}
       onSelectModel={handleModelReady}

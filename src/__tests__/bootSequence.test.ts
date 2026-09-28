@@ -128,6 +128,17 @@ describe("the splash's sequence", () => {
     await expect(autoSetup(api, "", () => {}, () => {})).rejects.toMatchObject({ key: "missingGgufEngine" });
   });
 
+  it("hands a provider's model straight through, still installing the engine the Library needs", async () => {
+    const { api, raw, downloadModel } = machine({ hasBinary: false, installs: true, models: ["a.gguf"] });
+    const statuses: string[] = [];
+    const model = await autoSetup(api, "@openai/gpt-x", (key) => statuses.push(key), () => {});
+    expect(model).toBe("@openai/gpt-x");
+    expect(statuses).toEqual(["checkingService", "installingService", "systemCheckComplete"]);
+    expect(raw.gguf.setupEngine).toHaveBeenCalled();
+    expect(raw.resolveModelUrl).not.toHaveBeenCalled();
+    expect(downloadModel).not.toHaveBeenCalled();
+  });
+
   it("refuses offline before resolving anything", async () => {
     const { api, raw } = machine({ online: false });
     await expect(autoSetup(api, "", () => {}, () => {})).rejects.toMatchObject({ key: "noInternetConnection" });

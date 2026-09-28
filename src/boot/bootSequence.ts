@@ -201,14 +201,20 @@ export async function autoSetup(
   onStatus: StatusFn,
   onProgress: ProgressFn,
 ): Promise<string> {
-  const saved = isRemote(preferred) ? "" : preferred;
-
   onStatus("checkingService");
+  // Installed even for a provider's model: the Library's embeddings still run on the local engine.
   const engine = await ensureEngine(api, onProgress, onStatus);
   if (!engine.ready) throw new BootError("missingGgufEngine");
 
+  // A provider's model is its provider's to check, so no local file is adopted or downloaded in its place.
+  if (isRemote(preferred)) {
+    onStatus("systemCheckComplete");
+    await settle();
+    return preferred;
+  }
+
   onStatus("verifyingAssets");
-  const installed = await adoptInstalled(api, saved);
+  const installed = await adoptInstalled(api, preferred);
   if (installed) {
     onStatus("startingService");
     onStatus("systemCheckComplete");
