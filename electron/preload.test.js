@@ -184,10 +184,25 @@ describe("saving before a quit", () => {
 });
 
 describe("the providers bridge", () => {
-  it("exposes exactly the Phase 1 calls, each on its own channel, and none that reads a key", async () => {
+  it("exposes exactly the provider calls, each on its own channel, and none that reads a key", async () => {
     const { api, invoked } = loadPreload();
 
-    expect(Object.keys(api.providers).sort()).toEqual(["add", "catalog", "list", "models", "remove", "scan", "setKey", "test", "update"]);
+    expect(Object.keys(api.providers).sort()).toEqual([
+      "accountCancel",
+      "accountSignIn",
+      "accountSignOut",
+      "accountStatus",
+      "add",
+      "catalog",
+      "list",
+      "models",
+      "onAccountProgress",
+      "remove",
+      "scan",
+      "setKey",
+      "test",
+      "update",
+    ]);
     await api.providers.catalog();
     await api.providers.list();
     await api.providers.add({ type: "openai" });
@@ -197,6 +212,10 @@ describe("the providers bridge", () => {
     await api.providers.test("openai");
     await api.providers.models("openai", { refresh: true });
     await api.providers.scan();
+    await api.providers.accountSignIn("chatgpt");
+    await api.providers.accountCancel("chatgpt");
+    await api.providers.accountSignOut("chatgpt");
+    await api.providers.accountStatus("chatgpt");
 
     expect(invoked).toEqual([
       ["providers:catalog"],
@@ -208,7 +227,24 @@ describe("the providers bridge", () => {
       ["providers:test", "openai"],
       ["providers:models", "openai", { refresh: true }],
       ["providers:scan"],
+      ["providers:account-sign-in", "chatgpt"],
+      ["providers:account-cancel", "chatgpt"],
+      ["providers:account-sign-out", "chatgpt"],
+      ["providers:account-status", "chatgpt"],
     ]);
+  });
+
+  it("gives every sign-in progress listener its own disposer", () => {
+    const { api, emit } = loadPreload();
+    const first = [];
+    const second = [];
+    const stopFirst = api.providers.onAccountProgress((progress) => first.push(progress.step));
+    api.providers.onAccountProgress((progress) => second.push(progress.step));
+    emit("providers:account-progress", { id: "chatgpt", step: "browser" });
+    stopFirst();
+    emit("providers:account-progress", { id: "chatgpt", step: "done" });
+    expect(first).toEqual(["browser"]);
+    expect(second).toEqual(["browser", "done"]);
   });
 });
 

@@ -138,6 +138,8 @@ const CATALOG = [
     auth: "account",
     baseUrl: "",
     keyUrl: "",
+    // The only page a sign-in may open: the vendor's own, never one Codex was talked into naming.
+    signInHosts: ["auth.openai.com"],
     capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
     defaultModels: [],
   },

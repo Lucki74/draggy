@@ -21,7 +21,26 @@ function catalogView(keystore = true) {
   }));
 }
 
-function createProviderHandlers({ registry, models, discovery, keystore = () => true }) {
+/** An account's runtime answers for it; a key instance, or one whose runtime is missing, is refused. */
+function accountOf(registry, accounts, id) {
+  const connection = registry.connectionFor(id);
+  const runtime = connection?.entry?.kind === "account" ? accounts[connection.entry.protocol] : null;
+  if (!runtime) throw Object.assign(new Error("not an account"), { failure: { kind: "account-runtime-unavailable", message: `${id} is not an account.` } });
+  return { runtime, entry: connection.entry };
+}
+
+/** Opens the sign-in page only on the vendor's own host, over https, whatever the runtime asked for. */
+function signInOpener(entry, openExternal) {
+  return async (url) => {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || !(entry.signInHosts || []).includes(parsed.hostname)) {
+      throw Object.assign(new Error("refused sign-in page"), { failure: { kind: "provider-unknown-error", message: `Refused to open ${parsed.origin}.` } });
+    }
+    await openExternal(parsed.href);
+  };
+}
+
+function createProviderHandlers({ registry, models, discovery, keystore = () => true, accounts = {}, openExternal = async () => {}, notify = () => {} }) {
   const attempt = (work) => {
     try {
       return { success: true, ...work() };
@@ -62,6 +81,41 @@ function createProviderHandlers({ registry, models, discovery, keystore = () => 
     "providers:test": async (id) => {
       try {
         return { success: true, count: (await models.list(id, { refresh: true })).length };
+      } catch (error) {
+        return failed(error);
+      }
+    },
+    "providers:account-sign-in": async (id) => {
+      try {
+        const { runtime, entry } = accountOf(registry, accounts, id);
+        const onProgress = (progress) => notify("providers:account-progress", { id, ...progress });
+        const status = await runtime.signIn(id, { onProgress, openExternal: signInOpener(entry, openExternal) });
+        models.forget(id);
+        return { success: true, status };
+      } catch (error) {
+        return failed(error);
+      }
+    },
+    "providers:account-cancel": async (id) => {
+      try {
+        await accountOf(registry, accounts, id).runtime.cancel(id);
+        return { success: true };
+      } catch (error) {
+        return failed(error);
+      }
+    },
+    "providers:account-sign-out": async (id) => {
+      try {
+        await accountOf(registry, accounts, id).runtime.signOut(id);
+        models.forget(id);
+        return { success: true };
+      } catch (error) {
+        return failed(error);
+      }
+    },
+    "providers:account-status": async (id) => {
+      try {
+        return { success: true, status: await accountOf(registry, accounts, id).runtime.status(id) };
       } catch (error) {
         return failed(error);
       }

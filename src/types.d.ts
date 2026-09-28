@@ -718,6 +718,27 @@ export interface DiscoveredServer {
   guessed: boolean;
 }
 
+/** A plan's usage window as the vendor reports it; `window` in minutes, `resetsAt` in epoch seconds. */
+export interface AccountLimit {
+  window: number | null;
+  usedPercent: number;
+  resetsAt: number | null;
+}
+
+export interface AccountStatus {
+  signedIn: boolean;
+  email?: string;
+  plan?: string;
+  limits?: AccountLimit[];
+  cancelled?: boolean;
+  error?: string | null;
+}
+
+export type AccountProgress =
+  | { id: string; step: "installing"; percent: number }
+  | { id: string; step: "browser"; url: string }
+  | { id: string; step: "done" };
+
 type ProviderResult<T> = ({ success: true } & T) | { success: false; error: ProviderFailure };
 
 export interface AppSettings {
@@ -1179,6 +1200,13 @@ declare global {
         models: (id: string, options?: { refresh?: boolean }) => Promise<ProviderResult<{ models: ProviderModel[] }>>;
         /** Loopback only; run when the Providers page opens or on Scan, never in the background. */
         scan: () => Promise<ProviderResult<{ servers: DiscoveredServer[] }>>;
+        /** Through the vendor's own runtime and page; resolves once the browser sign-in ends either way. */
+        accountSignIn: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
+        accountCancel: (id: string) => Promise<ProviderResult<object>>;
+        accountSignOut: (id: string) => Promise<ProviderResult<object>>;
+        /** Never downloads the runtime: one not installed yet answers signed out. */
+        accountStatus: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
+        onAccountProgress: (callback: (progress: AccountProgress) => void) => Unsubscribe;
       };
 
       appInfo: () => Promise<AppInfo>;

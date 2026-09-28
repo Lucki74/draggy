@@ -2,7 +2,7 @@
  * per conversation, and Draggy's tools as the only tools (spec §4, codex/MODE.md). */
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
-const { ensureCodex } = require("../codex/binary.cjs");
+const { ensureCodex, installedBinary } = require("../codex/binary.cjs");
 const { startCodex } = require("../codex/process.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
@@ -99,7 +99,16 @@ function turnFailure(error, limits) {
   return failure("provider-unknown-error", message);
 }
 
-function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(dir), start = startCodex, log = () => {}, settleMs = SETTLE_MS, supervisor = {} }) {
+function createCodexAdapter({
+  appData,
+  version,
+  ensure = ensureCodex,
+  installed = installedBinary,
+  start = startCodex,
+  log = () => {},
+  settleMs = SETTLE_MS,
+  supervisor = {},
+}) {
   const runtimes = new Map();
 
   function runtimeFor(instanceId) {
@@ -137,6 +146,7 @@ function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(di
     rt.threads.clear();
     for (const turn of rt.turns.values()) endLeg(rt, turn, failure("account-runtime-unavailable", "Codex stopped during the turn."));
     rt.turns.clear();
+    rt.login?.finish({ success: false, error: "Codex stopped during sign-in." });
   }
 
   function endLeg(rt, turn, result) {
@@ -155,6 +165,7 @@ function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(di
   }
 
   function notified(rt, method, params = {}) {
+    if (method === "account/login/completed") return rt.login?.finish(params);
     if (method === "account/rateLimits/updated") {
       rt.limits = { ...(rt.limits || {}), ...Object.fromEntries(Object.entries(params.rateLimits || {}).filter(([, v]) => v !== null)) };
       return;
@@ -257,7 +268,7 @@ function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(di
     return null;
   }
 
-  async function signIn(rt) {
+  async function requireSignIn(rt) {
     if (rt.signedIn) return;
     const read = await rt.codex.rpc.call("account/read", {});
     if (!read?.account) throw fail(failure("account-signed-out", "The ChatGPT account is signed out."));
@@ -283,7 +294,7 @@ function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(di
         return await leg;
       }
 
-      await signIn(rt);
+      await requireSignIn(rt);
       // A turn this conversation left open by a Stop during a tool call ends before the next one starts.
       for (const open of [...rt.turns.values()]) if (!open.leg && sameConversation(open.messages, messages)) abandon(rt, open);
       const planned = rt.threads.plan(messages);
@@ -324,11 +335,90 @@ function createCodexAdapter({ appData, version, ensure = (dir) => ensureCodex(di
     }
   }
 
+  /** Holds the runtime for the whole call, so the idle stop never lands in the middle of one. */
+  async function withRuntime(instanceId, work) {
+    const rt = runtimeFor(instanceId);
+    await rt.supervisor.acquire();
+    try {
+      return await work(rt, rt.codex.rpc);
+    } finally {
+      rt.supervisor.release();
+    }
+  }
+
+  /** Codex's own browser sign-in: OpenAI's page and Codex's own callback, so Draggy never sees a token. */
+  async function signIn(instanceId, { onProgress = () => {}, openExternal }) {
+    await ensure(appData, { onProgress: ({ percent }) => onProgress({ step: "installing", percent }) });
+    return withRuntime(instanceId, async (rt, rpc) => {
+      if (!(await rpc.call("account/read", {}))?.account) {
+        const { loginId, authUrl } = await rpc.call("account/login/start", { type: "chatgpt" });
+        const outcome = new Promise((resolve) => {
+          rt.login = { loginId, finish: (result) => (!result?.loginId || result.loginId === loginId) && resolve(result) };
+        });
+        onProgress({ step: "browser", url: authUrl });
+        await openExternal(authUrl);
+        const result = await outcome.finally(() => (rt.login = null));
+        if (!result.success) return { signedIn: false, cancelled: Boolean(result.cancelled), error: result.error || null };
+      }
+      rt.signedIn = true;
+      onProgress({ step: "done" });
+      return readStatus(rpc);
+    });
+  }
+
+  async function cancel(instanceId) {
+    const rt = runtimes.get(instanceId);
+    const login = rt?.login;
+    if (!login) return;
+    await rt.codex?.rpc.call("account/login/cancel", { loginId: login.loginId }).catch(() => undefined);
+    login.finish({ loginId: login.loginId, success: false, cancelled: true });
+  }
+
+  async function signOut(instanceId) {
+    if (!installed(appData)) return;
+    await withRuntime(instanceId, async (rt, rpc) => {
+      await rpc.call("account/logout", {});
+      rt.signedIn = false;
+      rt.threads.clear();
+    });
+  }
+
+  /** Never downloads: an account never signed in to has no runtime yet, and opening a page is no reason to fetch one. */
+  async function status(instanceId) {
+    if (!installed(appData)) return { signedIn: false };
+    return withRuntime(instanceId, (rt, rpc) => readStatus(rpc));
+  }
+
+  async function readStatus(rpc) {
+    const { account } = (await rpc.call("account/read", {})) || {};
+    if (!account) return { signedIn: false };
+    const answer = { signedIn: true, email: account.email || undefined, plan: account.planType || undefined };
+    const read = await rpc.call("account/rateLimits/read", {}).catch(() => null);
+    const windows = [read?.rateLimits?.primary, read?.rateLimits?.secondary].filter(Boolean);
+    if (windows.length) answer.limits = windows.map((w) => ({ window: w.windowDurationMins ?? null, usedPercent: w.usedPercent, resetsAt: w.resetsAt ?? null }));
+    return answer;
+  }
+
+  /** What `model/list` offers, in the shape the model listing reads; empty until the runtime is installed. */
+  async function models(instanceId) {
+    if (!installed(appData)) return [];
+    return withRuntime(instanceId, async (rt, rpc) => {
+      const listed = [];
+      let cursor = null;
+      do {
+        const page = await rpc.call("model/list", cursor ? { cursor } : {});
+        listed.push(...(page?.data || []));
+        cursor = page?.nextCursor || null;
+      } while (cursor);
+      return listed.filter((m) => !m.hidden).map((m) => ({ id: m.id, name: m.displayName, inputModalities: m.inputModalities }));
+    });
+  }
+
   async function stopAll() {
     await Promise.all([...runtimes.values()].map((rt) => rt.supervisor.stop()));
   }
 
-  return { stream, runtimeFor, stopAll };
+  return { stream, signIn, cancel, signOut, status, models, runtimeFor, stopAll };
 }
 
 module.exports = { createCodexAdapter, toItems, toInput, effortOf, turnFailure, resetsAtOf };

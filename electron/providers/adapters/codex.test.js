@@ -5,14 +5,15 @@ const require = createRequire(import.meta.url);
 const { createCodexAdapter, toItems } = require("./codex.cjs");
 
 /** A runtime that answers the calls a turn makes and lets the test play Codex's side of it. */
-function fakeCodex({ account = { email: "a@b.c" } } = {}) {
-  const codex = { calls: [], starts: 0, threads: 0, exit: null, notify: null, request: null };
+function fakeCodex({ account = { email: "a@b.c" }, installed = "codex.exe", more = {} } = {}) {
+  const codex = { calls: [], starts: 0, threads: 0, exit: null, notify: null, request: null, account };
   const answers = {
-    "account/read": () => ({ account, requiresOpenaiAuth: true }),
+    "account/read": () => ({ account: codex.account, requiresOpenaiAuth: true }),
     "thread/start": () => ({ thread: { id: `t${++codex.threads}` } }),
     "thread/inject_items": () => ({}),
     "turn/start": (params) => ({ turn: { id: `turn-${params.threadId}` } }),
     "turn/interrupt": () => ({}),
+    ...more,
   };
   const start = vi.fn(async ({ onNotification, onRequest, onExit }) => {
     codex.starts += 1;
@@ -30,7 +31,17 @@ function fakeCodex({ account = { email: "a@b.c" } } = {}) {
       },
     };
   });
-  const adapter = createCodexAdapter({ appData: "C:/data", version: "1.3.0", ensure: async () => "codex.exe", start, settleMs: 0, supervisor: { sleep: async () => {} } });
+  const ensure = vi.fn(async () => "codex.exe");
+  const adapter = createCodexAdapter({
+    appData: "C:/data",
+    version: "1.3.0",
+    ensure,
+    installed: () => installed,
+    start,
+    settleMs: 0,
+    supervisor: { sleep: async () => {} },
+  });
+  codex.ensure = ensure;
   codex.methods = () => codex.calls.map((c) => c.method);
   codex.call = (method) => codex.calls.filter((c) => c.method === method).at(-1)?.params;
   return { adapter, codex };
@@ -229,5 +240,107 @@ describe("seeding items", () => {
     ]);
     expect(toItems({ role: "tool", tool_call_id: "c1", content: "out" })).toEqual([{ type: "function_call_output", call_id: "c1", output: "out" }]);
     expect(toItems({ role: "system", content: "x" })).toEqual([]);
+  });
+});
+
+describe("the ChatGPT account", () => {
+  const limits = { primary: { usedPercent: 12, windowDurationMins: 300, resetsAt: 1790000000 }, secondary: null };
+
+  it("signs in through Codex's own browser flow and never touches a token", async () => {
+    const opened = [];
+    const { adapter, codex } = fakeCodex({
+      account: null,
+      more: {
+        "account/login/start": () => ({ type: "chatgpt", loginId: "L1", authUrl: "https://auth.openai.com/x" }),
+        "account/rateLimits/read": () => ({ rateLimits: limits }),
+      },
+    });
+    const progress = [];
+    const openExternal = async (url) => {
+      opened.push(url);
+      codex.account = { type: "chatgpt", email: "a@b.c", planType: "pro" };
+      codex.notify("account/login/completed", { loginId: "L1", success: true, error: null });
+    };
+    const signingIn = adapter.signIn("chatgpt", { onProgress: (p) => progress.push(p), openExternal });
+    const answer = await signingIn;
+    expect(codex.call("account/login/start")).toEqual({ type: "chatgpt" });
+    expect(opened).toEqual(["https://auth.openai.com/x"]);
+    expect(progress.map((p) => p.step)).toEqual(["browser", "done"]);
+    expect(answer).toEqual({ signedIn: true, email: "a@b.c", plan: "pro", limits: [{ window: 300, usedPercent: 12, resetsAt: 1790000000 }] });
+    expect(codex.methods().filter((m) => /token|apiKey/i.test(m))).toEqual([]);
+  });
+
+  it("reports the download as the install step", async () => {
+    const { adapter, codex } = fakeCodex();
+    codex.ensure.mockImplementation(async (dir, { onProgress } = {}) => {
+      onProgress?.({ percent: 40 });
+      return "codex.exe";
+    });
+    const progress = [];
+    await adapter.signIn("chatgpt", { onProgress: (p) => progress.push(p), openExternal: async () => {} });
+    expect(progress[0]).toEqual({ step: "installing", percent: 40 });
+    expect(codex.methods()).not.toContain("account/login/start");
+  });
+
+  it("cancels a sign-in that is waiting on the browser", async () => {
+    const { adapter, codex } = fakeCodex({
+      account: null,
+      more: { "account/login/start": () => ({ loginId: "L1", authUrl: "https://auth.openai.com/x" }), "account/login/cancel": () => ({}) },
+    });
+    let opened;
+    const browser = new Promise((resolve) => (opened = resolve));
+    const signingIn = adapter.signIn("chatgpt", { openExternal: async () => opened() });
+    await browser;
+    await adapter.cancel("chatgpt");
+    expect(await signingIn).toEqual({ signedIn: false, cancelled: true, error: null });
+    expect(codex.call("account/login/cancel")).toEqual({ loginId: "L1" });
+  });
+
+  it("fails a waiting sign-in when Codex exits", async () => {
+    const { adapter, codex } = fakeCodex({ account: null, more: { "account/login/start": () => ({ loginId: "L1", authUrl: "https://x" }) } });
+    let opened;
+    const browser = new Promise((resolve) => (opened = resolve));
+    const signingIn = adapter.signIn("chatgpt", { openExternal: async () => opened() });
+    await browser;
+    codex.exit(1);
+    expect(await signingIn).toMatchObject({ signedIn: false, cancelled: false });
+  });
+
+  it("answers the status with the plan and usage, and never downloads to do it", async () => {
+    const { adapter, codex } = fakeCodex({ account: { type: "chatgpt", email: "a@b.c", planType: "plus" }, more: { "account/rateLimits/read": () => ({ rateLimits: limits }) } });
+    expect(await adapter.status("chatgpt")).toEqual({
+      signedIn: true,
+      email: "a@b.c",
+      plan: "plus",
+      limits: [{ window: 300, usedPercent: 12, resetsAt: 1790000000 }],
+    });
+    const fresh = fakeCodex({ installed: null });
+    expect(await fresh.adapter.status("chatgpt")).toEqual({ signedIn: false });
+    expect(await fresh.adapter.models("chatgpt")).toEqual([]);
+    await fresh.adapter.signOut("chatgpt");
+    expect(fresh.codex.starts).toBe(0);
+    expect(fresh.codex.ensure).not.toHaveBeenCalled();
+  });
+
+  it("signs out through Codex and forgets its threads", async () => {
+    const { adapter, codex } = fakeCodex({ more: { "account/logout": () => ({}) } });
+    const { sse, done } = await leg(adapter, codex, [system, user("u1", "hi")]);
+    complete(codex, "t1");
+    await done;
+    const reply = { role: "assistant", content: "ok", provider_state: sse.events.find(([kind]) => kind === "state")[1] };
+    const threads = adapter.runtimeFor("chatgpt").threads;
+    expect(threads.plan([system, user("u1", "hi"), reply, user("u2")]).id).toBe("t1");
+    await adapter.signOut("chatgpt");
+    expect(codex.methods()).toContain("account/logout");
+    expect(threads.plan([system, user("u1", "hi"), reply, user("u2")]).id).toBeNull();
+  });
+
+  it("lists the visible models across pages", async () => {
+    const pages = {
+      "": { data: [{ id: "gpt-5.5", displayName: "GPT-5.5", hidden: false, inputModalities: ["text", "image"] }], nextCursor: "c2" },
+      c2: { data: [{ id: "codex-auto", displayName: "Auto", hidden: true, inputModalities: ["text"] }], nextCursor: null },
+    };
+    const { adapter } = fakeCodex({ more: { "model/list": (params) => pages[params.cursor || ""] } });
+    expect(await adapter.models("chatgpt")).toEqual([{ id: "gpt-5.5", name: "GPT-5.5", inputModalities: ["text", "image"] }]);
   });
 });

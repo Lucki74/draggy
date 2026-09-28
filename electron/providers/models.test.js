@@ -107,3 +107,21 @@ describe("what a listing says for itself", () => {
     expect((await models().list("deepseek"))[0].capabilities).not.toContain("thinking");
   });
 });
+
+describe("an account's listing", () => {
+  it("asks the account's runtime, never an address, and offers its thinking switch", async () => {
+    registry.add({ type: "chatgpt" });
+    const asked = [];
+    const accounts = { codex: { models: async (id) => (asked.push(id), [{ id: "gpt-5.5", name: "GPT-5.5", inputModalities: ["text", "image"] }]) } };
+    const listed = await createModels({ registry, accounts, fetchImpl: fakeFetch, now: () => clock }).list("chatgpt");
+    expect(asked).toEqual(["chatgpt"]);
+    expect(fetched).toEqual([]);
+    expect(listed).toEqual([expect.objectContaining({ id: "gpt-5.5", ref: "@chatgpt/gpt-5.5", cloud: true, capabilities: ["completion", "tools", "vision", "thinking"] })]);
+  });
+
+  it("names a missing runtime rather than fetching", async () => {
+    registry.add({ type: "chatgpt" });
+    await expect(models().list("chatgpt")).rejects.toMatchObject({ failure: { kind: "account-runtime-unavailable" } });
+    expect(fetched).toEqual([]);
+  });
+});

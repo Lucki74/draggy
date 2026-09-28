@@ -901,7 +901,10 @@ app.whenReady().then(() => {
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
-    models: createModels({ registry: providers }),
+    models: createModels({ registry: providers, accounts: { codex: codexAccounts } }),
+    accounts: { codex: codexAccounts },
+    openExternal: (url) => shell.openExternal(url),
+    notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send(channel, payload),
     discovery: createDiscovery({
       excludedPorts: () => [llamaProcess.getServerStatus().port || 11435, apiServer?.port() ?? readApiServerConfig().port],
       isDev: isDevelopment,

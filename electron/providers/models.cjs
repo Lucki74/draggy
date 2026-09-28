@@ -11,6 +11,7 @@ const FLAGS = ["tools", "vision", "thinking"];
 
 /** A thinking switch only counts where Draggy can send one; otherwise the pill would do nothing. */
 function thinkingControllable(entry) {
+  if (entry?.kind === "account") return true;
   const quirks = entry?.quirks || {};
   return entry?.protocol === "ollama" || Boolean(quirks.reasoningEffort || quirks.enableThinking || quirks.templateKwargs);
 }
@@ -47,7 +48,7 @@ function describe(instance, entry, model) {
   };
 }
 
-function createModels({ registry, fetchImpl = globalThis.fetch, now = Date.now }) {
+function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, now = Date.now }) {
   const cache = new Map();
 
   async function request(connection, { url, init }) {
@@ -63,6 +64,11 @@ function createModels({ registry, fetchImpl = globalThis.fetch, now = Date.now }
 
   async function fetchListing(connection) {
     const { entry } = connection;
+    if (entry?.kind === "account") {
+      const runtime = accounts[entry.protocol];
+      if (!runtime) throw Object.assign(new Error("no runtime"), { failure: { kind: "account-runtime-unavailable", message: `${entry.name} is not available here.` } });
+      return runtime.models(connection.instance.id);
+    }
     if (entry?.protocol === "ollama") {
       const listed = ADAPTERS.ollama.parseModels(await request(connection, ADAPTERS.ollama.modelsRequest(connection)));
       // `/api/show` is the only place Ollama says what a model takes; a model it cannot show stays unknown.

@@ -72,3 +72,75 @@ describe("what the renderer can ask", () => {
     expect(Object.fromEntries(without.filter((e) => ["openai", "custom", "ollama"].includes(e.id)).map((e) => [e.id, e.available]))).toEqual({ openai: false, custom: true, ollama: true });
   });
 });
+
+describe("an account", () => {
+  function withAccount({ authUrl = "https://auth.openai.com/oauth/authorize?x=1" } = {}) {
+    const kv = new Map();
+    const registry = createRegistry({
+      storage: { getValue: (key) => kv.get(key) ?? null, setValue: (key, value) => kv.set(key, String(value)) },
+      secrets: { available: () => true, get: () => ({}), set: () => true, remove: () => true },
+    });
+    registry.add({ type: "chatgpt" });
+    registry.add({ type: "openai" });
+    const calls = [];
+    const opened = [];
+    const notes = [];
+    const forgot = [];
+    const codex = {
+      signIn: async (id, { onProgress, openExternal }) => {
+        calls.push(["signIn", id]);
+        onProgress({ step: "browser", url: authUrl });
+        await openExternal(authUrl);
+        return { signedIn: true, email: "a@b.c" };
+      },
+      cancel: async (id) => calls.push(["cancel", id]),
+      signOut: async (id) => calls.push(["signOut", id]),
+      status: async (id) => (calls.push(["status", id]), { signedIn: false }),
+    };
+    const models = { list: async () => [], forget: (id) => forgot.push(id) };
+    const handlers = createProviderHandlers({
+      registry,
+      models,
+      discovery: { scan: async () => [] },
+      accounts: { codex },
+      openExternal: async (url) => opened.push(url),
+      notify: (channel, payload) => notes.push([channel, payload]),
+    });
+    return { handlers, calls, opened, notes, forgot };
+  }
+
+  it("signs in through its runtime, opens the vendor's page and reports each step", async () => {
+    const { handlers, calls, opened, notes, forgot } = withAccount();
+    expect(await handlers["providers:account-sign-in"]("chatgpt")).toEqual({ success: true, status: { signedIn: true, email: "a@b.c" } });
+    expect(calls).toEqual([["signIn", "chatgpt"]]);
+    expect(opened).toEqual(["https://auth.openai.com/oauth/authorize?x=1"]);
+    expect(notes).toEqual([["providers:account-progress", { id: "chatgpt", step: "browser", url: "https://auth.openai.com/oauth/authorize?x=1" }]]);
+    expect(forgot).toEqual(["chatgpt"]);
+  });
+
+  it.each(["https://evil.example/oauth", "http://auth.openai.com/oauth", "file:///C:/x.html", "https://auth.openai.com.evil.example/"])(
+    "refuses to open a sign-in page anywhere but the vendor's own host: %s",
+    async (authUrl) => {
+      const { handlers, opened } = withAccount({ authUrl });
+      expect(await handlers["providers:account-sign-in"]("chatgpt")).toMatchObject({ success: false });
+      expect(opened).toEqual([]);
+    },
+  );
+
+  it("cancels, signs out and reads the status through the same runtime", async () => {
+    const { handlers, calls, forgot } = withAccount();
+    expect(await handlers["providers:account-cancel"]("chatgpt")).toEqual({ success: true });
+    expect(await handlers["providers:account-sign-out"]("chatgpt")).toEqual({ success: true });
+    expect(await handlers["providers:account-status"]("chatgpt")).toEqual({ success: true, status: { signedIn: false } });
+    expect(calls).toEqual([["cancel", "chatgpt"], ["signOut", "chatgpt"], ["status", "chatgpt"]]);
+    expect(forgot).toEqual(["chatgpt"]);
+  });
+
+  it("refuses the account calls for a key provider or an unknown one", async () => {
+    const { handlers, calls } = withAccount();
+    for (const id of ["openai", "nope"]) {
+      expect(await handlers["providers:account-status"](id)).toMatchObject({ success: false, error: { kind: "account-runtime-unavailable" } });
+    }
+    expect(calls).toEqual([]);
+  });
+});

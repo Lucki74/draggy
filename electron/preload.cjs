@@ -217,6 +217,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     test: (id) => ipcRenderer.invoke("providers:test", id),
     models: (id, options) => ipcRenderer.invoke("providers:models", id, options),
     scan: () => ipcRenderer.invoke("providers:scan"),
+    accountSignIn: (id) => ipcRenderer.invoke("providers:account-sign-in", id),
+    accountCancel: (id) => ipcRenderer.invoke("providers:account-cancel", id),
+    accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
+    accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
+    onAccountProgress: (callback) => subscribe("providers:account-progress", callback),
   },
 
   appInfo: () => ipcRenderer.invoke("app:version"),
