@@ -5,7 +5,8 @@ export type ModelRef =
   | { kind: "builtin"; file: string }
   | { kind: "remote"; instanceId: string; modelId: string; valid: boolean };
 
-import type { Message, ProviderModel } from "../types";
+import type { Message, ProviderInstance, ProviderModel } from "../types";
+import type { PromptProfile } from "../prompts";
 
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
 export interface ProviderState {
@@ -42,15 +43,36 @@ export function chatEndpoint(_model: string): string {
 }
 
 /** A provider's model as its provider lists it; null when the provider is gone, off or unreachable. */
-export async function remoteModelInfo(model: string): Promise<ProviderModel | null> {
+export async function remoteModelInfo(model: string): Promise<(ProviderModel & { promptProfile: PromptProfile }) | null> {
   const ref = parseRef(model);
   if (ref.kind !== "remote" || !ref.valid || typeof window === "undefined") return null;
   try {
-    const answer = await window.electronAPI?.providers?.models(ref.instanceId);
-    return answer?.success ? (answer.models.find((m) => m.id === ref.modelId) ?? null) : null;
+    const api = window.electronAPI?.providers;
+    // The instance only picks the prompt; a failed lookup costs the full prompt, never the model's info.
+    const [answer, instances] = await Promise.all([api?.models(ref.instanceId), api?.list?.().catch(() => [])]);
+    const found = answer?.success ? answer.models.find((m) => m.id === ref.modelId) : undefined;
+    const instance = instances?.find((item) => item.id === ref.instanceId);
+    return found ? { ...found, promptProfile: promptProfileFor(model, instance, found) } : null;
   } catch {
     return null;
   }
+}
+
+const LARGE_CONTEXT = 65536;
+const LARGE_PARAMETERS_B = 30;
+
+/** Which system prompt a model gets: the instance's choice, else `full` for the cloud and for a local
+ * server's large model, and `compact` for everything else, the built-in engine always. */
+export function promptProfileFor(
+  model: string,
+  instance: Pick<ProviderInstance, "kind" | "promptProfile"> | null | undefined,
+  listed: Pick<ProviderModel, "id" | "contextLength"> | null | undefined,
+): PromptProfile {
+  if (!isRemote(model) || !instance) return "compact";
+  if (instance.promptProfile && instance.promptProfile !== "auto") return instance.promptProfile;
+  if (instance.kind === "cloud") return "full";
+  const billions = Number(/(\d+(?:\.\d+)?)b(?![a-z])/i.exec(listed?.id ?? model)?.[1] ?? 0);
+  return (listed?.contextLength ?? 0) >= LARGE_CONTEXT || billions >= LARGE_PARAMETERS_B ? "full" : "compact";
 }
 
 export interface ModelGroup {

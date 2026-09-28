@@ -1,6 +1,7 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
 import { isRemote, parseRef, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
+import type { PromptProfile } from "./prompts";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
  * setting; kept only so callers built around the idea need no changes. */
@@ -15,6 +16,8 @@ export interface ModelInfo {
   capabilities: string[];
   parameterCount: number | null;
   quantization: string | null;
+  /** A provider's model only; the built-in engine always gets the compact prompt. */
+  promptProfile?: PromptProfile;
 }
 
 export interface GenerationMetrics {
@@ -141,7 +144,9 @@ export function getModelInfo(model: string): Promise<ModelInfo | null> {
   if (isRemote(model)) {
     const remote = remoteModelInfo(model).then((found) => {
       if (!found) modelInfoCache.delete(model);
-      return found ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null } : null;
+      return found
+        ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null, promptProfile: found.promptProfile }
+        : null;
     });
     modelInfoCache.set(model, remote);
     return remote;

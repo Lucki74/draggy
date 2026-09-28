@@ -135,7 +135,7 @@ describe("the models the menus offer", () => {
 
   it("describes a provider's model from its listing, and nothing when it cannot be reached", async () => {
     const models = stub({ success: true, models: [listed("gpt-5.5")] });
-    expect(await remoteModelInfo("@openai/gpt-5.5")).toMatchObject({ contextLength: 400000, capabilities: ["completion", "tools"] });
+    expect(await remoteModelInfo("@openai/gpt-5.5")).toMatchObject({ contextLength: 400000, capabilities: ["completion", "tools"], promptProfile: "full" });
     expect(models).toHaveBeenCalledWith("openai");
     stub({ success: false });
     expect(await remoteModelInfo("@openai/gpt-5.5")).toBeNull();

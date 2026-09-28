@@ -31,7 +31,7 @@ vi.mock("../llama", async (importOriginal) => {
     ...actual,
     getModelInfo: (model: string) =>
       model === "@anthropic/claude-tools" || model === "@openai/thinker"
-        ? Promise.resolve({ contextLength: 200000, capabilities: model.endsWith("thinker") ? ["tools", "thinking"] : ["tools"], parameterCount: null, quantization: null })
+        ? Promise.resolve({ contextLength: 200000, capabilities: model.endsWith("thinker") ? ["tools", "thinking"] : ["tools"], parameterCount: null, quantization: null, promptProfile: "full" })
         : actual.getModelInfo(model),
   };
 });
@@ -2294,6 +2294,28 @@ describe("each stored message's reference on the wire", () => {
     const local = installFetch([{ content: ["ok"] }], []);
     await runAgentTurn(turnInput(MODEL, [userMessage("hi")]), makeHost().host);
     expect(JSON.stringify(local.requests[0])).not.toContain("draggy_ref");
+  });
+});
+
+describe("the system prompt's profile", () => {
+  const systemOf = (request: unknown) => (request as { messages: { role: string; content: string }[] }).messages[0].content;
+  const turnInput = (model: string) => ({
+    model,
+    settings: SETTINGS,
+    environment: ENVIRONMENT,
+    messages: [userMessage("hi")],
+    compaction: null,
+    signal: new AbortController().signal,
+  });
+
+  it("is full when the model's info says so, and compact for the engine", async () => {
+    const remote = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL), makeHost().host);
+    expect(systemOf(remote.requests[0])).toContain("Using tools well:");
+
+    const local = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(MODEL), makeHost().host);
+    expect(systemOf(local.requests[0])).not.toContain("Using tools well:");
   });
 });
 

@@ -373,7 +373,13 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const loadedSection = renderLoadedSkills(loadedSkills);
 
   const systemPrompt = [
-    buildSystemPrompt(settings, { nativeTools, nativeThinking }, environment, memory, skills),
+    buildSystemPrompt(
+      settings,
+      { nativeTools, nativeThinking, profile: info?.promptProfile ?? "compact" },
+      environment,
+      memory,
+      skills,
+    ),
     loadedSection,
   ]
     .filter(Boolean)

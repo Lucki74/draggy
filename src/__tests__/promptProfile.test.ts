@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildSystemPrompt } from "../prompts";
+import { promptProfileFor } from "../ai/providers";
 import { registerBuiltinTools } from "../tools/builtin";
 import { registerCommandTools } from "../tools/commands";
 import { registerExploreTools } from "../tools/explore";
@@ -74,5 +75,50 @@ describe("the compact prompt profile", () => {
     const mode = { nativeTools: true, nativeThinking: true };
     const compact = buildSystemPrompt(SETTINGS, { ...mode, profile: "compact" }, CODE);
     expect(buildSystemPrompt(SETTINGS, { ...mode, profile: "full" }, CODE).startsWith(compact)).toBe(true);
+  });
+});
+
+describe("the full prompt profile", () => {
+  it("adds guidance for the tools a turn has: chat", () => {
+    expect(buildSystemPrompt(SETTINGS, { nativeTools: true, nativeThinking: true, profile: "full" }, CHAT)).toMatchSnapshot();
+  });
+
+  it("adds guidance for the tools a turn has: code", () => {
+    expect(buildSystemPrompt(SETTINGS, { nativeTools: true, nativeThinking: true, profile: "full" }, CODE)).toMatchSnapshot();
+  });
+
+  it("adds no tool-calling guidance to a model that calls tools in text", () => {
+    const full = buildSystemPrompt(SETTINGS, { nativeTools: false, nativeThinking: false, profile: "full" }, CODE);
+    expect(full).not.toContain("Using tools well:");
+    expect(full).toContain("Editing files, in more detail:");
+  });
+});
+
+describe("which profile a model gets", () => {
+  const cloud = { kind: "cloud", promptProfile: "auto" } as const;
+  const local = { kind: "local", promptProfile: "auto" } as const;
+
+  it("is compact for the built-in engine, whatever else is said", () => {
+    expect(promptProfileFor("qwen-72b.gguf", cloud, { id: "qwen-72b", contextLength: 131072 })).toBe("compact");
+  });
+
+  it("is full for a cloud model", () => {
+    expect(promptProfileFor("@openai/gpt-x", cloud, { id: "gpt-x", contextLength: 8192 })).toBe("full");
+  });
+
+  it("is full for a local server's large model and compact for a small one", () => {
+    expect(promptProfileFor("@ollama/qwen3:32b", local, { id: "qwen3:32b", contextLength: 8192 })).toBe("full");
+    expect(promptProfileFor("@ollama/small", local, { id: "small", contextLength: 65536 })).toBe("full");
+    expect(promptProfileFor("@ollama/qwen3:8b", local, { id: "qwen3:8b", contextLength: 32768 })).toBe("compact");
+    expect(promptProfileFor("@ollama/qwen3:8b", local, null)).toBe("compact");
+  });
+
+  it("is the instance's own choice when it made one", () => {
+    expect(promptProfileFor("@openai/gpt-x", { kind: "cloud", promptProfile: "compact" }, null)).toBe("compact");
+    expect(promptProfileFor("@ollama/qwen3:8b", { kind: "local", promptProfile: "full" }, null)).toBe("full");
+  });
+
+  it("is compact when the instance is gone", () => {
+    expect(promptProfileFor("@gone/x", null, null)).toBe("compact");
   });
 });
