@@ -81,7 +81,7 @@ export default function Preferences({
         </Row>
         {mode === "code" && (
           <>
-            <Row label={t("onbPermissionTitle")} description={t("onbPermissionHint")} />
+            <Row label={t("onbPermissionTitle")} />
             <Block>
               <PermissionChoice
                 value={settings.codePermissionMode}
