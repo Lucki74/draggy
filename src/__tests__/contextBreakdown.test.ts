@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_COMPACT_LIMIT,
+  PAID_COMPACT_CAP,
   compactThreshold,
   describeContextWindow,
   formatTokenCount,
@@ -151,6 +152,13 @@ describe("where the conversation gets folded", () => {
 
   it("is the user's limit when they set one", () => {
     expect(compactThreshold(128_000, 50_000)).toEqual({ tokens: 50_000, source: "limit" });
+  });
+
+  it("is capped for a paid provider, whose every token sent is billed, unless the user set a limit", () => {
+    expect(compactThreshold(400_000, null, true)).toEqual({ tokens: PAID_COMPACT_CAP, source: "paid" });
+    expect(compactThreshold(32_000, null, true)).toEqual({ tokens: 19_200, source: "auto" });
+    expect(compactThreshold(400_000, 200_000, true)).toEqual({ tokens: 200_000, source: "limit" });
+    expect(compactThreshold(400_000, null)).toEqual({ tokens: 240_000, source: "auto" });
   });
 
   it("caps a limit that would leave no room for the reply", () => {

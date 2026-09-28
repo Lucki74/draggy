@@ -199,7 +199,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Characters the conversation may occupy before an automatic fold. The user's limit when there
-   * is one, otherwise a share of how far the window can grow. */
+   * is one, else a share of how far the window can grow, capped for a paid provider. */
   async function budgetFor(model: string, numCtx: number): Promise<number> {
     const settings = host.getSettings();
     const limit = settings.compactLimit ?? null;
@@ -213,7 +213,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       ? windowCeiling(info?.contextLength ?? null, numCtx)
       : Math.min(maxLocal, windowCeiling(info?.contextLength ?? null, numCtx));
 
-    return compactThreshold(windowTokens, limit).tokens * CHARS_PER_TOKEN;
+    return compactThreshold(windowTokens, limit, info?.cloud === true).tokens * CHARS_PER_TOKEN;
 
   }
 
@@ -224,7 +224,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (inFlight) return inFlight.done;
 
     const model = host.getModel();
-    if (!model || isRemote(model)) return Promise.resolve("nothing");
+    if (!model) return Promise.resolve("nothing");
 
     const session = host.getSession(chatId);
     if (!session) return Promise.resolve("nothing");

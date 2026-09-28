@@ -244,6 +244,8 @@ export default function ContextWheel({ view, t, onCompact, compacting }: Context
               <p className="flex-1 text-[10px] leading-snug text-[var(--text-muted)]">
                 {(view.compactSource === "limit"
                   ? t("compactsAtLimit")
+                  : view.compactSource === "paid"
+                  ? t("compactsAtPaidCap")
                   : t("compactsAutomatically")
                 ).replace("{count}", formatTokenCount(view.compactAtTokens))}
               </p>

@@ -174,6 +174,13 @@ describe("the breakdown", () => {
     expect(screen.getByText("Compacts at your limit of 50k tokens")).toBeTruthy();
   });
 
+  it("says why when a paid provider's cap sets the point", () => {
+    render(<ContextWheel view={view({ paid: true })} t={t} />);
+    open();
+
+    expect(screen.getByText("Compacts at 64k tokens, since a paid provider bills every token sent")).toBeTruthy();
+  });
+
   it("compacts on request and closes", async () => {
     const onCompact = vi.fn();
     render(<ContextWheel view={view()} t={t} onCompact={onCompact} />);

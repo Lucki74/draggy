@@ -286,9 +286,9 @@ describe("a provider's model, which the engine never holds", () => {
 
   it("is described by its provider's listing instead, even when its instance cannot be looked up", async () => {
     const gguf = { listModels: vi.fn() };
-    const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"] }] })) };
+    const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"], cloud: true }] })) };
     vi.stubGlobal("window", { electronAPI: { gguf, providers } });
-    expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null, promptProfile: "compact" });
+    expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null, promptProfile: "compact", cloud: true });
     expect(providers.models).toHaveBeenCalledWith("openai");
     expect(gguf.listModels).not.toHaveBeenCalled();
     forgetModelInfo("@openai/gpt-x");

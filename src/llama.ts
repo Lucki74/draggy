@@ -18,6 +18,8 @@ export interface ModelInfo {
   quantization: string | null;
   /** A provider's model only; the built-in engine always gets the compact prompt. */
   promptProfile?: PromptProfile;
+  /** A provider's model that runs on someone else's servers, and is billed or counted there. */
+  cloud?: boolean;
 }
 
 export interface GenerationMetrics {
@@ -145,7 +147,7 @@ export function getModelInfo(model: string): Promise<ModelInfo | null> {
     const remote = remoteModelInfo(model).then((found) => {
       if (!found) modelInfoCache.delete(model);
       return found
-        ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null, promptProfile: found.promptProfile }
+        ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null, promptProfile: found.promptProfile, cloud: found.cloud }
         : null;
     });
     modelInfoCache.set(model, remote);

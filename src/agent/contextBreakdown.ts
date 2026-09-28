@@ -121,8 +121,8 @@ export interface ContextWindowView {
   rows: ContextRow[];
   /** Where the conversation gets folded into notes, in tokens. */
   compactAtTokens: number;
-  /** Whether that point was chosen by the user or worked out by Draggy. */
-  compactSource: "auto" | "limit";
+  /** Whether that point was chosen by the user, worked out by Draggy, or a paid provider's default cap. */
+  compactSource: "auto" | "limit" | "paid";
   details: ContextDetails;
 }
 
@@ -139,6 +139,8 @@ export interface ContextWindowInput {
   windowTokens: number;
   /** The user's own limit, when they set one. */
   limitTokens: number | null;
+  /** A model a provider bills for, which folds at `PAID_COMPACT_CAP` unless the user set a limit. */
+  paid?: boolean;
 }
 
 /** Where automatic folding happens, in tokens. Measured against how far the window can grow, not the
@@ -146,13 +148,18 @@ export interface ContextWindowInput {
 export function compactThreshold(
   windowTokens: number,
   limitTokens: number | null,
-): { tokens: number; source: "auto" | "limit" } {
+  paid = false,
+): { tokens: number; source: "auto" | "limit" | "paid" } {
   if (limitTokens !== null && limitTokens > 0) {
     return { tokens: Math.min(limitTokens, maxLimitFor(windowTokens)), source: "limit" };
   }
 
-  return { tokens: Math.floor(windowTokens * COMPACT_AT), source: "auto" };
+  const auto = Math.floor(windowTokens * COMPACT_AT);
+  return paid && auto > PAID_COMPACT_CAP ? { tokens: PAID_COMPACT_CAP, source: "paid" } : { tokens: auto, source: "auto" };
 }
+
+/** Every token sent is billed on every turn, so a paid provider's huge window is folded long before it fills. */
+export const PAID_COMPACT_CAP = 64000;
 
 /** The lowest limit accepted. Below it every turn would be folded away. */
 export const MIN_COMPACT_LIMIT = 1000;
@@ -194,7 +201,7 @@ export function describeContextWindow(input: ContextWindowInput): ContextWindowV
 
   rows.push({ id: "free", tokens: free, percent: share(free) });
 
-  const threshold = compactThreshold(windowTokens, input.limitTokens);
+  const threshold = compactThreshold(windowTokens, input.limitTokens, input.paid);
 
   return {
     measured: input.breakdown !== null,

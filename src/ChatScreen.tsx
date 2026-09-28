@@ -878,6 +878,7 @@ export default function ChatScreen({
           windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
         ),
     limitTokens: settings.compactLimit ?? null,
+    paid: modelInfo?.cloud === true,
     details: contextDetails(parts, loadedSkillNames),
   });
 

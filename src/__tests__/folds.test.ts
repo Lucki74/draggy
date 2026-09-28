@@ -51,7 +51,10 @@ vi.mock("../llama", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../llama")>();
   return {
     ...actual,
-    getModelInfo: async () => ({ contextLength: 128_000, capabilities: ["tools"] }),
+    getModelInfo: async (model: string) =>
+      model.startsWith("@")
+        ? { contextLength: 1_000_000, capabilities: ["tools"], cloud: model.startsWith("@openai/") }
+        : { contextLength: 128_000, capabilities: ["tools"] },
   };
 });
 
@@ -83,11 +86,11 @@ const longChat = (pairs = 6, chars = 30_000): Message[] =>
     say(index % 2 === 0 ? "user" : "assistant", chars, index),
   );
 
-function createHost(settings: Partial<AppSettings> = {}) {
+function createHost(settings: Partial<AppSettings> = {}, model = "qwen3:8b") {
   const sessions = new Map<string, ChatSession>();
 
   const host: TaskHost = {
-    getModel: () => "qwen3:8b",
+    getModel: () => model,
     getSettings: () => ({ customInstructions: [], compactLimit: null, ...settings }) as AppSettings,
     getEnvironment: () => ({ webMode: "off", codeExecution: false, libraryReady: false }),
     getWorkspaceId: () => "default",
@@ -214,6 +217,26 @@ describe("the fold that follows a turn", () => {
     await settle();
 
     expect(folding).toHaveLength(1);
+  });
+
+  it("folds a paid provider's conversation at its cap, long before a million-token window fills", async () => {
+    const folded = async (model: string, limit: number | null = null) => {
+      folding.length = 0;
+      turns.length = 0;
+      const { sessions, host } = createHost({ compactLimit: limit }, model);
+      seed(sessions, longChat(6, 30_000));
+      const manager = createTaskManager(host);
+      manager.send("chat", "and then?");
+      await settle();
+      turns[0].resolve(finished());
+      await settle();
+      await settle();
+      return folding.length;
+    };
+
+    expect(await folded("@openai/gpt-x")).toBe(1);
+    expect(await folded("@ollama/big")).toBe(0);
+    expect(await folded("@openai/gpt-x", 500_000)).toBe(0);
   });
 
   it("does not start when the conversation is under the limit", async () => {
