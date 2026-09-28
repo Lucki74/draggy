@@ -83,6 +83,7 @@ import { isSpeechSupported, startRecording, transcribe } from "./speech";
 import type { Recorder } from "./speech";
 import type { ModelInfo } from "./llama";
 import ModelChoices from "./providers/ModelChoices";
+import RemoteFilesNotice from "./providers/RemoteFilesNotice";
 import { useProviderOf } from "./providers/useProviders";
 
 const MAX_INPUT_HEIGHT = 150;
@@ -1022,6 +1023,12 @@ export default function ChatScreen({
 
           <form onSubmit={handleSubmit} className="composer">
             <div className="overflow-hidden rounded-t-[9px] flex-shrink-0">
+              <RemoteFilesNotice
+                model={model}
+                provider={modelProvider?.label}
+                inProject={surface === "code" && Boolean(onProjectMemory)}
+                t={t}
+              />
               {chat.isOutOfContext && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b-2 border-[var(--border-light)] bg-[var(--hover-bg)]">
                   <Brain className="w-4 h-4 flex-shrink-0 text-amber-500" />
