@@ -37,8 +37,8 @@ Draggy is a desktop AI assistant that talks, browses and works on your own
 projects, all on models running on your own computer.
 
 It runs models directly on your hardware via its built-in native GGUF engine
-(powered by `llama.cpp`) with open weights from Hugging Face, so there is no
-account, no API key, and no request leaving the machine unless you ask for one.
+(powered by `llama.cpp`) with open weights from Hugging Face, so by default there
+is no account, no API key, and no request leaving the machine unless you ask for one.
 An Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
 **The wiki, at [draggy.org/wiki](https://draggy.org/wiki)**, is where the rest
@@ -75,11 +75,18 @@ to work on the code.
   loud, and stops when you interrupt.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key.
+- **Bring another model in, if you want one.** Add a server already running on
+  your computer (Ollama, LM Studio, llama.cpp, vLLM, Lemonade) or a cloud provider
+  with your own API key (OpenAI, Mistral, DeepSeek, Groq, OpenRouter and more).
+  The built-in engine stays the default and fully local. A provider you add
+  receives your conversations and the files its model reads, and its key stays in
+  your system's keystore.
 
 ## Upcoming
 
 - Many small improvements, small features and changes.
-- Suppport for ai providers other than draggy’s local engine.
+- Anthropic and Google API keys, and signing in with a ChatGPT, Claude or Google
+  plan instead of an API key.
 - And more!
 
 ## Installing and requirements

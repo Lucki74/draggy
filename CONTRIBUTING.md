@@ -57,6 +57,28 @@ Behind the preload: `electron/fsGuard.cjs` is the only way to a user's file,
 and every tool declares what it can do (`readOnly`, `destructive`, and so on)
 so `src/agent/permissions.ts` knows whether to run it, ask, or refuse.
 
+## Adding a provider
+
+The providers Draggy can reach are one list, `CATALOG` in
+`electron/providers/catalog.cjs`. A server that speaks the OpenAI chat API needs
+no new code, only an entry:
+
+- `cloud(id, name, baseUrl, keyUrl, extra)` for a hosted service reached with
+  an API key, or `local(id, name, port, probe, extra)` for a server on the
+  user's own computer, found by probing that port on 127.0.0.1.
+- `capabilityPatterns` say which model ids call tools, see images or think,
+  first match wins; a model that matches none is treated as having no tools.
+- `defaultModels` are ticked for the user when they add it, and `quirks`
+  covers the known differences (`maxTokensField`, `reasoningEffort`,
+  `enableThinking`, `templateKwargs`).
+
+A provider whose models run tools of their own on its side (web search, code
+execution) and cannot be told not to does not go in: Draggy only sends its own
+tools, so the user can see and approve everything that runs. That is why
+Perplexity is missing. `electron/providers/catalog.test.js` checks every entry;
+run `npm run check`, then add it through Settings, Providers, and try a chat,
+a tool call and, where the model has them, an image and thinking.
+
 ## Translations
 
 Draggy ships in twelve languages, and CI enforces that every one defines

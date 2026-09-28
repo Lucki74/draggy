@@ -1,7 +1,7 @@
 # Security
 
-Draggy runs on your machine and talks to a model on your machine. There is no
-server, no account and no telemetry, so most of the usual web attack surface
+Draggy runs on your machine and, unless you add a provider, talks to a model on
+your machine. There is no server, no account and no telemetry, so most of the usual web attack surface
 does not exist here. What is left is still worth taking seriously: Draggy reads
 web pages, opens files you hand it, runs short programs, and can start extension
 servers written by other people. Any of those can carry something hostile.
@@ -44,6 +44,12 @@ extension's output) into actions nobody asked for. Specifically:
   extension credentials leaking into a log, crash report, or window title.
 - The updater accepting a build that did not come from this repository, or
   the embedded browser leaking a session between the app and a page.
+- The `draggy-ai://` model gateway answering anything but Draggy's own window,
+  or fetching anywhere but the address of a provider you added and switched on.
+- A provider's API key or the Brave Search key leaving the system keystore:
+  reaching the renderer, a URL, a log, or a file in plain text.
+- A provider's own hosted tools (web search, code execution) running on a
+  request Draggy sent.
 
 ## What is not a vulnerability
 
