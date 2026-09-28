@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const http = require("node:http");
 const platform = require(path.join(__dirname, "..", "electron", "platform.cjs"));
+const { configToml: codexConfig } = require(path.join(__dirname, "..", "electron", "providers", "codex", "process.cjs"));
 
 const binary = path.resolve(process.argv[2] || "");
 if (!fs.existsSync(binary)) {
@@ -16,36 +17,12 @@ const leadArgs = /app-server/i.test(path.basename(binary)) ? [] : ["app-server"]
 const PROBE_TOOL = { type: "function", name: "draggy_probe", description: "Probe tool.", inputSchema: { type: "object", properties: {} } };
 const INSTRUCTIONS = "You are Draggy. Probe instructions.";
 
-const FEATURES_OFF = [
-  "code_mode", "code_mode_only", "context_management", "current_time_reminder", "deferred_executor",
-  "image_generation", "memories", "multi_agent", "multi_agent_v2", "plugins", "request_permissions_tool",
-  "shell_snapshot", "shell_tool", "standalone_web_search", "token_budget", "tool_suggest", "unified_exec",
-  "view_image", "goals", "apps", "browser_use", "computer_use", "in_app_browser", "skill_search",
-  "sleep_tool", "hooks",
-];
-
+// The app's own config, plus a provider pointing at the mock, so the probe proves what ships.
 function configToml(catalogPath, port) {
-  return [
-    `model_catalog_json = ${JSON.stringify(catalogPath)}`,
-    'model_provider = "probe"',
-    'web_search = "disabled"',
-    'forced_login_method = "chatgpt"',
-    'cli_auth_credentials_store = "file"',
-    "check_for_update_on_startup = false",
-    "include_permissions_instructions = false",
-    "include_environment_context = false",
-    "include_apps_instructions = false",
-    "include_collaboration_mode_instructions = false",
-    "project_doc_max_bytes = 0",
-    "[analytics]", "enabled = false",
-    "[feedback]", "enabled = false",
-    "[features]", ...FEATURES_OFF.map((name) => `${name} = false`),
-    "[skills]", "include_instructions = false",
-    "[cloud.skills]", "enabled = false",
-    "[tools.experimental_request_user_input]", "enabled = false",
-    "[tools.update_plan]", "enabled = false",
-    "[model_providers.probe]", 'name = "probe"', `base_url = "http://127.0.0.1:${port}/v1"`, 'wire_api = "responses"',
-  ].join("\n");
+  return codexConfig(catalogPath, {
+    topLevel: ['model_provider = "probe"'],
+    tables: ["[model_providers.probe]", 'name = "probe"', `base_url = "http://127.0.0.1:${port}/v1"`, 'wire_api = "responses"'],
+  });
 }
 
 /** The catalog is embedded in the binary as pretty-printed JSON; this walks it to its closing brace. */
