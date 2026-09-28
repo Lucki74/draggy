@@ -455,6 +455,24 @@ async function runOnboarding() {
   await move("next");
   await shootStep("app-onboarding-appearance");
   await move("next");
+  // Where the AI runs: shot on local, then a look at the provider step before going back to it.
+  const pickSource = (index) =>
+    inPage(win, (at) => {
+      const cards = document.querySelectorAll('main [role="radio"]');
+      cards[at]?.click();
+      return cards.length === 3;
+    }, index);
+  await waitFor(() => pickSource(0), { label: "the source cards" });
+  await sleep(2500);
+  await shootStep("app-onboarding-source");
+  await pickSource(1);
+  await move("next");
+  await sleep(1500);
+  await shootStep("app-onboarding-provider");
+  await move("back");
+  await pickSource(0);
+  await sleep(500);
+  await move("next");
   await waitFor(() => inPage(win, () => document.querySelectorAll('main [role="radio"]').length > 0), {
     label: "the model options",
   });
