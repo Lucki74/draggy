@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button, Group, Page } from "./Controls";
-import { AddProvider, DiscoveredRow, EngineRow, InstanceRow } from "../providers/ProviderRows";
+import { AccountRow, AddProvider, DiscoveredRow, EngineRow, InstanceRow } from "../providers/ProviderRows";
 import { useProviders } from "../providers/useProviders";
 
 type Translate = (key: string) => string;
@@ -22,7 +22,8 @@ export default function ProvidersPage({ engineModels, t }: { engineModels: numbe
   const entryOf = (type: string) => catalog.find((entry) => entry.id === type);
 
   const local = instances.filter((instance) => instance.kind === "local");
-  const keyed = instances.filter((instance) => instance.kind !== "local");
+  const keyed = instances.filter((instance) => instance.kind === "cloud");
+  const accounts = catalog.filter((entry) => entry.kind === "account");
   const addedHosts = new Set(local.map((instance) => hostOf(instance.baseUrl)));
   const runningHosts = new Set(servers.map((server) => hostOf(server.baseUrl)));
   const found = servers.filter((server) => !addedHosts.has(hostOf(server.baseUrl)));
@@ -54,6 +55,20 @@ export default function ProvidersPage({ engineModels, t }: { engineModels: numbe
           </Button>
         </div>
       </Group>
+
+      {accounts.length > 0 && (
+        <Group title={t("accountsGroup")}>
+          {accounts.map((entry) => (
+            <AccountRow
+              key={entry.id}
+              entry={entry}
+              instance={instances.find((instance) => instance.type === entry.id)}
+              providers={providers}
+              t={t}
+            />
+          ))}
+        </Group>
+      )}
 
       <Group
         title={t("apiKeysGroup")}

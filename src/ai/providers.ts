@@ -70,7 +70,7 @@ export function promptProfileFor(
 ): PromptProfile {
   if (!isRemote(model) || !instance) return "compact";
   if (instance.promptProfile && instance.promptProfile !== "auto") return instance.promptProfile;
-  if (instance.kind === "cloud") return "full";
+  if (instance.kind !== "local") return "full";
   const billions = Number(/(\d+(?:\.\d+)?)b(?![a-z])/i.exec(listed?.id ?? model)?.[1] ?? 0);
   return (listed?.contextLength ?? 0) >= LARGE_CONTEXT || billions >= LARGE_PARAMETERS_B ? "full" : "compact";
 }
@@ -78,7 +78,7 @@ export function promptProfileFor(
 export interface ModelGroup {
   instanceId: string;
   label: string;
-  kind: "cloud" | "local";
+  kind: ProviderInstance["kind"];
   models: ProviderModel[];
 }
 
@@ -100,7 +100,7 @@ export async function listAllModels(): Promise<ModelGroup[]> {
             contextLength: null,
             maxOutputTokens: null,
             capabilities: ["completion"],
-            cloud: instance.kind === "cloud",
+            cloud: instance.kind !== "local",
             pinned: true,
             override: null,
           },

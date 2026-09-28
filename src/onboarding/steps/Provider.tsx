@@ -30,7 +30,8 @@ export default function Provider({
   const { instances, catalog, servers, scanning } = providers;
   const entryOf = (type: string) => catalog.find((entry) => entry.id === type);
   const local = instances.filter((instance) => instance.kind === "local");
-  const keyed = instances.filter((instance) => instance.kind !== "local");
+  // Accounts get their own tiles in a later step of the setup (onboarding M5b).
+  const keyed = instances.filter((instance) => instance.kind === "cloud");
   const addedHosts = new Set(local.map((instance) => hostOf(instance.baseUrl)));
   const runningHosts = new Set(servers.map((server) => hostOf(server.baseUrl)));
   const found = servers.filter((server) => !addedHosts.has(hostOf(server.baseUrl)));

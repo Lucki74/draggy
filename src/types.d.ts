@@ -670,7 +670,7 @@ export interface ProviderInstance {
   type: string;
   label: string;
   name: string;
-  kind: "cloud" | "local";
+  kind: "cloud" | "local" | "account";
   protocol: string;
   baseUrl: string;
   enabled: boolean;
@@ -686,7 +686,7 @@ export interface ProviderInstance {
 export interface ProviderCatalogEntry {
   id: string;
   name: string;
-  kind: "cloud" | "local";
+  kind: "cloud" | "local" | "account";
   protocol: string;
   keyUrl: string | null;
   needsKey: boolean;

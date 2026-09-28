@@ -4,8 +4,11 @@ import { Badge, Button, Segmented, Toggle } from "../settings/Controls";
 import { engineFailure } from "../ai/engineErrors";
 import { failureOf } from "../ai/llamaStream";
 import { fill } from "../onboarding/text";
+import { accountSubtitle } from "./accountSubtitle";
 import type { Providers } from "./useProviders";
 import type {
+  AccountProgress,
+  AccountStatus,
   DiscoveredServer,
   ProviderCapability,
   ProviderCatalogEntry,
@@ -205,6 +208,146 @@ export function InstanceRow({
           <ModelList instance={instance} models={models} providers={providers} t={t} />
 
           <Advanced instance={instance} entry={entry} providers={providers} onSaved={saved} t={t} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+type SignInStep = { step: "starting" } | AccountProgress;
+
+/** A plan reached through the vendor's own runtime: signed in there, never with a key, and read on open only. */
+export function AccountRow({
+  entry,
+  instance,
+  providers,
+  t,
+}: {
+  entry: ProviderCatalogEntry;
+  instance: ProviderInstance | undefined;
+  providers: Providers;
+  t: Translate;
+}) {
+  const [status, setStatus] = useState<AccountStatus | null>(null);
+  const [signIn, setSignIn] = useState<SignInStep | null>(null);
+  const [open, setOpen] = useState(false);
+  const [models, setModels] = useState<ProviderModel[] | null>(null);
+  const [message, setMessage] = useState("");
+  const id = instance?.id;
+  const signedIn = Boolean(status?.signedIn);
+
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    void window.electronAPI?.providers
+      ?.accountStatus(id)
+      .then((answer) => {
+        if (live && answer.success) setStatus(answer.status);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !signedIn || !(open || instance?.enabled)) return;
+    let live = true;
+    void window.electronAPI?.providers
+      ?.models(id)
+      .then((answer) => {
+        if (live && answer.success) setModels(answer.models);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [id, signedIn, open, instance?.enabled, instance?.modelOverrides]);
+
+  const start = async () => {
+    const api = window.electronAPI?.providers;
+    setMessage("");
+    setSignIn({ step: "starting" });
+    let target = instance;
+    if (!target) {
+      const added = await providers.add({ type: entry.id });
+      target = added.ok ? added.instance : undefined;
+    }
+    if (!api || !target) {
+      setSignIn(null);
+      setMessage(t("signInFailed"));
+      return;
+    }
+    const targetId = target.id;
+    const stop = api.onAccountProgress((progress) => {
+      if (progress.id === targetId) setSignIn(progress);
+    });
+    const answer = await api.accountSignIn(targetId).catch(() => null);
+    stop();
+    setSignIn(null);
+    if (answer?.success && answer.status.signedIn) {
+      setStatus(answer.status);
+      // An account has no default models, so the first sign-in ticks what the plan offers.
+      const listed = target.pinnedModels.length ? null : await api.models(targetId).catch(() => null);
+      const pinnedModels = listed?.success ? listed.models.map((model) => model.id) : target.pinnedModels;
+      await providers.update(targetId, { enabled: true, pinnedModels });
+    } else if (answer && !answer.success) {
+      setMessage(engineFailure(failureOf({ ...answer.error, provider: entry.name })));
+    } else if (!answer?.status.cancelled) {
+      setMessage(t("signInFailed"));
+    }
+  };
+
+  const signOut = async () => {
+    if (!id) return;
+    await window.electronAPI?.providers?.accountSignOut(id).catch(() => null);
+    setStatus({ signedIn: false });
+    setModels(null);
+    setOpen(false);
+    await providers.update(id, { enabled: false });
+  };
+
+  const label = instance?.label ?? entry.name;
+  return (
+    <div>
+      <RowHead on={Boolean(instance?.enabled && signedIn)} name={label} subtitle={accountSubtitle(status, t)}>
+        {instance && signedIn && (
+          <>
+            <Toggle checked={instance.enabled} onChange={(enabled) => void providers.update(instance.id, { enabled })} label={label} />
+            <Expander open={open} onToggle={() => setOpen((value) => !value)} label={label} />
+          </>
+        )}
+      </RowHead>
+
+      {!signedIn && (
+        <div className="px-4 pb-3 ps-9 flex flex-wrap items-center gap-2">
+          {signIn ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              {signIn.step === "installing" && (
+                <span className="text-xs font-bold text-[var(--text-muted)]">
+                  {fill(t("installingRuntime"), { name: entry.name, percent: String(Math.round(signIn.percent)) })}
+                </span>
+              )}
+              {signIn.step === "browser" && <span className="text-xs font-bold text-[var(--text-muted)]">{t("finishInBrowser")}</span>}
+              {id && <Button onClick={() => void window.electronAPI?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
+            </>
+          ) : (
+            <Button onClick={() => void start()}>{fill(t("signInWith"), { name: entry.name })}</Button>
+          )}
+          {message && <p className="text-xs font-bold text-red-500 break-words min-w-0">{message}</p>}
+        </div>
+      )}
+
+      {open && instance && signedIn && (
+        <div className="px-4 pb-4 ps-9 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {status?.email && (
+              <span className="text-xs font-bold text-[var(--text-muted)]">{fill(t("signedInAs"), { email: status.email })}</span>
+            )}
+            <Button onClick={() => void signOut()}>{t("signOut")}</Button>
+          </div>
+          <ModelList instance={instance} models={models} providers={providers} t={t} />
         </div>
       )}
     </div>
@@ -468,7 +611,8 @@ export function AddProvider({
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const needle = query.trim().toLowerCase();
-  const shown = catalog.filter((entry) => !needle || entry.name.toLowerCase().includes(needle));
+  // Accounts are signed in to from their own group, never added with a key.
+  const shown = catalog.filter((entry) => entry.kind !== "account" && (!needle || entry.name.toLowerCase().includes(needle)));
 
   if (!open) {
     return (

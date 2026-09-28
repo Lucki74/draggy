@@ -4,10 +4,9 @@ const { catalog } = require("./catalog.cjs");
 
 const failed = (error) => ({ success: false, error: error?.failure || { kind: "provider-unknown-error", message: String(error?.message || error) } });
 
-/** The catalog as the Add list needs it; quirks and patterns stay in main. */
+/** The catalog as the page needs it; quirks, patterns and sign-in hosts stay in main. */
 function catalogView(keystore = true) {
-  // Accounts are signed in to, not added with a key, so they have a group of their own.
-  return catalog().filter((entry) => entry.kind !== "account").map((entry) => ({
+  return catalog().map((entry) => ({
     id: entry.id,
     name: entry.name,
     kind: entry.kind,
