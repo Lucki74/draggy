@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { forgetRemoteModelInfo } from "../llama";
+import { providerOf } from "../ai/providers";
 import type { DiscoveredServer, ProviderCatalogEntry, ProviderFailure, ProviderInstance } from "../types";
 
 const listeners = new Set<() => void>();
@@ -81,3 +82,21 @@ export function useProviders({ scanOnOpen = true }: { scanOnOpen?: boolean } = {
 }
 
 export type Providers = ReturnType<typeof useProviders>;
+
+/** The provider a model belongs to, kept current as providers change; null for the engine's own. */
+export function useProviderOf(model: string): ProviderInstance | null {
+  const [instances, setInstances] = useState<ProviderInstance[]>([]);
+  const remote = providerOf(model);
+  useEffect(() => {
+    if (!remote) return;
+    let live = true;
+    const load = () => void api()?.list().then((list) => live && setInstances(list)).catch(() => undefined);
+    load();
+    const stop = onProvidersChange(load);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [remote]);
+  return remote ? (instances.find((instance) => instance.id === remote) ?? null) : null;
+}

@@ -234,6 +234,10 @@ describe("displayModelName", () => {
     expect(displayModelName("ornith-1.0-35b-Q4_K_M.gguf")).toBe("ornith-1.0-35b-Q4_K_M.gguf");
     expect(displayModelName("model-00001-of-00004-final.gguf")).toBe("model-00001-of-00004-final.gguf");
   });
+
+  it("shows a provider's model by its own id, which may hold a slash", () => {
+    expect(displayModelName("@openrouter/meta-llama/llama-4")).toBe("meta-llama/llama-4");
+  });
 });
 
 describe("engine-chosen windows", () => {

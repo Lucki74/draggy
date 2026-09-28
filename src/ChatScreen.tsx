@@ -17,6 +17,8 @@ import {
   ImageIcon,
   File,
   Cpu,
+  Cloud,
+  Server,
   AlertTriangle,
   Mic,
   MicOff,
@@ -44,7 +46,6 @@ import type { CompactOutcome } from "./agent/taskManager";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import {
 } from "./chat/markdown";
-import { selectableModels } from "./modelKinds";
 import type { SettingsTab } from "./settings/pages";
 import { translations } from "./translations";
 import {
@@ -57,7 +58,6 @@ import {
   FALLBACK_CONTEXT_LENGTH,
   displayModelName,
   getModelInfo,
-  listInstalledModels,
   needsTextModeTools,
   onModelInfoChange,
   warmModel,
@@ -81,7 +81,9 @@ import {
 } from "./chat/slashCommands";
 import { isSpeechSupported, startRecording, transcribe } from "./speech";
 import type { Recorder } from "./speech";
-import type { InstalledModel, ModelInfo } from "./llama";
+import type { ModelInfo } from "./llama";
+import ModelChoices from "./providers/ModelChoices";
+import { useProviderOf } from "./providers/useProviders";
 
 const MAX_INPUT_HEIGHT = 150;
 
@@ -268,7 +270,8 @@ export default function ChatScreen({
     model: string;
     info: ModelInfo | null;
   }>({ model, info: null });
-  const [installedModels, setInstalledModels] = useState<InstalledModel[]>([]);
+  const modelProvider = useProviderOf(model);
+  const PillIcon = !isRemote(model) ? Cpu : modelProvider?.kind === "local" ? Server : Cloud;
 
   const modelInfo = probedModel.model === model ? probedModel.info : null;
   // Only when the model has said so: a probe that has not answered yet is not proof of anything.
@@ -318,19 +321,6 @@ export default function ChatScreen({
       stopListening();
     };
   }, [model]);
-
-  useEffect(() => {
-    if (!isModelMenuOpen) return;
-    let cancelled = false;
-    listInstalledModels()
-      .then((models) => {
-        if (!cancelled) setInstalledModels(selectableModels(models));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [isModelMenuOpen]);
 
   useEffect(() => {
     const field = inputRef.current;
@@ -1263,10 +1253,10 @@ export default function ChatScreen({
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                  title={displayModelName(model)}
+                  title={modelProvider ? `${modelProvider.label} · ${displayModelName(model)}` : displayModelName(model)}
                   className={`composer-pill min-w-0 ${compactToolbar ? "max-w-[130px]" : "max-w-[190px]"}`}
                 >
-                  <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
+                  <PillIcon className="w-3.5 h-3.5 flex-shrink-0" />
                   {!tightToolbar && <span className="truncate">{displayModelName(model)}</span>}
                   <ChevronRight
                     className={`w-3 h-3 flex-shrink-0 transition-transform ${
@@ -1284,41 +1274,15 @@ export default function ChatScreen({
                       exit={{ opacity: 0, y: 8, scale: 0.97 }}
                       className="absolute bottom-[42px] end-0 w-72 ui-box p-3 z-50 flex flex-col gap-2"
                     >
-                      <div className="max-h-56 overflow-y-auto space-y-1 pe-1">
-                        {installedModels.length === 0 ? (
-                          <p className="text-[11px] font-bold text-[var(--text-muted)] px-1 py-1">
-                            {t("noModelsFound")}
-                          </p>
-                        ) : (
-                          installedModels.map((entry) => (
-                            <button
-                              key={entry.name}
-                              type="button"
-                              onClick={() => {
-                                onSelectModel(entry.name);
-                                setIsModelMenuOpen(false);
-                              }}
-                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors ${
-                                entry.name === model
-                                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                                  : "hover:bg-[var(--hover-bg)]"
-                              }`}
-                            >
-                              <span className="flex-1 min-w-0 truncate text-[11px] font-bold">
-                                {displayModelName(entry.name)}
-                              </span>
-                              {entry.parameterSize && (
-                                <span className="text-[9px] font-bold opacity-60 flex-shrink-0">
-                                  {entry.parameterSize}
-                                </span>
-                              )}
-                              {entry.name === model && (
-                                <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
+                      <ModelChoices
+                        open={isModelMenuOpen}
+                        model={model}
+                        onPick={(name) => {
+                          onSelectModel(name);
+                          setIsModelMenuOpen(false);
+                        }}
+                        t={t}
+                      />
 
                       {modelInfo && modelInfo.capabilities.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -1346,6 +1310,16 @@ export default function ChatScreen({
                         className="w-full text-start px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
                       >
                         {t("manageModels")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModelMenuOpen(false);
+                          onOpenSettings("providers");
+                        }}
+                        className="w-full text-start px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
+                      >
+                        {t("providers")}
                       </button>
                     </motion.div>
                   )}

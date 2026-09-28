@@ -1,5 +1,5 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
-import { isRemote, remoteModelInfo } from "./ai/providers";
+import { isRemote, parseRef, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
@@ -55,8 +55,11 @@ function bareModelName(model: string): string {
   return model.toLowerCase().startsWith("gguf:") ? model.slice(5) : model;
 }
 
-/** A model's name as shown to people: a split model's part counter says nothing to whoever picks it. */
+/** A model's name as shown to people: a split model's part counter says nothing to whoever picks it,
+ * nor a provider's `@instance/` prefix, which the pill's icon and title name instead. */
 export function displayModelName(model: string): string {
+  const ref = parseRef(model);
+  if (ref.kind === "remote") return ref.modelId || model;
   return model.replace(/-\d{5}-of-\d{5}(?=\.gguf$)/i, "");
 }
 
