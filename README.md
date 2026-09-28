@@ -50,8 +50,7 @@ to work on the code.
 
 ## Current development branches
 
-- [onboarding - functioning build](https://github.com/Lucki74/draggy/tree/onboarding)
-- [providers - indev](https://github.com/Lucki74/draggy/tree/providers)
+- [providers-onboarding - indev, functioning](https://github.com/Lucki74/draggy/tree/providers-onboarding)
 
 ## Features
 
