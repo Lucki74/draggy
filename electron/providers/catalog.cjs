@@ -129,6 +129,18 @@ const CATALOG = [
   }),
   // Any OpenAI-compatible server the user points at; a key is optional for a server that has none.
   { ...cloud("custom", "Custom (OpenAI-compatible)", "", ""), keyOptional: true },
+  // A plan rather than a key, reached only through the vendor's own runtime (spec §4), so it has no address.
+  {
+    id: "chatgpt",
+    name: "ChatGPT",
+    kind: "account",
+    protocol: "codex",
+    auth: "account",
+    baseUrl: "",
+    keyUrl: "",
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
+    defaultModels: [],
+  },
 
   local("ollama", "Ollama", 11434, "/api/version", { protocol: "ollama", baseUrl: "http://127.0.0.1:11434" }),
   local("lmstudio", "LM Studio", 1234, "/api/v0/models"),
@@ -154,9 +166,11 @@ function problemWith(entry) {
   if (!entry || typeof entry !== "object") return "not an object";
   if (!/^[a-z0-9-]+$/.test(entry.id || "")) return "bad id";
   if (!entry.name) return "no name";
-  if (!["cloud", "local"].includes(entry.kind)) return "bad kind";
+  if (!["cloud", "local", "account"].includes(entry.kind)) return "bad kind";
   if (!PROTOCOLS.has(entry.protocol)) return "bad protocol";
   if (!AUTHS.has(entry.auth)) return "bad auth";
+  if ((entry.kind === "account") !== (entry.auth === "account")) return "account auth outside an account";
+  if (entry.kind === "account" && entry.baseUrl) return "account with a baseUrl";
   if (entry.baseUrl) {
     let url;
     try {
@@ -167,7 +181,7 @@ function problemWith(entry) {
     if (url.search || url.username || url.password) return "baseUrl carries a query or credentials";
     if (entry.kind === "cloud" && url.protocol !== "https:") return "cloud baseUrl is not https";
     if (entry.kind === "local" && url.hostname !== "127.0.0.1") return "local baseUrl is not loopback";
-  } else if (entry.id !== "custom") return "no baseUrl";
+  } else if (entry.id !== "custom" && entry.kind !== "account") return "no baseUrl";
   for (const pattern of entry.capabilityPatterns || []) {
     try {
       new RegExp(pattern.match, "i");

@@ -184,3 +184,60 @@ describe("the non-streaming form", () => {
     expect((await gone.json()).error.kind).toBe("provider-unreachable");
   });
 });
+
+describe("an account's model", () => {
+  const account = (script) => {
+    const calls = [];
+    return {
+      calls,
+      stream: async (args) => {
+        calls.push(args);
+        await script(args);
+      },
+    };
+  };
+  const accountGateway = (codex) => createGateway({ enginePort: () => engine.port, isAllowedOrigin: () => true, registry, accounts: { codex } });
+
+  beforeEach(() => {
+    registry.add({ type: "chatgpt" });
+    registry.update("chatgpt", { enabled: true });
+  });
+
+  it("goes to its runtime, never to an address, and streams back as llama-server", async () => {
+    const codex = account(({ sse }) => {
+      sse.delta({ content: "Hi" });
+      sse.providerState({ instanceId: "chatgpt", state: { threadId: "t1" } });
+      sse.finish("stop", { promptTokens: 3, outputTokens: 1 });
+    });
+    const chunks = await read(await accountGateway(codex)(chat({ ...RENDERER, model: "@chatgpt/gpt-5.5" })));
+    expect(chunks.map((c) => c.message?.content ?? "").join("")).toBe("Hi");
+    expect(chunks.find((c) => c.provider_state)).toMatchObject({ provider_state: { instanceId: "chatgpt" } });
+    expect(codex.calls[0]).toMatchObject({ modelId: "gpt-5.5", body: { think: true }, connection: { instance: { id: "chatgpt" } } });
+    expect(upstream.requests).toEqual([]);
+    expect(engine.requests).toEqual([]);
+  });
+
+  it("names the account's failure, and is refused without a runtime to reach", async () => {
+    const codex = account(() => {
+      throw Object.assign(new Error("signed out"), { failure: { kind: "account-signed-out", status: 0, message: "signed out" } });
+    });
+    const chunks = await read(await accountGateway(codex)(chat({ ...RENDERER, model: "@chatgpt/gpt-5.5" })));
+    expect(chunks.find((c) => c.error)?.error).toMatchObject({ kind: "account-signed-out", provider: "ChatGPT" });
+    const refused = await gateway()(chat({ ...RENDERER, model: "@chatgpt/gpt-5.5" }));
+    expect(refused.status).toBe(404);
+  });
+
+  it("aborts the runtime's turn when the renderer stops reading", async () => {
+    let signal;
+    const codex = account((args) => {
+      signal = args.signal;
+      args.sse.delta({ content: "x" });
+      return new Promise((resolve) => args.signal.addEventListener("abort", resolve));
+    });
+    const response = await accountGateway(codex)(chat({ ...RENDERER, model: "@chatgpt/gpt-5.5" }));
+    const reader = response.body.getReader();
+    await reader.read();
+    await reader.cancel();
+    expect(signal.aborted).toBe(true);
+  });
+});

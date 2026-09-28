@@ -120,14 +120,16 @@ function hostedToolFailure(error) {
 }
 
 /** A provider's model: routed to its adapter, fetched only from an enabled instance's own address. */
-async function routeRemote({ ref, text, registry, fetchImpl, cors }) {
+async function routeRemote({ ref, text, registry, fetchImpl, cors, accounts = {} }) {
   const parsed = parseRef(ref);
   const connection = parsed && registry ? registry.connectionFor(parsed.instanceId) : null;
   if (!connection || !connection.instance.enabled || !parsed.modelId) {
     return errorResponse(404, "provider-unknown-error", `No enabled provider is set up for ${ref}.`, cors);
   }
-  const adapter = ADAPTERS[connection.entry?.protocol || "openai"];
-  if (!adapter) return errorResponse(404, "provider-unknown-error", `No adapter for ${ref}.`, cors);
+  const protocol = connection.entry?.protocol || "openai";
+  const account = connection.entry?.kind === "account" ? accounts[protocol] : null;
+  const adapter = account ? null : ADAPTERS[protocol];
+  if (!account && !adapter) return errorResponse(404, "provider-unknown-error", `No adapter for ${ref}.`, cors);
 
   let body;
   try {
@@ -135,6 +137,7 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors }) {
   } catch {
     return errorResponse(400, "provider-unknown-error", "The request is not JSON.", cors);
   }
+  if (account) return routeAccount(account, body, connection, parsed.modelId, cors);
   const request = adapter.buildRequest(body, connection, parsed.modelId);
   const allowed = registry.enabledBaseUrls().some((base) => request.url === base || request.url.startsWith(`${base}/`));
   if (!allowed) return errorResponse(403, "provider-unknown-error", "That address is not a configured provider's.", cors);
@@ -169,6 +172,62 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors }) {
   return new Response(stream, { status: 200, headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
 }
 
+/** An account's runtime speaks no HTTP, so there is no address to check; it streams into the same SSE. */
+function routeAccount(account, body, connection, modelId, cors) {
+  const controller = new AbortController();
+  const named = (failure) => ({ ...failure, provider: connection.instance.label });
+  const failureOf = (error) => error?.failure || { kind: "provider-unknown-error", status: 0, message: String(error?.message || error), providerMessage: "" };
+  const run = (sse) => account.stream({ body, connection, modelId, sse, signal: controller.signal });
+
+  if (!body.stream) return answerAccount(run, cors, named, failureOf);
+  const stream = new ReadableStream({
+    async start(out) {
+      const sse = createSse(out);
+      let failure = null;
+      try {
+        await run(sse);
+      } catch (error) {
+        failure = failureOf(error);
+      }
+      if (controller.signal.aborted) return;
+      if (failure) sse.error(named(failure));
+      sse.done();
+    },
+    cancel() {
+      controller.abort();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+}
+
+/** Collects what the runtime would have streamed into one answer in llama-server's shape. */
+async function answerAccount(run, cors, named, failureOf) {
+  const answer = { content: "", reasoning: "", toolCalls: [], finish: "stop", usage: {} };
+  const sink = {
+    delta({ content, reasoning, toolCalls }) {
+      answer.content += content || "";
+      answer.reasoning += reasoning || "";
+      for (const call of toolCalls || []) answer.toolCalls.push({ id: call.id, type: "function", function: call.function });
+    },
+    finish(reason, usage = {}) {
+      answer.finish = reason || "stop";
+      answer.usage = usage;
+    },
+    providerState(state) {
+      answer.providerState = state;
+    },
+    retry() {},
+  };
+  try {
+    await run(sink);
+  } catch (error) {
+    return new Response(JSON.stringify({ error: named(failureOf(error)) }), { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
+  }
+  const out = completion(answer);
+  if (answer.providerState) out.provider_state = answer.providerState;
+  return new Response(JSON.stringify(out), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
+}
+
 /** The non-streaming form: the answer in llama-server's shape, or the upstream status with a named error. */
 async function answerOnce(adapter, fetchImpl, request, signal, cors, named) {
   const { upstream, failure } = await fetchWithRetries(fetchImpl, request, signal, () => {});
@@ -184,7 +243,7 @@ async function answerOnce(adapter, fetchImpl, request, signal, cors, named) {
 
 /** `enginePort` is read on every request, since the engine can move. Electron 42 hands the handler
  * no Origin, so the session is the boundary; an Origin, when one comes, must be the app's. */
-function createGateway({ enginePort, isAllowedOrigin, fetchImpl = globalThis.fetch, onRefused = () => {}, registry = null }) {
+function createGateway({ enginePort, isAllowedOrigin, fetchImpl = globalThis.fetch, onRefused = () => {}, registry = null, accounts = {} }) {
   return async function handle(request) {
     const origin = request.headers.get("origin") || "";
     if (origin && !isAllowedOrigin(origin)) {
@@ -202,7 +261,7 @@ function createGateway({ enginePort, isAllowedOrigin, fetchImpl = globalThis.fet
     const text = await request.text();
     const model = requestedModel(text);
     // A remote reference never reaches the engine, whether or not its provider exists.
-    if (model.startsWith("@")) return routeRemote({ ref: model, text, registry, fetchImpl, cors });
+    if (model.startsWith("@")) return routeRemote({ ref: model, text, registry, fetchImpl, cors, accounts });
     return passThrough(fetchImpl, `http://127.0.0.1:${enginePort()}${ENGINE_PATH}`, request.headers.get("content-type"), text, cors);
   };
 }

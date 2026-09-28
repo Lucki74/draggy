@@ -22,11 +22,13 @@ describe("the bundled catalog", () => {
     }
   });
 
-  it("never carries a key in a URL, and names no account provider before its phase", () => {
+  it("never carries a key in a URL, and gives account sign-in only to an account, which has no address", () => {
     for (const entry of catalog()) {
       expect(entry.baseUrl || "").not.toMatch(/[?&]key=/);
-      expect(entry.auth).not.toBe("account");
+      expect([entry.id, entry.auth === "account"]).toEqual([entry.id, entry.kind === "account"]);
+      if (entry.kind === "account") expect(entry.baseUrl).toBe("");
     }
+    expect(find("chatgpt")).toMatchObject({ kind: "account", protocol: "codex" });
   });
 
   it("finds local servers by their own probe, not by a shared port alone", () => {
@@ -52,6 +54,8 @@ describe("the bar a catalog entry must meet", () => {
   it("refuses a cloud entry over plain http, a local one off loopback, and a URL with a query", () => {
     expect(problemWith({ ...good, baseUrl: "http://api.x.test/v1" })).toMatch(/https/);
     expect(problemWith({ ...good, kind: "local", baseUrl: "http://192.168.1.2:8080/v1" })).toMatch(/loopback/);
+    expect(problemWith({ ...good, auth: "account" })).toMatch(/account auth/);
+    expect(problemWith({ ...good, kind: "account", auth: "account" })).toMatch(/account with a baseUrl/);
     expect(problemWith({ ...good, baseUrl: "https://api.x.test/v1?key=abc" })).toMatch(/query/);
   });
 

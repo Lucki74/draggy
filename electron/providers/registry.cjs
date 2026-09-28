@@ -21,7 +21,7 @@ function createRegistry({ storage, secrets }) {
 
   const needsKey = (instance) => {
     const entry = find(instance.type);
-    return entry?.auth !== "none" && !entry?.keyOptional;
+    return entry?.auth !== "none" && entry?.auth !== "account" && !entry?.keyOptional;
   };
 
   /** What the renderer may see: everything but the key. */

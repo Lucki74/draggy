@@ -6,7 +6,8 @@ const failed = (error) => ({ success: false, error: error?.failure || { kind: "p
 
 /** The catalog as the Add list needs it; quirks and patterns stay in main. */
 function catalogView(keystore = true) {
-  return catalog().map((entry) => ({
+  // Accounts are signed in to, not added with a key, so they have a group of their own.
+  return catalog().filter((entry) => entry.kind !== "account").map((entry) => ({
     id: entry.id,
     name: entry.name,
     kind: entry.kind,

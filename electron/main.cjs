@@ -47,6 +47,7 @@ const { createRegistry } = require("./providers/registry.cjs");
 const { createModels } = require("./providers/models.cjs");
 const { createDiscovery } = require("./providers/discovery.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
+const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
@@ -613,6 +614,7 @@ const windowBackground = () => themes.backgroundFor(themeSetting, nativeTheme.sh
 /** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
 let onboardingPlan = "done";
 let providers = null;
+let codexAccounts = null;
 let searchKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
@@ -891,6 +893,11 @@ app.whenReady().then(() => {
     log.warn("search", `could not move the Brave key into the store: ${error.message}`);
   }
   providers = createRegistry({ storage, secrets });
+  codexAccounts = createCodexAdapter({
+    appData: app.getPath("userData"),
+    version: app.getVersion(),
+    log: (line) => log.debug("codex", line),
+  });
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
@@ -918,6 +925,7 @@ app.whenReady().then(() => {
       isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
       onRefused: (origin, url) => log.warn("gateway", `refused ${url} from origin ${origin}`),
       registry: providers,
+      accounts: { codex: codexAccounts },
     }),
   );
 
@@ -1009,7 +1017,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
 
   // The window writes its pending saves before storage closes under them.
-  Promise.allSettled([flushWindow(mainWindow, ipcMain)]).then(() => {
+  Promise.allSettled([flushWindow(mainWindow, ipcMain), codexAccounts?.stopAll()]).then(() => {
     shutdown();
     app.quit();
   });
