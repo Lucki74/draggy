@@ -35,7 +35,20 @@ const BY_KIND: Record<string, { slug: string; key: string }> = {
   "provider-refused": { slug: "provider-refused", key: "providerRefused" },
   "provider-region-unavailable": { slug: "provider-region-unavailable", key: "providerRegionUnavailable" },
   "provider-unknown-error": { slug: "provider-unknown-error", key: "providerUnknownError" },
+  "account-signed-out": { slug: "account-signed-out", key: "accountSignedOut" },
+  "account-limit-reached": { slug: "account-limit-reached", key: "accountLimitReached" },
+  "account-runtime-unavailable": { slug: "account-runtime-unavailable", key: "accountRuntimeUnavailable" },
 };
+
+/** A plan's reset in the reader's own clock; a day name only when it is not today. */
+function resetTime(language: string, resetsAt: string | undefined): string | null {
+  const seconds = Number(resetsAt);
+  if (!resetsAt || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const when = new Date(seconds * 1000);
+  const today = when.toDateString() === new Date().toDateString();
+  const format: Intl.DateTimeFormatOptions = today ? { hour: "numeric", minute: "2-digit" } : { weekday: "long", hour: "numeric", minute: "2-digit" };
+  return new Intl.DateTimeFormat(language, format).format(when);
+}
 
 export interface EngineResult {
   error?: string;
@@ -80,7 +93,8 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
   const params = result.params ?? {};
 
   if (result.kind && BY_KIND[result.kind]) {
-    const { slug, key } = BY_KIND[result.kind];
+    const { slug } = BY_KIND[result.kind];
+    let { key } = BY_KIND[result.kind];
 
     // A crash whose last words are a known cause is that cause, not the generic crash.
     if (result.kind === "stopped-loading") {
@@ -91,7 +105,9 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
     const detail = params.reason ? `: ${params.reason}` : "";
     // A provider's failure names the provider, so "Claude (plan)" and "Anthropic (API key)" are never confused.
     const provider = params.provider || say(language, "providerFallbackName");
-    return withArticle(say(language, key, { ...params, detail, provider, text }), slug, language, options);
+    const time = result.kind === "account-limit-reached" ? resetTime(language, params.resetsAt) : null;
+    if (time) key = "accountLimitReachedUntil";
+    return withArticle(say(language, key, { ...params, detail, provider, text, time: time ?? "" }), slug, language, options);
   }
 
   if (!text) return withArticle(say(language, "engineWouldNotStart"), "engine-would-not-start", language, options);

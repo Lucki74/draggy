@@ -129,6 +129,37 @@ describe("a provider's failure", () => {
   });
 });
 
+describe("an account's failure", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("says the account is signed out, or its runtime would not start, with the article on each", () => {
+    const out = engineFailure(failureOf({ kind: "account-signed-out", provider: "ChatGPT" }));
+    expect(out).toContain("ChatGPT is signed out. Sign in again in Settings, under Providers.");
+    expect(out).toContain("/error/account-signed-out");
+    expect(engineFailure(failureOf({ kind: "account-runtime-unavailable", provider: "ChatGPT" }))).toContain("/error/account-runtime-unavailable");
+  });
+
+  it("gives a spent plan's reset in the reader's clock, with the day only when it is not today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 28, 9, 0));
+    const later = new Date(2026, 8, 28, 14, 30);
+    const said = engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT", resetsAt: later.getTime() / 1000 }));
+    const time = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(later);
+    expect(said).toContain(`ChatGPT has used up the plan's allowance until ${time}.`);
+    expect(said).toContain("/error/account-limit-reached");
+
+    const monday = new Date(2026, 8, 28 + 2, 8, 0);
+    const day = new Intl.DateTimeFormat("en", { weekday: "long", hour: "numeric", minute: "2-digit" }).format(monday);
+    expect(engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT", resetsAt: monday.getTime() / 1000 }))).toContain(`until ${day}.`);
+  });
+
+  it("does not invent a reset the runtime did not give", () => {
+    const said = engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT" }));
+    expect(said).toContain("ChatGPT has used up the plan's allowance for now.");
+    expect(said).not.toContain("until");
+  });
+});
+
 describe("in another language", () => {
   it("answers in the reader's language and links to the article in it", () => {
     speak("fr");
@@ -152,7 +183,7 @@ describe("in another language", () => {
 });
 
 describe("the messages in every language", () => {
-  const keys = Object.keys(translations.en).filter((key) => /^(engine|provider)[A-Z]/.test(key));
+  const keys = Object.keys(translations.en).filter((key) => /^(engine|provider|account)[A-Z]/.test(key));
   const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
   it("finds the engine messages to check", () => {
