@@ -3,7 +3,7 @@
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
 const { assetFor, ensureCodex, installedBinary } = require("../codex/binary.cjs");
-const { startCodex } = require("../codex/process.cjs");
+const { startCodex, contextWindows } = require("../codex/process.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
 // A call arrives as one server request each, so the leg waits this long for a parallel sibling.
@@ -413,7 +413,13 @@ function createCodexAdapter({
         listed.push(...(page?.data || []));
         cursor = page?.nextCursor || null;
       } while (cursor);
-      return listed.filter((m) => !m.hidden).map((m) => ({ id: m.id, name: m.displayName, inputModalities: m.inputModalities }));
+      const windows = contextWindows();
+      return listed.filter((m) => !m.hidden).map((m) => ({
+        id: m.id,
+        name: m.displayName,
+        contextLength: windows.get(m.model || m.id) || null,
+        inputModalities: m.inputModalities,
+      }));
     });
   }
 

@@ -6,7 +6,7 @@ const path = require("node:path");
 const { privateHome } = require("../account/env.cjs");
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
-const { assetFor, ensureClaude, installedBinary } = require("../claude/binary.cjs");
+const { assetFor, ensureClaude, installedBinary, previousBinary } = require("../claude/binary.cjs");
 const { startClaude, runAuth, sessionArgs, SERVER, TOOL_PREFIX } = require("../claude/process.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
@@ -104,11 +104,25 @@ function sessionOnDisk(home, sessionId) {
   }
 }
 
+/** The runtime's list as Draggy shows it. `default` only repeats another entry, and the version comes from the
+ * runtime's own description ("Opus 5.5 · …"), so a new pin renames the models without a change here. */
+function listedModels(listed) {
+  return listed
+    .filter((m) => m.value !== "default")
+    .map((m) => ({
+      id: m.value,
+      name: String(m.description || "").split(" · ")[0].trim() || m.displayName || m.value,
+      resolved: m.resolvedModel || undefined,
+      inputModalities: ["text", "image"],
+    }));
+}
+
 function createClaudeAdapter({
   appData,
   version,
   ensure = ensureClaude,
   installed = installedBinary,
+  previous = previousBinary,
   runtimeBytes = assetFor()?.size ?? null,
   start = startClaude,
   auth = runAuth,
@@ -309,7 +323,8 @@ function createClaudeAdapter({
   }
 
   async function readAuth(instanceId) {
-    const binary = installed(appData);
+    // A new pin keeps its user signed in: the credentials sit in the private home, not beside the binary.
+    const binary = installed(appData) || previous(appData);
     if (!binary) return { loggedIn: false };
     const { out } = await auth({ binary, appData, instanceId, args: ["status", "--json"], log });
     try {
@@ -459,9 +474,10 @@ function createClaudeAdapter({
     return { signedIn: true, email: read.email || undefined, plan: read.subscriptionType || undefined };
   }
 
-  /** The models the runtime's `initialize` lists, read once per launch of the app; empty until it is installed. */
+  /** The models the runtime's `initialize` lists, read once per launch of the app; empty until it is installed.
+   * An earlier pin's user gets the new one here, which is how a newly released model reaches them. */
   async function models(instanceId) {
-    if (!installed(appData)) return [];
+    if (!installed(appData) && !previous(appData)) return [];
     const runtime = runtimeFor(instanceId);
     if (!runtime.models) {
       const proc = await utility(instanceId);
@@ -471,7 +487,7 @@ function createClaudeAdapter({
         await proc.stop();
       }
     }
-    return runtime.models.map((m) => ({ id: m.value, name: m.displayName || m.value, inputModalities: ["text", "image"] }));
+    return listedModels(runtime.models);
   }
 
   async function stopAll() {
@@ -482,4 +498,4 @@ function createClaudeAdapter({
   return { stream, signIn, cancel, signOut, status, download, models, runtimeFor, stopAll };
 }
 
-module.exports = { createClaudeAdapter, toContent, flatten, textOf, mcpTools, effortOf, turnFailure, sessionOnDisk };
+module.exports = { createClaudeAdapter, listedModels, toContent, flatten, textOf, mcpTools, effortOf, turnFailure, sessionOnDisk };

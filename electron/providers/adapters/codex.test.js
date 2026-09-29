@@ -344,6 +344,7 @@ describe("the ChatGPT account", () => {
       c2: { data: [{ id: "codex-auto", displayName: "Auto", hidden: true, inputModalities: ["text"] }], nextCursor: null },
     };
     const { adapter } = fakeCodex({ more: { "model/list": (params) => pages[params.cursor || ""] } });
-    expect(await adapter.models("chatgpt")).toEqual([{ id: "gpt-5.5", name: "GPT-5.5", inputModalities: ["text", "image"] }]);
+    // The window comes from the catalog Codex is given, which model/list leaves out.
+    expect(await adapter.models("chatgpt")).toEqual([{ id: "gpt-5.5", name: "GPT-5.5", contextLength: 272000, inputModalities: ["text", "image"] }]);
   });
 });

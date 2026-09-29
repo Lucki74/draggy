@@ -4,19 +4,20 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { sha256File } = require("../codex/binary.cjs");
 
-const VERSION = "2.1.274";
+// The model list is built into the binary: 2.1.274 still named Opus 5, so a new model needs a new pin.
+const VERSION = "2.1.284";
 const RELEASE = `https://downloads.claude.ai/claude-code-releases/${VERSION}`;
 
-// From the release's manifest.json, read on 2026-09-29; Windows x64 was also hashed by hand in the spike.
+// From the release's manifest.json, read on 2026-09-29; Windows x64 was also hashed by hand.
 const ASSETS = {
-  "win32-x64": ["4e4c1746aff835bb05e5ed14cda72d21ee6fbda4147aa99b3135718614da117e", 233691808],
-  "win32-arm64": ["da93e462c34ec86efee80c70ac791d3232ed98bd44c6abbafb1b5ffa2a9185c4", 224916128],
-  "darwin-x64": ["b18e8c9d7666d8987a174ac65e0019f4ba6befa73d2f75c05cbe92e5093431eb", 222955360],
-  "darwin-arm64": ["3509913f9d1576316c8845b88837f8fd3bbbcf26625833ac82cfb6b8985da94a", 214149552],
-  "linux-x64": ["15e2d05148f801b5774032faad87e624ecd172e9903288bda448b892eb58fa07", 230580536],
-  "linux-arm64": ["2db904daea17addff9de557ba26a725916888aa7b546e2c5dd989c20d9d49ab3", 230482160],
-  "linux-x64-musl": ["9f64fb9e79752c676234087573f05a794e2a8fbd49c91482c6567be258752e15", 224501720],
-  "linux-arm64-musl": ["5d50bd99667904879d95142dbd604b24d0273c13fb79f3abc2346cb00048049f", 223098528],
+  "win32-x64": ["0416631e846f743110da5282409776fa1313e65f33a588aae066eaf8db0fda7d", 246480032],
+  "win32-arm64": ["8a968e1500576eea43d04d7cffd40cf39b1c83e5b443522bafe0e92e50d6a389", 234005152],
+  "darwin-x64": ["79441b868935a11ed0630b2ee59327eda9f6a93bb8d470bd6633c03df76d2135", 235010944],
+  "darwin-arm64": ["50a14c2f50f56668380fdda490167f1d3630d5cc18fb8aed3073c2c7ea7314fe", 226563088],
+  "linux-x64": ["5cd90aabd83f8a15136c35aa37bb1d92b348993573316643dc3fe4e04afbf88f", 243059896],
+  "linux-arm64": ["3dd0f96d7ada463152d20300186f6cfc6ab94b57e218f49e3ac86db42ac695a6", 242409464],
+  "linux-x64-musl": ["1c5e4d7431c1e70c45efdce69ea74c2c9a2ad309f16555f7dc563f4743d978a0", 236810328],
+  "linux-arm64-musl": ["d8bce5724ecd1e6930ddf5f4cef7cebb0cd3e50b4f5d5158b30a53f81824f982", 234764096],
 };
 
 // A glibc build does not start on musl (Alpine and the like), which reports no glibc version.
@@ -41,15 +42,43 @@ function installedBinary(appData) {
   return null;
 }
 
+/** An earlier pin's binary, still able to say who is signed in until the new one has downloaded. */
+function previousBinary(appData) {
+  const bin = path.join(appData, "claude", "bin");
+  let dirs;
+  try {
+    dirs = fs.readdirSync(bin).filter((name) => name !== VERSION && !name.endsWith(".part"));
+  } catch {
+    return null;
+  }
+  for (const dir of dirs) {
+    for (const name of ["claude.exe", "claude"]) {
+      const file = path.join(bin, dir, name);
+      if (fs.existsSync(file)) return file;
+    }
+  }
+  return null;
+}
+
 function downloadRelease(url, file, onBytes) {
   const { downloadAsset } = require("../../binaryManager.cjs");
   return downloadAsset({ browser_download_url: url, name: path.basename(file) }, file, { add: onBytes });
 }
 
-/** Resolves to the executable, downloading and verifying it first if needed; `download` is replaced in tests. */
-async function ensureClaude(appData, { download = downloadRelease, onProgress = () => {}, platformName, arch, assets = ASSETS, musl } = {}) {
+const installing = new Map();
+
+/** Resolves to the executable, downloading and verifying it first if needed; `download` is replaced in tests.
+ * Callers at once share one download: a listing and a sign-in would otherwise empty each other's staging folder. */
+function ensureClaude(appData, options = {}) {
   const existing = installedBinary(appData);
-  if (existing) return existing;
+  if (existing) return Promise.resolve(existing);
+  if (!installing.has(appData)) {
+    installing.set(appData, install(appData, options).finally(() => installing.delete(appData)));
+  }
+  return installing.get(appData);
+}
+
+async function install(appData, { download = downloadRelease, onProgress = () => {}, platformName, arch, assets = ASSETS, musl } = {}) {
   const asset = assetFor(platformName, arch, assets, musl);
   if (!asset) {
     throw Object.assign(new Error(`Claude Code has no build for ${platformName ?? process.platform} ${arch ?? process.arch}`), {
@@ -75,7 +104,16 @@ async function ensureClaude(appData, { download = downloadRelease, onProgress = 
   if (process.platform !== "win32") fs.chmodSync(file, 0o755);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.renameSync(staging, dir);
+  // Each pin is over 200 MB; the one it replaces is never run again. One still running is locked on Windows.
+  for (const old of fs.readdirSync(path.dirname(dir))) {
+    if (old === VERSION) continue;
+    try {
+      fs.rmSync(path.join(path.dirname(dir), old), { recursive: true, force: true, maxRetries: 5 });
+    } catch {
+      /* left for the next pin's install to remove */
+    }
+  }
   return installedBinary(appData);
 }
 
-module.exports = { VERSION, ASSETS, assetFor, installDir, installedBinary, ensureClaude };
+module.exports = { VERSION, ASSETS, assetFor, installDir, installedBinary, previousBinary, ensureClaude };

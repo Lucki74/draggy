@@ -58,7 +58,7 @@ export default function ModelChoices({
     },
     ...groups.map((group) => ({
       title: group.label,
-      choices: group.models.map((entry) => ({ name: entry.ref, label: entry.id })),
+      choices: group.models.map((entry) => ({ name: entry.ref, label: entry.name || entry.id })),
     })),
   ];
   const total = sections.reduce((sum, section) => sum + section.choices.length, 0);

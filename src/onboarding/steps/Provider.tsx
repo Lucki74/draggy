@@ -42,7 +42,7 @@ export default function Provider({
 
   const groups = useProviderGroups();
   const options = useMemo(
-    () => groups.flatMap((group) => group.models.map((entry) => ({ id: entry.ref, label: entry.id, group: group.label }))),
+    () => groups.flatMap((group) => group.models.map((entry) => ({ id: entry.ref, label: entry.name || entry.id, group: group.label }))),
     [groups],
   );
   // The first ticked model until the user picks one; none once nothing is ticked.

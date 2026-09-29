@@ -28,6 +28,6 @@ export function withProviderModels(engine: SelectOption[], groups: ModelGroup[],
   if (groups.length === 0) return engine;
   return [
     ...engine.map((option) => ({ ...option, group: engineLabel })),
-    ...groups.flatMap((group) => group.models.map((model) => ({ id: model.ref, label: model.id, group: group.label }))),
+    ...groups.flatMap((group) => group.models.map((model) => ({ id: model.ref, label: model.name || model.id, group: group.label }))),
   ];
 }

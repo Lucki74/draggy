@@ -178,7 +178,12 @@ const CATALOG = [
     baseUrl: "",
     keyUrl: "",
     signInHosts: ["claude.com"],
-    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
+    // Matched against the full name an alias resolves to; the runtime reports no window of its own.
+    capabilityPatterns: [
+      { match: "^claude-haiku-", capabilities: [TOOLS, VISION, THINKING], contextLength: 200000 },
+      { match: "^claude-(opus|sonnet)-4-[0-5]", capabilities: [TOOLS, VISION, THINKING], contextLength: 200000 },
+      { match: "", capabilities: [TOOLS, VISION, THINKING], contextLength: 1000000 },
+    ],
     defaultModels: [],
   },
   {
@@ -191,7 +196,7 @@ const CATALOG = [
     baseUrl: "",
     keyUrl: "",
     signInHosts: ["accounts.google.com"],
-    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING], contextLength: 1048576 }],
     defaultModels: [],
   },
 

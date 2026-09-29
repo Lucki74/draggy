@@ -1,6 +1,6 @@
 # Claude spike results (MODE.md)
 
-Pinned: **Claude Code 2.1.274** (the `stable` channel on 2026-09-27; `latest` was 2.1.283). Spike
+Pinned: **Claude Code 2.1.284** (`latest` on 2026-09-29, bumped from 2.1.274 for Opus 5.5 and Sonnet 5.5). Spike
 run on 2026-09-27, Windows 11 x64. Everything below was measured against the pinned binary unless
 marked **unverified**. No Claude account was signed in: every turn ran against a local mock of the
 Anthropic Messages API (`ANTHROPIC_BASE_URL` plus a dummy key, set for the spike's mock only; Draggy
@@ -22,9 +22,8 @@ runtime. Not re-checked, by instruction.
   with `https://downloads.claude.ai/claude-code-releases/<version>/manifest.json` giving each
   platform's SHA-256 and size (`darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`,
   `linux-arm64-musl`, `linux-x64-musl`, `win32-x64`, `win32-arm64`). `…/stable` returns the stable
-  version number. Win32-x64 2.1.274: 233,691,808 bytes,
-  `4e4c1746aff835bb05e5ed14cda72d21ee6fbda4147aa99b3135718614da117e`; the npm-installed binary
-  matched it. Draggy ships these checksums itself rather than trusting the manifest at run time.
+  version number. Win32-x64 2.1.284: 246,480,032 bytes,
+  `0416631e846f743110da5282409776fa1313e65f33a588aae066eaf8db0fda7d`, hashed by hand to match. Draggy ships these checksums itself rather than trusting the manifest at run time.
 - **Driver: the binary's own stream-json over stdio (option 2).** The Agent SDK
   (`@anthropic-ai/claude-agent-sdk` 0.3.274) carries the same "All rights reserved" licence, and it
   is only a client of this protocol: every SDK feature Draggy needs is a flag or a control message
@@ -68,7 +67,7 @@ session". Draggy's own backstop stays: `can_use_tool` for any name not starting 
 
 **Re-proving it:** `node scripts/claude-probe.cjs <claude binary>` runs one turn with these flags
 against a mock, where the model first calls `Bash`, and fails unless only Draggy's tool is listed,
-Draggy's prompt arrives and the `Bash` call is refused unrun. On 2.1.274 all five checks pass.
+Draggy's prompt arrives and the `Bash` call is refused unrun. On 2.1.274 and 2.1.284 all five checks pass.
 Shown failing: with `--tools default`, three checks fail, and the injected `Bash` call ran without
 being asked. Run it on every bump, since a tool new in that version must be proven absent.
 
@@ -120,8 +119,12 @@ Draggy's tools are an SDK-type MCP server that Draggy itself answers; no second 
   real model.
 - **Images:** a user message's content may hold `{ type: "image", source: { type: "base64",
   media_type, data } }` blocks; measured, they reach the model request unchanged.
-- **Models:** the `initialize` response lists `default`, `opus[1m]`, `sonnet`, `sonnet[1m]`,
-  `haiku`; `--model` takes an alias or a full name.
+- **Models:** the `initialize` response lists aliases with `resolvedModel` and a description that
+  starts with the versioned name. 2.1.284 on a Pro plan lists `default`, `opus`, `claude-fable-5-1`,
+  `sonnet` and `haiku` (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 4.5). The list is built into the binary:
+  2.1.274 still resolved `opus` to Opus 5, so a new model needs a new pin. Draggy drops `default`,
+  which repeats another entry, names each model from its description, and takes the context window
+  from the catalog by `resolvedModel`, since the runtime reports none. `--model` takes an alias or a full name.
 - **Usage:** the `get_usage` control request (`skip_behaviors: true`) answers with session cost and
   token totals; its plan rate-limit section needs a signed-in plan (**unverified**).
 

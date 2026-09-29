@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@t
 import ModelChoices from "../providers/ModelChoices";
 import { useProviderOf, useProviders } from "../providers/useProviders";
 import { translations } from "../translations";
-import type { ProviderInstance } from "../types";
+import type { ProviderInstance, ProviderModel } from "../types";
 
 const en = (key: string) => translations.en[key];
 
@@ -17,7 +17,7 @@ function stub(ggufs: string[], instances: ProviderInstance[]) {
   let kept = instances;
   const providers = {
     list: vi.fn(async () => kept),
-    models: vi.fn(async () => ({ success: true, models: [] })),
+    models: vi.fn(async () => ({ success: true, models: [] as ProviderModel[] })),
     update: vi.fn(async (id: string, patch: Partial<ProviderInstance>) => {
       kept = kept.map((item) => (item.id === id ? { ...item, ...patch } : item));
       return { success: true };
@@ -62,6 +62,13 @@ describe("the composer's model list", () => {
     const search = await screen.findByLabelText(en("searchModelsPlaceholder"));
     fireEvent.change(search, { target: { value: "zet" } });
     expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["zeta"]);
+  });
+
+  it("shows a model by the name its provider gives", async () => {
+    const providers = stub([], [instance("claude", { kind: "account", pinnedModels: ["opus"] })]);
+    providers.models.mockResolvedValue({ success: true, models: [{ id: "opus", name: "Opus 5.5", ref: "@claude/opus", contextLength: 1000000, maxOutputTokens: null, capabilities: ["completion"], cloud: true, pinned: true, override: null }] });
+    menu();
+    await screen.findByText("Opus 5.5");
   });
 
   it("lists again when a provider changes", async () => {

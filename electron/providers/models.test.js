@@ -125,3 +125,26 @@ describe("an account's listing", () => {
     expect(fetched).toEqual([]);
   });
 });
+
+describe("an account's listing", () => {
+  let calls;
+  const listing = (answer) => ({ claude: { models: async () => { calls += 1; return answer(); } } });
+  beforeEach(() => {
+    calls = 0;
+    registry.add({ type: "claude" });
+  });
+
+  it("gives an alias the window of the model it resolves to, and keeps the runtime's versioned name", async () => {
+    const accounts = listing(() => [
+      { id: "opus", name: "Opus 5.5", resolved: "claude-opus-5-5" },
+      { id: "sonnet", name: "Sonnet 5.5", resolved: "claude-sonnet-5-5" },
+      { id: "haiku", name: "Haiku 4.5", resolved: "claude-haiku-4-5-20251001" },
+    ]);
+    const listed = await createModels({ registry, accounts, now: () => clock }).list("claude");
+    expect(listed.map((m) => [m.id, m.name, m.contextLength])).toEqual([
+      ["haiku", "Haiku 4.5", 200000],
+      ["opus", "Opus 5.5", 1000000],
+      ["sonnet", "Sonnet 5.5", 1000000],
+    ]);
+  });
+});

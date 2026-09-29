@@ -6,7 +6,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { ASSETS, VERSION, assetFor, ensureClaude, installedBinary } = require("./binary.cjs");
+const { ASSETS, VERSION, assetFor, ensureClaude, installedBinary, previousBinary } = require("./binary.cjs");
 
 const payload = Buffer.from("pretend claude.exe");
 const digest = crypto.createHash("sha256").update(payload).digest("hex");
@@ -40,8 +40,8 @@ describe("claude binary", () => {
     expect(assetFor("win32", "x64", ASSETS, false)).toEqual({
       name: "claude.exe",
       url: `https://downloads.claude.ai/claude-code-releases/${VERSION}/win32-x64/claude.exe`,
-      sha256: "4e4c1746aff835bb05e5ed14cda72d21ee6fbda4147aa99b3135718614da117e",
-      size: 233691808,
+      sha256: "0416631e846f743110da5282409776fa1313e65f33a588aae066eaf8db0fda7d",
+      size: 246480032,
     });
     expect(assetFor("linux", "x64", ASSETS, true).url).toMatch(/\/linux-x64-musl\/claude$/);
     expect(assetFor("darwin", "arm64", ASSETS, true).url).toMatch(/\/darwin-arm64\/claude$/);
@@ -58,6 +58,22 @@ describe("claude binary", () => {
     expect(onProgress).toHaveBeenLastCalledWith({ completed: payload.length, total: payload.length, percent: 100 });
     await ensureClaude(appData, options);
     expect(download).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces an earlier pin, which answers for its user until then, with one download for callers at once", async () => {
+    const old = path.join(appData, "claude", "bin", "2.1.0", "claude.exe");
+    fs.mkdirSync(path.dirname(old), { recursive: true });
+    fs.writeFileSync(old, "old");
+    expect(installedBinary(appData)).toBeNull();
+    expect(previousBinary(appData)).toBe(old);
+
+    const download = fakeDownload();
+    const options = { download, platformName: "win32", arch: "x64", assets: table, musl: false };
+    const [a, b] = await Promise.all([ensureClaude(appData, options), ensureClaude(appData, options)]);
+    expect(a).toBe(b);
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(fs.readdirSync(path.join(appData, "claude", "bin"))).toEqual([VERSION]);
+    expect(previousBinary(appData)).toBeNull();
   });
 
   it("refuses a download whose digest differs, and leaves nothing behind to run", async () => {

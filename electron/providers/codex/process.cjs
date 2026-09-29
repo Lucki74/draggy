@@ -43,6 +43,12 @@ function configToml(catalogPath, { topLevel = [], tables = [] } = {}) {
   ].join("\n");
 }
 
+/** Each model's context window from the catalog Codex is given, since `model/list` leaves it out. */
+function contextWindows() {
+  const { models = [] } = JSON.parse(fs.readFileSync(CATALOG, "utf8"));
+  return new Map(models.filter((m) => m.context_window > 0).map((m) => [m.slug, m.context_window]));
+}
+
 function writeHome(home) {
   fs.mkdirSync(home, { recursive: true });
   const catalogPath = path.join(home, CATALOG_NAME);
@@ -107,4 +113,4 @@ async function startCodex({
   return { rpc, home, stop };
 }
 
-module.exports = { startCodex, configToml, writeHome, FEATURES_OFF, ARGS, CATALOG_NAME };
+module.exports = { startCodex, configToml, writeHome, contextWindows, FEATURES_OFF, ARGS, CATALOG_NAME };

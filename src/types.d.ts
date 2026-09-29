@@ -707,6 +707,8 @@ export interface ProviderModel {
   id: string;
   /** `@instance/model`, the name every model request carries. */
   ref: string;
+  /** The provider's own name for it, where it gives one ("Opus 5.5" for `opus`). */
+  name?: string | null;
   contextLength: number | null;
   maxOutputTokens: number | null;
   capabilities: string[];

@@ -25,7 +25,16 @@ function fakeClaude({ loggedIn = true, onDisk = () => true, installed = "claude.
       sent: [],
       requests: [],
       stopped: false,
-      init: { models: [{ value: "default", displayName: "Default" }, { value: "opus[1m]", displayName: "Opus (1M)" }, {}] },
+      // As 2.1.284 lists them: `default` repeats `opus`, and the version is only in the description.
+      init: {
+        models: [
+          { value: "default", resolvedModel: "claude-opus-5-5", displayName: "Default (recommended)", description: "Opus 5.5 · Best for everyday, complex tasks" },
+          { value: "opus", resolvedModel: "claude-opus-5-5", displayName: "Opus", description: "Opus 5.5 · Best for everyday, complex tasks" },
+          { value: "haiku", resolvedModel: "claude-haiku-4-5-20251001", displayName: "Haiku", description: "Haiku 4.5 · Fastest for quick answers" },
+          { value: "opus[1m]", displayName: "Opus (1M)" },
+          {},
+        ],
+      },
       emit: onMessage,
       control: onControl,
       exit: onExit,
@@ -337,9 +346,14 @@ describe("the Claude account's sign-in", () => {
     }
   });
 
-  it("lists the models the runtime offers, starting it once for them", async () => {
+  it("lists the models the runtime offers by their versioned names, without `default`, starting it once for them", async () => {
     const { adapter, claude } = fakeClaude();
-    const listed = [{ id: "default", name: "Default", inputModalities: ["text", "image"] }, { id: "opus[1m]", name: "Opus (1M)", inputModalities: ["text", "image"] }];
+    const modalities = ["text", "image"];
+    const listed = [
+      { id: "opus", name: "Opus 5.5", resolved: "claude-opus-5-5", inputModalities: modalities },
+      { id: "haiku", name: "Haiku 4.5", resolved: "claude-haiku-4-5-20251001", inputModalities: modalities },
+      { id: "opus[1m]", name: "Opus (1M)", resolved: undefined, inputModalities: modalities },
+    ];
     expect(await adapter.models("claude")).toEqual(listed);
     expect(await adapter.models("claude")).toEqual(listed);
     expect(claude.starts).toHaveLength(1);

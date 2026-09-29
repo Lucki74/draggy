@@ -34,7 +34,8 @@ function listedFlags(model, entry) {
 }
 
 function describe(instance, entry, model) {
-  const pattern = capabilitiesFor(entry, model.id);
+  // An account lists aliases such as `opus`; the full name it resolves to is what the patterns know.
+  const pattern = capabilitiesFor(entry, model.resolved || model.id);
   const flags = Object.fromEntries(FLAGS.map((flag) => [flag, pattern.capabilities.includes(flag)]));
   Object.assign(flags, listedFlags(model, entry) || {});
   if (!thinkingControllable(entry)) flags.thinking = false;
@@ -43,6 +44,7 @@ function describe(instance, entry, model) {
   return {
     id: model.id,
     ref: `@${instance.id}/${model.id}`,
+    name: model.name && model.name !== model.id ? String(model.name) : null,
     contextLength: model.contextLength || pattern.contextLength || null,
     maxOutputTokens: pattern.maxOutputTokens || null,
     capabilities: ["completion", ...FLAGS.filter((flag) => flags[flag])],
