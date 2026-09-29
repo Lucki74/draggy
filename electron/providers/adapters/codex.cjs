@@ -2,7 +2,7 @@
  * per conversation, and Draggy's tools as the only tools (spec §4, codex/MODE.md). */
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
-const { ensureCodex, installedBinary } = require("../codex/binary.cjs");
+const { assetFor, ensureCodex, installedBinary } = require("../codex/binary.cjs");
 const { startCodex } = require("../codex/process.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
@@ -104,12 +104,15 @@ function createCodexAdapter({
   version,
   ensure = ensureCodex,
   installed = installedBinary,
+  runtimeBytes = assetFor()?.size ?? null,
   start = startCodex,
   log = () => {},
   settleMs = SETTLE_MS,
   supervisor = {},
 }) {
   const runtimes = new Map();
+  /** Bytes the first sign-in fetches while the runtime is not on disk; nothing once it is. */
+  const download = () => (installed(appData) ? null : runtimeBytes);
 
   function runtimeFor(instanceId) {
     if (runtimes.has(instanceId)) return runtimes.get(instanceId);
@@ -418,7 +421,7 @@ function createCodexAdapter({
     await Promise.all([...runtimes.values()].map((rt) => rt.supervisor.stop()));
   }
 
-  return { stream, signIn, cancel, signOut, status, models, runtimeFor, stopAll };
+  return { stream, signIn, cancel, signOut, status, download, models, runtimeFor, stopAll };
 }
 
 module.exports = { createCodexAdapter, toItems, toInput, effortOf, turnFailure, resetsAtOf };

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { createCodexAdapter, toItems } = require("./codex.cjs");
+const { assetFor } = require("../codex/binary.cjs");
 
 /** A runtime that answers the calls a turn makes and lets the test play Codex's side of it. */
 function fakeCodex({ account = { email: "a@b.c" }, installed = "codex.exe", more = {} } = {}) {
@@ -316,6 +317,8 @@ describe("the ChatGPT account", () => {
     });
     const fresh = fakeCodex({ installed: null });
     expect(await fresh.adapter.status("chatgpt")).toEqual({ signedIn: false });
+    expect(fresh.adapter.download()).toBe(assetFor().size);
+    expect(fakeCodex().adapter.download()).toBeNull();
     expect(await fresh.adapter.models("chatgpt")).toEqual([]);
     await fresh.adapter.signOut("chatgpt");
     expect(fresh.codex.starts).toBe(0);

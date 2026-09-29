@@ -6,7 +6,7 @@ const path = require("node:path");
 const { privateHome } = require("../account/env.cjs");
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
-const { ensureGemini, installedEntry } = require("../gemini/install.cjs");
+const { EXPECTED_BYTES, ensureGemini, installedEntry } = require("../gemini/install.cjs");
 const { createMcpServer } = require("../gemini/mcpHttp.cjs");
 const { startGemini, neutralPaths, TOOL_PREFIX, TOOL_TIMEOUT_MS } = require("../gemini/process.cjs");
 const { flatten, textOf, mcpTools } = require("./claude.cjs");
@@ -72,6 +72,7 @@ function createGeminiCliAdapter({
   version,
   ensure = ensureGemini,
   installed = installedEntry,
+  runtimeBytes = EXPECTED_BYTES,
   start = startGemini,
   mcp = null,
   paths = neutralPaths,
@@ -81,6 +82,8 @@ function createGeminiCliAdapter({
   newId = crypto.randomUUID,
 }) {
   const runtimes = new Map();
+  /** Bytes the first sign-in fetches while the runtime is not on disk; nothing once it is. */
+  const download = () => (installed(appData) ? null : runtimeBytes);
   const server = mcp || createMcpServer({ name: "draggy", version, log });
 
   function runtimeFor(instanceId) {
@@ -457,7 +460,7 @@ function createGeminiCliAdapter({
     await server.stop();
   }
 
-  return { stream, signIn, submitCode, cancel: cancelSignIn, signOut, status, models, runtimeFor, stopAll };
+  return { stream, signIn, submitCode, cancel: cancelSignIn, signOut, status, download, models, runtimeFor, stopAll };
 }
 
 module.exports = { createGeminiCliAdapter, toPrompt, turnFailure };

@@ -247,6 +247,12 @@ describe("the Google account adapter", () => {
     await expect(turn.done).rejects.toMatchObject({ failure: { kind: "account-signed-out" } });
   });
 
+  it("says how much the first sign-in installs while the CLI is not on disk, and nothing once it is", () => {
+    const missing = createGeminiCliAdapter({ appData, version: "2.2.0", installed: () => null, runtimeBytes: 98 });
+    expect(missing.download()).toBe(98);
+    expect(fakeGemini().adapter.download()).toBeNull();
+  });
+
   it("reads status from the private home without downloading, and signs out by removing it and its link", async () => {
     const { adapter, gemini } = fakeGemini();
     expect(await adapter.status("g")).toEqual({ signedIn: false });

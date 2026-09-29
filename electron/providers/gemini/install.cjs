@@ -109,4 +109,4 @@ async function install(appData, { run, resolveNpm, onProgress, pollMs }) {
   return installedEntry(appData);
 }
 
-module.exports = { VERSION, LOCK, installDir, installedEntry, ensureGemini };
+module.exports = { VERSION, LOCK, EXPECTED_BYTES, installDir, installedEntry, ensureGemini };

@@ -6,7 +6,7 @@ const path = require("node:path");
 const { privateHome } = require("../account/env.cjs");
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
-const { ensureClaude, installedBinary } = require("../claude/binary.cjs");
+const { assetFor, ensureClaude, installedBinary } = require("../claude/binary.cjs");
 const { startClaude, runAuth, sessionArgs, SERVER, TOOL_PREFIX } = require("../claude/process.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
@@ -109,6 +109,7 @@ function createClaudeAdapter({
   version,
   ensure = ensureClaude,
   installed = installedBinary,
+  runtimeBytes = assetFor()?.size ?? null,
   start = startClaude,
   auth = runAuth,
   log = () => {},
@@ -118,6 +119,8 @@ function createClaudeAdapter({
   onDisk = sessionOnDisk,
 }) {
   const runtimes = new Map();
+  /** Bytes the first sign-in fetches while the runtime is not on disk; nothing once it is. */
+  const download = () => (installed(appData) ? null : runtimeBytes);
 
   function runtimeFor(instanceId) {
     if (runtimes.has(instanceId)) return runtimes.get(instanceId);
@@ -476,7 +479,7 @@ function createClaudeAdapter({
     await Promise.all([...all.map((s) => s.supervisor.stop()), ...[...runtimes.values()].map((runtime) => runtime.login?.proc.stop())]);
   }
 
-  return { stream, signIn, cancel, signOut, status, models, runtimeFor, stopAll };
+  return { stream, signIn, cancel, signOut, status, download, models, runtimeFor, stopAll };
 }
 
 module.exports = { createClaudeAdapter, toContent, flatten, textOf, mcpTools, effortOf, turnFailure, sessionOnDisk };

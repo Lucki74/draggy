@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { createClaudeAdapter, toContent, turnFailure } = require("./claude.cjs");
+const { assetFor } = require("../claude/binary.cjs");
 
 /** Plays Claude Code's side: each start is one process whose messages and control requests the test sends. */
 function fakeClaude({ loggedIn = true, onDisk = () => true, installed = "claude.exe", appData = "C:/data" } = {}) {
@@ -309,6 +310,8 @@ describe("the Claude account's sign-in", () => {
   it("never downloads Claude Code to report the status of an account never signed in to", async () => {
     const { adapter, claude } = fakeClaude({ installed: null });
     expect(await adapter.status("claude")).toEqual({ signedIn: false });
+    expect(adapter.download()).toBe(assetFor().size);
+    expect(fakeClaude().adapter.download()).toBeNull();
     expect(await adapter.models("claude")).toEqual([]);
     expect(claude.ensure).not.toHaveBeenCalled();
     expect(claude.auth).toEqual([]);

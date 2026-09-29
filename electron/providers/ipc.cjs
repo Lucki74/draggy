@@ -5,7 +5,7 @@ const { catalog } = require("./catalog.cjs");
 const failed = (error) => ({ success: false, error: error?.failure || { kind: "provider-unknown-error", message: String(error?.message || error) } });
 
 /** The catalog as the page needs it; quirks, patterns and sign-in hosts stay in main. */
-function catalogView(keystore = true) {
+function catalogView(keystore = true, accounts = {}) {
   return catalog().map((entry) => ({
     id: entry.id,
     name: entry.name,
@@ -20,6 +20,8 @@ function catalogView(keystore = true) {
     editableBaseUrl: entry.kind === "local" || entry.id === "custom",
     // Only in providers.json, not in this release: its address is shown and confirmed before it is added.
     remote: Boolean(entry.remote),
+    // An account shows what its first sign-in fetches before anything starts.
+    download: entry.kind === "account" ? accounts[entry.protocol]?.download?.() || null : null,
   }));
 }
 
@@ -51,7 +53,7 @@ function createProviderHandlers({ registry, models, discovery, keystore = () => 
     }
   };
   return {
-    "providers:catalog": () => catalogView(keystore()),
+    "providers:catalog": () => catalogView(keystore(), accounts),
     "providers:list": () => registry.list(),
     "providers:add": (input) => attempt(() => ({ instance: registry.add(input || {}) })),
     "providers:update": (id, patch) =>

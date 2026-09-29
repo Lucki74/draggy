@@ -73,6 +73,13 @@ describe("what the renderer can ask", () => {
     expect(Object.fromEntries(without.filter((e) => ["openai", "custom", "ollama"].includes(e.id)).map((e) => [e.id, e.available]))).toEqual({ openai: false, custom: true, ollama: true });
   });
 
+  it("shows the size of an account's first sign-in from its runtime, and none on a key", () => {
+    const accounts = { codex: { download: () => 123 }, claude: { download: () => null } };
+    const view = createProviderHandlers({ registry: null, models: null, discovery: null, accounts })["providers:catalog"]();
+    const size = Object.fromEntries(view.filter((e) => ["chatgpt", "claude", "openai"].includes(e.id)).map((e) => [e.id, e.download]));
+    expect(size).toEqual({ chatgpt: 123, claude: null, openai: null });
+  });
+
   it("marks a provider only providers.json knows, so the page asks before adding it", () => {
     const added = { id: "newcloud", name: "New Cloud", kind: "cloud", protocol: "openai", baseUrl: "https://api.newcloud.example/v1", auth: "bearer", remote: true };
     useCatalog([...bundledCatalog(), added]);
