@@ -10,7 +10,7 @@ const en = (key: string) => translations.en[key];
 
 const instance = (id: string, over: Partial<ProviderInstance> = {}): ProviderInstance => ({
   id, type: id, label: `Label ${id}`, name: id, kind: "cloud", protocol: "openai", baseUrl: "https://x/v1", enabled: true,
-  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: true, keyHint: "1234", needsKey: true, ...over,
+  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: true, keyHint: "1234", needsKey: true, newModels: [], ...over,
 });
 
 function stub(ggufs: string[], instances: ProviderInstance[]) {

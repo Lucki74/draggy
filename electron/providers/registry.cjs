@@ -1,6 +1,6 @@
 /** The providers the user added. Records live in the database's kv table; a key lives only in the
  * keystore and never reaches the renderer, which sees whether one is set and its last four characters. */
-const { find } = require("./catalog.cjs");
+const { find, bundledCatalog } = require("./catalog.cjs");
 
 const KEY = "providers";
 const PROFILES = new Set(["auto", "compact", "full"]);
@@ -24,6 +24,11 @@ function createRegistry({ storage, secrets }) {
     return entry?.auth !== "none" && entry?.auth !== "account" && !entry?.keyOptional;
   };
 
+  // Curated models providers.json added since the user last chose: offered with a badge, never ticked for them.
+  const knownOf = (instance) => instance.knownModels || bundledCatalog().find((e) => e.id === instance.type)?.defaultModels || [];
+  const newModelsOf = (instance, entry) =>
+    (entry?.defaultModels || []).filter((id) => !knownOf(instance).includes(id) && !(instance.pinnedModels || []).includes(id));
+
   /** What the renderer may see: everything but the key. */
   const view = (instance) => {
     const key = keyOf(instance.id);
@@ -37,6 +42,7 @@ function createRegistry({ storage, secrets }) {
       hasKey: Boolean(key),
       keyHint: key ? key.slice(-4) : "",
       needsKey: needsKey(instance),
+      newModels: newModelsOf(instance, entry),
     };
   };
 
@@ -65,6 +71,7 @@ function createRegistry({ storage, secrets }) {
       enabled: false,
       // The catalog's curated models come pre-ticked; anything listed later waits to be ticked.
       pinnedModels: [...(entry.defaultModels || [])],
+      knownModels: [...(entry.defaultModels || [])],
       promptProfile: "auto",
       modelOverrides: {},
     };
@@ -89,6 +96,7 @@ function createRegistry({ storage, secrets }) {
     }
     if (patch.pinnedModels !== undefined) {
       instance.pinnedModels = [...new Set((patch.pinnedModels || []).map(String))].slice(0, 500);
+      instance.knownModels = [...new Set([...knownOf(instance), ...(find(instance.type)?.defaultModels || [])])];
     }
     if (patch.modelOverrides !== undefined) instance.modelOverrides = checkOverrides(patch.modelOverrides);
     if (patch.enabled !== undefined) {

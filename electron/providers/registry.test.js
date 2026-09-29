@@ -1,8 +1,9 @@
 import { createRequire } from "node:module";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { createRegistry } = require("./registry.cjs");
+const { bundledCatalog, useCatalog } = require("./catalog.cjs");
 
 let kv;
 let vault;
@@ -42,6 +43,20 @@ describe("adding a provider", () => {
 
   it("refuses an unknown type", () => {
     expect(() => registry.add({ type: "nope" })).toThrow(/Unknown/);
+  });
+});
+
+describe("models providers.json adds later", () => {
+  afterEach(() => useCatalog(null));
+
+  it("are offered as new and never ticked, until the user next chooses their models", () => {
+    registry.add({ type: "openai" });
+    useCatalog(bundledCatalog().map((entry) => (entry.id === "openai" ? { ...entry, defaultModels: [...entry.defaultModels, "gpt-9"] } : entry)));
+    const listed = registry.list()[0];
+    expect(listed.newModels).toEqual(["gpt-9"]);
+    expect(listed.pinnedModels).not.toContain("gpt-9");
+    registry.update("openai", { pinnedModels: listed.pinnedModels });
+    expect(registry.list()[0].newModels).toEqual([]);
   });
 });
 

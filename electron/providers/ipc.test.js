@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const { createProviderHandlers } = require("./ipc.cjs");
 const { createRegistry } = require("./registry.cjs");
+const { bundledCatalog, useCatalog } = require("./catalog.cjs");
 
 let handlers;
 let forgotten;
@@ -70,6 +71,18 @@ describe("what the renderer can ask", () => {
     expect(handlers["providers:catalog"]().find((entry) => entry.id === "custom")).toMatchObject({ needsKey: false, editableBaseUrl: true });
     const without = createProviderHandlers({ registry: null, models: null, discovery: null, keystore: () => false })["providers:catalog"]();
     expect(Object.fromEntries(without.filter((e) => ["openai", "custom", "ollama"].includes(e.id)).map((e) => [e.id, e.available]))).toEqual({ openai: false, custom: true, ollama: true });
+  });
+
+  it("marks a provider only providers.json knows, so the page asks before adding it", () => {
+    const added = { id: "newcloud", name: "New Cloud", kind: "cloud", protocol: "openai", baseUrl: "https://api.newcloud.example/v1", auth: "bearer", remote: true };
+    useCatalog([...bundledCatalog(), added]);
+    try {
+      const view = handlers["providers:catalog"]();
+      expect(view.find((entry) => entry.id === "newcloud")).toMatchObject({ remote: true, baseUrl: added.baseUrl });
+      expect(view.find((entry) => entry.id === "openai").remote).toBe(false);
+    } finally {
+      useCatalog(null);
+    }
   });
 });
 

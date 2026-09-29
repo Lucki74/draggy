@@ -17,6 +17,8 @@ function catalogView(keystore = true) {
     available: entry.auth === "none" || Boolean(entry.keyOptional) || keystore,
     baseUrl: entry.baseUrl || null,
     editableBaseUrl: entry.kind === "local" || entry.id === "custom",
+    // Only in providers.json, not in this release: its address is shown and confirmed before it is added.
+    remote: Boolean(entry.remote),
   }));
 }
 

@@ -27,6 +27,7 @@ const openai = (patch: Partial<ProviderInstance> = {}): ProviderInstance => ({
   hasKey: true,
   keyHint: "abcd",
   needsKey: true,
+  newModels: [],
   ...patch,
 });
 
@@ -38,6 +39,7 @@ const entry = (available = true): ProviderCatalogEntry => ({
   keyUrl: null,
   needsKey: true,
   available,
+  remote: false,
   baseUrl: null,
   editableBaseUrl: false,
 });

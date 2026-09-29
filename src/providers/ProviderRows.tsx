@@ -163,7 +163,16 @@ export function InstanceRow({
 
   return (
     <div>
-      <RowHead on={instance.enabled} name={instance.label} subtitle={subtitle.join(" · ")}>
+      <RowHead
+        on={instance.enabled}
+        name={instance.label}
+        subtitle={
+          <>
+            {subtitle.join(" · ")}
+            {instance.newModels?.length > 0 && <Badge>{t("newModelsBadge")}</Badge>}
+          </>
+        }
+      >
         <Toggle
           checked={instance.enabled}
           disabled={!instance.enabled && blocked}
@@ -610,9 +619,22 @@ export function AddProvider({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<ProviderCatalogEntry | null>(null);
   const needle = query.trim().toLowerCase();
   // Accounts are signed in to from their own group, never added with a key.
   const shown = catalog.filter((entry) => entry.kind !== "account" && (!needle || entry.name.toLowerCase().includes(needle)));
+
+  const add = async (entry: ProviderCatalogEntry) => {
+    setBusy(true);
+    const added = await providers.add({ type: entry.id });
+    setBusy(false);
+    setConfirming(null);
+    if (added.ok && added.instance) {
+      setOpen(false);
+      setQuery("");
+      onAdded(added.instance.id);
+    }
+  };
 
   if (!open) {
     return (
@@ -647,16 +669,7 @@ export function AddProvider({
             <button
               type="button"
               disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                const added = await providers.add({ type: entry.id });
-                setBusy(false);
-                if (added.ok && added.instance) {
-                  setOpen(false);
-                  setQuery("");
-                  onAdded(added.instance.id);
-                }
-              }}
+              onClick={() => (entry.remote ? setConfirming(entry) : void add(entry))}
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
             >
               <span className="flex-1 min-w-0 truncate text-sm font-bold">{entry.name}</span>
@@ -665,6 +678,16 @@ export function AddProvider({
           </li>
         ))}
       </ul>
+      {confirming && (
+        <div role="alertdialog" aria-label={confirming.name} className="flex flex-col gap-2 px-2 py-2">
+          <p className="text-[11px] font-bold text-[var(--text-muted)]">{fill(t("remoteProviderNotice"), { name: confirming.name })}</p>
+          <p className="text-xs font-bold font-mono break-all">{confirming.baseUrl}</p>
+          <div className="flex gap-2">
+            <Button onClick={() => void add(confirming)}>{t("confirm")}</Button>
+            <Button onClick={() => setConfirming(null)}>{t("cancel")}</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

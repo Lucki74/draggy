@@ -681,6 +681,8 @@ export interface ProviderInstance {
   hasKey: boolean;
   keyHint: string;
   needsKey: boolean;
+  /** Curated models providers.json added after the user last chose theirs. */
+  newModels: string[];
 }
 
 export interface ProviderCatalogEntry {
@@ -694,6 +696,7 @@ export interface ProviderCatalogEntry {
   available: boolean;
   baseUrl: string | null;
   editableBaseUrl: boolean;
+  remote: boolean;
 }
 
 export interface ProviderModel {

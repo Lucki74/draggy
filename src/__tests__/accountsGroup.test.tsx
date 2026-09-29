@@ -10,13 +10,13 @@ import type { AccountProgress, AccountStatus, ProviderCatalogEntry, ProviderInst
 const en = (key: string) => translations.en[key];
 
 const chatgpt: ProviderCatalogEntry = {
-  id: "chatgpt", name: "ChatGPT", kind: "account", protocol: "codex", keyUrl: null, needsKey: false, available: true, baseUrl: null, editableBaseUrl: false,
+  id: "chatgpt", name: "ChatGPT", kind: "account", protocol: "codex", keyUrl: null, needsKey: false, available: true, baseUrl: null, editableBaseUrl: false, remote: false,
 };
 const openai: ProviderCatalogEntry = { ...chatgpt, id: "openai", name: "OpenAI", kind: "cloud", protocol: "openai", needsKey: true };
 
 const account = (over: Partial<ProviderInstance> = {}): ProviderInstance => ({
   id: "chatgpt", type: "chatgpt", label: "ChatGPT", name: "ChatGPT", kind: "account", protocol: "codex", baseUrl: "", enabled: false,
-  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: false, keyHint: "", needsKey: false, ...over,
+  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: false, keyHint: "", needsKey: false, newModels: [], ...over,
 });
 
 const PRO: AccountStatus = {

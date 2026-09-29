@@ -12,7 +12,7 @@ const entry = (id: string, over: Partial<ProviderCatalogEntry> = {}): ProviderCa
 
 const instance = (id: string, over: Partial<ProviderInstance> = {}): ProviderInstance => ({
   id, type: id, label: id, name: id, kind: "cloud", protocol: "openai", baseUrl: "https://api.example.com/v1", enabled: false,
-  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: false, keyHint: "", needsKey: true, ...over,
+  pinnedModels: [], promptProfile: "auto", modelOverrides: {}, hasKey: false, keyHint: "", needsKey: true, newModels: [], ...over,
 });
 
 /** A fake main that keeps what it is told, the way the registry does, and answers with its view. */
@@ -103,6 +103,23 @@ describe("the Providers page", () => {
     const box = (await screen.findByText("m-2")).closest("label")!.querySelector("input")!;
     fireEvent.click(box);
     await waitFor(() => expect(api.update).toHaveBeenCalledWith("openai", { pinnedModels: ["m-2"] }));
+  });
+
+  it("shows the address of a provider that only providers.json knows, and adds it only once confirmed", async () => {
+    const api = stubMain({ catalog: [entry("newcloud", { remote: true, baseUrl: "https://api.newcloud.example/v1" })] });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "newcloud" }));
+    expect(screen.getByText("https://api.newcloud.example/v1")).toBeTruthy();
+    expect(api.add).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "newcloud" }));
+  });
+
+  it("marks a provider whose curated models grew with a new badge", async () => {
+    stubMain({ instances: [instance("openai", { newModels: ["gpt-9"] })] });
+    page();
+    expect(await screen.findByText(en("newModelsBadge"))).toBeTruthy();
   });
 
   it("says why keyed providers cannot be switched on without a keystore", async () => {
