@@ -6960,7 +6960,7 @@ export const translations: Record<string, Record<string, string>> = {
     onThisComputer: "이 컴퓨터",
     apiKeysGroup: "API 키",
     accountsGroup: "계정",
-    signInWith: "{name}(으)로 로그인",
+    signInWith: "{name} 계정으로 로그인",
     notSignedIn: "로그인하지 않음",
     signedIn: "로그인됨",
     signedInAs: "{email}(으)로 로그인됨",
