@@ -25,6 +25,7 @@ const CAPABILITIES: { flag: ProviderCapability; label: string }[] = [
   { flag: "thinking", label: "capabilityThinking" },
 ];
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const VENDOR_NAMES = { openai: "OpenAI", anthropic: "Anthropic", google: "Google" } as const;
 
 const hostOf = (baseUrl: string) => {
   try {
@@ -262,11 +263,14 @@ export function AccountRow({
   entry,
   instance,
   providers,
+  register,
   t,
 }: {
   entry: ProviderCatalogEntry;
   instance: ProviderInstance | undefined;
   providers: Providers;
+  /** Where the Add list finds this row when its plan is picked. */
+  register?: (id: string, begin: (() => void) | null) => void;
   t: Translate;
 }) {
   const [status, setStatus] = useState<AccountStatus | null>(null);
@@ -342,6 +346,13 @@ export function AccountRow({
       setMessage(t("signInFailed"));
     }
   };
+
+  // A plan picked in the Add list opens this row if signed in, or starts its sign-in.
+  const begin = () => (signedIn ? setOpen(true) : !signIn && void start());
+  useEffect(() => {
+    register?.(entry.id, begin);
+    return () => register?.(entry.id, null);
+  });
 
   const signOut = async () => {
     if (!id) return;
@@ -646,20 +657,39 @@ export function AddProvider({
   catalog,
   providers,
   onAdded,
+  onPlan,
   t,
 }: {
   catalog: ProviderCatalogEntry[];
   providers: Providers;
   onAdded: (id: string) => void;
+  /** Where a plan is signed in to; without one, a vendor with a plan goes straight to its key. */
+  onPlan?: (accountId: string) => void;
   t: Translate;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<ProviderCatalogEntry | null>(null);
+  const [choosing, setChoosing] = useState<{ key: ProviderCatalogEntry; plan: ProviderCatalogEntry } | null>(null);
   const needle = query.trim().toLowerCase();
   // Accounts are signed in to from their own group, never added with a key.
   const shown = catalog.filter((entry) => entry.kind !== "account" && (!needle || entry.name.toLowerCase().includes(needle)));
+
+  const planOf = (entry: ProviderCatalogEntry) =>
+    onPlan && entry.vendor ? catalog.find((other) => other.kind === "account" && other.vendor === entry.vendor) : undefined;
+  const byKey = (entry: ProviderCatalogEntry) => (entry.remote ? setConfirming(entry) : void add(entry));
+  const pick = (entry: ProviderCatalogEntry) => {
+    const plan = planOf(entry);
+    setConfirming(null);
+    if (plan) setChoosing({ key: entry, plan });
+    else byKey(entry);
+  };
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+    setChoosing(null);
+  };
 
   const add = async (entry: ProviderCatalogEntry) => {
     setBusy(true);
@@ -667,8 +697,7 @@ export function AddProvider({
     setBusy(false);
     setConfirming(null);
     if (added.ok && added.instance) {
-      setOpen(false);
-      setQuery("");
+      close();
       onAdded(added.instance.id);
     }
   };
@@ -706,7 +735,7 @@ export function AddProvider({
             <button
               type="button"
               disabled={busy}
-              onClick={() => (entry.remote ? setConfirming(entry) : void add(entry))}
+              onClick={() => pick(entry)}
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
             >
               <span className="flex-1 min-w-0 truncate text-sm font-bold">{entry.name}</span>
@@ -715,6 +744,36 @@ export function AddProvider({
           </li>
         ))}
       </ul>
+      {choosing && (
+        <div role="group" aria-label={choosing.key.name} className="flex flex-col gap-1 px-2 py-2">
+          {/* Neither way is marked recommended: the lines say what each costs (spec §7.1). */}
+          <button
+            type="button"
+            onClick={() => {
+              onPlan?.(choosing.plan.id);
+              close();
+            }}
+            className="w-full flex flex-col items-start px-2 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
+          >
+            <span className="text-sm font-bold">{t("planRoute")}</span>
+            <span className="text-[11px] font-bold text-[var(--text-muted)]">{t("planRouteBody")}</span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setChoosing(null);
+              byKey(choosing.key);
+            }}
+            className="w-full flex flex-col items-start px-2 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
+          >
+            <span className="text-sm font-bold">{t("keyRoute")}</span>
+            <span className="text-[11px] font-bold text-[var(--text-muted)]">
+              {fill(t("keyRouteBody"), { name: VENDOR_NAMES[choosing.key.vendor ?? "openai"] })}
+            </span>
+          </button>
+        </div>
+      )}
       {confirming && (
         <div role="alertdialog" aria-label={confirming.name} className="flex flex-col gap-2 px-2 py-2">
           <p className="text-[11px] font-bold text-[var(--text-muted)]">{fill(t("remoteProviderNotice"), { name: confirming.name })}</p>

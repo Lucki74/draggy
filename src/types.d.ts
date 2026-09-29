@@ -690,6 +690,8 @@ export interface ProviderCatalogEntry {
   name: string;
   kind: "cloud" | "local" | "account";
   protocol: string;
+  /** Set on a plan and its API-key twin alike, so adding the vendor asks which way. */
+  vendor: "openai" | "anthropic" | "google" | null;
   keyUrl: string | null;
   needsKey: boolean;
   /** False when it needs a key and this system has no keystore to keep one in. */

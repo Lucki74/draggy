@@ -36,6 +36,7 @@ const entry = (available = true): ProviderCatalogEntry => ({
   name: "OpenAI",
   kind: "cloud",
   protocol: "openai",
+  vendor: "openai",
   keyUrl: null,
   needsKey: true,
   available,

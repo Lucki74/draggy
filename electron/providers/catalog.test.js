@@ -34,6 +34,13 @@ describe("the bundled catalog", () => {
     expect(find("google")).toMatchObject({ kind: "account", protocol: "gemini-cli", signInHosts: ["accounts.google.com"] });
   });
 
+  it("pairs each plan with exactly one API-key twin of the same vendor, and refuses an unknown vendor", () => {
+    for (const plan of catalog().filter((e) => e.kind === "account")) {
+      expect([plan.id, catalog().filter((e) => e.kind === "cloud" && e.vendor === plan.vendor).length]).toEqual([plan.id, 1]);
+    }
+    expect(problemWith({ ...find("openai"), vendor: "acme" })).toBe("bad vendor");
+  });
+
   it("gives every account protocol a runtime in main, and stops each one on quit", () => {
     const main = fs.readFileSync(require.resolve("../main.cjs"), "utf8");
     const wired = Object.fromEntries(

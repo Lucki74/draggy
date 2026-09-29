@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button, Group, Page } from "./Controls";
 import { AccountRow, AddProvider, DiscoveredRow, EngineRow, InstanceRow } from "../providers/ProviderRows";
@@ -18,6 +18,8 @@ const hostOf = (baseUrl: string) => {
 export default function ProvidersPage({ engineModels, t }: { engineModels: number; t: Translate }) {
   const providers = useProviders();
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const plans = useRef(new Map<string, () => void>());
+  const register = (id: string, begin: (() => void) | null) => (begin ? plans.current.set(id, begin) : plans.current.delete(id));
   const { instances, catalog, servers, scanning } = providers;
   const entryOf = (type: string) => catalog.find((entry) => entry.id === type);
 
@@ -64,6 +66,7 @@ export default function ProvidersPage({ engineModels, t }: { engineModels: numbe
               entry={entry}
               instance={instances.find((instance) => instance.type === entry.id)}
               providers={providers}
+              register={register}
               t={t}
             />
           ))}
@@ -84,7 +87,13 @@ export default function ProvidersPage({ engineModels, t }: { engineModels: numbe
             t={t}
           />
         ))}
-        <AddProvider catalog={catalog} providers={providers} onAdded={setJustAdded} t={t} />
+        <AddProvider
+          catalog={catalog}
+          providers={providers}
+          onAdded={setJustAdded}
+          onPlan={(id) => plans.current.get(id)?.()}
+          t={t}
+        />
       </Group>
     </Page>
   );

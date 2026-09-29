@@ -11,6 +11,7 @@ function catalogView(keystore = true) {
     name: entry.name,
     kind: entry.kind,
     protocol: entry.protocol,
+    vendor: entry.vendor || null,
     keyUrl: entry.keyUrl || null,
     needsKey: entry.auth !== "none" && !entry.keyOptional,
     // Without a keystore a key could only be kept in the clear, so such a provider cannot be switched on.

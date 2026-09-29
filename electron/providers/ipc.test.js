@@ -66,7 +66,7 @@ describe("what the renderer can ask", () => {
 
   it("lists the catalog without its quirks or patterns", () => {
     const openai = handlers["providers:catalog"]().find((entry) => entry.id === "openai");
-    expect(openai).toMatchObject({ name: "OpenAI", kind: "cloud", needsKey: true, editableBaseUrl: false });
+    expect(openai).toMatchObject({ name: "OpenAI", kind: "cloud", needsKey: true, editableBaseUrl: false, vendor: "openai" });
     expect(Object.keys(openai)).not.toContain("quirks");
     expect(handlers["providers:catalog"]().find((entry) => entry.id === "custom")).toMatchObject({ needsKey: false, editableBaseUrl: true });
     const without = createProviderHandlers({ registry: null, models: null, discovery: null, keystore: () => false })["providers:catalog"]();

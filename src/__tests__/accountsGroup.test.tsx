@@ -10,7 +10,7 @@ import type { AccountProgress, AccountStatus, ProviderCatalogEntry, ProviderInst
 const en = (key: string) => translations.en[key];
 
 const chatgpt: ProviderCatalogEntry = {
-  id: "chatgpt", name: "ChatGPT", kind: "account", protocol: "codex", keyUrl: null, needsKey: false, available: true, baseUrl: null, editableBaseUrl: false, remote: false,
+  id: "chatgpt", name: "ChatGPT", kind: "account", protocol: "codex", vendor: "openai", keyUrl: null, needsKey: false, available: true, baseUrl: null, editableBaseUrl: false, remote: false,
 };
 const openai: ProviderCatalogEntry = { ...chatgpt, id: "openai", name: "OpenAI", kind: "cloud", protocol: "openai", needsKey: true };
 
@@ -80,6 +80,25 @@ describe("the Accounts group", () => {
     fireEvent.click(screen.getByRole("button", { name: en("addProvider") }));
     expect(screen.getByRole("button", { name: "OpenAI" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "ChatGPT" })).toBeNull();
+  });
+
+  it("asks which way when a vendor has a plan: the plan starts its sign-in, the key adds the key provider", async () => {
+    const { api } = stubMain();
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(screen.getByRole("button", { name: "OpenAI" }));
+    expect(api.add).not.toHaveBeenCalled();
+    expect(screen.getByText(en("planRouteBody"))).toBeTruthy();
+    expect(screen.getByText(fill(en("keyRouteBody"), { name: "OpenAI" }))).toBeTruthy();
+    fireEvent.click(screen.getByText(en("planRoute")));
+    await waitFor(() => expect(api.accountSignIn).toHaveBeenCalledWith("chatgpt"));
+    expect(api.add).toHaveBeenCalledWith({ type: "chatgpt" });
+
+    fireEvent.click(screen.getByRole("button", { name: en("addProvider") }));
+    fireEvent.click(screen.getByRole("button", { name: "OpenAI" }));
+    fireEvent.click(screen.getByText(en("keyRoute")));
+    await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "openai" }));
+    expect(api.accountSignIn).toHaveBeenCalledTimes(1);
   });
 
   it("signs in through the vendor's page, can be cancelled while waiting, and ticks what the plan offers", async () => {

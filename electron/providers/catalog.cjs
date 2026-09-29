@@ -37,6 +37,7 @@ const local = (id, name, port, probe, extra = {}) => ({
 
 const CATALOG = [
   cloud("openai", "OpenAI", "https://api.openai.com/v1", "https://platform.openai.com/api-keys", {
+    vendor: "openai",
     capabilityPatterns: [
       { match: "^(o\\d|gpt-5|gpt-6)", capabilities: [TOOLS, VISION, THINKING] },
       { match: "^gpt-4(o|\\.1)", capabilities: [TOOLS, VISION] },
@@ -46,6 +47,7 @@ const CATALOG = [
     quirks: { maxTokensField: "max_completion_tokens", reasoningEffort: true },
   }),
   cloud("anthropic", "Anthropic", "https://api.anthropic.com/v1", "https://platform.claude.com/settings/keys", {
+    vendor: "anthropic",
     protocol: "anthropic",
     auth: "x-api-key",
     // The Messages API requires a limit, so each family gets its own when Draggy asks for none.
@@ -57,6 +59,7 @@ const CATALOG = [
     defaultModels: ["claude-sonnet-5-5", "claude-opus-5-5"],
   }),
   cloud("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta", "https://aistudio.google.com/apikey", {
+    vendor: "google",
     protocol: "gemini",
     auth: "x-goog-api-key",
     capabilityPatterns: [
@@ -156,6 +159,7 @@ const CATALOG = [
     name: "ChatGPT",
     kind: "account",
     protocol: "codex",
+    vendor: "openai",
     auth: "account",
     baseUrl: "",
     keyUrl: "",
@@ -169,6 +173,7 @@ const CATALOG = [
     name: "Claude",
     kind: "account",
     protocol: "claude",
+    vendor: "anthropic",
     auth: "account",
     baseUrl: "",
     keyUrl: "",
@@ -181,6 +186,7 @@ const CATALOG = [
     name: "Google",
     kind: "account",
     protocol: "gemini-cli",
+    vendor: "google",
     auth: "account",
     baseUrl: "",
     keyUrl: "",
@@ -204,6 +210,8 @@ const CATALOG = [
   local("lemonade", "Lemonade", 8000, "/api/v1/models", { baseUrl: "http://127.0.0.1:8000/api/v1" }),
 ];
 
+// Pairs a plan with its API-key twin, so the Add list asks which way (spec §7.1).
+const VENDORS = new Set(["openai", "anthropic", "google"]);
 const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "gemini-cli"]);
 const AUTHS = new Set(["bearer", "x-api-key", "x-goog-api-key", "account", "none"]);
 const CAPABILITIES = new Set([TOOLS, VISION, THINKING]);
@@ -216,6 +224,7 @@ function problemWith(entry) {
   if (!["cloud", "local", "account"].includes(entry.kind)) return "bad kind";
   if (!PROTOCOLS.has(entry.protocol)) return "bad protocol";
   if (!AUTHS.has(entry.auth)) return "bad auth";
+  if (entry.vendor !== undefined && !VENDORS.has(entry.vendor)) return "bad vendor";
   if ((entry.kind === "account") !== (entry.auth === "account")) return "account auth outside an account";
   if (entry.kind === "account" && entry.baseUrl) return "account with a baseUrl";
   if (entry.baseUrl) {
