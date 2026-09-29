@@ -135,6 +135,8 @@ describe("claude process", () => {
       "--system-prompt", "Be brief.", "--model", "sonnet", "--effort", "high", "--thinking", "adaptive", "--session-id", "s1",
     ]);
     expect(sessionArgs({ ...base, thinking: false, resume: true }).slice(-4)).toEqual(["--thinking", "disabled", "--resume", "s1"]);
-    expect(sessionArgs({ ...base, resume: true, at: "u9" }).slice(-4)).toEqual(["--resume", "s1", "--resume-session-at=u9", "--fork-session"]);
+    expect(sessionArgs({ ...base, sessionId: "s2", forkFrom: "s1", at: "u9" }).slice(-6)).toEqual([
+      "--resume", "s1", "--resume-session-at=u9", "--fork-session", "--session-id", "s2",
+    ]);
   });
 });

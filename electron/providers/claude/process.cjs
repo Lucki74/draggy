@@ -31,15 +31,16 @@ function workFolder(instanceId, { platformName = process.platform, env = process
   return path.posix.join("/tmp", `draggy-${uid}-claude-${instanceId}`);
 }
 
-/** Session flags for one start: a new session gets its id, a stored one is resumed, and `at` forks it there. */
-function sessionArgs({ model, effort, thinking = true, systemPrompt, sessionId, resume = false, at }) {
+/** Session flags for one start: a new session gets its id, a stored one is resumed, and a fork copies
+ * `forkFrom` up to the reply `at` into the new session `sessionId`. */
+function sessionArgs({ model, effort, thinking = true, systemPrompt, sessionId, resume = false, forkFrom, at }) {
   const args = ["--system-prompt", systemPrompt ?? ""];
   if (model) args.push("--model", model);
   if (effort) args.push("--effort", effort);
   args.push("--thinking", thinking ? "adaptive" : "disabled");
-  if (!resume) args.push("--session-id", sessionId);
-  else if (at) args.push("--resume", sessionId, `--resume-session-at=${at}`, "--fork-session");
-  else args.push("--resume", sessionId);
+  if (forkFrom) args.push("--resume", forkFrom, `--resume-session-at=${at}`, "--fork-session", "--session-id", sessionId);
+  else if (resume) args.push("--resume", sessionId);
+  else args.push("--session-id", sessionId);
   return args;
 }
 
@@ -149,4 +150,21 @@ async function startClaude({
   return { init, request, sendUser, stop, home, cwd };
 }
 
-module.exports = { startClaude, sessionArgs, workFolder, FLAGS, QUIET, SERVER, TOOL_PREFIX, TOOL_TIMEOUT_MS };
+/** One `claude auth …` command in the private folder; resolves to its exit code and output. */
+function runAuth({ binary, appData, instanceId, args, log = () => {}, spawn = platform.spawnHidden, parentEnv = process.env, cwd = workFolder(instanceId) }) {
+  const { env, home } = accountEnv({ runtime: "claude", appData, instanceId, parent: parentEnv, extra: QUIET });
+  fs.mkdirSync(home, { recursive: true });
+  fs.mkdirSync(cwd, { recursive: true });
+  return new Promise((resolve, reject) => {
+    const child = spawn(binary, ["auth", ...args], { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    child.stdout.on("data", (chunk) => {
+      out += chunk;
+    });
+    drainStderr(child.stderr, log);
+    child.on("error", reject);
+    child.on("exit", (code) => resolve({ code, out }));
+  });
+}
+
+module.exports = { startClaude, runAuth, sessionArgs, workFolder, FLAGS, QUIET, SERVER, TOOL_PREFIX, TOOL_TIMEOUT_MS };

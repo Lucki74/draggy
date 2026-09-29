@@ -35,22 +35,27 @@ function createThreads({ instanceId, key }) {
   // Threads are ephemeral, so one missing here is gone from the runtime too, after a restart or a stop.
   const live = new Map();
 
-  function plan(messages) {
+  /** The latest state this request's own messages still vouch for, live or not, and what came after it. */
+  function stored(messages) {
     const state = latestState(messages, instanceId);
     const indexes = refIndexes(messages);
-    const seen = state && live.get(state[key]);
     const matches =
-      seen &&
-      seen.consumed === state.consumed &&
-      seen.prefixHash === state.prefixHash &&
+      state?.[key] &&
       state.consumed <= indexes.length &&
       hashRefs(indexes.slice(0, state.consumed).map((i) => messages[i].draggy_ref)) === state.prefixHash;
-    if (!matches) return { id: null, ...split(messages) };
+    if (!matches) return null;
 
     const after = state.consumed === 0 ? 0 : indexes[state.consumed - 1] + 1;
     // The thread wrote its own replies, so they are not news to it; another provider's are.
     const fresh = messages.slice(after).filter((message) => message.provider_state?.state?.[key] !== state[key]);
-    return { id: state[key], ...split(fresh) };
+    return { state, ...split(fresh) };
+  }
+
+  function plan(messages) {
+    const found = stored(messages);
+    const seen = found && live.get(found.state[key]);
+    if (!seen || seen.consumed !== found.state.consumed || seen.prefixHash !== found.state.prefixHash) return { id: null, ...split(messages) };
+    return { id: found.state[key], history: found.history, input: found.input };
   }
 
   /** Called once a turn completes: the state to persist, and the record that it is live. */
@@ -66,7 +71,7 @@ function createThreads({ instanceId, key }) {
     live.delete(id);
   }
 
-  return { plan, record, forget, clear: () => live.clear() };
+  return { plan, stored, record, forget, clear: () => live.clear() };
 }
 
 module.exports = { createThreads, hashRefs, latestState };
