@@ -176,6 +176,18 @@ const CATALOG = [
     capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
     defaultModels: [],
   },
+  {
+    id: "google",
+    name: "Google",
+    kind: "account",
+    protocol: "gemini-cli",
+    auth: "account",
+    baseUrl: "",
+    keyUrl: "",
+    signInHosts: ["accounts.google.com"],
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING] }],
+    defaultModels: [],
+  },
 
   local("ollama", "Ollama", 11434, "/api/version", { protocol: "ollama", baseUrl: "http://127.0.0.1:11434" }),
   local("lmstudio", "LM Studio", 1234, "/api/v0/models"),

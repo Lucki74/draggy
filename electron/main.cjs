@@ -50,6 +50,7 @@ const { createRemoteCatalog } = require("./providers/remoteCatalog.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
 const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
 const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
+const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
@@ -618,6 +619,7 @@ let onboardingPlan = "done";
 let providers = null;
 let codexAccounts = null;
 let claudeAccounts = null;
+let geminiAccounts = null;
 let searchKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
@@ -911,11 +913,17 @@ app.whenReady().then(() => {
     version: app.getVersion(),
     log: (line) => log.debug("claude", line),
   });
+  geminiAccounts = createGeminiCliAdapter({
+    appData: app.getPath("userData"),
+    version: app.getVersion(),
+    log: (line) => log.debug("gemini", line),
+  });
+  const accounts = { codex: codexAccounts, claude: claudeAccounts, "gemini-cli": geminiAccounts };
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
-    models: createModels({ registry: providers, accounts: { codex: codexAccounts, claude: claudeAccounts } }),
-    accounts: { codex: codexAccounts, claude: claudeAccounts },
+    models: createModels({ registry: providers, accounts }),
+    accounts,
     openExternal: (url) => shell.openExternal(url),
     notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send(channel, payload),
     discovery: createDiscovery({
@@ -941,7 +949,7 @@ app.whenReady().then(() => {
       isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
       onRefused: (origin, url) => log.warn("gateway", `refused ${url} from origin ${origin}`),
       registry: providers,
-      accounts: { codex: codexAccounts, claude: claudeAccounts },
+      accounts,
     }),
   );
 
@@ -1033,7 +1041,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
 
   // The window writes its pending saves before storage closes under them.
-  Promise.allSettled([flushWindow(mainWindow, ipcMain), codexAccounts?.stopAll(), claudeAccounts?.stopAll()]).then(() => {
+  Promise.allSettled([flushWindow(mainWindow, ipcMain), codexAccounts?.stopAll(), claudeAccounts?.stopAll(), geminiAccounts?.stopAll()]).then(() => {
     shutdown();
     app.quit();
   });

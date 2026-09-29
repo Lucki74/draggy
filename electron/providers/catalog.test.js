@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
@@ -30,6 +31,18 @@ describe("the bundled catalog", () => {
     }
     expect(find("chatgpt")).toMatchObject({ kind: "account", protocol: "codex" });
     expect(find("claude")).toMatchObject({ kind: "account", protocol: "claude", signInHosts: ["claude.com"] });
+    expect(find("google")).toMatchObject({ kind: "account", protocol: "gemini-cli", signInHosts: ["accounts.google.com"] });
+  });
+
+  it("gives every account protocol a runtime in main, and stops each one on quit", () => {
+    const main = fs.readFileSync(require.resolve("../main.cjs"), "utf8");
+    const wired = Object.fromEntries(
+      /const accounts = \{([^}]*)\}/.exec(main)[1].split(",").map((pair) => pair.split(":").map((part) => part.trim().replace(/"/g, ""))),
+    );
+    for (const entry of catalog().filter((e) => e.kind === "account")) {
+      expect([entry.id, wired[entry.protocol]]).toEqual([entry.id, expect.stringMatching(/Accounts$/)]);
+      expect(main).toContain(`${wired[entry.protocol]}?.stopAll()`);
+    }
   });
 
   it("finds local servers by their own probe, not by a shared port alone", () => {
