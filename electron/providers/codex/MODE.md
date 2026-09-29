@@ -205,7 +205,8 @@ Needed, at `initialize` (`capabilities.experimentalApi: true`). Measured: withou
   resetsAt }`, plus `rateLimitReachedType`. Unsigned: error "authentication required".
 - `model/list` works unsigned (bundled catalog): gpt-6-astra (default), gpt-6-sol, gpt-6-luna,
   gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, each with `inputModalities`
-  `["text","image"]` and its reasoning efforts.
+  `["text","image"]` and its reasoning efforts. Draggy's catalog hides gpt-5.5: the backend
+  answered 404 "does not exist or you do not have access" for it on a plan account (2026-09-29).
 - **Credentials:** `cli_auth_credentials_store = "file"` keeps the tokens in
   `<CODEX_HOME>/auth.json`, inside Draggy's private folder. Chosen over `"keyring"` because 0.157.1
   also keeps an encryption key for its secrets store in the OS keyring, and whether that entry is

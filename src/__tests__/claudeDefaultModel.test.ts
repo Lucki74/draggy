@@ -14,3 +14,10 @@ describe("a Claude model saved as `default`", () => {
     expect(loadSettings()).toMatchObject({ modelName: "@openai/default", codeModel: "@claude/haiku" });
   });
 });
+
+describe("a ChatGPT model saved as gpt-5.5", () => {
+  it("opens as gpt-6-astra, Codex's first pick, and leaves the OpenAI key's gpt-5.5 alone", () => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ modelName: "@chatgpt/gpt-5.5", codeModel: "@openai/gpt-5.5" }));
+    expect(loadSettings()).toMatchObject({ modelName: "@chatgpt/gpt-6-astra", codeModel: "@openai/gpt-5.5" });
+  });
+});

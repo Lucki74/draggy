@@ -62,6 +62,8 @@ export function loadSettings(): AppSettings {
   // Claude's listing no longer offers `default`; `opus` is the model it named.
   for (const key of ["modelName", "codeModel"] as const) {
     if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@claude(?:-\d+)?\/)default$/, "$1opus");
+    // The ChatGPT backend refuses gpt-5.5 to plan accounts; Codex ranks gpt-6-astra first.
+    if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@chatgpt(?:-\d+)?\/)gpt-5\.5$/, "$1gpt-6-astra");
   }
   // Earlier versions saved the speed line switched on without anyone asking for it.
   return parsed.metricsChosen ? { ...defaultSettings, ...parsed } : { ...defaultSettings, ...parsed, showMetrics: false };

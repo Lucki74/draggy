@@ -6,10 +6,15 @@ const KEY = "providers";
 const PROFILES = new Set(["auto", "compact", "full"]);
 const CAPABILITY_FLAGS = ["tools", "vision", "thinking"];
 
-/** Claude's listing no longer offers `default`, which an earlier sign-in ticked; it named the same model as `opus`. */
+/** Models an earlier sign-in ticked that the listing no longer offers: Claude's `default` named `opus`,
+ * and the ChatGPT backend refuses gpt-5.5 to plan accounts. */
+const RETIRED = { claude: { default: "opus" }, chatgpt: { "gpt-5.5": null } };
+
 function withoutDefault(instance) {
-  if (instance?.type !== "claude" || !(instance.pinnedModels || []).includes("default")) return instance;
-  return { ...instance, pinnedModels: [...new Set(instance.pinnedModels.map((id) => (id === "default" ? "opus" : id)))] };
+  const retired = RETIRED[instance?.type];
+  if (!retired || !(instance.pinnedModels || []).some((id) => id in retired)) return instance;
+  const pinnedModels = instance.pinnedModels.map((id) => (id in retired ? retired[id] : id)).filter(Boolean);
+  return { ...instance, pinnedModels: [...new Set(pinnedModels)] };
 }
 
 function createRegistry({ storage, secrets }) {

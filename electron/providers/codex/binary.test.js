@@ -77,5 +77,7 @@ describe("codex binary", () => {
     for (const model of models) {
       expect(model).toMatchObject({ tool_mode: null, multi_agent_version: null, use_responses_lite: false, experimental_supported_tools: [] });
     }
+    // The ChatGPT backend answers 404 for gpt-5.5 on a plan account.
+    expect(models.find((model) => model.slug === "gpt-5.5").visibility).toBe("hide");
   });
 });

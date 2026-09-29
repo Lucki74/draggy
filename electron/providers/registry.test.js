@@ -56,6 +56,16 @@ describe("a Claude plan ticked before `default` left its listing", () => {
   });
 });
 
+describe("a ChatGPT plan ticked before gpt-5.5 left its listing", () => {
+  it("no longer has gpt-5.5, which the backend refuses, and keeps the rest", () => {
+    kv.set("providers", JSON.stringify({ instances: [
+      { id: "chatgpt", type: "chatgpt", pinnedModels: ["gpt-6-astra", "gpt-5.5", "gpt-5.6-sol"] },
+      { id: "openai", type: "openai", pinnedModels: ["gpt-5.5"] },
+    ] }));
+    expect(registry.list().map((instance) => instance.pinnedModels)).toEqual([["gpt-6-astra", "gpt-5.6-sol"], ["gpt-5.5"]]);
+  });
+});
+
 describe("models providers.json adds later", () => {
   afterEach(() => useCatalog(null));
 
