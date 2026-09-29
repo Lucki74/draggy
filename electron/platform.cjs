@@ -89,6 +89,17 @@ function linuxAmdVram() {
   }
 }
 
+const DISPLAY_CLASS = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
+
+/** The biggest REG_QWORD in `reg query` output, in bytes; 0 when there is none. */
+function largestQword(out) {
+  let best = 0;
+  for (const [, hex] of String(out || "").matchAll(/REG_QWORD\s+0x([0-9a-f]+)/gi)) {
+    best = Math.max(best, Number.parseInt(hex, 16));
+  }
+  return best;
+}
+
 async function detectVideoMemoryGB() {
   const nvidia = await runCommand(
     "nvidia-smi",
@@ -101,18 +112,10 @@ async function detectVideoMemoryGB() {
   }
 
   if (IS_WINDOWS) {
-    const script =
-      "$m=0;Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue|ForEach-Object{$v=(Get-ItemProperty $_.PSPath -Name 'HardwareInformation.qwMemorySize' -ErrorAction SilentlyContinue).'HardwareInformation.qwMemorySize';if($v -and $v -gt $m){$m=$v}};Write-Output $m";
-    const out = await runCommand(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-Command", script],
-      8000,
-    );
-    if (out) {
-      const bytes = parseInt(out.trim(), 10);
-      if (!isNaN(bytes) && bytes > 0) return bytes / 1024 ** 3;
-    }
-    return 0;
+    // reg.exe, not PowerShell: antivirus heuristics block a hidden PowerShell started by an app.
+    const reg = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "reg.exe");
+    const out = await runCommand(reg, ["query", DISPLAY_CLASS, "/s", "/v", "HardwareInformation.qwMemorySize"], 8000);
+    return largestQword(out) / 1024 ** 3;
   }
 
   if (IS_MAC) return macVideoMemory();
@@ -290,6 +293,7 @@ module.exports = {
   IS_LINUX,
   runCommand,
   detectVideoMemoryGB,
+  largestQword,
   nvidiaInfo,
   parseNvidiaInfo,
   hasUnifiedMemory,

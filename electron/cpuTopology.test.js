@@ -18,6 +18,13 @@ describe("cpuTopology", () => {
     expect(cpuTopology.fromCounts(8, 8)).toEqual({ logical: 8, physical: 8, performance: 8 });
   });
 
+  it("reads a Windows core count from the processor's name, and leaves the rest to the fallback", () => {
+    const amd = cpuTopology.windowsTopology([{ model: "AMD Ryzen 9 7900X3D 12-Core Processor          " }]);
+    expect(amd.physical).toBe(Math.min(12, amd.logical));
+    expect(cpuTopology.windowsTopology([{ model: "13th Gen Intel(R) Core(TM) i7-13700K" }])).toBeNull();
+    expect(cpuTopology.windowsTopology([])).toBeNull();
+  });
+
   it("expands sysfs CPU lists", () => {
     expect(cpuTopology.parseCpuList("0-3,8,10-11\n")).toEqual([0, 1, 2, 3, 8, 10, 11]);
   });

@@ -76,15 +76,11 @@ function linuxTopology(sysRoot = "/sys/devices") {
   return { logical, physical, performance: physical };
 }
 
-async function windowsTopology() {
-  const script =
-    "$p=Get-CimInstance Win32_Processor;" +
-    "Write-Output (($p|Measure-Object NumberOfCores -Sum).Sum);" +
-    "Write-Output (($p|Measure-Object NumberOfLogicalProcessors -Sum).Sum)";
-  const out = await platform.runCommand("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], 8000);
-  const [physical, logical] = String(out || "").trim().split(/\s+/).map((n) => parseInt(n, 10));
-  if (!(physical > 0) || !(logical > 0)) return null;
-  return fromCounts(logical, physical);
+/** Read from the processor's name, with no process started: antivirus blocks a hidden PowerShell.
+ * AMD names its core count ("12-Core Processor"); any other chip falls back to two threads per core. */
+function windowsTopology(cpus = os.cpus()) {
+  const match = /\b(\d+)-Core\b/i.exec(cpus[0]?.model || "");
+  return match ? fromCounts(logicalCount(), Number(match[1])) : null;
 }
 
 async function macTopology() {
@@ -100,7 +96,7 @@ async function macTopology() {
 async function detect() {
   let found;
   try {
-    if (platform.IS_WINDOWS) found = await windowsTopology();
+    if (platform.IS_WINDOWS) found = windowsTopology();
     else if (platform.IS_MAC) found = await macTopology();
     else found = linuxTopology();
   } catch {
@@ -122,4 +118,4 @@ function resetForTests() {
   cached = null;
 }
 
-module.exports = { getCpuTopology, fromCounts, parseCpuList, linuxTopology, resetForTests };
+module.exports = { getCpuTopology, fromCounts, parseCpuList, linuxTopology, windowsTopology, resetForTests };
