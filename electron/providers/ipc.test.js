@@ -94,14 +94,15 @@ describe("an account", () => {
       secrets: { available: () => true, get: () => ({}), set: () => true, remove: () => true },
     });
     registry.add({ type: "chatgpt" });
+    registry.add({ type: "claude" });
     registry.add({ type: "openai" });
     const calls = [];
     const opened = [];
     const notes = [];
     const forgot = [];
-    const codex = {
+    const runtime = (name) => ({
       signIn: async (id, { onProgress, openExternal }) => {
-        calls.push(["signIn", id]);
+        calls.push([name, id]);
         onProgress({ step: "browser", url: authUrl });
         await openExternal(authUrl);
         return { signedIn: true, email: "a@b.c" };
@@ -109,13 +110,14 @@ describe("an account", () => {
       cancel: async (id) => calls.push(["cancel", id]),
       signOut: async (id) => calls.push(["signOut", id]),
       status: async (id) => (calls.push(["status", id]), { signedIn: false }),
-    };
+    });
+    const codex = runtime("signIn");
     const models = { list: async () => [], forget: (id) => forgot.push(id) };
     const handlers = createProviderHandlers({
       registry,
       models,
       discovery: { scan: async () => [] },
-      accounts: { codex },
+      accounts: { codex, claude: runtime("claude") },
       openExternal: async (url) => opened.push(url),
       notify: (channel, payload) => notes.push([channel, payload]),
     });
@@ -139,6 +141,17 @@ describe("an account", () => {
       expect(opened).toEqual([]);
     },
   );
+
+  it("signs in to Claude through Claude Code, on claude.com and nowhere else", async () => {
+    const good = withAccount({ authUrl: "https://claude.com/cai/oauth/authorize?code=true" });
+    expect(await good.handlers["providers:account-sign-in"]("claude")).toMatchObject({ success: true });
+    expect(good.calls).toEqual([["claude", "claude"]]);
+    expect(good.opened).toEqual(["https://claude.com/cai/oauth/authorize?code=true"]);
+
+    const other = withAccount();
+    expect(await other.handlers["providers:account-sign-in"]("claude")).toMatchObject({ success: false });
+    expect(other.opened).toEqual([]);
+  });
 
   it("cancels, signs out and reads the status through the same runtime", async () => {
     const { handlers, calls, forgot } = withAccount();

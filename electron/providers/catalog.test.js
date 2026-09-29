@@ -29,6 +29,7 @@ describe("the bundled catalog", () => {
       if (entry.kind === "account") expect(entry.baseUrl).toBe("");
     }
     expect(find("chatgpt")).toMatchObject({ kind: "account", protocol: "codex" });
+    expect(find("claude")).toMatchObject({ kind: "account", protocol: "claude", signInHosts: ["claude.com"] });
   });
 
   it("finds local servers by their own probe, not by a shared port alone", () => {
