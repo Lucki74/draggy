@@ -1,25 +1,41 @@
+import fs from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { createClaudeAdapter, toContent, turnFailure } = require("./claude.cjs");
 
 /** Plays Claude Code's side: each start is one process whose messages and control requests the test sends. */
-function fakeClaude({ loggedIn = true, onDisk = () => true } = {}) {
+function fakeClaude({ loggedIn = true, onDisk = () => true, installed = "claude.exe", appData = "C:/data" } = {}) {
   const claude = { starts: [], auth: [] };
+  const answers = {
+    claude_authenticate: () => ({ automaticUrl: "https://claude.com/cai/oauth/authorize?code=true", manualUrl: "https://claude.com/cai/oauth/authorize?manual" }),
+    claude_oauth_wait_for_completion: (proc) =>
+      new Promise((resolve, reject) => {
+        claude.finishLogin = resolve;
+        proc.onStop = () => reject(new Error("Claude Code stopped"));
+      }),
+  };
   const start = vi.fn(async ({ args, onMessage, onControl, onExit }) => {
     const proc = {
       args,
       sent: [],
       requests: [],
       stopped: false,
+      init: { models: [{ value: "default", displayName: "Default" }, { value: "opus[1m]", displayName: "Opus (1M)" }, {}] },
       emit: onMessage,
       control: onControl,
       exit: onExit,
-      request: vi.fn(async (subtype) => proc.requests.push(subtype)),
+      request: vi.fn(async (subtype, fields) => {
+        proc.requests.push(fields ? [subtype, fields] : subtype);
+        return answers[subtype] ? answers[subtype](proc) : {};
+      }),
       sendUser: vi.fn((content) => proc.sent.push(content)),
       stop: vi.fn(async () => {
         proc.stopped = true;
+        proc.onStop?.();
       }),
     };
     claude.starts.push(proc);
@@ -27,15 +43,17 @@ function fakeClaude({ loggedIn = true, onDisk = () => true } = {}) {
   });
   const auth = vi.fn(async ({ args }) => {
     claude.auth.push(args);
-    return { code: 0, out: JSON.stringify({ loggedIn: claude.loggedIn, authMethod: "claude.ai" }) };
+    if (args[0] === "logout") claude.loggedIn = false;
+    return { code: 0, out: JSON.stringify({ loggedIn: claude.loggedIn, authMethod: "claude.ai", email: "a@b.c", subscriptionType: "max" }) };
   });
   claude.loggedIn = loggedIn;
+  claude.ensure = vi.fn(async () => "claude.exe");
   let ids = 0;
   const adapter = createClaudeAdapter({
-    appData: "C:/data",
+    appData,
     version: "1.3.0",
-    ensure: async () => "claude.exe",
-    installed: () => "claude.exe",
+    ensure: claude.ensure,
+    installed: () => installed,
     start,
     auth,
     settleMs: 0,
@@ -253,6 +271,76 @@ describe("the Claude account adapter", () => {
     succeed(claude.last());
     await done;
     expect(sse.events.at(-1)[1]).toBe("length");
+  });
+});
+
+describe("the Claude account's sign-in", () => {
+  it("opens Anthropic's page from Claude Code's own OAuth and waits for the runtime to store its sign-in", async () => {
+    const { adapter, claude } = fakeClaude({ loggedIn: false });
+    const onProgress = vi.fn();
+    const openExternal = vi.fn(async () => {});
+    const signing = adapter.signIn("claude", { onProgress, openExternal });
+    await tick();
+    const proc = claude.last();
+    expect(proc.args).toEqual(["--no-session-persistence"]);
+    expect(proc.requests).toEqual([["claude_authenticate", { loginWithClaudeAi: true }], "claude_oauth_wait_for_completion"]);
+    expect(openExternal).toHaveBeenCalledWith("https://claude.com/cai/oauth/authorize?code=true");
+    claude.loggedIn = true;
+    claude.finishLogin({});
+    expect(await signing).toEqual({ signedIn: true, email: "a@b.c", plan: "max" });
+    expect(proc.stopped).toBe(true);
+    expect(onProgress).toHaveBeenLastCalledWith({ step: "done" });
+  });
+
+  it("gives up cleanly when the user cancels, and skips the browser when already signed in", async () => {
+    const { adapter, claude } = fakeClaude({ loggedIn: false });
+    const signing = adapter.signIn("claude", { openExternal: async () => {} });
+    await tick();
+    await adapter.cancel("claude");
+    expect(await signing).toEqual({ signedIn: false, cancelled: true, error: null });
+
+    claude.loggedIn = true;
+    const openExternal = vi.fn();
+    expect(await adapter.signIn("claude", { openExternal })).toMatchObject({ signedIn: true });
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(claude.starts).toHaveLength(1);
+  });
+
+  it("never downloads Claude Code to report the status of an account never signed in to", async () => {
+    const { adapter, claude } = fakeClaude({ installed: null });
+    expect(await adapter.status("claude")).toEqual({ signedIn: false });
+    expect(await adapter.models("claude")).toEqual([]);
+    expect(claude.ensure).not.toHaveBeenCalled();
+    expect(claude.auth).toEqual([]);
+  });
+
+  it("signs out through the runtime, then removes the private folder with its sessions", async () => {
+    const appData = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-claude-"));
+    try {
+      const home = path.join(appData, "claude", "claude");
+      fs.mkdirSync(path.join(home, "projects", "x"), { recursive: true });
+      fs.writeFileSync(path.join(home, "projects", "x", "s.jsonl"), "{}");
+      const { adapter, claude } = fakeClaude({ appData });
+      const first = await leg(adapter, [system, user("u1")]);
+      succeed(claude.last());
+      await first.done;
+      await adapter.signOut("claude");
+      expect(claude.last().stopped).toBe(true);
+      expect(claude.auth.at(-1)).toEqual(["logout"]);
+      expect(fs.existsSync(home)).toBe(false);
+      expect(await adapter.status("claude")).toEqual({ signedIn: false });
+    } finally {
+      fs.rmSync(appData, { recursive: true, force: true });
+    }
+  });
+
+  it("lists the models the runtime offers, starting it once for them", async () => {
+    const { adapter, claude } = fakeClaude();
+    const listed = [{ id: "default", name: "Default", inputModalities: ["text", "image"] }, { id: "opus[1m]", name: "Opus (1M)", inputModalities: ["text", "image"] }];
+    expect(await adapter.models("claude")).toEqual(listed);
+    expect(await adapter.models("claude")).toEqual(listed);
+    expect(claude.starts).toHaveLength(1);
+    expect(claude.last().stopped).toBe(true);
   });
 });
 

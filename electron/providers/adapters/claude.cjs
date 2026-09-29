@@ -121,7 +121,7 @@ function createClaudeAdapter({
 
   function runtimeFor(instanceId) {
     if (runtimes.has(instanceId)) return runtimes.get(instanceId);
-    const rt = { instanceId, threads: createThreads({ instanceId, key: "sessionId" }), sessions: new Map(), signedIn: false, limit: null, login: null };
+    const rt = { instanceId, threads: createThreads({ instanceId, key: "sessionId" }), sessions: new Map(), signedIn: false, limit: null, login: null, models: null };
     runtimes.set(instanceId, rt);
     return rt;
   }
@@ -394,12 +394,89 @@ function createClaudeAdapter({
     }
   }
 
-  async function stopAll() {
-    const all = [...runtimes.values()].flatMap((runtime) => [...runtime.sessions.values()]);
-    await Promise.all(all.map((s) => s.supervisor.stop()));
+  /** A process that only signs in, lists models or reports usage: no session is written for it. */
+  async function utility(instanceId) {
+    const binary = await ensure(appData);
+    return start({ binary, appData, instanceId, args: ["--no-session-persistence"], log, onControl: async (request) => {
+      throw new Error(`${request.subtype} is not available in Draggy`);
+    } });
   }
 
-  return { stream, runtimeFor, stopAll, readAuth };
+  /** Claude Code's own OAuth on Anthropic's page, ending at its own callback, so Draggy never sees a token (MODE.md §7). */
+  async function signIn(instanceId, { onProgress = () => {}, openExternal }) {
+    await ensure(appData, { onProgress: ({ percent }) => onProgress({ step: "installing", percent }) });
+    const runtime = runtimeFor(instanceId);
+    if (!(await readAuth(instanceId)).loggedIn) {
+      const proc = await utility(instanceId);
+      const login = { proc, cancelled: false };
+      runtime.login = login;
+      try {
+        const { automaticUrl } = await proc.request("claude_authenticate", { loginWithClaudeAi: true });
+        onProgress({ step: "browser", url: automaticUrl });
+        await openExternal(automaticUrl);
+        await proc.request("claude_oauth_wait_for_completion");
+      } catch (error) {
+        if (login.cancelled) return { signedIn: false, cancelled: true, error: null };
+        if (error.failure) throw error;
+        return { signedIn: false, cancelled: false, error: error.message };
+      } finally {
+        if (runtime.login === login) runtime.login = null;
+        await proc.stop();
+      }
+    }
+    runtime.signedIn = true;
+    onProgress({ step: "done" });
+    return status(instanceId);
+  }
+
+  async function cancel(instanceId) {
+    const login = runtimes.get(instanceId)?.login;
+    if (!login) return;
+    login.cancelled = true;
+    await login.proc.stop();
+  }
+
+  /** Signs out through the runtime, then removes the whole private folder, sessions included (spec §4.7.3). */
+  async function signOut(instanceId) {
+    const runtime = runtimeFor(instanceId);
+    await Promise.all([...runtime.sessions.values()].map((s) => s.supervisor.stop()));
+    runtime.sessions.clear();
+    runtime.threads.clear();
+    runtime.signedIn = false;
+    runtime.models = null;
+    const binary = installed(appData);
+    if (binary) await auth({ binary, appData, instanceId, args: ["logout"], log });
+    fs.rmSync(privateHome(appData, "claude", instanceId), { recursive: true, force: true, maxRetries: 5 });
+  }
+
+  /** Never downloads: an account never signed in to has no runtime yet, and opening a page is no reason to fetch one. */
+  async function status(instanceId) {
+    const read = await readAuth(instanceId);
+    if (!read.loggedIn) return { signedIn: false };
+    return { signedIn: true, email: read.email || undefined, plan: read.subscriptionType || undefined };
+  }
+
+  /** The models the runtime's `initialize` lists, read once per launch of the app; empty until it is installed. */
+  async function models(instanceId) {
+    if (!installed(appData)) return [];
+    const runtime = runtimeFor(instanceId);
+    if (!runtime.models) {
+      const proc = await utility(instanceId);
+      try {
+        runtime.models = (proc.init?.models || []).filter((m) => m?.value);
+      } finally {
+        await proc.stop();
+      }
+    }
+    return runtime.models.map((m) => ({ id: m.value, name: m.displayName || m.value, inputModalities: ["text", "image"] }));
+  }
+
+  async function stopAll() {
+    const all = [...runtimes.values()].flatMap((runtime) => [...runtime.sessions.values()]);
+    await Promise.all([...all.map((s) => s.supervisor.stop()), ...[...runtimes.values()].map((runtime) => runtime.login?.proc.stop())]);
+  }
+
+  return { stream, signIn, cancel, signOut, status, models, runtimeFor, stopAll };
 }
 
 module.exports = { createClaudeAdapter, toContent, flatten, effortOf, turnFailure, sessionOnDisk };
