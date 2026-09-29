@@ -46,6 +46,7 @@ const { createGateway } = require("./providers/gateway.cjs");
 const { createRegistry } = require("./providers/registry.cjs");
 const { createModels } = require("./providers/models.cjs");
 const { createDiscovery } = require("./providers/discovery.cjs");
+const { createRemoteCatalog } = require("./providers/remoteCatalog.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
 const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
@@ -893,6 +894,11 @@ app.whenReady().then(() => {
     log.warn("search", `could not move the Brave key into the store: ${error.message}`);
   }
   providers = createRegistry({ storage, secrets });
+  const remoteCatalog = createRemoteCatalog({ storage, instances: () => providers.list(), log: (line) => log.warn("providers", line) });
+  remoteCatalog.load();
+  // Hourly only to notice a provider switched on; the file itself is fetched at most once a day.
+  void remoteCatalog.refresh();
+  setInterval(() => void remoteCatalog.refresh(), 60 * 60 * 1000).unref();
   codexAccounts = createCodexAdapter({
     appData: app.getPath("userData"),
     version: app.getVersion(),

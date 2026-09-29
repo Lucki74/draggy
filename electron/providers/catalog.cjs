@@ -217,12 +217,23 @@ function problemWith(entry) {
   return null;
 }
 
-function catalog() {
+// The bundled list, or a signed merge of it with providers.json once remoteCatalog.cjs has verified one.
+let active = CATALOG;
+
+function bundledCatalog() {
   return CATALOG;
 }
 
+function useCatalog(entries) {
+  active = entries || CATALOG;
+}
+
+function catalog() {
+  return active;
+}
+
 function find(id) {
-  return CATALOG.find((entry) => entry.id === id) || null;
+  return active.find((entry) => entry.id === id) || null;
 }
 
 /** Tools, vision and thinking for a model by the first pattern its id matches. */
@@ -233,4 +244,4 @@ function capabilitiesFor(entry, modelId) {
     : { capabilities: [], contextLength: null, maxOutputTokens: null };
 }
 
-module.exports = { catalog, find, capabilitiesFor, problemWith };
+module.exports = { catalog, bundledCatalog, useCatalog, find, capabilitiesFor, problemWith };
