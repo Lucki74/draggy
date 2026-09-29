@@ -59,6 +59,10 @@ export function loadSettings(): AppSettings {
     delete parsed.braveApiKey;
   }
 
+  // Claude's listing no longer offers `default`; `opus` is the model it named.
+  for (const key of ["modelName", "codeModel"] as const) {
+    if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@claude(?:-\d+)?\/)default$/, "$1opus");
+  }
   // Earlier versions saved the speed line switched on without anyone asking for it.
   return parsed.metricsChosen ? { ...defaultSettings, ...parsed } : { ...defaultSettings, ...parsed, showMetrics: false };
 }

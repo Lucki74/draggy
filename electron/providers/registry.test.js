@@ -46,6 +46,16 @@ describe("adding a provider", () => {
   });
 });
 
+describe("a Claude plan ticked before `default` left its listing", () => {
+  it("has `opus` in its place, the model it named", () => {
+    kv.set("providers", JSON.stringify({ instances: [
+      { id: "claude", type: "claude", pinnedModels: ["default", "opus", "haiku"] },
+      { id: "other", type: "openai", pinnedModels: ["default"] },
+    ] }));
+    expect(registry.list().map((instance) => instance.pinnedModels)).toEqual([["opus", "haiku"], ["default"]]);
+  });
+});
+
 describe("models providers.json adds later", () => {
   afterEach(() => useCatalog(null));
 

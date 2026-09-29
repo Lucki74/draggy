@@ -6,11 +6,17 @@ const KEY = "providers";
 const PROFILES = new Set(["auto", "compact", "full"]);
 const CAPABILITY_FLAGS = ["tools", "vision", "thinking"];
 
+/** Claude's listing no longer offers `default`, which an earlier sign-in ticked; it named the same model as `opus`. */
+function withoutDefault(instance) {
+  if (instance?.type !== "claude" || !(instance.pinnedModels || []).includes("default")) return instance;
+  return { ...instance, pinnedModels: [...new Set(instance.pinnedModels.map((id) => (id === "default" ? "opus" : id)))] };
+}
+
 function createRegistry({ storage, secrets }) {
   const load = () => {
     try {
       const parsed = JSON.parse(storage.getValue(KEY) || "{}");
-      return Array.isArray(parsed.instances) ? parsed.instances : [];
+      return Array.isArray(parsed.instances) ? parsed.instances.map(withoutDefault) : [];
     } catch {
       return [];
     }
