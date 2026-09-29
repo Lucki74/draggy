@@ -166,6 +166,17 @@ by Draggy before every start:
   undocumented interleaving and must be proven signed in (Phase 2b). **Decided by the maintainer
   (2026-09-27): build it in Phase 2b**; if it fails on a real account, Google sign-in waits for a
   CLI version with a protocol-level sign-in.
+- **Built (Phase 2b), from the 0.61.0 bundle, unverified on a real account:** a one-off `--acp`
+  process with `NO_BROWSER=true` (`adapters/geminiCli.cjs` `signIn`). With the browser suppressed,
+  the ACP route skips the consent question, writes an alternate-screen escape, "Please visit the
+  following URL to authorize the application:", the URL, then asks "Enter the authorization code:"
+  through `readline` on the same stdin, two tries of five minutes each, reprinting the URL on a
+  retry. Draggy sends only `authenticate`, strips ANSI from stdout, takes an
+  `https://accounts.google.com/...` address followed by whitespace, opens it through the
+  `signInHosts` opener, and writes the pasted code as one raw line (`typeLine`). The ACP parser also
+  reads that line, fails to parse it and drops it without logging its text. Printed text is never
+  logged: `readline` may echo the code. Sign-in succeeds when `authenticate` resolves and
+  `oauth_creds.json` (or `gemini-credentials.json`) exists in the private home.
 - Other auth methods offered: `gemini-api-key`, `vertex-ai`, `gateway`; never used for the account
   provider.
 
@@ -183,10 +194,17 @@ by Draggy before every start:
 
 ## Phase 2b checklist (needs a signed-in Google account)
 
-1. Sign in through the one-off process of §6; the cached credentials land in the private home and a
-   later `--acp` session starts without asking.
+1. Sign in through the one-off process of §6 on Windows, macOS and Linux: the URL is found, the
+   pasted code is accepted, a wrong code gets the second try, the cached credentials land in the
+   private home under the names above, `google_accounts.json` gives the address, and a later
+   `--acp` session starts without asking.
 2. A real turn with the settings above: the reply streams, Draggy's tools work, no CLI tool exists.
 3. Quota and limit errors map to `account-limit-reached`; what status the CLI reports.
 4. `session/load` after a clean process exit; or `--session-file` seeding.
 5. Hosts contacted by a signed-in run (for the privacy policy), with usage statistics off.
 6. Sign out (delete the private home's credentials) and that nothing outside it changed.
+7. The neutral link: a junction under `%ProgramData%\Draggy` on Windows (needs no admin rights),
+   a symlink under `/tmp` elsewhere; the model sees only that path, never the user's name.
+8. `session/request_permission` for a Draggy tool: its `toolCallId` starts with `mcp_draggy_` (the
+   only thing the backstop allows), and a built-in never asks because none is enabled.
+9. `_meta.quota.token_count` on `session/prompt`: the usage shape, and whether it is present at all.
