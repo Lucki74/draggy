@@ -31,7 +31,7 @@ export default function ProvidersPage({ engineModels, t }: { engineModels: numbe
   const found = servers.filter((server) => !addedHosts.has(hostOf(server.baseUrl)));
 
   return (
-    <Page title={t("providers")} description={t("providersHint")}>
+    <Page title={t("providers")}>
       <Group title={t("onThisComputer")}>
         <EngineRow count={engineModels} t={t} />
         {local.map((instance) => (

@@ -34,7 +34,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
   ];
 
   return (
-    <Page title={t("models")} description={t("modelsHint")}>
+    <Page title={t("models")}>
       <Group title={t("installed")}>
         {/* The model each mode runs is picked on its own page, so these jump straight there. */}
         <div className="px-4 py-2.5 flex items-center gap-3 bg-[var(--hover-bg)]/40">

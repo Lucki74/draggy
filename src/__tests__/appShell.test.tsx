@@ -150,7 +150,7 @@ describe("the app shell", () => {
 
     await act(async () => api.bootOpen.emit("providers"));
     expect(overlay?.getAttribute("aria-hidden")).toBe("false");
-    expect(await screen.findByText(/Nothing is sent anywhere until you add a provider/)).toBeTruthy();
+    expect(await screen.findByText("On this computer")).toBeTruthy();
   });
 
   it("opens on Providers with no local model at all", async () => {
@@ -159,7 +159,7 @@ describe("the app shell", () => {
     expect(screen.queryByText("Appearance")).toBeNull();
 
     await act(async () => api.bootOpen.emit("providers"));
-    expect(await screen.findByText(/Nothing is sent anywhere until you add a provider/)).toBeTruthy();
+    expect(await screen.findByText("On this computer")).toBeTruthy();
   });
 
 });
