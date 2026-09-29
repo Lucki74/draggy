@@ -7,7 +7,7 @@ import type { ModelGroup } from "../ai/providers";
 import type { ProviderModel } from "../types";
 
 const model = (instance: string, id: string) => ({ id, ref: `@${instance}/${id}` }) as ProviderModel;
-const openai: ModelGroup = { instanceId: "openai", label: "OpenAI", kind: "cloud", models: [model("openai", "gpt-x")] };
+const openai: ModelGroup = { instanceId: "openai", label: "OpenAI", kind: "cloud", type: "openai", models: [model("openai", "gpt-x")] };
 const engine = [
   { id: "a.gguf", label: "a.gguf" },
   { id: "b.gguf", label: "b.gguf" },

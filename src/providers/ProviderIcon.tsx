@@ -14,10 +14,10 @@ const BRAND: Record<string, string> = {
 const MONO = new Set(["openai", "xai", "groq", "cerebras", "openrouter", "moonshot", "zai", "ollama", "lmstudio", "apple"]);
 
 /** A provider's logo, or its first letter on a tile when it has none (the server types without a brand mark). */
-export function ProviderIcon({ type, name }: { type: string | undefined; name: string }) {
+export function ProviderIcon({ type, name, size = "w-5 h-5" }: { type: string | undefined; name: string; size?: string }) {
   const file = type ? (BRAND[type] ?? type) : "";
   const src = file ? url(file) : undefined;
-  const box = "w-5 h-5 flex-shrink-0 select-none";
+  const box = `${size} flex-shrink-0 select-none`;
 
   if (src && MONO.has(file)) {
     return (

@@ -6,6 +6,7 @@ import { listAllModels } from "../ai/providers";
 import type { ModelGroup } from "../ai/providers";
 import { selectableModels } from "../modelKinds";
 import { onProvidersChange } from "./useProviders";
+import { ProviderIcon } from "./ProviderIcon";
 
 type Translate = (key: string) => string;
 
@@ -58,13 +59,14 @@ export default function ModelChoices({
     };
   }, [open]);
 
-  const sections: { title: string | null; choices: Choice[] }[] = [
+  const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
       choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: entry.parameterSize })),
     },
     ...groups.map((group) => ({
       title: group.label,
+      type: group.type,
       choices: group.models.map((entry) => ({ name: entry.ref, label: entry.name || entry.id })),
     })),
   ];
@@ -95,7 +97,10 @@ export default function ModelChoices({
           shown.map((section) => (
             <div key={section.title ?? ""} role={section.title ? "group" : undefined} aria-label={section.title ?? undefined} className="space-y-1">
               {section.title && (
-                <p className="px-2 pt-1 text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">{section.title}</p>
+                <p className="flex items-center gap-1.5 px-2 pt-1 text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  {section.type && <ProviderIcon type={section.type} name={section.title} size="w-3 h-3" />}
+                  <span className="truncate">{section.title}</span>
+                </p>
               )}
               {section.choices.map((choice) => (
                 <button

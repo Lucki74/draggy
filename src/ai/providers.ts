@@ -79,6 +79,8 @@ export interface ModelGroup {
   instanceId: string;
   label: string;
   kind: ProviderInstance["kind"];
+  /** The catalog id, which names its logo. */
+  type: string;
   models: ProviderModel[];
 }
 
@@ -105,7 +107,7 @@ export async function listAllModels(): Promise<ModelGroup[]> {
             override: null,
           },
       );
-      return { instanceId: instance.id, label: instance.label, kind: instance.kind, models };
+      return { instanceId: instance.id, label: instance.label, kind: instance.kind, type: instance.type, models };
     }),
   );
 }

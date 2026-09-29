@@ -85,6 +85,7 @@ import type { ModelInfo } from "./llama";
 import ModelChoices from "./providers/ModelChoices";
 import RemoteFilesNotice from "./providers/RemoteFilesNotice";
 import { useProviderOf } from "./providers/useProviders";
+import { ProviderIcon } from "./providers/ProviderIcon";
 
 const MAX_INPUT_HEIGHT = 150;
 
@@ -1264,7 +1265,11 @@ export default function ChatScreen({
                   title={modelProvider ? `${modelProvider.label} · ${displayModelName(model)}` : displayModelName(model)}
                   className={`composer-pill min-w-0 ${compactToolbar ? "max-w-[130px]" : "max-w-[190px]"}`}
                 >
-                  <PillIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                  {modelProvider ? (
+                    <ProviderIcon type={modelProvider.type} name={modelProvider.label} size="w-3.5 h-3.5" />
+                  ) : (
+                    <PillIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
                   {!tightToolbar && <span className="truncate">{displayModelName(model)}</span>}
                   <ChevronRight
                     className={`w-3 h-3 flex-shrink-0 transition-transform ${

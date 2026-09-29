@@ -46,11 +46,12 @@ describe("the composer's model list", () => {
     expect(screen.queryByText("x")).toBeNull();
   });
 
-  it("puts each provider's ticked models under its name, and picks the full reference", async () => {
+  it("puts each provider's ticked models under its name and logo, and picks the full reference", async () => {
     stub(["a.gguf"], [instance("openai", { pinnedModels: ["gpt-x"] })]);
     const onPick = vi.fn();
     menu(onPick);
     const group = await screen.findByRole("group", { name: "Label openai" });
+    expect(group.querySelector('[data-icon="openai"]')).not.toBeNull();
     expect(screen.getByRole("group", { name: en("draggyEngine") }).textContent).toContain("a.gguf");
     fireEvent.click(group.querySelector("button")!);
     expect(onPick).toHaveBeenCalledWith("@openai/gpt-x");
