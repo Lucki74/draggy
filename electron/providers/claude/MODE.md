@@ -186,3 +186,8 @@ Draggy's tools are an SDK-type MCP server that Draggy itself answers; no second 
 6. macOS: the Keychain entry name has the config-dir suffix, and the user's own entry is untouched.
 7. Hosts contacted by a signed-in run, with the telemetry variables set (for the privacy policy).
 8. Sign out, and that the private folder's credentials are gone.
+9. `--resume <old> --resume-session-at=<uuid> --fork-session --session-id <new>` together: the fork
+   gets the given id (the adapter relies on it after a stop or restart).
+10. The shapes of `rate_limit_event` and of an `assistant` message's `error`, and the limit text the
+    adapter parses for the reset time (only guessed from the protocol types).
+11. `auth status --json` names `email` and `subscriptionType` for a subscription sign-in.
