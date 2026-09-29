@@ -172,4 +172,4 @@ function drainStderr(stream, write, maxLineBytes = 64 * 1024) {
   splitLines(stream, maxLineBytes, (line) => write(redact(line)), (bytes) => write(`[a line of ${bytes} bytes]`));
 }
 
-module.exports = { createRpc, drainStderr, redact, RpcError, DEFAULT_TIMEOUT_MS, DEFAULT_MAX_LINE_BYTES };
+module.exports = { createRpc, drainStderr, splitLines, redact, RpcError, DEFAULT_TIMEOUT_MS, DEFAULT_MAX_LINE_BYTES };
