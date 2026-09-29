@@ -295,6 +295,21 @@ describe("a plan on the provider step", () => {
     expect(screen.queryByText(fill(en("onbSourceDownload"), { size: "52 MB" }))).toBeNull();
   });
 
+  it("finishes on the plan's model once signed in, recorded as provider", async () => {
+    const { api, settle } = withPlan();
+    const onFinish = vi.fn();
+    render(<Harness onFinish={onFinish} />);
+    await toProvider("onbSourceProvider");
+    fireEvent.click(await signInButton());
+    await waitFor(() => expect(api.accountSignIn).toHaveBeenCalled());
+    await settle({ success: true, status: { signedIn: true } });
+    await toReady();
+    const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
+    await waitFor(() => expect(start.disabled).toBe(false));
+    fireEvent.click(start);
+    await waitFor(() => expect(onFinish).toHaveBeenCalledWith("@chatgpt/gpt-x", expect.objectContaining({ path: "provider" })));
+  });
+
   it("asks plan or key when the vendor is picked from the Add list, and the plan signs in from its tile", async () => {
     const { api } = withPlan();
     render(<Harness onFinish={() => {}} />);
