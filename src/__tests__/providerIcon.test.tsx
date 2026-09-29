@@ -8,7 +8,7 @@ import { ProviderIcon } from "../providers/ProviderIcon";
 import { bundledCatalog } from "../../electron/providers/catalog.cjs";
 
 /** The servers with no brand mark to show: they keep a letter. */
-const LETTERS = ["llamacpp", "sglang", "jan", "localai", "koboldcpp", "textgen", "gpt4all", "llamafile", "lemonade", "custom"];
+const LETTERS = ["llamafile", "custom"];
 
 const iconOf = (type: string | undefined, name = "Name") => {
   const { container } = render(<ProviderIcon type={type} name={name} />);
@@ -27,7 +27,7 @@ describe("provider icons", () => {
 
   it("ships no logo that no provider shows", () => {
     const shown = new Set((bundledCatalog() as { id: string }[]).map(({ id }) => iconOf(id).dataset.icon));
-    const files = readdirSync(path.join(__dirname, "..", "providers", "icons")).filter((name) => name.endsWith(".svg"));
+    const files = readdirSync(path.join(__dirname, "..", "providers", "icons")).filter((name) => /\.(svg|png)$/.test(name));
     expect(files.filter((name) => !shown.has(name.slice(0, -4)))).toEqual([]);
   });
 

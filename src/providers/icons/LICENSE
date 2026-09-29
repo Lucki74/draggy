@@ -22,3 +22,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+From each project's own repository, read on 2026-09-29, under that project's licence:
+- sglang.svg: sgl-project/sglang assets/logo_square.svg (Apache-2.0)
+- jan.svg: janhq/jan docs/src/assets/icons/logo-jan.svg (Apache-2.0)
+- localai.svg: mudler/LocalAI core/http/static/favicon.svg (MIT)
+- koboldcpp.png: LostRuins/koboldcpp niko.ico, converted to PNG (AGPL-3.0)
+- textgen.png: oobabooga/text-generation-webui css/icon.png (AGPL-3.0)
+- gpt4all.svg: nomic-ai/gpt4all gpt4all-chat/icons/gpt4all.svg (MIT)
+- llamacpp.svg: ggml-org/llama.cpp media/llama1-icon-transparent.svg (MIT)
+- lemonade.svg: lemonade-sdk/lemonade src/app/assets/logo.svg (Apache-2.0)

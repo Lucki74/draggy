@@ -1,7 +1,8 @@
 import { hueFor } from "../utils";
 
-const FILES = import.meta.glob<string>("./icons/*.svg", { eager: true, query: "?url", import: "default" });
-const url = (name: string) => FILES[`./icons/${name}.svg`];
+// A few projects publish their logo only as a bitmap.
+const FILES = import.meta.glob<string>("./icons/*.{svg,png}", { eager: true, query: "?url", import: "default" });
+const url = (name: string) => FILES[`./icons/${name}.svg`] ?? FILES[`./icons/${name}.png`];
 
 /** Catalog ids whose logo file is named after the brand rather than the id. */
 const BRAND: Record<string, string> = {
