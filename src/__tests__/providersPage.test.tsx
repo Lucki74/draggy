@@ -116,6 +116,20 @@ describe("the Providers page", () => {
     await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "newcloud" }));
   });
 
+  it("shows each provider's logo beside its name, on its row and in the Add list", async () => {
+    stubMain({
+      instances: [instance("openai")],
+      catalog: [entry("openai"), entry("mistral", { name: "Mistral" })],
+      servers: [{ type: "lmstudio", name: "LM Studio", port: 1234, baseUrl: "http://127.0.0.1:1234/v1", guessed: false }],
+    });
+    const { container } = page();
+    await screen.findByRole("switch", { name: "LM Studio" });
+    fireEvent.click(screen.getByRole("button", { name: en("addProvider") }));
+    await screen.findByText("Mistral");
+    const shown = [...container.querySelectorAll("[data-icon]")].map((icon) => (icon as HTMLElement).dataset.icon);
+    expect(shown).toEqual(expect.arrayContaining(["openai", "lmstudio", "mistral"]));
+  });
+
   it("marks a provider whose curated models grew with a new badge", async () => {
     stubMain({ instances: [instance("openai", { newModels: ["gpt-9"] })] });
     page();

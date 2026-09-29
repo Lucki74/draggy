@@ -5,6 +5,8 @@ import { engineFailure } from "../ai/engineErrors";
 import { failureOf } from "../ai/llamaStream";
 import { fill } from "../onboarding/text";
 import { VENDOR_NAMES } from "./vendors";
+import { ProviderIcon } from "./ProviderIcon";
+import Logo from "../Logo";
 import { accountSubtitle } from "./accountSubtitle";
 import type { Providers } from "./useProviders";
 import type {
@@ -56,11 +58,13 @@ function Dot({ on }: { on: boolean }) {
 
 function RowHead({
   on,
+  icon,
   name,
   subtitle,
   children,
 }: {
   on: boolean;
+  icon: React.ReactNode;
   name: string;
   subtitle: React.ReactNode;
   children?: React.ReactNode;
@@ -68,6 +72,7 @@ function RowHead({
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <Dot on={on} />
+      {icon}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold truncate">{name}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-[var(--text-muted)]">{subtitle}</p>
@@ -92,7 +97,7 @@ function Expander({ open, onToggle, label }: { open: boolean; onToggle: () => vo
 }
 
 export function EngineRow({ count, t }: { count: number; t: Translate }) {
-  return <RowHead on name={t("draggyEngine")} subtitle={fill(t("engineSubtitle"), { count: String(count) })} />;
+  return <RowHead on icon={<Logo className="w-5 h-5 flex-shrink-0 text-[var(--text-main)]" />} name={t("draggyEngine")} subtitle={fill(t("engineSubtitle"), { count: String(count) })} />;
 }
 
 /** A server found on this computer and not added yet: switching it on adds it. */
@@ -105,7 +110,7 @@ export function DiscoveredRow({ server, providers }: { server: DiscoveredServer;
     setBusy(false);
   };
   return (
-    <RowHead on={false} name={server.name} subtitle={hostOf(server.baseUrl)}>
+    <RowHead on={false} icon={<ProviderIcon type={server.type} name={server.name} />} name={server.name} subtitle={hostOf(server.baseUrl)}>
       <Toggle checked={false} disabled={busy} onChange={() => void turnOn()} label={server.name} />
     </RowHead>
   );
@@ -166,6 +171,7 @@ export function InstanceRow({
     <div>
       <RowHead
         on={instance.enabled}
+        icon={<ProviderIcon type={instance.type} name={instance.label} />}
         name={instance.label}
         subtitle={
           <>
@@ -184,7 +190,7 @@ export function InstanceRow({
       </RowHead>
 
       {open && (
-        <div className="px-4 pb-4 ps-9 flex flex-col gap-4">
+        <div className="px-4 pb-4 ps-[68px] flex flex-col gap-4">
           {(instance.needsKey || entry?.id === "custom") && (
             <KeyField instance={instance} entry={entry} providers={providers} onSaved={saved} t={t} />
           )}
@@ -374,7 +380,7 @@ export function AccountRow({
   const label = instance?.label ?? entry.name;
   return (
     <div>
-      <RowHead on={Boolean(instance?.enabled && signedIn)} name={label} subtitle={accountSubtitle(status, t)}>
+      <RowHead on={Boolean(instance?.enabled && signedIn)} icon={<ProviderIcon type={entry.id} name={label} />} name={label} subtitle={accountSubtitle(status, t)}>
         {instance && signedIn && (
           <>
             <Toggle checked={instance.enabled} onChange={(enabled) => void providers.update(instance.id, { enabled })} label={label} />
@@ -384,7 +390,7 @@ export function AccountRow({
       </RowHead>
 
       {!signedIn && (
-        <div className="px-4 pb-3 ps-9 flex flex-wrap items-center gap-2">
+        <div className="px-4 pb-3 ps-[68px] flex flex-wrap items-center gap-2">
           {signIn ? (
             <>
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -425,7 +431,7 @@ export function AccountRow({
       )}
 
       {open && instance && signedIn && (
-        <div className="px-4 pb-4 ps-9 flex flex-col gap-4">
+        <div className="px-4 pb-4 ps-[68px] flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             {status?.email && (
               <span className="text-xs font-bold text-[var(--text-muted)]">{fill(t("signedInAs"), { email: status.email })}</span>
@@ -767,6 +773,7 @@ export function AddProvider({
               onClick={() => pick(entry)}
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
             >
+              <ProviderIcon type={entry.id} name={entry.name} />
               <span className="flex-1 min-w-0 truncate text-sm font-bold">{entry.name}</span>
               {entry.kind === "local" && <Badge>{t("onThisComputer")}</Badge>}
             </button>
