@@ -108,6 +108,7 @@ describe("an account", () => {
         return { signedIn: true, email: "a@b.c" };
       },
       cancel: async (id) => calls.push(["cancel", id]),
+      submitCode: (id, code) => (calls.push(["submitCode", id, code]), code === "4/0code"),
       signOut: async (id) => calls.push(["signOut", id]),
       status: async (id) => (calls.push(["status", id]), { signedIn: false }),
     });
@@ -156,9 +157,10 @@ describe("an account", () => {
   it("cancels, signs out and reads the status through the same runtime", async () => {
     const { handlers, calls, forgot } = withAccount();
     expect(await handlers["providers:account-cancel"]("chatgpt")).toEqual({ success: true });
+    expect(await handlers["providers:account-submit-code"]("chatgpt", "4/0code")).toEqual({ success: true, accepted: true });
     expect(await handlers["providers:account-sign-out"]("chatgpt")).toEqual({ success: true });
     expect(await handlers["providers:account-status"]("chatgpt")).toEqual({ success: true, status: { signedIn: false } });
-    expect(calls).toEqual([["cancel", "chatgpt"], ["signOut", "chatgpt"], ["status", "chatgpt"]]);
+    expect(calls).toEqual([["cancel", "chatgpt"], ["submitCode", "chatgpt", "4/0code"], ["signOut", "chatgpt"], ["status", "chatgpt"]]);
     expect(forgot).toEqual(["chatgpt"]);
   });
 

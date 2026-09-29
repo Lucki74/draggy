@@ -105,6 +105,15 @@ function createProviderHandlers({ registry, models, discovery, keystore = () => 
         return failed(error);
       }
     },
+    /** Write-only: the code goes to the runtime that asked for it, and is neither logged nor returned. */
+    "providers:account-submit-code": async (id, code) => {
+      try {
+        const { runtime } = accountOf(registry, accounts, id);
+        return { success: true, accepted: Boolean(runtime.submitCode?.(id, code)) };
+      } catch (error) {
+        return failed(error);
+      }
+    },
     "providers:account-sign-out": async (id) => {
       try {
         await accountOf(registry, accounts, id).runtime.signOut(id);

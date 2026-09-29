@@ -225,6 +225,38 @@ export function InstanceRow({
 
 type SignInStep = { step: "starting" } | AccountProgress;
 
+/** The code Google shows once the page is done: handed to the runtime once, and kept nowhere here. */
+function CodeEntry({ id, t }: { id: string; t: Translate }) {
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const send = async () => {
+    const value = code.trim();
+    if (!value) return;
+    setCode("");
+    setSent(true);
+    const answer = await window.electronAPI?.providers?.accountSubmitCode(id, value).catch(() => null);
+    if (!answer?.success || !answer.accepted) setSent(false);
+  };
+  if (sent) return null;
+  return (
+    <>
+      <input
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        onKeyDown={(event) => event.key === "Enter" && void send()}
+        placeholder={t("signInCodePrompt")}
+        aria-label={t("signInCodePrompt")}
+        className="w-full sm:w-64 px-3 py-2 ui-input text-sm font-bold"
+        spellCheck={false}
+        autoComplete="off"
+      />
+      <Button tone="primary" onClick={() => void send()} disabled={!code.trim()}>
+        {t("confirm")}
+      </Button>
+    </>
+  );
+}
+
 /** A plan reached through the vendor's own runtime: signed in there, never with a key, and read on open only. */
 export function AccountRow({
   entry,
@@ -242,6 +274,8 @@ export function AccountRow({
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ProviderModel[] | null>(null);
   const [message, setMessage] = useState("");
+  // Each address the runtime prints asks for a fresh code, even when it repeats the last one.
+  const [asks, setAsks] = useState(0);
   const id = instance?.id;
   const signedIn = Boolean(status?.signedIn);
 
@@ -289,7 +323,9 @@ export function AccountRow({
     }
     const targetId = target.id;
     const stop = api.onAccountProgress((progress) => {
-      if (progress.id === targetId) setSignIn(progress);
+      if (progress.id !== targetId) return;
+      if (progress.step === "code") setAsks((n) => n + 1);
+      setSignIn(progress);
     });
     const answer = await api.accountSignIn(targetId).catch(() => null);
     stop();
@@ -339,6 +375,7 @@ export function AccountRow({
                 </span>
               )}
               {signIn.step === "browser" && <span className="text-xs font-bold text-[var(--text-muted)]">{t("finishInBrowser")}</span>}
+              {signIn.step === "code" && id && <CodeEntry key={asks} id={id} t={t} />}
               {id && <Button onClick={() => void window.electronAPI?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
             </>
           ) : (

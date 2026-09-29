@@ -192,6 +192,7 @@ describe("the providers bridge", () => {
       "accountSignIn",
       "accountSignOut",
       "accountStatus",
+      "accountSubmitCode",
       "add",
       "catalog",
       "list",
@@ -214,6 +215,7 @@ describe("the providers bridge", () => {
     await api.providers.scan();
     await api.providers.accountSignIn("chatgpt");
     await api.providers.accountCancel("chatgpt");
+    await api.providers.accountSubmitCode("google", "4/0code");
     await api.providers.accountSignOut("chatgpt");
     await api.providers.accountStatus("chatgpt");
 
@@ -229,6 +231,7 @@ describe("the providers bridge", () => {
       ["providers:scan"],
       ["providers:account-sign-in", "chatgpt"],
       ["providers:account-cancel", "chatgpt"],
+      ["providers:account-submit-code", "google", "4/0code"],
       ["providers:account-sign-out", "chatgpt"],
       ["providers:account-status", "chatgpt"],
     ]);

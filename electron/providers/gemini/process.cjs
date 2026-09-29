@@ -64,7 +64,7 @@ function settingsFor({ tools, model, mcpUrl }) {
 }
 
 /** The environment for one start; the three run files replace the machine's own settings and the CLI's prompt. */
-function geminiEnv({ appData, instanceId, parentEnv, link, files }) {
+function geminiEnv({ appData, instanceId, parentEnv, link, files, noBrowser = false }) {
   const { env, home } = accountEnv({
     runtime: "gemini",
     appData,
@@ -73,6 +73,7 @@ function geminiEnv({ appData, instanceId, parentEnv, link, files }) {
     extra: {
       ELECTRON_RUN_AS_NODE: "1",
       GEMINI_FORCE_FILE_STORAGE: "true",
+      ...(noBrowser ? { NO_BROWSER: "true" } : {}),
       ...(files ? {
         GEMINI_SYSTEM_MD: files.prompt,
         GEMINI_CLI_SYSTEM_SETTINGS_PATH: files.settings,
@@ -100,10 +101,12 @@ async function startGemini({
   execPath = process.execPath,
   parentEnv = process.env,
   paths = neutralPaths(instanceId),
+  noBrowser = false,
+  onOutput = null,
 }) {
   const run = path.join(appData, "gemini", "run", crypto.randomBytes(12).toString("hex"));
   const files = { settings: `${run}.settings.json`, defaults: `${run}.defaults.json`, prompt: `${run}.md` };
-  const { env, home } = geminiEnv({ appData, instanceId, parentEnv, link: paths.link, files });
+  const { env, home } = geminiEnv({ appData, instanceId, parentEnv, link: paths.link, files, noBrowser });
   fs.mkdirSync(home, { recursive: true });
   linkHome(paths.link, home);
   fs.mkdirSync(paths.cwd, { recursive: true });
@@ -117,6 +120,8 @@ async function startGemini({
 
   const child = spawn(execPath, [entry, ...FLAGS], { cwd: paths.cwd, env, stdio: ["pipe", "pipe", "pipe"] });
   drainStderr(child.stderr, log);
+  // Sign-in only: the CLI prints its address as plain text into the protocol stream, handed over unlogged.
+  if (onOutput) child.stdout.on("data", (chunk) => onOutput(chunk.toString("utf8")));
   const rpc = createRpc({ input: child.stdout, output: child.stdin, jsonrpc: true, onNotification, onRequest, log, timeoutMs: 60_000 });
 
   let exited = false;
@@ -149,7 +154,9 @@ async function startGemini({
     await stop();
     throw error;
   }
-  return { init, rpc, stop, home, link: paths.link, cwd: paths.cwd };
+  // The CLI reads a pasted sign-in code from the same stdin as the protocol, as one plain line.
+  const typeLine = (text) => !exited && child.stdin.write(`${String(text).replace(/[\r\n]/g, "")}\n`);
+  return { init, rpc, stop, typeLine, home, link: paths.link, cwd: paths.cwd };
 }
 
 module.exports = { startGemini, geminiEnv, settingsFor, linkHome, neutralPaths, FLAGS, CLIENT, SERVER, TOOL_PREFIX, TOOL_TIMEOUT_MS };

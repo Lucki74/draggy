@@ -29,6 +29,7 @@ function fakeGemini({ newSession } = {}) {
       options,
       prompts: [],
       cwd: "C:/work",
+      typeLine: vi.fn(() => true),
       stop: vi.fn(async () => {
         if (exited) return;
         exited = true;
@@ -279,6 +280,60 @@ describe("the Google account adapter", () => {
     expect(gemini.last().stop).toHaveBeenCalled();
     await adapter.models("g");
     expect(gemini.starts).toHaveLength(1);
+  });
+
+  it("signs in through the CLI's code route: Google's address opened, the pasted code typed to the CLI alone", async () => {
+    const { adapter, gemini, start } = fakeGemini();
+    const steps = [];
+    const openExternal = vi.fn(async () => {});
+    const url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=x&redirect_uri=https%3A%2F%2Fcodeassist.google.com%2Fauthcode&state=s";
+    const pending = adapter.signIn("g", { onProgress: (p) => steps.push(p), openExternal });
+    await vi.waitFor(() => expect(gemini.last()?.rpc.call).toHaveBeenCalledWith("authenticate", { methodId: "oauth-personal" }, expect.anything()));
+    const proc = gemini.last();
+    expect(proc.options).toMatchObject({ noBrowser: true, instanceId: "g" });
+    expect(adapter.submitCode("g", "early")).toBe(false);
+
+    proc.options.onOutput("\x1B[?1049h\x1B[2J\x1B[HVisit https://evil.example/x now\nPlease visit the following URL to authorize the application:\n\n");
+    proc.options.onOutput(url.slice(0, 40));
+    expect(openExternal).not.toHaveBeenCalled();
+    proc.options.onOutput(`${url.slice(40)}\n\nEnter the authorization code: `);
+    expect(steps).toContainEqual({ step: "code", url });
+    expect(openExternal).toHaveBeenCalledTimes(1);
+    expect(openExternal).toHaveBeenCalledWith(url);
+
+    expect(adapter.submitCode("g", "  4/0Secret-code \n")).toBe(true);
+    expect(proc.typeLine).toHaveBeenCalledWith("4/0Secret-code");
+    expect(adapter.submitCode("g", "again")).toBe(false);
+    signIn();
+    proc.answer({});
+    await expect(pending).resolves.toEqual({ signedIn: true, email: undefined });
+    expect(proc.stop).toHaveBeenCalled();
+    expect(steps.at(-1)).toEqual({ step: "done" });
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the CLI when already signed in, and stops it on cancel or when the opener refuses the address", async () => {
+    const { adapter, gemini, start } = fakeGemini();
+    signIn();
+    await expect(adapter.signIn("g", { openExternal: vi.fn() })).resolves.toEqual({ signedIn: true, email: undefined });
+    expect(start).not.toHaveBeenCalled();
+    fs.rmSync(geminiDir(), { recursive: true });
+
+    const cancelled = adapter.signIn("g", { openExternal: vi.fn() });
+    await vi.waitFor(() => expect(gemini.last()?.prompts.length).toBe(1));
+    const first = gemini.last();
+    first.stop.mockImplementation(async () => first.refuse(new Error("exited")));
+    await adapter.cancel("g");
+    await expect(cancelled).resolves.toEqual({ signedIn: false, cancelled: true, error: null });
+
+    const refused = adapter.signIn("g", { openExternal: vi.fn(async () => Promise.reject(new Error("not a sign-in host"))) });
+    await vi.waitFor(() => expect(gemini.starts.length).toBe(2));
+    const second = gemini.last();
+    await vi.waitFor(() => expect(second.prompts.length).toBe(1));
+    second.stop.mockImplementation(async () => second.refuse(new Error("exited")));
+    second.options.onOutput("https://accounts.google.com/o/oauth2/auth?x=1\n");
+    await expect(refused).rejects.toThrow("not a sign-in host");
+    expect(adapter.submitCode("g", "code")).toBe(false);
   });
 
   it("sends images as ACP image blocks", () => {

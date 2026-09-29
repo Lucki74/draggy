@@ -33,7 +33,8 @@ function fakeSpawn({ refuse = false } = {}) {
       prompt: fs.readFileSync(options.env.GEMINI_SYSTEM_MD, "utf8"),
     };
     child.stdin.on("data", (chunk) => {
-      for (const line of chunk.toString().split("\n").filter(Boolean)) {
+      // A pasted sign-in code is a plain line, not a message.
+      for (const line of chunk.toString().split("\n").filter((l) => l.startsWith("{"))) {
         const message = JSON.parse(line);
         sent.push(message);
         if (message.method === "initialize") {
@@ -80,6 +81,7 @@ describe("gemini process", () => {
       ELECTRON_RUN_AS_NODE: "1",
       GEMINI_FORCE_FILE_STORAGE: "true",
     });
+    expect(options.env).not.toHaveProperty("NO_BROWSER");
     for (const file of [GEMINI_SYSTEM_MD, GEMINI_CLI_SYSTEM_SETTINGS_PATH, GEMINI_CLI_SYSTEM_DEFAULTS_PATH]) {
       expect(file.startsWith(path.join(appData, "gemini", "run"))).toBe(true);
     }
@@ -114,6 +116,21 @@ describe("gemini process", () => {
     const { spawn } = fakeSpawn({ refuse: true });
     await expect(start(spawn)).rejects.toThrow("no");
     expect(spawn.child.kill).toHaveBeenCalled();
+  });
+
+  it("signs in without a browser of its own: printed text goes to the caller, a pasted code goes to stdin as one line", async () => {
+    const { spawn } = fakeSpawn();
+    const output = [];
+    const gemini = await start(spawn, { noBrowser: true, onOutput: (text) => output.push(text) });
+    expect(spawn.mock.calls[0][2].env.NO_BROWSER).toBe("true");
+    const typed = [];
+    spawn.child.stdin.on("data", (chunk) => typed.push(chunk.toString()));
+    spawn.child.stdout.write("Please visit the following URL\n");
+    gemini.typeLine("4/0code\r\nsecond");
+    expect(output.join("")).toContain("Please visit the following URL");
+    expect(typed).toEqual(["4/0codesecond\n"]);
+    await gemini.stop();
+    expect(gemini.typeLine("late")).toBe(false);
   });
 
   it("uses only its own link: never a real folder, never a link to somewhere else", () => {

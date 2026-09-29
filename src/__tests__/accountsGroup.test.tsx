@@ -49,6 +49,7 @@ function stubMain({ instances = [] as ProviderInstance[], status = { signedIn: f
     accountStatus: vi.fn(async () => ({ success: true, status })),
     accountSignIn: vi.fn(() => new Promise((resolve) => (settle = resolve))),
     accountCancel: vi.fn(async () => ({ success: true })),
+    accountSubmitCode: vi.fn(async (_id: string, code: string) => ({ success: true, accepted: code !== "stale" })),
     accountSignOut: vi.fn(async () => ({ success: true })),
     onAccountProgress: vi.fn((callback: (p: AccountProgress) => void) => {
       progress.add(callback);
@@ -99,6 +100,27 @@ describe("the Accounts group", () => {
     expect(await screen.findByText(`Pro · ${fill(en("usageHours"), { count: "5" })} 23% · ${en("usageWeek")} 41%`)).toBeTruthy();
     expect(api.update).toHaveBeenLastCalledWith("chatgpt", { enabled: true, pinnedModels: ["gpt-5.5", "gpt-5.4"] });
     expect(listeners()).toBe(0);
+  });
+
+  it("asks for the code the sign-in page shows, sends it once, and asks again when the runtime prints another address", async () => {
+    const { api, emit } = stubMain();
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: fill(en("signInWith"), { name: "ChatGPT" }) }));
+    await waitFor(() => expect(api.accountSignIn).toHaveBeenCalled());
+    const url = "https://accounts.google.com/o/oauth2/auth?x=1";
+    emit({ id: "chatgpt", step: "code", url });
+    const field = () => screen.queryByRole("textbox", { name: en("signInCodePrompt") });
+    expect((screen.getByRole("button", { name: en("confirm") }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(field()!, { target: { value: " 4/0code " } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    await waitFor(() => expect(field()).toBeNull());
+    expect(api.accountSubmitCode).toHaveBeenCalledWith("chatgpt", "4/0code");
+
+    emit({ id: "chatgpt", step: "code", url });
+    fireEvent.change(field()!, { target: { value: "stale" } });
+    fireEvent.keyDown(field()!, { key: "Enter" });
+    await waitFor(() => expect(api.accountSubmitCode).toHaveBeenCalledTimes(2));
+    expect(field()).toBeTruthy();
   });
 
   it("says nothing went wrong when the user cancels, and names a failure otherwise", async () => {

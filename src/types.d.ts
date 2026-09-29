@@ -740,6 +740,7 @@ export interface AccountStatus {
 export type AccountProgress =
   | { id: string; step: "installing"; percent: number }
   | { id: string; step: "browser"; url: string }
+  | { id: string; step: "code"; url: string }
   | { id: string; step: "done" };
 
 type ProviderResult<T> = ({ success: true } & T) | { success: false; error: ProviderFailure };
@@ -1206,6 +1207,8 @@ declare global {
         /** Through the vendor's own runtime and page; resolves once the browser sign-in ends either way. */
         accountSignIn: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
         accountCancel: (id: string) => Promise<ProviderResult<object>>;
+        /** Write-only: the code Google shows goes to the runtime's stdin; false when no sign-in is waiting for one. */
+        accountSubmitCode: (id: string, code: string) => Promise<ProviderResult<{ accepted: boolean }>>;
         accountSignOut: (id: string) => Promise<ProviderResult<object>>;
         /** Never downloads the runtime: one not installed yet answers signed out. */
         accountStatus: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;

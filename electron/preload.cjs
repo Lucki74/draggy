@@ -219,6 +219,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     scan: () => ipcRenderer.invoke("providers:scan"),
     accountSignIn: (id) => ipcRenderer.invoke("providers:account-sign-in", id),
     accountCancel: (id) => ipcRenderer.invoke("providers:account-cancel", id),
+    accountSubmitCode: (id, code) => ipcRenderer.invoke("providers:account-submit-code", id, code),
     accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
     accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
     onAccountProgress: (callback) => subscribe("providers:account-progress", callback),

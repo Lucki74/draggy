@@ -14,6 +14,12 @@ const { flatten, textOf, mcpTools } = require("./claude.cjs");
 // The CLI runs a batch of calls one MCP request each, so the leg waits this long for a sibling.
 const SETTLE_MS = 100;
 const CREDENTIALS = ["oauth_creds.json", "gemini-credentials.json"];
+// The CLI allows two tries of five minutes each for the pasted code.
+const SIGN_IN_MS = 11 * 60_000;
+// Only a Google address ending in whitespace is taken from the text the CLI prints while signing in.
+const SIGN_IN_URL = /https:\/\/accounts\.google\.com\/[^\s"'<>]+(?=\s)/;
+const ESC = String.fromCharCode(27);
+const ANSI = new RegExp(`${ESC}(?:\\[[0-?]*[ -/]*[@-~]|[@-Z\\\\-_])`, "g");
 
 const failure = (kind, message, extra = {}) => ({ kind, status: 0, message, providerMessage: message, ...extra });
 const fail = (f) => Object.assign(new Error(f.message), { failure: f });
@@ -341,6 +347,66 @@ function createGeminiCliAdapter({
     }
   }
 
+  /** The CLI's no-browser route: it prints Google's address and reads the code Google shows back from stdin. */
+  async function signIn(instanceId, { onProgress = () => {}, openExternal }) {
+    const entry = await ensure(appData, { onProgress: ({ percent }) => onProgress({ step: "installing", percent }) });
+    const runtime = runtimeFor(instanceId);
+    if (!hasCredentials(instanceId)) {
+      const login = { proc: null, cancelled: false, error: null, asking: false };
+      runtime.login = login;
+      let pending = "";
+      const asked = (url) => {
+        login.asking = true;
+        onProgress({ step: "code", url });
+        Promise.resolve(openExternal(url)).catch((error) => {
+          login.error = error;
+          login.proc?.stop();
+        });
+      };
+      const onOutput = (chunk) => {
+        pending = (pending + chunk).replace(ANSI, "");
+        for (let match = SIGN_IN_URL.exec(pending); match; match = SIGN_IN_URL.exec(pending)) {
+          pending = pending.slice(match.index + match[0].length);
+          asked(match[0]);
+        }
+        pending = pending.slice(-4096);
+      };
+      try {
+        login.proc = await start({ entry, appData, instanceId, log, noBrowser: true, onOutput });
+        if (login.cancelled) return { signedIn: false, cancelled: true, error: null };
+        await login.proc.rpc.call("authenticate", { methodId: "oauth-personal" }, { timeoutMs: SIGN_IN_MS });
+      } catch (error) {
+        if (login.cancelled) return { signedIn: false, cancelled: true, error: null };
+        if (login.error) throw login.error;
+        if (error.failure) throw error;
+        return { signedIn: false, cancelled: false, error: error.message };
+      } finally {
+        if (runtime.login === login) runtime.login = null;
+        await login.proc?.stop();
+      }
+      if (!hasCredentials(instanceId)) return { signedIn: false, cancelled: false, error: "Google did not finish the sign-in." };
+    }
+    runtime.signedIn = true;
+    onProgress({ step: "done" });
+    return status(instanceId);
+  }
+
+  /** Hands the pasted code to the CLI and nowhere else: it is never logged or kept. */
+  function submitCode(instanceId, code) {
+    const login = runtimes.get(instanceId)?.login;
+    const line = typeof code === "string" ? code.trim() : "";
+    if (!login?.asking || !login.proc || !line) return false;
+    login.asking = false;
+    return login.proc.typeLine(line) !== false;
+  }
+
+  async function cancelSignIn(instanceId) {
+    const login = runtimes.get(instanceId)?.login;
+    if (!login) return;
+    login.cancelled = true;
+    await login.proc?.stop();
+  }
+
   /** Signs out by removing the private home, sessions included, and the neutral link to it (spec §4.8.3). */
   async function signOut(instanceId) {
     const runtime = runtimeFor(instanceId);
@@ -387,10 +453,11 @@ function createGeminiCliAdapter({
   async function stopAll() {
     const all = [...runtimes.values()].flatMap((runtime) => [...runtime.sessions.values()]);
     await Promise.all(all.map((s) => s.supervisor.stop()));
+    await Promise.all([...runtimes.values()].map((runtime) => runtime.login?.proc?.stop()));
     await server.stop();
   }
 
-  return { stream, signOut, status, models, runtimeFor, stopAll };
+  return { stream, signIn, submitCode, cancel: cancelSignIn, signOut, status, models, runtimeFor, stopAll };
 }
 
 module.exports = { createGeminiCliAdapter, toPrompt, turnFailure };
