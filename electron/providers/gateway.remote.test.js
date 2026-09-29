@@ -241,3 +241,48 @@ describe("an account's model", () => {
     expect(signal.aborted).toBe(true);
   });
 });
+
+describe("Anthropic through the gateway", () => {
+  const SIGNED = { type: "thinking", thinking: "t", signature: "sig" };
+  const anthropicRegistry = () => {
+    const kv = new Map();
+    const vault = new Map();
+    const reg = createRegistry({
+      storage: { getValue: (key) => kv.get(key) ?? null, setValue: (key, value) => kv.set(key, String(value)) },
+      secrets: { available: () => true, get: (owner) => vault.get(owner) ?? {}, set: (owner, values) => (vault.set(owner, values), true), remove: (owner) => vault.delete(owner) },
+    });
+    const added = reg.add({ type: "anthropic" });
+    reg.setKey(added.id, "sk-ant-test");
+    reg.update(added.id, { enabled: true });
+    return reg;
+  };
+  const via = (reply) => {
+    const sent = [];
+    const fetchImpl = async (url, init) => (sent.push({ url, init }), new Response(reply.body, { status: 200, headers: { "Content-Type": reply.type } }));
+    return { sent, handle: createGateway({ enginePort: () => engine.port, isAllowedOrigin: () => true, registry: anthropicRegistry(), fetchImpl }) };
+  };
+
+  it("streams the signed thinking back tagged with the instance that wrote it", async () => {
+    const events = [
+      { type: "message_start", message: { usage: { input_tokens: 1 } } },
+      { type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } },
+      { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "t" } },
+      { type: "content_block_delta", index: 0, delta: { type: "signature_delta", signature: "sig" } },
+      { type: "content_block_stop", index: 0 },
+      { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 1 } },
+      { type: "message_stop" },
+    ];
+    const { sent, handle } = via(sse(...events));
+    const chunks = await read(await handle(chat({ ...RENDERER, model: "@anthropic/claude-opus-5-5" })));
+    expect(sent[0].url).toBe("https://api.anthropic.com/v1/messages");
+    expect(chunks.find((c) => c.provider_state)?.provider_state).toEqual({ instanceId: "anthropic", state: { blocks: [SIGNED] } });
+  });
+
+  it("answers once with the signed thinking on the completion", async () => {
+    const reply = { status: 200, type: "application/json", body: JSON.stringify({ content: [SIGNED, { type: "text", text: "Hi" }], stop_reason: "end_turn", usage: {} }) };
+    const { handle } = via(reply);
+    const json = await (await handle(chat({ ...RENDERER, stream: false, model: "@anthropic/claude-opus-5-5" }))).json();
+    expect(json.provider_state).toEqual({ instanceId: "anthropic", state: { blocks: [SIGNED] } });
+    expect(json.choices[0].message.content).toBe("Hi");
+  });
+});

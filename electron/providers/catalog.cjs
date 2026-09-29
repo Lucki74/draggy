@@ -45,6 +45,17 @@ const CATALOG = [
     defaultModels: ["gpt-5.5", "gpt-5-mini"],
     quirks: { maxTokensField: "max_completion_tokens", reasoningEffort: true },
   }),
+  cloud("anthropic", "Anthropic", "https://api.anthropic.com/v1", "https://platform.claude.com/settings/keys", {
+    protocol: "anthropic",
+    auth: "x-api-key",
+    // The Messages API requires a limit, so each family gets its own when Draggy asks for none.
+    capabilityPatterns: [
+      { match: "^claude-3-(opus|haiku)", capabilities: [TOOLS, VISION], maxOutputTokens: 4096 },
+      { match: "^claude-3-5", capabilities: [TOOLS, VISION], maxOutputTokens: 8192 },
+      { match: "^claude-", capabilities: [TOOLS, VISION, THINKING], maxOutputTokens: 32000 },
+    ],
+    defaultModels: ["claude-sonnet-5-5", "claude-opus-5-5"],
+  }),
   cloud("xai", "xAI", "https://api.x.ai/v1", "https://console.x.ai", {
     capabilityPatterns: [
       { match: "mini|reason", capabilities: [TOOLS, THINKING] },

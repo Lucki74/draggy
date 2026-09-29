@@ -5,7 +5,11 @@ const { createSse, completion } = require("./sse.cjs");
 const { fromResponse, fromNetwork, isRetryable } = require("./errors.cjs");
 
 const ENGINE_PATH = "/v1/chat/completions";
-const ADAPTERS = { openai: require("./adapters/openai.cjs"), ollama: require("./adapters/ollama.cjs") };
+const ADAPTERS = {
+  openai: require("./adapters/openai.cjs"),
+  ollama: require("./adapters/ollama.cjs"),
+  anthropic: require("./adapters/anthropic.cjs"),
+};
 const MAX_RETRIES = 2;
 // A provider asking for a longer wait than this has a turn fail now rather than sit silent for minutes.
 const MAX_WAIT_MS = 60_000;
@@ -144,7 +148,8 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors, accounts = {}
 
   const controller = new AbortController();
   const named = (failure) => ({ ...failure, provider: connection.instance.label });
-  if (!body.stream) return answerOnce(adapter, fetchImpl, request, controller.signal, cors, named);
+  const tag = { instanceId: connection.instance.id };
+  if (!body.stream) return answerOnce(adapter, fetchImpl, request, controller.signal, cors, named, tag);
 
   const stream = new ReadableStream({
     async start(out) {
@@ -159,7 +164,7 @@ async function routeRemote({ ref, text, registry, fetchImpl, cors, accounts = {}
       });
       if (failure) return settle(failure);
       try {
-        await adapter.translateStream(upstream.body, sse);
+        await adapter.translateStream(upstream.body, sse, tag);
         settle(null);
       } catch (error) {
         settle(error instanceof ADAPTERS.openai.HostedToolError ? hostedToolFailure(error) : error?.failure || fromNetwork(error));
@@ -229,13 +234,15 @@ async function answerAccount(run, cors, named, failureOf) {
 }
 
 /** The non-streaming form: the answer in llama-server's shape, or the upstream status with a named error. */
-async function answerOnce(adapter, fetchImpl, request, signal, cors, named) {
+async function answerOnce(adapter, fetchImpl, request, signal, cors, named, tag) {
   const { upstream, failure } = await fetchWithRetries(fetchImpl, request, signal, () => {});
   const fail = (f) => new Response(JSON.stringify({ error: named(f) }), { status: f.status >= 400 ? f.status : 502, headers: { ...cors, "Content-Type": "application/json" } });
   if (failure) return fail(failure);
   try {
-    const answer = adapter.translateJson(await upstream.json());
-    return new Response(JSON.stringify(completion(answer)), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
+    const answer = adapter.translateJson(await upstream.json(), tag);
+    const out = completion(answer);
+    if (answer.providerState) out.provider_state = answer.providerState;
+    return new Response(JSON.stringify(out), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
   } catch (error) {
     return fail(error instanceof ADAPTERS.openai.HostedToolError ? hostedToolFailure(error) : error?.failure || fromNetwork(error));
   }

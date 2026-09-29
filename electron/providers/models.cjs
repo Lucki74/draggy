@@ -3,7 +3,11 @@
 const { capabilitiesFor } = require("./catalog.cjs");
 const { fromResponse, fromNetwork } = require("./errors.cjs");
 
-const ADAPTERS = { openai: require("./adapters/openai.cjs"), ollama: require("./adapters/ollama.cjs") };
+const ADAPTERS = {
+  openai: require("./adapters/openai.cjs"),
+  ollama: require("./adapters/ollama.cjs"),
+  anthropic: require("./adapters/anthropic.cjs"),
+};
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
 const MAX_SHOWN = 50;
@@ -13,7 +17,7 @@ const FLAGS = ["tools", "vision", "thinking"];
 function thinkingControllable(entry) {
   if (entry?.kind === "account") return true;
   const quirks = entry?.quirks || {};
-  return entry?.protocol === "ollama" || Boolean(quirks.reasoningEffort || quirks.enableThinking || quirks.templateKwargs);
+  return entry?.protocol === "ollama" || entry?.protocol === "anthropic" || Boolean(quirks.reasoningEffort || quirks.enableThinking || quirks.templateKwargs);
 }
 
 /** What the listing itself says, as capability flags; `null` where it says nothing. */
@@ -80,6 +84,7 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
         }),
       );
     }
+    if (entry?.protocol === "anthropic") return ADAPTERS.anthropic.parseModels(await request(connection, ADAPTERS.anthropic.modelsRequest(connection)));
     if (entry?.id === "lmstudio") {
       const origin = connection.baseUrl.replace(/\/v1$/, "");
       const listing = await request(connection, { url: `${origin}/api/v0/models`, init: { method: "GET", headers: { ...connection.headers } } }).catch(() => null);
