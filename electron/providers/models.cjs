@@ -7,6 +7,7 @@ const ADAPTERS = {
   openai: require("./adapters/openai.cjs"),
   ollama: require("./adapters/ollama.cjs"),
   anthropic: require("./adapters/anthropic.cjs"),
+  gemini: require("./adapters/gemini.cjs"),
 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
@@ -17,7 +18,7 @@ const FLAGS = ["tools", "vision", "thinking"];
 function thinkingControllable(entry) {
   if (entry?.kind === "account") return true;
   const quirks = entry?.quirks || {};
-  return entry?.protocol === "ollama" || entry?.protocol === "anthropic" || Boolean(quirks.reasoningEffort || quirks.enableThinking || quirks.templateKwargs);
+  return ["ollama", "anthropic", "gemini"].includes(entry?.protocol) || Boolean(quirks.reasoningEffort || quirks.enableThinking || quirks.templateKwargs);
 }
 
 /** What the listing itself says, as capability flags; `null` where it says nothing. */
@@ -84,7 +85,8 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
         }),
       );
     }
-    if (entry?.protocol === "anthropic") return ADAPTERS.anthropic.parseModels(await request(connection, ADAPTERS.anthropic.modelsRequest(connection)));
+    const own = entry?.protocol === "anthropic" || entry?.protocol === "gemini" ? ADAPTERS[entry.protocol] : null;
+    if (own) return own.parseModels(await request(connection, own.modelsRequest(connection)));
     if (entry?.id === "lmstudio") {
       const origin = connection.baseUrl.replace(/\/v1$/, "");
       const listing = await request(connection, { url: `${origin}/api/v0/models`, init: { method: "GET", headers: { ...connection.headers } } }).catch(() => null);

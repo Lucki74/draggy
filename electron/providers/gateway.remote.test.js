@@ -242,25 +242,27 @@ describe("an account's model", () => {
   });
 });
 
+const keyedRegistry = (type, key) => {
+  const kv = new Map();
+  const vault = new Map();
+  const reg = createRegistry({
+    storage: { getValue: (name) => kv.get(name) ?? null, setValue: (name, value) => kv.set(name, String(value)) },
+    secrets: { available: () => true, get: (owner) => vault.get(owner) ?? {}, set: (owner, values) => (vault.set(owner, values), true), remove: (owner) => vault.delete(owner) },
+  });
+  const added = reg.add({ type });
+  reg.setKey(added.id, key);
+  reg.update(added.id, { enabled: true });
+  return reg;
+};
+const keyedVia = (type, key) => (reply) => {
+  const sent = [];
+  const fetchImpl = async (url, init) => (sent.push({ url, init }), new Response(reply.body, { status: 200, headers: { "Content-Type": reply.type } }));
+  return { sent, handle: createGateway({ enginePort: () => engine.port, isAllowedOrigin: () => true, registry: keyedRegistry(type, key), fetchImpl }) };
+};
+
 describe("Anthropic through the gateway", () => {
   const SIGNED = { type: "thinking", thinking: "t", signature: "sig" };
-  const anthropicRegistry = () => {
-    const kv = new Map();
-    const vault = new Map();
-    const reg = createRegistry({
-      storage: { getValue: (key) => kv.get(key) ?? null, setValue: (key, value) => kv.set(key, String(value)) },
-      secrets: { available: () => true, get: (owner) => vault.get(owner) ?? {}, set: (owner, values) => (vault.set(owner, values), true), remove: (owner) => vault.delete(owner) },
-    });
-    const added = reg.add({ type: "anthropic" });
-    reg.setKey(added.id, "sk-ant-test");
-    reg.update(added.id, { enabled: true });
-    return reg;
-  };
-  const via = (reply) => {
-    const sent = [];
-    const fetchImpl = async (url, init) => (sent.push({ url, init }), new Response(reply.body, { status: 200, headers: { "Content-Type": reply.type } }));
-    return { sent, handle: createGateway({ enginePort: () => engine.port, isAllowedOrigin: () => true, registry: anthropicRegistry(), fetchImpl }) };
-  };
+  const via = keyedVia("anthropic", "sk-ant-test");
 
   it("streams the signed thinking back tagged with the instance that wrote it", async () => {
     const events = [
@@ -283,6 +285,28 @@ describe("Anthropic through the gateway", () => {
     const { handle } = via(reply);
     const json = await (await handle(chat({ ...RENDERER, stream: false, model: "@anthropic/claude-opus-5-5" }))).json();
     expect(json.provider_state).toEqual({ instanceId: "anthropic", state: { blocks: [SIGNED] } });
+    expect(json.choices[0].message.content).toBe("Hi");
+  });
+});
+
+describe("Gemini through the gateway", () => {
+  const via = keyedVia("gemini", "AIza-test");
+  const MODEL = "@gemini/gemini-3-flash";
+
+  it("sends the key in a header and streams the signatures back tagged with their instance", async () => {
+    const candidate = { candidates: [{ content: { parts: [{ functionCall: { name: "read_file", args: {} }, thoughtSignature: "sig" }] }, finishReason: "STOP" }] };
+    const { sent, handle } = via(sse(candidate));
+    const chunks = await read(await handle(chat({ ...RENDERER, model: MODEL })));
+    expect(sent[0].url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse");
+    expect(sent[0].init.headers["x-goog-api-key"]).toBe("AIza-test");
+    expect(chunks.find((c) => c.provider_state)?.provider_state).toEqual({ instanceId: "gemini", state: { calls: ["sig"], text: "" } });
+  });
+
+  it("answers once with the signatures on the completion", async () => {
+    const body = JSON.stringify({ candidates: [{ content: { parts: [{ text: "Hi", thoughtSignature: "sig" }] }, finishReason: "STOP" }] });
+    const { handle } = via({ type: "application/json", body });
+    const json = await (await handle(chat({ ...RENDERER, stream: false, model: MODEL }))).json();
+    expect(json.provider_state).toEqual({ instanceId: "gemini", state: { calls: [], text: "sig" } });
     expect(json.choices[0].message.content).toBe("Hi");
   });
 });

@@ -9,6 +9,7 @@ const ADAPTERS = {
   openai: require("./adapters/openai.cjs"),
   ollama: require("./adapters/ollama.cjs"),
   anthropic: require("./adapters/anthropic.cjs"),
+  gemini: require("./adapters/gemini.cjs"),
 };
 const MAX_RETRIES = 2;
 // A provider asking for a longer wait than this has a turn fail now rather than sit silent for minutes.

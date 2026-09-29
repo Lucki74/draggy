@@ -56,6 +56,16 @@ const CATALOG = [
     ],
     defaultModels: ["claude-sonnet-5-5", "claude-opus-5-5"],
   }),
+  cloud("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta", "https://aistudio.google.com/apikey", {
+    protocol: "gemini",
+    auth: "x-goog-api-key",
+    capabilityPatterns: [
+      { match: "embedding|imagen|veo|tts|aqa|native-audio", capabilities: [] },
+      { match: "^gemini-(2\\.5|[3-9])", capabilities: [TOOLS, VISION, THINKING] },
+      { match: "^gemini", capabilities: [TOOLS, VISION] },
+      { match: "^gemma", capabilities: [] },
+    ],
+  }),
   cloud("xai", "xAI", "https://api.x.ai/v1", "https://console.x.ai", {
     capabilityPatterns: [
       { match: "mini|reason", capabilities: [TOOLS, THINKING] },
