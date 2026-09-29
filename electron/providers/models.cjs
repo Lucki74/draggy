@@ -10,6 +10,7 @@ const ADAPTERS = {
   gemini: require("./adapters/gemini.cjs"),
 };
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FAILURE_MS = 60 * 1000;
 const TIMEOUT_MS = 15_000;
 const MAX_SHOWN = 50;
 const FLAGS = ["tools", "vision", "thinking"];
@@ -103,9 +104,17 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
     if (!connection) throw new Error(`No provider ${instanceId}`);
     const stamp = `${connection.baseUrl}|${Boolean(connection.apiKey)}`;
     const hit = cache.get(instanceId);
-    let listed = hit && hit.stamp === stamp && now() - hit.at < DAY_MS && !refresh ? hit.listed : null;
+    const fresh = hit && hit.stamp === stamp && !refresh;
+    // A refusal is kept a minute: an account's listing starts its runtime, and every menu opening asked again.
+    if (fresh && hit.error && now() - hit.at < FAILURE_MS) throw hit.error;
+    let listed = fresh && hit.listed && now() - hit.at < DAY_MS ? hit.listed : null;
     if (!listed) {
-      listed = await fetchListing(connection);
+      try {
+        listed = await fetchListing(connection);
+      } catch (error) {
+        cache.set(instanceId, { stamp, at: now(), error });
+        throw error;
+      }
       cache.set(instanceId, { stamp, at: now(), listed });
     }
     return listed.map((model) => describe(connection.instance, connection.entry, model)).sort((a, b) => a.id.localeCompare(b.id));

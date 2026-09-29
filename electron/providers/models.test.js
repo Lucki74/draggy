@@ -147,4 +147,16 @@ describe("an account's listing", () => {
       ["sonnet", "Sonnet 5.5", 1000000],
     ]);
   });
+
+  it("keeps a refusal a minute, so opening the model menu does not start the runtime every time", async () => {
+    const m = createModels({ registry, accounts: listing(() => { throw new Error("refused"); }), now: () => clock });
+    await expect(m.list("claude")).rejects.toThrow("refused");
+    await expect(m.list("claude")).rejects.toThrow("refused");
+    expect(calls).toBe(1);
+    clock = 61 * 1000;
+    await expect(m.list("claude")).rejects.toThrow("refused");
+    expect(calls).toBe(2);
+    await expect(m.list("claude", { refresh: true })).rejects.toThrow("refused");
+    expect(calls).toBe(3);
+  });
 });

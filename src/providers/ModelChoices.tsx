@@ -9,6 +9,10 @@ import { onProvidersChange } from "./useProviders";
 
 type Translate = (key: string) => string;
 
+/** The last listing, shown the moment the menu opens while a fresh one is asked for: an account's
+ * listing starts its vendor's runtime, which takes a second or two. */
+let remembered: ModelGroup[] = [];
+
 interface Choice {
   name: string;
   label: string;
@@ -29,7 +33,7 @@ export default function ModelChoices({
   t: Translate;
 }) {
   const [installed, setInstalled] = useState<InstalledModel[]>([]);
-  const [groups, setGroups] = useState<ModelGroup[]>([]);
+  const [groups, setGroups] = useState<ModelGroup[]>(remembered);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -40,7 +44,10 @@ export default function ModelChoices({
         .then((models) => live && setInstalled(selectableModels(models)))
         .catch(() => undefined);
       listAllModels()
-        .then((found) => live && setGroups(found.filter((group) => group.models.length > 0)))
+        .then((found) => {
+          remembered = found.filter((group) => group.models.length > 0);
+          if (live) setGroups(remembered);
+        })
         .catch(() => undefined);
     };
     load();
