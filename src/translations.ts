@@ -698,6 +698,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "A server on this computer keeps everything here. A provider reached with a key receives your conversations and the files the model reads.",
     onbProviderStart: "Model to start with",
     onbProviderPick: "Switch a provider on and tick a model to start with.",
+    onbAccountData: "{vendor} receives your conversations and the files the model reads, under your plan. The model only ever gets Draggy's tools.",
     onbReadyMoreProviders: "More providers can be added later in Settings, under Providers.",
   },
   fr: {
@@ -1384,6 +1385,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Un serveur sur cet ordinateur garde tout ici. Un fournisseur joint avec une clé reçoit vos conversations et les fichiers que lit le modèle.",
     onbProviderStart: "Modèle de départ",
     onbProviderPick: "Activez un fournisseur et cochez un modèle pour commencer.",
+    onbAccountData: "{vendor} reçoit vos conversations et les fichiers que lit le modèle, dans le cadre de votre abonnement. Le modèle n'a accès qu'aux outils de Draggy.",
     onbReadyMoreProviders: "Vous pourrez ajouter d'autres fournisseurs plus tard dans Paramètres, sous Fournisseurs.",
   },
   es: {
@@ -2070,6 +2072,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Un servidor en este ordenador lo guarda todo aquí. Un proveedor al que accedes con una clave recibe tus conversaciones y los archivos que lee el modelo.",
     onbProviderStart: "Modelo para empezar",
     onbProviderPick: "Activa un proveedor y marca un modelo para empezar.",
+    onbAccountData: "{vendor} recibe tus conversaciones y los archivos que lee el modelo, dentro de tu plan. El modelo solo tiene acceso a las herramientas de Draggy.",
     onbReadyMoreProviders: "Podrás añadir más proveedores después en Ajustes, en Proveedores.",
   },
   de: {
@@ -2756,6 +2759,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Ein Server auf diesem Computer behält alles hier. Ein Anbieter, den du mit einem Schlüssel erreichst, erhält deine Unterhaltungen und die Dateien, die das Modell liest.",
     onbProviderStart: "Modell für den Anfang",
     onbProviderPick: "Schalte einen Anbieter ein und hake ein Modell für den Anfang an.",
+    onbAccountData: "{vendor} erhält deine Unterhaltungen und die Dateien, die das Modell liest, im Rahmen deines Abos. Das Modell bekommt nur die Werkzeuge von Draggy.",
     onbReadyMoreProviders: "Weitere Anbieter kannst du später unter Einstellungen, Anbieter hinzufügen.",
   },
   it: {
@@ -3442,6 +3446,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Un server su questo computer tiene tutto qui. Un provider raggiunto con una chiave riceve le tue conversazioni e i file che il modello legge.",
     onbProviderStart: "Modello con cui iniziare",
     onbProviderPick: "Attiva un provider e spunta un modello con cui iniziare.",
+    onbAccountData: "{vendor} riceve le tue conversazioni e i file che il modello legge, nell'ambito del tuo abbonamento. Il modello ha accesso solo agli strumenti di Draggy.",
     onbReadyMoreProviders: "Potrai aggiungere altri provider più tardi in Impostazioni, alla voce Provider.",
   },
   pt: {
@@ -4128,6 +4133,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Um servidor neste computador mantém tudo aqui. Um fornecedor acedido com uma chave recebe as suas conversas e os ficheiros que o modelo lê.",
     onbProviderStart: "Modelo para começar",
     onbProviderPick: "Ative um fornecedor e marque um modelo para começar.",
+    onbAccountData: "{vendor} recebe as tuas conversas e os ficheiros que o modelo lê, no âmbito da tua subscrição. O modelo só tem acesso às ferramentas do Draggy.",
     onbReadyMoreProviders: "Pode adicionar mais fornecedores mais tarde em Configurações, na secção Fornecedores.",
   },
   nl: {
@@ -4814,6 +4820,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Een server op deze computer houdt alles hier. Een provider die je met een sleutel bereikt, ontvangt je gesprekken en de bestanden die het model leest.",
     onbProviderStart: "Model om mee te beginnen",
     onbProviderPick: "Zet een provider aan en vink een model aan om mee te beginnen.",
+    onbAccountData: "{vendor} ontvangt je gesprekken en de bestanden die het model leest, binnen je abonnement. Het model krijgt alleen de tools van Draggy.",
     onbReadyMoreProviders: "Meer providers kun je later toevoegen in Instellingen, onder Providers.",
   },
   ru: {
@@ -5500,6 +5507,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "Сервер на этом компьютере оставляет всё здесь. Провайдер, к которому вы подключаетесь по ключу, получает ваши разговоры и файлы, которые читает модель.",
     onbProviderStart: "Модель для начала",
     onbProviderPick: "Включите провайдера и отметьте модель, с которой начать.",
+    onbAccountData: "{vendor} получает ваши разговоры и файлы, которые читает модель, в рамках вашей подписки. Модели доступны только инструменты Draggy.",
     onbReadyMoreProviders: "Других провайдеров можно добавить позже в разделе Настройки, Провайдеры.",
   },
   zh: {
@@ -6186,6 +6194,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "本机上的服务器会把一切留在这里。通过密钥连接的提供方会收到你的对话和模型读取的文件。",
     onbProviderStart: "起始模型",
     onbProviderPick: "开启一个提供方，并勾选一个模型作为开始。",
+    onbAccountData: "{vendor} 会按你的订阅收到你的对话和模型读取的文件。模型只能使用 Draggy 的工具。",
     onbReadyMoreProviders: "之后可以在“设置”的“提供方”中添加更多提供方。",
   },
   ja: {
@@ -6872,6 +6881,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "このコンピューター上のサーバーなら、すべてここに残ります。キーで接続するプロバイダーには、会話とモデルが読むファイルが送られます。",
     onbProviderStart: "最初に使うモデル",
     onbProviderPick: "プロバイダーをオンにして、最初に使うモデルにチェックを入れてください。",
+    onbAccountData: "会話とモデルが読むファイルは、プランの範囲で {vendor} に送られます。モデルが使えるのは Draggy のツールだけです。",
     onbReadyMoreProviders: "プロバイダーは後から「設定」の「プロバイダー」で追加できます。",
   },
   ko: {
@@ -7558,6 +7568,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "이 컴퓨터의 서버를 쓰면 모든 것이 여기에 남습니다. 키로 연결하는 제공자는 대화 내용과 모델이 읽는 파일을 받습니다.",
     onbProviderStart: "시작할 모델",
     onbProviderPick: "제공자를 켜고 시작할 모델을 선택하세요.",
+    onbAccountData: "대화와 모델이 읽는 파일은 요금제 범위 안에서 {vendor}에 전송됩니다. 모델은 Draggy의 도구만 쓸 수 있습니다.",
     onbReadyMoreProviders: "제공자는 나중에 설정의 제공자에서 더 추가할 수 있습니다.",
   },
   ar: {
@@ -8244,6 +8255,7 @@ export const translations: Record<string, Record<string, string>> = {
     onbProviderBody: "الخادم على هذا الحاسوب يُبقي كل شيء هنا. أما المزوّد الذي تصل إليه بمفتاح فيتلقى محادثاتك والملفات التي يقرؤها النموذج.",
     onbProviderStart: "النموذج الذي تبدأ به",
     onbProviderPick: "شغّل مزوّدًا وحدّد نموذجًا لتبدأ به.",
+    onbAccountData: "تتلقى {vendor} محادثاتك والملفات التي يقرؤها النموذج، ضمن اشتراكك. ولا يحصل النموذج إلا على أدوات Draggy.",
     onbReadyMoreProviders: "يمكنك إضافة مزوّدين آخرين لاحقًا من الإعدادات، ضمن المزوّدون.",
   }
 };

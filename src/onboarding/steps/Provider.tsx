@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button, Group, Select } from "../../settings/Controls";
-import { AddProvider, DiscoveredRow, InstanceRow } from "../../providers/ProviderRows";
+import { AccountRow, AddProvider, DiscoveredRow, InstanceRow } from "../../providers/ProviderRows";
+import { VENDOR_NAMES } from "../../providers/vendors";
 import { useProviderGroups } from "../../providers/modelOptions";
 import type { Providers } from "../../providers/useProviders";
+import { fill } from "../text";
 import StepHeader from "./StepHeader";
 
 const hostOf = (baseUrl: string) => {
@@ -27,11 +29,13 @@ export default function Provider({
   t: (key: string) => string;
 }) {
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const plans = useRef(new Map<string, () => void>());
+  const register = (id: string, begin: (() => void) | null) => (begin ? plans.current.set(id, begin) : plans.current.delete(id));
   const { instances, catalog, servers, scanning } = providers;
   const entryOf = (type: string) => catalog.find((entry) => entry.id === type);
   const local = instances.filter((instance) => instance.kind === "local");
-  // Accounts get their own tiles in a later step of the setup (onboarding M5b).
   const keyed = instances.filter((instance) => instance.kind === "cloud");
+  const accounts = catalog.filter((entry) => entry.kind === "account");
   const addedHosts = new Set(local.map((instance) => hostOf(instance.baseUrl)));
   const runningHosts = new Set(servers.map((server) => hostOf(server.baseUrl)));
   const found = servers.filter((server) => !addedHosts.has(hostOf(server.baseUrl)));
@@ -76,6 +80,22 @@ export default function Provider({
         </div>
       </Group>
 
+      {accounts.length > 0 && (
+        <Group title={t("accountsGroup")}>
+          {accounts.map((entry) => (
+            <AccountRow
+              key={entry.id}
+              entry={entry}
+              instance={instances.find((instance) => instance.type === entry.id)}
+              providers={providers}
+              register={register}
+              note={entry.vendor ? fill(t("onbAccountData"), { vendor: VENDOR_NAMES[entry.vendor] }) : undefined}
+              t={t}
+            />
+          ))}
+        </Group>
+      )}
+
       <Group
         title={t("apiKeysGroup")}
         description={catalog.some((entry) => entry.available === false) ? t("noKeystoreProviders") : undefined}
@@ -90,7 +110,13 @@ export default function Provider({
             t={t}
           />
         ))}
-        <AddProvider catalog={catalog} providers={providers} onAdded={setJustAdded} t={t} />
+        <AddProvider
+          catalog={catalog}
+          providers={providers}
+          onAdded={setJustAdded}
+          onPlan={(id) => plans.current.get(id)?.()}
+          t={t}
+        />
       </Group>
 
       <div className="space-y-2">

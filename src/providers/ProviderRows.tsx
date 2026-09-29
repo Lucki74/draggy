@@ -4,6 +4,7 @@ import { Badge, Button, Segmented, Toggle } from "../settings/Controls";
 import { engineFailure } from "../ai/engineErrors";
 import { failureOf } from "../ai/llamaStream";
 import { fill } from "../onboarding/text";
+import { VENDOR_NAMES } from "./vendors";
 import { accountSubtitle } from "./accountSubtitle";
 import type { Providers } from "./useProviders";
 import type {
@@ -25,7 +26,6 @@ const CAPABILITIES: { flag: ProviderCapability; label: string }[] = [
   { flag: "thinking", label: "capabilityThinking" },
 ];
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
-const VENDOR_NAMES = { openai: "OpenAI", anthropic: "Anthropic", google: "Google" } as const;
 
 const hostOf = (baseUrl: string) => {
   try {
@@ -264,6 +264,7 @@ export function AccountRow({
   instance,
   providers,
   register,
+  note,
   t,
 }: {
   entry: ProviderCatalogEntry;
@@ -271,6 +272,8 @@ export function AccountRow({
   providers: Providers;
   /** Where the Add list finds this row when its plan is picked. */
   register?: (id: string, begin: (() => void) | null) => void;
+  /** A line shown above the models once signed in. */
+  note?: string;
   t: Translate;
 }) {
   const [status, setStatus] = useState<AccountStatus | null>(null);
@@ -280,6 +283,8 @@ export function AccountRow({
   const [message, setMessage] = useState("");
   // Each address the runtime prints asks for a fresh code, even when it repeats the last one.
   const [asks, setAsks] = useState(0);
+  // The catalog's size was read at load; a sign-in here has since put the runtime on disk.
+  const [fetched, setFetched] = useState(false);
   const id = instance?.id;
   const signedIn = Boolean(status?.signedIn);
 
@@ -289,7 +294,8 @@ export function AccountRow({
     void window.electronAPI?.providers
       ?.accountStatus(id)
       .then((answer) => {
-        if (live && answer.success) setStatus(answer.status);
+        // A read begun as the row was added can land after its sign-in, and must not undo it.
+        if (live && answer.success) setStatus((now) => (now?.signedIn ? now : answer.status));
       })
       .catch(() => undefined);
     return () => {
@@ -340,6 +346,8 @@ export function AccountRow({
       const listed = target.pinnedModels.length ? null : await api.models(targetId).catch(() => null);
       const pinnedModels = listed?.success ? listed.models.map((model) => model.id) : target.pinnedModels;
       await providers.update(targetId, { enabled: true, pinnedModels });
+      setOpen(true);
+      setFetched(true);
     } else if (answer && !answer.success) {
       setMessage(engineFailure(failureOf({ ...answer.error, provider: entry.name })));
     } else if (!answer?.status.cancelled) {
@@ -390,7 +398,14 @@ export function AccountRow({
               {id && <Button onClick={() => void window.electronAPI?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
             </>
           ) : (
-            <Button onClick={() => void start()}>{fill(t("signInWith"), { name: entry.name })}</Button>
+            <>
+              <Button onClick={() => void start()}>{fill(t("signInWith"), { name: entry.name })}</Button>
+              {entry.download && !fetched && (
+                <span className="text-xs font-bold text-[var(--text-muted)]">
+                  {fill(t("onbSourceDownload"), { size: `${Math.round(entry.download / 1e6)} MB` })}
+                </span>
+              )}
+            </>
           )}
           {message && <p className="text-xs font-bold text-red-500 break-words min-w-0">{message}</p>}
         </div>
@@ -404,6 +419,7 @@ export function AccountRow({
             )}
             <Button onClick={() => void signOut()}>{t("signOut")}</Button>
           </div>
+          {note && <p className="text-[11px] font-bold text-[var(--text-muted)]">{note}</p>}
           <ModelList instance={instance} models={models} providers={providers} t={t} />
         </div>
       )}

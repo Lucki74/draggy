@@ -699,6 +699,8 @@ export interface ProviderCatalogEntry {
   baseUrl: string | null;
   editableBaseUrl: boolean;
   remote: boolean;
+  /** Bytes an account's first sign-in fetches, while its runtime is not on disk yet. */
+  download?: number | null;
 }
 
 export interface ProviderModel {

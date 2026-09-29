@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import Onboarding, { type SetupOutcome } from "../onboarding/Onboarding";
 import { useFirstDownload } from "../onboarding/useFirstDownload";
 import App from "../App";
 import { installFakeElectronApi } from "./helpers/electronApi";
 import { defaultSettings } from "../app/settings";
+import { fill } from "../onboarding/text";
 import { translations } from "../translations";
-import type { AppSettings, ProviderCatalogEntry, ProviderInstance } from "../types";
+import type { AccountProgress, AppSettings, ProviderCatalogEntry, ProviderInstance } from "../types";
 
 const en = (key: string) => translations.en[key];
 
@@ -224,5 +225,99 @@ describe("from the provider step into the app", () => {
 
     await waitFor(() => expect(api.onboarding.complete).toHaveBeenCalledWith("both"));
     expect(api.onboarding.complete).not.toHaveBeenCalledWith("local");
+  });
+});
+
+const chatgpt: ProviderCatalogEntry = { ...entry(), id: "chatgpt", name: "ChatGPT", kind: "account", protocol: "codex", needsKey: false, download: 52e6 };
+
+/** A new machine whose catalog has a plan; status always reads signed out, and the sign-in waits for the test. */
+function withPlan() {
+  const api = machine({ catalog: [entry(), chatgpt] });
+  let kept: ProviderInstance[] = [];
+  let settle: (answer: unknown) => void = () => {};
+  const progress = new Set<(p: AccountProgress) => void>();
+  const extra = {
+    list: vi.fn(async () => kept.map((item) => ({ ...item }))),
+    add: vi.fn(async ({ type }: { type: string }) => {
+      const added = openai({ id: type, type, label: "ChatGPT", name: "ChatGPT", kind: "account", protocol: "codex", enabled: false, pinnedModels: [], hasKey: false, needsKey: false });
+      kept = [...kept, added];
+      return { success: true, instance: added };
+    }),
+    update: vi.fn(async (id: string, patch: Partial<ProviderInstance>) => {
+      kept = kept.map((item) => (item.id === id ? { ...item, ...patch } : item));
+      return { success: true, instance: kept.find((item) => item.id === id) };
+    }),
+    accountStatus: vi.fn(async () => ({ success: true, status: { signedIn: false } })),
+    accountSignIn: vi.fn(() => new Promise((resolve) => (settle = resolve))),
+    accountCancel: vi.fn(async () => ({ success: true })),
+    accountSignOut: vi.fn(async () => ({ success: true })),
+    onAccountProgress: vi.fn((callback: (p: AccountProgress) => void) => {
+      progress.add(callback);
+      return () => progress.delete(callback);
+    }),
+  };
+  Object.assign(api.providers, extra);
+  return { api: api.providers as typeof api.providers & typeof extra, settle: (answer: unknown) => act(async () => settle(answer)) };
+}
+
+const signInButton = () => screen.findByRole("button", { name: fill(en("signInWith"), { name: "ChatGPT" }) });
+
+describe("a plan on the provider step", () => {
+  it("offers the plan in its own group with the size of its first sign-in, fetching nothing to show it", async () => {
+    const { api } = withPlan();
+    render(<Harness onFinish={() => {}} />);
+    await toProvider("onbSourceProvider");
+
+    expect(await screen.findByText(en("accountsGroup"))).toBeTruthy();
+    expect(await signInButton()).toBeTruthy();
+    expect(screen.getByText(fill(en("onbSourceDownload"), { size: "52 MB" }))).toBeTruthy();
+    expect(api.add).not.toHaveBeenCalled();
+    expect(api.accountSignIn).not.toHaveBeenCalled();
+  });
+
+  it("signs in from the tile, names who receives the conversations, and lets the step go on with the plan's model", async () => {
+    const { api, settle } = withPlan();
+    render(<Harness onFinish={() => {}} />);
+    await toProvider("onbSourceProvider");
+    fireEvent.click(await signInButton());
+    await waitFor(() => expect(api.accountSignIn).toHaveBeenCalledWith("chatgpt"));
+    expect(continueButton().disabled).toBe(true);
+
+    await settle({ success: true, status: { signedIn: true, email: "me@example.com" } });
+    expect(await screen.findByText(fill(en("onbAccountData"), { vendor: "OpenAI" }))).toBeTruthy();
+    expect(screen.queryByText(fill(en("onbSourceDownload"), { size: "52 MB" }))).toBeNull();
+    expect(api.update).toHaveBeenLastCalledWith("chatgpt", { enabled: true, pinnedModels: ["gpt-x"] });
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+
+    // The runtime is on disk now, so signing out offers the sign-in again without the size.
+    fireEvent.click(screen.getByRole("button", { name: en("signOut") }));
+    expect(await signInButton()).toBeTruthy();
+    expect(screen.queryByText(fill(en("onbSourceDownload"), { size: "52 MB" }))).toBeNull();
+  });
+
+  it("asks plan or key when the vendor is picked from the Add list, and the plan signs in from its tile", async () => {
+    const { api } = withPlan();
+    render(<Harness onFinish={() => {}} />);
+    await toProvider("onbSourceProvider");
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(screen.getByRole("button", { name: "OpenAI" }));
+    expect(api.add).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText(en("planRoute")));
+    await waitFor(() => expect(api.accountSignIn).toHaveBeenCalledWith("chatgpt"));
+    expect(api.add).toHaveBeenCalledWith({ type: "chatgpt" });
+  });
+
+  it("switches nothing on when the sign-in is cancelled", async () => {
+    const { api, settle } = withPlan();
+    render(<Harness onFinish={() => {}} />);
+    await toProvider("onbSourceProvider");
+    fireEvent.click(await signInButton());
+    fireEvent.click(await screen.findByRole("button", { name: en("cancel") }));
+    expect(api.accountCancel).toHaveBeenCalledWith("chatgpt");
+    await settle({ success: false, status: { signedIn: false, cancelled: true } });
+
+    expect(await signInButton()).toBeTruthy();
+    expect(api.update).not.toHaveBeenCalled();
+    expect(continueButton().disabled).toBe(true);
   });
 });
