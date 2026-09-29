@@ -88,6 +88,7 @@ describe("gemini process", () => {
     expect(gemini.init).toEqual({ protocolVersion: 1, agentCapabilities: { loadSession: true } });
     expect(fs.realpathSync(paths.link)).toBe(fs.realpathSync(gemini.home));
     expect(gemini.home).toBe(path.join(appData, "gemini", "a"));
+    expect(spawn.files.settings).not.toHaveProperty("mcpServers");
     await gemini.stop();
   });
 

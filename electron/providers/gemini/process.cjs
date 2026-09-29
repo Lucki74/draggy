@@ -59,7 +59,7 @@ function settingsFor({ tools, model, mcpUrl }) {
     skills: { enabled: false },
     hooksConfig: { enabled: false },
     security: { auth: { selectedType: "oauth-personal" } },
-    mcpServers: { [SERVER]: { httpUrl: mcpUrl, timeout: TOOL_TIMEOUT_MS } },
+    ...(mcpUrl ? { mcpServers: { [SERVER]: { httpUrl: mcpUrl, timeout: TOOL_TIMEOUT_MS } } } : {}),
   };
 }
 

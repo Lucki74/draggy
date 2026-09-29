@@ -479,4 +479,4 @@ function createClaudeAdapter({
   return { stream, signIn, cancel, signOut, status, models, runtimeFor, stopAll };
 }
 
-module.exports = { createClaudeAdapter, toContent, flatten, effortOf, turnFailure, sessionOnDisk };
+module.exports = { createClaudeAdapter, toContent, flatten, textOf, mcpTools, effortOf, turnFailure, sessionOnDisk };
