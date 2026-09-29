@@ -396,6 +396,19 @@ export function AccountRow({
               {signIn.step === "browser" && <span className="text-xs font-bold text-[var(--text-muted)]">{t("finishInBrowser")}</span>}
               {signIn.step === "code" && id && <CodeEntry key={asks} id={id} t={t} />}
               {id && <Button onClick={() => void window.electronAPI?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
+              {signIn.step === "installing" && (
+                <div
+                  role="progressbar"
+                  aria-label={entry.name}
+                  aria-valuenow={Math.round(signIn.percent)}
+                  className="basis-full h-2 rounded-full overflow-hidden bg-[var(--hover-bg)]"
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, signIn.percent))}%`, background: "var(--text-main)" }}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <>

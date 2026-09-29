@@ -110,6 +110,7 @@ describe("the Accounts group", () => {
 
     emit({ id: "chatgpt", step: "installing", percent: 40 });
     expect(screen.getByText(fill(en("installingRuntime"), { name: "ChatGPT", percent: "40" }))).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "ChatGPT" }).getAttribute("aria-valuenow")).toBe("40");
     emit({ id: "chatgpt", step: "browser", url: "https://auth.openai.com/x" });
     expect(screen.getByText(en("finishInBrowser"))).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: en("cancel") }));
