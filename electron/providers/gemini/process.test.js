@@ -163,6 +163,37 @@ describe("gemini process", () => {
     expect(gemini.typeLine("late")).toBe(false);
   });
 
+  it("holds initialize back while the CLI asks for a code at start, and can type the code by then", async () => {
+    const { spawn, sent } = fakeSpawn();
+    let release;
+    const typed = [];
+    const starting = start(spawn, {
+      noBrowser: true,
+      beforeInitialize: ({ typeLine }) => {
+        spawn.child.stdin.on("data", (chunk) => typed.push(chunk.toString()));
+        expect(typeLine("4/0code")).toBe(true);
+        return new Promise((resolve) => (release = resolve));
+      },
+    });
+    await vi.waitFor(() => expect(release).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(sent).toEqual([]);
+    expect(typed).toEqual(["4/0code\n"]);
+    release();
+    const gemini = await starting;
+    expect(sent.map((m) => m.method)).toEqual(["initialize"]);
+    await gemini.stop();
+  });
+
+  it("stops waiting when the CLI exits while asking, and says the connection closed", async () => {
+    const { spawn } = fakeSpawn();
+    const starting = start(spawn, { beforeInitialize: () => new Promise(() => {}) });
+    await vi.waitFor(() => expect(spawn.child).toBeDefined());
+    spawn.child.stdout.end();
+    spawn.child.emit("exit", 41);
+    await expect(starting).rejects.toThrow("closed its connection");
+  });
+
   it("uses only its own link: never a real folder, never a link to somewhere else", () => {
     const home = path.join(appData, "gemini", "a");
     fs.mkdirSync(home, { recursive: true });

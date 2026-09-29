@@ -21,7 +21,7 @@ function signIn() {
 }
 
 /** Plays the CLI's side: each start is one process whose updates, requests and prompt answers the test sends. */
-function fakeGemini({ newSession } = {}) {
+function fakeGemini({ newSession, promptMs = 60_000 } = {}) {
   const gemini = { starts: [], endpoints: [] };
   const start = vi.fn(async (options) => {
     let exited = false;
@@ -52,6 +52,7 @@ function fakeGemini({ newSession } = {}) {
       }),
     };
     gemini.starts.push(proc);
+    await options.beforeInitialize?.({ typeLine: proc.typeLine, stop: proc.stop });
     return proc;
   });
   const mcp = {
@@ -74,6 +75,7 @@ function fakeGemini({ newSession } = {}) {
     mcp,
     paths: () => ({ link: path.join(appData, "neutral", "gemini-g"), cwd: path.join(appData, "neutral", "gemini-g-work") }),
     settleMs: 0,
+    promptMs,
     supervisor: { sleep: async () => {} },
     newId: () => `id${++ids}`,
   });
@@ -288,11 +290,48 @@ describe("the Google account adapter", () => {
     expect(gemini.starts).toHaveLength(1);
   });
 
-  it("signs in through the CLI's code route: Google's address opened, the pasted code typed to the CLI alone", async () => {
+  const url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=x&redirect_uri=https%3A%2F%2Fcodeassist.google.com%2Fauthcode&state=s";
+
+  it("takes the code the CLI asks for while it starts, before any protocol message could be read as the code", async () => {
     const { adapter, gemini, start } = fakeGemini();
     const steps = [];
     const openExternal = vi.fn(async () => {});
-    const url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=x&redirect_uri=https%3A%2F%2Fcodeassist.google.com%2Fauthcode&state=s";
+    const pending = adapter.signIn("g", { onProgress: (p) => steps.push(p), openExternal });
+    await vi.waitFor(() => expect(gemini.last()).toBeDefined());
+    const proc = gemini.last();
+    expect(proc.options).toMatchObject({ noBrowser: true, instanceId: "g" });
+    expect(adapter.submitCode("g", "early")).toBe(false);
+
+    proc.options.onOutput(`Please visit the following URL to authorize the application:\n\n${url}\n\nEnter the authorization code: `);
+    expect(adapter.submitCode("g", " 4/0Wrong ")).toBe(true);
+    expect(proc.typeLine).toHaveBeenCalledWith("4/0Wrong");
+    proc.options.onOutput(`Please visit the following URL to authorize the application:\n\n${url}\n\nEnter the authorization code: `);
+    expect(steps.filter((s) => s.step === "code")).toHaveLength(2);
+    expect(openExternal).toHaveBeenCalledTimes(1);
+    expect(adapter.submitCode("g", "4/0Right")).toBe(true);
+    expect(proc.typeLine).toHaveBeenLastCalledWith("4/0Right");
+
+    signIn();
+    await expect(pending).resolves.toEqual({ signedIn: true, email: undefined });
+    expect(proc.rpc.call).not.toHaveBeenCalled();
+    expect(proc.stop).toHaveBeenCalled();
+    expect(steps.at(-1)).toEqual({ step: "done" });
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("says Google refused the code when the CLI quits after its second try", async () => {
+    const start = vi.fn(async (options) => {
+      options.onOutput(`${url}\n`);
+      throw new RpcError("The runtime closed its connection", "closed");
+    });
+    const adapter = createGeminiCliAdapter({ appData, version: "2.2.0", ensure: async () => "gemini.js", start, paths: () => ({ link: "l", cwd: "c" }) });
+    await expect(adapter.signIn("g", { openExternal: vi.fn(async () => {}) })).resolves.toEqual({ signedIn: false, cancelled: false, error: "Google did not accept the code." });
+  });
+
+  it("asks through authenticate when the CLI started without asking: Google's address opened, the pasted code typed to the CLI alone", async () => {
+    const { adapter, gemini, start } = fakeGemini({ promptMs: 0 });
+    const steps = [];
+    const openExternal = vi.fn(async () => {});
     const pending = adapter.signIn("g", { onProgress: (p) => steps.push(p), openExternal });
     await vi.waitFor(() => expect(gemini.last()?.rpc.call).toHaveBeenCalledWith("authenticate", { methodId: "oauth-personal" }, expect.anything()));
     const proc = gemini.last();
@@ -326,19 +365,18 @@ describe("the Google account adapter", () => {
     fs.rmSync(geminiDir(), { recursive: true });
 
     const cancelled = adapter.signIn("g", { openExternal: vi.fn() });
-    await vi.waitFor(() => expect(gemini.last()?.prompts.length).toBe(1));
-    const first = gemini.last();
-    first.stop.mockImplementation(async () => first.refuse(new Error("exited")));
+    await vi.waitFor(() => expect(gemini.starts.length).toBe(1));
     await adapter.cancel("g");
+    expect(gemini.last().stop).toHaveBeenCalled();
     await expect(cancelled).resolves.toEqual({ signedIn: false, cancelled: true, error: null });
 
     const refused = adapter.signIn("g", { openExternal: vi.fn(async () => Promise.reject(new Error("not a sign-in host"))) });
     await vi.waitFor(() => expect(gemini.starts.length).toBe(2));
     const second = gemini.last();
-    await vi.waitFor(() => expect(second.prompts.length).toBe(1));
-    second.stop.mockImplementation(async () => second.refuse(new Error("exited")));
     second.options.onOutput("https://accounts.google.com/o/oauth2/auth?x=1\n");
     await expect(refused).rejects.toThrow("not a sign-in host");
+    expect(second.stop).toHaveBeenCalled();
+    expect(second.rpc.call).not.toHaveBeenCalled();
     expect(adapter.submitCode("g", "code")).toBe(false);
   });
 

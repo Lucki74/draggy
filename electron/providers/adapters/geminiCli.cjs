@@ -16,6 +16,9 @@ const SETTLE_MS = 100;
 const CREDENTIALS = ["oauth_creds.json", "gemini-credentials.json"];
 // The CLI allows two tries of five minutes each for the pasted code.
 const SIGN_IN_MS = 11 * 60_000;
+// The CLI prints Google's address within about a second of starting when it has no credentials.
+const PROMPT_MS = 15_000;
+const POLL_MS = 250;
 // Only a Google address ending in whitespace is taken from the text the CLI prints while signing in.
 const SIGN_IN_URL = /https:\/\/accounts\.google\.com\/[^\s"'<>]+(?=\s)/;
 const ESC = String.fromCharCode(27);
@@ -78,6 +81,7 @@ function createGeminiCliAdapter({
   paths = neutralPaths,
   log = () => {},
   settleMs = SETTLE_MS,
+  promptMs = PROMPT_MS,
   supervisor = {},
   newId = crypto.randomUUID,
 }) {
@@ -355,16 +359,27 @@ function createGeminiCliAdapter({
     const entry = await ensure(appData, { onProgress: ({ percent }) => onProgress({ step: "installing", percent }) });
     const runtime = runtimeFor(instanceId);
     if (!hasCredentials(instanceId)) {
-      const login = { proc: null, cancelled: false, error: null, asking: false };
+      const login = { type: null, stop: null, cancelled: false, error: null, asking: false, opened: false };
       runtime.login = login;
       let pending = "";
       const asked = (url) => {
         login.asking = true;
         onProgress({ step: "code", url });
+        // A wrong code makes the CLI print the address again; the page Google opened still serves.
+        if (login.opened) return;
+        login.opened = true;
         Promise.resolve(openExternal(url)).catch((error) => {
           login.error = error;
-          login.proc?.stop();
+          login.stop?.();
         });
+      };
+      // Holds the protocol back until the CLI has signed in while starting, or has shown it will not ask then.
+      const beforeInitialize = async ({ typeLine, stop }) => {
+        Object.assign(login, { type: typeLine, stop });
+        const began = Date.now();
+        const waiting = () => !hasCredentials(instanceId) && !login.cancelled && !login.error
+          && Date.now() - began < (login.opened ? SIGN_IN_MS : promptMs);
+        while (waiting()) await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       };
       const onOutput = (chunk) => {
         pending = (pending + chunk).replace(ANSI, "");
@@ -375,17 +390,20 @@ function createGeminiCliAdapter({
         pending = pending.slice(-4096);
       };
       try {
-        login.proc = await start({ entry, appData, instanceId, log, noBrowser: true, onOutput });
+        const proc = await start({ entry, appData, instanceId, log, noBrowser: true, onOutput, beforeInitialize });
         if (login.cancelled) return { signedIn: false, cancelled: true, error: null };
-        await login.proc.rpc.call("authenticate", { methodId: "oauth-personal" }, { timeoutMs: SIGN_IN_MS });
+        if (login.error) throw login.error;
+        if (!hasCredentials(instanceId)) await proc.rpc.call("authenticate", { methodId: "oauth-personal" }, { timeoutMs: SIGN_IN_MS });
       } catch (error) {
         if (login.cancelled) return { signedIn: false, cancelled: true, error: null };
         if (login.error) throw login.error;
         if (error.failure) throw error;
-        return { signedIn: false, cancelled: false, error: error.message };
+        // The CLI quits after its second refused code.
+        const refused = login.opened && error.code === "closed";
+        if (!hasCredentials(instanceId)) return { signedIn: false, cancelled: false, error: refused ? "Google did not accept the code." : error.message };
       } finally {
         if (runtime.login === login) runtime.login = null;
-        await login.proc?.stop();
+        await login.stop?.();
       }
       if (!hasCredentials(instanceId)) return { signedIn: false, cancelled: false, error: "Google did not finish the sign-in." };
     }
@@ -398,16 +416,16 @@ function createGeminiCliAdapter({
   function submitCode(instanceId, code) {
     const login = runtimes.get(instanceId)?.login;
     const line = typeof code === "string" ? code.trim() : "";
-    if (!login?.asking || !login.proc || !line) return false;
+    if (!login?.asking || !login.type || !line) return false;
     login.asking = false;
-    return login.proc.typeLine(line) !== false;
+    return login.type(line) !== false;
   }
 
   async function cancelSignIn(instanceId) {
     const login = runtimes.get(instanceId)?.login;
     if (!login) return;
     login.cancelled = true;
-    await login.proc?.stop();
+    await login.stop?.();
   }
 
   /** Signs out by removing the private home, sessions included, and the neutral link to it (spec §4.8.3). */

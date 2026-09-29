@@ -107,6 +107,7 @@ async function startGemini({
   paths = neutralPaths(instanceId),
   noBrowser = false,
   onOutput = null,
+  beforeInitialize = null,
 }) {
   const id = crypto.randomBytes(12).toString("hex");
   const run = path.join(appData, "gemini", "run", id);
@@ -163,15 +164,17 @@ async function startGemini({
     await Promise.race([gone, new Promise((resolve) => setTimeout(resolve, 5000))]);
   }
 
+  // The CLI reads a pasted sign-in code from the same stdin as the protocol, as one plain line.
+  const typeLine = (text) => !exited && child.stdin.write(`${String(text).replace(/[\r\n]/g, "")}\n`);
   let init;
   try {
+    // Without credentials the CLI asks for the code before it reads the protocol, and would take a message as the code.
+    if (beforeInitialize) await Promise.race([beforeInitialize({ typeLine, stop }), gone]);
     init = await rpc.call("initialize", CLIENT);
   } catch (error) {
     await stop();
     throw error;
   }
-  // The CLI reads a pasted sign-in code from the same stdin as the protocol, as one plain line.
-  const typeLine = (text) => !exited && child.stdin.write(`${String(text).replace(/[\r\n]/g, "")}\n`);
   return { init, rpc, stop, typeLine, home, link: paths.link, cwd };
 }
 
