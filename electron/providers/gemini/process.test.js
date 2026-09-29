@@ -7,7 +7,7 @@ import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { startGemini, linkHome, neutralPaths, FLAGS, CLIENT, TOOL_TIMEOUT_MS } = require("./process.cjs");
+const { startGemini, linkHome, neutralPaths, FLAGS, NODE_FLAGS, CLIENT, TOOL_TIMEOUT_MS } = require("./process.cjs");
 
 let appData;
 let paths;
@@ -28,8 +28,8 @@ function fakeSpawn({ refuse = false } = {}) {
     child.kill = vi.fn(() => setImmediate(() => child.emit("exit", null)));
     // Read while the child runs: the run files are gone once it exits.
     spawn.files = {
-      settings: JSON.parse(fs.readFileSync(options.env.GEMINI_CLI_SYSTEM_SETTINGS_PATH, "utf8")),
-      defaults: fs.readFileSync(options.env.GEMINI_CLI_SYSTEM_DEFAULTS_PATH, "utf8"),
+      settings: JSON.parse(fs.readFileSync(path.join(options.cwd, ".gemini", "settings.json"), "utf8")),
+      system: [options.env.GEMINI_CLI_SYSTEM_SETTINGS_PATH, options.env.GEMINI_CLI_SYSTEM_DEFAULTS_PATH].filter((file) => fs.existsSync(file)),
       prompt: fs.readFileSync(options.env.GEMINI_SYSTEM_MD, "utf8"),
     };
     child.stdin.on("data", (chunk) => {
@@ -69,9 +69,11 @@ describe("gemini process", () => {
     const gemini = await start(spawn);
     const [file, args, options] = spawn.mock.calls[0];
     expect(file).toBe("electron.exe");
-    expect(args).toEqual(["gemini.js", ...FLAGS]);
+    expect(args).toEqual(["--use-system-ca", "gemini.js", ...FLAGS]);
+    expect(NODE_FLAGS).toEqual(["--use-system-ca"]);
     expect(args).not.toContain("--yolo");
-    expect(options.cwd).toBe(paths.cwd);
+    expect(path.dirname(options.cwd)).toBe(paths.cwd);
+    expect(gemini.cwd).toBe(options.cwd);
     const { GEMINI_SYSTEM_MD, GEMINI_CLI_SYSTEM_SETTINGS_PATH, GEMINI_CLI_SYSTEM_DEFAULTS_PATH, ...rest } = options.env;
     expect(rest).toEqual({
       PATH: "/usr/bin",
@@ -80,10 +82,12 @@ describe("gemini process", () => {
       GEMINI_CLI_HOME: paths.link,
       ELECTRON_RUN_AS_NODE: "1",
       GEMINI_FORCE_FILE_STORAGE: "true",
+      GEMINI_CLI_TRUST_WORKSPACE: "true",
     });
     expect(options.env).not.toHaveProperty("NO_BROWSER");
-    for (const file of [GEMINI_SYSTEM_MD, GEMINI_CLI_SYSTEM_SETTINGS_PATH, GEMINI_CLI_SYSTEM_DEFAULTS_PATH]) {
-      expect(file.startsWith(path.join(appData, "gemini", "run"))).toBe(true);
+    expect(GEMINI_SYSTEM_MD.startsWith(path.join(appData, "gemini", "run"))).toBe(true);
+    for (const file of [GEMINI_CLI_SYSTEM_SETTINGS_PATH, GEMINI_CLI_SYSTEM_DEFAULTS_PATH]) {
+      expect(file.startsWith(options.cwd)).toBe(true);
     }
     expect(sent[0]).toMatchObject({ jsonrpc: "2.0", method: "initialize", params: CLIENT });
     expect(sent[0].params.clientCapabilities).toEqual({ fs: { readTextFile: false, writeTextFile: false }, terminal: false });
@@ -97,7 +101,7 @@ describe("gemini process", () => {
   it("leaves the model only Draggy's tools, with its own prompt and a limit far above any approval wait", async () => {
     const { spawn } = fakeSpawn();
     const gemini = await start(spawn, { tools: ["read_file", "run_command"], model: "gemini-2.5-pro", mcpUrl: "http://127.0.0.1:1/mcp/x", systemPrompt: "You are Draggy." });
-    const { settings, defaults, prompt } = spawn.files;
+    const { settings, prompt } = spawn.files;
     expect(settings.tools).toEqual({ core: ["mcp_draggy_read_file", "mcp_draggy_run_command"] });
     expect(settings.model).toEqual({ name: "gemini-2.5-pro" });
     expect(settings.mcpServers).toEqual({ draggy: { httpUrl: "http://127.0.0.1:1/mcp/x", timeout: TOOL_TIMEOUT_MS } });
@@ -105,11 +109,37 @@ describe("gemini process", () => {
     expect(settings.context.includeDirectoryTree).toBe(false);
     expect(settings.privacy.usageStatisticsEnabled).toBe(false);
     expect(settings.telemetry.enabled).toBe(false);
-    expect(defaults).toBe("{}");
     expect(prompt).toBe("You are Draggy.");
 
     await gemini.stop();
     expect(fs.readdirSync(path.join(appData, "gemini", "run"))).toEqual([]);
+  });
+
+  it("names no system settings file that exists: the CLI ignores one its user owns, and checks it through PowerShell", async () => {
+    const { spawn } = fakeSpawn();
+    const gemini = await start(spawn);
+    expect(spawn.files.system).toEqual([]);
+    expect(spawn.files.settings.security.auth.selectedType).toBe("oauth-personal");
+    await gemini.stop();
+  });
+
+  it("gives each process its own workspace, removed with the CLI's chat log for it when the process ends", async () => {
+    const first = fakeSpawn();
+    const second = fakeSpawn();
+    const a = await start(first.spawn, { tools: ["read_file"] });
+    const b = await start(second.spawn, { tools: ["run_command"] });
+    expect(a.cwd).not.toBe(b.cwd);
+    expect(first.spawn.files.settings.tools.core).toEqual(["mcp_draggy_read_file"]);
+    expect(fs.readFileSync(path.join(b.cwd, ".gemini", "settings.json"), "utf8")).toContain("mcp_draggy_run_command");
+
+    const id = path.basename(a.cwd);
+    const log = path.join(a.home, ".gemini", "tmp", id, "chats");
+    fs.mkdirSync(log, { recursive: true });
+    await a.stop();
+    expect(fs.existsSync(a.cwd)).toBe(false);
+    expect(fs.existsSync(path.dirname(log))).toBe(false);
+    expect(fs.existsSync(b.cwd)).toBe(true);
+    await b.stop();
   });
 
   it("stops the child and throws when initialize is refused", async () => {

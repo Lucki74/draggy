@@ -12,6 +12,8 @@ const TOOL_PREFIX = `mcp_${SERVER}_`;
 // A pending tool call waits on the user's approval, so the runtime's per-call limit sits far above any wait.
 const TOOL_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const FLAGS = ["--acp", "--skip-trust"];
+// Antivirus HTTPS scanning re-signs Google's sign-in traffic with a root only the system store holds.
+const NODE_FLAGS = ["--use-system-ca"];
 const CLIENT = { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false } };
 
 /** The CLI tells the model its temporary folder, which lies inside its home, so both paths hold no user name. */
@@ -47,7 +49,7 @@ function linkHome(link, target, { platformName = process.platform } = {}) {
   throw unavailable(`${link} is not Draggy's link to the Google account's folder.`);
 }
 
-/** Written for each process; the system scope outranks any user or workspace settings the CLI finds. */
+/** Written for each process as its workspace settings, which outrank the user settings in the private home. */
 function settingsFor({ tools, model, mcpUrl }) {
   return {
     tools: { core: tools.map((name) => `${TOOL_PREFIX}${name}`) },
@@ -63,7 +65,7 @@ function settingsFor({ tools, model, mcpUrl }) {
   };
 }
 
-/** The environment for one start; the three run files replace the machine's own settings and the CLI's prompt. */
+/** The environment for one start: Draggy's prompt, and system settings paths that never exist. */
 function geminiEnv({ appData, instanceId, parentEnv, link, files, noBrowser = false }) {
   const { env, home } = accountEnv({
     runtime: "gemini",
@@ -73,11 +75,13 @@ function geminiEnv({ appData, instanceId, parentEnv, link, files, noBrowser = fa
     extra: {
       ELECTRON_RUN_AS_NODE: "1",
       GEMINI_FORCE_FILE_STORAGE: "true",
+      // --skip-trust lands after the first settings read is cached, which leaves the workspace untrusted.
+      GEMINI_CLI_TRUST_WORKSPACE: "true",
       ...(noBrowser ? { NO_BROWSER: "true" } : {}),
       ...(files ? {
         GEMINI_SYSTEM_MD: files.prompt,
-        GEMINI_CLI_SYSTEM_SETTINGS_PATH: files.settings,
-        GEMINI_CLI_SYSTEM_DEFAULTS_PATH: files.defaults,
+        GEMINI_CLI_SYSTEM_SETTINGS_PATH: files.system,
+        GEMINI_CLI_SYSTEM_DEFAULTS_PATH: files.systemDefaults,
       } : {}),
     },
   });
@@ -104,21 +108,33 @@ async function startGemini({
   noBrowser = false,
   onOutput = null,
 }) {
-  const run = path.join(appData, "gemini", "run", crypto.randomBytes(12).toString("hex"));
-  const files = { settings: `${run}.settings.json`, defaults: `${run}.defaults.json`, prompt: `${run}.md` };
+  const id = crypto.randomBytes(12).toString("hex");
+  const run = path.join(appData, "gemini", "run", id);
+  // The CLI skips a system settings file its user owns, checking through PowerShell; missing paths skip both.
+  // Each process gets its own workspace, since its tools and model differ from the others running.
+  const cwd = path.join(paths.cwd, id);
+  const files = {
+    settings: path.join(cwd, ".gemini", "settings.json"),
+    system: path.join(cwd, ".gemini", "system.json"),
+    systemDefaults: path.join(cwd, ".gemini", "system-defaults.json"),
+    prompt: `${run}.md`,
+  };
   const { env, home } = geminiEnv({ appData, instanceId, parentEnv, link: paths.link, files, noBrowser });
   fs.mkdirSync(home, { recursive: true });
   linkHome(paths.link, home);
-  fs.mkdirSync(paths.cwd, { recursive: true });
+  fs.mkdirSync(path.dirname(files.settings), { recursive: true });
   fs.mkdirSync(path.dirname(run), { recursive: true });
   fs.writeFileSync(files.settings, JSON.stringify(settingsFor({ tools, model, mcpUrl }), null, 2));
-  fs.writeFileSync(files.defaults, "{}");
   fs.writeFileSync(files.prompt, systemPrompt);
+  // The CLI keeps a chat log per workspace; Draggy keeps its own, so the run's copy goes with it.
   const removeFiles = () => {
-    for (const file of Object.values(files)) fs.rmSync(file, { force: true });
+    for (const dir of [cwd, path.join(home, ".gemini", "tmp", id), path.join(home, ".gemini", "history", id)]) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    fs.rmSync(files.prompt, { force: true });
   };
 
-  const child = spawn(execPath, [entry, ...FLAGS], { cwd: paths.cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(execPath, [...NODE_FLAGS, entry, ...FLAGS], { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
   drainStderr(child.stderr, log);
   // Sign-in only: the CLI prints its address as plain text into the protocol stream, handed over unlogged.
   if (onOutput) child.stdout.on("data", (chunk) => onOutput(chunk.toString("utf8")));
@@ -156,7 +172,7 @@ async function startGemini({
   }
   // The CLI reads a pasted sign-in code from the same stdin as the protocol, as one plain line.
   const typeLine = (text) => !exited && child.stdin.write(`${String(text).replace(/[\r\n]/g, "")}\n`);
-  return { init, rpc, stop, typeLine, home, link: paths.link, cwd: paths.cwd };
+  return { init, rpc, stop, typeLine, home, link: paths.link, cwd };
 }
 
-module.exports = { startGemini, geminiEnv, settingsFor, linkHome, neutralPaths, FLAGS, CLIENT, SERVER, TOOL_PREFIX, TOOL_TIMEOUT_MS };
+module.exports = { startGemini, geminiEnv, settingsFor, linkHome, neutralPaths, FLAGS, NODE_FLAGS, CLIENT, SERVER, TOOL_PREFIX, TOOL_TIMEOUT_MS };

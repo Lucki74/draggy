@@ -56,8 +56,8 @@ Measured by the `tools` sent with each `streamGenerateContent` request.
 (one more appears with a fixed model), a 24,557-character system prompt, and, with the model left on
 `auto`, an extra routing request that sends the conversation to a flash-lite model first.
 
-**Stripped:** the model sees only Draggy's tools. `<GEMINI_CLI_HOME>/.gemini/settings.json`, written
-by Draggy before every start:
+**Stripped:** the model sees only Draggy's tools. `<work>/<run id>/.gemini/settings.json`, the
+workspace settings of a working folder Draggy makes for each process and removes when it ends:
 
 ```json
 {
@@ -78,6 +78,11 @@ by Draggy before every start:
   is not usable: it matches a tool's own name, so excluding the built-in `read_file` also removed
   Draggy's MCP `read_file`.
 - A fixed `model.name` removes the routing request.
+- **Not the system scope.** The CLI applies a system settings file only when an administrator owns it
+  (root on macOS and Linux), and on Windows checks that through an encoded PowerShell command. One in
+  the user's profile was skipped with a warning, so sign-in fell back to an API key and every
+  `session/new` failed. Draggy points both system paths at files that never exist, which skips the
+  check and the machine's own files, and relies on `--skip-trust` for the workspace scope.
 - **Backstop, measured:** when the mock made the model call `run_shell_command`, the CLI answered it
   with "Tool \"run_shell_command\" not found in registry" without running it or asking. Draggy's own
   backstop stays: any `session/request_permission` for a tool that is not one of Draggy's is
@@ -86,7 +91,8 @@ by Draggy before every start:
 - **Re-proving it on a bump:** `node scripts/gemini-probe.cjs <bundle/gemini.js>` runs one ACP turn
   with these settings against a mock, where the model first calls `run_shell_command`, and fails
   unless only Draggy's tool is listed, Draggy's prompt replaces the CLI's and the call is refused
-  unrun. On 0.61.0 all four checks pass. Shown failing: without `tools.core`, two checks fail and
+  unrun. It lays the files out as Draggy does: workspace settings, `GEMINI_CLI_TRUST_WORKSPACE`,
+  missing system paths and `--use-system-ca`. On 0.61.0 all four checks pass. Shown failing: without `tools.core`, two checks fail and
   the injected `run_shell_command` ran without asking.
 
 **What the CLI still adds:**

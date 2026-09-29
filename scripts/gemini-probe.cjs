@@ -23,10 +23,11 @@ const readBody = (req) => new Promise((resolve) => {
 (async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-gemini-probe-"));
   const work = path.join(home, "work");
-  fs.mkdirSync(path.join(home, ".gemini"), { recursive: true });
-  fs.mkdirSync(work);
+  fs.mkdirSync(path.join(work, ".gemini"), { recursive: true });
+  
   fs.writeFileSync(path.join(home, "system.md"), PROMPT);
-  fs.writeFileSync(path.join(home, ".gemini", "settings.json"), JSON.stringify({
+  // Where Draggy writes them: the workspace scope of its own working folder, as the only settings.
+  fs.writeFileSync(path.join(work, ".gemini", "settings.json"), JSON.stringify({
     tools: { core: ["mcp_draggy_probe"] },
     model: { name: "gemini-2.5-pro" },
     context: { includeDirectoryTree: false },
@@ -64,15 +65,18 @@ const readBody = (req) => new Promise((resolve) => {
   const mcpPort = await listen(mcp);
 
   // A packaged Draggy runs it with Electron's own executable; plain Node is the same runtime here.
-  const child = platform.spawnHidden(process.execPath, [entry, "--acp", "--skip-trust"], {
+  const child = platform.spawnHidden(process.execPath, ["--use-system-ca", entry, "--acp", "--skip-trust"], {
     cwd: work,
     env: {
-      PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP,
+      PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, ELECTRON_RUN_AS_NODE: "1",
       GEMINI_CLI_HOME: home, HOME: home, USERPROFILE: home, GEMINI_SYSTEM_MD: path.join(home, "system.md"),
-      GEMINI_API_KEY: "probe-not-a-key", GOOGLE_GEMINI_BASE_URL: `http://127.0.0.1:${apiPort}`,
+      GEMINI_CLI_TRUST_WORKSPACE: "true", GEMINI_CLI_SYSTEM_SETTINGS_PATH: path.join(home, "none.json"),
+      GEMINI_CLI_SYSTEM_DEFAULTS_PATH: path.join(home, "none-defaults.json"), GEMINI_API_KEY: "probe-not-a-key", GOOGLE_GEMINI_BASE_URL: `http://127.0.0.1:${apiPort}`,
     },
     stdio: ["pipe", "pipe", "pipe"],
   });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => (stderr = (stderr + chunk).slice(-2000)));
   const waiting = new Map();
   const asked = [];
   let nextId = 1;
@@ -106,10 +110,13 @@ const readBody = (req) => new Promise((resolve) => {
   await call("initialize", { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false } });
   const session = await call("session/new", { cwd: work, mcpServers: [{ type: "http", name: "draggy", url: `http://127.0.0.1:${mcpPort}/mcp`, headers: [] }] });
   const turn = await call("session/prompt", { sessionId: session.result?.sessionId, prompt: [{ type: "text", text: "hi" }] });
-  await new Promise((resolve) => {
-    child.once("exit", resolve);
-    child.kill();
-  });
+  // A CLI that failed to start has already exited, and would never emit it again.
+  if (child.exitCode === null && child.signalCode === null) {
+    await new Promise((resolve) => {
+      child.once("exit", resolve);
+      child.kill();
+    });
+  }
   api.close();
   mcp.close();
   fs.rmSync(home, { recursive: true, force: true, maxRetries: 5 });
@@ -125,6 +132,7 @@ const readBody = (req) => new Promise((resolve) => {
   ];
   for (const [name, ok, detail] of checks) console.log(`${ok ? "ok  " : "FAIL"} ${name} (${detail})`);
   const failed = checks.some(([, ok]) => !ok);
+  if (failed && stderr) console.log(`\nThe CLI's last output:\n${stderr}`);
   console.log(failed ? "\nA Gemini CLI built-in is reachable: do not pin this version." : "\nOnly Draggy's tool reached the model.");
   process.exit(failed ? 1 : 0);
 })();
