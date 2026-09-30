@@ -139,4 +139,4 @@ diagnostic traces) in the application data folder. See
 
 ## License
 
-Draggy is licensed under the [Draggy License 1.0](LICENSE). You can use, change and share it for any purpose, including at work. Selling Draggy or a modified version is not allowed, and copies must keep the "Based on Draggy" notice.
+Draggy is licensed under the [Apache License 2.0](LICENSE). You can use, change, share and sell it, including in commercial products, as long as you keep the [NOTICE](NOTICE) file that credits Draggy.
