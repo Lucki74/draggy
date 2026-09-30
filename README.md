@@ -139,4 +139,4 @@ diagnostic traces) in the application data folder. See
 
 ## License
 
-GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
+All rights reserved, temporarily, while the final license is decided. See [LICENSE](LICENSE).

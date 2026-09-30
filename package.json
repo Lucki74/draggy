@@ -2,7 +2,7 @@
   "name": "draggy",
   "author": "lucki74",
   "description": "A desktop AI assistant that talks, browses and works with your files all on local models.",
-  "license": "GPL-3.0-or-later",
+  "license": "UNLICENSED",
   "homepage": "https://draggy.org",
   "private": true,
   "version": "2.2.0-rc",
@@ -31,7 +31,7 @@
   "build": {
     "appId": "com.draggy.app",
     "productName": "Draggy",
-    "copyright": "Copyright (C) 2026 lucki74. GNU GPL v3.0 or later.",
+    "copyright": "Copyright (C) 2026 lucki74. All rights reserved.",
     "directories": {
       "output": "dist-electron"
     },
