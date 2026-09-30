@@ -1,0 +1,109 @@
+name: Bug report
+description: Something in draggy isn't working as expected.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        > [!NOTE]
+        > **macOS users:** macOS builds are unsigned and can't auto-update. To get the latest version, download it from [draggy.org](https://draggy.org) and reinstall manually before reporting.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+
+  - type: input
+    id: version
+    attributes:
+      label: draggy version
+      placeholder: "2.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: e.g. Windows 11 23H2, macOS 15.1, Ubuntu 24.04
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: Feature area
+      options:
+        - Chat
+        - Code projects
+        - Browser
+        - Document search
+        - Voice mode (beta)
+        - MCP extensions
+        - Command execution
+        - Model loading / GGUF
+        - Settings
+        - Updates
+        - Other
+
+  - type: input
+    id: model
+    attributes:
+      label: Model used
+      placeholder: e.g. Qwen2.5-7B-Instruct Q4_K_M
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: CPU / GPU / RAM
+      placeholder: e.g. Ryzen 7 5800X / RTX 3070 8 GB / 32 GB
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste any relevant log output here. To attach screenshots, drag them into the "What happened?" field above.
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues
+          required: true
+        - label: I'm on the latest version
+          required: true
