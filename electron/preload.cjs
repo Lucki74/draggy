@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchWeb: (query) => ipcRenderer.invoke("search-web", query),
   searchWebDetailed: (query) => ipcRenderer.invoke("search-web-detailed", query),
   setSearchConfig: (config) => ipcRenderer.invoke("set-search-config", config),
+  // Write-only, like a provider's key: the status says whether one is set and its last four.
+  setBraveKey: (key) => ipcRenderer.invoke("search:set-brave-key", key),
+  braveKeyStatus: () => ipcRenderer.invoke("search:brave-key-status"),
   readUrl: (url) => ipcRenderer.invoke("get-page-content", url),
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),
@@ -196,6 +199,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onProgress: (callback) => subscribe("gguf:progress", callback),
   },
 
+  onboarding: {
+    state: () => ipcRenderer.invoke("onboarding:state"),
+    start: () => ipcRenderer.invoke("onboarding:start"),
+    complete: (path) => ipcRenderer.invoke("onboarding:complete", path),
+    reset: () => ipcRenderer.invoke("onboarding:reset"),
+  },
+
+  // A key crosses once, into main's keystore: nothing here can read one back.
+  providers: {
+    catalog: () => ipcRenderer.invoke("providers:catalog"),
+    list: () => ipcRenderer.invoke("providers:list"),
+    add: (input) => ipcRenderer.invoke("providers:add", input),
+    update: (id, patch) => ipcRenderer.invoke("providers:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("providers:remove", id),
+    setKey: (id, apiKey) => ipcRenderer.invoke("providers:set-key", id, apiKey),
+    test: (id) => ipcRenderer.invoke("providers:test", id),
+    models: (id, options) => ipcRenderer.invoke("providers:models", id, options),
+    scan: () => ipcRenderer.invoke("providers:scan"),
+    accountSignIn: (id) => ipcRenderer.invoke("providers:account-sign-in", id),
+    accountCancel: (id) => ipcRenderer.invoke("providers:account-cancel", id),
+    accountSubmitCode: (id, code) => ipcRenderer.invoke("providers:account-submit-code", id, code),
+    accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
+    accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
+    onAccountProgress: (callback) => subscribe("providers:account-progress", callback),
+  },
+
   appInfo: () => ipcRenderer.invoke("app:version"),
   openLogs: () => ipcRenderer.invoke("logs:open"),
   readLogs: (target, bytes) => ipcRenderer.invoke("logs:tail", target, bytes),
@@ -204,7 +233,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   onDownloadProgress: (callback) => subscribe("download-progress", callback),
   onBootModel: (callback) => subscribe("boot-model", callback),
-  bootFinished: (model) => ipcRenderer.send("boot-finished", model),
+  onBootOpen: (callback) => subscribe("boot-open", callback),
+  // Only the one page the splash can hand over to; anything else is dropped here.
+  bootFinished: (model, open) => ipcRenderer.send("boot-finished", model, open === "providers" ? "providers" : undefined),
   quitApp: () => ipcRenderer.send("quit-app"),
   onBeforeQuit: (handler) => {
     beforeQuit.add(handler);

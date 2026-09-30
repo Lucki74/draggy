@@ -403,3 +403,47 @@ describe("recording a finished turn for the statistics page", () => {
     expect(recorded).toHaveLength(0);
   });
 });
+
+describe("a provider's state on the saved reply", () => {
+  const state = { instanceId: "anthropic", state: { signature: "s" } };
+
+  beforeEach(() => {
+    pending.length = 0;
+  });
+
+  it("is stored on the reply the turn wrote", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    manager.send("chat-1", "hello");
+    pending[0].resolve({ ...finished(), providerState: state });
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    expect(sessions.get("chat-1")?.messages.at(-1)?.provider_state).toEqual(state);
+  });
+
+  it("is not stored for a turn the user stopped", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    manager.send("chat-1", "hello");
+    // Exhausted is the one stopped finish whose reply is still written.
+    pending[0].resolve({ ...finished(), aborted: true, exhausted: true, providerState: state });
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    expect(sessions.get("chat-1")?.messages.at(-1)?.provider_state).toBeUndefined();
+  });
+
+  it("goes with the old reply into its version when regenerating", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "first answer", provider_state: state },
+      ],
+    });
+    manager.regenerate("chat-1");
+    const reply = sessions.get("chat-1")?.messages[1];
+    expect(reply?.versions?.[0]?.provider_state).toEqual(state);
+    expect(reply?.provider_state).toBeUndefined();
+  });
+});

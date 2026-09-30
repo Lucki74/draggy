@@ -253,6 +253,49 @@ describe("llamaProcess.startServer failures", () => {
     expect(args[args.indexOf("-ngl") + 1]).toBe("20");
   });
 
+  it("passes --fit-target when the engine supports it and no layer count is forced", async () => {
+    vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-fit-"));
+    fs.writeFileSync(
+      path.join(userData, "engine-flags.json"),
+      JSON.stringify({ key: "llama-server|0|0", flags: ["--fit-target", "--fit"] }),
+    );
+    vi.spyOn(fs, "statSync").mockReturnValue({ size: 0, mtimeMs: 0 });
+    const spawn = vi.spyOn(platform, "spawnHidden").mockImplementation(() => fakeChild());
+    const saved = platform.IS_WINDOWS;
+
+    try {
+      platform.IS_WINDOWS = true;
+      const launch = async (gpuLayers) => {
+        const before = spawn.mock.calls.length;
+        const pending = llamaProcess.startServer({
+          binaryPath: "llama-server",
+          modelPath: "m.gguf",
+          userDataDir: userData,
+          vramGB: 12,
+          gpuLayers,
+          port: await freePort(),
+          log: quiet,
+        });
+        await vi.waitFor(() => expect(spawn.mock.calls.length).toBe(before + 1));
+        const args = spawn.mock.calls.at(-1)[1];
+        llamaProcess.stopServerSync();
+        await pending;
+        return args;
+      };
+
+      const auto = await launch(undefined);
+      expect(auto).toContain("--fit-target");
+      expect(auto[auto.indexOf("--fit-target") + 1]).toBe("2662");
+
+      const forced = await launch(20);
+      expect(forced).not.toContain("--fit-target");
+    } finally {
+      platform.IS_WINDOWS = saved;
+      fs.rmSync(userData, { recursive: true, force: true });
+    }
+  });
+
   it("hands a vision model its projector, and only when it has one", async () => {
     vi.spyOn(platform, "killTreeSync").mockImplementation(() => {});
     const spawn = vi.spyOn(platform, "spawnHidden").mockImplementation(() => fakeChild());
@@ -407,6 +450,21 @@ describe("llamaProcess speed tuning", () => {
     vi.spyOn(fs, "statSync").mockReturnValue({ size: 16 * 1024 ** 3 });
     expect(llamaProcess.determineKvCache("moe.gguf", 32768, 8, { moe: true })).toEqual({ cacheType: "q8_0", effectiveContext: 32768 });
     expect(llamaProcess.determineKvCache("dense.gguf", 32768, 8).cacheType).toBe("q4_0");
+  });
+
+  it("reserves enough headroom on Windows so allocations stay off PCIe shared memory", () => {
+    const saved = platform.IS_WINDOWS;
+    try {
+      platform.IS_WINDOWS = true;
+      expect(llamaProcess.fitTargetMiB(12)).toBe(2662);
+      expect(llamaProcess.fitTargetMiB(8)).toBe(2048);
+      expect(llamaProcess.fitTargetMiB(0)).toBe(1024);
+      platform.IS_WINDOWS = false;
+      expect(llamaProcess.fitTargetMiB(12)).toBe(1229);
+      expect(llamaProcess.fitTargetMiB(8)).toBe(1024);
+    } finally {
+      platform.IS_WINDOWS = saved;
+    }
   });
 
   it.skipIf(process.platform === "win32")("turns on n-gram speculation only when the engine lists it", async () => {

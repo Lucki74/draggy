@@ -143,13 +143,13 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
         <>
           <div className="flex gap-2">
             <div className="relative flex-1 min-w-0">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+              <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
                 placeholder={t("skillsSearch")}
                 aria-label={t("skillsSearch")}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] text-sm font-medium outline-none focus:border-[var(--text-muted)]"
+                className="w-full ps-9 pe-3 py-2 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)] text-sm font-medium outline-none focus:border-[var(--text-muted)]"
               />
             </div>
 

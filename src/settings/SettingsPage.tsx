@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Block, Group, Page } from "./Controls";
 import { SETTINGS_GROUPS } from "./pages";
 import type { SettingsTab } from "./pages";
 import { useModelManager } from "./useModelManager";
 import ModelsPage from "./ModelsPage";
+import ProvidersPage from "./ProvidersPage";
 import { DataPage, ExtensionsPage, GeneralPage, UpdatesPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, ProjectsPage } from "./CodePages";
@@ -39,6 +40,8 @@ interface SettingsPageProps {
   onLibraryChange?: () => void;
   /** Which page is open, for the shell: an update notice is noise on the Updates page. */
   onTabChange?: (tab: SettingsTab) => void;
+  /** Downloads the first-run setup left unfinished, so they show among the rest. */
+  startDownloads?: string[];
 }
 
 /** Settings, in three groups: the app, Chat and Code. It stays mounted for the app's life, since a
@@ -58,7 +61,16 @@ export default function SettingsPage(props: SettingsPageProps) {
     setTab(request.tab);
   }
 
-  const { onLibraryChange, onTabChange } = props;
+  const { onLibraryChange, onTabChange, startDownloads } = props;
+  const takenOver = useRef(new Set<string>());
+  // A file already downloading is joined in the main process, not fetched a second time.
+  useEffect(() => {
+    for (const reference of startDownloads ?? []) {
+      if (takenOver.current.has(reference)) continue;
+      takenOver.current.add(reference);
+      void manager.startPull(reference);
+    }
+  }, [startDownloads, manager]);
   const libraryChanged = useCallback(() => onLibraryChange?.(), [onLibraryChange]);
 
   useEffect(() => {
@@ -72,7 +84,7 @@ export default function SettingsPage(props: SettingsPageProps) {
       <div className="flex-1 flex min-h-0">
         <nav
           aria-label={t("settings")}
-          className="w-56 flex-shrink-0 overflow-y-auto border-r-[3px] border-[var(--border-light)] px-3 pb-6"
+          className="w-56 flex-shrink-0 overflow-y-auto border-e-[3px] border-[var(--border-light)] px-3 pb-6"
         >
           <h1 className="px-3 pt-2 pb-3 text-lg font-bold uppercase tracking-wider text-[var(--text-main)]">
             {t("settings")}
@@ -89,7 +101,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                   type="button"
                   onClick={() => setTab(id)}
                   aria-current={tab === id ? "page" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-start transition-colors ${
                     tab === id
                       ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                       : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
@@ -117,6 +129,8 @@ export default function SettingsPage(props: SettingsPageProps) {
                 t={t}
               />
             )}
+
+            {tab === "providers" && <ProvidersPage engineModels={manager.installed.length} t={t} />}
 
             {tab === "web" && <WebSearchPage settings={settings} onUpdate={onUpdate} t={t} />}
 

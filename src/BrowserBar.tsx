@@ -169,11 +169,11 @@ export default function BrowserBar({ language }: { language: string }) {
         </IconButton>
 
         {menuOpen && (
-          <div className="absolute top-full right-0 mt-1.5 z-50 ui-box p-1 w-60">
+          <div className="absolute top-full end-0 mt-1.5 z-50 ui-box p-1 w-60">
             <button
               type="button"
               onClick={toggleAdblock}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--hover-bg)] transition-colors"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-start hover:bg-[var(--hover-bg)] transition-colors"
             >
               <Shield className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1 min-w-0 text-[11px] font-bold">

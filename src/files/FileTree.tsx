@@ -155,7 +155,7 @@ export default function FileTree({
                 }
                 title={entry.name}
                 aria-current={selected === entry.path}
-                className={`flex w-full items-center gap-1.5 py-1 pr-2 text-left text-xs transition-colors ${
+                className={`flex w-full items-center gap-1.5 py-1 pe-2 text-start text-xs transition-colors ${
                   selected === entry.path
                     ? "bg-[var(--hover-bg)] font-bold"
                     : "hover:bg-[var(--hover-bg)]"
@@ -191,7 +191,7 @@ export default function FileTree({
             onClick={() => setShowFolded((prev) => new Set(prev).add(folder))}
             // Folders like .git and node_modules: counted, not listed, until asked for.
             title={folded.map((entry) => entry.name).join(", ")}
-            className="flex w-full items-center gap-1.5 py-1 pr-2 text-left text-[11px] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
+            className="flex w-full items-center gap-1.5 py-1 pe-2 text-start text-[11px] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-main)]"
             style={{ paddingLeft: depth * 12 + 8 }}
           >
             <span className="w-3 flex-shrink-0" />
@@ -207,7 +207,7 @@ export default function FileTree({
     <div className="py-2">
       <button
         onClick={() => toggle(root)}
-        className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-xs font-bold"
+        className="flex w-full items-center gap-1.5 px-2 py-1 text-start text-xs font-bold"
       >
         {open.has(root) ? (
           <ChevronDown className="w-3 h-3 opacity-60" />

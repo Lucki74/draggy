@@ -17,15 +17,38 @@ const BY_TEXT: ReadonlyArray<{ pattern: RegExp; slug: string; key: string }> = [
   { pattern: /couldn't bind HTTP server socket|address already in use/i, slug: "port-in-use", key: "enginePortInUse" },
 ];
 
-/** What the main process names its own failures, so nothing has to parse its English. */
-const BY_KIND: Record<string, string> = {
-  "load-timeout": "load-timeout",
-  "stopped-loading": "engine-stopped-loading",
-  "parts-missing": "model-parts-missing",
-  "another-model": "another-model-started",
-  "engine-missing": "engine-would-not-start",
-  "port-in-use": "port-in-use",
+/** What the main process and the gateway name their failures, so nothing has to parse their English.
+ * A kind missing here is shown in its own words, with the unknown-error article. */
+const BY_KIND: Record<string, { slug: string; key: string }> = {
+  "load-timeout": { slug: "load-timeout", key: "engineLoadTimeout" },
+  "stopped-loading": { slug: "engine-stopped-loading", key: "engineStoppedLoading" },
+  "parts-missing": { slug: "model-parts-missing", key: "engineModelPartsMissing" },
+  "another-model": { slug: "another-model-started", key: "engineAnotherModelStarted" },
+  "engine-missing": { slug: "engine-would-not-start", key: "missingGgufEngine" },
+  "port-in-use": { slug: "port-in-use", key: "enginePortInUse" },
+  "provider-unreachable": { slug: "provider-unreachable", key: "providerUnreachable" },
+  "provider-invalid-key": { slug: "provider-invalid-key", key: "providerInvalidKey" },
+  "provider-no-credit": { slug: "provider-no-credit", key: "providerNoCredit" },
+  "provider-rate-limited": { slug: "provider-rate-limited", key: "providerRateLimited" },
+  "provider-model-not-found": { slug: "provider-model-not-found", key: "providerModelNotFound" },
+  "provider-context-too-long": { slug: "provider-context-too-long", key: "providerContextTooLong" },
+  "provider-refused": { slug: "provider-refused", key: "providerRefused" },
+  "provider-region-unavailable": { slug: "provider-region-unavailable", key: "providerRegionUnavailable" },
+  "provider-unknown-error": { slug: "provider-unknown-error", key: "providerUnknownError" },
+  "account-signed-out": { slug: "account-signed-out", key: "accountSignedOut" },
+  "account-limit-reached": { slug: "account-limit-reached", key: "accountLimitReached" },
+  "account-runtime-unavailable": { slug: "account-runtime-unavailable", key: "accountRuntimeUnavailable" },
 };
+
+/** A plan's reset in the reader's own clock; a day name only when it is not today. */
+function resetTime(language: string, resetsAt: string | undefined): string | null {
+  const seconds = Number(resetsAt);
+  if (!resetsAt || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const when = new Date(seconds * 1000);
+  const today = when.toDateString() === new Date().toDateString();
+  const format: Intl.DateTimeFormatOptions = today ? { hour: "numeric", minute: "2-digit" } : { weekday: "long", hour: "numeric", minute: "2-digit" };
+  return new Intl.DateTimeFormat(language, format).format(when);
+}
 
 export interface EngineResult {
   error?: string;
@@ -70,7 +93,8 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
   const params = result.params ?? {};
 
   if (result.kind && BY_KIND[result.kind]) {
-    const slug = BY_KIND[result.kind];
+    const { slug } = BY_KIND[result.kind];
+    let { key } = BY_KIND[result.kind];
 
     // A crash whose last words are a known cause is that cause, not the generic crash.
     if (result.kind === "stopped-loading") {
@@ -78,17 +102,12 @@ export function engineFailure(source: string | EngineResult | null | undefined, 
       if (cause) return withArticle(say(language, cause.key), cause.slug, language, options);
     }
 
-    const key = {
-      "load-timeout": "engineLoadTimeout",
-      "stopped-loading": "engineStoppedLoading",
-      "parts-missing": "engineModelPartsMissing",
-      "another-model": "engineAnotherModelStarted",
-      "engine-missing": "missingGgufEngine",
-      "port-in-use": "enginePortInUse",
-    }[result.kind] as string;
-
     const detail = params.reason ? `: ${params.reason}` : "";
-    return withArticle(say(language, key, { ...params, detail }), slug, language, options);
+    // A provider's failure names the provider, so "Claude (plan)" and "Anthropic (API key)" are never confused.
+    const provider = params.provider || say(language, "providerFallbackName");
+    const time = result.kind === "account-limit-reached" ? resetTime(language, params.resetsAt) : null;
+    if (time) key = "accountLimitReachedUntil";
+    return withArticle(say(language, key, { ...params, detail, provider, text, time: time ?? "" }), slug, language, options);
   }
 
   if (!text) return withArticle(say(language, "engineWouldNotStart"), "engine-would-not-start", language, options);

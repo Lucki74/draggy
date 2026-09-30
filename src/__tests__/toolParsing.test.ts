@@ -3,9 +3,11 @@ import {
   TOOL_MARKER_OVERLAP,
   TOOL_MARKER_RE,
   createToolParser,
+  extractFileStreamingArgs,
   extractThought,
   parseToolCall,
 } from "../toolParsing";
+
 import {
   LEAKED_SYNTAX_FIXTURES,
   NON_TOOL_FIXTURES,
@@ -193,3 +195,38 @@ describe("not destroying JSON the user actually wants to see", () => {
     });
   }
 });
+
+describe("extracting streaming file creation arguments", () => {
+  it("extracts filename and unescaped content from partial arguments", () => {
+    const raw = '{"filename": "test.txt", "content": "hello\\nworld';
+    const { filename, content } = extractFileStreamingArgs(raw);
+    expect(filename).toBe("test.txt");
+    expect(content).toBe("hello\nworld");
+  });
+
+  it("handles path parameter as alternative to filename", () => {
+    const raw = '{"path": "src/App.tsx", "content": "const x = 1;';
+    const { filename, content } = extractFileStreamingArgs(raw);
+    expect(filename).toBe("src/App.tsx");
+    expect(content).toBe("const x = 1;");
+  });
+
+  it("extracts filename before content starts streaming", () => {
+    const raw = '{"filename": "report.docx"';
+    const { filename, content } = extractFileStreamingArgs(raw);
+    expect(filename).toBe("report.docx");
+    expect(content).toBeUndefined();
+  });
+
+  it("unescapes quotes, slashes, and unicode entities in content", () => {
+    const raw = '{"filename": "data.json", "content": "{\\"title\\": \\"caf\\u00e9\\", \\"path\\": \\"C:\\\\test\\"}';
+    const { filename, content } = extractFileStreamingArgs(raw);
+    expect(filename).toBe("data.json");
+    expect(content).toBe('{"title": "café", "path": "C:\\test"}');
+  });
+
+
+
+});
+
+

@@ -1,5 +1,8 @@
 import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../llama";
+import type { EngineResult } from "./engineErrors";
+import { scopeToTarget } from "./providers";
+import type { DraggyRef, ProviderState } from "./providers";
 
 const IMAGE_SIGNATURES: [string, string][] = [
   ["/9j/", "image/jpeg"],
@@ -24,9 +27,11 @@ export function toLlamaMessages<
     images?: string[];
     content?: unknown;
     thinking?: string;
+    provider_state?: ProviderState;
+    draggy_ref?: DraggyRef;
   },
->(messages: M[]): M[] {
-  return messages.map((message) => {
+>(messages: M[], model = ""): M[] {
+  return scopeToTarget(messages, model).map((message) => {
     // llama-server rejects an assistant turn with neither content nor calls; a space is enough.
     const bare = message.role === "assistant" && !message.tool_calls && !String(message.content ?? "").trim();
     if (!message.tool_calls && !message.images && !message.thinking && !bare) return message;
@@ -59,6 +64,45 @@ export function ggufErrorMessage(body: string, fallback: string): string {
   return message || body || fallback;
 }
 
+/** The gateway's retry notice. Only a provider's stream carries these; llama-server sends none. */
+export interface GatewayRetry {
+  attempt: number;
+  of: number;
+  retryAfterMs: number;
+}
+
+/** A failure as the gateway names it. `kind` is absent on an error llama-server wrote itself. */
+export interface GatewayError {
+  kind?: string;
+  status?: number;
+  message?: string;
+  retryAfter?: number;
+  resetsAt?: string | number;
+  providerMessage?: string;
+  /** The instance's label, which the message names. */
+  provider?: string;
+}
+
+/** A gateway error, as `engineFailure` reads it: the provider's own words stay for the unknown ones. */
+export function failureOf(error: GatewayError): EngineResult {
+  const params: Record<string, string> = {};
+  for (const name of ["status", "retryAfter", "resetsAt", "provider"] as const) {
+    if (error[name] !== undefined) params[name] = String(error[name]);
+  }
+  return { error: error.providerMessage || error.message || "", kind: error.kind, params };
+}
+
+/** A failed response's body, for `engineFailure`. Without a kind it is llama-server's, read as it always was. */
+export function readFailure(body: string, fallback: string): EngineResult {
+  const error = safeJsonParse<{ error?: string | GatewayError }>(body)?.error;
+  if (error && typeof error === "object" && error.kind) return failureOf(error);
+  return { error: ggufErrorMessage(body, fallback) };
+}
+
+function gatewayError(error: string | GatewayError | undefined): GatewayError | undefined {
+  return typeof error === "string" ? { message: error } : error;
+}
+
 export interface PartialToolCall {
   id: string;
   name: string;
@@ -86,6 +130,9 @@ export interface StreamChunk {
   toolCalls?: ParsedToolCall[];
   metrics?: GenerationMetrics;
   done?: boolean;
+  retry?: GatewayRetry;
+  error?: GatewayError;
+  providerState?: ProviderState;
 }
 
 export interface AdaptedLlamaChunk {
@@ -93,7 +140,9 @@ export interface AdaptedLlamaChunk {
     content?: string;
     thinking?: string;
     tool_calls?: { id?: string; function: { name: string; arguments: Record<string, unknown> } }[];
+    streaming_tool_calls?: { id?: string; name: string; argsString: string }[];
   };
+
   done?: boolean;
   done_reason?: string;
   prompt_eval_count?: number;
@@ -101,6 +150,9 @@ export interface AdaptedLlamaChunk {
   prompt_eval_duration?: number;
   eval_duration?: number;
   total_duration?: number;
+  retry?: GatewayRetry;
+  error?: GatewayError;
+  provider_state?: ProviderState;
 }
 
 /** Accumulates fragmented streaming arguments into a per-index tool call map. */
@@ -176,7 +228,13 @@ export interface SseRawPayload {
     predicted_ms?: number;
     predicted_per_second?: number;
   };
+  draggy_retry?: GatewayRetry;
+  error?: string | GatewayError;
+  provider_state?: ProviderState;
 }
+
+const isGatewayEvent = (payload: SseRawPayload) =>
+  Boolean(payload.draggy_retry || payload.error || payload.provider_state);
 
 /** Maps llama-server timings and usage payloads into Draggy's standard metrics shape. */
 export function readLlamaMetrics(
@@ -249,6 +307,12 @@ export async function readLlamaSseStream(
 
       const payload = safeJsonParse<SseRawPayload>(dataStr);
       if (!payload) continue;
+
+      if (isGatewayEvent(payload)) {
+        const event = { retry: payload.draggy_retry, error: gatewayError(payload.error), providerState: payload.provider_state };
+        if (onChunk(event) === false) return;
+        continue;
+      }
 
       const choice = payload.choices?.[0];
       const delta = choice?.delta;
@@ -343,6 +407,10 @@ export async function* sseToLlamaChunks(
 
       const payload = safeJsonParse<SseRawPayload>(data);
       if (!payload) continue;
+      if (isGatewayEvent(payload)) {
+        yield { retry: payload.draggy_retry, error: gatewayError(payload.error), provider_state: payload.provider_state };
+        continue;
+      }
       if (payload.usage) lastUsage = payload.usage;
       if (payload.timings) lastTimings = payload.timings;
 
@@ -358,6 +426,10 @@ export async function* sseToLlamaChunks(
 
       if (choice?.finish_reason) yieldedDone = true;
 
+      const partialCalls = pendingTools.size > 0
+        ? Array.from(pendingTools.values()).map((t) => ({ id: t.id || undefined, name: t.name, argsString: t.argsString }))
+        : undefined;
+
       yield {
         message: {
           content: delta?.content || "",
@@ -365,7 +437,9 @@ export async function* sseToLlamaChunks(
           tool_calls: readyTools.length > 0
             ? readyTools.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } }))
             : undefined,
+          streaming_tool_calls: partialCalls,
         },
+
         done: Boolean(choice?.finish_reason),
         done_reason: choice?.finish_reason || undefined,
         prompt_eval_count: payload.usage?.prompt_tokens ?? payload.timings?.prompt_n,

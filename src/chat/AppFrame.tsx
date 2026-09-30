@@ -94,13 +94,13 @@ export default function AppFrame({ serverId, html, t, onCall }: AppFrameProps) {
   }, [serverId, call]);
 
   return (
-    <div className="mt-2 ml-7 overflow-hidden rounded-xl border-[3px] border-[var(--border-light)]">
+    <div className="mt-2 ms-7 overflow-hidden rounded-xl border-[3px] border-[var(--border-light)]">
       <div className="flex items-center gap-2 bg-[var(--bg-panel)] px-3 py-1.5">
         <Blocks className="h-3.5 w-3.5 text-[var(--text-muted)]" />
         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {serverId}
         </span>
-        <span className="ml-auto text-[10px] text-[var(--text-muted)]">
+        <span className="ms-auto text-[10px] text-[var(--text-muted)]">
           {t("widgetSandboxed")}
         </span>
       </div>

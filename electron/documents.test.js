@@ -265,4 +265,59 @@ describe("routing by extension", () => {
     const pptxText = documents.readPptx(fs.readFileSync(out("html.pptx")));
     expect(pptxText).toContain("Slide");
   });
+
+  it("recovers content after an unclosed list without dropping following sections", async () => {
+    const unclosedHtml = [
+      "<h1>Report</h1>",
+      "<ul>",
+      "<li>Item 1</li>",
+      "<li>Item 2</li>",
+      "<h2>Next Section</h2>",
+      "<p>Important paragraph</p>",
+      "<table><tr><th>Col</th></tr><tr><td>Val</td></tr></table>",
+    ].join("\n");
+    await documents.writeGeneratedFile(out("unclosed.docx"), unclosedHtml);
+    const text = documents.readDocx(fs.readFileSync(out("unclosed.docx")));
+    expect(text).toContain("Item 1");
+    expect(text).toContain("Next Section");
+    expect(text).toContain("Important paragraph");
+    expect(text).toContain("Val");
+  });
+
+  it("applies styles from style blocks in HTML to docx headings and runs", async () => {
+    const styledHtml = [
+      "<html><head><style>",
+      "h1 { color: #2c5282; }",
+      ".danger { color: #e53e3e; }",
+      "</style></head><body>",
+      "<h1>Blue Title</h1>",
+      "<p class=\"danger\">Warning text</p>",
+      "</body></html>",
+    ].join("\n");
+    await documents.writeGeneratedFile(out("styled.docx"), styledHtml);
+    const buf = fs.readFileSync(out("styled.docx"));
+    const entries = documents.findZipEntries(buf);
+    const xml = documents.readZipEntry(buf, entries.get("word/document.xml")).toString("utf8");
+    expect(xml).toContain('w:val="2C5282"');
+    expect(xml).toContain('w:val="E53E3E"');
+  });
+
+  it("assigns Segoe UI Emoji font to emoji runs for Word color rendering", async () => {
+    const emojiHtml = "<p>⚠️ HIGH RISK 🌊</p>";
+    await documents.writeGeneratedFile(out("emoji.docx"), emojiHtml);
+    const buf = fs.readFileSync(out("emoji.docx"));
+    const entries = documents.findZipEntries(buf);
+    const xml = documents.readZipEntry(buf, entries.get("word/document.xml")).toString("utf8");
+    expect(xml).toContain('w:ascii="Segoe UI Emoji"');
+    expect(xml).toContain("⚠️");
+  });
+
+  it("defaults unstyled headings to black instead of Office theme blue", async () => {
+    await documents.writeGeneratedFile(out("plain.docx"), "<h1>Plain Title</h1>");
+    const buf = fs.readFileSync(out("plain.docx"));
+    const entries = documents.findZipEntries(buf);
+    const stylesXml = documents.readZipEntry(buf, entries.get("word/styles.xml")).toString("utf8");
+    expect(stylesXml).not.toContain('w:val="0F4761"');
+  });
 });
+

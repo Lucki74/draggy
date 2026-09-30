@@ -2,6 +2,7 @@ import {
   AudioLines,
   BarChart3,
   Blocks,
+  Cloud,
   CodeXml,
   Cpu,
   Database,
@@ -20,6 +21,7 @@ import {
 export type SettingsTab =
   | "general"
   | "models"
+  | "providers"
   | "web"
   | "usage"
   | "data"
@@ -51,6 +53,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     pages: [
       { id: "general", label: "settingsGeneral", icon: Palette },
       { id: "models", label: "models", icon: Cpu },
+      { id: "providers", label: "providers", icon: Cloud },
       { id: "web", label: "webSearchPage", icon: Globe },
       { id: "usage", label: "statistics", icon: BarChart3 },
       { id: "data", label: "data", icon: Database },
@@ -83,6 +86,13 @@ type Translate = (key: string) => string;
 /** The thinking choices, shared by Chat's and Code's preferences. */
 export const thinkingOptions = (t: Translate) =>
   (["low", "medium", "high"] as const).map((id) => ({ id, label: t(id) }));
+
+/** The web search providers, for the Web search page and the setup's Preferences step alike. */
+export const searchProviderOptions = (t: Translate) =>
+  (["auto", "brave-html", "duckduckgo", "startpage", "brave", "searxng"] as const).map((id) => ({
+    id,
+    label: t(`provider_${id.replace(/-/g, "_")}`),
+  }));
 
 export const webOptions = (t: Translate) => [
   { id: "auto" as const, label: t("webAuto") },

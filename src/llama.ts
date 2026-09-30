@@ -1,5 +1,7 @@
 import type { ContextBreakdown } from "./agent/contextBreakdown";
+import { isRemote, parseRef, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
+import type { PromptProfile } from "./prompts";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
  * setting; kept only so callers built around the idea need no changes. */
@@ -14,6 +16,10 @@ export interface ModelInfo {
   capabilities: string[];
   parameterCount: number | null;
   quantization: string | null;
+  /** A provider's model only; the built-in engine always gets the compact prompt. */
+  promptProfile?: PromptProfile;
+  /** A provider's model that runs on someone else's servers, and is billed or counted there. */
+  cloud?: boolean;
 }
 
 export interface GenerationMetrics {
@@ -54,8 +60,11 @@ function bareModelName(model: string): string {
   return model.toLowerCase().startsWith("gguf:") ? model.slice(5) : model;
 }
 
-/** A model's name as shown to people: a split model's part counter says nothing to whoever picks it. */
+/** A model's name as shown to people: a split model's part counter says nothing to whoever picks it,
+ * nor a provider's `@instance/` prefix, which the pill's icon and title name instead. */
 export function displayModelName(model: string): string {
+  const ref = parseRef(model);
+  if (ref.kind === "remote") return ref.modelId || model;
   return model.replace(/-\d{5}-of-\d{5}(?=\.gguf$)/i, "");
 }
 
@@ -133,6 +142,17 @@ export async function recalledCapabilities(model: string): Promise<string[]> {
 export function getModelInfo(model: string): Promise<ModelInfo | null> {
   const cached = modelInfoCache.get(model);
   if (cached) return cached;
+  // A provider's model is described by its provider's listing, which main keeps for a day.
+  if (isRemote(model)) {
+    const remote = remoteModelInfo(model).then((found) => {
+      if (!found) modelInfoCache.delete(model);
+      return found
+        ? { contextLength: found.contextLength, capabilities: found.capabilities, parameterCount: null, quantization: null, promptProfile: found.promptProfile, cloud: found.cloud }
+        : null;
+    });
+    modelInfoCache.set(model, remote);
+    return remote;
+  }
 
   const pending = fetchModelInfo(model).then(async (value) => {
     if (value === null) {
@@ -158,6 +178,12 @@ const modelInfoListeners = new Set<() => void>();
 export function onModelInfoChange(listener: () => void): () => void {
   modelInfoListeners.add(listener);
   return () => modelInfoListeners.delete(listener);
+}
+
+/** A provider was set up, changed or removed: what its models can do is asked again, by every screen. */
+export function forgetRemoteModelInfo() {
+  for (const model of [...modelInfoCache.keys()]) if (isRemote(model)) modelInfoCache.delete(model);
+  for (const listener of modelInfoListeners) listener();
 }
 
 /** Whether an image projector's refusal at start-up should take vision off this model. The listing
@@ -203,8 +229,9 @@ export function pickContextSize(
   for (const bucket of CONTEXT_BUCKETS) {
     if (bucket >= needed) return Math.min(bucket, cap);
   }
-  return cap;
+  return Math.min(cap, CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1]);
 }
+
 
 /** The window each model is loaded at. Changing context size restarts the server,
  * so it is kept once per model and only resets when fixed settings change. */
@@ -224,6 +251,8 @@ export function contextSizeFor(
   maxContext: number | null,
   fixedContext?: number | "max" | null,
 ): number {
+  // A provider holds the whole window already: no buckets to grow through, and nothing to reload.
+  if (isRemote(model)) return maxContext ?? FALLBACK_CONTEXT_LENGTH;
   syncFixedContext(fixedContext);
   if (fixedContext === "max") {
     const size = maxContext ?? FALLBACK_CONTEXT_LENGTH;
@@ -250,7 +279,7 @@ export function peekContextSize(
   maxContext: number | null,
   fixedContext?: number | "max" | null,
 ): number {
-  if (fixedContext === "max") {
+  if (isRemote(model) || fixedContext === "max") {
     return maxContext ?? FALLBACK_CONTEXT_LENGTH;
   }
   if (typeof fixedContext === "number") {
@@ -264,7 +293,10 @@ export function peekContextSize(
 let generating = 0;
 const workListeners = new Set<() => void>();
 
-export function beginLlamaWork(): () => void {
+/** `model` leaves a provider's turn out of the count: it never touches the engine, so it neither
+ * waits for local work nor holds it up. */
+export function beginLlamaWork(model?: string): () => void {
+  if (model && isRemote(model)) return () => {};
   generating++;
   for (const listener of workListeners) listener();
   let ended = false;
@@ -289,25 +321,25 @@ export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
 }
 
-export function isCloudModel(name: string): boolean {
-  const tag = name.toLowerCase().split(":").pop() || "";
-  return tag === "cloud" || tag.endsWith("-cloud");
+type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["electronAPI"]>["gguf"]>["listModels"]>>;
+
+/** The engine's listing in the shape the rest of the app reads; empty for anything but a list. */
+export function describeInstalled(models: GgufListing | null | undefined): InstalledModel[] {
+  if (!Array.isArray(models)) return [];
+  return models.map((m) => ({
+    name: m.filename,
+    size: m.size,
+    parameterSize: m.blockCount ? `${m.blockCount}L` : "",
+    family: m.architecture || "gguf",
+    capabilities: m.capabilities ?? ["tools", "completion"],
+  }));
 }
 
 export async function listInstalledModels(): Promise<InstalledModel[]> {
   if (typeof window === "undefined") return [];
 
   try {
-    const models = await window.electronAPI?.gguf?.listModels();
-    if (!Array.isArray(models)) return [];
-
-    return models.map((m) => ({
-      name: m.filename,
-      size: m.size,
-      parameterSize: m.blockCount ? `${m.blockCount}L` : "",
-      family: m.architecture || "gguf",
-      capabilities: m.capabilities ?? ["tools", "completion"],
-    }));
+    return describeInstalled(await window.electronAPI?.gguf?.listModels());
   } catch {
     return [];
   }
@@ -328,15 +360,17 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
 }
 
 export async function gpuShareFor(model: string): Promise<number | null> {
+  if (isRemote(model)) return null;
   const loaded = await describeLoadedModels();
   const target = bareModelName(model);
   const match = loaded.find((entry) => entry.name === target || entry.name === model);
   return match ? match.gpuPercent : null;
 }
 
-/** Stops the GGUF engine, which unloads whatever model it was holding. */
-export async function unloadModel(_model: string): Promise<void> {
-  if (typeof window === "undefined") return;
+/** Stops the GGUF engine, which unloads whatever model it was holding. A provider's model is not in
+ * it, and stopping the engine for one would take the local model away instead. */
+export async function unloadModel(model: string): Promise<void> {
+  if (typeof window === "undefined" || isRemote(model)) return;
   await window.electronAPI?.gguf?.stop();
 }
 
@@ -345,6 +379,8 @@ export async function isLoadedAt(
   model: string,
   contextSize: number,
 ): Promise<boolean | null> {
+  // Nothing loads locally for a provider's model, so no loading step is shown for one.
+  if (isRemote(model)) return true;
   if (typeof window === "undefined") return null;
 
   try {
@@ -428,7 +464,7 @@ export async function warmModel(
   charEstimate = 0,
   fixedContext?: number | "max" | null,
 ): Promise<void> {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || isRemote(name)) return;
 
   const info = await getModelInfo(name);
   const numCtx = contextSizeFor(

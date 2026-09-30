@@ -218,7 +218,7 @@ export default function Canvas({
   const bottomSpacerHeight = Math.max(0, (lines - visibleRange.endLine) * LINE_HEIGHT);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-[var(--bg-base)]">
+    <div dir="ltr" className="flex h-full min-w-0 flex-col bg-[var(--bg-base)]">
       <div
         className="flex items-center gap-2 border-b-[3px] px-3 py-2"
         style={{ borderColor: "var(--border-light)" }}

@@ -75,7 +75,7 @@ export default function PermissionPicker({
         <div
           role="menu"
           aria-label={t("permissionMode")}
-          className="absolute bottom-[42px] left-0 w-72 ui-box p-2 z-50 flex flex-col gap-1"
+          className="absolute bottom-[42px] start-0 w-72 ui-box p-2 z-50 flex flex-col gap-1"
         >
           {PERMISSION_MODES.map((option) => {
             const selected = option.id === mode;
@@ -93,7 +93,7 @@ export default function PermissionPicker({
                   onPick(option.id);
                   onOpenChange(false);
                 }}
-                className={`flex items-start gap-2 px-2.5 py-2 rounded-lg text-left transition-colors ${
+                className={`flex items-start gap-2 px-2.5 py-2 rounded-lg text-start transition-colors ${
                   disabled
                     ? "opacity-40 cursor-not-allowed"
                     : selected

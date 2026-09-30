@@ -192,7 +192,7 @@ describe("shutdown covers every module that starts a process", () => {
     // The agent's hidden browser kept a windowless Draggy and its engine running after a close.
     const close = main.slice(main.indexOf("function closeBrowserWindows()"));
     expect(close.slice(0, close.indexOf("\n}"))).toContain("browserSession.destroy()");
-    const created = main.slice(main.indexOf("function createWindow()"));
+    const created = main.slice(main.indexOf("function createWindow("));
     expect(created.slice(0, created.indexOf("\n}"))).toMatch(/mainWindow\.on\("closed", \(\) => \{\s+if \(process\.platform !== "darwin"\) app\.quit\(\);/);
   });
 

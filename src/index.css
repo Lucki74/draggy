@@ -349,3 +349,11 @@ body.browser-bar {
     content-visibility: auto;
     contain-intrinsic-size: auto 24px;
 }
+
+/* Code reads left to right in every language, inside an Arabic sentence too. */
+pre,
+code,
+kbd {
+    direction: ltr;
+    unicode-bidi: isolate;
+}

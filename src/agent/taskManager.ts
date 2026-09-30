@@ -1,4 +1,6 @@
-import { FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, isCloudModel, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+
+import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
 import {
   CHARS_PER_TOKEN,
@@ -197,18 +199,22 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Characters the conversation may occupy before an automatic fold. The user's limit when there
-   * is one, otherwise a share of how far the window can grow. */
+   * is one, else a share of how far the window can grow, capped for a paid provider. */
   async function budgetFor(model: string, numCtx: number): Promise<number> {
     const settings = host.getSettings();
     const limit = settings.compactLimit ?? null;
     const info = await getModelInfo(model).catch(() => null);
+    const maxLocal = CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1];
     const windowTokens = settings.fixedContextSize === "max"
       ? (info?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
       : typeof settings.fixedContextSize === "number"
       ? settings.fixedContextSize
-      : windowCeiling(info?.contextLength ?? null, numCtx);
+      : isRemote(model)
+      ? windowCeiling(info?.contextLength ?? null, numCtx)
+      : Math.min(maxLocal, windowCeiling(info?.contextLength ?? null, numCtx));
 
-    return compactThreshold(windowTokens, limit).tokens * CHARS_PER_TOKEN;
+    return compactThreshold(windowTokens, limit, info?.cloud === true).tokens * CHARS_PER_TOKEN;
+
   }
 
   /** Folds older conversation into notes, in the idle gap after a turn or now when `manual`. A
@@ -218,7 +224,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (inFlight) return inFlight.done;
 
     const model = host.getModel();
-    if (!model || isCloudModel(model)) return Promise.resolve("nothing");
+    if (!model) return Promise.resolve("nothing");
 
     const session = host.getSession(chatId);
     if (!session) return Promise.resolve("nothing");
@@ -315,6 +321,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             thoughtTime: lastMsg.thoughtTime,
             steps: lastMsg.steps,
             metrics: lastMsg.metrics,
+            provider_state: lastMsg.provider_state,
           };
           lastMsg.versions = [...(lastMsg.versions || []), oldVersion];
           lastMsg.currentVersionIndex = lastMsg.versions.length;
@@ -324,6 +331,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           lastMsg.thoughtTime = undefined;
           lastMsg.steps = [];
           lastMsg.metrics = null;
+          delete lastMsg.provider_state;
           msgs[lastIdx] = lastMsg;
         }
       } else {
@@ -486,7 +494,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       if (result.exhausted || !result.aborted) {
         host.patchActiveMessage(
           chatId,
-          { steps: result.steps, textContent: result.textContent },
+          {
+            steps: result.steps,
+            textContent: result.textContent,
+            ...(result.providerState && !result.aborted ? { provider_state: result.providerState } : {}),
+          },
           { updatedAt: Date.now(), isOutOfContext: result.outOfContext },
         );
       }

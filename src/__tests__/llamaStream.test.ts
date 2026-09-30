@@ -4,6 +4,7 @@ import {
   finalizeToolCalls,
   drainToolCalls,
   ggufErrorMessage,
+  readFailure,
   toLlamaMessages,
   readLlamaMetrics,
   readLlamaSseStream,
@@ -285,5 +286,71 @@ describe("toLlamaMessages with images", () => {
   it("drops an empty images list rather than sending it", () => {
     const [message] = toLlamaMessages([{ role: "user", content: "hi", images: [] }]);
     expect(message).toEqual({ role: "user", content: "hi" });
+  });
+});
+
+describe("the gateway's own events", () => {
+  const events = [
+    'data: {"draggy_retry":{"attempt":1,"of":2,"retryAfterMs":4000}}\n\n',
+    'data: {"choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n',
+    'data: {"provider_state":{"instanceId":"anthropic","state":{"signature":"s1"}}}\n\n',
+    'data: {"error":{"kind":"provider-rate-limited","status":429,"message":"Rate limited","retryAfter":30}}\n\n',
+    "data: [DONE]\n\n",
+  ];
+
+  function readerOf(chunks: string[]): ReadableStreamDefaultReader<Uint8Array> {
+    const encoder = new TextEncoder();
+    let index = 0;
+    return {
+      read: async () =>
+        index >= chunks.length
+          ? { done: true, value: undefined }
+          : { done: false, value: encoder.encode(chunks[index++]) },
+      releaseLock: () => {},
+      cancel: async () => {},
+      closed: Promise.resolve(undefined),
+    } as ReadableStreamDefaultReader<Uint8Array>;
+  }
+
+  it("reach readLlamaSseStream's caller in order, beside the text", async () => {
+    const seen: StreamChunk[] = [];
+    await readLlamaSseStream(readerOf(events), "m", 8192, (chunk) => void seen.push(chunk));
+
+    expect(seen[0].retry).toEqual({ attempt: 1, of: 2, retryAfterMs: 4000 });
+    expect(seen[1].content).toBe("Hi");
+    expect(seen[2].providerState).toEqual({ instanceId: "anthropic", state: { signature: "s1" } });
+    expect(seen[3].error).toEqual({ kind: "provider-rate-limited", status: 429, message: "Rate limited", retryAfter: 30 });
+    expect(seen.at(-1)?.done).toBe(true);
+  });
+
+  it("reach sseToLlamaChunks's caller in order, beside the text", async () => {
+    const seen = [];
+    for await (const chunk of sseToLlamaChunks(readerOf(events))) seen.push(chunk);
+
+    expect(seen[0].retry).toEqual({ attempt: 1, of: 2, retryAfterMs: 4000 });
+    expect(seen[0].message).toBeUndefined();
+    expect(seen[1].message?.content).toBe("Hi");
+    expect(seen[2].provider_state).toEqual({ instanceId: "anthropic", state: { signature: "s1" } });
+    expect(seen[3].error?.kind).toBe("provider-rate-limited");
+    expect(seen.at(-1)?.done).toBe(true);
+  });
+});
+
+describe("readFailure", () => {
+  it("reads a provider's failure by its kind, keeping the provider's own words", () => {
+    const body = JSON.stringify({
+      error: { kind: "provider-rate-limited", status: 429, message: "Rate limited", providerMessage: "Slow down", resetsAt: "12:00" },
+    });
+    expect(readFailure(body, "Too Many Requests")).toEqual({
+      error: "Slow down",
+      kind: "provider-rate-limited",
+      params: { status: "429", resetsAt: "12:00" },
+    });
+  });
+
+  it("reads llama-server's own errors exactly as before, with no kind", () => {
+    const body = JSON.stringify({ error: { code: 500, message: "Failed to parse tool call arguments", type: "server_error" } });
+    expect(readFailure(body, "Internal Server Error")).toEqual({ error: "Failed to parse tool call arguments" });
+    expect(readFailure("", "Bad Gateway")).toEqual({ error: "Bad Gateway" });
   });
 });

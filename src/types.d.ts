@@ -1,3 +1,5 @@
+import type { ProviderState } from "./ai/providers";
+
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
 
@@ -6,6 +8,8 @@ export interface SystemSpecs {
   ram: number;
   vram: number;
   unifiedMemory?: boolean;
+  /** The graphics card's name, when Electron's GPU report gives one. */
+  gpu?: string | null;
   platform?: string;
   arch?: string;
 }
@@ -313,6 +317,8 @@ export interface SearchStep {
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
+  /** On a "loading" step: a provider's retry, counted down to when the next attempt goes out. */
+  retry?: { attempt: number; of: number; until: number };
 }
 
 /** How far an approval goes: this call only, the rest of this task, or every time in this
@@ -439,6 +445,8 @@ export interface MessageVersion {
   thoughtTime?: number;
   steps?: SearchStep[];
   metrics?: TurnMetrics | null;
+  /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
+  provider_state?: ProviderState;
 }
 
 export interface Message {
@@ -454,6 +462,7 @@ export interface Message {
   currentVersionIndex?: number;
   metrics?: TurnMetrics | null;
   fold?: FoldMarker;
+  provider_state?: ProviderState;
 }
 
 /** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what
@@ -633,8 +642,118 @@ export type SearchProvider =
   | "brave"
   | "brave-html";
 
+/** How the first-run setup ended. "adopted" is an existing install that never saw it. */
+export type OnboardingPath = "local" | "provider" | "both" | "skipped";
+
+export interface OnboardingRecord {
+  version: number;
+  status: "in-progress" | "done";
+  path?: OnboardingPath | "adopted";
+  startedAt?: string;
+  completedAt?: string;
+}
+
+/** A provider's failure by kind, as main names it; `providerMessage` is the provider's own words. */
+export interface ProviderFailure {
+  kind: string;
+  status?: number;
+  message?: string;
+  providerMessage?: string;
+  retryAfter?: number;
+}
+
+export type ProviderCapability = "tools" | "vision" | "thinking";
+
+/** One provider the user set up, as main shows it: whether a key is stored, never the key. */
+export interface ProviderInstance {
+  id: string;
+  type: string;
+  label: string;
+  name: string;
+  kind: "cloud" | "local" | "account";
+  protocol: string;
+  baseUrl: string;
+  enabled: boolean;
+  pinnedModels: string[];
+  promptProfile: "auto" | "compact" | "full";
+  modelOverrides: Record<string, Partial<Record<ProviderCapability, boolean>>>;
+  headers?: Record<string, string>;
+  hasKey: boolean;
+  keyHint: string;
+  needsKey: boolean;
+  /** Curated models providers.json added after the user last chose theirs. */
+  newModels: string[];
+}
+
+export interface ProviderCatalogEntry {
+  id: string;
+  name: string;
+  kind: "cloud" | "local" | "account";
+  protocol: string;
+  /** Set on a plan and its API-key twin alike, so adding the vendor asks which way. */
+  vendor: "openai" | "anthropic" | "google" | null;
+  keyUrl: string | null;
+  needsKey: boolean;
+  /** False when it needs a key and this system has no keystore to keep one in. */
+  available: boolean;
+  baseUrl: string | null;
+  editableBaseUrl: boolean;
+  remote: boolean;
+  /** Bytes an account's first sign-in fetches, while its runtime is not on disk yet. */
+  download?: number | null;
+}
+
+export interface ProviderModel {
+  id: string;
+  /** `@instance/model`, the name every model request carries. */
+  ref: string;
+  /** The provider's own name for it, where it gives one ("Opus 5.5" for `opus`). */
+  name?: string | null;
+  contextLength: number | null;
+  maxOutputTokens: number | null;
+  capabilities: string[];
+  /** Whether what it reads leaves this computer. */
+  cloud: boolean;
+  pinned: boolean;
+  override: Partial<Record<ProviderCapability, boolean>> | null;
+}
+
+export interface DiscoveredServer {
+  type: string;
+  name: string;
+  port: number;
+  baseUrl: string;
+  /** Named after the port's usual server, since it answered only a model listing. */
+  guessed: boolean;
+}
+
+/** A plan's usage window as the vendor reports it; `window` in minutes, `resetsAt` in epoch seconds. */
+export interface AccountLimit {
+  window: number | null;
+  usedPercent: number;
+  resetsAt: number | null;
+}
+
+export interface AccountStatus {
+  signedIn: boolean;
+  email?: string;
+  plan?: string;
+  limits?: AccountLimit[];
+  cancelled?: boolean;
+  error?: string | null;
+}
+
+export type AccountProgress =
+  | { id: string; step: "installing"; percent: number }
+  | { id: string; step: "browser"; url: string }
+  | { id: string; step: "code"; url: string }
+  | { id: string; step: "done" };
+
+type ProviderResult<T> = ({ success: true } & T) | { success: false; error: ProviderFailure };
+
 export interface AppSettings {
-  theme: "light" | "dark";
+  /** "system" follows the operating system, and is what a new install starts on. */
+  theme: "light" | "dark" | "system";
   fontSize: "sm" | "base" | "lg";
   language: string;
   modelName: string;
@@ -652,7 +771,6 @@ export interface AppSettings {
   voiceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
-  braveApiKey: string;
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
@@ -697,8 +815,10 @@ declare global {
       setSearchConfig: (config: {
         searchProvider: string;
         searxngUrl: string;
-        braveApiKey: string;
       }) => Promise<{ success: boolean }>;
+      /** Write-only; an empty key removes it. `kept` is false when no keystore holds it past this run. */
+      setBraveKey: (key: string) => Promise<{ success: boolean; kept: boolean }>;
+      braveKeyStatus: () => Promise<{ hasKey: boolean; keyHint: string; keystore: boolean }>;
       readUrl: (url: string) => Promise<{
         title: string;
         text: string;
@@ -1069,6 +1189,38 @@ declare global {
         release: (token: string) => Promise<{ success: boolean }>;
       };
 
+      onboarding: {
+        /** The plan main settled on at boot, and the record as stored now. */
+        state: () => Promise<{ plan: "show" | "done"; record: OnboardingRecord | null }>;
+        start: () => Promise<{ success: boolean; record: OnboardingRecord | null }>;
+        complete: (path: OnboardingPath) => Promise<{ success: boolean; record?: OnboardingRecord; error?: string }>;
+        /** Marks the setup as not done and relaunches into it. */
+        reset: () => Promise<{ success: boolean }>;
+      };
+
+      providers: {
+        catalog: () => Promise<ProviderCatalogEntry[]>;
+        list: () => Promise<ProviderInstance[]>;
+        add: (input: { type: string; label?: string; baseUrl?: string; headers?: Record<string, string> }) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        update: (id: string, patch: Partial<Pick<ProviderInstance, "label" | "baseUrl" | "headers" | "enabled" | "pinnedModels" | "promptProfile" | "modelOverrides">>) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        remove: (id: string) => Promise<ProviderResult<object>>;
+        /** Write-only: an empty key removes it and switches the provider off. */
+        setKey: (id: string, apiKey: string) => Promise<ProviderResult<{ instance: ProviderInstance }>>;
+        test: (id: string) => Promise<ProviderResult<{ count: number }>>;
+        models: (id: string, options?: { refresh?: boolean }) => Promise<ProviderResult<{ models: ProviderModel[] }>>;
+        /** Loopback only; run when the Providers page opens or on Scan, never in the background. */
+        scan: () => Promise<ProviderResult<{ servers: DiscoveredServer[] }>>;
+        /** Through the vendor's own runtime and page; resolves once the browser sign-in ends either way. */
+        accountSignIn: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
+        accountCancel: (id: string) => Promise<ProviderResult<object>>;
+        /** Write-only: the code Google shows goes to the runtime's stdin; false when no sign-in is waiting for one. */
+        accountSubmitCode: (id: string, code: string) => Promise<ProviderResult<{ accepted: boolean }>>;
+        accountSignOut: (id: string) => Promise<ProviderResult<object>>;
+        /** Never downloads the runtime: one not installed yet answers signed out. */
+        accountStatus: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
+        onAccountProgress: (callback: (progress: AccountProgress) => void) => Unsubscribe;
+      };
+
       appInfo: () => Promise<AppInfo>;
       openLogs: () => Promise<string>;
       readLogs: (target: "debug" | "app", bytes?: number) => Promise<string>;
@@ -1079,7 +1231,9 @@ declare global {
         callback: (progress: DownloadProgressEvent) => void,
       ) => Unsubscribe;
       onBootModel: (callback: (model: string) => void) => Unsubscribe;
-      bootFinished: (model: string) => void;
+      /** The Settings page the splash handed over to, instead of a model. */
+      onBootOpen?: (callback: (page: "providers") => void) => Unsubscribe;
+      bootFinished: (model: string, open?: "providers") => void;
       quitApp: () => void;
       /** Runs before Draggy quits and storage closes; the quit waits for it, up to a few seconds. */
       onBeforeQuit: (handler: () => Promise<void> | void) => Unsubscribe;
@@ -1103,6 +1257,7 @@ declare global {
           ready: boolean;
           runnerType?: string;
           engineBuild?: string | null;
+          modelsDir?: string;
         }>;
         setupEngine: () => Promise<{ success: boolean; runnerType?: string; error?: string }>;
         start: (options: {

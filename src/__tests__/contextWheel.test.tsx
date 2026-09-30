@@ -174,6 +174,13 @@ describe("the breakdown", () => {
     expect(screen.getByText("Compacts at your limit of 50k tokens")).toBeTruthy();
   });
 
+  it("says why when a paid provider's cap sets the point", () => {
+    render(<ContextWheel view={view({ paid: true })} t={t} />);
+    open();
+
+    expect(screen.getByText("Compacts at 64k tokens, since a paid provider bills every token sent")).toBeTruthy();
+  });
+
   it("compacts on request and closes", async () => {
     const onCompact = vi.fn();
     render(<ContextWheel view={view()} t={t} onCompact={onCompact} />);
@@ -203,4 +210,42 @@ describe("the breakdown", () => {
     expect(formatPercent(20)).toBe("20%");
     expect(formatPercent(140)).toBe("100%");
   });
+
+  it("displays prompt breakdown rows rather than collapsing into messages when parts are present", () => {
+    const liveParts = {
+      systemChars: 4000,
+      toolChars: 8000,
+      memoryChars: 0,
+      skillChars: 0,
+      summaryChars: 0,
+    };
+    const liveView = describeContextWindow({
+      breakdown: measureBreakdown(liveParts, 3000),
+      draftTokens: 0,
+      exact: false,
+      windowTokens: 131_072,
+      limitTokens: null,
+    });
+    render(<ContextWheel view={liveView} t={t} />);
+    open();
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: /3k/ }));
+
+    expect(screen.getByText(t("contextSystem"))).toBeTruthy();
+    expect(screen.getByText(t("contextTools"))).toBeTruthy();
+  });
+
+  it("shows automatic compaction threshold calculated against 131k window", () => {
+    const localView = describeContextWindow({
+      breakdown: { messages: 1000, system: 500, tools: 500, memory: 0, skills: 0, loadedSkills: 0, summary: 0 },
+      draftTokens: 0,
+      exact: true,
+      windowTokens: 131_072,
+      limitTokens: null,
+    });
+    render(<ContextWheel view={localView} t={t} />);
+    open();
+
+    expect(screen.getByText(/78\.6k/)).toBeTruthy();
+  });
 });
+

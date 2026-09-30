@@ -61,7 +61,7 @@ export default function ChatHistory({
 
         <div className="relative w-full">
           <Search
-            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2"
             style={{ color: "var(--text-muted)" }}
           />
           <input
@@ -69,7 +69,7 @@ export default function ChatHistory({
             placeholder={surface === "code" ? t("searchSessions") : t("searchAllChats")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full border-[3px] rounded-xl py-3 pl-10 pr-4 text-base font-bold focus:outline-none transition-colors"
+            className="w-full border-[3px] rounded-xl py-3 ps-10 pe-4 text-base font-bold focus:outline-none transition-colors"
             style={{
               backgroundColor: "var(--bg-panel)",
               borderColor: "var(--border-light)",

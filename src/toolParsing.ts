@@ -204,3 +204,37 @@ export function parseToolCall(rawJson: string): {
     args: parsed.args ?? parsed.arguments ?? parsed.parameters,
   };
 }
+
+
+/** Reads unescaped partial content from an unfinished streaming file tool call. */
+export function extractFileStreamingArgs(argsOrJson: string): { filename?: string; content?: string } {
+  let filename: string | undefined;
+  let content: string | undefined;
+
+  const fnMatch = argsOrJson.match(/"(?:filename|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)/);
+  if (fnMatch) {
+    try {
+      filename = JSON.parse(`"${fnMatch[1]}"`);
+    } catch {
+      filename = fnMatch[1];
+    }
+  }
+
+  const cMatch = argsOrJson.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (cMatch) {
+    content = cMatch[1].replace(/\\([nrtbf"\\/]|u[0-9a-fA-F]{4})/g, (_, esc) => {
+      if (esc === "n") return "\n";
+      if (esc === "r") return "\r";
+      if (esc === "t") return "\t";
+      if (esc === '"') return '"';
+      if (esc === "\\") return "\\";
+      if (esc === "/") return "/";
+      if (esc.startsWith("u")) return String.fromCharCode(parseInt(esc.slice(1), 16));
+      return esc;
+    });
+  }
+
+
+  return { filename, content };
+}
+

@@ -37,6 +37,20 @@ describe("no console window ever appears", () => {
     expect(offenders, "use platform.spawnHidden or platform.execFileHidden").toEqual([]);
   });
 
+  it("never starts PowerShell on its own: Norton and others block a hidden one started by an app", () => {
+    // Only the run_command tool may, when the model asks and the user has approved that command.
+    const offenders = sourceFiles()
+      .filter((file) => file.name !== "commands.cjs" && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
+      .map((file) => file.name);
+    expect(offenders).toEqual([]);
+  });
+
+  it("reads the video memory reg.exe prints", () => {
+    const out = "\r\n    HardwareInformation.qwMemorySize    REG_QWORD    0x200000000\r\n    HardwareInformation.qwMemorySize    REG_QWORD    0x40000000\r\n";
+    expect(platform.largestQword(out)).toBe(8 * 1024 ** 3);
+    expect(platform.largestQword(null)).toBe(0);
+  });
+
   it("forces the flag on even when a caller passes options", () => {
     // The caller's options are spread first, so this cannot be turned off by
     // accident, which is the whole reason the helpers exist.

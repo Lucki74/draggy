@@ -60,7 +60,7 @@ export default function DownloadsMenu({
           <span
             data-testid="downloads-badge"
             aria-hidden="true"
-            className="absolute -bottom-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none flex items-center justify-center ring-2 ring-[var(--bg-base)]"
+            className="absolute -bottom-1.5 -end-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none flex items-center justify-center ring-2 ring-[var(--bg-base)]"
           >
             {badgeLabel(count)}
           </span>
@@ -71,7 +71,7 @@ export default function DownloadsMenu({
         <div
           role="dialog"
           aria-label={t("downloads")}
-          className="absolute right-0 top-full mt-2 z-20 w-[min(380px,calc(100vw-3rem))] max-h-[360px] overflow-y-auto p-3 space-y-2 rounded-xl border-2 border-[var(--border-light)] bg-[var(--bg-base)] shadow-lg"
+          className="absolute end-0 top-full mt-2 z-20 w-[min(380px,calc(100vw-3rem))] max-h-[360px] overflow-y-auto p-3 space-y-2 rounded-xl border-2 border-[var(--border-light)] bg-[var(--bg-base)] shadow-lg"
         >
           <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{t("downloads")}</p>
           {count === 0 ? (

@@ -163,12 +163,12 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
 
         {files.length > 0 && (
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t("searchFiles")}
-              className="ui-input w-full pl-9"
+              className="ui-input w-full ps-9"
             />
           </div>
         )}
@@ -212,7 +212,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                     <div className="flex items-center gap-3 p-3">
                       <button
                         onClick={() => void togglePreview(file)}
-                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        className="flex items-center gap-3 flex-1 min-w-0 text-start"
                       >
                         <ChevronRight
                           className={`w-4 h-4 flex-shrink-0 text-[var(--text-muted)] transition-transform ${

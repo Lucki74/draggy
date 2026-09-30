@@ -49,7 +49,7 @@ export default function DiffBlock({ before, after, t }: DiffBlockProps) {
   const hidden = rows.length - shown.length;
 
   return (
-    <div className="mt-2 ml-7 overflow-hidden rounded-xl border-[3px] border-[var(--border-light)]">
+    <div dir="ltr" className="mt-2 ml-7 overflow-hidden rounded-xl border-[3px] border-[var(--border-light)]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-panel)]">
         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {describeDiff(diff)}

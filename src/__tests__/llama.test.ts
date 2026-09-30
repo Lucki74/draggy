@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
@@ -6,7 +6,12 @@ import {
   displayModelName,
   forgetContextSize,
   forgetModelInfo,
-  isCloudModel,
+  beginLlamaWork,
+  llamaIsBusy,
+  getModelInfo,
+  gpuShareFor,
+  unloadModel,
+  warmModel,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -45,6 +50,11 @@ describe("context budgeting", () => {
     expect(pickContextSize(1_000_000, null)).toBe(FALLBACK_CONTEXT_LENGTH);
   });
 
+  it("caps automatic bucket selection at the maximum local context bucket", () => {
+    expect(pickContextSize(1_000_000, 262144)).toBe(131072);
+  });
+
+
   it("is monotonic in conversation length", () => {
     let previous = 0;
     for (const chars of [0, 10_000, 50_000, 120_000, 300_000, 900_000]) {
@@ -52,23 +62,6 @@ describe("context budgeting", () => {
       expect(chosen).toBeGreaterThanOrEqual(previous);
       previous = chosen;
     }
-  });
-});
-
-describe("cloud model exclusion", () => {
-  const cloud = ["gpt-oss:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud"];
-  const local = ["qwen3:8b", "llama3.2", "phi4-mini", "gemma3:27b", "nomic-embed-text"];
-
-  for (const name of cloud) {
-    it(`treats ${name} as cloud`, () => expect(isCloudModel(name)).toBe(true));
-  }
-
-  for (const name of local) {
-    it(`treats ${name} as local`, () => expect(isCloudModel(name)).toBe(false));
-  }
-
-  it("is not fooled by the word cloud inside a model name", () => {
-    expect(isCloudModel("cloudy-llm:7b")).toBe(false);
   });
 });
 
@@ -241,6 +234,10 @@ describe("displayModelName", () => {
     expect(displayModelName("ornith-1.0-35b-Q4_K_M.gguf")).toBe("ornith-1.0-35b-Q4_K_M.gguf");
     expect(displayModelName("model-00001-of-00004-final.gguf")).toBe("model-00001-of-00004-final.gguf");
   });
+
+  it("shows a provider's model by its own id, which may hold a slash", () => {
+    expect(displayModelName("@openrouter/meta-llama/llama-4")).toBe("meta-llama/llama-4");
+  });
 });
 
 describe("engine-chosen windows", () => {
@@ -265,5 +262,63 @@ describe("engine-chosen windows", () => {
     expect(await isLoadedAt(MODEL, 8192)).toBe(true);
     expect(await isLoadedAt(MODEL, 32768)).toBe(true);
     expect(await isLoadedAt(MODEL, 65536)).toBe(false);
+  });
+});
+
+describe("a provider's model, which the engine never holds", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("never starts, stops or asks the engine about it", async () => {
+    const gguf = { start: vi.fn(), stop: vi.fn(), status: vi.fn(), listModels: vi.fn() };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    const model = "@anthropic/claude-x";
+
+    await warmModel(model, "5m", 1000);
+    await unloadModel(model);
+    expect(await isLoadedAt(model, 32768)).toBe(true);
+    expect(await gpuShareFor(model)).toBeNull();
+    expect(await getModelInfo(model)).toBeNull();
+    expect(gguf.start).not.toHaveBeenCalled();
+    expect(gguf.stop).not.toHaveBeenCalled();
+    expect(gguf.status).not.toHaveBeenCalled();
+    expect(gguf.listModels).not.toHaveBeenCalled();
+  });
+
+  it("is described by its provider's listing instead, even when its instance cannot be looked up", async () => {
+    const gguf = { listModels: vi.fn() };
+    const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"], cloud: true }] })) };
+    vi.stubGlobal("window", { electronAPI: { gguf, providers } });
+    expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null, promptProfile: "compact", cloud: true });
+    expect(providers.models).toHaveBeenCalledWith("openai");
+    expect(gguf.listModels).not.toHaveBeenCalled();
+    forgetModelInfo("@openai/gpt-x");
+  });
+
+  it("gets its whole window at once, with no buckets and nothing fixed", () => {
+    expect(contextSizeFor("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(peekContextSize("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(contextSizeFor("@openai/gpt-x", 100, null)).toBe(FALLBACK_CONTEXT_LENGTH);
+  });
+
+  it("still unloads the built-in engine for a built-in model", async () => {
+    const gguf = { stop: vi.fn(async () => ({ success: true })) };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    await unloadModel("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(gguf.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("who counts as engine work", () => {
+  it("counts a built-in turn, and never a provider's", () => {
+    const remote = beginLlamaWork("@openai/gpt-x");
+    expect(llamaIsBusy()).toBe(false);
+    const local = beginLlamaWork("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(llamaIsBusy()).toBe(true);
+    local();
+    remote();
+    expect(llamaIsBusy()).toBe(false);
+    const unnamed = beginLlamaWork();
+    expect(llamaIsBusy()).toBe(true);
+    unnamed();
   });
 });

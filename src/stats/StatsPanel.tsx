@@ -110,25 +110,25 @@ export default function StatsPanel({ t }: StatsPanelProps) {
               <table className="w-full text-sm">
                 <thead className="bg-[var(--bg-panel)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   <tr>
-                    <th className="px-3 py-2 text-left">{t("statsModel")}</th>
-                    <th className="px-3 py-2 text-right">{t("statsTurns")}</th>
-                    <th className="px-3 py-2 text-right">{t("statsSpeed")}</th>
-                    <th className="px-3 py-2 text-right">{t("statsFirstToken")}</th>
-                    <th className="px-3 py-2 text-right">{t("statsTokensWritten")}</th>
+                    <th className="px-3 py-2 text-start">{t("statsModel")}</th>
+                    <th className="px-3 py-2 text-end">{t("statsTurns")}</th>
+                    <th className="px-3 py-2 text-end">{t("statsSpeed")}</th>
+                    <th className="px-3 py-2 text-end">{t("statsFirstToken")}</th>
+                    <th className="px-3 py-2 text-end">{t("statsTokensWritten")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.models.map((model) => (
                     <tr key={model.model} className="border-t-2 border-[var(--border-light)]">
                       <td className="px-3 py-2 font-bold">{model.model}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{model.turns}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-2 text-end tabular-nums">{model.turns}</td>
+                      <td className="px-3 py-2 text-end tabular-nums">
                         {model.tokensPerSecond.toFixed(1)} {t("tokensPerSecondShort")}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-2 text-end tabular-nums">
                         {model.firstTokenMs === null ? "–" : formatDuration(model.firstTokenMs)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-2 text-end tabular-nums">
                         {formatTokenCount(model.responseTokens)}
                       </td>
                     </tr>
@@ -154,7 +154,7 @@ export default function StatsPanel({ t }: StatsPanelProps) {
                         style={{ width: `${(tool.calls / busiestTool) * 100}%` }}
                       />
                     </div>
-                    <span className="w-10 text-right font-bold tabular-nums">{tool.calls}</span>
+                    <span className="w-10 text-end font-bold tabular-nums">{tool.calls}</span>
                   </li>
                 ))}
               </ul>
@@ -180,7 +180,7 @@ export default function StatsPanel({ t }: StatsPanelProps) {
                       style={{ width: `${(bucket.count / busiestBucket) * 100}%` }}
                     />
                   </div>
-                  <span className="w-10 text-right font-bold tabular-nums">{bucket.count}</span>
+                  <span className="w-10 text-end font-bold tabular-nums">{bucket.count}</span>
                 </li>
               ))}
             </ul>

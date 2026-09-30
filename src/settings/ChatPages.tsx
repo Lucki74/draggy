@@ -4,6 +4,7 @@ import { Block, Group, Page, Row, Segmented, Select, Toggle } from "./Controls";
 import InstructionsEditor from "./InstructionsEditor";
 import LibraryPanel from "./LibraryPanel";
 import { selectableModels } from "../modelKinds";
+import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
 import { thinkingOptions, webOptions } from "./pages";
 import { NEURAL_VOICES, isNeuralVoiceAvailable, resolveNeuralVoice } from "../voice/neuralVoice";
 import { isSystemVoiceSupported, listVoices } from "../voice/systemVoice";
@@ -31,6 +32,7 @@ export function ChatPreferencesPage({
   onSelectChatModel,
   t,
 }: ChatPageProps & { chatModel: string; onSelectChatModel: (name: string) => void }) {
+  const providerGroups = useProviderGroups();
   return (
     <Page title={t("preferences")}>
       <Group>
@@ -38,11 +40,15 @@ export function ChatPreferencesPage({
           <Select
             label={t("model")}
             value={chatModel}
-            options={selectableModels(manager.installed).map((entry) => ({
-              id: entry.name,
-              label: entry.name,
-              hint: entry.parameterSize,
-            }))}
+            options={withProviderModels(
+              selectableModels(manager.installed).map((entry) => ({
+                id: entry.name,
+                label: entry.name,
+                hint: entry.parameterSize,
+              })),
+              providerGroups,
+              t("draggyEngine"),
+            )}
             onChange={onSelectChatModel}
           />
         </Row>
@@ -148,7 +154,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
             onChange={(id) => onUpdate(neural ? { neuralVoice: id } : { voiceName: id })}
           />
         </Row>
-        <Row label={t("voiceSounds")} description={t("voiceSoundsHint")}>
+        <Row label={t("voiceSounds")}>
           <Toggle
             label={t("voiceSounds")}
             checked={settings.voiceSounds !== false}

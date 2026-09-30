@@ -26,7 +26,6 @@ const settings = {
   codeExecution: false,
   searchProvider: "auto",
   searxngUrl: "",
-  braveApiKey: "",
   showMetrics: false,
   autoUpdate: true,
 } as unknown as AppSettings;

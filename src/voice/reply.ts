@@ -1,9 +1,10 @@
 import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
-import { ggufErrorMessage, sseToLlamaChunks } from "../ai/llamaStream";
+import { failureOf, readFailure, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
+import { chatEndpoint, isRemote } from "../ai/providers";
 
 /** Turns a question into words to say, handing text on the instant it can. Only the first seven
  * characters wait, in case they become a "SEARCH:" marker. */
@@ -105,7 +106,7 @@ export interface StreamOptions {
 }
 
 export async function streamVoiceChat(options: StreamOptions): Promise<void> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(options.model);
   try {
     await streamVoice(options);
   } finally {
@@ -114,14 +115,14 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
 }
 
 async function streamVoice(options: StreamOptions): Promise<void> {
-  if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+  if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(options.model)) {
     const started = await window.electronAPI.gguf.start({ modelPath: ggufModelName(options.model) });
     if (!started?.success && !started?.alreadyRunning) {
       throw new Error(engineFailure(started));
     }
   }
 
-  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
+  const response = await fetch(chatEndpoint(options.model), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -138,12 +139,13 @@ async function streamVoice(options: StreamOptions): Promise<void> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(engineFailure(ggufErrorMessage(body, response.statusText || `HTTP ${response.status}`)));
+    throw new Error(engineFailure(readFailure(body, response.statusText || `HTTP ${response.status}`)));
   }
   const reader = response.body?.getReader();
   if (!reader) throw new Error(engineUnreachable());
 
   for await (const chunk of sseToLlamaChunks(reader)) {
+    if (chunk.error) throw new Error(engineFailure(failureOf(chunk.error)));
     const delta = chunk.message?.content;
     if (delta && options.onDelta(delta) === false) return;
   }

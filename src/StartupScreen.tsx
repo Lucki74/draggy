@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HardDrive, AlertCircle } from "lucide-react";
-import { getRecommendedDownload } from "./modelRecommendations";
-import { selectableModels } from "./modelKinds";
 import { translations } from "./translations";
-import { isCloudModel, listInstalledModels, pullModel } from "./llama";
+import { autoSetup, BootError, bootErrorText } from "./boot/bootSequence";
 import Logo from "./Logo";
 
 interface StartupScreenProps {
   modelName: string;
   language: string;
   onReady: (model: string) => void;
+  /** Leaves the setup for Settings, Providers. Returning users only: a new install has its own step. */
+  onUseProvider?: () => void;
 }
 
 interface DownloadProgress {
@@ -34,6 +34,7 @@ export default function StartupScreen({
   modelName,
   language,
   onReady,
+  onUseProvider,
 }: StartupScreenProps) {
   const t = useCallback(
     (key: string) => {
@@ -95,137 +96,24 @@ export default function StartupScreen({
       return;
     }
 
-    async function bootSequence() {
-      try {
-        let targetModel = isCloudModel(modelName) ? "" : modelName;
-
-        setStatus(tr("checkingService"));
-        let engineStatus = await window.electronAPI?.gguf?.status();
-
-        if (!engineStatus?.hasBinary || !engineStatus?.ready) {
-          setStatus(tr("installingService"));
-          setDownloadProgress({ percent: 0, completed: 0, total: 100, label: "AI Engine" });
-          await window.electronAPI?.gguf?.setupEngine?.();
-
-          engineStatus = await window.electronAPI?.gguf?.status();
-          if (!engineStatus?.hasBinary || !engineStatus?.ready) {
-            setError({
-              message: tr("missingGgufEngine"),
-              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
-            });
-            return;
-          }
-          setDownloadProgress(null);
-        }
-
-        setStatus(tr("verifyingAssets"));
-        const installed = await listInstalledModels();
-        const models = installed.map((entry) => entry.name);
-
-        let hasModel = !!targetModel && models.includes(targetModel);
-
-        // Falling back to whatever happens to be installed must not land on an
-        // embedding model, which cannot answer anything.
-        const chattable = selectableModels(installed).map((entry) => entry.name);
-        if (!hasModel && chattable.length > 0) {
-          targetModel = chattable[0];
-          hasModel = true;
-        }
-
-        if (!hasModel) {
-          setStatus(tr("checkingHardware"));
-          const specs = await window.electronAPI?.getSystemSpecs();
-          const target = getRecommendedDownload(specs?.vram || 0, {
-            platform: specs?.platform,
-            arch: specs?.arch,
-            ram: specs?.ram,
-            cpuModel: specs?.cpu,
-          });
-
-          setStatus(tr("checkingInternet"));
-          const online = await window.electronAPI?.checkInternet();
-          if (!online) {
-            setError({
-              message: tr("noInternetConnection"),
-              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
-            });
-            return;
-          }
-
-          setStatus(tr("checkingDisk"));
-          const freeSpace = await window.electronAPI?.checkDiskSpace();
-          const freeBytes =
-            typeof freeSpace === "number" && freeSpace > 0
-              ? freeSpace < 100_000
-                ? freeSpace * 1024 ** 3
-                : freeSpace
-              : 0;
-          if (freeBytes > 0 && freeBytes < target.size * 1.5) {
-            setError({
-              message: tr("notEnoughSpace"),
-              icon: <HardDrive className="w-10 h-10 text-red-400" />,
-            });
-            return;
-          }
-
-          setStatus(tr("preparingDownload"));
-          const resolved = await window.electronAPI?.resolveModelUrl?.(target.reference);
-          if (!resolved?.url) {
-            setError({
-              message: `${tr("downloadFailed")}: ${target.label}`,
-              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
-            });
-            return;
-          }
-          setDownloadProgress({
-            percent: 0,
-            completed: 0,
-            total: resolved.size ?? target.size,
-            label: resolved.filename,
-          });
-
-          setStatus(tr("downloadingModel"));
-          try {
-            await pullModel(target.reference, (progress) =>
-              setDownloadProgress({
-                percent: progress.percent,
-                completed: progress.completed,
-                total: progress.total,
-                label: resolved.filename,
-              }),
-            );
-          } catch (err: unknown) {
-            setError({
-              message: `${tr("downloadFailed")}: ${err instanceof Error ? err.message : ""}`,
-              icon: <AlertCircle className="w-10 h-10 text-red-400" />,
-            });
-            return;
-          }
-
-          setStatus(tr("installingService"));
-          setStatus(tr("systemCheckComplete"));
-          await new Promise((r) => setTimeout(r, 700));
-
-          onReady(resolved.filename);
-          return;
-        }
-
-        setStatus(tr("startingService"));
-        setStatus(tr("systemCheckComplete"));
-        await new Promise((r) => setTimeout(r, 700));
-
-        onReady(targetModel);
-      } catch (err: unknown) {
+    autoSetup(
+      window.electronAPI,
+      modelName,
+      (key) => setStatus(tr(key)),
+      setDownloadProgress,
+    )
+      .then(onReady)
+      .catch((err: unknown) => {
+        const disk = err instanceof BootError && err.disk;
         setError({
-          message:
-            err instanceof Error ? err.message : tr("initializationFailed"),
-          icon: <AlertCircle className="w-10 h-10 text-red-400" />,
+          message: bootErrorText(err, tr),
+          icon: disk ? (
+            <HardDrive className="w-10 h-10 text-red-400" />
+          ) : (
+            <AlertCircle className="w-10 h-10 text-red-400" />
+          ),
         });
-      }
-    }
-
-    bootSequence();
-
+      });
   }, [modelName, onReady]);
 
   return (
@@ -374,6 +262,16 @@ export default function StartupScreen({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {onUseProvider && (
+        <button
+          type="button"
+          onClick={onUseProvider}
+          className="mb-6 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:underline underline-offset-2 transition-colors"
+        >
+          {t("useProviderInstead")}
+        </button>
+      )}
     </div>
   );
 }

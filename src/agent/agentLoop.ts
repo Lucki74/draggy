@@ -5,7 +5,6 @@ import {
   getModelInfo,
   gpuShareFor,
   hasCapability,
-  isCloudModel,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -16,6 +15,8 @@ import {
   readMetrics,
   recalledCapabilities,
 } from "../llama";
+import { chatEndpoint, draggyRef, isRemote, providerOf, scopeToTarget } from "../ai/providers";
+import type { DraggyRef, ProviderState } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
@@ -41,16 +42,19 @@ import {
   TOOL_MARKER_OVERLAP,
   TOOL_MARKER_RE,
   detectToolCall,
+  extractFileStreamingArgs,
   extractThought,
   parseToolCall,
   stripToolSyntax,
 } from "../toolParsing";
+
 import { buildResumeMessage, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
-import { ggufErrorMessage, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
+import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
+import type { GatewayError, GatewayRetry } from "../ai/llamaStream";
 import {
   annotationsFor,
   availableTools,
@@ -113,9 +117,13 @@ interface LlamaChunk {
     content?: string;
     thinking?: string;
     tool_calls?: LlamaToolCall[];
+    streaming_tool_calls?: { id?: string; name: string; argsString: string }[];
   };
   done?: boolean;
   done_reason?: string;
+  error?: GatewayError;
+  retry?: GatewayRetry;
+  provider_state?: ProviderState;
 }
 
 export interface WireMessage {
@@ -127,6 +135,8 @@ export interface WireMessage {
   tool_calls?: LlamaToolCall[];
   tool_call_id?: string;
   tool_name?: string;
+  provider_state?: ProviderState;
+  draggy_ref?: DraggyRef;
 }
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
@@ -184,6 +194,7 @@ export function toWireMessage(
     content: content.trim() || " ",
     ...(thinking ? { thinking } : {}),
     ...(images.length > 0 ? { images } : {}),
+    ...(message.provider_state ? { provider_state: message.provider_state } : {}),
   };
 }
 
@@ -270,6 +281,8 @@ export interface AgentResult {
   aborted: boolean;
   /** How many times the model reached for each tool, refused calls included. */
   toolCalls: Record<string, number>;
+  /** The last state the provider handed back, stored on the reply for its next turn. */
+  providerState?: ProviderState;
 }
 
 const EXHAUSTED_MESSAGE =
@@ -360,7 +373,13 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const loadedSection = renderLoadedSkills(loadedSkills);
 
   const systemPrompt = [
-    buildSystemPrompt(settings, { nativeTools, nativeThinking }, environment, memory, skills),
+    buildSystemPrompt(
+      settings,
+      { nativeTools, nativeThinking, profile: info?.promptProfile ?? "compact" },
+      environment,
+      memory,
+      skills,
+    ),
     loadedSection,
   ]
     .filter(Boolean)
@@ -388,6 +407,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       : null;
 
   const carried = compaction ? history.slice(compaction.throughIndex) : history;
+  // Only a provider matches turns by these; hashing every attachment each turn would be wasted on the engine.
+  const refs = isRemote(model) ? await Promise.all(carried.map(draggyRef)) : [];
 
   // What the fixed parts of the prompt cost, so the context view can say where
   // the window went rather than only how full it is.
@@ -423,7 +444,10 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...(compaction
       ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
       : []),
-    ...carried.map((message) => toWireMessage(message, nativeVision, nativeThinking)),
+    ...carried.map((message, index) => ({
+      ...toWireMessage(message, nativeVision, nativeThinking),
+      ...(refs[index] ? { draggy_ref: refs[index] } : {}),
+    })),
   ];
 
   if (request.isContinuation) {
@@ -508,12 +532,13 @@ export async function measureTurn(
   input: TurnInput,
   options: { signal: AbortSignal; allowLoad: boolean },
 ): Promise<ContextMeasurement | null> {
-  if (isCloudModel(input.model) || llamaIsBusy()) return null;
+  if (isRemote(input.model) || llamaIsBusy()) return null;
 
   const turn = await prepareTurn(input);
-  const chars = estimateChars(turn.wire);
-  // The window has to hold the tool definitions too; the checkpoint below counts the wire alone.
-  const windowChars = estimateChars(turn.wire, turn.nativeTools ? JSON.stringify(turn.definitions).length : 0);
+  const toolChars = turn.nativeTools ? JSON.stringify(turn.definitions).length : 0;
+  const chars = estimateChars(turn.wire, toolChars);
+  const windowChars = chars;
+
   // A user-fixed window overrides the automatic bucket; null means let Draggy choose.
   const maxContext = turn.info?.contextLength ?? null;
   const fixedContext = input.settings.fixedContextSize ?? null;
@@ -545,14 +570,14 @@ export async function measureTurn(
   });
 
   try {
-    const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
+    const response = await loggedFetch(chatEndpoint(input.model), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: ggufModelName(input.model),
         stream: false,
         max_tokens: 1,
-        messages: toLlamaMessages(turn.wire),
+        messages: toLlamaMessages(turn.wire, input.model),
         ...(turn.nativeTools ? { tools: turn.definitions } : {}),
       }),
       signal: controller.signal,
@@ -574,7 +599,7 @@ export async function measureTurn(
 const LIVE_INTERVAL_MS = 250;
 
 export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(request.model);
   try {
     return await runTurn(request, host);
   } finally {
@@ -648,8 +673,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     },
     pushStep,
     patchStep,
+    findStep: (predicate) => steps.find(predicate),
     syncSteps,
     newId: generateId,
+
     signal,
     memo: new Map<string, unknown>(),
   };
@@ -769,11 +796,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     definitions: ToolDefinition[],
     abort: AbortSignal,
   ): Promise<RepairedCall> {
-    if (repairsLeft <= 0) return {};
+    // A repair resends the whole conversation: on a provider that doubles the turn's cost, for calls hosted models rarely break.
+    if (repairsLeft <= 0 || isRemote(model)) return {};
     repairsLeft--;
 
     try {
-      const response = await loggedFetch("http://127.0.0.1:11435/v1/chat/completions", {
+      const response = await loggedFetch(chatEndpoint(model), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -782,7 +810,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           max_tokens: 500,
           response_format: { type: "json_schema", json_schema: { name: "tool_call", schema: repairSchema(definitions) } },
           messages: [
-            ...wire,
+            ...scopeToTarget(wire, model),
             { role: "user", content: repairPrompt(broken) },
           ],
         }),
@@ -815,6 +843,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     invokedSkill,
   } = await prepareTurn(request);
 
+  const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
+
   // A slash command's skill shows where it loaded, as one the model asked for does.
   if (invokedSkill) {
     pushStep({
@@ -828,6 +858,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
   let loopCount = 0;
   let isFinished = false;
+  let turnState: ProviderState | undefined;
   let outOfContext = false;
   // Assigned on the first pass of the loop below, which always runs.
   let numCtx: number;
@@ -852,7 +883,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       liveRate = streamed / ((now - passStartedAt) / 1000);
     }
 
-    const wireChars = estimateChars(wire);
+    const wireChars = estimateChars(wire, toolChars);
     // Nothing added since the model last counted: that count still stands exactly.
     const unchanged = contextCheckpoint !== null && passChunks === 0 && wireChars === contextCheckpoint.chars;
     const known = contextCheckpoint
@@ -867,8 +898,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       ),
       contextExact: (exact || unchanged) && contextCheckpoint !== null,
       contextWindow: numCtx,
+      parts: promptParts,
     });
   };
+
 
   let fullFinalContent = request.seed?.content ?? "";
   let fullFinalTextContent = request.seed?.textContent ?? "";
@@ -987,10 +1020,27 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
 
     let loading = loadStepId !== null;
+    // A provider's retry is a wait like a load, so it shows as one, counting down to the next attempt.
+    let retryStepId: string | null = null;
     const doneLoading = () => {
+      if (retryStepId !== null) {
+        dropStep(retryStepId);
+        retryStepId = null;
+        syncSteps();
+      }
       if (!loading) return;
       loading = false;
       dropStep(loadStepId as string);
+      syncSteps();
+    };
+    const showRetry = ({ attempt, of, retryAfterMs }: GatewayRetry) => {
+      const retry = { attempt, of, until: Date.now() + retryAfterMs };
+      if (retryStepId !== null) {
+        patchStep(retryStepId, { retry });
+      } else {
+        retryStepId = generateId();
+        pushStep({ id: retryStepId, type: "loading", content: "", isComplete: false, retry });
+      }
       syncSteps();
     };
 
@@ -999,7 +1049,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     logLlamaInference({ model, numCtx, stream: true, nativeThinking, nativeTools }, correlationId);
 
     try {
-      if (typeof window !== "undefined" && window.electronAPI?.gguf) {
+      // A provider's model has no file to load; starting the engine for it fails as a missing model.
+      if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(model)) {
         const started = await window.electronAPI.gguf.start({
           modelPath: ggufModelName(model),
           contextSize: numCtx,
@@ -1014,19 +1065,23 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const requestBody = JSON.stringify({
         model: ggufModelName(model),
         stream: true,
+        stream_options: { include_usage: true },
         options: { num_ctx: numCtx, num_predict: -1 },
-        messages: toLlamaMessages(wire),
+        messages: toLlamaMessages(wire, model),
+
         // llama-server ignores `think`; the template option is what switches the reasoning on or off.
         ...(hasThinkingCapability
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
           : {}),
+        // The pill's level, for a provider that takes one; the engine's body stays as it always was.
+        ...(hasThinkingCapability && isRemote(model) ? { thinking_level: settings.thinkingMode } : {}),
         ...(nativeTools ? { tools: definitions } : {}),
       });
 
       let response: Response;
       try {
         response = await loggedFetch(
-          "http://127.0.0.1:11435/v1/chat/completions",
+          chatEndpoint(model),
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1045,7 +1100,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(engineFailure(ggufErrorMessage(errorText, response.statusText), { markdown: true }));
+        throw new Error(engineFailure(readFailure(errorText, response.statusText), { markdown: true }));
       }
 
       const reader = response.body?.getReader();
@@ -1057,15 +1112,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       let textContent = "";
       let toolMatch: string | null = null;
       let maybeToolCall = false;
+      let fileStepId: string | null = null;
       let lastUpdateTime = performance.now();
       let lastEmittedLength = -1;
 
       const nativeCalls: LlamaToolCall[] = [];
       let passChunks = 0;
       let finalChunk: Record<string, unknown> | null = null;
+      let passState: ProviderState | undefined;
 
       const readChunk = (parsed: LlamaChunk) => {
         if (parsed.message?.tool_calls) nativeCalls.push(...parsed.message.tool_calls);
+        // A state tagged for another instance could only be misdirected later, so it is not kept.
+        if (parsed.provider_state?.instanceId === providerOf(model)) passState = parsed.provider_state;
         if (parsed.done) {
           finalChunk = { ...(finalChunk || {}), ...(parsed as unknown as Record<string, unknown>) };
           if (parsed.done_reason === "length") outOfContext = true;
@@ -1080,6 +1139,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       try {
         for await (const parsed of readStream()) {
+          // A provider that fails after the stream opened says so in it, since the status is already 200.
+          if (parsed.error) throw new Error(engineFailure(failureOf(parsed.error), { markdown: true }));
+          if (parsed.retry) {
+            showRetry(parsed.retry);
+            continue;
+          }
           doneLoading();
           const added = parsed.message?.content || "";
           const thinkingAdded = parsed.message?.thinking || "";
@@ -1135,6 +1200,43 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             }
           }
 
+          // Live feedback while the model generates a file.
+          let streamingCallStr: string | null = null;
+          if (parsed.message?.streaming_tool_calls) {
+            const fileCall = parsed.message.streaming_tool_calls.find(
+              (t) => t.name === "create_file" || t.name === "write_file",
+            );
+            if (fileCall?.argsString) streamingCallStr = fileCall.argsString;
+          } else if (rawChunk.includes("create_file") || rawChunk.includes("write_file")) {
+            streamingCallStr = rawChunk;
+          }
+
+          if (streamingCallStr) {
+            const { filename: sFn, content: sContent } = extractFileStreamingArgs(streamingCallStr);
+            if (sFn || sContent !== undefined) {
+              const displayFn = sFn || "";
+              if (fileStepId === null) {
+                fileStepId = generateId();
+                if (thinkStepId) patchStep(thinkStepId, { isComplete: true });
+                pushStep({
+                  id: fileStepId,
+                  type: "create_file",
+                  content: `${host.t("creatingFile")} **${displayFn}**`,
+                  isComplete: false,
+                  filename: sFn || "",
+                  fileContent: sContent || "",
+                  filepath: "",
+                });
+              } else {
+                patchStep(fileStepId, {
+                  filename: sFn || "",
+                  fileContent: sContent || "",
+                  content: `${host.t("creatingFile")} **${displayFn}**`,
+                });
+              }
+            }
+          }
+
           if (!nativeTools && maybeToolCall) {
             toolMatch = detectToolCall(rawChunk);
             if (toolMatch) {
@@ -1144,7 +1246,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           }
 
           const now = performance.now();
-          const emitted = rawChunk.length + thinkingText.length;
+          const toolCallLength = streamingCallStr?.length ?? 0;
+          const emitted = rawChunk.length + thinkingText.length + toolCallLength;
 
           if (
             now - lastUpdateTime > STREAM_UI_INTERVAL_MS &&
@@ -1170,6 +1273,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             // The reply body only ever holds text from passes that are already
             // finished; whatever is being written now belongs to the timeline.
             showText(textContent);
+            if (fileStepId !== null) syncSteps();
             host.onPatch(combine("", ""));
             emitLive(passChunks, firstTokenAt);
           }
@@ -1177,6 +1281,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       } catch (error: unknown) {
         if (error instanceof Error && error.name !== "AbortError") throw error;
       }
+
+
+      // Signatures belong to the tool cycle under way, so the state rides on this pass's reply.
+      const carried = passState ? { provider_state: passState } : {};
+      if (passState) turnState = passState;
 
       if (finalChunk) {
         const turnMetrics = readMetrics(
@@ -1200,11 +1309,29 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (promptTokens > 0) {
           contextCheckpoint = {
             tokens: promptTokens + writtenTokens,
-            chars: estimateChars(wire) + rawChunk.length + thinkingText.length,
+            chars: estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length,
           };
         }
         emitLive(0, null, true);
+      } else if (passChunks > 0) {
+        // Stream aborted mid-pass (such as on tool calls); keep counts for later passes.
+        const passWritten = Math.round(passChunks * tokensPerChunk);
+        finishedTokens += passWritten;
+        const currentWireChars = estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length;
+        if (contextCheckpoint) {
+          contextCheckpoint = {
+            tokens: contextCheckpoint.tokens + passWritten,
+            chars: currentWireChars,
+          };
+        } else {
+          contextCheckpoint = {
+            tokens: Math.round(currentWireChars / CHARS_PER_TOKEN),
+            chars: currentWireChars,
+          };
+        }
+        emitLive(0, null, false);
       }
+
 
       currentThought = nativeThinking
         ? thinkingText
@@ -1238,15 +1365,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
       if (signal.aborted) {
-        // Stopping mid-sentence should keep what was already written.
+        // Stopping mid-sentence keeps what was written as the reply, or the saved turn is blank
+        // and the next turn's model sees its question unanswered and starts over.
         if (textStepId !== null) dropStep(textStepId);
         finishIncompleteSteps();
+        fullFinalContent += rawChunk;
+        if (textContent) fullFinalTextContent = joinContinuation(fullFinalTextContent, textContent);
         host.onPatch(combine("", ""));
         return {
-          content: fullFinalContent + rawChunk,
-          textContent: textContent
-            ? joinContinuation(fullFinalTextContent, textContent)
-            : fullFinalTextContent,
+          content: fullFinalContent,
+          textContent: fullFinalTextContent,
           steps,
           metrics,
           outOfContext,
@@ -1280,7 +1408,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       host.onOutOfContext(outOfContext);
 
       if (!hasToolCall) {
+        if (fileStepId !== null) {
+          dropStep(fileStepId);
+          fileStepId = null;
+          syncSteps();
+        }
         // Asked once only: a model that stays silent twice would otherwise burn every remaining loop.
+
         if (
           !textContent.trim() &&
           !answerAsked &&
@@ -1288,7 +1422,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           (thinkingText.trim() || toolsRan || wire.some((m) => m.role === "tool"))
         ) {
           answerAsked = true;
-          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
           wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
           wire.push({
             role: "user",
@@ -1311,7 +1445,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           fullFinalContent += rawChunk + "\n";
           host.onPatch(combine("", ""));
 
-          const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
           wire.push({ role: "assistant", content: rawChunk, ...kept });
           wire.push({ role: "user", content: ACT_ON_ANNOUNCEMENT });
           continue;
@@ -1341,7 +1475,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       // The reasoning goes back with the call, since a model that cannot see
       // it reasoned before one stops reasoning before the next.
-      const kept = nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {};
+      const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
 
       if (nativeTools) {
         wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
@@ -1461,5 +1595,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     exhausted,
     aborted: signal.aborted,
     toolCalls,
+    ...(turnState ? { providerState: turnState } : {}),
   };
 }

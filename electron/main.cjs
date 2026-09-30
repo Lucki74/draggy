@@ -6,6 +6,7 @@ const {
   dialog,
   ipcMain,
   Menu,
+  nativeTheme,
   safeStorage,
   shell,
   protocol,
@@ -14,7 +15,6 @@ const {
 } = require("electron");
 const path = require("path");
 const os = require("os");
-const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
 const adblocker = require("./adblocker.cjs");
@@ -39,6 +39,19 @@ const { flushWindow } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
+const onboarding = require("./onboarding.cjs");
+const themes = require("./theme.cjs");
+const connectivity = require("./connectivity.cjs");
+const { createGateway } = require("./providers/gateway.cjs");
+const { createRegistry } = require("./providers/registry.cjs");
+const { createModels } = require("./providers/models.cjs");
+const { createDiscovery } = require("./providers/discovery.cjs");
+const { createRemoteCatalog } = require("./providers/remoteCatalog.cjs");
+const { createProviderHandlers } = require("./providers/ipc.cjs");
+const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
+const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
+const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
+const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -100,6 +113,11 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: true,
       stream: true,
     },
+  },
+  {
+    // Every model request, built-in or not. CORS because the app's pages are another origin.
+    scheme: "draggy-ai",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
   },
   {
     // Extension widgets. Standard so each one gets an origin from its token,
@@ -207,7 +225,7 @@ const CSP_DIRECTIVES = [
   "font-src 'self' app: draggy: data:",
   "img-src 'self' app: draggy: data: blob: https:",
   "media-src 'self' app: draggy: data: blob:",
-  "connect-src 'self' app: draggy: blob: data: http://127.0.0.1:11435 ws://127.0.0.1:5173 http://127.0.0.1:5173",
+  "connect-src 'self' app: draggy: draggy-ai: blob: data: ws://127.0.0.1:5173 http://127.0.0.1:5173",
   "worker-src 'self' app: draggy: blob:",
   "object-src 'none'",
   "frame-src widget:",
@@ -283,6 +301,19 @@ function adblockEnabled() {
   } catch {
     return true;
   }
+}
+
+let adblockerStarted = false;
+
+/** The filter lists come from GitHub and two list hosts, so a new install fetches them only once
+ * its setup is over: before a choice, the only request is the connectivity check. */
+function startAdblocker() {
+  if (adblockerStarted) return;
+  adblockerStarted = true;
+  adblocker.primeAdblocker(app.getPath("userData"));
+  applyAdblockSetting().catch((error) =>
+    log.warn("adblocker", `could not apply the setting: ${error.message}`),
+  );
 }
 
 async function applyAdblockSetting() {
@@ -570,6 +601,48 @@ let mainWindow;
 let splashWindow;
 let bootCompleted = false;
 
+/** The saved theme, kept so native pieces and new windows follow it. Read from the database before
+ * any window exists, because localStorage cannot be read from here. */
+let themeSetting = "system";
+
+function applyThemeSetting(rawSettings) {
+  const setting = themes.themeSetting(rawSettings);
+  if (setting === themeSetting && nativeTheme.themeSource === setting) return;
+  themeSetting = setting;
+  nativeTheme.themeSource = setting;
+}
+
+const windowBackground = () => themes.backgroundFor(themeSetting, nativeTheme.shouldUseDarkColors);
+
+/** Decided once at boot, before any window. The renderer asks for it rather than deciding again. */
+let onboardingPlan = "done";
+let providers = null;
+let codexAccounts = null;
+let claudeAccounts = null;
+let geminiAccounts = null;
+let searchKey = null;
+
+/** An existing install is recorded as done on the spot, so later launches need one read to know. */
+function decideOnboarding() {
+  const inputs = onboarding.collectInputs({
+    readRaw: () => storage.getValue(onboarding.RECORD_KEY),
+    readSettings: () => storage.getValue("draggy_settings"),
+    countModels: () => modelStorage.listGgufModels(ggufModelsDir()).length,
+    countChats: () => storage.stats().chats,
+    forced: process.env.DRAGGY_ONBOARDING === "1",
+  });
+  const plan = onboarding.planOnboarding(inputs);
+  if (plan !== "adopt") return plan;
+
+  try {
+    storage.setValue(onboarding.RECORD_KEY, JSON.stringify(onboarding.doneRecord("adopted")));
+    log.info("onboarding", "existing install, setup recorded as done");
+  } catch (error) {
+    log.warn("onboarding", `could not record the setup as done: ${error.message}`);
+  }
+  return "done";
+}
+
 const isDevelopment = () => {
   if (process.env.DRAGGY_RENDERER === "dist") return false;
   if (process.env.DRAGGY_RENDERER === "vite") return true;
@@ -606,7 +679,7 @@ function createSplashWindow() {
     width: 400,
     height: 500,
     frame: false,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: windowBackground(),
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
@@ -634,6 +707,17 @@ function createSplashWindow() {
 
   logger.attachWindow(splashWindow, "splash");
 
+  // Falls back to the built bundle when no dev server was started.
+  splashWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, validatedURL) => {
+    if (errorCode === -102 && String(validatedURL).startsWith("http://127.0.0.1:5173")) {
+      const distTarget = path.join(rendererRoot(), "index.html");
+      if (fs.existsSync(distTarget)) {
+        log.info("splash", "dev server unreachable, falling back to dist");
+        splashWindow.loadURL(`${RENDERER_ORIGIN}/index.html?splash=true`);
+      }
+    }
+  });
+
   if (isDevelopment()) {
     splashWindow.loadURL("http://127.0.0.1:5173/?splash=true");
   } else {
@@ -646,7 +730,9 @@ function createSplashWindow() {
 const MIN_WINDOW_WIDTH = 760;
 const MIN_WINDOW_HEIGHT = 480;
 
-function createWindow() {
+/** With `onboarding`, the window opens straight away on the first-run setup instead of waiting behind
+ * the splash for the boot to finish. */
+function createWindow({ onboarding: showSetup = false } = {}) {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
@@ -654,8 +740,8 @@ function createWindow() {
     height: 800,
     minWidth: Math.min(MIN_WINDOW_WIDTH, screenWidth),
     minHeight: Math.min(MIN_WINDOW_HEIGHT, screenHeight),
-    show: false,
-    backgroundColor: "#1E1E1E",
+    show: showSetup,
+    backgroundColor: windowBackground(),
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
@@ -738,10 +824,22 @@ function createWindow() {
 
   logger.attachWindow(mainWindow, "main");
 
+  const query = showSetup ? "?onboarding=true" : "";
+  // Falls back to the built bundle when no dev server was started.
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, validatedURL) => {
+    if (errorCode === -102 && String(validatedURL).startsWith("http://127.0.0.1:5173")) {
+      const distTarget = path.join(rendererRoot(), "index.html");
+      if (fs.existsSync(distTarget)) {
+        log.info("window", "dev server unreachable, falling back to dist");
+        mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
+      }
+    }
+  });
+
   if (isDevelopment()) {
-    mainWindow.loadURL("http://127.0.0.1:5173");
+    mainWindow.loadURL(`http://127.0.0.1:5173/${query}`);
   } else {
-    mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html`);
+    mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
   }
 }
 
@@ -771,6 +869,14 @@ app.whenReady().then(() => {
     log.error("storage", "could not open the chat database", error);
   }
 
+  onboardingPlan = decideOnboarding();
+  try {
+    applyThemeSetting(storage.getValue("draggy_settings"));
+  } catch (error) {
+    log.warn("theme", `could not read the saved theme: ${error.message}`);
+  }
+  log.info("onboarding", `plan: ${onboardingPlan}`);
+
   try {
     library.init(app.getPath("userData"));
   } catch (error) {
@@ -785,6 +891,47 @@ app.whenReady().then(() => {
   skills.init(app.getPath("userData"));
   secrets.init(app.getPath("userData"), safeStorage);
   adoptStoredCredentials();
+  searchKey = createSearchKey({ secrets, storage });
+  try {
+    searchKey.adopt();
+  } catch (error) {
+    log.warn("search", `could not move the Brave key into the store: ${error.message}`);
+  }
+  providers = createRegistry({ storage, secrets });
+  const remoteCatalog = createRemoteCatalog({ storage, instances: () => providers.list(), log: (line) => log.warn("providers", line) });
+  remoteCatalog.load();
+  // Hourly only to notice a provider switched on; the file itself is fetched at most once a day.
+  void remoteCatalog.refresh();
+  setInterval(() => void remoteCatalog.refresh(), 60 * 60 * 1000).unref();
+  codexAccounts = createCodexAdapter({
+    appData: app.getPath("userData"),
+    version: app.getVersion(),
+    log: (line) => log.debug("codex", line),
+  });
+  claudeAccounts = createClaudeAdapter({
+    appData: app.getPath("userData"),
+    version: app.getVersion(),
+    log: (line) => log.debug("claude", line),
+  });
+  geminiAccounts = createGeminiCliAdapter({
+    appData: app.getPath("userData"),
+    version: app.getVersion(),
+    log: (line) => log.debug("gemini", line),
+  });
+  const accounts = { codex: codexAccounts, claude: claudeAccounts, "gemini-cli": geminiAccounts };
+  const providerHandlers = createProviderHandlers({
+    registry: providers,
+    keystore: () => secrets.available(),
+    models: createModels({ registry: providers, accounts }),
+    accounts,
+    openExternal: (url) => shell.openExternal(url),
+    notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send(channel, payload),
+    discovery: createDiscovery({
+      excludedPorts: () => [llamaProcess.getServerStatus().port || 11435, apiServer?.port() ?? readApiServerConfig().port],
+      isDev: isDevelopment,
+    }),
+  });
+  for (const [channel, handler] of Object.entries(providerHandlers)) ipcMain.handle(channel, (event, ...args) => handler(...args));
 
   // Draggy's own storage is out of bounds to the file tools, whatever folder
   // the user has opened. The database is not a document.
@@ -794,15 +941,23 @@ app.whenReady().then(() => {
   protocol.handle("draggy", serveCachedModelFile);
   protocol.handle("app", serveRendererFile);
   protocol.handle("widget", widgets.serve);
+  // On the app's own session only: the web partition never gets a handler that reaches the engine.
+  protocol.handle(
+    "draggy-ai",
+    createGateway({
+      enginePort: () => llamaProcess.getServerStatus().port,
+      isAllowedOrigin: (origin) => origin === RENDERER_ORIGIN || (isDevelopment() && origin === "http://127.0.0.1:5173"),
+      onRefused: (origin, url) => log.warn("gateway", `refused ${url} from origin ${origin}`),
+      registry: providers,
+      accounts,
+    }),
+  );
 
   // The renderer's own policy, and deliberately only the renderer's: the web
   // session below is left with whatever policy each site sends for itself.
   applyContentSecurityPolicy(session.defaultSession, !isDevelopment());
 
-  adblocker.primeAdblocker(app.getPath("userData"));
-  applyAdblockSetting().catch((error) =>
-    log.warn("adblocker", `could not apply the setting: ${error.message}`),
-  );
+  if (onboardingPlan !== "show") startAdblocker();
 
   session.defaultSession.setPermissionRequestHandler(
     (contents, permission, callback, details) => {
@@ -817,8 +972,14 @@ app.whenReady().then(() => {
     },
   );
 
-  createSplashWindow();
-  createWindow();
+  if (onboardingPlan === "show") {
+    // No splash to close later: without this, a second launch would look for one that never existed.
+    bootCompleted = true;
+    createWindow({ onboarding: true });
+  } else {
+    createSplashWindow();
+    createWindow();
+  }
 
   updater.init(app, (state) => broadcast("updater-state", state));
 
@@ -880,13 +1041,13 @@ app.on("before-quit", (event) => {
   event.preventDefault();
 
   // The window writes its pending saves before storage closes under them.
-  Promise.allSettled([flushWindow(mainWindow, ipcMain)]).then(() => {
+  Promise.allSettled([flushWindow(mainWindow, ipcMain), codexAccounts?.stopAll(), claudeAccounts?.stopAll(), geminiAccounts?.stopAll()]).then(() => {
     shutdown();
     app.quit();
   });
 });
 
-ipcMain.on("boot-finished", (event, model) => {
+ipcMain.on("boot-finished", (event, model, open) => {
   bootCompleted = true;
 
   const closeSplash = () => {
@@ -901,6 +1062,7 @@ ipcMain.on("boot-finished", (event, model) => {
   const reveal = () => {
     if (!mainWindow.isDestroyed()) {
       if (model) mainWindow.webContents.send("boot-model", model);
+      if (open === "providers") mainWindow.webContents.send("boot-open", "providers");
       mainWindow.show();
     }
     closeSplash();
@@ -914,6 +1076,56 @@ ipcMain.on("boot-finished", (event, model) => {
 });
 
 ipcMain.on("quit-app", () => app.quit());
+
+function readOnboardingRecord() {
+  return onboarding.readRecord(storage.getValue(onboarding.RECORD_KEY));
+}
+
+function writeOnboardingRecord(record) {
+  return storage.setValue(onboarding.RECORD_KEY, JSON.stringify(record));
+}
+
+ipcMain.handle("onboarding:state", () => ({
+  plan: onboardingPlan === "show" ? "show" : "done",
+  record: readOnboardingRecord(),
+}));
+
+ipcMain.handle("onboarding:start", () => {
+  const record = onboarding.recordOnStart(readOnboardingRecord());
+  if (record) writeOnboardingRecord(record);
+  return { success: true, record: record ?? readOnboardingRecord() };
+});
+
+ipcMain.handle("onboarding:complete", (event, setupPath) => {
+  // "adopted" is main's own verdict on an existing install; the setup itself never ends that way.
+  if (!onboarding.isValidPath(setupPath) || setupPath === "adopted") {
+    return { success: false, error: "Unknown setup path." };
+  }
+  const record = onboarding.doneRecord(setupPath, new Date(), readOnboardingRecord()?.startedAt);
+  writeOnboardingRecord(record);
+  onboardingPlan = "done";
+  startAdblocker();
+  return { success: true, record };
+});
+
+// Navigates in place so the dev server survives and no restart races the lock.
+ipcMain.handle("onboarding:reset", () => {
+  writeOnboardingRecord(onboarding.inProgressRecord());
+  log.info("onboarding", "setup requested again");
+  onboardingPlan = "show";
+  setImmediate(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const query = "?onboarding=true";
+      if (!mainWindow.isVisible()) mainWindow.show();
+      if (isDevelopment()) {
+        mainWindow.loadURL(`http://127.0.0.1:5173/${query}`);
+      } else {
+        mainWindow.loadURL(`${RENDERER_ORIGIN}/index.html${query}`);
+      }
+    }
+  });
+  return { success: true };
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -932,16 +1144,12 @@ async function getSystemSpecs() {
   const unified = platform.hasUnifiedMemory();
 
   let vram = 0;
+  const gpuInfo = await app.getGPUInfo("complete").catch(() => null);
 
   if (!unified) {
-    try {
-      const gpuInfo = await app.getGPUInfo("complete");
-      const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
-      if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
-        vram = videoMemoryMb / 1024;
-      }
-    } catch {
-      vram = 0;
+    const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
+    if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
+      vram = videoMemoryMb / 1024;
     }
   }
 
@@ -952,13 +1160,15 @@ async function getSystemSpecs() {
     ram: Number(totalMemGB.toFixed(1)),
     vram: Number(vram.toFixed(1)),
     unifiedMemory: unified,
+    // On unified memory the chip is the graphics card, and its name is the CPU's.
+    gpu: platform.gpuNameFrom(gpuInfo) || (unified ? cpuModel : null),
     platform: process.platform,
     arch: os.arch(),
   };
 
   log.info(
     "specs",
-    `${cpuModel} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM${unified ? " (unified)" : ""}`,
+    `${cpuModel} | ${cachedSpecs.gpu || "no GPU name"} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM${unified ? " (unified)" : ""}`,
   );
 
   return cachedSpecs;
@@ -966,19 +1176,7 @@ async function getSystemSpecs() {
 
 ipcMain.handle("get-system-specs", getSystemSpecs);
 
-ipcMain.handle("check-internet", async () => {
-  return new Promise((resolve) => {
-    const req = https.get("https://www.google.com", (res) => {
-      resolve(res.statusCode === 200);
-    });
-    req.on("error", () => resolve(false));
-    req.setTimeout(3000, () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.end();
-  });
-});
+ipcMain.handle("check-internet", () => connectivity.checkConnectivity());
 
 ipcMain.handle("check-disk-space", async () => {
   try {
@@ -1018,7 +1216,7 @@ async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }
   }
 }
 
-let searchConfig = { searchProvider: "auto", searxngUrl: "", braveApiKey: "" };
+let searchConfig = { searchProvider: "auto", searxngUrl: "" };
 
 ipcMain.handle("set-search-config", (event, config) => {
   searchConfig = {
@@ -1026,20 +1224,24 @@ ipcMain.handle("set-search-config", (event, config) => {
       ? config.searchProvider
       : "auto",
     searxngUrl: String(config?.searxngUrl || "").trim(),
-    braveApiKey: String(config?.braveApiKey || "").trim(),
   };
   return { success: true };
 });
 
+// The key is read from the keystore per search, so it never sits in the settings the renderer holds.
+const searchSettings = () => ({ ...searchConfig, braveApiKey: searchKey?.get() || "" });
+ipcMain.handle("search:set-brave-key", (event, key) => searchKey.set(key));
+ipcMain.handle("search:brave-key-status", () => searchKey.status());
+
 ipcMain.handle("search-web", async (event, query) => {
-  const { results } = await runSearch(query, searchConfig, {
+  const { results } = await runSearch(query, searchSettings(), {
     scrape: scrapeInHiddenWindow,
   });
   return results;
 });
 
 ipcMain.handle("search-web-detailed", async (event, query) =>
-  runSearch(query, searchConfig, { scrape: scrapeInHiddenWindow }),
+  runSearch(query, searchSettings(), { scrape: scrapeInHiddenWindow }),
 );
 
 ipcMain.handle("get-page-content", async (event, url) => {
@@ -1410,6 +1612,8 @@ ipcMain.handle("gguf:status", async () => {
     ready: Boolean(engine.binaryPath) && (engine.runnerType !== "cpu" || !wantsGpu),
     runnerType: engine.runnerType,
     engineBuild: binaryManager.readEngineMeta(binaryManager.engineDir(app.getPath("userData"))).tag || null,
+    // Where a download lands, so the first-run setup can say so before it starts one.
+    modelsDir: ggufModelsDir(),
   };
 });
 
@@ -2105,9 +2309,11 @@ ipcMain.handle("db:get", wrap("db", async (event, key) => ({
   value: storage.getValue(String(key)),
 })));
 
-ipcMain.handle("db:set", wrap("db", async (event, key, value) =>
-  storage.setValue(String(key), value),
-));
+ipcMain.handle("db:set", wrap("db", async (event, key, value) => {
+  const result = storage.setValue(String(key), value);
+  if (key === "draggy_settings") applyThemeSetting(value);
+  return result;
+}));
 
 ipcMain.handle("db:import", wrap("db", async (event, sessions) =>
   storage.importSessions(sessions),

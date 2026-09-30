@@ -502,6 +502,8 @@ module.exports = {
   engineDir,
   serverName,
   fetchJson,
+  downloadAsset,
+  extractArchive,
   downloadEngine,
   installStaged,
   gpuProfile,

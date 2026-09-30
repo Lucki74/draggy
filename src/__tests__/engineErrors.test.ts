@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { articleUrl, engineFailure, engineUnreachable } from "../ai/engineErrors";
+import { failureOf } from "../ai/llamaStream";
 import { languages, translations } from "../translations";
 
 function speak(language: string) {
@@ -95,9 +96,67 @@ describe("engineFailure", () => {
     expect(unknown).toContain("/error/engine-stopped-loading");
   });
 
+  it("shows a failure whose kind it has no message for in the provider's own words", () => {
+    const said = engineFailure({ kind: "provider-something-new", error: "Your key has expired" });
+    expect(said).toContain("Your key has expired");
+    expect(said).toContain("/error/unknown-engine-error");
+  });
+
   it("has a message for an engine that cannot be reached", () => {
     expect(engineUnreachable()).toContain("could not reach");
     expect(engineUnreachable()).toContain("/error/engine-unreachable");
+  });
+});
+
+describe("a provider's failure", () => {
+  it("names the provider by its label, with the article for the kind", () => {
+    const said = engineFailure(failureOf({ kind: "provider-invalid-key", status: 401, provider: "Anthropic (API key)", providerMessage: "invalid x-api-key" }), { markdown: true });
+    expect(said).toContain("Anthropic (API key) did not accept the API key");
+    expect(said).toContain("(https://draggy.org/error/provider-invalid-key)");
+    expect(said).not.toContain("invalid x-api-key");
+  });
+
+  it("keeps the provider's own words when the kind says nothing more", () => {
+    const said = engineFailure(failureOf({ kind: "provider-unknown-error", provider: "Groq", providerMessage: "upstream fell over" }));
+    expect(said).toContain("Groq reported a problem: upstream fell over");
+    expect(said).toContain("/error/provider-unknown-error");
+  });
+
+  it("says who when no instance was named, in the reader's language", () => {
+    expect(engineFailure(failureOf({ kind: "provider-unreachable" }))).toContain("The provider could not be reached");
+    speak("fr");
+    expect(engineFailure(failureOf({ kind: "provider-no-credit", provider: "OpenAI" }))).toContain("OpenAI indique que le compte n'a plus de crédit");
+  });
+});
+
+describe("an account's failure", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("says the account is signed out, or its runtime would not start, with the article on each", () => {
+    const out = engineFailure(failureOf({ kind: "account-signed-out", provider: "ChatGPT" }));
+    expect(out).toContain("ChatGPT is signed out. Sign in again in Settings, under Providers.");
+    expect(out).toContain("/error/account-signed-out");
+    expect(engineFailure(failureOf({ kind: "account-runtime-unavailable", provider: "ChatGPT" }))).toContain("/error/account-runtime-unavailable");
+  });
+
+  it("gives a spent plan's reset in the reader's clock, with the day only when it is not today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 28, 9, 0));
+    const later = new Date(2026, 8, 28, 14, 30);
+    const said = engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT", resetsAt: later.getTime() / 1000 }));
+    const time = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(later);
+    expect(said).toContain(`ChatGPT has used up the plan's allowance until ${time}.`);
+    expect(said).toContain("/error/account-limit-reached");
+
+    const monday = new Date(2026, 8, 28 + 2, 8, 0);
+    const day = new Intl.DateTimeFormat("en", { weekday: "long", hour: "numeric", minute: "2-digit" }).format(monday);
+    expect(engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT", resetsAt: monday.getTime() / 1000 }))).toContain(`until ${day}.`);
+  });
+
+  it("does not invent a reset the runtime did not give", () => {
+    const said = engineFailure(failureOf({ kind: "account-limit-reached", provider: "ChatGPT" }));
+    expect(said).toContain("ChatGPT has used up the plan's allowance for now.");
+    expect(said).not.toContain("until");
   });
 });
 
@@ -124,7 +183,7 @@ describe("in another language", () => {
 });
 
 describe("the messages in every language", () => {
-  const keys = Object.keys(translations.en).filter((key) => /^engine[A-Z]/.test(key));
+  const keys = Object.keys(translations.en).filter((key) => /^(engine|provider|account)[A-Z]/.test(key));
   const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
   it("finds the engine messages to check", () => {

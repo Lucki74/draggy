@@ -2,6 +2,7 @@ import { beginLlamaWork } from "../llama";
 import { ggufModelName } from "../ai/engineAdapter";
 import { safeJsonParse } from "../utils";
 import type { CompactionState, Message } from "../types";
+import { chatEndpoint } from "../ai/providers";
 
 /** Folds the older part of a chat into notes, so it never hits the context wall. Appends rather
  * than rewrites, triggers off the model's maximum, and runs after a turn. */
@@ -28,7 +29,8 @@ export const SUMMARY_CHAR_BUDGET = 3000;
 const TRANSCRIPT_MESSAGE_LIMIT = 4000;
 
 /** Tokens the summariser may produce. Bounded so a fold cannot run away. */
-const SUMMARY_NUM_PREDICT = 600;
+const SUMMARY_NUM_PREDICT = 1024;
+
 
 export interface CompactionPlan {
   /** Where this fold starts: the end of whatever was already folded. */
@@ -234,7 +236,7 @@ export interface CompactionRequest {
 export async function runCompaction(
   request: CompactionRequest,
 ): Promise<CompactionState | null> {
-  const end = beginLlamaWork();
+  const end = beginLlamaWork(request.model);
   try {
     return await fold(request);
   } finally {
@@ -250,7 +252,7 @@ async function fold(request: CompactionRequest): Promise<CompactionState | null>
 
   const summaryMessages = buildSummaryMessages(existing?.summary ?? null, slice);
 
-  const response = await fetch("http://127.0.0.1:11435/v1/chat/completions", {
+  const response = await fetch(chatEndpoint(model), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -259,6 +261,8 @@ async function fold(request: CompactionRequest): Promise<CompactionState | null>
       temperature: 0.2,
       max_tokens: SUMMARY_NUM_PREDICT,
       messages: summaryMessages,
+      chat_template_kwargs: { enable_thinking: false },
+      think: false,
     }),
     signal,
   });
@@ -267,9 +271,15 @@ async function fold(request: CompactionRequest): Promise<CompactionState | null>
 
   const rawText = await response.text();
   const parsed = safeJsonParse<{
-    choices?: [{ message?: { content?: string } }];
+    choices?: [{ message?: { content?: string; reasoning_content?: string } }];
   }>(rawText);
-  const written = parsed?.choices?.[0]?.message?.content?.trim();
+  const choice = parsed?.choices?.[0]?.message;
+  const rawWritten = choice?.content?.trim() || choice?.reasoning_content?.trim() || "";
+  const written = rawWritten
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/gi, "")
+    .replace(/<\/think>/gi, "")
+    .trim();
 
   // A model that returns nothing has not compacted anything, and recording an
   // empty summary would throw the folded messages away for good.

@@ -17,6 +17,8 @@ import {
   ImageIcon,
   File,
   Cpu,
+  Cloud,
+  Server,
   AlertTriangle,
   Mic,
   MicOff,
@@ -44,7 +46,6 @@ import type { CompactOutcome } from "./agent/taskManager";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import {
 } from "./chat/markdown";
-import { selectableModels } from "./modelKinds";
 import type { SettingsTab } from "./settings/pages";
 import { translations } from "./translations";
 import {
@@ -53,16 +54,17 @@ import {
   writeLocalStorage,
 } from "./utils";
 import {
+  CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   displayModelName,
   getModelInfo,
-  isCloudModel,
-  listInstalledModels,
   needsTextModeTools,
   onModelInfoChange,
   warmModel,
   windowCeiling,
 } from "./llama";
+
+import { isRemote } from "./ai/providers";
 import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { ContextMeasurement } from "./agent/agentLoop";
 import {
@@ -79,7 +81,11 @@ import {
 } from "./chat/slashCommands";
 import { isSpeechSupported, startRecording, transcribe } from "./speech";
 import type { Recorder } from "./speech";
-import type { InstalledModel, ModelInfo } from "./llama";
+import type { ModelInfo } from "./llama";
+import ModelChoices from "./providers/ModelChoices";
+import RemoteFilesNotice from "./providers/RemoteFilesNotice";
+import { useProviderOf } from "./providers/useProviders";
+import { ProviderIcon } from "./providers/ProviderIcon";
 
 const MAX_INPUT_HEIGHT = 150;
 
@@ -177,6 +183,11 @@ interface ChatScreenProps {
   onInitProject?: () => void;
   /** Folds the older conversation into notes now. */
   onCompact?: () => Promise<CompactOutcome>;
+  /** Why nothing can be sent yet, such as the first model still downloading. Typing still works. */
+  unavailable?: string;
+  /** A first message suggested by the setup, used once when there is no draft of the user's own. */
+  seedDraft?: string;
+  onSeedUsed?: () => void;
   /** Asks the model how many tokens the next turn takes, draft included. */
   onMeasureContext?: (
     draft: string,
@@ -210,6 +221,9 @@ export default function ChatScreen({
   onInitProject,
   onCompact,
   onMeasureContext,
+  unavailable,
+  seedDraft,
+  onSeedUsed,
 }: ChatScreenProps) {
   const t = useCallback(
     (key: string) =>
@@ -219,8 +233,13 @@ export default function ChatScreen({
 
   const draftKey = `draft_${chat.id}`;
   const [input, setInput] = useState(
-    () => localStorage.getItem(draftKey) || "",
+    () => localStorage.getItem(draftKey) || seedDraft || "",
   );
+  // The suggestion lands in the draft once; after that the draft is the user's own.
+  useEffect(() => {
+    if (seedDraft) onSeedUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey);
 
   if (loadedDraftKey !== draftKey) {
@@ -253,7 +272,8 @@ export default function ChatScreen({
     model: string;
     info: ModelInfo | null;
   }>({ model, info: null });
-  const [installedModels, setInstalledModels] = useState<InstalledModel[]>([]);
+  const modelProvider = useProviderOf(model);
+  const PillIcon = !isRemote(model) ? Cpu : modelProvider?.kind === "local" ? Server : Cloud;
 
   const modelInfo = probedModel.model === model ? probedModel.info : null;
   // Only when the model has said so: a probe that has not answered yet is not proof of anything.
@@ -303,19 +323,6 @@ export default function ChatScreen({
       stopListening();
     };
   }, [model]);
-
-  useEffect(() => {
-    if (!isModelMenuOpen) return;
-    let cancelled = false;
-    listInstalledModels()
-      .then((models) => {
-        if (!cancelled) setInstalledModels(selectableModels(models));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [isModelMenuOpen]);
 
   useEffect(() => {
     const field = inputRef.current;
@@ -677,6 +684,7 @@ export default function ChatScreen({
       onStopGeneration();
       return;
     }
+    if (unavailable) return;
 
     let sanitizedInput = input.trim();
     if (isBinary(sanitizedInput)) {
@@ -794,7 +802,7 @@ export default function ChatScreen({
       warmedForModelRef.current = null;
       return;
     }
-    if (warmedForModelRef.current === model || isCloudModel(model)) return;
+    if (!model || warmedForModelRef.current === model || isRemote(model)) return;
     warmedForModelRef.current = model;
 
     if (onMeasureContext) {
@@ -841,7 +849,7 @@ export default function ChatScreen({
   }
 
   // The total is the model's; the parts are its prompt pieces measured out of that total.
-  const parts = measured?.value.parts ?? null;
+  const parts = live?.parts ?? measured?.value.parts ?? null;
   const contextBreakdown: ContextBreakdown | null =
     usedTokens === null
       ? null
@@ -865,10 +873,17 @@ export default function ChatScreen({
       ? (modelInfo?.contextLength ?? FALLBACK_CONTEXT_LENGTH)
       : typeof settings.fixedContextSize === "number"
       ? settings.fixedContextSize
-      : windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+      : isRemote(model)
+      ? windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0)
+      : Math.min(
+          CONTEXT_BUCKETS[CONTEXT_BUCKETS.length - 1],
+          windowCeiling(modelInfo?.contextLength ?? null, loadedTokens ?? 0),
+        ),
     limitTokens: settings.compactLimit ?? null,
+    paid: modelInfo?.cloud === true,
     details: contextDetails(parts, loadedSkillNames),
   });
+
   const speechSupported = isSpeechSupported();
   const documentsSupported = Boolean(window.electronAPI);
   const visionSupported =
@@ -979,7 +994,7 @@ export default function ChatScreen({
       <div className="p-6 bg-[var(--bg-base)] border-t-[3px] border-[var(--border-light)] shadow-[0_-4px_0_var(--border-light)] z-10">
         <div className="max-w-5xl mx-auto relative">
           {slashMatches.length > 0 && (
-            <div className="absolute bottom-full mb-2 left-0 right-0 ui-box p-2 z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
+            <div className="absolute bottom-full mb-2 start-0 end-0 ui-box p-2 z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
               {slashMatches.map((command, index) => (
                 <button
                   key={command.id}
@@ -990,7 +1005,7 @@ export default function ChatScreen({
                     event.preventDefault();
                     runSlashCommand(command.id);
                   }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-start transition-colors ${
                     index === activeSlashIndex
                       ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                       : "hover:bg-[var(--hover-bg)]"
@@ -1009,6 +1024,12 @@ export default function ChatScreen({
 
           <form onSubmit={handleSubmit} className="composer">
             <div className="overflow-hidden rounded-t-[9px] flex-shrink-0">
+              <RemoteFilesNotice
+                model={model}
+                provider={modelProvider?.label}
+                inProject={surface === "code" && Boolean(onProjectMemory)}
+                t={t}
+              />
               {chat.isOutOfContext && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b-2 border-[var(--border-light)] bg-[var(--hover-bg)]">
                   <Brain className="w-4 h-4 flex-shrink-0 text-amber-500" />
@@ -1074,7 +1095,7 @@ export default function ChatScreen({
                   }
                 }
               }}
-              placeholder={compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`}
+              placeholder={unavailable ?? (compactToolbar ? `${t("messageModel")}...` : `${t("messageModel")} ${displayModelName(model)}...`)}
               className="w-full bg-transparent px-5 pt-4 pb-2 text-[var(--text-main)] placeholder-[var(--text-muted)] font-bold resize-none overflow-y-auto focus:outline-none"
               rows={1}
               style={{ minHeight: "56px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
@@ -1236,15 +1257,19 @@ export default function ChatScreen({
                 />
               )}
 
-              <div className="ml-auto flex items-center gap-1 min-w-0">
+              <div className="ms-auto flex items-center gap-1 min-w-0">
               <div className="relative min-w-0" ref={modelMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                  title={displayModelName(model)}
+                  title={modelProvider ? `${modelProvider.label} · ${displayModelName(model)}` : displayModelName(model)}
                   className={`composer-pill min-w-0 ${compactToolbar ? "max-w-[130px]" : "max-w-[190px]"}`}
                 >
-                  <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
+                  {modelProvider ? (
+                    <ProviderIcon type={modelProvider.type} name={modelProvider.label} size="w-3.5 h-3.5" />
+                  ) : (
+                    <PillIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
                   {!tightToolbar && <span className="truncate">{displayModelName(model)}</span>}
                   <ChevronRight
                     className={`w-3 h-3 flex-shrink-0 transition-transform ${
@@ -1260,43 +1285,17 @@ export default function ChatScreen({
                       initial={{ opacity: 0, y: 8, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                      className="absolute bottom-[42px] right-0 w-72 ui-box p-3 z-50 flex flex-col gap-2"
+                      className="absolute bottom-[42px] end-0 w-72 ui-box p-3 z-50 flex flex-col gap-2"
                     >
-                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
-                        {installedModels.length === 0 ? (
-                          <p className="text-[11px] font-bold text-[var(--text-muted)] px-1 py-1">
-                            {t("noModelsFound")}
-                          </p>
-                        ) : (
-                          installedModels.map((entry) => (
-                            <button
-                              key={entry.name}
-                              type="button"
-                              onClick={() => {
-                                onSelectModel(entry.name);
-                                setIsModelMenuOpen(false);
-                              }}
-                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
-                                entry.name === model
-                                  ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
-                                  : "hover:bg-[var(--hover-bg)]"
-                              }`}
-                            >
-                              <span className="flex-1 min-w-0 truncate text-[11px] font-bold">
-                                {displayModelName(entry.name)}
-                              </span>
-                              {entry.parameterSize && (
-                                <span className="text-[9px] font-bold opacity-60 flex-shrink-0">
-                                  {entry.parameterSize}
-                                </span>
-                              )}
-                              {entry.name === model && (
-                                <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
+                      <ModelChoices
+                        open={isModelMenuOpen}
+                        model={model}
+                        onPick={(name) => {
+                          onSelectModel(name);
+                          setIsModelMenuOpen(false);
+                        }}
+                        t={t}
+                      />
 
                       {modelInfo && modelInfo.capabilities.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -1321,9 +1320,19 @@ export default function ChatScreen({
                           setIsModelMenuOpen(false);
                           onOpenSettings("models");
                         }}
-                        className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
+                        className="w-full text-start px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
                       >
                         {t("manageModels")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModelMenuOpen(false);
+                          onOpenSettings("providers");
+                        }}
+                        className="w-full text-start px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[var(--hover-bg)] transition-colors"
+                      >
+                        {t("providers")}
                       </button>
                     </motion.div>
                   )}
@@ -1341,10 +1350,10 @@ export default function ChatScreen({
                 type={chat.isGenerating ? "button" : "submit"}
                 onClick={chat.isGenerating ? () => onStopGeneration() : undefined}
                 disabled={
-                  !input.trim() &&
-                  attachedFiles.length === 0 &&
-                  !chat.isGenerating
+                  (!input.trim() && attachedFiles.length === 0 && !chat.isGenerating) ||
+                  (Boolean(unavailable) && !chat.isGenerating)
                 }
+                title={unavailable}
                 className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--bg-inverted)] text-[var(--text-inverted)] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
               >
                 {chat.isGenerating ? (

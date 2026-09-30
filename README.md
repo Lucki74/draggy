@@ -37,8 +37,8 @@ Draggy is a desktop AI assistant that talks, browses and works on your own
 projects, all on models running on your own computer.
 
 It runs models directly on your hardware via its built-in native GGUF engine
-(powered by `llama.cpp`) with open weights from Hugging Face, so there is no
-account, no API key, and no request leaving the machine unless you ask for one.
+(powered by `llama.cpp`) with open weights from Hugging Face, so by default there
+is no account, no API key, and no request leaving the machine unless you ask for one.
 An Electron app, in React and TypeScript, for Windows, macOS and Linux.
 
 **The wiki, at [draggy.org/wiki](https://draggy.org/wiki)**, is where the rest
@@ -48,14 +48,13 @@ app is built, in the same twelve languages the app speaks. Start with
 [Building and architecture](https://draggy.org/wiki/development) if you are here
 to work on the code.
 
-## Current development branches
-
-- [providers-onboarding - indev, functioning](https://github.com/Lucki74/draggy/tree/providers-onboarding)
-
 ## Features
 
-- **Chat with a local model.** Draggy picks a model that fits your graphics card,
-  downloads it, and lets you swap it any time.
+- **Set up in a minute.** The first launch asks your language, a light, dark or
+  system theme, and which model to download, and downloads nothing before you
+  choose. Skip takes the defaults.
+- **Chat with a local model.** Draggy suggests a model that fits your computer,
+  downloads the one you pick, and lets you swap it any time.
 - **Stay quick on small models.** An efficient system prompt keeps 1B to 7B
   models responsive without cutting any instructions.
 - **Keep chats and code apart.** A switch at the top of the sidebar, and each
@@ -76,12 +75,19 @@ to work on the code.
   loud, and stops when you interrupt.
 - **Plug other tools in.** An optional OpenAI-compatible API on 127.0.0.1, off
   by default and protected by a key.
+- **Bring another model in, if you want one.** Add a server already running on
+  your computer (Ollama, LM Studio, llama.cpp, vLLM, Lemonade) or a cloud provider
+  with your own API key (OpenAI, Mistral, DeepSeek, Groq, OpenRouter and more).
+  The built-in engine stays the default and fully local. A provider you add
+  receives your conversations and the files its model reads, and its key stays in
+  your system's keystore.
 
 ## Installing and requirements
 
 Pick your system on [draggy.org](https://draggy.org), or take the installer
 straight from the [Releases page](https://github.com/Lucki74/draggy/releases).
-Models are downloaded directly to your machine on first launch. See
+On first launch Draggy suggests a model sized to your hardware and downloads the
+one you choose, straight to your machine. See
 [Installation](https://draggy.org/wiki/installation) for hardware requirements.
 
 ### macOS: "Draggy" not opened

@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { llamaIsBusy } from "../llama";
 import { runAgentTurn, toWireMessage } from "../agent/agentLoop";
+import { draggyRef } from "../ai/providers";
 import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
 import { parsePlan } from "../plan/plan";
 import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
+import { BUILTIN_TOOLS } from "../tools/builtin";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../llama";
 import type {
@@ -19,6 +22,19 @@ import type {
 } from "../types";
 
 const MODEL = "test-model";
+
+// Main lists a provider's models with what they can do; these stand in, one with tools and one thinking.
+const TOOL_PROVIDER_MODEL = "@anthropic/claude-tools";
+vi.mock("../llama", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llama")>();
+  return {
+    ...actual,
+    getModelInfo: (model: string) =>
+      model === "@anthropic/claude-tools" || model === "@openai/thinker"
+        ? Promise.resolve({ contextLength: 200000, capabilities: model.endsWith("thinker") ? ["tools", "thinking"] : ["tools"], parameterCount: null, quantization: null, promptProfile: "full" })
+        : actual.getModelInfo(model),
+  };
+});
 
 const SETTINGS = {
   theme: "light",
@@ -36,7 +52,6 @@ const SETTINGS = {
   voiceRate: 1,
   searchProvider: "auto",
   searxngUrl: "",
-  braveApiKey: "",
   codeModel: "",
   codeInstructions: [],
   codeThinkingMode: "medium",
@@ -83,7 +98,18 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
   for (const piece of turn.content ?? []) {
     chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
   }
-  if (turn.toolCalls) {
+  if (turn.state) chunks.push({ provider_state: turn.state });
+  if (turn.toolCallChunks) {
+    for (const group of turn.toolCallChunks) {
+      chunks.push({ choices: [{ delta: { tool_calls: group }, finish_reason: null }] });
+    }
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else if (turn.toolCalls) {
     const deltas = turn.toolCalls.map((tc, i) => ({
       index: i,
       id: `call_${i}`,
@@ -112,7 +138,10 @@ interface Turn {
   content?: string[];
   thinking?: string[];
   toolCalls?: { function: { name: string; arguments: Record<string, unknown> } }[];
+  toolCallChunks?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[][];
   final?: Record<string, unknown>;
+  /** A `provider_state` event the gateway sends with this pass. */
+  state?: { instanceId: string; state: unknown };
 }
 
 function installFetch(
@@ -161,7 +190,7 @@ function installFetch(
   });
 
   const impl = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/v1/chat/completions")) {
+    if (url === "draggy-ai://chat") {
       const body = JSON.parse(String(init?.body));
 
       if (body.response_format || body.format) {
@@ -189,6 +218,7 @@ function installFetch(
 function makeHost() {
   const patches: { content: string; textContent: string }[] = [];
   let steps: SearchStep[] = [];
+  const recordedSteps: SearchStep[][] = [];
   let metrics: TurnMetrics | null = null;
   let outOfContext = false;
 
@@ -197,9 +227,11 @@ function makeHost() {
     onPatch: (patch) => {
       patches.push({ content: patch.content, textContent: patch.textContent });
       steps = patch.steps;
+      recordedSteps.push(JSON.parse(JSON.stringify(patch.steps)));
     },
     onSteps: (next) => {
       steps = next;
+      recordedSteps.push(JSON.parse(JSON.stringify(next)));
     },
     onOutOfContext: (flag) => {
       outOfContext = flag;
@@ -212,6 +244,7 @@ function makeHost() {
   return {
     host,
     patches,
+    recordedSteps,
     get steps() {
       return steps;
     },
@@ -1105,6 +1138,47 @@ describe("keeping prose where the model wrote it", () => {
     const result = await promise;
     expect(result.textContent).toContain("Half a thought");
   });
+
+  it("saves the text of a reply stopped mid-stream as the reply, for the next turn's history", async () => {
+    installFetch([{ content: ["unused"] }], []);
+    const encoder = new TextEncoder();
+
+    // Counts until stopped, as the Qwen run did: the stream is still open when Stop lands.
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      let count = 0;
+      let timer: ReturnType<typeof setInterval> | undefined;
+      const body = new ReadableStream<Uint8Array>({
+        start(stream) {
+          timer = setInterval(() => {
+            const chunk = { choices: [{ delta: { content: `${++count}, ` }, finish_reason: null }] };
+            stream.enqueue(encoder.encode("data: " + JSON.stringify(chunk) + "\n\n"));
+          }, 5);
+          init?.signal?.addEventListener("abort", () => {
+            clearInterval(timer);
+            stream.error(Object.assign(new Error("aborted"), { name: "AbortError" }));
+          });
+        },
+        cancel: () => clearInterval(timer),
+      });
+      return new Response(body, { status: 200 });
+    }));
+
+    const controller = new AbortController();
+    const probe = makeHost();
+    const { promise } = run([userMessage("Count to five hundred")], controller.signal, probe);
+
+    await vi.waitFor(() => expect(probe.steps.some((step) => step.type === "text")).toBe(true));
+    controller.abort();
+    const result = await promise;
+
+    const saved = probe.patches[probe.patches.length - 1];
+    expect(saved.textContent).toMatch(/^1, 2, /);
+    expect(saved.content).toMatch(/^1, 2, /);
+    expect(saved).toEqual({ content: result.content, textContent: result.textContent });
+    expect(probe.steps.some((step) => step.type === "text")).toBe(false);
+    expect(toWireMessage({ ...assistantMessage(saved.content), textContent: saved.textContent }, false).content)
+      .toMatch(/^1, 2, /);
+  });
 });
 
 describe("carrying on a reply that was cut short", () => {
@@ -1708,6 +1782,15 @@ describe("a tool call the model got wrong", () => {
     expect(toolCalls).toEqual([{ name: "search_web", args: { query: "paris" } }]);
   });
 
+  it("is never asked for again from a provider, where a repair would double the turn's cost", async () => {
+    const { repairs } = installFetch([{ content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] }, { content: ["Paris."] }], null, undefined, GOOD);
+    await runAgentTurn(
+      { model: "@openai/unlisted", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("where is Paris")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+    expect(repairs).toEqual([]);
+  });
+
   it("constrains the repair to the tools that exist", async () => {
     const { repairs } = await textModeFetch(
       [
@@ -2052,6 +2135,309 @@ describe("aborting during tool calls", () => {
     expect(result.aborted).toBe(true);
     const step = result.steps.find((s) => s.id === stepId);
     expect(step?.isComplete).toBe(true);
+  });
+});
+
+describe("a provider's model", () => {
+  it("never starts the engine, and names the model whole in the request", async () => {
+    const { requests, starts } = installFetch([{ content: ["Hi"] }], []);
+    const host = makeHost();
+    const turn = runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      host.host,
+    );
+    // Local measurements and background work go on while a provider answers.
+    expect(llamaIsBusy()).toBe(false);
+    const result = await turn;
+    expect(result.textContent).toBe("Hi");
+    expect(starts).toEqual([]);
+    expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");
+  });
+});
+
+describe("the thinking pill's level", () => {
+  const turn = (model: string) =>
+    runAgentTurn(
+      { model, settings: { ...SETTINGS, thinkingMode: "high" }, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+
+  it("reaches a provider, which maps it to its own parameter", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], []);
+    await turn("@openai/thinker");
+    expect(requests[0]).toMatchObject({ think: true, thinking_level: "high" });
+  });
+
+  it("never reaches the engine, whose body stays as it was", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], ["tools", "thinking"]);
+    await turn(MODEL);
+    expect(requests[0]).toMatchObject({ think: true });
+    expect("thinking_level" in requests[0]).toBe(false);
+  });
+});
+
+describe("a provider that is retried", () => {
+  it("shows each wait as a loading step counting down, gone once the answer starts", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"draggy_retry":{"attempt":1,"of":2,"retryAfterMs":4000}}\n\n',
+      'data: {"draggy_retry":{"attempt":2,"of":2,"retryAfterMs":8000}}\n\n',
+      'data: {"choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const host = makeHost();
+    const started = Date.now();
+    const result = await runAgentTurn(
+      { model: "@openai/gpt-x", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      host.host,
+    );
+    const retries = host.recordedSteps.flat().filter((step) => step.retry);
+    expect([...new Set(retries.map((step) => `${step.type} ${step.retry?.attempt} of ${step.retry?.of}`))]).toEqual(["loading 1 of 2", "loading 2 of 2"]);
+    expect(retries.at(-1)!.retry!.until - started).toBeGreaterThanOrEqual(8000);
+    expect(new Set(retries.map((step) => step.id)).size).toBe(1);
+    expect(host.steps.some((step) => step.retry)).toBe(false);
+    expect(result.textContent).toBe("Hi");
+  });
+});
+
+describe("a provider that fails once its stream is open", () => {
+  it("ends the turn with the provider's error instead of an empty reply", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"choices":[{"index":0,"delta":{"content":"Hel"}}]}\n\n',
+      'data: {"error":{"kind":"provider-unknown-error","status":500,"providerMessage":"upstream fell over"}}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const turn = runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+    await expect(turn).rejects.toThrow("upstream fell over");
+  });
+});
+
+describe("a provider's state through a turn", () => {
+  const signed = { instanceId: "anthropic", state: { signature: "sig-1" } };
+  const later = { instanceId: "anthropic", state: { signature: "sig-2" } };
+
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+
+  it("rides on the assistant's tool call into the next request of the same turn", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }], state: signed },
+        { content: ["Done."], state: later },
+      ],
+      ["tools"],
+    );
+    const result = await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL, [userMessage("go")]), makeHost().host);
+
+    const second = requests[1] as { messages: { role: string; tool_calls?: unknown; provider_state?: unknown }[] };
+    const call = second.messages.find((m) => m.role === "assistant" && m.tool_calls);
+    expect(call?.provider_state).toEqual(signed);
+    expect(result.providerState).toEqual(later);
+  });
+
+  it("is dropped when the gateway tags it for another instance", async () => {
+    installFetch([{ content: ["Hi"], state: { instanceId: "openai", state: {} } }], []);
+    const result = await runAgentTurn(turnInput("@anthropic/claude-x", [userMessage("hi")]), makeHost().host);
+    expect(result.providerState).toBeUndefined();
+  });
+
+  it("goes back to its own instance next turn, and never to the built-in engine", async () => {
+    const history: Message[] = [userMessage("hi"), { ...assistantMessage("hello"), provider_state: signed }, { ...userMessage("again"), id: "u2" }];
+    expect(toWireMessage(history[1], false).provider_state).toEqual(signed);
+
+    const remote = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput("@anthropic/claude-x", history), makeHost().host);
+    const sent = (remote.requests[0] as { messages: { provider_state?: unknown }[] }).messages;
+    expect(sent.filter((m) => m.provider_state)).toMatchObject([{ role: "assistant", content: "hello", provider_state: signed }]);
+
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, history), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("provider_state");
+  });
+});
+
+describe("each stored message's reference on the wire", () => {
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+  type Sent = { messages: { role: string; content: string; draggy_ref?: { id: string; hash: string } }[] };
+
+  it("stays the same when the message has lost its time note by the next turn", async () => {
+    const first = userMessage("what time is it");
+    const one = installFetch([{ content: ["Noon."] }], []);
+    await runAgentTurn(turnInput("@codex/gpt-x", [first]), makeHost().host);
+    const before = (one.requests[0] as Sent).messages.find((m) => m.draggy_ref?.id === "u1");
+
+    const two = installFetch([{ content: ["Still noon."] }], []);
+    const history = [first, { ...assistantMessage("Noon."), id: "a1" }, { ...userMessage("and now"), id: "u2" }];
+    await runAgentTurn(turnInput("@codex/gpt-x", history), makeHost().host);
+    const sent = (two.requests[0] as Sent).messages;
+    const after = sent.find((m) => m.draggy_ref?.id === "u1");
+
+    // The note was on the wire the first time, and is gone the second; the reference did not move.
+    expect(before?.content).not.toBe(after?.content);
+    expect(after?.draggy_ref).toEqual(before?.draggy_ref);
+    expect(before?.draggy_ref).toEqual(await draggyRef(first));
+    expect(sent.filter((m) => m.draggy_ref).map((m) => m.draggy_ref?.id)).toEqual(["u1", "a1", "u2"]);
+    expect(sent.find((m) => m.role === "system")?.draggy_ref).toBeUndefined();
+  });
+
+  it("is never sent to the built-in engine", async () => {
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, [userMessage("hi")]), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("draggy_ref");
+  });
+});
+
+describe("the system prompt's profile", () => {
+  const systemOf = (request: unknown) => (request as { messages: { role: string; content: string }[] }).messages[0].content;
+  const turnInput = (model: string) => ({
+    model,
+    settings: SETTINGS,
+    environment: ENVIRONMENT,
+    messages: [userMessage("hi")],
+    compaction: null,
+    signal: new AbortController().signal,
+  });
+
+  it("is full when the model's info says so, and compact for the engine", async () => {
+    const remote = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL), makeHost().host);
+    expect(systemOf(remote.requests[0])).toContain("Using tools well:");
+
+    const local = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(MODEL), makeHost().host);
+    expect(systemOf(local.requests[0])).not.toContain("Using tools well:");
+  });
+});
+
+describe("live streaming file creation", () => {
+  const createFileTool = BUILTIN_TOOLS.find((t) => t.name === "create_file")!;
+
+  beforeEach(() => {
+    registerTool(createFileTool);
+  });
+
+  it("emits an in-progress step during streaming and finalizes it on completion", async () => {
+    const jsonP1 = '{"filename": "report.docx", "content": "# Part 1';
+    const jsonP2 = '\\n\\nBody content"}';
+    const host = makeHost();
+
+    installFetch(
+      [
+        {
+          toolCallChunks: [
+            [{ index: 0, id: "call_file_1", function: { name: "create_file", arguments: jsonP1 } }],
+            [{ index: 0, function: { arguments: jsonP2 } }],
+          ],
+        },
+        { content: ["File created successfully."] },
+      ],
+      ["tools"],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/report.docx",
+    });
+
+    const result = await run([userMessage("create report.docx")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("report.docx");
+    expect(inProgress?.fileContent).toBe("# Part 1");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
+    expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("streams file creation in text mode and reuses the in-progress step", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          content: [
+            '<tool>{"name": "create_file", "args": {"filename": "streamed.txt", "content": "Hello ',
+            'world!"}}</tool>',
+          ],
+        },
+        { content: ["Here is your file."] },
+      ],
+      [],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/streamed.txt",
+    });
+
+    const result = await run([userMessage("write streamed.txt")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("streamed.txt");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filename).toBe("streamed.txt");
   });
 });
 

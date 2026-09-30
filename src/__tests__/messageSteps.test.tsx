@@ -56,6 +56,14 @@ describe("steps in a finished reply", () => {
   });
 });
 
+describe("a provider being retried", () => {
+  it("counts down to the next attempt, in the reader's words", () => {
+    show([{ id: "r1", type: "loading", content: "", isComplete: false, retry: { attempt: 1, of: 2, until: Date.now() + 4000 } }]);
+
+    expect(screen.getByText("Busy right now. Trying again in 4 s (1 of 2)...")).toBeTruthy();
+  });
+});
+
 /** Reasoning often arrives with indented lines, which Markdown turns into a code block that does
  * not wrap and ran off the edge of the reply. */
 describe("a thinking step with indented lines", () => {

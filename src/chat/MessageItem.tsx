@@ -188,13 +188,13 @@ function LibraryHits({
   t: (key: string) => string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 pl-5 mt-2">
+    <div className="flex flex-col gap-1.5 ps-5 mt-2">
       {hits.map((hit, index) => (
         <button
           key={index}
           onClick={() => window.electronAPI?.openFile?.(hit.path)}
           title={hit.path}
-          className="flex items-center gap-3 p-2.5 rounded-xl border-[2px] border-[var(--border-light)] bg-[var(--bg-base)] hover:bg-[var(--hover-bg)] transition-all text-left"
+          className="flex items-center gap-3 p-2.5 rounded-xl border-[2px] border-[var(--border-light)] bg-[var(--bg-base)] hover:bg-[var(--hover-bg)] transition-all text-start"
         >
           <FileText className="w-4 h-4 flex-shrink-0 opacity-70" />
           <span className="text-xs font-bold truncate flex-1 min-w-0">{hit.name}</span>
@@ -212,7 +212,7 @@ function GitDiffOutput({ diff, t }: { diff: string; t: (key: string) => string }
   const { added, removed } = diffStats(diff);
 
   return (
-    <details className="pl-5 mt-2">
+    <details className="ps-5 mt-2">
       <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-main)]">
         {t("gitShowDiff")}{" "}
         <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>{" "}
@@ -230,7 +230,7 @@ function CodeRunOutput({ step, t }: { step: SearchStep; t: (key: string) => stri
   if (!hasOutput) return null;
 
   return (
-    <div className="pl-5 mt-2 space-y-2">
+    <div className="ps-5 mt-2 space-y-2">
       {step.stdout && (
         <pre className="p-3 rounded-xl border-[2px] border-[var(--border-light)] bg-[var(--bg-base)] text-xs overflow-x-auto whitespace-pre-wrap break-words">
           {step.stdout}
@@ -307,9 +307,12 @@ function FileCard({
     return () => cancelAnimationFrame(frame);
   }, [animate, content]);
 
-  const writing = (animate && revealed < content.length) || !step.isComplete;
+  const writing = !step.isComplete || (animate && revealed < content.length);
   const showingPreview = viewMode === "preview" && !writing;
-  const shown = animate ? content.slice(0, Math.min(revealed, content.length)) : content;
+  const shown = !step.isComplete
+    ? content
+    : (animate ? content.slice(0, Math.min(revealed, content.length)) : content);
+
 
   useEffect(() => {
     if (!writing) return;
@@ -442,6 +445,8 @@ function FileCard({
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
   const [elapsedMs, setElapsedMs] = useState(0);
 
+  const [now, setNow] = useState(() => Date.now());
+
   useEffect(() => {
     if (step.startedAt === undefined) return;
     const startedAt = step.startedAt;
@@ -449,11 +454,22 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
     return () => clearInterval(timer);
   }, [step.startedAt]);
 
-  const label = step.model
-    ? t("loadingModel")
-        .replace("{model}", displayModelName(step.model))
-        .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
-    : step.content;
+  useEffect(() => {
+    if (!step.retry) return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [step.retry]);
+
+  const label = step.retry
+    ? t("providerRetrying")
+        .replace("{seconds}", String(Math.max(0, Math.ceil((step.retry.until - now) / 1000))))
+        .replace("{attempt}", String(step.retry.attempt))
+        .replace("{of}", String(step.retry.of))
+    : step.model
+      ? t("loadingModel")
+          .replace("{model}", displayModelName(step.model))
+          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
+      : step.content;
 
   return (
     <div className="flex items-center space-x-3 mb-3 text-[var(--text-muted)]">
@@ -667,7 +683,7 @@ const MessageItem = memo(
             )}
 
           {isEditing && msg.role === "user" ? (
-            <div className="flex flex-col w-full p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]">
+            <div className="flex flex-col w-full p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-se-none shadow-[4px_4px_0_var(--border-dark)]">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
@@ -697,12 +713,13 @@ const MessageItem = memo(
             <div
               className={
                 msg.role === "user"
-                  ? "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-tr-none shadow-[4px_4px_0_var(--border-dark)]"
+                  ? "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-inverted)] text-[var(--text-inverted)] border-[var(--border-dark)] rounded-se-none shadow-[4px_4px_0_var(--border-dark)]"
                   : text === "" && steps.length === 0 && isGenerating && isLast
                     ? "p-3 px-4 rounded-2xl bg-[var(--bg-panel)] border-[3px] border-[var(--border-light)] w-fit"
-                    : "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-panel)] text-[var(--text-main)] border-[var(--border-light)] rounded-tl-none shadow-[4px_4px_0_var(--border-light)] markdown-body"
+                    : "p-4 font-bold leading-relaxed wrap-anywhere max-w-full border-[3px] rounded-xl bg-[var(--bg-panel)] text-[var(--text-main)] border-[var(--border-light)] rounded-ss-none shadow-[4px_4px_0_var(--border-light)] markdown-body"
               }
               style={{ fontSize: "var(--chat-font-size)" }}
+              dir="auto"
             >
               {msg.role === "assistant" &&
                 msg.attachments &&
@@ -800,16 +817,16 @@ const MessageItem = memo(
                           open={isCurrentlyThinking}
                         >
                           <summary className="cursor-pointer p-0 m-0 text-[var(--text-muted)] text-sm font-medium flex items-center select-none list-none transition-colors hover:text-[var(--text-main)] group-open:mb-2 group/summary">
-                            <div className="relative w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                            <div className="relative w-4 h-4 me-2 flex items-center justify-center flex-shrink-0">
                               <Lightbulb className="w-4 h-4 opacity-70 absolute transition-opacity duration-200 group-hover/summary:opacity-0 group-open:opacity-0" />
                               <ChevronRight className="w-4 h-4 absolute opacity-0 transition-all duration-200 group-hover/summary:opacity-100 group-open:opacity-100 group-open:rotate-90" />
                             </div>
                             <span className="tracking-tight">{title}</span>
                             {isCurrentlyThinking && (
-                              <Loader2 className="w-3 h-3 animate-spin ml-2 opacity-50" />
+                              <Loader2 className="w-3 h-3 animate-spin ms-2 opacity-50" />
                             )}
                           </summary>
-                          <div className="pl-5 pr-2 mb-6 text-[var(--text-muted)] text-[0.95em] leading-relaxed border-l-2 border-[var(--border-light)] italic opacity-80 markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
+                          <div className="ps-5 pe-2 mb-6 text-[var(--text-muted)] text-[0.95em] leading-relaxed border-s-2 border-[var(--border-light)] italic opacity-80 markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
                             {live ? (
                               <StreamingMarkdown
                                 source={normalizeMath(step.content)}
@@ -837,7 +854,7 @@ const MessageItem = memo(
                       return (
                         <details key={step.id} className="mb-5 group">
                           <summary className="cursor-pointer p-0 m-0 text-[var(--text-muted)] text-sm font-medium flex items-center select-none list-none transition-colors hover:text-[var(--text-main)] group-open:mb-3 group/summary">
-                            <div className="relative w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                            <div className="relative w-4 h-4 me-2 flex items-center justify-center flex-shrink-0">
                               <Globe className="w-4 h-4 opacity-70 absolute transition-opacity duration-200 group-hover/summary:opacity-0 group-open:opacity-0" />
                               <ChevronRight className="w-4 h-4 absolute opacity-0 transition-all duration-200 group-hover/summary:opacity-100 group-open:opacity-100 group-open:rotate-90" />
                             </div>
@@ -851,7 +868,7 @@ const MessageItem = memo(
                               </ReactMarkdown>
                             </span>
                           </summary>
-                          <div className="flex flex-col gap-2 pl-5 mt-2">
+                          <div className="flex flex-col gap-2 ps-5 mt-2">
                             {step.results.map((result, rIdx) => {
                               const hostname = hostnameOf(result.url);
                               return (

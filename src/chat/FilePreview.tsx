@@ -202,13 +202,13 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
           </span>
         </div>
         <div className={`overflow-auto bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
-          <table className="w-full border-collapse text-left font-mono text-xs">
+          <table className="w-full border-collapse text-start font-mono text-xs">
             <thead>
               <tr className="bg-[var(--bg-panel)] sticky top-0 border-b-2 border-[var(--border-light)]">
                 {header.map((col, idx) => (
                   <th
                     key={idx}
-                    className="px-3 py-2 font-bold text-[var(--text-main)] border-r border-[var(--border-light)] last:border-r-0 whitespace-nowrap"
+                    className="px-3 py-2 font-bold text-[var(--text-main)] border-e border-[var(--border-light)] last:border-e-0 whitespace-nowrap"
                   >
                     {col}
                   </th>
@@ -224,7 +224,7 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
                   {row.map((cell, cIdx) => (
                     <td
                       key={cIdx}
-                      className="px-3 py-1.5 text-[var(--text-main)] border-r border-[var(--border-light)] last:border-r-0 whitespace-nowrap"
+                      className="px-3 py-1.5 text-[var(--text-main)] border-e border-[var(--border-light)] last:border-e-0 whitespace-nowrap"
                     >
                       {cell}
                     </td>

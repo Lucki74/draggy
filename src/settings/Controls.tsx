@@ -123,7 +123,7 @@ export function Toggle({
     >
       <span
         className={`block w-[14px] h-[14px] rounded-full transition-transform ${
-          checked ? "translate-x-5" : ""
+          checked ? "translate-x-5 rtl:-translate-x-5" : ""
         }`}
         style={{ backgroundColor: checked ? "var(--text-inverted)" : "var(--text-muted)" }}
       />
@@ -176,6 +176,8 @@ export interface SelectOption {
   id: string;
   label: string;
   hint?: string;
+  /** A heading shown above the first option of each run with the same group. */
+  group?: string;
 }
 
 /** A choice of many, in a menu. A value missing from the options is still shown, or a removed
@@ -228,7 +230,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={label}
-        className="w-full px-3 py-2 ui-input text-sm font-bold flex items-center gap-2 text-left"
+        className="w-full px-3 py-2 ui-input text-sm font-bold flex items-center gap-2 text-start"
       >
         <span className="flex-1 min-w-0 truncate">{selected?.label || placeholder}</span>
         <ChevronDown
@@ -242,12 +244,17 @@ export function Select({
         <div
           role="listbox"
           aria-label={label}
-          className="absolute top-full left-0 right-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-64 overflow-y-auto"
+          className="absolute top-full start-0 end-0 mt-1 z-50 ui-box p-1 flex flex-col gap-0.5 max-h-64 overflow-y-auto"
         >
           {listed.length === 0 ? (
             <p className="px-2 py-1.5 text-xs font-bold text-[var(--text-muted)]">{placeholder}</p>
           ) : (
-            listed.map((option) => (
+            listed.map((option, index) => [
+              option.group && option.group !== listed[index - 1]?.group && (
+                <p key={`group-${option.group}`} className="px-2 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">
+                  {option.group}
+                </p>
+              ),
               <button
                 key={option.id || "automatic"}
                 type="button"
@@ -257,7 +264,7 @@ export function Select({
                   onChange(option.id);
                   setOpen(false);
                 }}
-                className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${
+                className={`flex items-center gap-2 px-2 py-2 rounded-lg text-start transition-colors ${
                   option.id === value
                     ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
                     : "hover:bg-[var(--hover-bg)]"
@@ -270,8 +277,8 @@ export function Select({
                   </span>
                 )}
                 {option.id === value && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-              </button>
-            ))
+              </button>,
+            ])
           )}
         </div>
       )}
@@ -319,6 +326,30 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
+/** A small label beside a name: what a model can do, or where it is used. */
+export function Badge({
+  children,
+  strong,
+  title,
+}: {
+  children: React.ReactNode;
+  strong?: boolean;
+  title?: string;
+}) {
+  return (
+    <span
+      title={title}
+      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0 ${
+        strong
+          ? "bg-[var(--bg-inverted)] text-[var(--text-inverted)]"
+          : "border border-[var(--border-light)] text-[var(--text-muted)]"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-3 rounded-xl border-[3px] border-[var(--border-light)] bg-[var(--bg-panel)]">
@@ -338,6 +369,7 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  tone = "danger",
 }: {
   title: string;
   body: string;
@@ -345,6 +377,8 @@ export function ConfirmDialog({
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Red for what cannot be undone; the primary look for a choice that only goes ahead. */
+  tone?: "danger" | "primary";
 }) {
   return (
     <div
@@ -361,7 +395,11 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-lg bg-red-500 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-600"
+            className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+              tone === "danger"
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "bg-[var(--bg-inverted)] text-[var(--text-inverted)] hover:opacity-90"
+            }`}
           >
             {confirmLabel}
           </button>

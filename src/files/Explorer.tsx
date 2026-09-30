@@ -115,7 +115,7 @@ function ProjectFiles({
   return (
     <div className="flex-1 flex min-h-0 bg-[var(--bg-base)]">
       <div
-        className="w-64 flex-shrink-0 overflow-y-auto border-r-[3px]"
+        className="w-64 flex-shrink-0 overflow-y-auto border-e-[3px]"
         style={{ borderColor: "var(--border-light)" }}
       >
         <FileTree

@@ -4,6 +4,7 @@ import { Block, Button, ConfirmDialog, Group, Page, Row, Segmented, Select } fro
 import InstructionsEditor from "./InstructionsEditor";
 import PermissionChoice from "./PermissionChoice";
 import { selectableModels } from "../modelKinds";
+import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
 import { thinkingOptions, webOptions } from "./pages";
 import { workspaceLabel } from "../workspaces";
 import type { ModelManager } from "./useModelManager";
@@ -23,6 +24,7 @@ interface CodePreferencesProps {
 }
 
 export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t }: CodePreferencesProps) {
+  const providerGroups = useProviderGroups();
   return (
     <Page title={t("preferences")}>
       <Group>
@@ -32,11 +34,15 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
             value={settings.codeModel}
             options={[
               { id: "", label: t("sameAsChat"), hint: chatModel },
-              ...selectableModels(manager.installed).map((entry) => ({
-                id: entry.name,
-                label: entry.name,
-                hint: entry.parameterSize,
-              })),
+              ...withProviderModels(
+                selectableModels(manager.installed).map((entry) => ({
+                  id: entry.name,
+                  label: entry.name,
+                  hint: entry.parameterSize,
+                })),
+                providerGroups,
+                t("draggyEngine"),
+              ),
             ]}
             onChange={(codeModel) => onUpdate({ codeModel })}
           />

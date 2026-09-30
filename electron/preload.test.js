@@ -10,6 +10,8 @@ const require = createRequire(import.meta.url);
 function loadPreload() {
   const listeners = new Map();
   const sent = [];
+  const messages = [];
+  const invoked = [];
 
   const ipcRenderer = {
     on(channel, listener) {
@@ -23,8 +25,13 @@ function loadPreload() {
     removeAllListeners(channel) {
       listeners.set(channel, []);
     },
-    invoke: async () => undefined,
-    send: (channel) => sent.push(channel),
+    invoke: async (...args) => {
+      invoked.push(args);
+    },
+    send: (channel, ...args) => {
+      sent.push(channel);
+      messages.push([channel, ...args]);
+    },
   };
 
   let api = null;
@@ -54,7 +61,7 @@ function loadPreload() {
     for (const listener of [...(listeners.get(channel) || [])]) listener({}, payload);
   };
 
-  return { api, emit, sent, count: (channel) => (listeners.get(channel) || []).length };
+  return { api, emit, sent, messages, invoked, count: (channel) => (listeners.get(channel) || []).length };
 }
 
 describe("preload channel subscriptions", () => {
@@ -98,6 +105,7 @@ describe("preload channel subscriptions", () => {
       () => api.browserBar.onState(() => {}),
       () => api.onDownloadProgress(() => {}),
       () => api.onBootModel(() => {}),
+      () => api.onBootOpen(() => {}),
       () => api.onBeforeQuit(() => {}),
     ];
 
@@ -115,6 +123,30 @@ describe("preload channel subscriptions", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("the splash's handoff", () => {
+  it("asks main to open only the Providers page, whatever else the renderer passes", () => {
+    const { api, messages } = loadPreload();
+    api.bootFinished("m.gguf");
+    api.bootFinished("", "providers");
+    api.bootFinished("", "../settings");
+    expect(messages).toEqual([
+      ["boot-finished", "m.gguf", undefined],
+      ["boot-finished", "", "providers"],
+      ["boot-finished", "", undefined],
+    ]);
+  });
+
+  it("delivers the page to open to the main window's listener", () => {
+    const { api, emit } = loadPreload();
+    const opened = [];
+    const dispose = api.onBootOpen((page) => opened.push(page));
+    emit("boot-open", "providers");
+    dispose();
+    emit("boot-open", "providers");
+    expect(opened).toEqual(["providers"]);
   });
 });
 
@@ -148,5 +180,103 @@ describe("saving before a quit", () => {
     emit("app:flush-saves");
     await settle();
     expect(sent).toEqual(["app:saves-flushed", "app:saves-flushed"]);
+  });
+});
+
+describe("the providers bridge", () => {
+  it("exposes exactly the provider calls, each on its own channel, and none that reads a key", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api.providers).sort()).toEqual([
+      "accountCancel",
+      "accountSignIn",
+      "accountSignOut",
+      "accountStatus",
+      "accountSubmitCode",
+      "add",
+      "catalog",
+      "list",
+      "models",
+      "onAccountProgress",
+      "remove",
+      "scan",
+      "setKey",
+      "test",
+      "update",
+    ]);
+    await api.providers.catalog();
+    await api.providers.list();
+    await api.providers.add({ type: "openai" });
+    await api.providers.update("openai", { enabled: true });
+    await api.providers.remove("openai");
+    await api.providers.setKey("openai", "sk-test");
+    await api.providers.test("openai");
+    await api.providers.models("openai", { refresh: true });
+    await api.providers.scan();
+    await api.providers.accountSignIn("chatgpt");
+    await api.providers.accountCancel("chatgpt");
+    await api.providers.accountSubmitCode("google", "4/0code");
+    await api.providers.accountSignOut("chatgpt");
+    await api.providers.accountStatus("chatgpt");
+
+    expect(invoked).toEqual([
+      ["providers:catalog"],
+      ["providers:list"],
+      ["providers:add", { type: "openai" }],
+      ["providers:update", "openai", { enabled: true }],
+      ["providers:remove", "openai"],
+      ["providers:set-key", "openai", "sk-test"],
+      ["providers:test", "openai"],
+      ["providers:models", "openai", { refresh: true }],
+      ["providers:scan"],
+      ["providers:account-sign-in", "chatgpt"],
+      ["providers:account-cancel", "chatgpt"],
+      ["providers:account-submit-code", "google", "4/0code"],
+      ["providers:account-sign-out", "chatgpt"],
+      ["providers:account-status", "chatgpt"],
+    ]);
+  });
+
+  it("gives every sign-in progress listener its own disposer", () => {
+    const { api, emit } = loadPreload();
+    const first = [];
+    const second = [];
+    const stopFirst = api.providers.onAccountProgress((progress) => first.push(progress.step));
+    api.providers.onAccountProgress((progress) => second.push(progress.step));
+    emit("providers:account-progress", { id: "chatgpt", step: "browser" });
+    stopFirst();
+    emit("providers:account-progress", { id: "chatgpt", step: "done" });
+    expect(first).toEqual(["browser"]);
+    expect(second).toEqual(["browser", "done"]);
+  });
+});
+
+describe("the Brave Search key", () => {
+  it("can be set and asked about, never read", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api).filter((key) => /brave/i.test(key)).sort()).toEqual(["braveKeyStatus", "setBraveKey"]);
+    await api.setBraveKey("BSA-x");
+    await api.braveKeyStatus();
+    expect(invoked).toEqual([["search:set-brave-key", "BSA-x"], ["search:brave-key-status"]]);
+  });
+});
+
+describe("the first-run setup's bridge", () => {
+  it("exposes exactly the four calls the spec allows, each on its own channel", async () => {
+    const { api, invoked } = loadPreload();
+
+    expect(Object.keys(api.onboarding).sort()).toEqual(["complete", "reset", "start", "state"]);
+    await api.onboarding.state();
+    await api.onboarding.start();
+    await api.onboarding.complete("local");
+    await api.onboarding.reset();
+
+    expect(invoked).toEqual([
+      ["onboarding:state"],
+      ["onboarding:start"],
+      ["onboarding:complete", "local"],
+      ["onboarding:reset"],
+    ]);
   });
 });

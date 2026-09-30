@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
+import { searchProviderOptions } from "./pages";
 import type { AppSettings, SearchProvider, StorageStats, UpdaterState } from "../types";
 
 type Translate = (key: string) => string;
@@ -16,6 +17,8 @@ interface SettingsProps {
 /** The pages about the app as a whole: how it looks, where searches go, what it keeps, updates. */
 
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
+  const [confirmSetup, setConfirmSetup] = useState(false);
+
   return (
     <Page title={t("settingsGeneral")}>
       <Group title={t("appearance")}>
@@ -26,6 +29,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             options={[
               { id: "light", label: t("light") },
               { id: "dark", label: t("dark") },
+              { id: "system", label: t("themeSystem") },
             ]}
             onChange={(theme) => onUpdate({ theme })}
           />
@@ -61,11 +65,30 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
           />
         </Row>
       </Group>
+
+      <Group>
+        <Row label={t("onbRunAgain")} description={t("onbRunAgainHint")}>
+          <Button onClick={() => setConfirmSetup(true)}>{t("onbRunAgainButton")}</Button>
+        </Row>
+      </Group>
+
+      {confirmSetup && (
+        <ConfirmDialog
+          title={t("onbRunAgain")}
+          body={t("onbRunAgainBody")}
+          confirmLabel={t("onbRunAgainConfirm")}
+          cancelLabel={t("cancel")}
+          tone="primary"
+          onConfirm={() => {
+            setConfirmSetup(false);
+            void window.electronAPI?.onboarding?.reset();
+          }}
+          onCancel={() => setConfirmSetup(false)}
+        />
+      )}
     </Page>
   );
 }
-
-const PROVIDERS: SearchProvider[] = ["auto", "brave-html", "duckduckgo", "startpage", "brave", "searxng"];
 
 export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
   const provider = settings.searchProvider;
@@ -77,7 +100,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
           <Select
             label={t("searchProvider")}
             value={provider}
-            options={PROVIDERS.map((id) => ({ id, label: t(`provider_${id.replace(/-/g, "_")}`) }))}
+            options={searchProviderOptions(t)}
             onChange={(searchProvider) => onUpdate({ searchProvider: searchProvider as SearchProvider })}
           />
         </Row>
@@ -97,17 +120,8 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
         )}
 
         {(provider === "auto" || provider === "brave") && (
-          <Row label={t("braveApiKey")}>
-            <input
-              type="password"
-              value={settings.braveApiKey}
-              onChange={(event) => onUpdate({ braveApiKey: event.target.value })}
-              placeholder="BSA..."
-              aria-label={t("braveApiKey")}
-              className="w-full sm:w-64 px-3 py-2 ui-input text-sm font-bold"
-              spellCheck={false}
-            />
-          </Row>
+          <BraveKeyRow t={t} />
+
         )}
       </Group>
     </Page>
@@ -256,7 +270,7 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
           <p className="text-sm font-bold tabular-nums">
             {info ? `v${info.version}` : "…"}
             {info && !info.packaged && (
-              <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 {t("development")}
               </span>
             )}
@@ -317,5 +331,45 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
         </Row>
       </Group>
     </Page>
+  );
+}
+
+type BraveKeyStatus = Awaited<ReturnType<NonNullable<Window["electronAPI"]>["braveKeyStatus"]>>;
+
+/** Write-only, like a provider's key: what is typed goes to the keystore, and only its last four come back. */
+function BraveKeyRow({ t }: { t: Translate }) {
+  const [status, setStatus] = useState<BraveKeyStatus | null>(null);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    window.electronAPI?.braveKeyStatus?.().then(setStatus).catch(() => undefined);
+  }, []);
+
+  const save = async (value: string) => {
+    const api = window.electronAPI;
+    if (!api?.setBraveKey) return;
+    await api.setBraveKey(value).catch(() => undefined);
+    setDraft("");
+    setStatus(await api.braveKeyStatus().catch(() => null));
+  };
+
+  return (
+    <Row label={t("braveApiKey")} description={status && !status.keystore ? t("braveKeyThisRun") : undefined}>
+      <div className="flex w-full items-center gap-2 sm:w-auto">
+        <input
+          type="password"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => draft.trim() && void save(draft)}
+          onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
+          placeholder={status?.hasKey ? `•••• ${status.keyHint}` : "BSA..."}
+          aria-label={t("braveApiKey")}
+          className="w-full sm:w-64 px-3 py-2 ui-input text-sm font-bold"
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {status?.hasKey && <Button onClick={() => void save("")}>{t("remove")}</Button>}
+      </div>
+    </Row>
   );
 }
