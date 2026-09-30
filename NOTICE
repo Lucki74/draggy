@@ -6,3 +6,9 @@ This product includes software developed as part of Draggy.
 
 Earlier versions released under the GNU General Public License v3.0 or
 later keep that license for those versions.
+
+Third-party notices
+
+Provider logos in src/providers/icons come from @lobehub/icons-static-svg
+(MIT) and from each provider's own project. Their licenses and sources
+are listed in src/providers/icons/LICENSE.
