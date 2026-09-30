@@ -34,4 +34,6 @@ dotnet-install.ps1
 # AI
 AGENTS.md
 CLAUDE.md
-.claude 
+.claude
+.agents
+graphify-out
