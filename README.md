@@ -139,4 +139,4 @@ diagnostic traces) in the application data folder. See
 
 ## License
 
-Draggy is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You can use, change and share it for any noncommercial purpose. Selling it or using it commercially is not allowed without a separate license from the author.
+Draggy is licensed under the [Draggy License 1.0](LICENSE). You can use, change and share it for any purpose, including at work. Selling Draggy or a modified version is not allowed, and copies must keep the "Based on Draggy" notice.
