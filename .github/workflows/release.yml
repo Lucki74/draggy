@@ -1,44 +1,62 @@
 name: Release
 
-# Publishing a version is a tag away: `npm version patch` writes the version
-# and the tag, `git push --follow-tags` starts this. electron-builder uploads
-# the installers and, importantly, the latest.yml files that the in-app updater
-# reads to decide whether a newer version exists.
+# Run from the Actions tab on main. Builds all three platforms as 3.0.N, where N is one more than
+# the highest b-N tag, then publishes a release named build-N with the installers and the
+# latest*.yml files the in-app updater reads.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      notes:
+        description: Release notes in Markdown, without the Full Changelog line
+        required: true
+        type: string
+      dry_run:
+        description: Build everything but do not publish
+        type: boolean
+        default: false
 
-# electron-builder creates the GitHub release and attaches the artifacts, which
-# it cannot do with the default read-only token.
-permissions:
-  contents: write
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      n: ${{ steps.next.outputs.n }}
+    steps:
+      - id: next
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/b-" --jq '.[].ref' \
+            | sed -n 's#^refs/tags/b-\([0-9]\+\)$#\1#p' | sort -n | tail -1)
+          echo "n=$(( ${last:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
     strategy:
-      # One platform failing should not throw away the builds of the others.
-      fail-fast: false
+      # A platform that fails stops the rest: a release is all three or none.
+      fail-fast: true
       matrix:
         include:
-          - os: windows-latest
-            build: release
-          - os: ubuntu-latest
-            build: release:linux
-          # Unsigned, so macOS asks the user to clear the quarantine flag and
-          # the app cannot update itself. Still better than no build at all.
-          - os: macos-latest
-            build: release:mac
-
+          - { os: windows-latest, script: "electron:build" }
+          - { os: macos-latest, script: "electron:build:mac" }
+          - { os: ubuntu-latest, script: "electron:build:linux" }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
 
       # electron-builder shells out to fakeroot to stage the .deb.
@@ -48,14 +66,60 @@ jobs:
 
       - run: npm ci
 
-      # The suite is run on the platform the app is developed on. Running it
-      # twice would only tell us the same thing, and a platform quirk in a test
-      # should not be able to hold up a release build that is otherwise sound.
+      # The suite runs where the app is developed. It moves to every OS once the Windows-only
+      # tests are fixed.
       - name: Typecheck, lint and test
         if: runner.os == 'Windows'
         run: npm run check
 
-      - name: Build and publish
-        run: npm run ${{ matrix.build }}
+      # The notes reach the shell only through env, so their text never runs as code.
+      - name: Set the version and write the notes
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          N: ${{ needs.prepare.outputs.n }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          npm version "3.0.$N" --no-git-tag-version
+          printf '%s\n' "$NOTES" > build/release-notes.md
+
+      - run: npm run ${{ matrix.script }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.dmg
+            dist-electron/*.AppImage
+            dist-electron/*.deb
+            dist-electron/*.blockmap
+            dist-electron/latest*.yml
+          if-no-files-found: error
+
+  # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
+  # release that installed apps would pick up.
+  publish:
+    needs: [prepare, build]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ needs.prepare.outputs.n }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          body="$NOTES"
+          if [ "$N" -gt 1 ]; then
+            body="$body"$'\n\n'"**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/b-$((N-1))...b-$N"
+          fi
+          gh release create "b-$N" out/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "build-$N" --notes "$body" --draft
+          gh release edit "b-$N" --repo "$GITHUB_REPOSITORY" --draft=false --latest
