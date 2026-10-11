@@ -4,7 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import { Readable } from "node:stream";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const store = require("./largeModelStore.cjs");
@@ -72,7 +72,10 @@ describe("planning a resumed download", () => {
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "large-plan-"));
   });
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
   const drive = (volume, freeGB, expertMBps) => ({ volume, bus: "nvme", role: "good", freeBytes: freeGB * GB, benchmark: { expertMBps } });
   const files = [{ path: "experts/0.bin", size: 100 * GB }];
 
@@ -82,10 +85,15 @@ describe("planning a resumed download", () => {
     const target = store.defaultDir(slow, "o/m");
     fs.mkdirSync(path.join(target, "experts"), { recursive: true });
     fs.writeFileSync(path.join(target, store.PARTIAL_MARKER), "{}");
-    // 90 GB of the 100 are on disk (a sparse file stands in), so 10 GB + 10% is enough room.
+    // 90 GB of the 100 are on disk, so 10 GB + 10% is enough room. The size is stubbed because not
+    // every filesystem a runner has can hold a sparse file that large.
     const partial = path.join(target, "experts", "0.bin.partial");
     fs.closeSync(fs.openSync(partial, "w"));
-    fs.truncateSync(partial, 90 * GB);
+    const realStat = fs.statSync;
+    vi.spyOn(fs, "statSync").mockImplementation((p, ...rest) => {
+      const stat = realStat(p, ...rest);
+      return p === partial ? { ...stat, size: 90 * GB } : stat;
+    });
 
     const pick = store.planTarget("o/m", files, [drive(slow, 12, 1000), drive(fast, 500, 6000)]);
     expect(pick).toMatchObject({ ok: true, volume: slow, resume: true, needBytes: 11 * GB });
