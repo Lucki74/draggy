@@ -8,8 +8,8 @@ servers written by other people. Any of those can carry something hostile.
 
 ## Which versions get fixes
 
-The latest release. Draggy is on a fast patch cycle and updates install
-themselves, so a fix ships as a new version rather than as a backport.
+The latest build. Draggy updates install themselves on Windows and Linux, so a
+fix ships as a new build rather than as a backport.
 
 ## Reporting something
 
@@ -17,7 +17,7 @@ Use GitHub's private reporting form:
 [Report a vulnerability](https://github.com/Lucki74/draggy/security/advisories/new),
 not a public issue. Say what you did, what happened, and what you expected: a
 rough proof of concept beats a careful description. Include the Draggy
-version and OS if they matter.
+build (Settings, Updates) and OS if they matter.
 
 This is a one person project, so give me a few days. I will say what I think,
 whether I am fixing it, and roughly when; credit in the release notes if you
@@ -44,6 +44,13 @@ extension's output) into actions nobody asked for. Specifically:
   extension credentials leaking into a log, crash report, or window title.
 - The updater accepting a build that did not come from this repository, or
   the embedded browser leaking a session between the app and a page.
+
+One known gap here, stated rather than hidden: builds are not code signed, so
+the updater does not verify a signature, and the checksum in `latest.yml` comes
+from the same release as the installer. Write access to this repository's
+releases is the trust boundary for every installed copy. Signing the Windows
+build would move it to a certificate.
+
 - The `draggy-ai://` model gateway answering anything but Draggy's own window,
   or fetching anywhere but the address of a provider you added and switched on.
 - A provider's API key or the Brave Search key leaving the system keystore:
@@ -89,6 +96,6 @@ is exactly the report I want.
 
 ## After a report
 
-I confirm it, write a test that fails, fix it, and ship a patch release. Then the
+I confirm it, write a test that fails, fix it, and ship a new build. Then the
 advisory goes public with your name on it if you wanted credit. If I decide not
 to fix something I will say why rather than letting it go quiet.
