@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 const workflow = fs.readFileSync(".github/workflows/release.yml", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
-/** The `build:` values in the matrix, which are npm script names. */
+/** The `script:` values in the matrix, which are npm script names. */
 function matrixScripts() {
-  return [...workflow.matchAll(/^\s+build:\s*(\S+)$/gm)].map((m) => m[1]);
+  return [...workflow.matchAll(/script:\s*"?([\w:]+)"?\s*\}/g)].map((m) => m[1]);
 }
 
 describe("the release workflow", () => {
@@ -28,14 +28,38 @@ describe("the release workflow", () => {
     }
   });
 
-  it("publishes from every platform", () => {
+  it("builds without publishing, because the workflow makes the release itself", () => {
     for (const name of matrixScripts()) {
-      expect(pkg.scripts[name]).toContain("--publish always");
+      expect(pkg.scripts[name]).toContain("--publish never");
     }
+    expect(Object.keys(pkg.scripts).filter((name) => pkg.scripts[name].includes("--publish always"))).toEqual([]);
   });
 
-  it("keeps a platform failing from cancelling the others", () => {
-    expect(workflow).toContain("fail-fast: false");
+  it("stops everything when a platform fails, so a release is all three or none", () => {
+    expect(workflow).toContain("fail-fast: true");
+  });
+
+  it("only ever starts by hand, from main", () => {
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).not.toMatch(/^\s+push:/m);
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+  });
+
+  it("never puts the notes input inside a run block", () => {
+    const uses = workflow
+      .split("\n")
+      .filter((line) => /\$\{\{\s*inputs\./.test(line))
+      .map((line) => line.trim());
+    // The two env entries are the only places the notes text enters the job.
+    expect(uses).toEqual(["NOTES: ${{ inputs.notes }}", "NOTES: ${{ inputs.notes }}"]);
+  });
+});
+
+describe("artifact names", () => {
+  it("are fixed, so latest/download links never go stale", () => {
+    expect(pkg.build.win.artifactName).toBe("draggy_setup.exe");
+    expect(pkg.build.mac.artifactName).toBe("Draggy-${arch}.${ext}");
+    expect(pkg.build.linux.artifactName).toBe("Draggy-${arch}.${ext}");
   });
 });
 
@@ -48,8 +72,8 @@ describe("packaging", () => {
     // could open.
     expect(pkg.build.mac.identity).toBe("-");
     expect(pkg.build.mac.notarize).toBe(false);
-    expect(pkg.scripts["release:mac"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
-    expect(pkg.scripts.release).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
+    expect(pkg.scripts["electron:build:mac"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
+    expect(pkg.scripts["electron:build"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
   });
 
   it("ships an icon for every platform it builds", () => {
