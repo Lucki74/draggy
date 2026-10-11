@@ -1,0 +1,378 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  CONTEXT_BUCKETS,
+  FALLBACK_CONTEXT_LENGTH,
+  contextSizeFor,
+  displayModelName,
+  formatContextCeiling,
+  installedModelDisplayNames,
+  quantizationOf,
+  forgetContextSize,
+  forgetModelInfo,
+  beginLlamaWork,
+  llamaIsBusy,
+  getModelInfo,
+  gpuShareFor,
+  unloadModel,
+  warmModel,
+  isLoadedAt,
+  mergeMetrics,
+  needsTextModeTools,
+  noteEngineStart,
+  peekContextSize,
+  pickContextSize,
+  readMetrics,
+} from "../llama";
+
+describe("context budgeting", () => {
+  it("rounds a small conversation up to the smallest bucket", () => {
+    expect(pickContextSize(100, 131072)).toBe(4096);
+  });
+
+  it("always leaves headroom above the estimated requirement", () => {
+    for (const chars of [0, 1000, 20000, 100000, 400000]) {
+      const chosen = pickContextSize(chars, 131072);
+      const needed = Math.ceil(chars / 4) + 2048;
+      expect(chosen).toBeGreaterThanOrEqual(Math.min(needed, 131072));
+    }
+  });
+
+  it("only ever chooses a listed bucket, or the ceiling", () => {
+    for (const chars of [500, 5000, 50000, 200000]) {
+      const chosen = pickContextSize(chars, 131072);
+      expect(CONTEXT_BUCKETS).toContain(chosen);
+    }
+  });
+
+  it("clamps to what the model actually supports", () => {
+    expect(pickContextSize(400000, 8192)).toBe(8192);
+    expect(pickContextSize(100, 4096)).toBe(4096);
+  });
+
+  it("falls back when the model reports no context length", () => {
+    expect(pickContextSize(1_000_000, null)).toBe(FALLBACK_CONTEXT_LENGTH);
+  });
+
+  it("caps automatic bucket selection at the maximum local context bucket", () => {
+    expect(pickContextSize(1_000_000, 262144)).toBe(131072);
+  });
+
+
+  it("is monotonic in conversation length", () => {
+    let previous = 0;
+    for (const chars of [0, 10_000, 50_000, 120_000, 300_000, 900_000]) {
+      const chosen = pickContextSize(chars, 131072);
+      expect(chosen).toBeGreaterThanOrEqual(previous);
+      previous = chosen;
+    }
+  });
+});
+
+const NS = 1e6;
+
+describe("reading generation metrics", () => {
+  const chunk = {
+    done: true,
+    eval_count: 250,
+    eval_duration: 5000 * NS,
+    prompt_eval_count: 1200,
+    prompt_eval_duration: 400 * NS,
+    load_duration: 1500 * NS,
+    total_duration: 6900 * NS,
+  };
+
+  it("converts nanoseconds to milliseconds", () => {
+    const metrics = readMetrics(chunk, "qwen3:8b", 8192, 300);
+    expect(metrics?.responseMs).toBe(5000);
+    expect(metrics?.loadMs).toBe(1500);
+  });
+
+  it("computes tokens per second", () => {
+    const metrics = readMetrics(chunk, "qwen3:8b", 8192, 300);
+    expect(metrics?.tokensPerSecond).toBeCloseTo(50, 5);
+  });
+
+  it("keeps the time to first token it was given", () => {
+    expect(readMetrics(chunk, "qwen3:8b", 8192, 317)?.timeToFirstTokenMs).toBe(317);
+  });
+
+  it("returns nothing when the chunk carries no counters", () => {
+    expect(readMetrics({ done: true }, "m", 8192, null)).toBeNull();
+  });
+
+  it("does not divide by zero", () => {
+    const metrics = readMetrics(
+      { eval_count: 10, eval_duration: 0 },
+      "m",
+      4096,
+      null,
+    );
+    expect(metrics?.tokensPerSecond).toBe(0);
+  });
+});
+
+describe("merging metrics across tool loops", () => {
+  const first = readMetrics(
+    { eval_count: 100, eval_duration: 1000 * NS, prompt_eval_count: 500, total_duration: 1200 * NS },
+    "m",
+    8192,
+    200,
+  );
+  const second = readMetrics(
+    { eval_count: 300, eval_duration: 3000 * NS, prompt_eval_count: 900, total_duration: 3200 * NS },
+    "m",
+    16384,
+    900,
+  );
+
+  it("adds up the generated tokens", () => {
+    expect(mergeMetrics(first, second)?.responseTokens).toBe(400);
+  });
+
+  it("recomputes the rate over the combined time", () => {
+    expect(mergeMetrics(first, second)?.tokensPerSecond).toBeCloseTo(100, 5);
+  });
+
+  it("keeps the largest context window the turn reached", () => {
+    expect(mergeMetrics(first, second)?.contextWindow).toBe(16384);
+  });
+
+  it("keeps the first time-to-first-token, not the last", () => {
+    expect(mergeMetrics(first, second)?.timeToFirstTokenMs).toBe(200);
+  });
+
+  it("tolerates a missing side", () => {
+    expect(mergeMetrics(null, second)).toBe(second);
+    expect(mergeMetrics(first, null)).toBe(first);
+    expect(mergeMetrics(null, null)).toBeNull();
+  });
+});
+
+describe("knowing when tool calls will be guesswork", () => {
+  const info = (capabilities: string[]) => ({
+    contextLength: 8192,
+    capabilities,
+    parameterCount: null,
+    quantization: null,
+  });
+
+  it("says nothing while the model is still being probed", () => {
+    expect(needsTextModeTools(null)).toBe(false);
+  });
+
+  it("is quiet for a model that calls tools natively", () => {
+    expect(needsTextModeTools(info(["completion", "tools"]))).toBe(false);
+  });
+
+  it("warns for a completion-only model", () => {
+    expect(needsTextModeTools(info(["completion"]))).toBe(true);
+  });
+
+  it("warns when the model reports no capabilities at all", () => {
+    expect(needsTextModeTools(info([]))).toBe(true);
+  });
+
+  it("is not fooled by other capabilities", () => {
+    expect(needsTextModeTools(info(["completion", "vision", "thinking"]))).toBe(true);
+  });
+
+  it("is quiet for a fully capable model", () => {
+    expect(
+      needsTextModeTools(info(["completion", "vision", "tools", "thinking"])),
+    ).toBe(false);
+  });
+});
+
+describe("holding a model in memory", () => {
+  const MODEL = "sticky:test";
+
+  afterEach(() => {
+    forgetContextSize(MODEL);
+    forgetModelInfo(MODEL);
+  });
+
+  it("grows the window when the conversation needs more room", () => {
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+    expect(contextSizeFor(MODEL, 200000, 131072)).toBe(65536);
+  });
+
+  it("never shrinks it again, because shrinking costs a reload", () => {
+    contextSizeFor(MODEL, 200000, 131072);
+
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(65536);
+  });
+
+  it("still respects what the model can actually hold", () => {
+    expect(contextSizeFor(MODEL, 500000, 8192)).toBe(8192);
+  });
+
+  it("locks to a fixed context window when specified", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, 32768)).toBe(32768);
+  });
+
+  it("locks to the model maximum when fixedContext is 'max'", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, "max")).toBe(131072);
+    expect(contextSizeFor(MODEL, 100, null, "max")).toBe(FALLBACK_CONTEXT_LENGTH);
+  });
+
+  it("resets and adapts when fixedContext setting changes", () => {
+    expect(contextSizeFor(MODEL, 100, 131072, 65536)).toBe(65536);
+    expect(contextSizeFor(MODEL, 100, 131072, 8192)).toBe(8192);
+    expect(contextSizeFor(MODEL, 100, 131072, "max")).toBe(131072);
+    expect(contextSizeFor(MODEL, 100, 131072, null)).toBe(4096);
+  });
+
+  it("peekContextSize respects fixed context numbers and 'max'", () => {
+    expect(peekContextSize(MODEL, 100, 131072, 16384)).toBe(16384);
+    expect(peekContextSize(MODEL, 100, 131072, "max")).toBe(131072);
+  });
+});
+describe("quantizationOf", () => {
+  it("reads the quantization from a GGUF file name", () => {
+    expect(quantizationOf("gguf:Qwen3-8B-Q4_K_M.gguf")).toBe("Q4_K_M");
+    expect(quantizationOf("gemma-3-4b-it-q8_0.gguf")).toBe("Q8_0");
+    expect(quantizationOf("Llama-3.2-3B-Instruct-IQ3_XS-00001-of-00002.gguf")).toBe("IQ3_XS");
+    expect(quantizationOf("model-BF16.gguf")).toBe("BF16");
+  });
+
+  it("returns nothing when the name carries none", () => {
+    expect(quantizationOf("gguf:Qwen3-8B.gguf")).toBe("");
+    expect(quantizationOf("qwen3:8b")).toBe("");
+  });
+});
+
+
+describe("displayModelName", () => {
+  it("drops the part counter of a split model, extension, and quantisation tag", () => {
+    expect(displayModelName("Qwen3-Coder-Next-Q4_K_M-00001-of-00004.gguf")).toBe("Qwen3-Coder-Next");
+  });
+
+  it("strips quantisation and extension from a single-file model", () => {
+    expect(displayModelName("ornith-1.0-35b-Q4_K_M.gguf")).toBe("ornith-1.0-35b");
+    expect(displayModelName("gemma-4-E4B-it-Q4_0.gguf")).toBe("gemma-4-E4B-it");
+    expect(displayModelName("model-00001-of-00004-final.gguf")).toBe("model-00001-of-00004-final");
+  });
+
+  it("shows a provider's model by its own id, which may hold a slash", () => {
+    expect(displayModelName("@openrouter/meta-llama/llama-4")).toBe("meta-llama/llama-4");
+  });
+});
+
+describe("installedModelDisplayNames", () => {
+  it("numbers duplicates with identical clean name and parameter count", () => {
+    const models = [
+      { name: "gemma-4-E4B-it-Q4_0.gguf", size: 1, parameterSize: "42L", family: "gemma4", capabilities: ["tools"] },
+      { name: "gemma-4-E4B-it-Q8_0.gguf", size: 2, parameterSize: "42L", family: "gemma4", capabilities: ["tools"] },
+      { name: "gemma-4-E4B-it-BF16.gguf", size: 3, parameterSize: "42L", family: "gemma4", capabilities: ["tools"] },
+      { name: "Qwen3.5-9B-Q4_K_M.gguf", size: 4, parameterSize: "32L", family: "qwen", capabilities: ["tools"] },
+    ];
+    const names = installedModelDisplayNames(models);
+    expect(names.get("gemma-4-E4B-it-Q4_0.gguf")).toBe("gemma-4-E4B-it");
+    expect(names.get("gemma-4-E4B-it-Q8_0.gguf")).toBe("gemma-4-E4B-it (1)");
+    expect(names.get("gemma-4-E4B-it-BF16.gguf")).toBe("gemma-4-E4B-it (2)");
+    expect(names.get("Qwen3.5-9B-Q4_K_M.gguf")).toBe("Qwen3.5-9B");
+  });
+
+  it("does not number models whose parameter counts differ", () => {
+    const models = [
+      { name: "Qwen3-Q4_0.gguf", size: 1, parameterSize: "32L", family: "qwen", capabilities: ["tools"] },
+      { name: "Qwen3-Q8_0.gguf", size: 2, parameterSize: "48L", family: "qwen", capabilities: ["tools"] },
+    ];
+    const names = installedModelDisplayNames(models);
+    expect(names.get("Qwen3-Q4_0.gguf")).toBe("Qwen3");
+    expect(names.get("Qwen3-Q8_0.gguf")).toBe("Qwen3");
+  });
+});
+
+describe("formatContextCeiling", () => {
+  it("formats binary context ceilings into compact labels", () => {
+    expect(formatContextCeiling(131072)).toBe("128k");
+    expect(formatContextCeiling(32768)).toBe("32k");
+    expect(formatContextCeiling(8192)).toBe("8k");
+    expect(formatContextCeiling(1048576)).toBe("1M");
+    expect(formatContextCeiling(200000)).toBe("200k");
+  });
+});
+
+describe("engine-chosen windows", () => {
+  const MODEL = "roomy-test.gguf";
+  afterEach(() => {
+    forgetContextSize(MODEL);
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("asks for the window the engine actually loaded from then on", () => {
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(4096);
+    noteEngineStart(MODEL, { contextSize: 32768 });
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(32768);
+    // Never lowered by a smaller report.
+    noteEngineStart(MODEL, { contextSize: 8192 });
+    expect(contextSizeFor(MODEL, 100, 131072)).toBe(32768);
+  });
+
+  it("counts a bigger loaded window as loaded", async () => {
+    const status = { running: true, model: MODEL, contextSize: 32768 };
+    (globalThis as { window?: unknown }).window = { electronAPI: { gguf: { status: async () => status } } };
+    expect(await isLoadedAt(MODEL, 8192)).toBe(true);
+    expect(await isLoadedAt(MODEL, 32768)).toBe(true);
+    expect(await isLoadedAt(MODEL, 65536)).toBe(false);
+  });
+});
+
+describe("a provider's model, which the engine never holds", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("never starts, stops or asks the engine about it", async () => {
+    const gguf = { start: vi.fn(), stop: vi.fn(), status: vi.fn(), listModels: vi.fn() };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    const model = "@anthropic/claude-x";
+
+    await warmModel(model, "5m", 1000);
+    await unloadModel(model);
+    expect(await isLoadedAt(model, 32768)).toBe(true);
+    expect(await gpuShareFor(model)).toBeNull();
+    expect(await getModelInfo(model)).toBeNull();
+    expect(gguf.start).not.toHaveBeenCalled();
+    expect(gguf.stop).not.toHaveBeenCalled();
+    expect(gguf.status).not.toHaveBeenCalled();
+    expect(gguf.listModels).not.toHaveBeenCalled();
+  });
+
+  it("is described by its provider's listing instead, even when its instance cannot be looked up", async () => {
+    const gguf = { listModels: vi.fn() };
+    const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"], cloud: true }] })) };
+    vi.stubGlobal("window", { electronAPI: { gguf, providers } });
+    expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null, promptProfile: "compact", cloud: true });
+    expect(providers.models).toHaveBeenCalledWith("openai");
+    expect(gguf.listModels).not.toHaveBeenCalled();
+    forgetModelInfo("@openai/gpt-x");
+  });
+
+  it("gets its whole window at once, with no buckets and nothing fixed", () => {
+    expect(contextSizeFor("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(peekContextSize("@openai/gpt-x", 100, 200000, 8192)).toBe(200000);
+    expect(contextSizeFor("@openai/gpt-x", 100, null)).toBe(FALLBACK_CONTEXT_LENGTH);
+  });
+
+  it("still unloads the built-in engine for a built-in model", async () => {
+    const gguf = { stop: vi.fn(async () => ({ success: true })) };
+    vi.stubGlobal("window", { electronAPI: { gguf } });
+    await unloadModel("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(gguf.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("who counts as engine work", () => {
+  it("counts a built-in turn, and never a provider's", () => {
+    const remote = beginLlamaWork("@openai/gpt-x");
+    expect(llamaIsBusy()).toBe(false);
+    const local = beginLlamaWork("Qwen3.5-9B-Q4_K_M.gguf");
+    expect(llamaIsBusy()).toBe(true);
+    local();
+    remote();
+    expect(llamaIsBusy()).toBe(false);
+    const unnamed = beginLlamaWork();
+    expect(llamaIsBusy()).toBe(true);
+    unnamed();
+  });
+});

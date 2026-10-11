@@ -1,0 +1,302 @@
+[
+  {
+    "id": "es-01",
+    "category": "oneliner",
+    "text": "Claro, dame un segundo."
+  },
+  {
+    "id": "es-02",
+    "category": "oneliner",
+    "text": "Me parece un gran plan."
+  },
+  {
+    "id": "es-03",
+    "category": "oneliner",
+    "text": "No exactamente. Prueba con la otra."
+  },
+  {
+    "id": "es-04",
+    "category": "two",
+    "text": "He mirado el calendario. Estás libre el jueves por la tarde."
+  },
+  {
+    "id": "es-05",
+    "category": "two",
+    "text": "Buena pregunta. Depende de cuánta memoria tenga el equipo."
+  },
+  {
+    "id": "es-06",
+    "category": "two",
+    "text": "Sí, funciona sin conexión. Solo la primera vez hace falta descargarlo."
+  },
+  {
+    "id": "es-07",
+    "category": "long",
+    "text": "Sinceramente, lo más sencillo es pensar que el modelo lee todo lo que has dicho hasta ahora, calcula lo que probablemente quieres después, y escribe la respuesta poco a poco, y por eso puede empezar a hablar antes de haber terminado de pensar."
+  },
+  {
+    "id": "es-08",
+    "category": "long",
+    "text": "La primera vez descarga la voz, lo que tarda un par de minutos con una conexión normal, y después todo se queda en tu ordenador, así que puedes hablarle en un avión o en un túnel sin ningún problema."
+  },
+  {
+    "id": "es-09",
+    "category": "number",
+    "text": "El viaje son 340 kilómetros y dura unas 4 horas."
+  },
+  {
+    "id": "es-10",
+    "category": "number",
+    "text": "Cuesta 12,50 € al mes, o 120 € al año."
+  },
+  {
+    "id": "es-11",
+    "category": "number",
+    "text": "Tu reunión es a las 14:30 del día 3, y dura 45 minutos."
+  },
+  {
+    "id": "es-12",
+    "category": "number",
+    "text": "La batería está al 82 %, y el archivo pesa 1,5 GB."
+  },
+  {
+    "id": "es-13",
+    "category": "acronym",
+    "text": "La CPU va bien, pero la GPU está caliente. Revisa los registros de la API."
+  },
+  {
+    "id": "es-14",
+    "category": "acronym",
+    "text": "La NASA lo anunció, y la BBC lo cubrió."
+  },
+  {
+    "id": "es-15",
+    "category": "question",
+    "text": "¿Quieres que lea todo, o solo el resumen?"
+  },
+  {
+    "id": "es-16",
+    "category": "question",
+    "text": "Espera, ¿cuál querías decir, el primero o el segundo?"
+  },
+  {
+    "id": "es-17",
+    "category": "cue",
+    "text": "Ja <laugh> esa está buena. En fin, volvamos al plan."
+  },
+  {
+    "id": "es-18",
+    "category": "cue",
+    "text": "Hmm <hmm> déjame pensar. Esto es lo que haría."
+  },
+  {
+    "id": "es-19",
+    "category": "cue",
+    "text": "<sigh> Qué día más largo. Seamos breves."
+  },
+  {
+    "id": "es-20",
+    "category": "path",
+    "text": "Abre C:\\Users\\yo\\notes.txt y mira la primera línea, o visita https://example.com/ayuda."
+  },
+  {
+    "id": "es-21",
+    "category": "oneliner",
+    "text": "Entendido, me pongo con ello."
+  },
+  {
+    "id": "es-22",
+    "category": "oneliner",
+    "text": "Todavía no estoy seguro. Déjame mirar."
+  },
+  {
+    "id": "es-23",
+    "category": "oneliner",
+    "text": "Hecho. Ya está guardado."
+  },
+  {
+    "id": "es-24",
+    "category": "oneliner",
+    "text": "Claro, encantado de ayudar."
+  },
+  {
+    "id": "es-25",
+    "category": "two",
+    "text": "Encontré tres resultados. El segundo parece el más útil."
+  },
+  {
+    "id": "es-26",
+    "category": "two",
+    "text": "Ese archivo es bastante grande. Puede tardar un momento en abrirse."
+  },
+  {
+    "id": "es-27",
+    "category": "two",
+    "text": "Buena observación. Se me había pasado ese detalle."
+  },
+  {
+    "id": "es-28",
+    "category": "two",
+    "text": "No hay problema. Podemos intentarlo de nuevo cuando quieras."
+  },
+  {
+    "id": "es-29",
+    "category": "two",
+    "text": "Ahora debería funcionar. Avísame si algo no cuadra."
+  },
+  {
+    "id": "es-30",
+    "category": "two",
+    "text": "Bien, el plan cambió. Empezamos el lunes en su lugar."
+  },
+  {
+    "id": "es-31",
+    "category": "long",
+    "text": "Hay realmente dos maneras de enfocar esto. La primera es rápida y algo tosca, la segunda lleva más tiempo pero te da algo en lo que puedes confiar, así que depende de si necesitas una respuesta hoy o un resultado que vayas a usar durante meses."
+  },
+  {
+    "id": "es-32",
+    "category": "long",
+    "text": "He leído las notas que me enviaste, y casi todo está claro, pero hay una parte hacia el final que se puede entender de dos maneras, así que antes de seguir me gustaría comprobar cuál querías decir."
+  },
+  {
+    "id": "es-33",
+    "category": "long",
+    "text": "Si dejas el micrófono encendido, seguiré escuchando y responderé en cuanto te detengas, y si quieres interrumpirme, solo tienes que hablar y me callo enseguida para escucharte."
+  },
+  {
+    "id": "es-34",
+    "category": "long",
+    "text": "El tiempo se ve templado los próximos días, con algo de nubes por la mañana y sol después, así que si pensabas en dar un paseo o salir en bici, mitad de semana es probablemente el mejor momento."
+  },
+  {
+    "id": "es-35",
+    "category": "long",
+    "text": "Todo se ejecuta en tu propio equipo, lo que significa que nada de lo que dices sale del ordenador, y lo único que va a internet es una búsqueda, y solo cuando me pides que busque algo."
+  },
+  {
+    "id": "es-36",
+    "category": "long",
+    "text": "Para configurarlo, abre los ajustes, elige la voz que más te guste, pulsa el botón de escucha para oír una muestra y luego vuelve a la pantalla de conversación, donde la nueva voz se usará desde la siguiente respuesta."
+  },
+  {
+    "id": "es-37",
+    "category": "long",
+    "text": "Bueno, es un poco más complicado que eso, porque la respuesta cambia según dónde vivas, la antigüedad del edificio y si el dueño anterior guardó los papeles, pero puedo guiarte en cada paso."
+  },
+  {
+    "id": "es-38",
+    "category": "long",
+    "text": "Empecemos por lo sencillo. Tienes una lista de tareas, unas urgentes y otras no, y el truco es hacer primero las urgentes, después las rápidas, y solo al final las grandes que piden la cabeza despejada."
+  },
+  {
+    "id": "es-39",
+    "category": "number",
+    "text": "El paquete pesa 2,4 kg y llega entre las 9:00 y las 11:30."
+  },
+  {
+    "id": "es-40",
+    "category": "number",
+    "text": "Vinieron unas 1250 personas, un 15% más que el año pasado."
+  },
+  {
+    "id": "es-41",
+    "category": "number",
+    "text": "La sala mide 4 m por 6 m, o sea unos 24 metros cuadrados."
+  },
+  {
+    "id": "es-42",
+    "category": "number",
+    "text": "Serán 1999,99 €, más un 8,5% de impuestos."
+  },
+  {
+    "id": "es-43",
+    "category": "number",
+    "text": "Entre 2020 y 2024 la cifra pasó de 300 a 1200."
+  },
+  {
+    "id": "es-44",
+    "category": "number",
+    "text": "Pon el horno a 180 °C y hornea durante 25 minutos."
+  },
+  {
+    "id": "es-45",
+    "category": "acronym",
+    "text": "La memoria USB tiene un PDF y un CSV, y la URL está en el README."
+  },
+  {
+    "id": "es-46",
+    "category": "acronym",
+    "text": "Tu SSD está bien, pero la RAM está casi llena, así que cierra algunas pestañas."
+  },
+  {
+    "id": "es-47",
+    "category": "acronym",
+    "text": "La OTAN y la ONU publicaron comunicados, y se espera que la UE los siga."
+  },
+  {
+    "id": "es-48",
+    "category": "question",
+    "text": "¿Lo envío ahora, o prefieres leerlo antes?"
+  },
+  {
+    "id": "es-49",
+    "category": "question",
+    "text": "¿Es el mismo proyecto de la semana pasada, o uno distinto?"
+  },
+  {
+    "id": "es-50",
+    "category": "question",
+    "text": "¿Puedes repetirlo? No entendí bien la última parte."
+  },
+  {
+    "id": "es-51",
+    "category": "question",
+    "text": "¿Qué hora te viene mejor, por la mañana o por la tarde?"
+  },
+  {
+    "id": "es-52",
+    "category": "cue",
+    "text": "Ay, qué gracioso <laugh> no esperaba esa respuesta."
+  },
+  {
+    "id": "es-53",
+    "category": "cue",
+    "text": "Pues <sigh> no salió como estaba previsto, pero lo podemos arreglar."
+  },
+  {
+    "id": "es-54",
+    "category": "cue",
+    "text": "Mmm <hmm> aquí hay un par de opciones."
+  },
+  {
+    "id": "es-55",
+    "category": "path",
+    "text": "La configuración está en /usr/local/etc/app.conf, y los registros en /var/log/app/."
+  },
+  {
+    "id": "es-56",
+    "category": "path",
+    "text": "Guárdalo como D:\\Proyectos\\informe.docx, luego envíalo al equipo y/o publícalo en el tablón."
+  },
+  {
+    "id": "es-57",
+    "category": "path",
+    "text": "Mira https://example.com/docs/inicio para la guía, o ejecuta el comando del recuadro de arriba."
+  },
+  {
+    "id": "es-58",
+    "category": "path",
+    "text": "Tom & Jerry empieza a las 8, y es apta para todos."
+  },
+  {
+    "id": "es-59",
+    "category": "mixed",
+    "text": "Primero tres cosas: leche, huevos y pan. Luego llamar al fontanero, y por último recoger el paquete."
+  },
+  {
+    "id": "es-60",
+    "category": "mixed",
+    "text": "No, no, ese no. El otro, el de la cubierta azul, a la izquierda."
+  }
+]

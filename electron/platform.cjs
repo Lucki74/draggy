@@ -1,0 +1,335 @@
+const path = require("path");
+const os = require("os");
+const fs = require("fs");
+const { execFile, execFileSync, spawn } = require("child_process");
+const { trackChild, trackExec } = require("./spawnLog.cjs");
+const { log } = require("./logger.cjs");
+
+const IS_WINDOWS = process.platform === "win32";
+const IS_MAC = process.platform === "darwin";
+const IS_LINUX = process.platform === "linux";
+
+/** Every child process, console window hidden and never through a shell. A GUI app starting a console
+ * program otherwise flashes a new window; one call site means it cannot be forgotten. */
+function spawnHidden(file, args, options = {}) {
+  return trackChild(spawn(file, args, { ...options, shell: false, windowsHide: true }), file, args, options);
+}
+
+/** The same guarantees for the one-shot calls. */
+function execFileHidden(file, args, options, callback) {
+  return execFile(file, args, { ...options, shell: false, windowsHide: true }, typeof callback === "function" ? trackExec(file, args, options, callback) : callback);
+}
+
+function runCommand(file, args, timeout) {
+  return new Promise((resolve) => {
+    execFileHidden(
+      file,
+      args,
+      { encoding: "utf8", timeout },
+      (err, stdout) => resolve(err ? null : stdout),
+    );
+  });
+}
+
+async function appleSiliconBudget() {
+  const wired = await runCommand("sysctl", ["-n", "iogpu.wired_limit_mb"], 4000);
+  const limitMb = wired ? parseInt(wired.trim(), 10) : 0;
+  if (!isNaN(limitMb) && limitMb > 0) return limitMb / 1024;
+
+  const totalBytes = os.totalmem();
+  const totalGB = totalBytes / 1024 ** 3;
+
+  return totalGB > 36 ? totalGB * 0.75 : totalGB * 0.67;
+}
+
+async function macVideoMemory() {
+  if (os.arch() === "arm64") return appleSiliconBudget();
+
+  const out = await runCommand(
+    "system_profiler",
+    ["-json", "SPDisplaysDataType"],
+    8000,
+  );
+  if (!out) return 0;
+
+  try {
+    const parsed = JSON.parse(out);
+    const displays = parsed?.SPDisplaysDataType || [];
+    let best = 0;
+    for (const entry of displays) {
+      const raw = entry?.spdisplays_vram || entry?.spdisplays_vram_shared || "";
+      const match = String(raw).match(/([\d.]+)\s*(GB|MB)/i);
+      if (!match) continue;
+      const value =
+        match[2].toUpperCase() === "GB"
+          ? Number(match[1])
+          : Number(match[1]) / 1024;
+      if (value > best) best = value;
+    }
+    return best;
+  } catch {
+    return 0;
+  }
+}
+
+function linuxAmdVram() {
+  try {
+    const cards = fs
+      .readdirSync("/sys/class/drm")
+      .filter((name) => /^card\d+$/.test(name));
+
+    let best = 0;
+    for (const card of cards) {
+      const file = `/sys/class/drm/${card}/device/mem_info_vram_total`;
+      if (!fs.existsSync(file)) continue;
+      const bytes = parseInt(fs.readFileSync(file, "utf8").trim(), 10);
+      if (!isNaN(bytes)) best = Math.max(best, bytes / 1024 ** 3);
+    }
+    return best;
+  } catch {
+    return 0;
+  }
+}
+
+const DISPLAY_CLASS = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
+
+/** The biggest REG_QWORD in `reg query` output, in bytes; 0 when there is none. */
+function largestQword(out) {
+  let best = 0;
+  for (const [, hex] of String(out || "").matchAll(/REG_QWORD\s+0x([0-9a-f]+)/gi)) {
+    best = Math.max(best, Number.parseInt(hex, 16));
+  }
+  return best;
+}
+
+async function detectVideoMemoryGB() {
+  const nvidia = await runCommand(
+    "nvidia-smi",
+    ["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+    4000,
+  );
+  if (nvidia) {
+    const mib = parseInt(nvidia.trim().split("\n")[0], 10);
+    if (!isNaN(mib) && mib > 0) return mib / 1024;
+  }
+
+  if (IS_WINDOWS) {
+    // reg.exe, not PowerShell: antivirus heuristics block a hidden PowerShell started by an app.
+    const reg = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "reg.exe");
+    const out = await runCommand(reg, ["query", DISPLAY_CLASS, "/s", "/v", "HardwareInformation.qwMemorySize"], 8000);
+    return largestQword(out) / 1024 ** 3;
+  }
+
+  if (IS_MAC) return macVideoMemory();
+
+  if (IS_LINUX) {
+    const amd = linuxAmdVram();
+    if (amd > 0) return amd;
+
+    const rocm = await runCommand("rocm-smi", ["--showmeminfo", "vram"], 4000);
+    if (rocm) {
+      const match = rocm.match(/Total\s*\(?B\)?[^\d]*(\d+)/i);
+      if (match) return Number(match[1]) / 1024 ** 3;
+    }
+  }
+
+  return 0;
+}
+
+/** Free VRAM right now, for the image engine's check before each job. Null where it cannot be measured. */
+async function detectFreeVideoMemoryGB() {
+  const nvidia = await runCommand("nvidia-smi", ["--query-gpu=memory.free", "--format=csv,noheader,nounits"], 4000);
+  if (nvidia) {
+    const mib = parseInt(nvidia.trim().split("\n")[0], 10);
+    if (!isNaN(mib) && mib >= 0) return mib / 1024;
+  }
+
+  if (IS_LINUX) {
+    try {
+      for (const card of fs.readdirSync("/sys/class/drm").filter((name) => /^card\d+$/.test(name))) {
+        const base = `/sys/class/drm/${card}/device`;
+        if (!fs.existsSync(`${base}/mem_info_vram_total`)) continue;
+        const total = parseInt(fs.readFileSync(`${base}/mem_info_vram_total`, "utf8"), 10);
+        const used = parseInt(fs.readFileSync(`${base}/mem_info_vram_used`, "utf8"), 10);
+        if (!isNaN(total) && !isNaN(used)) return (total - used) / 1024 ** 3;
+      }
+    } catch (error) {
+      log.swallow("proc", error, "no readable AMD card");
+    }
+  }
+  return null;
+}
+
+/** The first NVIDIA GPU's compute capability and driver version, from nvidia-smi (installed with the
+ * driver on Windows and Linux). Null when there is no NVIDIA driver or it cannot be asked. */
+let nvidiaInfoPromise = null;
+function parseNvidiaInfo(out) {
+  const [cap, driver] = String(out || "").trim().split("\n")[0].split(",").map((part) => part.trim());
+  const computeCapability = parseFloat(cap);
+  const driverMajor = parseInt(driver, 10);
+  if (!(computeCapability > 0) || !(driverMajor > 0)) return null;
+  return { computeCapability, driverVersion: driver, driverMajor };
+}
+function nvidiaInfo() {
+  if (!nvidiaInfoPromise) {
+    nvidiaInfoPromise = runCommand(
+      "nvidia-smi",
+      ["--query-gpu=compute_cap,driver_version", "--format=csv,noheader"],
+      5000,
+    ).then(parseNvidiaInfo);
+  }
+  return nvidiaInfoPromise;
+}
+
+function hasUnifiedMemory() {
+  return IS_MAC && os.arch() === "arm64";
+}
+
+function defaultShellEnv() {
+  if (IS_WINDOWS) return process.env;
+
+  const extraPaths = ["/usr/local/bin", "/opt/homebrew/bin"];
+  const current = (process.env.PATH || "").split(path.delimiter);
+  const merged = [...new Set([...current, ...extraPaths])].filter(Boolean);
+
+  return { ...process.env, PATH: merged.join(path.delimiter) };
+}
+
+/** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder. Windows ships
+ * `npx.cmd`; the real program is this file next to it. */
+function npmCliFrom(dir, tool) {
+  return path.join(dir, "node_modules", "npm", "bin", `${tool}-cli.js`);
+}
+
+/** Runs npx's JavaScript directly: Node refuses to spawn a .cmd since CVE-2024-27980, and a shell
+ * would put user paths on a command line. Null when npm is missing. */
+function resolveNpmTool(tool) {
+  const candidates = [path.dirname(process.execPath)];
+
+  const separator = IS_WINDOWS ? ";" : ":";
+  const names = IS_WINDOWS ? ["npx.cmd", "npx.exe", "npx"] : ["npx"];
+
+  for (const dir of String(process.env.PATH || "").split(separator)) {
+    if (!dir) continue;
+    for (const name of names) {
+      try {
+        if (fs.existsSync(path.join(dir, name))) candidates.push(dir);
+      } catch (error) {
+        log.swallow("proc", error, "an unreadable PATH entry is not worth failing over");
+      }
+    }
+  }
+
+  for (const dir of candidates) {
+    const cli = npmCliFrom(dir, tool);
+    try {
+      if (fs.existsSync(cli)) {
+        // ELECTRON_RUN_AS_NODE makes the packaged binary behave as plain Node,
+        // which is how `runner.cjs` runs JavaScript too.
+        return { file: process.execPath, prefixArgs: [cli], asNode: true };
+      }
+    } catch (error) {
+      log.swallow("proc", error, "keep looking");
+    }
+  }
+
+  return null;
+}
+
+/** How to run npx without its shell shim. Null when npm cannot be found. */
+function resolveNpx() {
+  return resolveNpmTool("npx");
+}
+
+/** The same for npm, which is what installs a server before it is run. */
+function resolveNpm() {
+  return resolveNpmTool("npm");
+}
+
+function pythonCandidates() {
+  return IS_WINDOWS ? ["python", "py"] : ["python3", "python"];
+}
+
+/** Kills a child and everything it started. Signalling the child alone leaves whatever it spawned
+ * running, with nobody left to notice. */
+function killTree(child) {
+  if (!child || child.pid === undefined) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  if (IS_WINDOWS) {
+    execFileHidden("taskkill", ["/pid", String(child.pid), "/T", "/F"], {}, () => {});
+    return;
+  }
+
+  try {
+    // Negative pid means the group, which is why the child was detached.
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    try {
+      child.kill("SIGKILL");
+    } catch (error) {
+      log.swallow("proc", error, "the process is already gone");
+    }
+  }
+}
+
+/** The synchronous version, for quitting. A background taskkill died with Draggy before walking the
+ * tree, leaving llama-server processes running. */
+function killTreeSync(child) {
+  if (!IS_WINDOWS) return killTree(child);
+  if (!child || child.pid === undefined) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  try {
+    execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 10000,
+      windowsHide: true,
+    });
+  } catch (error) {
+    log.swallow("proc", error, "the process is already gone");
+  }
+}
+
+/** Adapters that draw without a GPU: naming one of them would describe the machine wrongly. */
+const SOFTWARE_RENDERER = /basic render|swiftshader|llvmpipe|softpipe|microsoft basic/i;
+
+/** The graphics card's name from Electron's GPU report, for telling the user what Draggy sized a
+ * model to. The active device first, then the renderer string; null when neither names one. */
+function gpuNameFrom(info) {
+  const tidy = (name) => String(name).replace(/\((TM|R)\)/gi, "").replace(/\s+/g, " ").trim();
+  const devices = (Array.isArray(info?.gpuDevice) ? info.gpuDevice : []).filter(
+    (device) => device?.deviceString && !SOFTWARE_RENDERER.test(device.deviceString),
+  );
+  const device = devices.find((one) => one.active) ?? devices[0];
+  if (device) return tidy(device.deviceString);
+
+  const renderer = String(info?.auxAttributes?.glRenderer || "");
+  if (!renderer || SOFTWARE_RENDERER.test(renderer)) return null;
+  const metal = renderer.match(/Metal Renderer: ([^,)]+)/);
+  if (metal) return tidy(metal[1]);
+  const angle = renderer.match(/^ANGLE \([^,]+, (.+?)(?: \(0x[0-9a-f]+\))?(?: Direct3D| OpenGL| Vulkan|,)/i);
+  return tidy(angle ? angle[1] : renderer);
+}
+
+module.exports = {
+  gpuNameFrom,
+  IS_WINDOWS,
+  IS_MAC,
+  IS_LINUX,
+  runCommand,
+  detectVideoMemoryGB,
+  detectFreeVideoMemoryGB,
+  largestQword,
+  nvidiaInfo,
+  parseNvidiaInfo,
+  hasUnifiedMemory,
+  defaultShellEnv,
+  pythonCandidates,
+  resolveNpx,
+  resolveNpm,
+  spawnHidden,
+  execFileHidden,
+  killTree,
+  killTreeSync,
+};

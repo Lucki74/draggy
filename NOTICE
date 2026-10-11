@@ -1,0 +1,46 @@
+Draggy
+Copyright 2026 The Draggy authors
+https://github.com/Lucki74/draggy
+
+This product includes software developed as part of Draggy.
+
+Earlier versions released under the GNU General Public License v3.0 or
+later keep that license for those versions.
+
+Third-party notices
+
+Provider logos in src/providers/icons come from @lobehub/icons-static-svg
+(MIT) and from each provider's own project. Their licenses and sources
+are listed in src/providers/icons/LICENSE.
+
+Geologica font software is licensed under the SIL Open Font License, Version 1.1.
+Copyright 2020 The Geologica Project Authors.
+
+JetBrains Mono font software is licensed under the SIL Open Font License, Version 1.1.
+Copyright 2020 JetBrains s.r.o.
+
+Phosphor icons in src/ui/icons come from @phosphor-icons/core (MIT).
+Copyright (c) 2023 Phosphor Icons.
+Their licenses are listed in src/ui/fonts/LICENSE and src/ui/icons/LICENSE.
+
+Full license texts for every dependency the app ships are in
+THIRD-PARTY-LICENSES-main.txt (main process) and
+THIRD-PARTY-LICENSES-renderer.txt (renderer bundle), both in the app's
+dist folder.
+
+@ghostery/adblocker-electron and the @ghostery/* and @remusao/* packages it
+depends on are licensed under MPL-2.0. They are used unmodified from npm; the
+source is available from https://github.com/ghostery/adblocker and
+https://github.com/remusao/tldts.
+
+jszip is available under MIT or GPL-3.0-or-later. Draggy uses it under the MIT
+license.
+
+pako is licensed under MIT and Zlib.
+
+Optional engines downloaded on demand
+
+colibri (https://github.com/JustVugg/colibri) and the embeddable Python 3.12 from
+python.org are not bundled. Draggy downloads them at the user's request, verifies
+their SHA-256, and runs them as separate processes. Each keeps its own license,
+which is included in the downloaded archive.

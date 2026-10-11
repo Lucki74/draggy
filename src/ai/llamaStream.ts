@@ -1,0 +1,466 @@
+import { safeJsonParse } from "../utils";
+import type { GenerationMetrics } from "../llama";
+import type { EngineResult } from "./engineErrors";
+import { scopeToTarget } from "./providers";
+import type { DraggyRef, ProviderState } from "./providers";
+
+const IMAGE_SIGNATURES: [string, string][] = [
+  ["/9j/", "image/jpeg"],
+  ["iVBOR", "image/png"],
+  ["R0lGOD", "image/gif"],
+  ["UklGR", "image/webp"],
+  ["Qk", "image/bmp"],
+];
+
+/** The data URL for base64 image data, typed from its first bytes since the server wants a type. */
+function imageUrl(base64: string): string {
+  const type = IMAGE_SIGNATURES.find(([prefix]) => base64.startsWith(prefix))?.[1] ?? "image/png";
+  return `data:${type};base64,${base64}`;
+}
+
+/** llama-server speaks the OpenAI shape: a type on every tool call a history replays, and images as
+ * `image_url` parts of the content, not the `images` list an Ollama-style message carried. */
+export function toLlamaMessages<
+  M extends {
+    role?: string;
+    tool_calls?: object[];
+    images?: string[];
+    content?: unknown;
+    thinking?: string;
+    provider_state?: ProviderState;
+    draggy_ref?: DraggyRef;
+  },
+>(messages: M[], model = ""): M[] {
+  return scopeToTarget(messages, model).map((message) => {
+    // llama-server rejects an assistant turn with neither content nor calls; a space is enough.
+    const bare = message.role === "assistant" && !message.tool_calls && !String(message.content ?? "").trim();
+    if (!message.tool_calls && !message.images && !message.thinking && !bare) return message;
+
+    const { images, ...restMessage } = message;
+    const rest = bare ? { ...restMessage, content: " " } : restMessage;
+    const withThinking = message.thinking
+      ? { ...rest, thinking: message.thinking, reasoning_content: message.thinking }
+      : rest;
+    const shaped = withThinking.tool_calls
+      ? {
+          ...withThinking,
+          tool_calls: withThinking.tool_calls.map((call) => ({ type: "function", ...call })),
+        }
+      : withThinking;
+    if (!images?.length) return shaped as unknown as M;
+
+    const content = [
+      { type: "text", text: String(message.content ?? "") },
+      ...images.map((data) => ({ type: "image_url", image_url: { url: imageUrl(data) } })),
+    ];
+    return { ...shaped, content } as unknown as M;
+  });
+}
+
+/** llama-server reports failures as {"error": {"code", "message", "type"}}, an object, not a string. */
+export function ggufErrorMessage(body: string, fallback: string): string {
+  const error = safeJsonParse<{ error?: string | { message?: string } }>(body)?.error;
+  const message = typeof error === "string" ? error : error?.message;
+  return message || body || fallback;
+}
+
+/** The gateway's retry notice. Only a provider's stream carries these; llama-server sends none. */
+export interface GatewayRetry {
+  attempt: number;
+  of: number;
+  retryAfterMs: number;
+}
+
+/** A failure as the gateway names it. `kind` is absent on an error llama-server wrote itself. */
+export interface GatewayError {
+  kind?: string;
+  status?: number;
+  message?: string;
+  retryAfter?: number;
+  resetsAt?: string | number;
+  providerMessage?: string;
+  /** The instance's label, which the message names. */
+  provider?: string;
+}
+
+/** A gateway error, as `engineFailure` reads it: the provider's own words stay for the unknown ones. */
+export function failureOf(error: GatewayError): EngineResult {
+  const params: Record<string, string> = {};
+  for (const name of ["status", "retryAfter", "resetsAt", "provider"] as const) {
+    if (error[name] !== undefined) params[name] = String(error[name]);
+  }
+  return { error: error.providerMessage || error.message || "", kind: error.kind, params };
+}
+
+/** A failed response's body, for `engineFailure`. Without a kind it is llama-server's, read as it always was. */
+export function readFailure(body: string, fallback: string): EngineResult {
+  const error = safeJsonParse<{ error?: string | GatewayError }>(body)?.error;
+  if (error && typeof error === "object" && error.kind) return failureOf(error);
+  return { error: ggufErrorMessage(body, fallback) };
+}
+
+function gatewayError(error: string | GatewayError | undefined): GatewayError | undefined {
+  return typeof error === "string" ? { message: error } : error;
+}
+
+export interface PartialToolCall {
+  id: string;
+  name: string;
+  argsString: string;
+}
+
+export interface ToolCallDelta {
+  index: number;
+  id?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+}
+
+export interface ParsedToolCall {
+  id?: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface StreamChunk {
+  content?: string;
+  reasoning?: string;
+  toolCalls?: ParsedToolCall[];
+  metrics?: GenerationMetrics;
+  done?: boolean;
+  retry?: GatewayRetry;
+  error?: GatewayError;
+  providerState?: ProviderState;
+}
+
+export interface AdaptedLlamaChunk {
+  message?: {
+    content?: string;
+    thinking?: string;
+    tool_calls?: { id?: string; function: { name: string; arguments: Record<string, unknown> } }[];
+    streaming_tool_calls?: { id?: string; name: string; argsString: string }[];
+    tool_call_deltas?: ToolCallDelta[];
+  };
+
+  done?: boolean;
+  done_reason?: string;
+  prompt_eval_count?: number;
+  eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_duration?: number;
+  total_duration?: number;
+  retry?: GatewayRetry;
+  error?: GatewayError;
+  provider_state?: ProviderState;
+}
+
+/** Accumulates fragmented streaming arguments into a per-index tool call map. */
+export function accumulateToolCalls(
+  pending: Map<number, PartialToolCall>,
+  deltaToolCalls: ToolCallDelta[],
+): Map<number, PartialToolCall> {
+  for (const delta of deltaToolCalls) {
+    const existing = pending.get(delta.index);
+
+    if (!existing) {
+      pending.set(delta.index, {
+        id: delta.id ?? "",
+        name: delta.function?.name ?? "",
+        argsString: delta.function?.arguments ?? "",
+      });
+      continue;
+    }
+
+    if (delta.id) existing.id = delta.id;
+    if (delta.function?.name) existing.name = delta.function.name;
+    if (delta.function?.arguments) existing.argsString += delta.function.arguments;
+  }
+
+  return pending;
+}
+
+/** Converts completed streaming tool calls into parsed objects with fallback on malformed JSON. */
+export function finalizeToolCalls(
+  pending: Map<number, PartialToolCall>,
+): ParsedToolCall[] {
+  const result: ParsedToolCall[] = [];
+
+  for (const call of pending.values()) {
+    if (!call.name) continue;
+    const parsedArgs = safeJsonParse<Record<string, unknown>>(call.argsString) ?? {};
+    result.push({ id: call.id || undefined, name: call.name, args: parsedArgs });
+  }
+
+  return result;
+}
+
+/** Finalizes the tool calls and empties the map, so each reaches the caller once. llama-server sends
+ * the finish reason and then `[DONE]`, and both used to hand over the same calls: every tool ran twice. */
+export function drainToolCalls(pending: Map<number, PartialToolCall>): ParsedToolCall[] {
+  const calls = finalizeToolCalls(pending);
+  pending.clear();
+  return calls;
+}
+
+export interface SseRawChoice {
+  index: number;
+  delta?: {
+    content?: string;
+    reasoning_content?: string;
+    tool_calls?: ToolCallDelta[];
+  };
+  finish_reason?: string | null;
+}
+
+export interface SseRawPayload {
+  choices?: SseRawChoice[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  timings?: {
+    prompt_n?: number;
+    prompt_ms?: number;
+    prompt_per_second?: number;
+    predicted_n?: number;
+    predicted_ms?: number;
+    predicted_per_second?: number;
+  };
+  draggy_retry?: GatewayRetry;
+  error?: string | GatewayError;
+  provider_state?: ProviderState;
+}
+
+const isGatewayEvent = (payload: SseRawPayload) =>
+  Boolean(payload.draggy_retry || payload.error || payload.provider_state);
+
+/** Maps llama-server timings and usage payloads into Draggy's standard metrics shape. */
+export function readLlamaMetrics(
+  payload: SseRawPayload,
+  model: string,
+  contextWindow: number,
+  timeToFirstTokenMs: number | null,
+): GenerationMetrics | null {
+  const timings = payload.timings;
+  const usage = payload.usage;
+
+  const responseTokens = timings?.predicted_n ?? usage?.completion_tokens ?? 0;
+  const promptTokens = timings?.prompt_n ?? usage?.prompt_tokens ?? 0;
+  const responseMs = timings?.predicted_ms ?? 0;
+  const promptMs = timings?.prompt_ms ?? 0;
+  const totalMs = promptMs + responseMs;
+
+  if (responseTokens === 0 && promptTokens === 0) return null;
+
+  return {
+    promptTokens,
+    responseTokens,
+    promptMs,
+    responseMs,
+    loadMs: 0,
+    totalMs,
+    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : (timings?.predicted_per_second ?? 0),
+    timeToFirstTokenMs,
+    contextWindow,
+    model,
+    gpuPercent: null,
+  };
+}
+
+/** Reads a Server-Sent Events stream from llama-server and yields parsed chunks. */
+export async function readLlamaSseStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  model: string,
+  contextWindow: number,
+  onChunk: (chunk: StreamChunk) => boolean | void,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const pendingTools = new Map<number, PartialToolCall>();
+  let firstTokenReceived = false;
+  const startMs = performance.now();
+  let timeToFirstTokenMs: number | null = null;
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data:")) continue;
+
+      const dataStr = trimmed.slice(5).trim();
+      if (dataStr === "[DONE]") {
+        const finalTools = drainToolCalls(pendingTools);
+        if (finalTools.length > 0) {
+          onChunk({ toolCalls: finalTools });
+        }
+        onChunk({ done: true });
+        return;
+      }
+
+      const payload = safeJsonParse<SseRawPayload>(dataStr);
+      if (!payload) continue;
+
+      if (isGatewayEvent(payload)) {
+        const event = { retry: payload.draggy_retry, error: gatewayError(payload.error), providerState: payload.provider_state };
+        if (onChunk(event) === false) return;
+        continue;
+      }
+
+      const choice = payload.choices?.[0];
+      const delta = choice?.delta;
+
+      if (!firstTokenReceived && (delta?.content || delta?.reasoning_content || delta?.tool_calls)) {
+        firstTokenReceived = true;
+        timeToFirstTokenMs = performance.now() - startMs;
+      }
+
+      if (delta?.tool_calls) {
+        accumulateToolCalls(pendingTools, delta.tool_calls);
+      }
+
+      const hasFinish = Boolean(choice?.finish_reason);
+      const readyTools = hasFinish && choice?.finish_reason === "tool_calls"
+        ? drainToolCalls(pendingTools)
+        : undefined;
+
+      const metrics = payload.timings || payload.usage
+        ? readLlamaMetrics(payload, model, contextWindow, timeToFirstTokenMs)
+        : undefined;
+
+      const chunk: StreamChunk = {
+        content: delta?.content,
+        reasoning: delta?.reasoning_content,
+        toolCalls: readyTools,
+        metrics: metrics ?? undefined,
+      };
+
+      if (onChunk(chunk) === false) return;
+    }
+  }
+
+  const finalTools = drainToolCalls(pendingTools);
+  if (finalTools.length > 0) {
+    onChunk({ toolCalls: finalTools });
+  }
+}
+
+/** Yields normalized chunks matching Draggy's chunk format from an SSE stream. */
+export async function* sseToLlamaChunks(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): AsyncGenerator<AdaptedLlamaChunk, void, unknown> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const pendingTools = new Map<number, PartialToolCall>();
+
+  let lastUsage: SseRawPayload["usage"];
+  let lastTimings: SseRawPayload["timings"];
+  let yieldedDone = false;
+  let yieldedMetrics = false;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    let sepIndex: number;
+
+    while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, sepIndex);
+      buffer = buffer.slice(sepIndex + 2);
+
+      const dataLines = rawEvent
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart());
+
+      if (dataLines.length === 0) continue;
+      const data = dataLines.join("\n");
+      if (data === "[DONE]") {
+        const remaining = drainToolCalls(pendingTools);
+        if (remaining.length > 0) {
+          yield {
+            message: {
+              tool_calls: remaining.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } })),
+            },
+          };
+        }
+        if (!yieldedDone || (!yieldedMetrics && (lastUsage || lastTimings))) {
+          yield {
+            done: true,
+            prompt_eval_count: lastUsage?.prompt_tokens ?? lastTimings?.prompt_n,
+            eval_count: lastUsage?.completion_tokens ?? lastTimings?.predicted_n,
+            prompt_eval_duration:
+              lastTimings?.prompt_ms !== undefined ? lastTimings.prompt_ms * 1e6 : undefined,
+            eval_duration:
+              lastTimings?.predicted_ms !== undefined ? lastTimings.predicted_ms * 1e6 : undefined,
+          };
+        }
+        return;
+      }
+
+      const payload = safeJsonParse<SseRawPayload>(data);
+      if (!payload) continue;
+      if (isGatewayEvent(payload)) {
+        yield { retry: payload.draggy_retry, error: gatewayError(payload.error), provider_state: payload.provider_state };
+        continue;
+      }
+      if (payload.usage) lastUsage = payload.usage;
+      if (payload.timings) lastTimings = payload.timings;
+
+      const choice = payload.choices?.[0];
+      const delta = choice?.delta;
+
+      if (delta?.tool_calls) {
+        accumulateToolCalls(pendingTools, delta.tool_calls);
+      }
+
+      const isToolFinish = choice?.finish_reason === "tool_calls";
+      const readyTools = isToolFinish ? drainToolCalls(pendingTools) : [];
+
+      if (choice?.finish_reason) yieldedDone = true;
+
+      const partialCalls = pendingTools.size > 0
+        ? Array.from(pendingTools.values()).map((t) => ({ id: t.id || undefined, name: t.name, argsString: t.argsString }))
+        : undefined;
+
+      const promptEvalCount = payload.usage?.prompt_tokens ?? payload.timings?.prompt_n ?? lastUsage?.prompt_tokens ?? lastTimings?.prompt_n;
+      const evalCount = payload.usage?.completion_tokens ?? payload.timings?.predicted_n ?? lastUsage?.completion_tokens ?? lastTimings?.predicted_n;
+      const timingsMs = payload.timings ?? lastTimings;
+      if (promptEvalCount !== undefined || evalCount !== undefined) yieldedMetrics = true;
+
+      yield {
+        message: {
+          content: delta?.content || "",
+          thinking: delta?.reasoning_content || "",
+          tool_calls: readyTools.length > 0
+            ? readyTools.map((t) => ({ id: t.id || undefined, function: { name: t.name, arguments: t.args } }))
+            : undefined,
+          streaming_tool_calls: partialCalls,
+          tool_call_deltas: delta?.tool_calls,
+        },
+
+        done: Boolean(choice?.finish_reason),
+        done_reason: choice?.finish_reason || undefined,
+        prompt_eval_count: promptEvalCount,
+        eval_count: evalCount,
+        prompt_eval_duration:
+          timingsMs?.prompt_ms !== undefined ? timingsMs.prompt_ms * 1e6 : undefined,
+        eval_duration:
+          timingsMs?.predicted_ms !== undefined ? timingsMs.predicted_ms * 1e6 : undefined,
+        total_duration:
+          timingsMs?.prompt_ms !== undefined || timingsMs?.predicted_ms !== undefined
+            ? ((timingsMs?.prompt_ms ?? 0) + (timingsMs?.predicted_ms ?? 0)) * 1e6
+            : undefined,
+      };
+    }
+  }
+}

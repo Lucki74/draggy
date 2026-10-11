@@ -1,0 +1,351 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+/** Several parts of the app can share a channel, so the disposer removes only this listener and
+ * neither can silence the other. A channel past 20 listeners is the usual sign of an effect missing
+ * its cleanup, so it logs once. */
+const MAX_LISTENERS_PER_CHANNEL = 20;
+const listenerCounts = new Map();
+const warnedChannels = new Set();
+const subscribe = (channel, callback) => {
+  const listener = (_event, value) => callback(value);
+  ipcRenderer.on(channel, listener);
+  const count = (listenerCounts.get(channel) ?? 0) + 1;
+  listenerCounts.set(channel, count);
+  if (count > MAX_LISTENERS_PER_CHANNEL && !warnedChannels.has(channel)) {
+    warnedChannels.add(channel);
+    ipcRenderer.send("logs:write", {
+      level: "WARN",
+      context: "preload",
+      message: "listener leak suspected",
+      data: { channel, listeners: count },
+    });
+  }
+  let removed = false;
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+    if (!removed) {
+      removed = true;
+      listenerCounts.set(channel, Math.max(0, (listenerCounts.get(channel) ?? 1) - 1));
+    }
+  };
+};
+
+/** What the window runs before Draggy quits. It answers with none registered too, so a quit from
+ * the startup screen does not sit out the timeout. */
+const beforeQuit = new Set();
+ipcRenderer.on("app:flush-saves", async () => {
+  await Promise.allSettled([...beforeQuit].map(async (handler) => handler()));
+  ipcRenderer.send("app:saves-flushed");
+});
+
+/** The model the splash booted. It can land before React subscribes, and a page waiting for it stayed blank. */
+let bootModel = null;
+ipcRenderer.on("boot-model", (_event, model) => {
+  bootModel = model;
+});
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  getSystemSpecs: () => ipcRenderer.invoke("get-system-specs"),
+  colibri: {
+    status: () => ipcRenderer.invoke("colibri:status"),
+    install: () => ipcRenderer.invoke("colibri:install"),
+    rollback: () => ipcRenderer.invoke("colibri:rollback"),
+    health: () => ipcRenderer.invoke("colibri:health"),
+    start: (options) => ipcRenderer.invoke("colibri:start", options),
+    stop: () => ipcRenderer.invoke("colibri:stop"),
+    onLoadPhase: (callback) => subscribe("colibri-load-phase", callback),
+    onInstallProgress: (callback) => subscribe("colibri-install-progress", callback),
+  },
+  largeModel: {
+    plan: (repo) => ipcRenderer.invoke("largemodel:plan", repo),
+    download: (options) => ipcRenderer.invoke("largemodel:download", options),
+    cancel: () => ipcRenderer.invoke("largemodel:cancel"),
+    getMirrors: (modelId) => ipcRenderer.invoke("largemodel:mirrors-get", modelId),
+    setMirrors: (modelId, paths) => ipcRenderer.invoke("largemodel:mirrors-set", modelId, paths),
+    onProgress: (callback) => subscribe("largemodel-progress", callback),
+  },
+  notifyDone: (title, body) => ipcRenderer.invoke("notify:done", title, body),
+  tier: {
+    catalog: (contextTokens) => ipcRenderer.invoke("tier:catalog", contextTokens),
+    record: (sample) => ipcRenderer.invoke("tier:record", sample),
+    report: () => ipcRenderer.invoke("tier:report"),
+  },
+  hardware: {
+    probe: () => ipcRenderer.invoke("hardware:probe"),
+    benchmark: (volume, options) => ipcRenderer.invoke("hardware:benchmark", volume, options),
+    cancelBenchmark: () => ipcRenderer.invoke("hardware:cancel-benchmark"),
+    onBenchmarkProgress: (callback) => subscribe("hardware-benchmark-progress", callback),
+  },
+  checkInternet: () => ipcRenderer.invoke("check-internet"),
+  checkDiskSpace: () => ipcRenderer.invoke("check-disk-space"),
+
+  searchWeb: (query) => ipcRenderer.invoke("search-web", query),
+  searchWebDetailed: (query) => ipcRenderer.invoke("search-web-detailed", query),
+  setSearchConfig: (config) => ipcRenderer.invoke("set-search-config", config),
+  // Write-only, like a provider's key: the status says whether one is set and its last four.
+  setBraveKey: (key) => ipcRenderer.invoke("search:set-brave-key", key),
+  braveKeyStatus: () => ipcRenderer.invoke("search:brave-key-status"),
+  readUrl: (url) => ipcRenderer.invoke("get-page-content", url),
+
+  browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),
+  browserGetElements: () => ipcRenderer.invoke("browser-get-elements"),
+  browserClick: (index) => ipcRenderer.invoke("browser-click", index),
+  browserType: (index, text) => ipcRenderer.invoke("browser-type", index, text),
+  browserPressKey: (key) => ipcRenderer.invoke("browser-press-key", key),
+  browserGetText: () => ipcRenderer.invoke("browser-get-text"),
+  browserClose: () => ipcRenderer.invoke("browser-close"),
+
+  createFile: (filename, content) => ipcRenderer.invoke("create-file", filename, content),
+  openFile: (filepath) => ipcRenderer.invoke("open-file", filepath),
+  openCreatedFiles: () => ipcRenderer.invoke("open-created-files"),
+  listCreatedFiles: () => ipcRenderer.invoke("list-created-files"),
+  readCreatedFile: (filepath) => ipcRenderer.invoke("read-created-file", filepath),
+  revealCreatedFile: (filepath) => ipcRenderer.invoke("reveal-created-file", filepath),
+  deleteCreatedFile: (filepath) => ipcRenderer.invoke("delete-created-file", filepath),
+  readDocument: (filename, data) => ipcRenderer.invoke("read-document", filename, data),
+
+  searchModels: (query) => ipcRenderer.invoke("search-models", query),
+  modelSize: (name, tag) => ipcRenderer.invoke("model-size", name, tag),
+  resolveModelUrl: (reference, options) => ipcRenderer.invoke("resolve-model-url", reference, options),
+
+  db: {
+    loadChats: () => ipcRenderer.invoke("db:load-chats"),
+    saveChat: (session) => ipcRenderer.invoke("db:save-chat", session),
+    deleteChat: (id) => ipcRenderer.invoke("db:delete-chat", id),
+    clearChats: () => ipcRenderer.invoke("db:clear-chats"),
+    searchChats: (query) => ipcRenderer.invoke("db:search-chats", query),
+    get: (key) => ipcRenderer.invoke("db:get", key),
+    set: (key, value) => ipcRenderer.invoke("db:set", key, value),
+    importSessions: (sessions) => ipcRenderer.invoke("db:import", sessions),
+    stats: () => ipcRenderer.invoke("db:stats"),
+  },
+
+  files: {
+    list: (workspaceId, path) => ipcRenderer.invoke("fs:list", workspaceId, path),
+    read: (workspaceId, path) => ipcRenderer.invoke("fs:read", workspaceId, path),
+    write: (workspaceId, path, contents, chatId) =>
+      ipcRenderer.invoke("fs:write", workspaceId, path, contents, chatId),
+    edit: (workspaceId, path, find, replace, expected, chatId) =>
+      ipcRenderer.invoke("fs:edit", workspaceId, path, find, replace, expected, chatId),
+    move: (workspaceId, from, to, chatId) =>
+      ipcRenderer.invoke("fs:move", workspaceId, from, to, chatId),
+    remove: (workspaceId, path, chatId) =>
+      ipcRenderer.invoke("fs:delete", workspaceId, path, chatId),
+    search: (workspaceId, query) =>
+      ipcRenderer.invoke("fs:search", workspaceId, query),
+    open: (workspaceId, path) => ipcRenderer.invoke("fs:open", workspaceId, path),
+    reveal: (workspaceId, path) => ipcRenderer.invoke("fs:reveal", workspaceId, path),
+    checkpoints: (workspaceId) =>
+      ipcRenderer.invoke("checkpoint:list", workspaceId),
+    revert: (id) => ipcRenderer.invoke("checkpoint:revert", id),
+    onChanged: (callback) => subscribe("file-changed", callback),
+  },
+
+  apiServer: {
+    status: () => ipcRenderer.invoke("api-server:status"),
+    configure: (config) => ipcRenderer.invoke("api-server:configure", config),
+    regenerateKey: () => ipcRenderer.invoke("api-server:regenerate-key"),
+    ready: () => ipcRenderer.send("api-server:ready"),
+    onRequest: (callback) => subscribe("api-server:request", callback),
+    onAbort: (callback) => subscribe("api-server:abort", callback),
+    text: (id, text) => ipcRenderer.send("api-server:text", id, text),
+    model: (id, model) => ipcRenderer.send("api-server:model", id, model),
+    done: (id, result) => ipcRenderer.send("api-server:done", id, result),
+    failed: (id, message) => ipcRenderer.send("api-server:failed", id, message),
+  },
+
+  metrics: {
+    record: (row) => ipcRenderer.invoke("metrics:record", row),
+    list: (since) => ipcRenderer.invoke("metrics:list", since),
+    clear: () => ipcRenderer.invoke("metrics:clear"),
+  },
+
+  git: {
+    status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
+    diff: (workspaceId, path, staged) =>
+      ipcRenderer.invoke("git:diff", workspaceId, path, staged),
+  },
+
+  skills: {
+    list: (workspaceId) => ipcRenderer.invoke("skills:list", workspaceId),
+    read: (workspaceId, id, options) => ipcRenderer.invoke("skills:read", workspaceId, id, options),
+    setEnabled: (id, enabled) => ipcRenderer.invoke("skills:set-enabled", id, enabled),
+    openFolder: () => ipcRenderer.invoke("skills:open"),
+  },
+
+  workspaces: {
+    list: () => ipcRenderer.invoke("workspace:list"),
+    save: (workspace) => ipcRenderer.invoke("workspace:save", workspace),
+    remove: (id) => ipcRenderer.invoke("workspace:delete", id),
+    pickFolder: () => ipcRenderer.invoke("workspace:pick-folder"),
+  },
+
+  library: {
+    list: (workspaceId) => ipcRenderer.invoke("library:list", workspaceId),
+    stats: () => ipcRenderer.invoke("library:stats"),
+    pickFolder: () => ipcRenderer.invoke("library:pick-folder"),
+    index: (path, model, workspaceId) =>
+      ipcRenderer.invoke("library:index", path, model, workspaceId),
+    remove: (id) => ipcRenderer.invoke("library:remove", id),
+    clear: () => ipcRenderer.invoke("library:clear"),
+    search: (query, limit, model, options) =>
+      ipcRenderer.invoke("library:search", query, limit, model, options),
+    onProgress: (callback) => subscribe("library-progress", callback),
+  },
+
+  commands: {
+    run: (workspaceId, runId, command, options) =>
+      ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
+    cancel: (runId) => ipcRenderer.invoke("commands:cancel", runId),
+  },
+
+  runner: {
+    probe: () => ipcRenderer.invoke("runner:probe"),
+    run: (language, source, timeoutMs) =>
+      ipcRenderer.invoke("run-code", language, source, timeoutMs),
+  },
+
+  updater: {
+    state: () => ipcRenderer.invoke("updater:state"),
+    configure: (options) => ipcRenderer.invoke("updater:configure", options),
+    check: (options) => ipcRenderer.invoke("updater:check", options),
+    download: () => ipcRenderer.invoke("updater:download"),
+    install: () => ipcRenderer.invoke("updater:install"),
+    onState: (callback) => subscribe("updater-state", callback),
+  },
+
+  browserBar: {
+    action: (name, value) =>
+      ipcRenderer.invoke("browser-bar-action", name, value),
+    setMenuOpen: (open) => ipcRenderer.invoke("browser-bar-menu", open),
+    setAdblock: (enabled) =>
+      ipcRenderer.invoke("browser-bar-set-adblock", enabled),
+    onState: (callback) => subscribe("browser-bar-state", callback),
+  },
+
+  // The Browser pane's page is a native view main lays over the pane. The renderer only says where
+  // the pane is and whether it shows; the rectangle goes across as four numbers and nothing else.
+  browserPane: {
+    setBounds: (rect) =>
+      ipcRenderer.invoke("browser-pane:bounds", {
+        x: Number(rect?.x),
+        y: Number(rect?.y),
+        width: Number(rect?.width),
+        height: Number(rect?.height),
+      }),
+    setVisible: (visible) => ipcRenderer.invoke("browser-pane:visible", Boolean(visible)),
+    onOpen: (callback) => subscribe("browser-pane-open", callback),
+  },
+
+  mcp: {
+    catalogue: () => ipcRenderer.invoke("mcp:catalogue"),
+    config: () => ipcRenderer.invoke("mcp:config"),
+    save: (id, entry) => ipcRenderer.invoke("mcp:save", id, entry),
+    forget: (id) => ipcRenderer.invoke("mcp:forget", id),
+    start: (id) => ipcRenderer.invoke("mcp:start", id),
+    stop: (id) => ipcRenderer.invoke("mcp:stop", id),
+    running: () => ipcRenderer.invoke("mcp:running"),
+    startEnabled: () => ipcRenderer.invoke("mcp:start-enabled"),
+    enabled: () => ipcRenderer.invoke("mcp:enabled"),
+    setEnabled: (id, enabled) => ipcRenderer.invoke("mcp:set-enabled", id, enabled),
+    search: (query) => ipcRenderer.invoke("registry:search", query),
+    signIn: (id) => ipcRenderer.invoke("mcp:sign-in", id),
+    signOut: (id) => ipcRenderer.invoke("mcp:sign-out", id),
+    call: (serverId, toolName, args, correlationId) =>
+      ipcRenderer.invoke("mcp:call", serverId, toolName, args, correlationId),
+    onState: (callback) => subscribe("mcp-state", callback),
+  },
+
+  widgets: {
+    stage: (html) => ipcRenderer.invoke("widget:stage", html),
+    release: (token) => ipcRenderer.invoke("widget:release", token),
+  },
+
+  gguf: {
+    status: () => ipcRenderer.invoke("gguf:status"),
+    setupEngine: () => ipcRenderer.invoke("gguf:setup-engine"),
+    start: (options) => ipcRenderer.invoke("gguf:start", options),
+    stop: () => ipcRenderer.invoke("gguf:stop"),
+    listModels: () => ipcRenderer.invoke("gguf:models"),
+    deleteModel: (filename) => ipcRenderer.invoke("gguf:delete", filename),
+    downloadModel: (options) => ipcRenderer.invoke("gguf:download", options),
+    cancelDownload: (filename) => ipcRenderer.invoke("gguf:cancel-download", filename),
+    onProgress: (callback) => subscribe("gguf:progress", callback),
+  },
+
+  sd: {
+    status: () => ipcRenderer.invoke("sd:status"),
+    configure: (options) => ipcRenderer.invoke("sd:configure", options),
+    setupEngine: () => ipcRenderer.invoke("sd:setup-engine"),
+    downloadRepo: (reference) => ipcRenderer.invoke("sd:download-repo", reference),
+    cancelDownload: (id) => ipcRenderer.invoke("sd:cancel-download", id),
+    deleteModel: (id) => ipcRenderer.invoke("sd:delete-model", id),
+    generate: (request) => ipcRenderer.invoke("sd:generate", request),
+    cancel: (requestId) => ipcRenderer.invoke("sd:cancel", requestId),
+    stop: () => ipcRenderer.invoke("sd:stop"),
+    onProgress: (callback) => subscribe("sd:progress", callback),
+  },
+
+  onboarding: {
+    state: () => ipcRenderer.invoke("onboarding:state"),
+    start: () => ipcRenderer.invoke("onboarding:start"),
+    complete: (path) => ipcRenderer.invoke("onboarding:complete", path),
+    reset: () => ipcRenderer.invoke("onboarding:reset"),
+  },
+
+  // A key crosses once, into main's keystore: nothing here can read one back.
+  tts: {
+    providers: () => ipcRenderer.invoke("tts:providers"),
+    grantConsent: (provider) => ipcRenderer.invoke("tts:consent-grant", provider),
+    revokeConsent: (provider) => ipcRenderer.invoke("tts:consent-revoke", provider),
+    speak: (turnId, request) => ipcRenderer.invoke("tts:speak", turnId, request),
+    cancel: (turnId) => ipcRenderer.invoke("tts:cancel", turnId),
+    onFrames: (callback) => subscribe("tts:frames", callback),
+  },
+  providers: {
+    catalog: () => ipcRenderer.invoke("providers:catalog"),
+    list: () => ipcRenderer.invoke("providers:list"),
+    add: (input) => ipcRenderer.invoke("providers:add", input),
+    update: (id, patch) => ipcRenderer.invoke("providers:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("providers:remove", id),
+    setKey: (id, apiKey) => ipcRenderer.invoke("providers:set-key", id, apiKey),
+    test: (id) => ipcRenderer.invoke("providers:test", id),
+    models: (id, options) => ipcRenderer.invoke("providers:models", id, options),
+    scan: () => ipcRenderer.invoke("providers:scan"),
+    accountSignIn: (id) => ipcRenderer.invoke("providers:account-sign-in", id),
+    accountCancel: (id) => ipcRenderer.invoke("providers:account-cancel", id),
+    accountSubmitCode: (id, code) => ipcRenderer.invoke("providers:account-submit-code", id, code),
+    accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
+    accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
+    onAccountProgress: (callback) => subscribe("providers:account-progress", callback),
+  },
+
+  appInfo: () => ipcRenderer.invoke("app:version"),
+  openLogs: () => ipcRenderer.invoke("logs:open"),
+  readLogs: (target, bytes) => ipcRenderer.invoke("logs:tail", target, bytes),
+  getLogLevel: () => ipcRenderer.invoke("logs:get-level"),
+  setLogLevel: (options) => ipcRenderer.invoke("logs:set-level", options),
+  diagnostics: {
+    preview: (choices) => ipcRenderer.invoke("diagnostics:preview", choices),
+    export: (choices) => ipcRenderer.invoke("diagnostics:export", choices),
+    crashNotice: () => ipcRenderer.invoke("diagnostics:crash-notice"),
+  },
+  logEntry: (entry) => ipcRenderer.send("logs:write", entry),
+  logBatch: (entries) => ipcRenderer.send("logs:batch", entries),
+
+  onDownloadProgress: (callback) => subscribe("download-progress", callback),
+  onBootModel: (callback) => {
+    if (bootModel) callback(bootModel);
+    return subscribe("boot-model", callback);
+  },
+  onBootOpen: (callback) => subscribe("boot-open", callback),
+  // Only the one page the splash can hand over to; anything else is dropped here.
+  bootFinished: (model, open) => ipcRenderer.send("boot-finished", model, open === "providers" ? "providers" : undefined),
+  quitApp: () => ipcRenderer.send("quit-app"),
+  onBeforeQuit: (handler) => {
+    beforeQuit.add(handler);
+    return () => {
+      beforeQuit.delete(handler);
+    };
+  },
+});

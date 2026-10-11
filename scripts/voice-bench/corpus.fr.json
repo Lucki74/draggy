@@ -1,0 +1,302 @@
+[
+  {
+    "id": "fr-01",
+    "category": "oneliner",
+    "text": "Bien sûr, donnez-moi une seconde."
+  },
+  {
+    "id": "fr-02",
+    "category": "oneliner",
+    "text": "Ça me paraît un très bon plan."
+  },
+  {
+    "id": "fr-03",
+    "category": "oneliner",
+    "text": "Pas tout à fait. Essayez plutôt l'autre."
+  },
+  {
+    "id": "fr-04",
+    "category": "two",
+    "text": "J'ai regardé l'agenda. Vous êtes libre jeudi après-midi."
+  },
+  {
+    "id": "fr-05",
+    "category": "two",
+    "text": "Bonne question. Tout dépend de la mémoire de la machine."
+  },
+  {
+    "id": "fr-06",
+    "category": "two",
+    "text": "Oui, ça marche hors ligne. Seul le premier lancement demande un téléchargement."
+  },
+  {
+    "id": "fr-07",
+    "category": "long",
+    "text": "Honnêtement, le plus simple est de se dire que le modèle lit tout ce que vous avez dit jusque-là, devine ce que vous voulez probablement ensuite, puis écrit la réponse petit morceau par petit morceau, ce qui explique qu'il puisse commencer à parler avant d'avoir fini de réfléchir."
+  },
+  {
+    "id": "fr-08",
+    "category": "long",
+    "text": "Au premier lancement, il télécharge la voix, ce qui prend quelques minutes avec une connexion normale, et ensuite tout reste sur votre ordinateur, si bien que vous pouvez lui parler dans un avion ou dans un tunnel sans aucun souci."
+  },
+  {
+    "id": "fr-09",
+    "category": "number",
+    "text": "Le trajet fait 340 kilomètres et dure environ 4 heures."
+  },
+  {
+    "id": "fr-10",
+    "category": "number",
+    "text": "Ça coûte 12,50 € par mois, ou 120 € pour l'année."
+  },
+  {
+    "id": "fr-11",
+    "category": "number",
+    "text": "Votre réunion est à 14:30 le 3, et elle dure 45 minutes."
+  },
+  {
+    "id": "fr-12",
+    "category": "number",
+    "text": "La batterie est à 82 %, et le fichier fait 1,5 GB."
+  },
+  {
+    "id": "fr-13",
+    "category": "acronym",
+    "text": "Le CPU va bien, mais le GPU chauffe. Regardez les journaux de l'API."
+  },
+  {
+    "id": "fr-14",
+    "category": "acronym",
+    "text": "La NASA l'a annoncé, et la BBC en a parlé."
+  },
+  {
+    "id": "fr-15",
+    "category": "question",
+    "text": "Voulez-vous que je lise tout, ou seulement le résumé ?"
+  },
+  {
+    "id": "fr-16",
+    "category": "question",
+    "text": "Attendez, lequel vouliez-vous dire, le premier ou le second ?"
+  },
+  {
+    "id": "fr-17",
+    "category": "cue",
+    "text": "Ha <laugh> elle est bonne. Bref, revenons au plan."
+  },
+  {
+    "id": "fr-18",
+    "category": "cue",
+    "text": "Hmm <hmm> laissez-moi réfléchir. Voilà ce que je ferais."
+  },
+  {
+    "id": "fr-19",
+    "category": "cue",
+    "text": "<sigh> Longue journée. Faisons court."
+  },
+  {
+    "id": "fr-20",
+    "category": "path",
+    "text": "Ouvrez C:\\Users\\moi\\notes.txt et lisez la première ligne, ou allez sur https://example.com/aide."
+  },
+  {
+    "id": "fr-21",
+    "category": "oneliner",
+    "text": "Compris, je m'en occupe."
+  },
+  {
+    "id": "fr-22",
+    "category": "oneliner",
+    "text": "Je ne suis pas encore sûr. Laissez-moi regarder."
+  },
+  {
+    "id": "fr-23",
+    "category": "oneliner",
+    "text": "C'est fait. Tout est enregistré."
+  },
+  {
+    "id": "fr-24",
+    "category": "oneliner",
+    "text": "Bien sûr, avec plaisir."
+  },
+  {
+    "id": "fr-25",
+    "category": "two",
+    "text": "J'ai trouvé trois résultats. Le deuxième semble le plus utile."
+  },
+  {
+    "id": "fr-26",
+    "category": "two",
+    "text": "Ce fichier est assez gros. Il peut mettre un instant à s'ouvrir."
+  },
+  {
+    "id": "fr-27",
+    "category": "two",
+    "text": "Bien vu. Ce détail m'avait échappé."
+  },
+  {
+    "id": "fr-28",
+    "category": "two",
+    "text": "Pas de souci. On peut réessayer quand vous voulez."
+  },
+  {
+    "id": "fr-29",
+    "category": "two",
+    "text": "Ça devrait aller maintenant. Dites-moi si quelque chose cloche."
+  },
+  {
+    "id": "fr-30",
+    "category": "two",
+    "text": "Bon, le plan a changé. On commence lundi à la place."
+  },
+  {
+    "id": "fr-31",
+    "category": "long",
+    "text": "Il y a vraiment deux façons d'aborder ça. La première est rapide et un peu approximative, la seconde prend plus de temps mais donne quelque chose de fiable, donc tout dépend de si vous avez besoin d'une réponse aujourd'hui ou d'un résultat durable."
+  },
+  {
+    "id": "fr-32",
+    "category": "long",
+    "text": "J'ai lu les notes que vous m'avez envoyées, et presque tout est clair, mais il y a un passage vers la fin qui peut se comprendre de deux façons, alors avant d'aller plus loin j'aimerais vérifier laquelle vous aviez en tête."
+  },
+  {
+    "id": "fr-33",
+    "category": "long",
+    "text": "Si vous laissez le micro ouvert, je continue d'écouter et je réponds dès que vous vous arrêtez, et si vous voulez m'interrompre, il suffit de parler : je m'arrête aussitôt et je vous écoute."
+  },
+  {
+    "id": "fr-34",
+    "category": "long",
+    "text": "La météo s'annonce douce pour les prochains jours, avec quelques nuages le matin et du soleil ensuite, donc si vous pensiez à une promenade ou à une sortie à vélo, le milieu de la semaine est sans doute le meilleur moment."
+  },
+  {
+    "id": "fr-35",
+    "category": "long",
+    "text": "Tout tourne sur votre propre machine, ce qui veut dire que rien de ce que vous dites ne quitte l'ordinateur, et la seule chose qui passe par internet est une recherche, et seulement quand vous me demandez d'en faire une."
+  },
+  {
+    "id": "fr-36",
+    "category": "long",
+    "text": "Pour la mise en place, ouvrez les réglages, choisissez la voix qui vous plaît, appuyez sur le bouton d'écoute pour entendre un échantillon, puis revenez à l'écran de conversation, où la nouvelle voix servira dès la prochaine réponse."
+  },
+  {
+    "id": "fr-37",
+    "category": "long",
+    "text": "En fait, c'est un peu plus compliqué que ça, parce que la réponse change selon l'endroit où vous habitez, l'âge du bâtiment et le fait que l'ancien propriétaire ait gardé les papiers, mais je peux vous guider pas à pas."
+  },
+  {
+    "id": "fr-38",
+    "category": "long",
+    "text": "Commençons par le plus simple. Vous avez une liste de tâches, certaines urgentes et d'autres non, et l'astuce est de faire d'abord les urgentes, ensuite les rapides, et seulement après les grosses qui demandent les idées claires."
+  },
+  {
+    "id": "fr-39",
+    "category": "number",
+    "text": "Le colis pèse 2,4 kg et arrive entre 9:00 et 11:30."
+  },
+  {
+    "id": "fr-40",
+    "category": "number",
+    "text": "Environ 1 250 personnes sont venues, soit 15% de plus que l'an dernier."
+  },
+  {
+    "id": "fr-41",
+    "category": "number",
+    "text": "La pièce fait 4 m sur 6 m, donc à peu près 24 mètres carrés."
+  },
+  {
+    "id": "fr-42",
+    "category": "number",
+    "text": "Ce sera 1999,99 €, plus 8,5% de taxe."
+  },
+  {
+    "id": "fr-43",
+    "category": "number",
+    "text": "Entre 2020 et 2024, le nombre est passé de 300 à 1200."
+  },
+  {
+    "id": "fr-44",
+    "category": "number",
+    "text": "Réglez le four à 180 °C et laissez cuire 25 minutes."
+  },
+  {
+    "id": "fr-45",
+    "category": "acronym",
+    "text": "La clé USB contient un PDF et un CSV, et l'URL est dans le README."
+  },
+  {
+    "id": "fr-46",
+    "category": "acronym",
+    "text": "Votre SSD va bien, mais la RAM est presque pleine, alors fermez quelques onglets."
+  },
+  {
+    "id": "fr-47",
+    "category": "acronym",
+    "text": "L'OTAN et l'ONU ont publié des communiqués, et l'UE devrait suivre."
+  },
+  {
+    "id": "fr-48",
+    "category": "question",
+    "text": "Je l'envoie maintenant, ou vous préférez le relire d'abord ?"
+  },
+  {
+    "id": "fr-49",
+    "category": "question",
+    "text": "C'est le même projet que la semaine dernière, ou un autre ?"
+  },
+  {
+    "id": "fr-50",
+    "category": "question",
+    "text": "Pouvez-vous répéter ? Je n'ai pas bien saisi la fin."
+  },
+  {
+    "id": "fr-51",
+    "category": "question",
+    "text": "Quelle heure vous convient le mieux, le matin ou le soir ?"
+  },
+  {
+    "id": "fr-52",
+    "category": "cue",
+    "text": "Oh, c'est drôle <laugh> je ne m'attendais pas à cette réponse."
+  },
+  {
+    "id": "fr-53",
+    "category": "cue",
+    "text": "Eh bien <sigh> ça ne s'est pas passé comme prévu, mais on peut arranger ça."
+  },
+  {
+    "id": "fr-54",
+    "category": "cue",
+    "text": "Hmm <hmm> il y a quelques options ici."
+  },
+  {
+    "id": "fr-55",
+    "category": "path",
+    "text": "La configuration se trouve dans /usr/local/etc/app.conf, et les journaux dans /var/log/app/."
+  },
+  {
+    "id": "fr-56",
+    "category": "path",
+    "text": "Enregistrez-le sous D:\\Projets\\rapport.docx, puis envoyez-le à l'équipe et/ou affichez-le sur le tableau."
+  },
+  {
+    "id": "fr-57",
+    "category": "path",
+    "text": "Voir https://example.com/docs/debut pour le guide, ou lancez la commande dans la boîte ci-dessus."
+  },
+  {
+    "id": "fr-58",
+    "category": "path",
+    "text": "Tom & Jerry passe à 20 heures, et c'est tout public."
+  },
+  {
+    "id": "fr-59",
+    "category": "mixed",
+    "text": "D'abord trois choses : du lait, des œufs et du pain. Ensuite, appeler le plombier, et enfin récupérer le colis."
+  },
+  {
+    "id": "fr-60",
+    "category": "mixed",
+    "text": "Non, non, pas celui-là. L'autre, avec la couverture bleue, à gauche."
+  }
+]

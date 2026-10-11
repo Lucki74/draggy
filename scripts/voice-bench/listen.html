@@ -1,0 +1,116 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice listening test</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fbfaf8; --fg: #1d1c1a; --muted: #6b6862; --line: #d9d5ce; --accent: #2f5d50; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #171614; --fg: #ece9e3; --muted: #9a958c; --line: #34312c; --accent: #7fb5a3; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 .25rem; }
+  p, label { color: var(--muted); }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 1rem 0; padding: .75rem 1rem; }
+  button { font: inherit; padding: .5rem 1rem; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin: .5rem 0; }
+  progress { width: 100%; }
+  [hidden] { display: none; }
+</style>
+<main>
+  <h1>Voice listening test</h1>
+  <p>Choose one folder of WAV files per voice. Files with the same name are played as a pair, in random order and unlabelled.</p>
+
+  <section id="setup">
+    <div class="row"><label for="listener">Your name or id</label><input id="listener" autocomplete="off"></div>
+    <div class="row"><label for="lang">Language you speak natively</label><input id="lang" size="4" placeholder="en"></div>
+    <div class="row"><label for="dirA">Voice A folder</label><input id="dirA" type="file" webkitdirectory multiple accept=".wav"></div>
+    <div class="row"><label for="dirB">Voice B folder</label><input id="dirB" type="file" webkitdirectory multiple accept=".wav"></div>
+    <button class="primary" id="start">Start</button>
+    <p id="problem" role="alert"></p>
+  </section>
+
+  <section id="test" hidden>
+    <progress id="progress" value="0" max="1" aria-label="Progress"></progress>
+    <p id="count" aria-live="polite"></p>
+    <div class="row"><button id="playFirst">Play 1</button><button id="playSecond">Play 2</button></div>
+    <fieldset><legend>Which sounded more natural?</legend>
+      <div class="row">
+        <label><input type="radio" name="pick" value="first"> 1</label>
+        <label><input type="radio" name="pick" value="second"> 2</label>
+        <label><input type="radio" name="pick" value="same"> No difference</label>
+      </div>
+    </fieldset>
+    <fieldset><legend>How natural was the one you preferred? (1 robotic, 5 human)</legend>
+      <div class="row" id="scores"></div>
+    </fieldset>
+    <button class="primary" id="next">Next</button>
+  </section>
+
+  <section id="done" hidden>
+    <p>All pairs rated. Download the file and put it in <code>docs/voice-bench/</code>.</p>
+    <button class="primary" id="download">Download results</button>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let pairs = [], index = 0, results = [], audio = new Audio(), startedAt = 0;
+
+  const shuffle = (items) => { for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; } return items; };
+  const byName = (files) => new Map([...files].filter((f) => /\.wav$/i.test(f.name)).map((f) => [f.name, f]));
+
+  for (let n = 1; n <= 5; n++) {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="radio" name="score" value="${n}"> ${n}`;
+    $("scores").append(label);
+  }
+
+  $("start").onclick = () => {
+    const a = byName($("dirA").files), b = byName($("dirB").files);
+    const names = [...a.keys()].filter((name) => b.has(name));
+    if (!$("listener").value.trim() || !names.length) { $("problem").textContent = "Enter your name and choose two folders that share file names."; return; }
+    pairs = shuffle(names).map((name) => {
+      const swap = Math.random() < 0.5;
+      return { name, first: swap ? "B" : "A", second: swap ? "A" : "B", files: { A: a.get(name), B: b.get(name) } };
+    });
+    $("setup").hidden = true; $("test").hidden = false; show();
+  };
+
+  function show() {
+    const pair = pairs[index];
+    $("count").textContent = `Pair ${index + 1} of ${pairs.length}`;
+    $("progress").max = pairs.length; $("progress").value = index;
+    document.querySelectorAll("input[name=pick], input[name=score]").forEach((input) => (input.checked = false));
+    startedAt = Date.now();
+    play("first");
+  }
+
+  function play(which) {
+    const pair = pairs[index];
+    audio.pause();
+    URL.revokeObjectURL(audio.src);
+    audio = new Audio(URL.createObjectURL(pair.files[pair[which]]));
+    audio.play();
+  }
+  $("playFirst").onclick = () => play("first");
+  $("playSecond").onclick = () => play("second");
+
+  $("next").onclick = () => {
+    const pick = document.querySelector("input[name=pick]:checked");
+    const score = document.querySelector("input[name=score]:checked");
+    if (!pick || !score) return;
+    const pair = pairs[index];
+    const preferred = pick.value === "same" ? null : pair[pick.value];
+    results.push({ file: pair.name, first: pair.first, second: pair.second, preferred, naturalness: Number(score.value), ms: Date.now() - startedAt });
+    index++;
+    if (index < pairs.length) show(); else { audio.pause(); $("test").hidden = true; $("done").hidden = false; }
+  };
+
+  $("download").onclick = () => {
+    const body = JSON.stringify({ listener: $("listener").value.trim(), language: $("lang").value.trim(), date: new Date().toISOString(), results }, null, 2);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+    link.download = `listening-${$("listener").value.trim() || "anon"}.json`;
+    link.click();
+  };
+</script>

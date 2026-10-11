@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an idea or improvement for draggy.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: What problem or limitation does this feature address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you've thought about.
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: Feature area
+      options:
+        - Chat
+        - Code projects
+        - Browser
+        - Document search
+        - Voice mode (beta)
+        - MCP extensions
+        - Command execution
+        - Model loading / GGUF
+        - Settings
+        - Updates
+        - Other
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues
+          required: true

@@ -1,0 +1,8 @@
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\disk\Enum
+    0    REG_SZ    SCSI\Disk&Ven_NVMe&Prod_SAMSUNG_MZVL21T0\4&22a0e0d9&0&020000
+    1    REG_SZ    SCSI\Disk&Ven_NVMe&Prod_WD_BLACK_SN850_P\4&22a0e0d9&0&010000
+    2    REG_SZ    USBSTOR\Disk&Ven_Lexar&Prod_USB_Flash_Drive&Rev_\0123&0
+    Count    REG_DWORD    0x3
+    NextInstance    REG_DWORD    0x3
+

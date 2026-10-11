@@ -1,0 +1,2527 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { llamaIsBusy } from "../llama";
+import { resetTailNotesForTests, runAgentTurn, toWireMessage } from "../agent/agentLoop";
+import { draggyRef } from "../ai/providers";
+import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
+import type { Grant } from "../agent/permissions";
+import { parsePlan } from "../plan/plan";
+import { registerPlanTools } from "../tools/plan";
+import type { PlanItem } from "../plan/plan";
+import { registerTool, resetRegistry } from "../tools/registry";
+import { BUILTIN_TOOLS } from "../tools/builtin";
+import type { ToolEnvironment, ToolSpec } from "../tools/registry";
+import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../llama";
+import type {
+  ApprovalAnswer,
+  AppSettings,
+  CompactionState,
+  PermissionMode,
+  Message,
+  SearchStep,
+  TurnMetrics,
+} from "../types";
+
+const MODEL = "test-model";
+
+// Main lists a provider's models with what they can do; these stand in, one with tools and one thinking.
+const TOOL_PROVIDER_MODEL = "@anthropic/claude-tools";
+vi.mock("../llama", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../llama")>();
+  return {
+    ...actual,
+    getModelInfo: (model: string) =>
+      model === "@anthropic/claude-tools" || model === "@openai/thinker"
+        ? Promise.resolve({ contextLength: 200000, capabilities: model.endsWith("thinker") ? ["tools", "thinking"] : ["tools"], parameterCount: null, quantization: null, promptProfile: "full" })
+        : actual.getModelInfo(model),
+  };
+});
+
+const SETTINGS = {
+  theme: "light",
+  fontSize: "base",
+  language: "en",
+  modelName: MODEL,
+  customInstructions: [],
+  thinkingMode: "medium",
+  slowModelThinking: false,
+  colibriLossy: false,
+  webMode: "auto",
+  voiceName: "",
+  voiceModel: "",
+  voiceEngine: "system",
+  neuralVoice: "F1",
+  cloudProvider: "",
+  cloudVoice: "",
+  cloudModel: "",
+  voiceSounds: true,
+  interfaceSounds: false,
+  voiceRate: 1,
+  searchProvider: "auto",
+  searxngUrl: "",
+  codeModel: "",
+  codeInstructions: [],
+  codeThinkingMode: "medium",
+  codeWebMode: "auto",
+  codePermissionMode: "acceptEdits",
+  libraryEnabled: true,
+  embedModel: "nomic-embed-text",
+  showMetrics: true,
+  fitContext: 8192,
+  autoUpdate: true,
+  compactLimit: null,
+  fixedContextSize: null,
+  updateChannel: "prerelease",
+  imageModel: "",
+} as AppSettings;
+
+const ENVIRONMENT: ToolEnvironment = {
+  webMode: "auto",
+  codeExecution: true,
+  libraryReady: true,
+};
+
+/** Encodes content/thinking/toolCalls chunks as SSE events for llama-server format. */
+function sseStream(chunks: unknown[]) {
+  const encoder = new TextEncoder();
+  let index = 0;
+
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (index >= chunks.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(encoder.encode("data: " + JSON.stringify(chunks[index++]) + "\n\n"));
+    },
+  });
+}
+
+/** Converts a turn description into SSE chunks the GGUF stream parser expects. */
+function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unknown[] {
+  const chunks: unknown[] = [];
+  for (const piece of turn.thinking ?? []) {
+    chunks.push({ choices: [{ delta: { reasoning_content: piece }, finish_reason: null }] });
+  }
+  for (const piece of turn.content ?? []) {
+    chunks.push({ choices: [{ delta: { content: piece }, finish_reason: null }] });
+  }
+  if (turn.state) chunks.push({ provider_state: turn.state });
+  if (turn.toolCallChunks) {
+    for (const group of turn.toolCallChunks) {
+      chunks.push({ choices: [{ delta: { tool_calls: group }, finish_reason: null }] });
+    }
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else if (turn.toolCalls) {
+    const deltas = turn.toolCalls.map((tc, i) => ({
+      index: i,
+      id: `call_${i}`,
+      function: { name: tc.function.name, arguments: JSON.stringify(tc.function.arguments) },
+    }));
+    chunks.push({
+      choices: [{ delta: { tool_calls: deltas }, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  } else {
+    const finishReason = (extra.finish_reason ?? extra.done_reason ?? "stop") as string;
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: finishReason }],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
+  }
+  chunks.push("[DONE]");
+  return chunks;
+}
+
+interface Turn {
+  content?: string[];
+  thinking?: string[];
+  toolCalls?: { function: { name: string; arguments: Record<string, unknown> } }[];
+  toolCallChunks?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[][];
+  final?: Record<string, unknown>;
+  /** A `provider_state` event the gateway sends with this pass. */
+  state?: { instanceId: string; state: unknown };
+}
+
+function installFetch(
+  turns: Turn[],
+  /** What the model reports it can do, or null for one the probe cannot identify. */
+  capabilities: string[] | null,
+  loaded: Record<string, unknown>[] = [{ name: MODEL, size: 100, size_vram: 80, context_length: 4096 }],
+  repair?: string,
+) {
+  const requests: Record<string, unknown>[] = [];
+  const repairs: Record<string, unknown>[] = [];
+  const starts: { modelPath: string; contextSize: number }[] = [];
+  let turnIndex = 0;
+
+  vi.stubGlobal("window", {
+    electronAPI: {
+      gguf: {
+        status: async () => {
+          const first = loaded[0];
+          if (!first) return { running: false, model: null };
+          return {
+            running: true,
+            model: String(first.name || MODEL).replace(/:latest$/, ""),
+            contextSize: Number(first.context_length ?? first.contextSize ?? 4096),
+          };
+        },
+        listModels: async () =>
+          capabilities === null
+            ? []
+            : [
+                {
+                  filename: MODEL,
+                  contextLength: 32768,
+                  blockCount: 32,
+                  architecture: "gguf",
+                  fileType: 0,
+                  capabilities,
+                },
+              ],
+        start: async (opts: { modelPath: string; contextSize: number }) => {
+          starts.push(opts);
+          return { success: true };
+        },
+      },
+    },
+  });
+
+  const impl = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "draggy-ai://chat") {
+      const body = JSON.parse(String(init?.body));
+
+      if (body.response_format || body.format) {
+        body.format = body.response_format?.json_schema?.schema ?? body.format;
+        repairs.push(body);
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: repair ?? "" } }] }),
+          { status: 200 },
+        );
+      }
+
+      requests.push(body);
+
+      const turn = turns[Math.min(turnIndex++, turns.length - 1)];
+      return new Response(sseStream(turnToSseChunks(turn, turn.final ?? {})), { status: 200 });
+    }
+
+    throw new Error(`unexpected fetch to ${url}`);
+  });
+
+  vi.stubGlobal("fetch", impl);
+  return { requests, repairs, starts };
+}
+
+function makeHost() {
+  const patches: { content: string; textContent: string }[] = [];
+  let steps: SearchStep[] = [];
+  const recordedSteps: SearchStep[][] = [];
+  let metrics: TurnMetrics | null = null;
+  let outOfContext = false;
+
+  const host: AgentHost = {
+    t: (key) => key,
+    onPatch: (patch) => {
+      patches.push({ content: patch.content, textContent: patch.textContent });
+      steps = patch.steps;
+      recordedSteps.push(JSON.parse(JSON.stringify(patch.steps)));
+    },
+    onSteps: (next) => {
+      steps = next;
+      recordedSteps.push(JSON.parse(JSON.stringify(next)));
+    },
+    onOutOfContext: (flag) => {
+      outOfContext = flag;
+    },
+    onMetrics: (next) => {
+      metrics = next;
+    },
+  };
+
+  return {
+    host,
+    patches,
+    recordedSteps,
+    get steps() {
+      return steps;
+    },
+    get metrics() {
+      return metrics;
+    },
+    get outOfContext() {
+      return outOfContext;
+    },
+  };
+}
+
+const userMessage = (content: string): Message => ({
+  id: "u1",
+  role: "user",
+  content,
+});
+
+const assistantMessage = (content: string): Message => ({
+  id: "a1",
+  role: "assistant",
+  content,
+});
+
+function run(
+  messages: Message[],
+  signal?: AbortSignal,
+  host = makeHost(),
+  settings: AppSettings = SETTINGS,
+  compaction: CompactionState | null = null,
+) {
+  return {
+    host,
+    promise: runAgentTurn(
+      {
+        model: MODEL,
+        settings,
+        environment: ENVIRONMENT,
+        messages,
+        compaction,
+        signal: signal ?? new AbortController().signal,
+      },
+      host.host,
+    ),
+  };
+}
+
+let toolCalls: { name: string; args: Record<string, unknown> }[] = [];
+
+const fakeSearch: ToolSpec = {
+  name: "search_web",
+  group: "web",
+  description: "Search the web.",
+  parameters: { query: { type: "string", description: "Query." } },
+  required: ["query"],
+  usage: '{"query": "..."} → results',
+  available: (environment) => environment.webMode !== "off",
+  run: async (args, ctx) => {
+    toolCalls.push({ name: "search_web", args });
+    ctx.pushStep({
+      id: ctx.newId(),
+      type: "searching",
+      content: "searching",
+      isComplete: true,
+    });
+    return "TOOL RESULT (search_web): Paris is the capital of France.";
+  },
+};
+
+beforeEach(() => {
+  resetTailNotesForTests();
+  resetRegistry();
+  registerTool(fakeSearch);
+  toolCalls = [];
+  forgetModelInfo(MODEL);
+  // The window is remembered per model, so one test's long conversation would
+  // otherwise set the window every later test sees.
+  forgetContextSize(MODEL);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("a model the GGUF engine has to load first", () => {
+  // Every list the host is shown, since the notice has to be gone by the end.
+  function watchSteps() {
+    const host = makeHost();
+    const seen: SearchStep[][] = [];
+    const onSteps = host.host.onSteps;
+    host.host.onSteps = (steps) => {
+      seen.push(steps);
+      onSteps(steps);
+    };
+    return { host, seen };
+  }
+
+  const loadingSteps = (seen: SearchStep[][]) =>
+    seen.flat().filter((step) => step.type === "loading");
+
+  it("says so while it loads, and not once the reply is in", async () => {
+    // Loading was the long silence before the first token, shown only as the
+    // typing dots, which is what looked stuck.
+    installFetch([{ content: ["Hi"] }], [], []);
+    const { host, seen } = watchSteps();
+
+    const result = await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen)[0]?.content).toBe("loadingModel");
+    expect(loadingSteps(seen)[0]?.model).toBe(MODEL);
+    expect(typeof loadingSteps(seen)[0]?.startedAt).toBe("number");
+    expect(result.steps.some((step) => step.type === "loading")).toBe(false);
+  });
+
+  it("says nothing when it is in memory at that window already", async () => {
+    const first = installFetch([{ content: ["Hi"] }], []);
+    await run([userMessage("hi")]).promise;
+    const { num_ctx } = (first.requests[0] as { options: { num_ctx: number } }).options;
+
+    // The engine may list the name with a tag even when it was asked for without one.
+    installFetch([{ content: ["Hi"] }], [], [{ name: `${MODEL}:latest`, context_length: num_ctx }]);
+    const { host, seen } = watchSteps();
+    await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen)).toEqual([]);
+  });
+
+  it("says so when it is in memory at another window, which the engine reloads for", async () => {
+    installFetch([{ content: ["Hi"] }], [], [{ name: MODEL, context_length: 999 }]);
+    const { host, seen } = watchSteps();
+
+    await run([userMessage("hi")], undefined, host).promise;
+
+    expect(loadingSteps(seen).length).toBeGreaterThan(0);
+  });
+});
+
+describe("a plain answer with no tools", () => {
+  it("streams the reply through to the host", async () => {
+    installFetch([{ content: ["Hello", " there", "!"] }], []);
+
+    const { host, promise } = run([userMessage("hi")]);
+    const result = await promise;
+
+    expect(result.textContent).toBe("Hello there!");
+    expect(result.loops).toBe(1);
+    expect(host.patches.length).toBeGreaterThan(0);
+  });
+
+  it("reports metrics for the turn", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+
+    const { host, promise } = run([userMessage("hi")]);
+    const result = await promise;
+
+    expect(result.metrics?.responseTokens).toBe(40);
+    expect(result.metrics?.tokensPerSecond).toBeCloseTo(100, 5);
+    expect(host.metrics?.gpuPercent).toBe(0);
+  });
+
+  it("sends a system prompt and the conversation", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("what is 2+2")]).promise;
+
+    const body = requests[0] as { messages: { role: string; content: string }[] };
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[0].content).toContain("Draggy");
+    // The clock is appended to the last user message rather than sent in the
+    // system prompt, so the message is no longer exactly what was typed.
+    expect(body.messages[1].content).toContain("what is 2+2");
+  });
+
+  describe("keeping the cached prefix intact", () => {
+    it("does not put a changing clock in the system prompt", async () => {
+      const { requests } = installFetch([{ content: ["ok"] }], []);
+      await run([userMessage("hello")]).promise;
+
+      const body = requests[0] as { messages: { content: string }[] };
+      // A timestamp here ends the common prefix at token zero, which makes
+      // every turn re-evaluate the whole conversation.
+      expect(body.messages[0].content).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    });
+
+    it("puts the clock on the last user message instead", async () => {
+      const { requests } = installFetch([{ content: ["ok"] }], []);
+      await run([userMessage("hello")]).promise;
+
+      const body = requests[0] as { messages: { role: string; content: string }[] };
+      const last = body.messages[body.messages.length - 1];
+      expect(last.content).toContain("Current time:");
+    });
+
+    it("keeps the system prompt identical across two turns", async () => {
+      const { requests } = installFetch(
+        [{ content: ["one"] }, { content: ["two"] }],
+        [],
+      );
+
+      await run([userMessage("first")]).promise;
+      await run([userMessage("second")]).promise;
+
+      const first = requests[0] as { messages: { content: string }[] };
+      const second = requests[1] as { messages: { content: string }[] };
+      expect(second.messages[0].content).toBe(first.messages[0].content);
+    });
+
+    it("keeps earlier user turns byte-identical for local KV cache reuse", async () => {
+      const { requests } = installFetch(
+        [{ content: ["one"] }, { content: ["two"] }],
+        [],
+      );
+
+      const msg1 = { ...userMessage("first"), id: "u-1" };
+      await run([msg1]).promise;
+      const msg2 = { ...userMessage("second"), id: "u-2" };
+      await run([msg1, { ...assistantMessage("one"), id: "a-1" }, msg2]).promise;
+
+      const first = requests[0] as { messages: { role: string; content: string }[] };
+      const second = requests[1] as { messages: { role: string; content: string }[] };
+      expect(second.messages[1].content).toBe(first.messages[1].content);
+      expect(second.messages[1].content).toContain("Current time:");
+    });
+  });
+
+  it("asks for a context window that fits the conversation", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")]).promise;
+
+    const body = requests[0] as { options: { num_ctx: number } };
+    expect(body.options.num_ctx).toBe(4096);
+  });
+
+  it("does not send tool schemas to a model without the capability", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")]).promise;
+
+    expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
+  });
+
+  it("flags an answer cut short by the context limit", async () => {
+    installFetch([{ content: ["truncated"], final: { done_reason: "length" } }], []);
+
+    const { host, promise } = run([userMessage("hi")]);
+    const result = await promise;
+
+    expect(result.outOfContext).toBe(true);
+    expect(host.outOfContext).toBe(true);
+  });
+});
+
+describe("native tool calling", () => {
+  it("runs the tool and asks the model again", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "capital of France" } } }] },
+        { content: ["Paris."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(toolCalls).toEqual([{ name: "search_web", args: { query: "capital of France" } }]);
+    expect(result.textContent).toContain("Paris.");
+    expect(result.loops).toBe(2);
+    expect(requests).toHaveLength(2);
+  });
+
+  it("feeds the tool result back as a tool message", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    await run([userMessage("q")]).promise;
+
+    const second = requests[1] as { messages: { role: string; tool_name?: string; content: string }[] };
+    const toolMessage = second.messages.find((m) => m.role === "tool");
+
+    expect(toolMessage?.tool_name).toBe("search_web");
+    expect(toolMessage?.content).toContain("Paris is the capital");
+  });
+
+  it("sends tool schemas when the model advertises the capability", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], ["tools"]);
+
+    await run([userMessage("hi")]).promise;
+
+    const body = requests[0] as { tools?: { function: { name: string } }[] };
+    expect(body.tools?.map((entry) => entry.function.name)).toEqual(["search_web"]);
+  });
+
+  it("records a step for the tool it ran", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("q")]).promise;
+    expect(result.steps.some((step) => step.type === "searching")).toBe(true);
+  });
+
+  it("counts each tool the turn reached for", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }] },
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "y" } } }] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("q")]).promise;
+    expect(result.toolCalls).toEqual({ search_web: 2 });
+  });
+
+  it("adds up metrics across both requests", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("q")]).promise;
+    expect(result.metrics?.responseTokens).toBe(80);
+  });
+
+  it("tells the model when it asks for a tool that does not exist", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "teleport", arguments: {} } }] },
+        { content: ["sorry"] },
+      ],
+      ["tools"],
+    );
+
+    await run([userMessage("q")]).promise;
+
+    const second = requests[1] as { messages: { role: string; content: string }[] };
+    expect(second.messages.find((m) => m.role === "tool")?.content).toContain(
+      "no tool called",
+    );
+  });
+});
+
+describe("text-mode tool calling", () => {
+  it("recovers a tool call from plain text and hides it from the user", async () => {
+    installFetch(
+      [
+        { content: ['Let me look.\n<tool>{"name": "search_web", "args": {"query": "france"}}</tool>'] },
+        { content: ["Paris."] },
+      ],
+      [],
+    );
+
+    const result = await run([userMessage("capital?")]).promise;
+
+    expect(toolCalls).toHaveLength(1);
+    expect(result.textContent).not.toContain('"name"');
+    expect(result.textContent).toContain("Paris.");
+  });
+
+  it("feeds the result back as a user message for models without tool roles", async () => {
+    const { requests } = installFetch(
+      [
+        { content: ['<tool>{"name": "search_web", "args": {"query": "x"}}</tool>'] },
+        { content: ["done"] },
+      ],
+      [],
+    );
+
+    await run([userMessage("q")]).promise;
+
+    const second = requests[1] as { messages: { role: string; content: string }[] };
+    const last = second.messages[second.messages.length - 1];
+
+    expect(last.role).toBe("user");
+    expect(last.content).toContain("TOOL RESULT");
+  });
+
+  it("strips reasoning tags from the visible answer", async () => {
+    installFetch([{ content: ["<think>hmm</think>", "The answer is 4."] }], []);
+
+    const result = await run([userMessage("2+2")]).promise;
+
+    expect(result.textContent).toBe("The answer is 4.");
+    expect(result.textContent).not.toContain("<think>");
+  });
+
+  it("keeps the reasoning as a thinking step", async () => {
+    installFetch([{ content: ["<think>working it out</think>", "Four."] }], []);
+
+    const result = await run([userMessage("2+2")]).promise;
+    const thinking = result.steps.find((step) => step.type === "thinking");
+
+    expect(thinking?.content).toContain("working it out");
+    expect(thinking?.isComplete).toBe(true);
+  });
+});
+
+describe("native thinking models", () => {
+  it("asks for thinking and keeps it out of the answer", async () => {
+    const { requests } = installFetch(
+      [{ thinking: ["let me see"], content: ["Four."] }],
+      ["thinking"],
+    );
+
+    const result = await run([userMessage("2+2")]).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBe(true);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: true });
+    expect(result.textContent).toBe("Four.");
+    expect(result.steps.find((s) => s.type === "thinking")?.content).toContain("let me see");
+  });
+
+  it("drops an empty thinking step rather than showing a blank panel", async () => {
+    installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    const result = await run([userMessage("2+2")]).promise;
+    expect(result.steps.filter((step) => step.type === "thinking")).toHaveLength(0);
+  });
+});
+
+describe("a model that cannot think", () => {
+  it("is sent no thinking option at all", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("think");
+    expect(requests[0]).not.toHaveProperty("chat_template_kwargs");
+  });
+});
+
+describe("fast thinking mode", () => {
+  const FAST_SETTINGS = { ...SETTINGS, thinkingMode: "low" } as AppSettings;
+
+  it("tells a native-capable model not to think, explicitly rather than by omission", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBe(false);
+    expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: false });
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
+  });
+
+  it("asks a non-native model for the answer, rather than saying nothing", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], []);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBeUndefined();
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).not.toContain("CRITICAL REASONING INSTRUCTION");
+    expect(system).not.toContain("You MUST use <think>");
+    expect(system).toContain("Answer immediately");
+  });
+
+  it("tells a native-capable model to skip the scratchpad as well", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    const system = String(
+      (requests[0] as { messages: { content: string }[] }).messages[0].content,
+    );
+    expect(system).toContain("Answer immediately");
+  });
+
+  it("still asks a native-capable model to think in the other modes", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect((requests[0] as { think?: boolean }).think).toBe(true);
+  });
+});
+
+describe("keeping the model loaded", () => {
+  type ChatBody = { options: { num_ctx: number } };
+
+  it("asks for the window the warm-up already loaded", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await warmModel(MODEL, "30m", 0);
+    await run([userMessage("hi")]).promise;
+
+    // GGUF server is started at the warm-up size, which the turn agrees with.
+    expect(starts).toHaveLength(2);
+    expect(starts[1].contextSize).toBe(starts[0].contextSize);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(starts[0].contextSize);
+  });
+
+  it("does not give a window back once the conversation has needed it", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("x".repeat(60000))]).promise;
+    const grown = (requests[0] as ChatBody).options.num_ctx;
+
+    await run([userMessage("hi")]).promise;
+
+    expect(grown).toBeGreaterThan(4096);
+    expect((requests[1] as ChatBody).options.num_ctx).toBe(grown);
+  });
+
+  it("locks the context size to fixedContextSize when set to a number", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: 16384 }).promise;
+
+    expect(starts[0].contextSize).toBe(16384);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(16384);
+  });
+
+  it("locks the context size to the model maximum when fixedContextSize is 'max'", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: "max" }).promise;
+
+    expect(starts[0].contextSize).toBe(32768);
+    expect((requests[0] as ChatBody).options.num_ctx).toBe(32768);
+  });
+});
+
+describe("stopping", () => {
+  it("reports an aborted turn", async () => {
+    const controller = new AbortController();
+    installFetch([{ content: ["partial"] }], []);
+    controller.abort();
+
+    const result = await run([userMessage("hi")], controller.signal).promise;
+    expect(result.aborted).toBe(true);
+  });
+});
+
+describe("web access turned off", () => {
+  it("does not offer browsing tools to the model", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], ["tools"]);
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: { ...SETTINGS, webMode: "off" },
+        environment: { ...ENVIRONMENT, webMode: "off" },
+        messages: [userMessage("hi")],
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect((requests[0] as { tools?: unknown[] }).tools).toEqual([]);
+  });
+});
+
+describe("continuing a truncated answer", () => {
+  it("keeps the earlier text and appends to it", async () => {
+    installFetch([{ content: [" and then it ended."] }], []);
+
+    const result = await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("tell me a story")],
+        isContinuation: true,
+        seed: { content: "Once upon a time", textContent: "Once upon a time", steps: [] },
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect(result.textContent).toContain("Once upon a time");
+    expect(result.textContent).toContain("and then it ended.");
+  });
+});
+
+describe("putting attachments on the wire", () => {
+  const image = (content: string, name = "photo.jpg") => ({
+    id: "u1",
+    role: "user" as const,
+    content: "look at this",
+    attachments: [{ name, type: "image/jpeg", content }],
+  });
+
+  const REAL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD";
+
+  it("strips the data URL prefix and sends only base64", () => {
+    const wire = toWireMessage(image(REAL), true);
+
+    expect(wire.images).toEqual(["/9j/4AAQSkZJRgABAQEAYABgAAD"]);
+    expect(wire.images?.[0]).not.toContain("data:");
+  });
+
+  it("keeps base64 that arrives without a prefix", () => {
+    const wire = toWireMessage(image("/9j/4AAQSkZJRg"), true);
+    expect(wire.images).toEqual(["/9j/4AAQSkZJRg"]);
+  });
+
+  it("does not truncate base64 containing padding or slashes", () => {
+    const payload = "a/b+c/d==";
+    const wire = toWireMessage(image(`data:image/png;base64,${payload}`), true);
+
+    expect(wire.images).toEqual([payload]);
+  });
+
+  it("never sends an empty image, which the model rejects outright", () => {
+    const wire = toWireMessage(image("data:image/jpeg;base64,"), true);
+
+    expect(wire.images).toBeUndefined();
+    expect(wire.content).toContain("could not be read");
+  });
+
+  it("never sends a whitespace-only image", () => {
+    const wire = toWireMessage(image("data:image/jpeg;base64,   \n  "), true);
+
+    expect(wire.images).toBeUndefined();
+    expect(wire.content).toContain("could not be read");
+  });
+
+  it("never sends a completely empty attachment", () => {
+    const wire = toWireMessage(image(""), true);
+    expect(wire.images).toBeUndefined();
+  });
+
+  it("still explains the limitation when the model has no vision", () => {
+    const wire = toWireMessage(image(REAL), false);
+
+    expect(wire.images).toBeUndefined();
+    expect(wire.content).toContain("cannot read images");
+  });
+
+  it("sends several images in order", () => {
+    const wire = toWireMessage(
+      {
+        id: "u1",
+        role: "user",
+        content: "two",
+        attachments: [
+          { name: "a.jpg", type: "image/jpeg", content: "data:image/jpeg;base64,AAA" },
+          { name: "b.png", type: "image/png", content: "data:image/png;base64,BBB" },
+        ],
+      },
+      true,
+    );
+
+    expect(wire.images).toEqual(["AAA", "BBB"]);
+  });
+
+  it("drops only the broken image and keeps the good one", () => {
+    const wire = toWireMessage(
+      {
+        id: "u1",
+        role: "user",
+        content: "two",
+        attachments: [
+          { name: "broken.jpg", type: "image/jpeg", content: "data:image/jpeg;base64," },
+          { name: "good.png", type: "image/png", content: "data:image/png;base64,BBB" },
+        ],
+      },
+      true,
+    );
+
+    expect(wire.images).toEqual(["BBB"]);
+    expect(wire.content).toContain("broken.jpg");
+  });
+
+  it("recognises an image by extension when the type is missing", () => {
+    const wire = toWireMessage(
+      {
+        id: "u1",
+        role: "user",
+        content: "x",
+        attachments: [{ name: "shot.png", type: "", content: "data:image/png;base64,CCC" }],
+      },
+      true,
+    );
+
+    expect(wire.images).toEqual(["CCC"]);
+  });
+});
+
+describe("sending earlier reasoning back", () => {
+  // With its reasoning dropped from the history Laguna stopped reasoning at
+  // all: no thinking in any request, against 400 characters with it kept.
+  const thought = (content: string): SearchStep => ({
+    id: content,
+    type: "thinking",
+    content,
+    isComplete: true,
+  });
+
+  const reply: Message = {
+    id: "a1",
+    role: "assistant",
+    content: "156.",
+    steps: [
+      thought("12 times 13 is 156."),
+      { id: "s", type: "searching", content: "searching", isComplete: true },
+      thought("  "),
+      thought("Checked: 13 times 12 is 156 too."),
+    ],
+  };
+
+  it("keeps a reply's reasoning, every pass of it, when asked", () => {
+    expect(toWireMessage(reply, false, true).thinking).toBe(
+      "12 times 13 is 156.\n\nChecked: 13 times 12 is 156 too.",
+    );
+  });
+
+  it("leaves it out otherwise, and never puts any on a user message", () => {
+    expect(toWireMessage(reply, false).thinking).toBeUndefined();
+    expect(toWireMessage(userMessage("hi"), false, true).thinking).toBeUndefined();
+  });
+
+  it("sends it back with the history to a model that reasons natively", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], ["thinking"]);
+
+    await run([userMessage("what is 12 * 13"), reply, userMessage("and 14 * 13")]).promise;
+
+    const body = requests[0] as { messages: { role: string; thinking?: string }[] };
+    const sent = body.messages.find((message) => message.role === "assistant");
+    expect(sent?.thinking).toContain("12 times 13 is 156.");
+  });
+
+  it("does not for a model that has no thinking of its own", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run([userMessage("what is 12 * 13"), reply, userMessage("and 14 * 13")]).promise;
+
+    const body = requests[0] as { messages: { role: string; thinking?: string }[] };
+    expect(body.messages.some((message) => "thinking" in message)).toBe(false);
+  });
+
+  it("keeps the reasoning behind a tool call for the pass after it", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["I should look this up."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "paris" } } }],
+        },
+        { content: ["Paris."] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    await run([userMessage("capital of France?")]).promise;
+
+    const second = requests[1] as {
+      messages: { role: string; thinking?: string; tool_calls?: unknown[] }[];
+    };
+    const call = second.messages.find((message) => message.tool_calls);
+    expect(call?.thinking).toBe("I should look this up.");
+  });
+});
+
+describe("keeping prose where the model wrote it", () => {
+  const CALL = [{ function: { name: "search_web", arguments: { query: "paris" } } }];
+
+  it("leaves text written before a tool call in the timeline, not at the end", async () => {
+    installFetch(
+      [
+        { content: ["Let me look ", "that up."], toolCalls: CALL },
+        { content: ["Paris is the capital of France."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of france?")]).promise;
+
+    const texts = result.steps.filter((step) => step.type === "text");
+    expect(texts).toHaveLength(1);
+    expect(texts[0].content).toBe("Let me look that up.");
+
+    // The preamble must not be glued onto the front of the answer.
+    expect(result.textContent).toBe("Paris is the capital of France.");
+  });
+
+  it("orders the preamble before the tool it introduces", async () => {
+    installFetch(
+      [
+        { content: ["Searching now."], toolCalls: CALL },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("hi")]).promise;
+
+    const order = result.steps
+      .filter((step) => step.type === "text" || step.type === "searching")
+      .map((step) => step.type);
+
+    expect(order).toEqual(["text", "searching"]);
+  });
+
+  it("keeps each round of prose separate across several tool calls", async () => {
+    installFetch(
+      [
+        { content: ["First I will check."], toolCalls: CALL },
+        { content: ["Now the other one."], toolCalls: CALL },
+        { content: ["Here is the answer."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("hi")]).promise;
+
+    expect(
+      result.steps.filter((step) => step.type === "text").map((step) => step.content),
+    ).toEqual(["First I will check.", "Now the other one."]);
+
+    expect(result.textContent).toBe("Here is the answer.");
+  });
+
+  it("adds no text step when the model goes straight to the tool", async () => {
+    installFetch(
+      [{ content: [], toolCalls: CALL }, { content: ["Answer."] }],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("hi")]).promise;
+
+    expect(result.steps.some((step) => step.type === "text")).toBe(false);
+    expect(result.textContent).toBe("Answer.");
+  });
+
+  it("does not leave the final answer duplicated in the timeline", async () => {
+    installFetch(
+      [
+        { content: ["One moment."], toolCalls: CALL },
+        { content: ["The answer is four."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("hi")]).promise;
+
+    expect(
+      result.steps.some((step) => step.content.includes("The answer is four.")),
+    ).toBe(false);
+  });
+
+  it("streams the prose into the timeline rather than into the reply body", async () => {
+    installFetch(
+      [
+        { content: ["Thinking out loud."], toolCalls: CALL },
+        { content: ["Final."] },
+      ],
+      ["tools"],
+    );
+
+    const { host, promise } = run([userMessage("hi")]);
+    await promise;
+
+    // Before the last pass, the body stays empty: everything visible is a step.
+    expect(host.patches.some((patch) => patch.textContent === "Thinking out loud.")).toBe(
+      false,
+    );
+  });
+
+  it("works the same for a model that writes its tool calls as text", async () => {
+    installFetch(
+      [
+        {
+          content: [
+            "Let me search for that.\n",
+            '<tool>{"name": "search_web", "args": {"query": "paris"}}</tool>',
+          ],
+        },
+        { content: ["Paris."] },
+      ],
+      [],
+    );
+
+    const result = await run([userMessage("hi")]).promise;
+
+    const texts = result.steps.filter((step) => step.type === "text");
+    expect(texts).toHaveLength(1);
+    expect(texts[0].content).toBe("Let me search for that.");
+    expect(result.textContent).toBe("Paris.");
+  });
+
+  it("keeps what was written when the user stops the reply", async () => {
+    const controller = new AbortController();
+    installFetch([{ content: ["Half a thought"] }], []);
+
+    const { promise } = run([userMessage("hi")], controller.signal);
+    // Abort once the stream has had a chance to deliver something.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+
+    const result = await promise;
+    expect(result.textContent).toContain("Half a thought");
+  });
+
+  it("saves the text of a reply stopped mid-stream as the reply, for the next turn's history", async () => {
+    installFetch([{ content: ["unused"] }], []);
+    const encoder = new TextEncoder();
+
+    // Counts until stopped, as the Qwen run did: the stream is still open when Stop lands.
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      let count = 0;
+      let timer: ReturnType<typeof setInterval> | undefined;
+      const body = new ReadableStream<Uint8Array>({
+        start(stream) {
+          timer = setInterval(() => {
+            const chunk = { choices: [{ delta: { content: `${++count}, ` }, finish_reason: null }] };
+            stream.enqueue(encoder.encode("data: " + JSON.stringify(chunk) + "\n\n"));
+          }, 5);
+          init?.signal?.addEventListener("abort", () => {
+            clearInterval(timer);
+            stream.error(Object.assign(new Error("aborted"), { name: "AbortError" }));
+          });
+        },
+        cancel: () => clearInterval(timer),
+      });
+      return new Response(body, { status: 200 });
+    }));
+
+    const controller = new AbortController();
+    const probe = makeHost();
+    const { promise } = run([userMessage("Count to five hundred")], controller.signal, probe);
+
+    await vi.waitFor(() => expect(probe.steps.some((step) => step.type === "text")).toBe(true));
+    controller.abort();
+    const result = await promise;
+
+    const saved = probe.patches[probe.patches.length - 1];
+    expect(saved.textContent).toMatch(/^1, 2, /);
+    expect(saved.content).toMatch(/^1, 2, /);
+    expect(saved).toEqual({ content: result.content, textContent: result.textContent });
+    expect(probe.steps.some((step) => step.type === "text")).toBe(false);
+    expect(toWireMessage({ ...assistantMessage(saved.content), textContent: saved.textContent }, false).content)
+      .toMatch(/^1, 2, /);
+  });
+});
+
+describe("carrying on a reply that was cut short", () => {
+  const partial: Message = {
+    id: "a1",
+    role: "assistant",
+    content: "I have started the report",
+    textContent: "I have started the report",
+  };
+
+  const seedWith = (steps: SearchStep[]) => ({
+    content: "I have started the report",
+    textContent: "I have started the report",
+    steps,
+  });
+
+  function continueWith(steps: SearchStep[], host = makeHost()) {
+    const { requests } = installFetch([{ content: [" and finished it."] }], ["tools"]);
+    return {
+      requests,
+      promise: runAgentTurn(
+        {
+          model: MODEL,
+          settings: SETTINGS,
+          environment: ENVIRONMENT,
+          messages: [userMessage("write me a report"), partial],
+          isContinuation: true,
+          seed: seedWith(steps),
+          signal: new AbortController().signal,
+        },
+        host.host,
+      ),
+    };
+  }
+
+  const wireText = (requests: Record<string, unknown>[]) =>
+    (requests[0].messages as { role: string; content: string }[])
+      .map((message) => message.content)
+      .join("\n");
+
+  it("tells the model about a file it already wrote", async () => {
+    const { requests, promise } = continueWith([
+      {
+        id: "s1",
+        type: "create_file",
+        content: "Created **report.docx**",
+        filename: "report.docx",
+        filepath: "C:/out/report.docx",
+        isComplete: true,
+      },
+    ]);
+    await promise;
+
+    const sent = wireText(requests);
+    expect(sent).toContain("report.docx");
+    expect(sent).toContain("C:/out/report.docx");
+    expect(sent).toContain("do not create it again");
+  });
+
+  it("tells the model about code it already ran, and its output", async () => {
+    const { requests, promise } = continueWith([
+      {
+        id: "s1",
+        type: "run_code",
+        content: "Code ran",
+        language: "python",
+        stdout: "788454",
+        isComplete: true,
+      },
+    ]);
+    await promise;
+
+    const sent = wireText(requests);
+    expect(sent).toContain("788454");
+    expect(sent).toContain("Do not run it again");
+  });
+
+  it("carries the reasoning across", async () => {
+    const { requests, promise } = continueWith([
+      {
+        id: "s1",
+        type: "thinking",
+        content: "I planned three sections before writing.",
+        isComplete: true,
+      },
+    ]);
+    await promise;
+
+    expect(wireText(requests)).toContain("three sections");
+  });
+
+  it("still asks it to carry on rather than restart", async () => {
+    const { requests, promise } = continueWith([]);
+    await promise;
+
+    const sent = wireText(requests);
+    expect(sent).toContain("Carry straight on from the exact character it stopped at");
+    expect(sent).toContain("no repeating work you already finished");
+  });
+
+  it("adds nothing about past work when there was none", async () => {
+    const { requests, promise } = continueWith([]);
+    await promise;
+
+    expect(wireText(requests)).not.toContain("already done");
+  });
+
+  it("keeps what was already written in the finished reply", async () => {
+    const { promise } = continueWith([]);
+    const result = await promise;
+
+    expect(result.textContent).toContain("I have started the report");
+    expect(result.textContent).toContain("and finished it.");
+  });
+
+  it("says nothing about past work on an ordinary turn", async () => {
+    const { requests } = installFetch([{ content: ["Hello."] }], ["tools"]);
+    await run([userMessage("hi there, how are you")]).promise;
+
+    expect(wireText(requests)).not.toContain("cut short");
+  });
+});
+
+describe("picking up at the exact word it stopped", () => {
+  const cutOff = "The sea is a vast expanse of salt";
+
+  function resume(reply: string[], host = makeHost()) {
+    const { requests } = installFetch([{ content: reply }], ["tools"]);
+    return {
+      requests,
+      promise: runAgentTurn(
+        {
+          model: MODEL,
+          settings: SETTINGS,
+          environment: ENVIRONMENT,
+          messages: [
+            userMessage("tell me about the sea"),
+            { id: "a1", role: "assistant", content: cutOff, textContent: cutOff },
+          ],
+          isContinuation: true,
+          seed: { content: cutOff, textContent: cutOff, steps: [] },
+          signal: new AbortController().signal,
+        },
+        host.host,
+      ),
+    };
+  }
+
+  const messagesOf = (requests: Record<string, unknown>[]) =>
+    requests[0].messages as { role: string; content: string }[];
+
+  it("ends the conversation with the half-written reply", async () => {
+    const { requests, promise } = resume(["water."]);
+    await promise;
+
+    const sent = messagesOf(requests);
+    const last = sent[sent.length - 1];
+
+    // A model completes a trailing assistant message but starts afresh after
+    // a user one, so this ordering is what makes continuation work at all.
+    expect(last.role).toBe("assistant");
+    expect(last.content).toBe(cutOff);
+  });
+
+  it("does not leave the half-written reply in the middle as well", async () => {
+    const { requests, promise } = resume(["water."]);
+    await promise;
+
+    const sent = messagesOf(requests);
+    const copies = sent.filter((message) => message.content === cutOff);
+    expect(copies).toHaveLength(1);
+  });
+
+  it("completes a word that was split in half", async () => {
+    const { promise } = resume(["water", " covers most of the Earth."]);
+    const result = await promise;
+
+    expect(result.textContent).toBe(
+      "The sea is a vast expanse of saltwater covers most of the Earth.",
+    );
+    expect(result.textContent).not.toContain("\n");
+  });
+
+  it("puts no line break at the seam", async () => {
+    const { promise } = resume([" and it is deep."]);
+    const result = await promise;
+
+    expect(result.textContent).toBe("The sea is a vast expanse of salt and it is deep.");
+  });
+
+  it("drops a repeated tail rather than saying it twice", async () => {
+    const { promise } = resume(["a vast expanse of saltwater."]);
+    const result = await promise;
+
+    expect(result.textContent).toBe("The sea is a vast expanse of saltwater.");
+  });
+
+  it("still starts a fresh reply on an ordinary turn", async () => {
+    const { requests } = installFetch([{ content: ["Hello there."] }], ["tools"]);
+    await run([userMessage("hello, how are you")]).promise;
+
+    const sent = requests[0].messages as { role: string; content: string }[];
+    expect(sent[sent.length - 1].role).toBe("user");
+  });
+});
+
+describe("carrying a folded conversation", () => {
+  const folded: CompactionState = {
+    throughIndex: 4,
+    summary: "Budget is 4200 GBP. Deadline 14 March.",
+    updatedAt: 0,
+  };
+
+  const longChat = () => [
+    userMessage("one"),
+    assistantMessage("first answer"),
+    userMessage("two"),
+    assistantMessage("second answer"),
+    userMessage("three"),
+    assistantMessage("third answer"),
+    userMessage("four"),
+  ];
+
+  it("sends the summary instead of the messages it covers", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { role: string; content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("Budget is 4200 GBP");
+    expect(wire).not.toContain("first answer");
+    expect(wire).not.toContain("second answer");
+  });
+
+  it("still sends everything after the fold", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("third answer");
+    expect(wire).toContain("four");
+  });
+
+  it("puts the summary directly after the system prompt", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat(), undefined, makeHost(), SETTINGS, folded).promise;
+
+    const body = requests[0] as { messages: { role: string; content: string }[] };
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[1].content).toContain("Budget is 4200 GBP");
+  });
+
+  it("ignores a summary that claims more messages than exist", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    const stale: CompactionState = { ...folded, throughIndex: 99 };
+    await run([userMessage("only one")], undefined, makeHost(), SETTINGS, stale)
+      .promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).not.toContain("Budget is 4200 GBP");
+    expect(wire).toContain("only one");
+  });
+
+  it("sends the conversation whole when nothing has been folded", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+
+    await run(longChat()).promise;
+
+    const body = requests[0] as { messages: { content: string }[] };
+    const wire = body.messages.map((entry) => entry.content).join(" | ");
+
+    expect(wire).toContain("first answer");
+  });
+});
+
+describe("asking the user before a tool runs", () => {
+  function guarded(
+    mode: PermissionMode,
+    answer: ApprovalAnswer,
+    { grants = [], turns = 1 }: { grants?: Grant[]; turns?: number } = {},
+  ) {
+    const call = {
+      toolCalls: [
+        { function: { name: "search_web", arguments: { query: "paris" } } },
+      ],
+    };
+
+    const { requests } = installFetch(
+      [...Array.from({ length: turns }, () => call), { content: ["Done."] }],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const asked: ApprovalRequest[] = [];
+    const granted: Grant[] = [];
+
+    const host: AgentHost = {
+      ...base.host,
+      requestApproval: async (request) => {
+        asked.push(request);
+        return answer;
+      },
+      onGrant: (grant) => {
+        granted.push(grant);
+      },
+    };
+
+    const promise = runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("where is Paris")],
+        permission: { mode, grants },
+        signal: new AbortController().signal,
+      },
+      host,
+    );
+
+    return { promise, asked, granted, requests, steps: () => base.steps };
+  }
+
+  it("asks before a tool it has no reason to trust", async () => {
+    const { promise, asked } = guarded("ask", "once");
+    await promise;
+
+    expect(asked).toHaveLength(1);
+    expect(asked[0].tool).toBe("search_web");
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("does not run it when the user says no", async () => {
+    const { promise, requests } = guarded("ask", "no");
+    await promise;
+
+    expect(toolCalls).toHaveLength(0);
+
+    // The turn carries on: the model is told, in the shape a tool answers in.
+    const secondTurn = requests[1] as { messages: { content: string }[] };
+    const last = secondTurn.messages[secondTurn.messages.length - 1];
+    expect(last.content).toMatch(/declined/i);
+  });
+
+  it("shows the answer in the timeline either way", async () => {
+    const { promise, steps } = guarded("ask", "no");
+    await promise;
+
+    const approval = steps().find((step) => step.type === "approval");
+    expect(approval?.answer).toBe("no");
+    expect(approval?.approval?.tool).toBe("search_web");
+  });
+
+  it("stops asking for the rest of the task once allowed", async () => {
+    const { promise, asked } = guarded("ask", "task", { turns: 2 });
+    await promise;
+
+    expect(asked).toHaveLength(1);
+    expect(toolCalls).toHaveLength(2);
+  });
+
+  it("asks again for the next call when allowed only once", async () => {
+    const { promise, asked } = guarded("ask", "once", { turns: 2 });
+    await promise;
+
+    expect(asked).toHaveLength(2);
+    expect(toolCalls).toHaveLength(2);
+  });
+
+  it("hands a lasting permission back to be kept", async () => {
+    const { promise, granted } = guarded("ask", "workspace");
+    await promise;
+
+    expect(granted).toEqual([{ tool: "search_web" }]);
+  });
+
+  it("does not ask when the user has already allowed it", async () => {
+    const { promise, asked } = guarded("ask", "no", {
+      grants: [{ tool: "search_web" }],
+    });
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("does not ask when the workspace runs without asking", async () => {
+    const { promise, asked } = guarded("auto", "no");
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(1);
+  });
+
+  it("refuses in plan mode without asking anyone", async () => {
+    const { promise, asked, requests, steps } = guarded("plan", "once");
+    await promise;
+
+    expect(asked).toHaveLength(0);
+    expect(toolCalls).toHaveLength(0);
+    expect(steps().find((step) => step.type === "approval")?.answer).toBe("no");
+
+    const secondTurn = requests[1] as { messages: { content: string }[] };
+    const last = secondTurn.messages[secondTurn.messages.length - 1];
+    expect(last.content).toMatch(/plan mode/i);
+  });
+
+  it("refuses rather than running unasked when there is nobody to ask", async () => {
+    installFetch(
+      [
+        {
+          toolCalls: [
+            { function: { name: "search_web", arguments: { query: "paris" } } },
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const base = makeHost();
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("where is Paris")],
+        permission: { mode: "ask", grants: [] },
+        signal: new AbortController().signal,
+      },
+      base.host,
+    );
+
+    expect(toolCalls).toHaveLength(0);
+  });
+});
+
+describe("working to a plan", () => {
+  function withPlan(plan: PlanItem[] | null, turns = 1) {
+    const call = {
+      toolCalls: [
+        { function: { name: "search_web", arguments: { query: "paris" } } },
+      ],
+    };
+
+    const { requests } = installFetch(
+      [...Array.from({ length: turns }, () => call), { content: ["Done."] }],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const live = { items: plan };
+    const written: PlanItem[][] = [];
+
+    const host: AgentHost = {
+      ...base.host,
+      getPlan: () => live.items,
+      onPlan: (items) => {
+        live.items = items;
+        written.push(items);
+      },
+    };
+
+    return { host, live, written, requests };
+  }
+
+  // Plans belong to work on a project, so these turns have a folder.
+  const run = (host: AgentHost) =>
+    runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: { ...ENVIRONMENT, hasFolder: true },
+        messages: [userMessage("carry on")],
+        signal: new AbortController().signal,
+      },
+      host,
+    );
+
+  /** Every user message the model was sent, in order. */
+  const said = (requests: Record<string, unknown>[], index: number) =>
+    (requests[index] as { messages: { role: string; content: string }[] }).messages
+      .filter((message) => message.role === "user")
+      .map((message) => message.content);
+
+  it("says nothing when the conversation has no plan", async () => {
+    const { host, requests } = withPlan(null);
+    await run(host);
+
+    expect(said(requests, 0).join("\n")).not.toMatch(/plan/i);
+  });
+
+  it("catches the model up on a plan it left unfinished", async () => {
+    // The same path a task resumed after a restart takes: the plan comes back
+    // from the database and the model is told where it had got to.
+    const { host, requests } = withPlan(parsePlan("[x] Read it\n[ ] Fix it"));
+    await run(host);
+
+    const opening = said(requests, 0).join("\n");
+    expect(opening).toContain("[x] Read it");
+    expect(opening).toContain("[ ] Fix it");
+    expect(opening).toMatch(/carry on/i);
+  });
+
+  it("tells the model when the user changes it mid-run", async () => {
+    const { host, live, requests } = withPlan(parsePlan("[ ] First"), 2);
+
+    // The panel writes straight to the conversation while the turn is running.
+    const original = host.getPlan;
+    let pass = 0;
+    host.getPlan = () => {
+      pass++;
+      if (pass === 2) live.items = parsePlan("[ ] First\n[ ] Second");
+      return original ? original() : null;
+    };
+
+    await run(host);
+
+    const second = said(requests, 1).join("\n");
+    expect(second).toMatch(/user edited/i);
+    expect(second).toContain("[ ] Second");
+  });
+
+  it("does not report the model's own update as the user's doing", async () => {
+    // The real tool this time, called by the model, through the context the
+    // loop builds for it.
+    registerPlanTools();
+
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [
+            {
+              function: {
+                name: "update_plan",
+                arguments: { steps: "[x] First\n[>] Second" },
+              },
+            },
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const base = makeHost();
+    const live: { items: PlanItem[] | null } = {
+      items: parsePlan("[ ] First\n[ ] Second"),
+    };
+
+    const host: AgentHost = {
+      ...base.host,
+      getPlan: () => live.items,
+      onPlan: (items) => {
+        live.items = items;
+      },
+    };
+
+    await run(host);
+
+    expect(live.items?.[0].status).toBe("done");
+    expect(said(requests, 1).join("\n")).not.toMatch(/user edited/i);
+  });
+});
+
+describe("a tool call the model got wrong", () => {
+  const GOOD = '{"name": "search_web", "args": {"query": "paris"}}';
+
+  /** A model the app has seen described as unable to call tools, and cannot reach now: its calls travel
+   * as text, and a bad one gets the repair. A model known to lack tools is given none at all. */
+  async function textModeFetch(turns: Turn[], repair?: string) {
+    installFetch([], ["completion"]);
+    await getModelInfo(MODEL);
+    forgetModelInfo(MODEL);
+    return installFetch(turns, null, undefined, repair);
+  }
+
+  it("is asked for again against a schema, and then runs", async () => {
+    // A small model that opened the tag and never closed it. Before the repair
+    // this reached the user as a wall of JSON.
+    const { repairs } = await textModeFetch(
+      [
+        { content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] },
+        { content: ["Paris is the capital."] },
+      ],
+      GOOD,
+    );
+
+    await run([userMessage("where is Paris")]).promise;
+
+    expect(repairs).toHaveLength(1);
+    expect(toolCalls).toEqual([{ name: "search_web", args: { query: "paris" } }]);
+  });
+
+  it("is never asked for again from a provider, where a repair would double the turn's cost", async () => {
+    const { repairs } = installFetch([{ content: ['<tool>{"name": "search_web", "args": {"query": "paris"'] }, { content: ["Paris."] }], null, undefined, GOOD);
+    await runAgentTurn(
+      { model: "@openai/unlisted", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("where is Paris")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+    expect(repairs).toEqual([]);
+  });
+
+  it("constrains the repair to the tools that exist", async () => {
+    const { repairs } = await textModeFetch(
+      [
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ["Done."] },
+      ],
+      GOOD,
+    );
+
+    await run([userMessage("go")]).promise;
+
+    const schema = repairs[0].format as {
+      properties: { name: { enum: string[] } };
+    };
+    expect(schema.properties.name.enum).toEqual(["search_web"]);
+  });
+
+  it("only tries once in a turn", async () => {
+    const { repairs } = await textModeFetch(
+      [
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ['<tool>{"name": "search_web"'] },
+        { content: ["Giving up."] },
+      ],
+      "not a call at all",
+    );
+
+    await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(1);
+  });
+
+  it("leaves an ordinary answer alone", async () => {
+    const { repairs } = await textModeFetch(
+      [{ content: ["Paris is the capital of France."] }],
+      GOOD,
+    );
+
+    const result = await run([userMessage("where is Paris")]).promise;
+
+    expect(repairs).toHaveLength(0);
+    expect(result.textContent).toContain("Paris is the capital");
+  });
+
+  it("hands back the reply as written when the repair fails too", async () => {
+    const { repairs } = await textModeFetch(
+      [{ content: ['<tool>{"name": "search_web", "args": {'] }],
+      "still not a call",
+    );
+
+    const result = await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(1);
+    expect(toolCalls).toHaveLength(0);
+    // The turn ends rather than looping, and the half-written call is not put
+    // in front of the user as though it were an answer.
+    expect(result.textContent).not.toContain("search_web");
+  });
+
+  it("does not repair for a model with a real tool interface", async () => {
+    const { repairs } = installFetch(
+      [{ content: ['<tool>{"name": "search_web"'] }],
+      ["tools"],
+      undefined,
+      GOOD,
+    );
+
+    await run([userMessage("go")]).promise;
+
+    expect(repairs).toHaveLength(0);
+  });
+
+  it("aborts the stream and trims runaway repetition when model loops on REDACTED markers", async () => {
+    installFetch(
+      [
+        {
+          content: [
+            "Here is the answer.\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+            "== [REDACTED] ==\n\n",
+          ],
+        },
+      ],
+      [],
+    );
+
+    const result = await run([userMessage("write essay")]).promise;
+    expect(result.textContent).toBe("Here is the answer.");
+  });
+});
+
+describe("a model that cannot use tools", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is offered none, and told there is no browsing", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["completion"]);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(systemOf(requests[0])).not.toContain("AVAILABLE TOOLS");
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("is not given the web even when the setting asks for it", async () => {
+    const withWeb = { ...SETTINGS, webMode: "on" } as AppSettings;
+    const off = { ...SETTINGS, webMode: "off" } as AppSettings;
+
+    const first = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, withWeb).promise;
+    const second = installFetch([{ content: ["Four."] }], ["completion"]);
+    await run([userMessage("2+2")], undefined, undefined, off).promise;
+
+    expect(systemOf(first.requests[0])).toBe(systemOf(second.requests[0]));
+  });
+
+  it("still gets tools when the probe could not say what it can do", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], null);
+
+    await run([userMessage("2+2")]).promise;
+
+    expect(String((requests[0] as { messages: { content: string }[] }).messages[0].content)).toContain(
+      "AVAILABLE TOOLS",
+    );
+  });
+});
+
+describe("a model that cannot think", () => {
+  const systemOf = (request: unknown) =>
+    String((request as { messages: { content: string }[] }).messages[0].content);
+
+  it("is run as if thinking were off, whatever the setting says", async () => {
+    const medium = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")]).promise;
+
+    const fast = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
+    await run([userMessage("2+2")], undefined, undefined, { ...SETTINGS, thinkingMode: "low" } as AppSettings).promise;
+
+    expect(systemOf(medium.requests[0])).toBe(systemOf(fast.requests[0]));
+    expect(medium.requests[0]).not.toHaveProperty("think");
+    expect(medium.requests[0]).not.toHaveProperty("chat_template_kwargs");
+  });
+});
+
+describe("a reasoning model that stops without text after tools", () => {
+  it("prompts the model for its final answer instead of ending on an empty reply", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["Looking up documentation."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }],
+        },
+        {
+          thinking: ["Let me summarize the findings."],
+          content: [],
+        },
+        {
+          content: ["Here is the summary of React."],
+        },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const result = await run([userMessage("look up react")]).promise;
+
+    expect(requests).toHaveLength(3);
+    expect(result.textContent).toBe("Here is the summary of React.");
+  });
+
+  it("asks once, then shows the last thought and patches it into the message", async () => {
+    const { requests } = installFetch(
+      [
+        {
+          thinking: ["Looking up documentation."],
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }],
+        },
+        { thinking: ["Several React libraries found; I should ask which topic."], content: [] },
+        { content: [] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const { promise, host } = run([userMessage("look up react")]);
+    const result = await promise;
+
+    expect(requests).toHaveLength(3);
+    expect(result.textContent).toBe("Several React libraries found; I should ask which topic.");
+    expect(host.patches.at(-1)?.textContent).toBe(result.textContent);
+  });
+
+  it("falls back to the tool output when the model never says anything", async () => {
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "react" } } }] },
+        { content: [] },
+        { content: [] },
+      ],
+      ["tools", "thinking"],
+    );
+
+    const { promise, host } = run([userMessage("look up react")]);
+    const result = await promise;
+
+    expect(result.textContent.trim()).not.toBe("");
+    expect(host.patches.at(-1)?.textContent).toBe(result.textContent);
+  });
+});
+
+describe("a model that announces a tool call and stops", () => {
+  const lastUserText = (request: Record<string, unknown>) =>
+    String((request.messages as { role: string; content: string }[]).filter((m) => m.role === "user").at(-1)?.content);
+
+  it("is asked to act on it, and the tool runs", async () => {
+    const { requests } = installFetch(
+      [
+        { content: ["Let me search the web for that."] },
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "capital of France" } } }] },
+        { content: ["Paris."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(3);
+    expect(lastUserText(requests[1])).toMatch(/did not do it/);
+    expect(toolCalls).toEqual([{ name: "search_web", args: { query: "capital of France" } }]);
+    expect(result.textContent).toBe("Paris.");
+    expect(result.steps.some((step) => step.type === "text" && step.content.includes("Let me search"))).toBe(true);
+  });
+
+  it("is asked only once, and the second announcement is shown as the reply", async () => {
+    const { requests } = installFetch(
+      [{ content: ["Let me search the web for that."] }, { content: ["I'll search for it now."] }],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(2);
+    expect(toolCalls).toHaveLength(0);
+    expect(result.textContent).toBe("I'll search for it now.");
+  });
+
+  it("is not asked anything after a plain answer", async () => {
+    const { requests } = installFetch([{ content: ["Paris is the capital of France."] }], ["tools"]);
+
+    const result = await run([userMessage("capital of France?")]).promise;
+
+    expect(requests).toHaveLength(1);
+    expect(result.textContent).toBe("Paris is the capital of France.");
+  });
+});
+
+describe("aborting during tool calls", () => {
+  it("halts immediately and leaves subsequent tools uncalled when aborted during tool execution", async () => {
+    const controller = new AbortController();
+    const slowTool: ToolSpec = {
+      name: "slow_tool",
+      group: "web",
+      description: "Slow tool.",
+      parameters: {},
+      required: [],
+      usage: "slow_tool",
+      run: async () => {
+        controller.abort();
+        return "slow tool finished";
+      },
+    };
+    registerTool(slowTool);
+
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [
+            { function: { name: "slow_tool", arguments: {} } },
+            { function: { name: "search_web", arguments: { query: "second" } } },
+          ],
+        },
+        { content: ["should not be reached"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("test abort")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    expect(requests).toHaveLength(1);
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("does not call tools when aborted before tool execution begins", async () => {
+    const controller = new AbortController();
+    const { requests } = installFetch(
+      [
+        {
+          toolCalls: [{ function: { name: "search_web", arguments: { query: "abort test" } } }],
+        },
+      ],
+      ["tools"],
+    );
+
+    controller.abort();
+    const result = await run([userMessage("test pre-abort")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    expect(requests).toHaveLength(0);
+    expect(toolCalls).toHaveLength(0);
+  });
+
+  it("marks incomplete tool steps as complete upon abort", async () => {
+    const controller = new AbortController();
+    let stepId = "";
+    const activeTool: ToolSpec = {
+      name: "active_tool",
+      group: "web",
+      description: "Active tool.",
+      parameters: {},
+      required: [],
+      usage: "active_tool",
+      run: async (_args, ctx) => {
+        stepId = ctx.newId();
+        ctx.pushStep({ id: stepId, type: "searching", content: "active...", isComplete: false });
+        controller.abort();
+        return "active done";
+      },
+    };
+    registerTool(activeTool);
+
+    installFetch(
+      [
+        { toolCalls: [{ function: { name: "active_tool", arguments: {} } }] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("test step complete")], controller.signal).promise;
+
+    expect(result.aborted).toBe(true);
+    const step = result.steps.find((s) => s.id === stepId);
+    expect(step?.isComplete).toBe(true);
+  });
+});
+
+describe("a provider's model", () => {
+  it("never starts the engine, and names the model whole in the request", async () => {
+    const { requests, starts } = installFetch([{ content: ["Hi"] }], []);
+    const host = makeHost();
+    const turn = runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      host.host,
+    );
+    // Local measurements and background work go on while a provider answers.
+    expect(llamaIsBusy()).toBe(false);
+    const result = await turn;
+    expect(result.textContent).toBe("Hi");
+    expect(starts).toEqual([]);
+    expect((requests[0] as { model: string }).model).toBe("@openai/gpt-x");
+  });
+});
+
+describe("the thinking pill's level", () => {
+  const turn = (model: string) =>
+    runAgentTurn(
+      { model, settings: { ...SETTINGS, thinkingMode: "high" }, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      makeHost().host,
+    );
+
+  it("reaches a provider, which maps it to its own parameter", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], []);
+    await turn("@openai/thinker");
+    expect(requests[0]).toMatchObject({ think: true, thinking_level: "high" });
+  });
+
+  it("never reaches the engine, whose body stays as it was", async () => {
+    const { requests } = installFetch([{ content: ["Hi"] }], ["tools", "thinking"]);
+    await turn(MODEL);
+    expect(requests[0]).toMatchObject({ think: true });
+    expect("thinking_level" in requests[0]).toBe(false);
+  });
+});
+
+describe("a provider that is retried", () => {
+  it("shows each wait as a loading step counting down, gone once the answer starts", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"draggy_retry":{"attempt":1,"of":2,"retryAfterMs":4000}}\n\n',
+      'data: {"draggy_retry":{"attempt":2,"of":2,"retryAfterMs":8000}}\n\n',
+      'data: {"choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const host = makeHost();
+    const started = Date.now();
+    const result = await runAgentTurn(
+      { model: "@openai/gpt-x", settings: SETTINGS, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      host.host,
+    );
+    const retries = host.recordedSteps.flat().filter((step) => step.retry);
+    expect([...new Set(retries.map((step) => `${step.type} ${step.retry?.attempt} of ${step.retry?.of}`))]).toEqual(["loading 1 of 2", "loading 2 of 2"]);
+    expect(retries.at(-1)!.retry!.until - started).toBeGreaterThanOrEqual(8000);
+    expect(new Set(retries.map((step) => step.id)).size).toBe(1);
+    expect(host.steps.some((step) => step.retry)).toBe(false);
+    expect(result.textContent).toBe("Hi");
+  });
+});
+
+describe("a provider that fails once its stream is open", () => {
+  it("ends the turn with the provider's error instead of an empty reply", async () => {
+    installFetch([{ content: ["Hi"] }], []);
+    const encoder = new TextEncoder();
+    const events = [
+      'data: {"choices":[{"index":0,"delta":{"content":"Hel"}}]}\n\n',
+      'data: {"error":{"kind":"provider-unknown-error","status":500,"providerMessage":"upstream fell over"}}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    const turn = runAgentTurn(
+      {
+        model: "@openai/gpt-x",
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("hi")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+    await expect(turn).rejects.toThrow("upstream fell over");
+  });
+});
+
+describe("a provider's state through a turn", () => {
+  const signed = { instanceId: "anthropic", state: { signature: "sig-1" } };
+  const later = { instanceId: "anthropic", state: { signature: "sig-2" } };
+
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+
+  it("rides on the assistant's tool call into the next request of the same turn", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: [{ function: { name: "search_web", arguments: { query: "x" } } }], state: signed },
+        { content: ["Done."], state: later },
+      ],
+      ["tools"],
+    );
+    const result = await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL, [userMessage("go")]), makeHost().host);
+
+    const second = requests[1] as { messages: { role: string; tool_calls?: unknown; provider_state?: unknown }[] };
+    const call = second.messages.find((m) => m.role === "assistant" && m.tool_calls);
+    expect(call?.provider_state).toEqual(signed);
+    expect(result.providerState).toEqual(later);
+  });
+
+  it("is dropped when the gateway tags it for another instance", async () => {
+    installFetch([{ content: ["Hi"], state: { instanceId: "openai", state: {} } }], []);
+    const result = await runAgentTurn(turnInput("@anthropic/claude-x", [userMessage("hi")]), makeHost().host);
+    expect(result.providerState).toBeUndefined();
+  });
+
+  it("goes back to its own instance next turn, and never to the built-in engine", async () => {
+    const history: Message[] = [userMessage("hi"), { ...assistantMessage("hello"), provider_state: signed }, { ...userMessage("again"), id: "u2" }];
+    expect(toWireMessage(history[1], false).provider_state).toEqual(signed);
+
+    const remote = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput("@anthropic/claude-x", history), makeHost().host);
+    const sent = (remote.requests[0] as { messages: { provider_state?: unknown }[] }).messages;
+    expect(sent.filter((m) => m.provider_state)).toMatchObject([{ role: "assistant", content: "hello", provider_state: signed }]);
+
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, history), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("provider_state");
+  });
+});
+
+describe("each stored message's reference on the wire", () => {
+  function turnInput(model: string, messages: Message[]) {
+    return {
+      model,
+      settings: SETTINGS,
+      environment: ENVIRONMENT,
+      messages,
+      compaction: null,
+      signal: new AbortController().signal,
+    };
+  }
+  type Sent = { messages: { role: string; content: string; draggy_ref?: { id: string; hash: string } }[] };
+
+  it("stays the same when the message has lost its time note by the next turn", async () => {
+    const first = userMessage("what time is it");
+    const one = installFetch([{ content: ["Noon."] }], []);
+    await runAgentTurn(turnInput("@codex/gpt-x", [first]), makeHost().host);
+    const before = (one.requests[0] as Sent).messages.find((m) => m.draggy_ref?.id === "u1");
+
+    const two = installFetch([{ content: ["Still noon."] }], []);
+    const history = [first, { ...assistantMessage("Noon."), id: "a1" }, { ...userMessage("and now"), id: "u2" }];
+    await runAgentTurn(turnInput("@codex/gpt-x", history), makeHost().host);
+    const sent = (two.requests[0] as Sent).messages;
+    const after = sent.find((m) => m.draggy_ref?.id === "u1");
+
+    // The note was on the wire the first time, and is gone the second; the reference did not move.
+    expect(before?.content).not.toBe(after?.content);
+    expect(after?.draggy_ref).toEqual(before?.draggy_ref);
+    expect(before?.draggy_ref).toEqual(await draggyRef(first));
+    expect(sent.filter((m) => m.draggy_ref).map((m) => m.draggy_ref?.id)).toEqual(["u1", "a1", "u2"]);
+    expect(sent.find((m) => m.role === "system")?.draggy_ref).toBeUndefined();
+  });
+
+  it("is never sent to the built-in engine", async () => {
+    const local = installFetch([{ content: ["ok"] }], []);
+    await runAgentTurn(turnInput(MODEL, [userMessage("hi")]), makeHost().host);
+    expect(JSON.stringify(local.requests[0])).not.toContain("draggy_ref");
+  });
+});
+
+describe("the system prompt's profile", () => {
+  const systemOf = (request: unknown) => (request as { messages: { role: string; content: string }[] }).messages[0].content;
+  const turnInput = (model: string) => ({
+    model,
+    settings: SETTINGS,
+    environment: ENVIRONMENT,
+    messages: [userMessage("hi")],
+    compaction: null,
+    signal: new AbortController().signal,
+  });
+
+  it("is full when the model's info says so, and compact for the engine", async () => {
+    const remote = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(TOOL_PROVIDER_MODEL), makeHost().host);
+    expect(systemOf(remote.requests[0])).toContain("Using tools well:");
+
+    const local = installFetch([{ content: ["ok"] }], ["tools"]);
+    await runAgentTurn(turnInput(MODEL), makeHost().host);
+    expect(systemOf(local.requests[0])).not.toContain("Using tools well:");
+  });
+});
+
+describe("live streaming file creation", () => {
+  const createFileTool = BUILTIN_TOOLS.find((t) => t.name === "create_file")!;
+
+  beforeEach(() => {
+    registerTool(createFileTool);
+  });
+
+  it("emits an in-progress step during streaming and finalizes it on completion", async () => {
+    const jsonP1 = '{"filename": "report.docx", "content": "# Part 1';
+    const jsonP2 = '\\n\\nBody content"}';
+    const host = makeHost();
+
+    installFetch(
+      [
+        {
+          toolCallChunks: [
+            [{ index: 0, id: "call_file_1", function: { name: "create_file", arguments: jsonP1 } }],
+            [{ index: 0, function: { arguments: jsonP2 } }],
+          ],
+        },
+        { content: ["File created successfully."] },
+      ],
+      ["tools"],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/report.docx",
+    });
+
+    const result = await run([userMessage("create report.docx")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("report.docx");
+    expect(inProgress?.fileContent).toBe("# Part 1");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
+    expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("streams file creation in text mode and reuses the in-progress step", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          content: [
+            '<tool>{"name": "create_file", "args": {"filename": "streamed.txt", "content": "Hello ',
+            'world!"}}</tool>',
+          ],
+        },
+        { content: ["Here is your file."] },
+      ],
+      [],
+    );
+
+    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+      success: true,
+      filepath: "C:/out/streamed.txt",
+    });
+
+    const result = await run([userMessage("write streamed.txt")], undefined, host).promise;
+
+    const inProgress = host.recordedSteps
+      .flat()
+      .find((s) => s.type === "create_file" && !s.isComplete);
+    expect(inProgress).toBeDefined();
+    expect(inProgress?.filename).toBe("streamed.txt");
+
+    const fileSteps = result.steps.filter((s) => s.type === "create_file");
+    expect(fileSteps).toHaveLength(1);
+    expect(fileSteps[0].isComplete).toBe(true);
+    expect(fileSteps[0].filename).toBe("streamed.txt");
+  });
+});
+
+
+describe("what the turn writes to the log", () => {
+  const SECRET_PROMPT = "SENTINEL-PROMPT-3f9a1c";
+  const SECRET_REPLY = "SENTINEL-REPLY-77be02";
+  let sent: unknown[][];
+
+  beforeEach(() => {
+    sent = [];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function logged() {
+    const { flushLogs } = await import("../logger");
+    // installFetch builds its own window, so the capture goes on after it.
+    (window.electronAPI as Record<string, unknown>).logBatch = (entries: unknown[]) => sent.push(entries);
+    flushLogs();
+    return JSON.stringify(sent);
+  }
+
+  it("never carries the prompt or the reply", async () => {
+    installFetch([{ content: [SECRET_REPLY] }], []);
+
+    const { promise } = run([userMessage(SECRET_PROMPT)]);
+    await promise;
+
+    const text = await logged();
+    expect(text.length).toBeGreaterThan(2);
+    expect(text).not.toContain(SECRET_PROMPT);
+    expect(text).not.toContain(SECRET_REPLY);
+  });
+
+  it("warns about a history message with a role it does not know, without its text", async () => {
+    installFetch([{ content: ["ok"] }], []);
+    const odd = { ...userMessage(SECRET_PROMPT), role: "bogus" } as unknown as ReturnType<typeof userMessage>;
+
+    const { promise } = run([odd, userMessage("hi")]);
+    await promise;
+
+    const text = await logged();
+    expect(text).toContain("history message with an unknown role");
+    expect(text).toContain("bogus");
+    expect(text).not.toContain(SECRET_PROMPT);
+  });
+
+  it("warns about a tool result that has no call", async () => {
+    installFetch([{ content: ["ok"] }], []);
+    const orphan = { ...userMessage(SECRET_PROMPT), role: "tool" } as unknown as ReturnType<typeof userMessage>;
+
+    const { promise } = run([orphan, userMessage("hi")]);
+    await promise;
+
+    const text = await logged();
+    expect(text).toContain("tool result without a call");
+    expect(text).not.toContain(SECRET_PROMPT);
+  });
+});

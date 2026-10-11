@@ -1,0 +1,626 @@
+@import "tailwindcss";
+
+/* inline: utilities read the live variable, so dark theme overrides reach them. */
+@theme inline {
+    --color-surface-canvas: var(--surface-canvas);
+    --color-surface-base: var(--surface-base);
+    --color-surface-raised: var(--surface-raised);
+    --color-surface-tint: var(--surface-tint);
+
+    --color-rule: var(--rule);
+    --color-rule-strong: var(--rule-strong);
+    --color-rule-control: var(--rule-control);
+
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-tertiary: var(--text-tertiary);
+    --color-primary: var(--text-primary);
+    --color-secondary: var(--text-secondary);
+    --color-tertiary: var(--text-tertiary);
+
+    --color-action-bg: var(--action-bg);
+    --color-action-fg: var(--action-fg);
+    --color-focus: var(--focus);
+
+    --color-ok: var(--ok);
+    --color-warn: var(--warn);
+    --color-danger: var(--danger);
+
+    --color-ember-1: var(--ember-1);
+    --color-ember-2: var(--ember-2);
+    --color-ember-3: var(--ember-3);
+    --color-ember-glow: var(--ember-glow);
+
+    --radius-xs: var(--r-xs);
+    --radius-sm: var(--r-sm);
+    --radius-md: var(--r-md);
+    --radius-lg: var(--r-lg);
+    --radius-pill: var(--r-pill);
+
+    --shadow-elev-1: var(--elev-1);
+
+    --font-sans: "Geologica Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+    /* Overhaul surface tokens */
+    --surface-canvas: #f5f7f9;
+    --surface-base: #ffffff;
+    --surface-raised: #eaedf1;
+    --surface-tint: rgba(26, 30, 36, 0.05);
+
+    /* Hairlines and rules */
+    --rule: rgba(26, 30, 36, 0.10);
+    --rule-strong: rgba(26, 30, 36, 0.22);
+    --rule-control: rgba(26, 30, 36, 0.49);
+
+    /* Typography */
+    --text-primary: #1a1e24;
+    --text-secondary: #565b62;
+    --text-tertiary: #82878c;
+
+    /* Actions and focus */
+    --action-bg: #1a1e24;
+    --action-fg: #ffffff;
+    --focus: #1a1e24;
+
+    /* Status */
+    --ok: #1a763f;
+    --warn: #8d6310;
+    --danger: #bd1f3d;
+
+    /* Syntax: one restrained palette, ember for keywords so code reads as Draggy's own. */
+    --syn-comment: #82878c;
+    --syn-keyword: #b23c00;
+    --syn-string: #2b6e46;
+    --syn-number: #8a5a00;
+    --syn-function: #2b55a3;
+    --syn-type: #6b3fa0;
+    --syn-punct: #565b62;
+
+    /* Ember ramp */
+    --ember-1: #f9ad26;
+    --ember-2: #e75c00;
+    --ember-3: #cd3000;
+    --ember-glow: rgba(231, 92, 0, 0.16);
+
+    /* Geometry */
+    --r-xs: 6px;
+    --r-sm: 10px;
+    --r-md: 16px;
+    --r-lg: 24px;
+    --r-pill: 9999px;
+    /* Display lines only: the greeting and the onboarding hero. Body text stays at 0. */
+    --display-sharpness: 60;
+    --elev-1: 0 8px 24px rgba(16, 18, 24, 0.12), 0 0 0 1px var(--rule);
+    --scrim: rgba(14, 16, 18, 0.32);
+
+    /* Legacy variables retained for backwards compatibility */
+    --bg-base: #f5f7f9;
+    --bg-panel: #f5f5f5;
+    --bg-input: #ffffff;
+    --bg-inverted: #2b2b2b;
+    --border-light: #a3a3a3;
+    --border-dark: #111111;
+    --text-main: #111111;
+    --text-muted: #5f5f5f;
+    --text-inverted: #ffffff;
+    --hover-bg: #d4d4d4;
+    --chat-font-size: 15px;
+    /* The voice orb: one flat colour, opposite the page it sits on. */
+    --orb: #111111;
+    /* The website's accent, defined here first so the two palettes stay one. */
+    --accent: #b45309;
+    --accent-text: #ffffff;
+    --accent-ink: #92400e;
+    --accent-soft: #fef3c7;
+}
+
+body.dark,
+.dark {
+    /* Overhaul surface tokens */
+    --surface-canvas: #0e1012;
+    --surface-base: #15171a;
+    --surface-raised: #1f2225;
+    --surface-tint: rgba(231, 234, 237, 0.06);
+
+    /* Hairlines and rules */
+    --rule: rgba(231, 234, 237, 0.10);
+    --rule-strong: rgba(231, 234, 237, 0.22);
+    --rule-control: rgba(231, 234, 237, 0.37);
+
+    /* Typography */
+    --text-primary: #e7eaed;
+    --text-secondary: #a6abb2;
+    --text-tertiary: #767b81;
+
+    /* Actions and focus */
+    --action-bg: #e7eaed;
+    --action-fg: #0e1012;
+    --focus: #e7eaed;
+
+    /* Status */
+    --ok: #78d694;
+    --warn: #e5d183;
+    --danger: #fa7f8e;
+
+    --syn-comment: #767b81;
+    --syn-keyword: #fd962c;
+    --syn-string: #8fd19e;
+    --syn-number: #e5d183;
+    --syn-function: #8ab4f8;
+    --syn-type: #c4a7f2;
+    --syn-punct: #a6abb2;
+
+    /* Ember ramp */
+    --ember-1: #ffeeb5;
+    --ember-2: #fd962c;
+    --ember-3: #f15d1f;
+    --ember-glow: rgba(253, 150, 44, 0.22);
+
+    /* Shadows vanish on the dark canvas, so floating layers get a lighter edge instead. */
+    --elev-1: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--rule-strong);
+    --scrim: rgba(0, 0, 0, 0.55);
+
+    /* Legacy variables retained for backwards compatibility */
+    --bg-base: #0e1012;
+    --bg-panel: #1e1e1e;
+    --bg-input: #121212;
+    --bg-inverted: #2d2d2d;
+    --border-light: #333333;
+    --border-dark: #555555;
+    --text-main: #e0e0e0;
+    --text-muted: #888888;
+    --text-inverted: #ffffff;
+    --hover-bg: #2a2a2a;
+    --orb: #ffffff;
+    --accent: #fbbf24;
+    --accent-text: #111111;
+    --accent-ink: #fbbf24;
+    --accent-soft: #3a2a08;
+}
+
+@layer base {
+    body {
+        background-color: var(--bg-base);
+        color: var(--text-main);
+        font-family: var(--font-sans);
+        font-variation-settings: "SHRP" 0;
+        @apply overflow-hidden select-text transition-colors duration-300;
+        margin: 0;
+    }
+
+    :lang(zh) {
+        font-family: "Geologica Variable", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+        letter-spacing: normal;
+        line-height: 1.7;
+    }
+
+    code, kbd, samp, pre {
+        font-family: var(--font-mono);
+        font-variant-ligatures: none;
+    }
+}
+
+/* The toolbar view grows over the page to fit an open menu, so anything it does not draw
+ * must be transparent to let the page show through. */
+body.browser-bar {
+    background-color: transparent;
+    transition: none;
+}
+
+.drag-region {
+    -webkit-app-region: drag;
+}
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background-color: var(--rule-strong);
+    border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-secondary);
+}
+
+/* Reading text: hierarchy from weight and size, not rules or color. */
+.markdown-body p {
+    @apply mb-3 last:mb-0;
+}
+.markdown-body ul {
+    @apply list-disc ps-6 mb-3 space-y-2;
+}
+.markdown-body ol {
+    @apply list-decimal ps-6 mb-3 space-y-2;
+}
+.markdown-body li::marker {
+    color: var(--text-tertiary);
+}
+.markdown-body li > p {
+    @apply mb-1;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+    color: var(--text-primary);
+    font-weight: 600;
+    @apply mt-6 mb-2 first:mt-0;
+}
+.markdown-body h1 {
+    font-size: 20px;
+    line-height: 28px;
+}
+.markdown-body h2 {
+    font-size: 18px;
+    line-height: 26px;
+}
+.markdown-body h3,
+.markdown-body h4 {
+    font-size: 16px;
+    line-height: 24px;
+}
+.markdown-body hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    @apply my-6;
+}
+.markdown-body a {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--rule-strong);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 120ms;
+}
+.markdown-body a:hover {
+    text-decoration-color: currentColor;
+}
+.markdown-body img {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+}
+.markdown-body p > a > img,
+.markdown-body p > img {
+    margin: 2px 3px;
+    display: inline-block;
+    vertical-align: middle;
+}
+.markdown-body [align="center"],
+[align="center"] {
+    text-align: center;
+}
+.markdown-body [align="right"],
+[align="right"] {
+    text-align: right;
+}
+.markdown-body [align="left"],
+[align="left"] {
+    text-align: left;
+}
+.markdown-body :not(pre) > code {
+    background-color: var(--surface-raised);
+    color: var(--text-primary);
+    @apply px-1.5 py-0.5 rounded-xs text-[0.875em] font-mono;
+}
+.markdown-body pre {
+    @apply my-0;
+}
+.markdown-body table {
+    font-size: 14px;
+    @apply w-full mb-4 border-collapse overflow-x-auto block;
+}
+.markdown-body th,
+.markdown-body td {
+    border-bottom: 1px solid var(--rule);
+    @apply px-3 py-2.5 text-start;
+}
+.markdown-body th:first-child,
+.markdown-body td:first-child {
+    padding-inline-start: 0;
+}
+.markdown-body th {
+    border-bottom-color: var(--rule-strong);
+}
+.markdown-body tr:last-child td {
+    @apply border-b-0;
+}
+.markdown-body th {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.message-container {
+    @apply w-full;
+}
+
+/* The home greeting types itself out: each character fades in, then the caret pulses. */
+@keyframes typing-char-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.typing-char {
+    animation: typing-char-in 140ms cubic-bezier(0.2, 0.65, 0.35, 1) both;
+}
+
+@keyframes typing-caret {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.15;
+    }
+}
+
+.typing-caret {
+    margin-inline-start: 0.04em;
+    font-weight: 300;
+    color: var(--text-tertiary);
+    animation: typing-caret 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spark-dot,
+    .ember-caret,
+    .stream-word,
+    .typing-char,
+    .typing-caret,
+    .fuse-indeterminate-head,
+    .progress-line-head {
+        animation: none;
+    }
+    .progress-line-head {
+        width: 100%;
+        opacity: 0.35;
+    }
+    .spark-dot,
+    .ember-caret {
+        opacity: 1;
+        transform: none;
+    }
+    .fuse-indeterminate-head {
+        transform: translateX(200%);
+    }
+}
+
+/* Dual keyframes prevent mechanical blinking by desynchronizing opacity and scale periods. */
+@keyframes spark-flicker-opacity {
+    0%, 100% {
+        opacity: 0.55;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes spark-flicker-scale {
+    0%, 100% {
+        transform: scale(0.85);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.spark-dot {
+    position: relative;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background-color: var(--ember-2);
+    animation: spark-flicker-opacity 1.3s ease-in-out infinite, spark-flicker-scale 1.9s ease-in-out infinite;
+    will-change: opacity, transform;
+}
+
+body.dark .spark-dot::after,
+.dark .spark-dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, var(--ember-glow) 0%, transparent 75%);
+    pointer-events: none;
+}
+
+/* Caret flickers with the spark pulse at the streaming output edge. */
+.ember-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.15em;
+    vertical-align: text-bottom;
+    margin-inline-start: 2px;
+    border-radius: 1px;
+    background: linear-gradient(to bottom, var(--ember-1), var(--ember-3));
+    animation: spark-flicker-opacity 1.3s ease-in-out infinite;
+    will-change: opacity;
+}
+
+/* Each streamed word fades and sharpens in. Backwards fill leaves no filter behind once it lands. */
+@keyframes stream-word-in {
+    from {
+        opacity: 0;
+        filter: blur(3px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+.stream-word {
+    animation: stream-word-in 380ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+/* Transform-only translation prevents layout thrashing during continuous run loops. */
+@keyframes fuse-travel {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(500%);
+    }
+}
+
+.fuse-indeterminate-head {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20%;
+    height: 100%;
+    background: linear-gradient(to right, transparent, var(--ember-1), var(--ember-2));
+    animation: fuse-travel 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform;
+}
+
+.display-line {
+    font-variation-settings: "SHRP" var(--display-sharpness);
+}
+
+/* Downloads: ink on the rule. Width moves on real bytes only, so no easing invents progress. */
+.progress-line-head {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 25%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--text-primary);
+    animation: fuse-travel 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform;
+}
+
+/* Transparent text keeps the underlying syntax-highlighted tokens visible while typing. */
+.code-editor-textarea {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: #ffffff;
+}
+.code-editor-textarea::selection {
+    background-color: rgba(59, 130, 246, 0.45);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+.render-viewport-only {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 24px;
+}
+
+/* App window drag regions for frameless titlebars. */
+.drag-region {
+    -webkit-app-region: drag;
+}
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+/* Code reads left to right in every language, inside an Arabic sentence too. */
+pre,
+code,
+kbd {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+/* Floating layers: menus and popovers fade and scale from their anchor, the scrim fades. */
+.float-in {
+    animation: float-in 180ms cubic-bezier(0.2, 0, 0, 1);
+    transform-origin: top;
+}
+.fade-in {
+    animation: fade-in 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes float-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Tooltips appear after a short hover or on keyboard focus, never on touch alone. */
+.tip {
+    position: absolute;
+    z-index: 60;
+    pointer-events: none;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 120ms cubic-bezier(0.3, 0, 1, 1);
+}
+.tip-host:hover > .tip {
+    opacity: 1;
+    transition: opacity 120ms cubic-bezier(0.2, 0, 0, 1) 500ms;
+}
+.tip-host:has(:focus-visible) > .tip {
+    opacity: 1;
+}
+
+/* The hearth: a 2px ember line on the bottom edge with heat rising off it, lit while the mic is
+   open. A gradient on a pseudo-element, faded by opacity, so it never leaves the compositor. */
+.hearth-glow {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 64px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 320ms cubic-bezier(0.2, 0, 0, 1);
+}
+.hearth-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--ember-glow), transparent);
+}
+.hearth-glow::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--ember-2);
+}
+.hearth-glow[data-lit="true"] {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .float-in,
+    .fade-in {
+        animation: none;
+    }
+    .hearth-glow {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .spark-dot,
+    .ember-caret,
+    .fuse-indeterminate-head,
+    .progress-line-head,
+    .progress-line-fill,
+    .hearth-glow::after {
+        background: Highlight;
+        forced-color-adjust: none;
+    }
+}

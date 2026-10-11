@@ -1,0 +1,302 @@
+[
+  {
+    "id": "en-01",
+    "category": "oneliner",
+    "text": "Sure, give me a second."
+  },
+  {
+    "id": "en-02",
+    "category": "oneliner",
+    "text": "That sounds like a great plan."
+  },
+  {
+    "id": "en-03",
+    "category": "oneliner",
+    "text": "Not quite. Try the other one."
+  },
+  {
+    "id": "en-04",
+    "category": "two",
+    "text": "I checked the calendar. You are free on Thursday afternoon."
+  },
+  {
+    "id": "en-05",
+    "category": "two",
+    "text": "Good question. It depends on how much memory the machine has."
+  },
+  {
+    "id": "en-06",
+    "category": "two",
+    "text": "Yes, it works offline. The first run just needs the download."
+  },
+  {
+    "id": "en-07",
+    "category": "long",
+    "text": "Honestly, the simplest way to think about it is that the model reads everything you said so far, works out what you probably want next, and then writes the answer one small piece at a time, which is why it can start speaking before it has finished thinking."
+  },
+  {
+    "id": "en-08",
+    "category": "long",
+    "text": "When you run it for the first time it downloads the voice, which takes a couple of minutes on a normal connection, and after that everything stays on your computer so you can talk to it on a plane or in a tunnel without any trouble at all."
+  },
+  {
+    "id": "en-09",
+    "category": "number",
+    "text": "The trip is 340 kilometers and takes about 4 hours."
+  },
+  {
+    "id": "en-10",
+    "category": "number",
+    "text": "It costs $12.50 a month, or $120 for the year."
+  },
+  {
+    "id": "en-11",
+    "category": "number",
+    "text": "Your meeting is at 14:30 on the 3rd, and it runs for 45 minutes."
+  },
+  {
+    "id": "en-12",
+    "category": "number",
+    "text": "Battery is at 82%, and the file is 1.5 GB."
+  },
+  {
+    "id": "en-13",
+    "category": "acronym",
+    "text": "The CPU is fine, but the GPU is running hot. Check the API logs."
+  },
+  {
+    "id": "en-14",
+    "category": "acronym",
+    "text": "NASA announced it, and the BBC covered it."
+  },
+  {
+    "id": "en-15",
+    "category": "question",
+    "text": "Do you want me to read the whole thing, or just the summary?"
+  },
+  {
+    "id": "en-16",
+    "category": "question",
+    "text": "Wait, which one did you mean, the first or the second?"
+  },
+  {
+    "id": "en-17",
+    "category": "cue",
+    "text": "Ha <laugh> that is a good one. Anyway, back to the plan."
+  },
+  {
+    "id": "en-18",
+    "category": "cue",
+    "text": "Hmm <hmm> let me think. Okay, here is what I would do."
+  },
+  {
+    "id": "en-19",
+    "category": "cue",
+    "text": "<sigh> Long day. Let us keep this short."
+  },
+  {
+    "id": "en-20",
+    "category": "path",
+    "text": "Open C:\\Users\\me\\notes.txt and check the first line, or visit https://example.com/help for more."
+  },
+  {
+    "id": "en-21",
+    "category": "oneliner",
+    "text": "Got it, doing that now."
+  },
+  {
+    "id": "en-22",
+    "category": "oneliner",
+    "text": "I am not sure yet. Let me look."
+  },
+  {
+    "id": "en-23",
+    "category": "oneliner",
+    "text": "Done. It is saved."
+  },
+  {
+    "id": "en-24",
+    "category": "oneliner",
+    "text": "Of course, happy to help."
+  },
+  {
+    "id": "en-25",
+    "category": "two",
+    "text": "I found three results. The second one looks the most useful."
+  },
+  {
+    "id": "en-26",
+    "category": "two",
+    "text": "That file is quite large. It may take a moment to open."
+  },
+  {
+    "id": "en-27",
+    "category": "two",
+    "text": "Nice catch. I had missed that detail."
+  },
+  {
+    "id": "en-28",
+    "category": "two",
+    "text": "No problem. We can try again whenever you like."
+  },
+  {
+    "id": "en-29",
+    "category": "two",
+    "text": "It should be fine now. Let me know if anything looks off."
+  },
+  {
+    "id": "en-30",
+    "category": "two",
+    "text": "Right, so the plan changed. We start on Monday instead."
+  },
+  {
+    "id": "en-31",
+    "category": "long",
+    "text": "There are really two ways to approach this. The first is quick and a little rough, and the second takes longer but gives you something you can rely on, so it depends on whether you need an answer today or a result you will keep using for months."
+  },
+  {
+    "id": "en-32",
+    "category": "long",
+    "text": "I read through the notes you sent, and most of it is clear, but there is one part near the end that could be taken two different ways, so before I go any further I would like to check which of them you actually meant."
+  },
+  {
+    "id": "en-33",
+    "category": "long",
+    "text": "If you leave the microphone on, I will keep listening and answer as soon as you stop, and if you want to interrupt me, just start talking and I will stop right away and listen to what you have to say."
+  },
+  {
+    "id": "en-34",
+    "category": "long",
+    "text": "The weather looks mild for the next few days, with some cloud in the mornings and sun later on, so if you were thinking of a walk or a bike ride, the middle of the week is probably the best time."
+  },
+  {
+    "id": "en-35",
+    "category": "long",
+    "text": "Everything runs on your own machine, which means nothing you say leaves the computer, and the only thing that ever goes online is a search, and only when you ask me to look something up."
+  },
+  {
+    "id": "en-36",
+    "category": "long",
+    "text": "To set it up, open the settings, choose the voice you like, press the preview button to hear a sample, and then go back to the talk screen, where the new voice will be used from the very next reply."
+  },
+  {
+    "id": "en-37",
+    "category": "long",
+    "text": "Well, it is a bit more complicated than that, because the answer changes depending on where you live, how old the building is, and whether the previous owner kept the paperwork, but I can walk you through each one."
+  },
+  {
+    "id": "en-38",
+    "category": "long",
+    "text": "Let us start with the simple part. You have a list of tasks, some are urgent and some are not, and the trick is to do the urgent ones first, then the quick ones, and only then the big ones that need a clear head."
+  },
+  {
+    "id": "en-39",
+    "category": "number",
+    "text": "The package weighs 2.4 kg and arrives between 9:00 and 11:30."
+  },
+  {
+    "id": "en-40",
+    "category": "number",
+    "text": "About 1,250 people came, which is up 15% from last year."
+  },
+  {
+    "id": "en-41",
+    "category": "number",
+    "text": "The room is 4 m by 6 m, so roughly 24 square meters."
+  },
+  {
+    "id": "en-42",
+    "category": "number",
+    "text": "That will be $1,999.99, plus 8.5% tax."
+  },
+  {
+    "id": "en-43",
+    "category": "number",
+    "text": "Between 2020 and 2024 the number went from 300 to 1,200."
+  },
+  {
+    "id": "en-44",
+    "category": "number",
+    "text": "Set the oven to 180 °C and bake for 25 minutes."
+  },
+  {
+    "id": "en-45",
+    "category": "acronym",
+    "text": "The USB drive has a PDF and a CSV, and the URL is in the README."
+  },
+  {
+    "id": "en-46",
+    "category": "acronym",
+    "text": "Your SSD is fine, but the RAM is almost full, so close a few tabs."
+  },
+  {
+    "id": "en-47",
+    "category": "acronym",
+    "text": "NATO and the UN both issued statements, and the EU is expected to follow."
+  },
+  {
+    "id": "en-48",
+    "category": "question",
+    "text": "Should I send it now, or would you rather read it first?"
+  },
+  {
+    "id": "en-49",
+    "category": "question",
+    "text": "Is that the same project as last week, or a different one?"
+  },
+  {
+    "id": "en-50",
+    "category": "question",
+    "text": "Can you say that again? I did not quite catch the last part."
+  },
+  {
+    "id": "en-51",
+    "category": "question",
+    "text": "What time works best for you, morning or evening?"
+  },
+  {
+    "id": "en-52",
+    "category": "cue",
+    "text": "Oh, that is funny <laugh> I did not expect that answer."
+  },
+  {
+    "id": "en-53",
+    "category": "cue",
+    "text": "Well <sigh> that did not go as planned, but we can fix it."
+  },
+  {
+    "id": "en-54",
+    "category": "cue",
+    "text": "Hmm <hmm> there are a couple of options here."
+  },
+  {
+    "id": "en-55",
+    "category": "path",
+    "text": "The config lives in /usr/local/etc/app.conf, and the logs are in /var/log/app/."
+  },
+  {
+    "id": "en-56",
+    "category": "path",
+    "text": "Save it as D:\\Projects\\report.docx, then email it to the team and/or post it on the board."
+  },
+  {
+    "id": "en-57",
+    "category": "path",
+    "text": "See https://example.com/docs/start for the guide, or run the command in the box above."
+  },
+  {
+    "id": "en-58",
+    "category": "path",
+    "text": "Tom & Jerry is on at 8, and it is rated PG."
+  },
+  {
+    "id": "en-59",
+    "category": "mixed",
+    "text": "Three things first: milk, eggs, and bread. Then call the plumber, and finally pick up the parcel."
+  },
+  {
+    "id": "en-60",
+    "category": "mixed",
+    "text": "No, no, not that one. The other one, with the blue cover, on the left."
+  }
+]

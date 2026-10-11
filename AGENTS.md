@@ -1,0 +1,142 @@
+# Agent instructions
+
+Notes for AI coding agents working in this repository.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) as well. Its house style rules apply unchanged. This file covers what an agent needs on top of that: the commands, invariants enforced by tests, and traps that have cost time here.
+
+## What Draggy is
+
+A local-first Electron desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action. Any change weakening those guarantees is unacceptable.
+
+Electron main process in `electron/` (CommonJS, `.cjs`), React renderer in `src/` (TypeScript). `electron/main.cjs` is the application entry point.
+
+## Commands
+
+```bash
+npm run check
+```
+
+Typecheck, lint, and run the test suite. Run it before concluding work. CI runs the same check on Node 24.
+
+```bash
+npm run electron:dev
+```
+
+Vite and Electron together with hot reload on port 5173. Terminate any stale Vite process holding the port before retrying.
+
+```bash
+npm run electron:build
+```
+
+Builds the NSIS installer into `dist-electron/`. When running behind TLS interception, prefix the command with `$env:NODE_OPTIONS="--use-system-ca"`.
+
+## Two kinds of tests
+
+Most tests are pure logic running in Node. Component tests use a `// @vitest-environment jsdom` docblock, render via `@testing-library/react`, and mock IPC through `src/__tests__/helpers/electronApi.ts`. Use component tests whenever verifying wiring or lifecycle interactions.
+
+Mocked event subscriptions must return a cleanup function. Returning a promise or boolean causes React to throw `destroy is not a function`.
+
+## Security boundaries
+
+The preload script at `electron/preload.cjs` is the primary security boundary. The renderer has no direct Node access and reaches the filesystem, network, and database only through exposed APIs. Adding functions here requires deliberate review.
+
+Draggy windows run under strict CSP on `defaultSession`. External web pages run in the `persist:draggy-web` partition without custom policies. Never merge these sessions or loosen the application CSP.
+
+## Architectural invariants enforced by tests
+
+Every child process must use `platform.spawnHidden` or `platform.execFileHidden`. A packaged Electron build has no console subsystem; raw `spawn` calls flash visible console windows. `electron/spawning.test.js` fails if bare `spawn` or `execFile` appears in `electron/*.cjs`. The helper options spread caller settings first so `windowsHide` cannot be disabled. Never launch npm packages through `npx` at runtime; use `ELECTRON_RUN_AS_NODE` on the target script.
+
+A preload subscription channel can have multiple listeners. The `subscribe` call returns a disposer removing only its own listener. Blanket unsubscription helpers (`offState`, `offProgress`) are prohibited because one caller could silence another (`electron/preload.test.js`).
+
+Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Chinese (`zh`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
+
+Outbound HTTP requests on behalf of models must pass through `electron/urlPolicy.cjs`. Only `http:` and `https:` schemes are permitted, and private network addresses are blocked.
+
+Diagnostics protect privacy through dual-file logging and hashing. Operational logs write to `app.log`, while verbose traces write to `debug.log`. Sensitive text payloads are SHA-256 hashed and truncated before disk write. Stream chunks are recorded by token length only to prevent dictionary reconstruction (`src/__tests__/logger.test.ts`).
+
+Logging rules, enforced by tests (`electron/logGuardrails.test.js`, `src/__tests__/silentCatches.test.ts`): register IPC handlers through `electron/ipcLog.cjs`; use dotted scopes that follow the ones already in use; no `console.*` or raw `fetch` in `src/` outside the allowlist; no silent `catch` (use `log.swallow` in main, `logSwallow` in the renderer); keys, OAuth codes and tokens never reach disk in any form, and prompts, replies and file contents only as hashes or lengths. To follow one chat turn, run `npm run logs:turn <cid>`.
+
+Single instance enforcement: `main.cjs` claims `app.requestSingleInstanceLock()`. Closing the main window exits the entire application and terminates child processes (`electron/shutdown.test.js`).
+
+One local engine runs at a time. `electron/engineHost.cjs` hands the slot between llama.cpp and colibri (`electron/colibriProcess.cjs`), and both listen on `127.0.0.1` only (`electron/engineHost.test.js`, `electron/colibriProcess.test.js`).
+
+Everything the app downloads and later runs is checked against a SHA-256 first: the colibri release against its `SHA256SUMS.txt`, the embeddable Python against a pinned hash (`electron/colibriBinary.cjs`), large-model files against the Hugging Face manifest (`electron/largeModelStore.cjs`), and the image engine against hashes built into the app.
+
+Large-model planning, speed history and diagnostics stay free of prompts and replies. `electron/tierPlanner.cjs`, `tierStats.cjs` and `tierDiagnostics.cjs` hold hardware, plans, speeds and counts only. Hardware and disk probes are tested from fixtures in `electron/fixtures/hardware/`, so keep new probes parseable from saved output.
+
+A cloud voice sends reply text out only after a per-provider grant stored in the main process (`electron/tts/consent.cjs`). The provider key stays in the main process and the renderer only receives audio frames (`electron/tts/ipc.cjs`).
+
+The renderer and widget responses carry COOP `same-origin` and COEP `credentialless`, with CORP `cross-origin` on model files (`electron/isolation.cjs`). That is what lets ONNX Runtime use threads. The `/ort/` middleware in `vite.config.ts` must send the same headers in dev.
+
+Engine updates occur out of band. `electron/engineUpdater.cjs` stages llama.cpp builds and swaps them before engine initialization on the subsequent launch. If model loading crashes, it rolls back automatically (`electron/engineUpdater.test.js`).
+
+Backward database compatibility: databases written by current versions must stay readable by 1.2.7 schema (`electron/fixtures/v1.2.7/` checked by `electron/rollback.test.js`).
+
+Token repetition detection: runaway loops and repetitive refusal tails are halted in real time by `src/agent/repetition.ts` (`src/__tests__/repetition.test.ts`).
+
+First-run onboarding behavior: `electron/onboarding.cjs` inspects the `kv` table before showing windows. Existing settings, models, or chats adopt the install without re-prompting (`electron/onboarding.test.js`).
+
+No unprompted downloads: first-run setup in `src/onboarding/` requires user confirmation before initiating engine or model downloads (`src/__tests__/onboarding.test.tsx`).
+
+In-place onboarding reset: resetting onboarding navigates the existing window with `?onboarding=true` instead of restarting Electron, preventing port lockups during development.
+
+Logical layout classes: interface styles use logical CSS properties (`ms-`, `ps-`, `start-`, `text-start`, `border-s`) rather than physical left/right classes, enforced by `src/__tests__/rtl.test.tsx`.
+
+Window themes: the main process reads saved theme settings before window creation, applying `--bg-base` early to avoid white flashes (`electron/theme.test.js`). Connectivity checks query Hugging Face via HEAD, never Google (`electron/connectivity.test.js`).
+
+Reasoning models must provide answers after tool calls: `agentLoop` prompts for a final answer if internal reasoning finishes silently after tool runs (`src/__tests__/agentLoop.test.ts`).
+
+Next-step announcements are not replies: if a model finishes a turn only announcing intent, `src/agent/announcement.ts` prompts the model to execute the action.
+
+Immediate turn cancellation: aborting via Escape, Enter, or the Stop button halts running tool tasks and stops subsequent engine requests (`src/__tests__/agentLoop.test.ts`).
+
+Gateway routing: model requests route through `draggy-ai://chat` on the default session (`electron/providers/gateway.cjs`). Direct renderer access to port 11435 is forbidden by CSP (`electron/csp.test.js`).
+
+Engine passthrough transparency: the gateway preserves request bodies, headers, and status codes. Aborts propagate via response body cancellation (`electron/providers/gateway.test.js`).
+
+Provider isolation: remote provider models (`@instance/model`) bypass local engine allocation. Provider state attaches only to outgoing requests for that provider (`src/__tests__/providers.test.ts`).
+
+Credential protection: provider API keys and search keys reside in the OS keystore and are never returned over IPC or logged.
+
+Compact system prompts: `buildSystemPrompt` defaults to `compact` profile for local engines, pinned by snapshots in `promptProfile.test.ts`.
+
+## House style
+
+Match the surrounding file style. Specific constraints:
+
+- Comments explain why, never what. Maximum two lines per comment, twenty-five words per line maximum, including JSDoc headers.
+- Every comment is two lines long at most, without exception.
+- Line endings are CRLF.
+- Avoid new dependencies unless strictly necessary.
+- Keep core logic isolated from hardware APIs to enable headless Node testing.
+
+## Commit messages
+
+One line only: a concise subject line without body paragraphs or trailers.
+
+## Verification
+
+Evidence is required before concluding work:
+- Guard tests must be verified against injected regressions to ensure they fail when broken.
+- Measure behavior from packaged or GUI processes when testing window or process visibility.
+- Note any environment-specific limitations (such as update behaviors disabled in dev builds).
+
+## Releases
+
+Releases are tag driven. From a clean tree on `main`, run `npm run check`, increment the version with `npm version patch`, and push with `git push --follow-tags`. Detailed instructions are in [RELEASING.md](RELEASING.md).
+
+Prerelease version sorting follows semver rules: tag upward from the intended target version. Do not commit or tag releases unless explicitly asked.
+
+## Documentation and website
+
+The public website lives in `../draggy-website` as an independent repository. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
+
+Documentation screenshots are captured from live runs via `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs`.
+
+## Environment notes
+
+- Bash heredocs can consume backslash escape characters; write Python or Node helper scripts when authoring complex strings.
+- PowerShell collections evaluate empty arrays to `$null`. Use hashtables when comparing sets.
+- Node 25 includes a native `localStorage` global that conflicts with jsdom; `src/__tests__/helpers/setup.ts` isolates it.
+- Electron dev processes started with `concurrently -k` terminate child processes on exit; test process survival with standalone binaries.
+- Running packaged installations share data directories and single-instance locks with dev instances. Close installed copies before dev launches.

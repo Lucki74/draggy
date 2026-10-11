@@ -1,0 +1,302 @@
+[
+  {
+    "id": "zh-01",
+    "category": "oneliner",
+    "text": "好的，请稍等一下。"
+  },
+  {
+    "id": "zh-02",
+    "category": "oneliner",
+    "text": "听起来是个很棒的计划。"
+  },
+  {
+    "id": "zh-03",
+    "category": "oneliner",
+    "text": "不完全是，试试另一个。"
+  },
+  {
+    "id": "zh-04",
+    "category": "two",
+    "text": "我看了日历。你周四下午有空。"
+  },
+  {
+    "id": "zh-05",
+    "category": "two",
+    "text": "好问题。这取决于机器有多少内存。"
+  },
+  {
+    "id": "zh-06",
+    "category": "two",
+    "text": "可以，离线也能用。只有第一次需要下载。"
+  },
+  {
+    "id": "zh-07",
+    "category": "long",
+    "text": "说实话，最简单的理解方式是，模型会读完你到目前为止说的所有内容，推测你接下来大概想要什么，然后一小段一小段地写出回答，所以它可以在还没想完之前就开始说话，这也是为什么你几乎感觉不到等待。"
+  },
+  {
+    "id": "zh-08",
+    "category": "long",
+    "text": "第一次运行时它会下载语音，普通网速下大约需要几分钟，之后所有内容都留在你的电脑上，所以你在飞机上或者隧道里也可以和它聊天，完全没有问题。"
+  },
+  {
+    "id": "zh-09",
+    "category": "number",
+    "text": "路程是340公里，大约需要4个小时。"
+  },
+  {
+    "id": "zh-10",
+    "category": "number",
+    "text": "每月12.50元，或者全年120元。"
+  },
+  {
+    "id": "zh-11",
+    "category": "number",
+    "text": "你的会议在3号14:30，持续45分钟。"
+  },
+  {
+    "id": "zh-12",
+    "category": "number",
+    "text": "电量还有82%，文件大小是1.5 GB。"
+  },
+  {
+    "id": "zh-13",
+    "category": "acronym",
+    "text": "CPU没问题，但是GPU很烫。看看API日志。"
+  },
+  {
+    "id": "zh-14",
+    "category": "acronym",
+    "text": "NASA宣布了这件事，BBC也报道了。"
+  },
+  {
+    "id": "zh-15",
+    "category": "question",
+    "text": "你想让我读全文，还是只读摘要？"
+  },
+  {
+    "id": "zh-16",
+    "category": "question",
+    "text": "等一下，你说的是第一个还是第二个？"
+  },
+  {
+    "id": "zh-17",
+    "category": "cue",
+    "text": "哈 <laugh> 这个不错。好了，回到计划上。"
+  },
+  {
+    "id": "zh-18",
+    "category": "cue",
+    "text": "嗯 <hmm> 让我想想。我会这样做。"
+  },
+  {
+    "id": "zh-19",
+    "category": "cue",
+    "text": "<sigh> 今天真漫长。我们长话短说。"
+  },
+  {
+    "id": "zh-20",
+    "category": "path",
+    "text": "打开 C:\\Users\\me\\notes.txt 看第一行，或者访问 https://example.com/help 了解更多。"
+  },
+  {
+    "id": "zh-21",
+    "category": "oneliner",
+    "text": "好的，我马上处理。"
+  },
+  {
+    "id": "zh-22",
+    "category": "oneliner",
+    "text": "我还不确定，让我看一下。"
+  },
+  {
+    "id": "zh-23",
+    "category": "oneliner",
+    "text": "好了，已经保存。"
+  },
+  {
+    "id": "zh-24",
+    "category": "oneliner",
+    "text": "当然，很乐意帮忙。"
+  },
+  {
+    "id": "zh-25",
+    "category": "two",
+    "text": "我找到了三个结果。第二个看起来最有用。"
+  },
+  {
+    "id": "zh-26",
+    "category": "two",
+    "text": "这个文件比较大，打开可能需要一点时间。"
+  },
+  {
+    "id": "zh-27",
+    "category": "two",
+    "text": "你说得对，这个细节我漏掉了。"
+  },
+  {
+    "id": "zh-28",
+    "category": "two",
+    "text": "没关系，你想再试的时候随时可以。"
+  },
+  {
+    "id": "zh-29",
+    "category": "two",
+    "text": "现在应该没问题了。如果有哪里不对，请告诉我。"
+  },
+  {
+    "id": "zh-30",
+    "category": "two",
+    "text": "好吧，计划变了。我们改成周一开始。"
+  },
+  {
+    "id": "zh-31",
+    "category": "long",
+    "text": "这件事其实有两种做法。第一种又快又粗糙，第二种花的时间更长，但结果更可靠，所以要看你是今天就需要一个答案，还是需要一个能用上好几个月的成果。"
+  },
+  {
+    "id": "zh-32",
+    "category": "long",
+    "text": "我看完了你发来的笔记，大部分都很清楚，不过靠近结尾有一段可以有两种理解，所以在继续之前，我想先确认一下你到底是哪个意思。"
+  },
+  {
+    "id": "zh-33",
+    "category": "long",
+    "text": "如果你一直开着麦克风，我会继续听，等你说完就回答，如果你想打断我，直接开口就行，我会马上停下来听你说。"
+  },
+  {
+    "id": "zh-34",
+    "category": "long",
+    "text": "接下来几天天气温和，早上有些云，之后会出太阳，所以如果你想散步或者骑车，这周中间大概是最好的时候。"
+  },
+  {
+    "id": "zh-35",
+    "category": "long",
+    "text": "所有东西都在你自己的电脑上运行，也就是说你说的话不会离开这台电脑，唯一会上网的只有搜索，而且只有在你让我查东西的时候才会。"
+  },
+  {
+    "id": "zh-36",
+    "category": "long",
+    "text": "设置的方法是，打开设置，选一个你喜欢的声音，点一下试听按钮听听示例，然后回到对话页面，从下一次回答开始就会用新的声音。"
+  },
+  {
+    "id": "zh-37",
+    "category": "long",
+    "text": "其实这件事比这复杂一点，因为答案会随着你住的地方、楼房的年份，以及上一任房主有没有留下文件而不同，不过我可以一步一步带你看。"
+  },
+  {
+    "id": "zh-38",
+    "category": "long",
+    "text": "先从简单的开始。你有一份任务清单，有的紧急，有的不急，诀窍是先做紧急的，再做快的，最后才做那些需要头脑清醒的大事。"
+  },
+  {
+    "id": "zh-39",
+    "category": "number",
+    "text": "包裹重2.4公斤，会在9:00到11:30之间送到。"
+  },
+  {
+    "id": "zh-40",
+    "category": "number",
+    "text": "大约来了1250个人，比去年多了15%。"
+  },
+  {
+    "id": "zh-41",
+    "category": "number",
+    "text": "房间长4米宽6米，大约24平方米。"
+  },
+  {
+    "id": "zh-42",
+    "category": "number",
+    "text": "一共是1999.99元，另加8.5%的税。"
+  },
+  {
+    "id": "zh-43",
+    "category": "number",
+    "text": "从2020年到2024年，数字从300涨到了1200。"
+  },
+  {
+    "id": "zh-44",
+    "category": "number",
+    "text": "把烤箱调到180°C，烤25分钟。"
+  },
+  {
+    "id": "zh-45",
+    "category": "acronym",
+    "text": "这个USB盘里有一个PDF和一个CSV，网址在README里。"
+  },
+  {
+    "id": "zh-46",
+    "category": "acronym",
+    "text": "你的SSD没问题，但是RAM快满了，所以关掉几个标签页吧。"
+  },
+  {
+    "id": "zh-47",
+    "category": "acronym",
+    "text": "北约和联合国都发了声明，欧盟预计也会跟进。"
+  },
+  {
+    "id": "zh-48",
+    "category": "question",
+    "text": "我现在发出去，还是你想先看一遍？"
+  },
+  {
+    "id": "zh-49",
+    "category": "question",
+    "text": "这和上周是同一个项目，还是另一个？"
+  },
+  {
+    "id": "zh-50",
+    "category": "question",
+    "text": "你能再说一遍吗？最后一部分我没听清。"
+  },
+  {
+    "id": "zh-51",
+    "category": "question",
+    "text": "你什么时间方便，早上还是晚上？"
+  },
+  {
+    "id": "zh-52",
+    "category": "cue",
+    "text": "哈，真有意思 <laugh> 我没想到会是这个答案。"
+  },
+  {
+    "id": "zh-53",
+    "category": "cue",
+    "text": "唉 <sigh> 事情没有按计划进行，不过我们可以补救。"
+  },
+  {
+    "id": "zh-54",
+    "category": "cue",
+    "text": "嗯 <hmm> 这里有几个选择。"
+  },
+  {
+    "id": "zh-55",
+    "category": "path",
+    "text": "配置在 /usr/local/etc/app.conf，日志在 /var/log/app/。"
+  },
+  {
+    "id": "zh-56",
+    "category": "path",
+    "text": "把它存成 D:\\Projects\\report.docx，然后发给团队，和/或贴到公告板上。"
+  },
+  {
+    "id": "zh-57",
+    "category": "path",
+    "text": "指南见 https://example.com/docs/start，或者运行上面框里的命令。"
+  },
+  {
+    "id": "zh-58",
+    "category": "path",
+    "text": "Tom & Jerry 八点播出，适合所有人观看。"
+  },
+  {
+    "id": "zh-59",
+    "category": "mixed",
+    "text": "先买三样东西：牛奶、鸡蛋和面包。然后给水管工打电话，最后去取包裹。"
+  },
+  {
+    "id": "zh-60",
+    "category": "mixed",
+    "text": "不，不，不是那个。是另一个，蓝色封面的，在左边。"
+  }
+]
