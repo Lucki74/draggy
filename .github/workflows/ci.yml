@@ -1,39 +1,37 @@
 name: CI
 
-# The test suite is fast enough that there is no reason not to run it on every
-# push: 693 tests in under three seconds. Until this existed, `npm run check`
-# on a contributor's own machine was the only thing between a mistake and main,
-# and nothing verified that it had been run.
+# Typecheck, lint and the full test suite on every OS Draggy ships for.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
-# Checking out and running the suite is all this does, so the token it gets
-# can read the repository and nothing else.
+# The job only reads the repository.
 permissions:
   contents: read
 
-# Two pushes to the same branch in quick succession only need the newer one.
+# A newer push to the same ref makes the older run pointless.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
-    name: Typecheck, lint and test
-    runs-on: windows-latest
+    name: Typecheck, lint and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v4
 
-      # Node 24 is what the release workflow builds with. Checking on the same
-      # version is the point; a suite that passes here and fails there would
-      # tell us nothing useful.
+      # The release workflow builds on the same Node version.
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci

@@ -66,10 +66,7 @@ jobs:
 
       - run: npm ci
 
-      # The suite runs where the app is developed. It moves to every OS once the Windows-only
-      # tests are fixed.
       - name: Typecheck, lint and test
-        if: runner.os == 'Windows'
         run: npm run check
 
       # The notes reach the shell only through env, so their text never runs as code.
