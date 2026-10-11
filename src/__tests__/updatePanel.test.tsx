@@ -131,4 +131,37 @@ describe("the updates panel", () => {
     view.unmount();
     expect(api.updater.count).toBe(0);
   });
+
+  it("names a build by its number", async () => {
+    renderUpdates();
+    await screen.findByText("Not checked yet.");
+
+    await act(async () => api.updater.emit({ status: "available", version: "3.0.12" }));
+
+    expect(screen.getByText("Update available: build 12")).toBeTruthy();
+  });
+
+  it("shows the release notes collapsed, and expands them", async () => {
+    renderUpdates();
+    await screen.findByText("Not checked yet.");
+
+    const notes = "## Fixes\n\n" + "A longer line of release notes that runs on. ".repeat(10);
+    await act(async () => api.updater.emit({ status: "available", version: "3.0.12", notes }));
+
+    expect(screen.getByText("What's new")).toBeTruthy();
+    const toggle = screen.getByRole("button", { name: "Show more" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    await act(async () => toggle.click());
+    expect(screen.getByRole("button", { name: "Show fewer" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("says so when the build has no release notes", async () => {
+    renderUpdates();
+    await screen.findByText("Not checked yet.");
+
+    await act(async () => api.updater.emit({ status: "available", version: "3.0.12", notes: null }));
+
+    expect(screen.getByText("No release notes for this build.")).toBeTruthy();
+  });
 });

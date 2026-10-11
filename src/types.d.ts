@@ -1012,7 +1012,6 @@ export interface AppSettings {
   /** When set, the model is always loaded at this context window instead of the automatic size. */
   fixedContextSize: number | "max" | null;
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
-  updateChannel: "release" | "prerelease";
   /** The image model to draw with. Empty uses the first one installed. */
   imageModel: string;
 }
@@ -1371,7 +1370,7 @@ declare global {
         state: () => Promise<UpdaterState>;
         /** Turns background checking and downloading on or off. Sent whenever the automatic-updates
          * setting changes, and once at startup. */
-        configure: (options: { automatic: boolean; channel?: "release" | "prerelease" }) => Promise<UpdaterState>;
+        configure: (options: { automatic: boolean }) => Promise<UpdaterState>;
         check: (options?: { silent?: boolean }) => Promise<UpdaterState>;
         download: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;

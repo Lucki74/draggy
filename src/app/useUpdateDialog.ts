@@ -5,6 +5,7 @@ import { swallowed } from "../logger";
  * "Install now" is a restart rather than a wizard. */
 export function useUpdateDialog() {
   const [ready, setReady] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -17,16 +18,22 @@ export function useUpdateDialog() {
     updater
       .state()
       .then((current) => {
-        if (current?.status === "ready") setReady(current.version ?? "");
+        if (current?.status === "ready") {
+          setReady(current.version ?? "");
+          setNotes(current.notes ?? null);
+        }
       })
       .catch(swallowed("app", "best effort, the screen works without it"));
 
     return updater.onState((next) => {
-      if (next.status === "ready") setReady(next.version ?? "");
+      if (next.status === "ready") {
+        setReady(next.version ?? "");
+        setNotes(next.notes ?? null);
+      }
     });
   }, []);
 
   const dismiss = useCallback(() => setDismissed(true), []);
 
-  return { ready, dismissed, dismiss };
+  return { ready, notes, dismissed, dismiss };
 }

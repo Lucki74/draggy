@@ -40,7 +40,6 @@ export const defaultSettings: AppSettings = {
   autoUpdate: true,
   compactLimit: null,
   fixedContextSize: null,
-  updateChannel: "release",
   imageModel: "",
 };
 
@@ -74,6 +73,11 @@ export function loadSettings(): AppSettings {
   }
 
   let migrated = false;
+  // Every build is a full release now, so there is no channel to choose.
+  if ("updateChannel" in parsed) {
+    delete (parsed as { updateChannel?: unknown }).updateChannel;
+    migrated = true;
+  }
   if (parsed.language && !VALID_LANGUAGES.has(parsed.language)) {
     parsed.language = "en";
     migrated = true;
@@ -145,9 +149,9 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   useEffect(() => {
     if (isSplashMode || holdUpdates) return;
     window.electronAPI?.updater
-      .configure({ automatic: settings.autoUpdate, channel: settings.updateChannel })
+      .configure({ automatic: settings.autoUpdate })
       .catch(swallowed("app", "the main process already logged this call"));
-  }, [settings.autoUpdate, settings.updateChannel, isSplashMode, holdUpdates]);
+  }, [settings.autoUpdate, isSplashMode, holdUpdates]);
 
   // The image engine runs in the main process, which keeps no settings of its own.
   useEffect(() => {

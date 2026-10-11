@@ -28,7 +28,6 @@ const HARMLESS = new Set([
   "autoUpdate",
   "compactLimit",
   "fixedContextSize",
-  "updateChannel",
 ]);
 
 function parse(raw) {
