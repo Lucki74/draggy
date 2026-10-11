@@ -82,12 +82,12 @@ describe("updater downgrade protection", () => {
     delete require.cache[updaterPath];
   });
 
-  it("disallows downgrades after channel resets in init and configure", () => {
+  it("disallows downgrades after init and configure", () => {
     const app = { isPackaged: true, getVersion: () => "2.1.0-rc2" };
     updaterModule.init(app, () => {});
     expect(fakeUpdater.allowDowngrade).toBe(false);
 
-    updaterModule.configure({ automatic: false, channel: "release" });
+    updaterModule.configure({ automatic: false });
     expect(fakeUpdater.allowDowngrade).toBe(false);
   });
 
@@ -150,37 +150,26 @@ describe("updater downgrade protection", () => {
 
 const release = (tag, { prerelease = false, draft = false } = {}) => ({ tag_name: tag, prerelease, draft });
 
-describe("choosing which release to update to", () => {
-  const releases = [
-    release("v2.1.0-rc3", { prerelease: true }),
-    release("v2.1.0-rc4", { prerelease: true }),
-    release("v2.0.4"),
-    release("v2.1.0-rc2", { prerelease: true }),
-  ];
-
-  it("takes the highest version on the pre-release channel, whatever order GitHub lists them in", () => {
-    const { pickReleaseTag } = require("./updater.cjs");
-    expect(pickReleaseTag(releases, "prerelease")).toBe("v2.1.0-rc4");
-    expect(pickReleaseTag([...releases].reverse(), "prerelease")).toBe("v2.1.0-rc4");
+describe("choosing which build to update to", () => {
+  it("takes the highest build number, compared as a number, whatever order GitHub lists them in", () => {
+    const { pickBuildTag } = require("./updater.cjs");
+    const builds = [release("b-9"), release("b-10"), release("b-2")];
+    expect(pickBuildTag(builds)).toBe("b-10");
+    expect(pickBuildTag([...builds].reverse())).toBe("b-10");
   });
 
-  it("takes only finished releases on the release channel", () => {
-    const { pickReleaseTag } = require("./updater.cjs");
-    expect(pickReleaseTag(releases, "release")).toBe("v2.0.4");
-  });
-
-  it("prefers the finished version over its own release candidates on either channel", () => {
-    const { pickReleaseTag } = require("./updater.cjs");
-    const withFinal = [...releases, release("v2.1.0")];
-    expect(pickReleaseTag(withFinal, "prerelease")).toBe("v2.1.0");
-    expect(pickReleaseTag(withFinal, "release")).toBe("v2.1.0");
-  });
-
-  it("skips drafts and tags that are not versions", () => {
-    const { pickReleaseTag } = require("./updater.cjs");
-    const messy = [release("v9.9.9", { draft: true }), release("nightly"), release("v2.1.0-rc3", { prerelease: true })];
-    expect(pickReleaseTag(messy, "prerelease")).toBe("v2.1.0-rc3");
-    expect(pickReleaseTag([], "prerelease")).toBeNull();
+  it("skips drafts, prereleases and tags that are not builds", () => {
+    const { pickBuildTag } = require("./updater.cjs");
+    const messy = [
+      release("b-99", { draft: true }),
+      release("b-98", { prerelease: true }),
+      release("v2.4.0"),
+      release("b-7x"),
+      release("b-3"),
+    ];
+    expect(pickBuildTag(messy)).toBe("b-3");
+    expect(pickBuildTag([])).toBeNull();
+    expect(pickBuildTag(null)).toBeNull();
   });
 });
 
@@ -206,6 +195,7 @@ describe("checking for updates", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    delete process.env.DRAGGY_UPDATE_FEED;
     if (originalCache) require.cache[electronUpdaterPath] = originalCache;
     else delete require.cache[electronUpdaterPath];
     delete require.cache[updaterPath];
@@ -214,39 +204,71 @@ describe("checking for updates", () => {
   const githubReturns = (list) =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => list }));
 
-  it("sees rc4 from an rc3 build, which the library's own channel guess never would", async () => {
-    // electron-updater takes the channel from the installed version, so "2.1.0-rc3" only matches tags
-    // named rc3 and reports up to date forever.
-    githubReturns([release("v2.1.0-rc4", { prerelease: true }), release("v2.1.0-rc3", { prerelease: true })]);
-    updaterModule.init({ isPackaged: true, getVersion: () => "2.1.0-rc3" }, () => {});
-    updaterModule.configure({ automatic: false, channel: "prerelease" });
+  it("reads latest.yml from the newest build's release", async () => {
+    githubReturns([release("b-4"), release("b-12"), release("b-11")]);
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
+    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
     expect(fakeUpdater.feeds.at(-1)).toEqual({
       provider: "generic",
-      url: "https://github.com/Lucki74/draggy/releases/download/v2.1.0-rc4",
+      url: "https://github.com/Lucki74/draggy/releases/download/b-12",
     });
   });
 
-  it("stays on finished releases when the release channel is chosen", async () => {
-    githubReturns([release("v2.1.0-rc4", { prerelease: true }), release("v2.0.4")]);
-    updaterModule.init({ isPackaged: true, getVersion: () => "2.0.3" }, () => {});
-    updaterModule.configure({ automatic: false, channel: "release" });
-
-    await updaterModule.check();
-
-    expect(fakeUpdater.feeds.at(-1).url).toBe("https://github.com/Lucki74/draggy/releases/download/v2.0.4");
-  });
-
-  it("falls back to the library's own choice when GitHub's list cannot be read", async () => {
+  it("falls back to GitHub's own latest release when the list cannot be read", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-    updaterModule.init({ isPackaged: true, getVersion: () => "2.1.0-rc3" }, () => {});
-    updaterModule.configure({ automatic: false, channel: "prerelease" });
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
+    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
     expect(fakeUpdater.feeds.at(-1)).toEqual({ provider: "github", owner: "Lucki74", repo: "draggy" });
+  });
+
+  it("uses DRAGGY_UPDATE_FEED without asking GitHub", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    process.env.DRAGGY_UPDATE_FEED = "http://127.0.0.1:8123/feed";
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
+
+    await updaterModule.check();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fakeUpdater.feeds.at(-1)).toEqual({ provider: "generic", url: "http://127.0.0.1:8123/feed" });
+  });
+
+  it("publishes release notes as one string, from a string or a per-version list", () => {
+    const published = [];
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
+
+    fakeUpdater.emit("update-available", { version: "3.0.5", releaseNotes: "  Faster start.  " });
+    expect(published.at(-1).notes).toBe("Faster start.");
+
+    fakeUpdater.emit("update-available", {
+      version: "3.0.6",
+      releaseNotes: [{ version: "3.0.6", note: "One" }, { version: "3.0.5", note: "Two" }],
+    });
+    expect(published.at(-1).notes).toBe("One\n\nTwo");
+
+    fakeUpdater.emit("update-available", { version: "3.0.7" });
+    expect(published.at(-1).notes).toBeNull();
+  });
+
+  it("surfaces a failed check only when the user started it", async () => {
+    const published = [];
+    fakeUpdater.checkForUpdates = async () => {
+      fakeUpdater.emit("error", new Error("boom"));
+    };
+    githubReturns([release("b-5")]);
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
+
+    await updaterModule.check({ silent: true });
+    expect(published.some((state) => state.status === "error")).toBe(false);
+
+    await updaterModule.check();
+    expect(published.at(-1).status).toBe("error");
   });
 });
 

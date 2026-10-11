@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import { ProgressLine } from "../ui/ProgressLine";
+import { ReleaseNotes } from "../updates/ReleaseNotes";
+import { buildLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { searchProviderOptions } from "./pages";
@@ -244,11 +246,11 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
       : status === "checking"
         ? t("checkingForUpdates")
         : status === "available"
-          ? `${t("updateAvailable")} v${state?.version}`
+          ? `${t("updateAvailable")} ${buildLabel(state?.version, t)}`
           : status === "downloading"
             ? `${t("downloading")} ${percent}%`
             : status === "ready"
-              ? `${t("updateReady")} v${state?.version}`
+              ? `${t("updateReady")} ${buildLabel(state?.version, t)}`
               : status === "error"
                 ? state?.error || t("updateFailed")
                 : status === "current"
@@ -260,7 +262,7 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
       <Group>
         <Row label={t("currentVersion")}>
           <p className="text-[13px] font-medium tabular-nums text-text-primary">
-            {info ? `v${info.version}` : "…"}
+            {info ? buildLabel(info.version, t) : "…"}
             {info && !info.packaged && (
               <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
                 {t("development")}
@@ -273,17 +275,6 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
             label={t("automaticUpdates")}
             checked={settings.autoUpdate}
             onChange={(autoUpdate) => onUpdate({ autoUpdate })}
-          />
-        </Row>
-        <Row label={t("updateChannel")}>
-          <Segmented
-            label={t("updateChannel")}
-            value={settings.updateChannel ?? "release"}
-            options={[
-              { id: "prerelease", label: t("updateChannelAll") },
-              { id: "release", label: t("updateChannelReleases") },
-            ]}
-            onChange={(updateChannel) => onUpdate({ updateChannel: updateChannel as "release" | "prerelease" })}
           />
         </Row>
         <Row
@@ -319,6 +310,11 @@ export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
           </div>
         </Row>
       </Group>
+      {(status === "available" || status === "downloading" || status === "ready") && (
+        <div className="mt-4">
+          <ReleaseNotes notes={state?.notes ?? null} t={t} showEmpty />
+        </div>
+      )}
     </Page>
   );
 }

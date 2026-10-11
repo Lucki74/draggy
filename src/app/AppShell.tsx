@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildLabel } from "./buildLabel";
+import { ReleaseNotes } from "../updates/ReleaseNotes";
 import { Icon } from "../ui/icons/Icon";
 import { Toast } from "../ui/Toast";
 import { CommandPalette, type PaletteItem } from "../ui/CommandPalette";
@@ -1122,9 +1124,15 @@ export default function AppShell({
 
               <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
                 {update.ready
-                  ? `${t("updateReadyBody")} (${update.ready})`
+                  ? `${t("updateReadyBody")} (${buildLabel(update.ready, t)})`
                   : t("updateReadyBody")}
               </p>
+
+              {update.notes && (
+                <div className="mt-3">
+                  <ReleaseNotes notes={update.notes} t={t} />
+                </div>
+              )}
 
               <div className="mt-5 flex gap-2">
                 <button

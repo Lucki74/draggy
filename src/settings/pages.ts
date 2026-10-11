@@ -49,7 +49,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
       { id: "diagnostics", label: "diagnostics", icon: "terminal-window", keywords: ["openLogFolder", "diagVerbose", "diagViewer", "diagExport"] },
       { id: "extensions", label: "extensions", icon: "puzzle-piece" },
       { id: "api", label: "apiServer", icon: "plug" },
-      { id: "updates", label: "updates", icon: "cloud-arrow-down", keywords: ["currentVersion", "updateStatus", "updateChannel", "automaticUpdates"] },
+      { id: "updates", label: "updates", icon: "cloud-arrow-down", keywords: ["currentVersion", "updateStatus", "automaticUpdates"] },
     ],
   },
   {
