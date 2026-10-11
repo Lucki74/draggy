@@ -68,8 +68,11 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 ## Installing and requirements
 
-Download installers from [draggy.org](https://draggy.org) or the
-[Releases page](https://github.com/Lucki74/draggy/releases). On first launch,
+Download an installer from [draggy.org](https://draggy.org) or the
+[Releases page](https://github.com/Lucki74/draggy/releases/latest):
+[Windows](https://github.com/Lucki74/draggy/releases/latest/download/draggy_setup.exe),
+macOS ([Apple Silicon](https://github.com/Lucki74/draggy/releases/latest/download/Draggy-arm64.dmg) or [Intel](https://github.com/Lucki74/draggy/releases/latest/download/Draggy-x64.dmg)),
+and [Linux](https://github.com/Lucki74/draggy/releases/latest) as an AppImage or a `.deb`. On first launch,
 Draggy suggests a model sized for your hardware and downloads it directly. See
 [Installation](https://draggy.org/wiki/installation) for system requirements.
 

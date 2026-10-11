@@ -28,7 +28,7 @@ That starts Vite and Electron together with hot reload on port 5173.
 npm run check
 ```
 
-Typecheck, lint, and run the test suite: roughly 3,000 tests in fifteen seconds. CI runs the same command on every push and pull request.
+Typecheck, lint, and run the test suite: roughly 3,000 tests in fifteen seconds. CI runs the same command on Windows, macOS and Linux for every pull request, and pull requests are squash merged.
 
 Tests run with no GPU and no Electron, so keep new logic testable by keeping it isolated from hardware, the way `src/voice/gate.ts` and `electron/appData.cjs` do.
 
@@ -61,4 +61,4 @@ Draggy is licensed under the [Apache License 2.0](LICENSE). By contributing, you
 
 ## Releases
 
-Cutting a release is tag-driven and maintainer-only. See [RELEASING.md](RELEASING.md).
+A build is cut by the maintainer from the Release workflow. See [RELEASING.md](RELEASING.md).
