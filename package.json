@@ -3,6 +3,9 @@
   "author": "The Draggy authors",
   "description": "A desktop AI assistant that talks, browses and works with your files all on local models.",
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
   "homepage": "https://draggy.org",
   "private": true,
   "version": "3.0.0",

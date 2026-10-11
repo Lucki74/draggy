@@ -39,8 +39,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: draggy version
-      placeholder: "2.0.0"
+      label: Draggy build
+      description: Shown under Settings, Updates.
+      placeholder: "build 12"
     validations:
       required: true
 
