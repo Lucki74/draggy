@@ -78,6 +78,16 @@ describe("the app shell", () => {
     expect(screen.getByRole("button", { name: /install now/i })).toBeTruthy();
   });
 
+  it("shows the build number and the release notes in the dialog", async () => {
+    api.updaterState = { status: "ready", version: "3.0.7", notes: "Faster start." };
+    render(<App />);
+
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/build 7/)).toBeTruthy();
+    expect(screen.getByText("What's new")).toBeTruthy();
+    expect(screen.getByText("Faster start.")).toBeTruthy();
+  });
+
   it("offers one that finishes while the window is open", async () => {
     render(<App />);
     await screen.findAllByText("Appearance");

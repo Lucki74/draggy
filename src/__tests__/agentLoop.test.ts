@@ -70,7 +70,6 @@ const SETTINGS = {
   autoUpdate: true,
   compactLimit: null,
   fixedContextSize: null,
-  updateChannel: "prerelease",
   imageModel: "",
 } as AppSettings;
 

@@ -20,7 +20,8 @@ let state = { status: "idle", version: null, percent: 0, notes: null, error: nul
 let broadcast = () => {};
 
 let automatic = false;
-let wantedChannel = "release";
+/** True while a check or download the user started is running, so only those surface errors. */
+let userStarted = false;
 let firstCheckTimer = null;
 let intervalTimer = null;
 
@@ -48,24 +49,61 @@ function isNewer(candidate, current) {
   }
 }
 
-/** The release to update to: the highest version on the channel. electron-updater's own pick comes
- * from the installed version's prerelease name, so an rc3 build only ever matches rc3. */
-function pickReleaseTag(releases, channel) {
-  const usable = (Array.isArray(releases) ? releases : []).filter((entry) => {
-    if (!entry || entry.draft || !semver.valid(entry.tag_name)) return false;
-    return channel !== "release" || (!entry.prerelease && !semver.prerelease(entry.tag_name));
-  });
-  usable.sort((a, b) => semver.rcompare(a.tag_name, b.tag_name));
-  return usable[0]?.tag_name ?? null;
+/** The build to update to: the highest `b-N` among published releases. Compared as numbers, so
+ * b-10 beats b-9. Anything else (drafts, prereleases, stray v* tags) is ignored. */
+function pickBuildTag(releases) {
+  let best = null;
+  let bestNumber = -1;
+  for (const entry of Array.isArray(releases) ? releases : []) {
+    if (!entry || entry.draft || entry.prerelease) continue;
+    const match = /^b-(\d+)$/.exec(String(entry.tag_name ?? ""));
+    if (!match) continue;
+    const number = Number(match[1]);
+    if (number > bestNumber) {
+      bestNumber = number;
+      best = entry.tag_name;
+    }
+  }
+  return best;
 }
 
-async function latestReleaseTag(channel) {
+async function latestBuildTag() {
   const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=30`, {
     headers: { Accept: "application/vnd.github+json", "User-Agent": "Draggy-updater" },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
-  return pickReleaseTag(await response.json(), channel);
+  return pickBuildTag(await response.json());
+}
+
+/** The feed to read `latest.yml` from. DRAGGY_UPDATE_FEED points at a local server for testing an
+ * update end to end; otherwise the newest build tag, falling back to GitHub's own latest release. */
+async function resolveFeed() {
+  const override = process.env.DRAGGY_UPDATE_FEED;
+  if (override) return { feed: { provider: "generic", url: override }, tag: null };
+
+  let tag = null;
+  try {
+    tag = await latestBuildTag();
+  } catch (error) {
+    log.warn("updater", "release list unavailable, using github latest", { reason: error.message });
+  }
+  return {
+    feed: tag
+      ? { provider: "generic", url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${tag}` }
+      : { provider: "github", owner: REPO_OWNER, repo: REPO_NAME },
+    tag,
+  };
+}
+
+/** latest.yml carries notes as one string, GitHub's own provider as a list of {version, note}. */
+function notesText(raw) {
+  if (typeof raw === "string") return raw.trim() || null;
+  if (Array.isArray(raw)) {
+    const joined = raw.map((entry) => (typeof entry?.note === "string" ? entry.note : "")).filter(Boolean).join("\n\n");
+    return joined.trim() || null;
+  }
+  return null;
 }
 
 function publish(next) {
@@ -95,8 +133,7 @@ function init(app, sendToWindows) {
   updater.autoDownload = automatic;
   updater.autoInstallOnAppQuit = true;
 
-  // Channel stays null so the GitHub provider does not filter tags by channel name;
-  // both settings still resolve to latest.yml, which every build uploads.
+  // Every build is a full release, so there is no prerelease channel to follow.
   updater.allowPrerelease = false;
   updater.channel = null;
   // electron-updater silently enables allowDowngrade whenever channel is assigned.
@@ -116,8 +153,8 @@ function init(app, sendToWindows) {
       publish({ status: "current", percent: 0 });
       return;
     }
-    log.info("updater", "update available", { version: info.version, channel: wantedChannel });
-    publish({ status: "available", version: info.version, notes: info.releaseNotes || null });
+    log.info("updater", "update available", { version: info.version });
+    publish({ status: "available", version: info.version, notes: notesText(info.releaseNotes) });
   });
 
   updater.on("update-not-available", () => publish({ status: "current", percent: 0 }));
@@ -137,8 +174,14 @@ function init(app, sendToWindows) {
   });
 
   updater.on("error", (error) => {
-    log.fail("updater", "update error", error);
-    publish({ status: "error", error: error?.message || "Update check failed." });
+    if (error?.code === "ERR_UPDATER_INVALID_VERSION") {
+      log.warn("updater", "latest.yml has an invalid version", { reason: error.message });
+    } else if (userStarted) {
+      log.fail("updater", "update error", error);
+    } else {
+      log.warn("updater", "silent check failed", { reason: error?.message ?? null });
+    }
+    if (userStarted) publish({ status: "error", error: error?.message || "Update check failed." });
   });
 
   return updater;
@@ -166,9 +209,9 @@ function schedule() {
   intervalTimer.unref?.();
 }
 
-/** Turns automatic updating on or off and switches the update channel. Called by the renderer
- * whenever the setting changes, and once at startup with whatever it was left on. */
-function configure({ automatic: wanted, channel } = {}) {
+/** Turns automatic updating on or off. Called by the renderer whenever the setting changes, and
+ * once at startup with whatever it was left on. */
+function configure({ automatic: wanted } = {}) {
   automatic = Boolean(wanted);
 
   if (updater) {
@@ -176,13 +219,9 @@ function configure({ automatic: wanted, channel } = {}) {
     updater.channel = null;
     // electron-updater silently enables allowDowngrade whenever channel is assigned.
     updater.allowDowngrade = false;
-
-    // "release" only ever takes GitHub's own latest non-prerelease tag.
-    // "prerelease" adds a prerelease tag on top of that, not instead of it.
-    updater.allowPrerelease = channel !== "release";
+    updater.allowPrerelease = false;
   }
-  wantedChannel = channel === "release" ? "release" : "prerelease";
-  log.info("updater", "configured", { automatic, channel: wantedChannel });
+  log.info("updater", "configured", { automatic });
 
   if (automatic) schedule();
   else unschedule();
@@ -193,24 +232,18 @@ function configure({ automatic: wanted, channel } = {}) {
 async function check({ silent } = {}) {
   if (!updater) return { ...state };
 
-  const timer = log.time("updater", "check", { channel: wantedChannel, silent: Boolean(silent) });
+  userStarted = !silent;
+  const timer = log.time("updater", "check", { silent: Boolean(silent) });
   try {
-    let tag = null;
-    try {
-      tag = await latestReleaseTag(wantedChannel);
-    } catch (error) {
-      log.warn("updater", "release list unavailable, using library pick", { channel: wantedChannel, reason: error.message });
-    }
-    updater.setFeedURL(
-      tag
-        ? { provider: "generic", url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${tag}` }
-        : { provider: "github", owner: REPO_OWNER, repo: REPO_NAME },
-    );
+    const { feed, tag } = await resolveFeed();
+    updater.setFeedURL(feed);
     await updater.checkForUpdates();
     timer.end({ tag, status: state.status, version: state.version });
   } catch (error) {
     timer.fail(error);
     if (!silent) publish({ status: "error", error: error.message });
+  } finally {
+    userStarted = false;
   }
 
   return { ...state };
@@ -221,6 +254,7 @@ async function download() {
   if (!isNewer(state.version, getCurrentVersion())) return { ...state };
 
   const timer = log.time("updater", "download", { version: state.version });
+  userStarted = true;
   try {
     publish({ status: "downloading", percent: 0 });
     await updater.downloadUpdate();
@@ -228,6 +262,8 @@ async function download() {
   } catch (error) {
     timer.fail(error);
     publish({ status: "error", error: error.message });
+  } finally {
+    userStarted = false;
   }
 
   return { ...state };
@@ -262,5 +298,5 @@ module.exports = {
   current,
   dispose,
   isNewer,
-  pickReleaseTag,
+  pickBuildTag,
 };

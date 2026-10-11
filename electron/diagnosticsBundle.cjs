@@ -36,7 +36,6 @@ const SETTINGS_ALLOWLIST = new Set([
   "autoUpdate",
   "compactLimit",
   "fixedContextSize",
-  "updateChannel",
   "imageModel",
 ]);
 

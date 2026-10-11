@@ -78,10 +78,10 @@ describe("a version with a prerelease tag still reaches people", () => {
     expect(updater).not.toMatch(/updater\.channel\s*=\s*"/);
   });
 
-  it("lets the pre-release setting also pick up a plain release", () => {
-    // Pre-release is meant to add prerelease tags on top of plain releases,
-    // not swap one set for the other.
-    expect(updater).toContain('updater.allowPrerelease = channel !== "release"');
+  it("follows build tags and never prereleases", () => {
+    // Every build is a full release named b-N; a prerelease flag would hide it from the picker.
+    expect(updater).toContain("updater.allowPrerelease = false");
+    expect(updater).toContain("^b-(\\d+)$");
   });
 
   it("never allows downgrading to an older release", () => {
