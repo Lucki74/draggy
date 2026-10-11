@@ -413,7 +413,8 @@ describe("binaryManager", () => {
         "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
         "cudart-llama-bin-win-cuda-13.4-x64.zip",
       ].map((name) => ({ name }));
-      const pick = (flags, options) => withPlatform(flags, () => binaryManager.pickReleaseAssets(names, options));
+      // The host's own arch must not decide the pick, or an arm64 runner finds no x64 assets.
+      const pick = (flags, options) => withPlatform(flags, () => binaryManager.pickReleaseAssets(names, { arch: "x64", ...options }));
 
       it("takes CUDA plus its runtime only when an NVIDIA driver is there", () => {
         const cuda = pick({ win: true }, { vramGB: 8, nvidia: true });
@@ -432,7 +433,7 @@ describe("binaryManager", () => {
         expect(linux.extra.name).toBe("cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz");
         const noRuntime = names.filter((asset) => asset.name !== "cudart-llama-bin-win-cuda-13.4-x64.zip");
         const fallback = withPlatform({ win: true }, () =>
-          binaryManager.pickReleaseAssets(noRuntime, { vramGB: 16, nvidia: true, cuda13: true }),
+          binaryManager.pickReleaseAssets(noRuntime, { arch: "x64", vramGB: 16, nvidia: true, cuda13: true }),
         );
         expect(fallback.variant).toBe("cuda-12.4");
       });

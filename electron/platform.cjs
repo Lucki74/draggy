@@ -196,9 +196,13 @@ function defaultShellEnv() {
 }
 
 /** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder. Windows ships
- * `npx.cmd`; the real program is this file next to it. */
+ * `npx.cmd` with the real program in `node_modules` beside it; macOS and Linux put the shim in
+ * `bin` and the program in `../lib/node_modules`. */
 function npmCliFrom(dir, tool) {
-  return path.join(dir, "node_modules", "npm", "bin", `${tool}-cli.js`);
+  const file = `${tool}-cli.js`;
+  const beside = path.join(dir, "node_modules", "npm", "bin", file);
+  if (IS_WINDOWS) return [beside];
+  return [beside, path.join(dir, "..", "lib", "node_modules", "npm", "bin", file)];
 }
 
 /** Runs npx's JavaScript directly: Node refuses to spawn a .cmd since CVE-2024-27980, and a shell
@@ -221,15 +225,16 @@ function resolveNpmTool(tool) {
   }
 
   for (const dir of candidates) {
-    const cli = npmCliFrom(dir, tool);
-    try {
-      if (fs.existsSync(cli)) {
-        // ELECTRON_RUN_AS_NODE makes the packaged binary behave as plain Node,
-        // which is how `runner.cjs` runs JavaScript too.
-        return { file: process.execPath, prefixArgs: [cli], asNode: true };
+    for (const cli of npmCliFrom(dir, tool)) {
+      try {
+        if (fs.existsSync(cli)) {
+          // ELECTRON_RUN_AS_NODE makes the packaged binary behave as plain Node,
+          // which is how `runner.cjs` runs JavaScript too.
+          return { file: process.execPath, prefixArgs: [cli], asNode: true };
+        }
+      } catch (error) {
+        log.swallow("proc", error, "keep looking");
       }
-    } catch (error) {
-      log.swallow("proc", error, "keep looking");
     }
   }
 
