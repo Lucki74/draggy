@@ -125,6 +125,8 @@ describe("engineUpdater.checkForUpdate", () => {
   beforeEach(() => {
     saved = { IS_WINDOWS: platform.IS_WINDOWS, IS_MAC: platform.IS_MAC, IS_LINUX: platform.IS_LINUX };
     Object.assign(platform, { IS_WINDOWS: false, IS_MAC: false, IS_LINUX: true });
+    // The fixture holds x64 builds only; an arm64 runner would otherwise find none.
+    vi.spyOn(os, "arch").mockReturnValue("x64");
   });
   afterEach(() => {
     Object.assign(platform, saved);

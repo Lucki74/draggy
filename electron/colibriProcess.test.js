@@ -53,7 +53,7 @@ function harness(overrides = {}) {
   return { host, child, spawned, killed, tick: (ms) => (clock += ms), setHealthy: (v) => (healthy = v) };
 }
 
-const begin = (host) => host.start({ userDataDir: "C:\\ud", modelDir: "D:\\models\\qwen", plan });
+const begin = (host) => host.start({ userDataDir: "C:\\ud", modelDir: "D:\\models\\qwen", modelName: "qwen", plan });
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("launch", () => {
@@ -141,7 +141,7 @@ describe("starting", () => {
   it("reports each load phase once, ending with ready", async () => {
     const { host, child, setHealthy } = harness();
     const phases = [];
-    const started = host.start({ userDataDir: "C:\\ud", modelDir: "D:\\models\\qwen", plan, onPhase: (event) => phases.push(event.phase) });
+    const started = host.start({ userDataDir: "C:\\ud", modelDir: "D:\\models\\qwen", modelName: "qwen", plan, onPhase: (event) => phases.push(event.phase) });
     await wait(5);
     child.say("loading dense weights");
     child.say("loading dense weights again");
