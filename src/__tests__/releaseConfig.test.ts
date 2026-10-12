@@ -55,6 +55,47 @@ describe("the release workflow", () => {
   });
 });
 
+describe("the frozen Linux update feed", () => {
+  /** The publish job, and one of its steps from its `- name:` line up to the next step. */
+  const publish = workflow.slice(workflow.indexOf("\n  publish:"));
+  const carryName = "Carry the frozen Linux update feed";
+  const carry = (() => {
+    const start = publish.indexOf(`- name: ${carryName}`);
+    if (start < 0) return "";
+    const next = publish.indexOf("\n      - ", start);
+    return publish.slice(start, next < 0 ? undefined : next);
+  })();
+
+  it("runs after the artifacts download and before the release is created", () => {
+    const at = publish.indexOf(`- name: ${carryName}`);
+    expect(at).toBeGreaterThan(publish.indexOf("uses: actions/download-artifact"));
+    expect(at).toBeLessThan(publish.indexOf("- name: Create the release"));
+  });
+
+  it("names the frozen tag and the feed file it copies", () => {
+    expect(carry).toContain("electron-crossplatform-final");
+    expect(carry).toContain("latest-linux.yml");
+  });
+
+  it("does nothing when this build already has the feed", () => {
+    const body = carry.slice(carry.indexOf("run: |"));
+    const beforeFirstGh = body.slice(0, body.indexOf("gh "));
+    expect(beforeFirstGh).toMatch(/if \[ -f out\/latest-linux\.yml \]; then[\s\S]*exit 0/);
+  });
+
+  it("runs under bash", () => {
+    expect(carry).toContain("shell: bash");
+  });
+
+  it("still publishes the release as Latest, so Latest keeps pointing at a Windows build", () => {
+    expect(publish).toContain("--draft=false --latest");
+  });
+
+  it("adds no inputs expression", () => {
+    expect(carry).not.toContain("inputs.");
+  });
+});
+
 describe("artifact names", () => {
   it("are fixed, so latest/download links never go stale", () => {
     expect(pkg.build.win.artifactName).toBe("draggy_setup.exe");
@@ -106,6 +147,11 @@ describe("a version with a prerelease tag still reaches people", () => {
     // Every build is a full release named b-N; a prerelease flag would hide it from the picker.
     expect(updater).toContain("updater.allowPrerelease = false");
     expect(updater).toContain("^b-(\\d+)$");
+  });
+
+  it("never falls back to GitHub's own latest release", () => {
+    // Native macOS and Linux releases share the repo, so Latest may not hold a Windows build.
+    expect(updater).not.toContain('provider: "github"');
   });
 
   it("never allows downgrading to an older release", () => {
