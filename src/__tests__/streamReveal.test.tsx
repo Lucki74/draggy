@@ -172,4 +172,13 @@ describe("the streaming component", () => {
     rerender(<StreamingMarkdown source={source} streaming={false} animateOnMount={false} />);
     expect(container.querySelectorAll(".ember-caret")).toHaveLength(0);
   });
+
+  it("never puts the caret inside a void element such as a trailing line break", () => {
+    for (const source of ["Hello there<br>", "Hello there  \n", "Hello\n\n---", "Hi ![x](a.png)"]) {
+      expect(() =>
+        render(<StreamingMarkdown source={source} streaming animateOnMount={false} />),
+      ).not.toThrow();
+      cleanup();
+    }
+  });
 });
