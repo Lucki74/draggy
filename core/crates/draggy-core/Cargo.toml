@@ -1,0 +1,23 @@
+[package]
+name = "draggy-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+draggy-storage = { path = "../storage" }
+draggy-diagnostics = { path = "../diagnostics" }
+draggy-engine = { path = "../engine" }
+draggy-models = { path = "../models" }
+draggy-agent = { path = "../agent" }
+draggy-tools = { path = "../tools" }
+draggy-providers = { path = "../providers" }
+draggy-mcp = { path = "../mcp" }
+draggy-documents = { path = "../documents" }
+draggy-web = { path = "../web" }
+draggy-api = { path = "../api" }

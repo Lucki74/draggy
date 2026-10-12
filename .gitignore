@@ -41,3 +41,6 @@ docs/
 scratch/
 build/release-notes.md
 .env.local
+
+# Rust core build output
+core/target

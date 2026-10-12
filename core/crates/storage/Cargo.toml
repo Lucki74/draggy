@@ -1,0 +1,15 @@
+[package]
+name = "draggy-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+draggy-testkit = { path = "../testkit" }
