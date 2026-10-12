@@ -3,6 +3,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import type { Element, Root } from "hast";
+import { VOID_TAGS } from "./rehypeVoid";
 
 /** How a streamed reply is shown: a word at a time, at a pace set by how much is waiting.
  * The timing lives here, apart from React, so it can be tested. */
@@ -108,11 +109,8 @@ export function blockStarts(source: string, previous?: { source: string; starts:
 }
 
 /** The caret stays out of these: code keeps its layout and maths its own markup. Void elements
- * are here too, since React throws (error 137) on a <br> or <img> given a child. */
-const UNWRAPPED_TAGS = new Set([
-  "pre", "code", "svg", "math", "script", "style",
-  "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
-]);
+ * are here too, since they cannot hold children (see rehypeVoidGuard). */
+const UNWRAPPED_TAGS = new Set(["pre", "code", "svg", "math", "script", "style", ...VOID_TAGS]);
 
 const classesOf = (element: Element): string[] => {
   const value = element.properties?.className;

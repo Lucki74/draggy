@@ -2,7 +2,9 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { advanceReveal, blockStarts, rehypeCaret, rehypeWordFade, sharedPrefix } from "./streamReveal";
+import { rehypeVoidGuard } from "./rehypeVoid";
 
 /** A stream quiet for this long has its last line shown, rather than held back waiting for the rest. */
 const QUIET_MS = 400;
@@ -49,23 +51,29 @@ const MarkdownBlock = memo(function MarkdownBlock({
   components?: Components;
 }) {
   // The caret goes in first, so it lands after the last word rather than inside it.
+  // The void guard runs after both, so it has the final word on every tree.
   const rehypePlugins = useMemo(
     () => [
       ...(REHYPE_PLUGINS as unknown[]),
       ...(caret ? [rehypeCaret] : []),
       ...(fade ? [rehypeWordFade] : []),
+      rehypeVoidGuard,
     ],
     [caret, fade],
   );
 
+  // A block that still fails shows its text, so one bad block cannot blank the whole reply.
+  // It stays as text until its key changes, so it is not reset on every streamed word.
   return (
-    <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
-      rehypePlugins={rehypePlugins as never}
-      components={components}
-    >
-      {source}
-    </ReactMarkdown>
+    <ErrorBoundary fallback={<div className="whitespace-pre-wrap">{source}</div>}>
+      <ReactMarkdown
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={rehypePlugins as never}
+        components={components}
+      >
+        {source}
+      </ReactMarkdown>
+    </ErrorBoundary>
   );
 });
 

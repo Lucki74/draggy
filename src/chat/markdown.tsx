@@ -10,6 +10,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { visit } from "unist-util-visit";
 import type { Node as UnistNode, Parent as UnistParent } from "unist";
 import { MarkdownBlockquote } from "./MarkdownAlert";
+import { rehypeVoidGuard } from "./rehypeVoid";
 import { MarkdownCode } from "./CodeBlock";
 
 /** How a reply is rendered. rehypeSanitize sits between rehypeRaw and the page, and that order
@@ -71,6 +72,7 @@ export const REHYPE_PLUGINS = [
   rehypeRaw,
   [rehypeSanitize, SANITIZE_SCHEMA],
   rehypeKatex,
+  rehypeVoidGuard,
 ] as never;
 
 /** Markdown rendered inside a line of prose, where a paragraph would break it. */

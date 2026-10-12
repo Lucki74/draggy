@@ -174,7 +174,16 @@ describe("the streaming component", () => {
   });
 
   it("never puts the caret inside a void element such as a trailing line break", () => {
-    for (const source of ["Hello there<br>", "Hello there  \n", "Hello\n\n---", "Hi ![x](a.png)"]) {
+    for (const source of [
+      "Hello there<br>",
+      "Hello there  \n",
+      "Hello\n\n---",
+      "Hi ![x](a.png)",
+      "Raw text <param>",
+      "Raw text <keygen>",
+      "Raw <wbr>",
+      "Inline <input value=\"a\"> <img src=\"a.png\"> end",
+    ]) {
       expect(() =>
         render(<StreamingMarkdown source={source} streaming animateOnMount={false} />),
       ).not.toThrow();
