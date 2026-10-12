@@ -134,7 +134,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "^4.3.0",
     "@jitsi/rnnoise-wasm": "0.2.1",
     "@phosphor-icons/core": "^2.1.1",
     "@tailwindcss/postcss": "^4.3.3",
