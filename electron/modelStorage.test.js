@@ -335,8 +335,11 @@ describe("downloadGgufModel resume", () => {
 
   const FILE = Buffer.from(Array.from({ length: 10_000 }, (_, i) => i % 251));
 
-  /** A server that honours Range; `cutFirst` ends the first answer after that many bytes. */
-  const rangeHandler = (cutFirst) => {
+  /**
+   * A server that honours Range; `cutFirst` ends the first answer after that many bytes,
+   * once they are on disk at `partialPath` so the retry always has something to continue from.
+   */
+  const rangeHandler = (cutFirst, partialPath) => {
     let calls = 0;
     const seen = [];
     const handler = (req, res) => {
@@ -349,7 +352,17 @@ describe("downloadGgufModel resume", () => {
       else res.writeHead(200, { "content-length": body.length });
       if (calls === 1 && cutFirst) {
         res.write(body.subarray(0, cutFirst));
-        setTimeout(() => res.destroy(), 20);
+        const cut = setInterval(() => {
+          let size = 0;
+          try {
+            size = fs.statSync(partialPath).size;
+          } catch {
+            return;
+          }
+          if (size < cutFirst) return;
+          clearInterval(cut);
+          res.destroy();
+        }, 10);
         return;
       }
       res.end(body);
@@ -360,7 +373,7 @@ describe("downloadGgufModel resume", () => {
   it("carries on from the bytes it has when the connection drops, and the file comes out whole", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-resume-"));
     try {
-      const { handler, seen } = rangeHandler(4000);
+      const { handler, seen } = rangeHandler(4000, path.join(tmpDir, "model.gguf.download"));
       const url = await serve(handler);
       const events = [];
       const outcome = await modelStorage.downloadGgufModel({ url, modelsDir: tmpDir, filename: "model.gguf", retryDelayMs: 10, onProgress: (p) => events.push(p) });
