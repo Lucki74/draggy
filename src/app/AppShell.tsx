@@ -36,6 +36,7 @@ import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
 import { useShellLayout } from "./useShellLayout";
 import { Sidebar } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
+import NativeAppBanner from "./NativeAppBanner";
 import { MainColumn } from "./MainColumn";
 import { Dock } from "./Dock";
 import {
@@ -1105,6 +1106,8 @@ export default function AppShell({
         viewMode={transcriptView}
         onChangeViewMode={canChangeView ? setTranscriptView : undefined}
       />
+
+      <NativeAppBanner t={t} />
 
       <div className="flex-1 w-full flex min-h-0 overflow-hidden relative">
         {update.ready !== null && !update.dismissed && !onUpdatesPage && (
