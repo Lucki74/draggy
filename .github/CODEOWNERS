@@ -1,0 +1,9 @@
+# The owner reviews every change. The paths below stay listed so a co-maintainer later added
+# to `*` does not silently gain them.
+*                       @Lucki74
+
+/.github/               @Lucki74
+/electron/preload.cjs   @Lucki74
+/electron/main.cjs      @Lucki74
+/package.json           @Lucki74
+/package-lock.json      @Lucki74
