@@ -12,7 +12,8 @@ pub fn fixtures_root() -> PathBuf {
 /// One fixture file, parsed. Panics with the path when it is missing or malformed, which fails the test.
 pub fn load(area: &str, file: &str) -> Value {
     let path = fixtures_root().join(area).join(file);
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     serde_json::from_str(&text).unwrap_or_else(|e| panic!("bad JSON in {}: {e}", path.display()))
 }
 
