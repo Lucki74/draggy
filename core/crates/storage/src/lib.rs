@@ -95,7 +95,10 @@ impl Storage {
         if let Err(error) = workspaces::ensure_default(&conn) {
             tracing::error!(target: "storage.open", error = %error, "could not prepare the default workspace");
         }
-        let version = migrate::schema_version(&conn).ok().flatten();
+        let version = migrate::schema_version(&conn).unwrap_or_else(|error| {
+            tracing::warn!(target: "storage.open", error = %error, "could not read the schema version");
+            None
+        });
         tracing::info!(target: "storage.open", schema_version = ?version, migrated, "storage opened");
 
         Ok(Self {
