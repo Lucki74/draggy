@@ -1,0 +1,350 @@
+{
+  "area": "agent",
+  "description": "Detects a reply that only promises an action (announcement.rs). Stateless: each case is one text. Lengths are UTF-16 units.",
+  "cases": [
+    {
+      "name": "now let me check the source",
+      "input": {
+        "op": "announce",
+        "text": "Now let me check Draggy's source code for llama.cpp optimization flags and settings."
+      },
+      "expected": true
+    },
+    {
+      "name": "let me dig into the wiki",
+      "input": {
+        "op": "announce",
+        "text": "Let me dig into Draggy's wiki and source to find all the optimization knobs."
+      },
+      "expected": true
+    },
+    {
+      "name": "a sentence before a promise",
+      "input": {
+        "op": "announce",
+        "text": "I found the settings page. I'll read the troubleshooting page next."
+      },
+      "expected": true
+    },
+    {
+      "name": "OK with going to search",
+      "input": {
+        "op": "announce",
+        "text": "OK, I'm going to search for the release notes."
+      },
+      "expected": true
+    },
+    {
+      "name": "trailing colon",
+      "input": {
+        "op": "announce",
+        "text": "Here is what I will look at:"
+      },
+      "expected": true
+    },
+    {
+      "name": "trailing ellipsis",
+      "input": {
+        "op": "announce",
+        "text": "Let me look into this…"
+      },
+      "expected": true
+    },
+    {
+      "name": "trailing three dots",
+      "input": {
+        "op": "announce",
+        "text": "One moment..."
+      },
+      "expected": true
+    },
+    {
+      "name": "French",
+      "input": {
+        "op": "announce",
+        "text": "Je vais consulter la documentation."
+      },
+      "expected": true
+    },
+    {
+      "name": "Spanish",
+      "input": {
+        "op": "announce",
+        "text": "Déjame revisar el código fuente."
+      },
+      "expected": true
+    },
+    {
+      "name": "German",
+      "input": {
+        "op": "announce",
+        "text": "Lass mich die Einstellungen prüfen."
+      },
+      "expected": true
+    },
+    {
+      "name": "Italian",
+      "input": {
+        "op": "announce",
+        "text": "Fammi controllare la pagina."
+      },
+      "expected": true
+    },
+    {
+      "name": "Portuguese",
+      "input": {
+        "op": "announce",
+        "text": "Vou verificar o repositório."
+      },
+      "expected": true
+    },
+    {
+      "name": "Dutch",
+      "input": {
+        "op": "announce",
+        "text": "Ik ga de wiki bekijken."
+      },
+      "expected": true
+    },
+    {
+      "name": "Russian",
+      "input": {
+        "op": "announce",
+        "text": "Сейчас я проверю документацию."
+      },
+      "expected": true
+    },
+    {
+      "name": "Chinese",
+      "input": {
+        "op": "announce",
+        "text": "让我查看一下源代码。"
+      },
+      "expected": true
+    },
+    {
+      "name": "Japanese",
+      "input": {
+        "op": "announce",
+        "text": "ソースコードを確認します。"
+      },
+      "expected": true
+    },
+    {
+      "name": "Korean",
+      "input": {
+        "op": "announce",
+        "text": "소스 코드를 확인해 보겠습니다."
+      },
+      "expected": true
+    },
+    {
+      "name": "Arabic",
+      "input": {
+        "op": "announce",
+        "text": "دعني أتحقق من الإعدادات."
+      },
+      "expected": true
+    },
+    {
+      "name": "settings only",
+      "input": {
+        "op": "announce",
+        "text": "Set the thread count to 8 and turn on flash attention."
+      },
+      "expected": false
+    },
+    {
+      "name": "let me know is an offer",
+      "input": {
+        "op": "announce",
+        "text": "Let me know if you want the numbers for a larger model."
+      },
+      "expected": false
+    },
+    {
+      "name": "Dutch let me know",
+      "input": {
+        "op": "announce",
+        "text": "Laat me weten of je meer wilt."
+      },
+      "expected": false
+    },
+    {
+      "name": "a question",
+      "input": {
+        "op": "announce",
+        "text": "Should I check the source code as well?"
+      },
+      "expected": false
+    },
+    {
+      "name": "a short fact",
+      "input": {
+        "op": "announce",
+        "text": "Paris."
+      },
+      "expected": false
+    },
+    {
+      "name": "empty",
+      "input": {
+        "op": "announce",
+        "text": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "whitespace only",
+      "input": {
+        "op": "announce",
+        "text": "   \n  "
+      },
+      "expected": false
+    },
+    {
+      "name": "a town",
+      "input": {
+        "op": "announce",
+        "text": "Villeneuve is a town in France."
+      },
+      "expected": false
+    },
+    {
+      "name": "a long reply that ends with a promise",
+      "input": {
+        "op": "announce",
+        "text": "I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I checked the wiki. I'll summarise it now."
+      },
+      "expected": false
+    },
+    {
+      "name": "know after a lead-in is an answer, not an action",
+      "input": {
+        "op": "announce",
+        "text": "Let me know."
+      },
+      "expected": false
+    },
+    {
+      "name": "the word know in another sentence",
+      "input": {
+        "op": "announce",
+        "text": "Let me explain. You know the rest."
+      },
+      "expected": false
+    },
+    {
+      "name": "a connective before the intent",
+      "input": {
+        "op": "announce",
+        "text": "Okay, now let me check the logs."
+      },
+      "expected": true
+    },
+    {
+      "name": "a French connective before the intent",
+      "input": {
+        "op": "announce",
+        "text": "Maintenant, je vais regarder."
+      },
+      "expected": true
+    },
+    {
+      "name": "a lead-in with a link name",
+      "input": {
+        "op": "announce",
+        "text": "Let's look at llama.cpp."
+      },
+      "expected": true
+    },
+    {
+      "name": "a hyphenated word after let me",
+      "input": {
+        "op": "announce",
+        "text": "Let me-think about it."
+      },
+      "expected": false
+    },
+    {
+      "name": "a contraction-free intent",
+      "input": {
+        "op": "announce",
+        "text": "I will look at the logs."
+      },
+      "expected": true
+    },
+    {
+      "name": "a question mark anywhere disqualifies",
+      "input": {
+        "op": "announce",
+        "text": "I'll check it? Maybe later."
+      },
+      "expected": false
+    },
+    {
+      "name": "a Chinese question disqualifies",
+      "input": {
+        "op": "announce",
+        "text": "让我看看？"
+      },
+      "expected": false
+    },
+    {
+      "name": "Chinese without a stop",
+      "input": {
+        "op": "announce",
+        "text": "让我看看"
+      },
+      "expected": true
+    },
+    {
+      "name": "Japanese trailing intent with a full stop",
+      "input": {
+        "op": "announce",
+        "text": "確認します。"
+      },
+      "expected": true
+    },
+    {
+      "name": "the length is counted in UTF-16 units: over the limit",
+      "input": {
+        "op": "announce",
+        "text": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂 Let me check."
+      },
+      "expected": false
+    },
+    {
+      "name": "the length is counted in UTF-16 units: under the limit",
+      "input": {
+        "op": "announce",
+        "text": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂. Let me check."
+      },
+      "expected": true
+    },
+    {
+      "name": "a Chinese sentence over the limit ends in a promise",
+      "input": {
+        "op": "announce",
+        "text": "字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字。让我看看。"
+      },
+      "expected": false
+    },
+    {
+      "name": "a Chinese sentence under the limit ends in a promise",
+      "input": {
+        "op": "announce",
+        "text": "字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字字。让我看看。"
+      },
+      "expected": true
+    },
+    {
+      "name": "a full-width exclamation before the intent",
+      "input": {
+        "op": "announce",
+        "text": "好！我来看看。"
+      },
+      "expected": true
+    }
+  ]
+}

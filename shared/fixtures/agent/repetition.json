@@ -1,0 +1,734 @@
+{
+  "area": "agent",
+  "description": "Runaway-token and repeated-line detection on streamed text, returning the cut point (repetition.rs). Lengths and windows are in UTF-16 units.",
+  "cases": [
+    {
+      "name": "refusal loop of REDACTED markers",
+      "input": {
+        "op": "detect",
+        "text": "Here is the historical deep-dive into Victorian London.\n\n== [REDACTED] ==\n\n== [REDACTED] ==\n\n== [REDACTED] =="
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "== [REDACTED] ==",
+        "repeatCount": 3,
+        "trimmedText": "Here is the historical deep-dive into Victorian London."
+      }
+    },
+    {
+      "name": "a single REDACTED marker is left alone",
+      "input": {
+        "op": "detect",
+        "text": "Some text with == [REDACTED] == in the middle of a sentence."
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Some text with == [REDACTED] == in the middle of a sentence."
+      }
+    },
+    {
+      "name": "REDACTED markers at the very start keep the second one as the cut",
+      "input": {
+        "op": "detect",
+        "text": "== [REDACTED] ==\n== [REDACTED] ==\nand more text here"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "== [REDACTED] ==",
+        "repeatCount": 2,
+        "trimmedText": "== [REDACTED] =="
+      }
+    },
+    {
+      "name": "a line repeated three times",
+      "input": {
+        "op": "detect",
+        "text": "Starting summary.\nThe quick brown fox jumps over the lazy dog.\nThe quick brown fox jumps over the lazy dog.\nThe quick brown fox jumps over the lazy dog."
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "The quick brown fox jumps over the lazy dog.",
+        "repeatCount": 3,
+        "trimmedText": "Starting summary.\nThe quick brown fox jumps over the lazy dog."
+      }
+    },
+    {
+      "name": "a block repeated three times",
+      "input": {
+        "op": "detect",
+        "text": "Chapter 1\nItem A: Description\nItem B: Description\nItem A: Description\nItem B: Description\nItem A: Description\nItem B: Description"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Item A: Description\nItem B: Description",
+        "repeatCount": 3,
+        "trimmedText": "Chapter 1\nItem A: Description\nItem B: Description"
+      }
+    },
+    {
+      "name": "repeating inline phrases",
+      "input": {
+        "op": "detect",
+        "text": "Analysis complete. I agree with that. I agree with that. I agree with that."
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "I agree with that.",
+        "repeatCount": 3,
+        "trimmedText": "Analysis complete. I agree with that."
+      }
+    },
+    {
+      "name": "nested braces are not a loop",
+      "input": {
+        "op": "detect",
+        "text": "function nested() {\n  if (a) {\n    if (b) {\n      if (c) {\n      }\n    }\n  }\n}"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "function nested() {\n  if (a) {\n    if (b) {\n      if (c) {\n      }\n    }\n  }\n}"
+      }
+    },
+    {
+      "name": "markdown dividers are not a loop",
+      "input": {
+        "op": "detect",
+        "text": "# Section 1\n---\n# Section 2\n---\n# Section 3\n---"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "# Section 1\n---\n# Section 2\n---\n# Section 3\n---"
+      }
+    },
+    {
+      "name": "short text",
+      "input": {
+        "op": "detect",
+        "text": "hello world"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "hello world"
+      }
+    },
+    {
+      "name": "empty text",
+      "input": {
+        "op": "detect",
+        "text": ""
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": ""
+      }
+    },
+    {
+      "name": "a comparison table separator",
+      "input": {
+        "op": "detect",
+        "text": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| :--- | :--- | :--- | :--- | :--- |"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| :--- | :--- | :--- | :--- | :--- |"
+      }
+    },
+    {
+      "name": "a compact separator",
+      "input": {
+        "op": "detect",
+        "text": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n|:---|:---|:---|:---|:---|"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n|:---|:---|:---|:---|:---|"
+      }
+    },
+    {
+      "name": "a plain dashed separator",
+      "input": {
+        "op": "detect",
+        "text": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |"
+      }
+    },
+    {
+      "name": "every prefix of a streamed table is clear",
+      "input": {
+        "op": "prefixLoops",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| :--- | :--- | :--- | :--- | :--- |\n| Local | Yes | Yes | Yes | Yes |"
+      },
+      "expected": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "name": "a centred separator",
+      "input": {
+        "op": "detect",
+        "text": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| :---: | :---: | :---: | :---: | :---: |"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Summary Comparison Table\n\n| Feature | Draggy | Continue | Aider | Cursor |\n| :---: | :---: | :---: | :---: | :---: |"
+      }
+    },
+    {
+      "name": "a separator still being written",
+      "input": {
+        "op": "detect",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| :--- | :--- | :--- | :--- | :--- |\n| Local | "
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "| Feature | Draggy | Continue | Aider | Cursor |\n| :--- | :--- | :--- | :--- | :--- |\n| Local | "
+      }
+    },
+    {
+      "name": "cells repeat across a comparison table",
+      "input": {
+        "op": "detect",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| Tests | ✓ | ✓ | ✓ | ✓ |\n| Diffs | ✓ | ✓ | ✓ | ✓ |"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| Tests | ✓ | ✓ | ✓ | ✓ |\n| Diffs | ✓ | ✓ | ✓ | ✓ |"
+      }
+    },
+    {
+      "name": "a blank template table keeps its empty rows",
+      "input": {
+        "op": "detect",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n|   |   |   |   |   |\n|   |   |   |   |   |\n|   |   |   |   |   |"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n|   |   |   |   |   |\n|   |   |   |   |   |\n|   |   |   |   |   |"
+      }
+    },
+    {
+      "name": "a table row that never ends",
+      "input": {
+        "op": "detect",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | same | "
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "same |",
+        "repeatCount": 3,
+        "trimmedText": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| same |"
+      }
+    },
+    {
+      "name": "a whole table row repeated without end",
+      "input": {
+        "op": "detect",
+        "text": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| Local first | Yes | No | No | Yes |\n| Local first | Yes | No | No | Yes |\n| Local first | Yes | No | No | Yes |\n| Local first | Yes | No | No | Yes |"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "| Local first | Yes | No | No | Yes |",
+        "repeatCount": 4,
+        "trimmedText": "| Feature | Draggy | Continue | Aider | Cursor |\n| --- | --- | --- | --- | --- |\n| Local first | Yes | No | No | Yes |"
+      }
+    },
+    {
+      "name": "a NEL before the line break is not trimmed (JS keeps it)",
+      "input": {
+        "op": "detect",
+        "text": "Intro line\nrepeat me\nrepeat me\nrepeat me"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "repeat me",
+        "repeatCount": 3,
+        "trimmedText": "Intro line\nrepeat me"
+      }
+    },
+    {
+      "name": "a BOM at the end of a repeated line is trimmed (JS trims it)",
+      "input": {
+        "op": "detect",
+        "text": "Intro\nitem﻿\nitem﻿\nitem﻿"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "item",
+        "repeatCount": 3,
+        "trimmedText": "Intro\nitem"
+      }
+    },
+    {
+      "name": "NBSP around repeated lines is trimmed",
+      "input": {
+        "op": "detect",
+        "text": "Intro\n ok line here \n ok line here \n ok line here "
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "ok line here",
+        "repeatCount": 3,
+        "trimmedText": "Intro\n ok line here"
+      }
+    },
+    {
+      "name": "Chinese block repeated",
+      "input": {
+        "op": "detect",
+        "text": "开始\n这是一个重复的句子。\n这是一个重复的句子。\n这是一个重复的句子。"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "这是一个重复的句子。",
+        "repeatCount": 3,
+        "trimmedText": "开始\n这是一个重复的句子。"
+      }
+    },
+    {
+      "name": "emoji lines repeated",
+      "input": {
+        "op": "detect",
+        "text": "Start\n🙂🙂🙂 ok ok ok\n🙂🙂🙂 ok ok ok\n🙂🙂🙂 ok ok ok"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "🙂🙂🙂 ok ok ok",
+        "repeatCount": 3,
+        "trimmedText": "Start\n🙂🙂🙂 ok ok ok"
+      }
+    },
+    {
+      "name": "Cyrillic phrase repeated inline",
+      "input": {
+        "op": "detect",
+        "text": "Анализ завершён. Я согласен с этим. Я согласен с этим. Я согласен с этим."
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Я согласен с этим.",
+        "repeatCount": 3,
+        "trimmedText": "Анализ завершён. Я согласен с этим."
+      }
+    },
+    {
+      "name": "emoji phrase repeated inline",
+      "input": {
+        "op": "detect",
+        "text": "Ответ готов. Ок 🙂 Ок 🙂 Ок 🙂 Ок 🙂 Ок 🙂 Ок 🙂 "
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Ок 🙂",
+        "repeatCount": 3,
+        "trimmedText": "Ответ готов. Ок 🙂"
+      }
+    },
+    {
+      "name": "CRLF line endings with a repeated line",
+      "input": {
+        "op": "detect",
+        "text": "Head line\r\nRepeat this line\r\nRepeat this line\r\nRepeat this line\r\n"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Repeat this line",
+        "repeatCount": 3,
+        "trimmedText": "Head line\r\nRepeat this line"
+      }
+    },
+    {
+      "name": "trailing blank lines after a repeated line",
+      "input": {
+        "op": "detect",
+        "text": "Head line here\nLoop line here\nLoop line here\nLoop line here\n\n\n"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Loop line here",
+        "repeatCount": 3,
+        "trimmedText": "Head line here\nLoop line here"
+      }
+    },
+    {
+      "name": "a repeated line that is only symbols is not a loop",
+      "input": {
+        "op": "detect",
+        "text": "Title\n-----\n-----\n-----\nDone"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "Title\n-----\n-----\n-----\nDone"
+      }
+    },
+    {
+      "name": "a long prose prefix then an inline loop",
+      "input": {
+        "op": "detect",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. ha ha ha ha ha ha"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "ha ha",
+        "repeatCount": 3,
+        "trimmedText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. ha ha"
+      }
+    },
+    {
+      "name": "a table row repeated nineteen times is a line loop",
+      "input": {
+        "op": "detect",
+        "text": "| a | b |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |\n| x | y |"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "| x | y |",
+        "repeatCount": 19,
+        "trimmedText": "| a | b |\n| x | y |"
+      }
+    },
+    {
+      "name": "inline table cells repeated nineteen times are not a loop",
+      "input": {
+        "op": "detect",
+        "text": "| Feature |\n| a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | "
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "| Feature |\n| a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | "
+      }
+    },
+    {
+      "name": "inline table cells repeated twenty-five times are a loop",
+      "input": {
+        "op": "detect",
+        "text": "| Feature |\n| a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | a | b | "
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "a | b |",
+        "repeatCount": 3,
+        "trimmedText": "| Feature |\n| a | b |"
+      }
+    },
+    {
+      "name": "loop window starts inside a surrogate pair",
+      "input": {
+        "op": "detect",
+        "text": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂ha ha ha ha ha ha ha ha ha ha ha "
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "ha ha",
+        "repeatCount": 3,
+        "trimmedText": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂ha ha ha"
+      }
+    },
+    {
+      "name": "a loop of astral characters at the end of long prose",
+      "input": {
+        "op": "detect",
+        "text": "Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. 🙂 🙂 🙂 🙂 🙂 🙂"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "🙂 🙂",
+        "repeatCount": 3,
+        "trimmedText": "Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. Texte long. 🙂 🙂"
+      }
+    },
+    {
+      "name": "long prose with a loop well inside the window",
+      "input": {
+        "op": "detect",
+        "text": "Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Je suis là. Je suis là. Je suis là. Je suis là."
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "Je suis là.",
+        "repeatCount": 3,
+        "trimmedText": "Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Une phrase normale ici. Je suis là."
+      }
+    },
+    {
+      "name": "three-line block repeated three times ends at the first copy",
+      "input": {
+        "op": "detect",
+        "text": "intro line\nalpha\nbeta\ngamma\nalpha\nbeta\ngamma\nalpha\nbeta\ngamma"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "alpha\nbeta\ngamma",
+        "repeatCount": 3,
+        "trimmedText": "intro line\nalpha\nbeta\ngamma"
+      }
+    },
+    {
+      "name": "three-line block repeated twice is not a loop",
+      "input": {
+        "op": "detect",
+        "text": "intro line\nalpha\nbeta\ngamma\nalpha\nbeta\ngamma"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "intro line\nalpha\nbeta\ngamma\nalpha\nbeta\ngamma"
+      }
+    },
+    {
+      "name": "three-line block with a short join is not a loop",
+      "input": {
+        "op": "detect",
+        "text": "a\nb\nc\na\nb\nc\na\nb\nc"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "a\nb\nc\na\nb\nc\na\nb\nc"
+      }
+    },
+    {
+      "name": "nineteen units of one letter are never a loop",
+      "input": {
+        "op": "detect",
+        "text": "xxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "xxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "name": "twenty units of one letter are a loop",
+      "input": {
+        "op": "detect",
+        "text": "xxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "xxxx",
+        "repeatCount": 3,
+        "trimmedText": "xxxx"
+      }
+    },
+    {
+      "name": "a loop that ends before the last thousand units is not found",
+      "input": {
+        "op": "detect",
+        "text": "repeat me now. repeat me now. repeat me now. sentence 0 is unique. sentence 1 is unique. sentence 2 is unique. sentence 3 is unique. sentence 4 is unique. sentence 5 is unique. sentence 6 is unique. sentence 7 is unique. sentence 8 is unique. sentence 9 is unique. sentence 10 is unique. sentence 11 is unique. sentence 12 is unique. sentence 13 is unique. sentence 14 is unique. sentence 15 is unique. sentence 16 is unique. sentence 17 is unique. sentence 18 is unique. sentence 19 is unique. sentence 20 is unique. sentence 21 is unique. sentence 22 is unique. sentence 23 is unique. sentence 24 is unique. sentence 25 is unique. sentence 26 is unique. sentence 27 is unique. sentence 28 is unique. sentence 29 is unique. sentence 30 is unique. sentence 31 is unique. sentence 32 is unique. sentence 33 is unique. sentence 34 is unique. sentence 35 is unique. sentence 36 is unique. sentence 37 is unique. sentence 38 is unique. sentence 39 is unique. sentence 40 is unique. sentence 41 is unique. sentence 42 is unique. sentence 43 is unique. sentence 44 is unique. sentence 45 is unique. sentence 46 is unique. sentence 47 is unique. sentence 48 is unique. sentence 49 is unique. sentence 50 is unique. sentence 51 is unique. sentence 52 is unique. sentence 53 is unique. sentence 54 is unique. sentence 55 is unique. sentence 56 is unique. sentence 57 is unique. sentence 58 is unique. sentence 59 is unique. sentence 60 is unique. sentence 61 is unique. sentence 62 is unique. sentence 63 is unique. sentence 64 is unique. sentence 65 is unique. sentence 66 is unique. sentence 67 is unique. sentence 68 is unique. sentence 69 is unique. sentence 70 is unique. sentence 71 is unique. sentence 72 is unique. sentence 73 is unique. sentence 74 is unique. sentence 75 is unique. sentence 76 is unique. sentence 77 is unique. sentence 78 is unique. sentence 79 is unique."
+      },
+      "expected": {
+        "hasLoop": false,
+        "pattern": null,
+        "repeatCount": null,
+        "trimmedText": "repeat me now. repeat me now. repeat me now. sentence 0 is unique. sentence 1 is unique. sentence 2 is unique. sentence 3 is unique. sentence 4 is unique. sentence 5 is unique. sentence 6 is unique. sentence 7 is unique. sentence 8 is unique. sentence 9 is unique. sentence 10 is unique. sentence 11 is unique. sentence 12 is unique. sentence 13 is unique. sentence 14 is unique. sentence 15 is unique. sentence 16 is unique. sentence 17 is unique. sentence 18 is unique. sentence 19 is unique. sentence 20 is unique. sentence 21 is unique. sentence 22 is unique. sentence 23 is unique. sentence 24 is unique. sentence 25 is unique. sentence 26 is unique. sentence 27 is unique. sentence 28 is unique. sentence 29 is unique. sentence 30 is unique. sentence 31 is unique. sentence 32 is unique. sentence 33 is unique. sentence 34 is unique. sentence 35 is unique. sentence 36 is unique. sentence 37 is unique. sentence 38 is unique. sentence 39 is unique. sentence 40 is unique. sentence 41 is unique. sentence 42 is unique. sentence 43 is unique. sentence 44 is unique. sentence 45 is unique. sentence 46 is unique. sentence 47 is unique. sentence 48 is unique. sentence 49 is unique. sentence 50 is unique. sentence 51 is unique. sentence 52 is unique. sentence 53 is unique. sentence 54 is unique. sentence 55 is unique. sentence 56 is unique. sentence 57 is unique. sentence 58 is unique. sentence 59 is unique. sentence 60 is unique. sentence 61 is unique. sentence 62 is unique. sentence 63 is unique. sentence 64 is unique. sentence 65 is unique. sentence 66 is unique. sentence 67 is unique. sentence 68 is unique. sentence 69 is unique. sentence 70 is unique. sentence 71 is unique. sentence 72 is unique. sentence 73 is unique. sentence 74 is unique. sentence 75 is unique. sentence 76 is unique. sentence 77 is unique. sentence 78 is unique. sentence 79 is unique."
+      }
+    },
+    {
+      "name": "a loop inside the last thousand units is found",
+      "input": {
+        "op": "detect",
+        "text": "sentence 0 is unique. sentence 1 is unique. sentence 2 is unique. sentence 3 is unique. sentence 4 is unique. sentence 5 is unique. sentence 6 is unique. sentence 7 is unique. sentence 8 is unique. sentence 9 is unique. sentence 10 is unique. sentence 11 is unique. sentence 12 is unique. sentence 13 is unique. sentence 14 is unique. sentence 15 is unique. sentence 16 is unique. sentence 17 is unique. sentence 18 is unique. sentence 19 is unique. sentence 20 is unique. sentence 21 is unique. sentence 22 is unique. sentence 23 is unique. sentence 24 is unique. sentence 25 is unique. sentence 26 is unique. sentence 27 is unique. sentence 28 is unique. sentence 29 is unique. sentence 30 is unique. sentence 31 is unique. sentence 32 is unique. sentence 33 is unique. sentence 34 is unique. sentence 35 is unique. sentence 36 is unique. sentence 37 is unique. sentence 38 is unique. sentence 39 is unique. sentence 40 is unique. sentence 41 is unique. sentence 42 is unique. sentence 43 is unique. sentence 44 is unique. sentence 45 is unique. sentence 46 is unique. sentence 47 is unique. sentence 48 is unique. sentence 49 is unique. sentence 50 is unique. sentence 51 is unique. sentence 52 is unique. sentence 53 is unique. sentence 54 is unique. sentence 55 is unique. sentence 56 is unique. sentence 57 is unique. sentence 58 is unique. sentence 59 is unique. sentence 60 is unique. sentence 61 is unique. sentence 62 is unique. sentence 63 is unique. sentence 64 is unique. sentence 65 is unique. sentence 66 is unique. sentence 67 is unique. sentence 68 is unique. sentence 69 is unique. sentence 70 is unique. sentence 71 is unique. sentence 72 is unique. sentence 73 is unique. sentence 74 is unique. sentence 75 is unique. sentence 76 is unique. sentence 77 is unique. sentence 78 is unique. sentence 79 is unique. repeat me now. repeat me now. repeat me now."
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "repeat me now.",
+        "repeatCount": 3,
+        "trimmedText": "sentence 0 is unique. sentence 1 is unique. sentence 2 is unique. sentence 3 is unique. sentence 4 is unique. sentence 5 is unique. sentence 6 is unique. sentence 7 is unique. sentence 8 is unique. sentence 9 is unique. sentence 10 is unique. sentence 11 is unique. sentence 12 is unique. sentence 13 is unique. sentence 14 is unique. sentence 15 is unique. sentence 16 is unique. sentence 17 is unique. sentence 18 is unique. sentence 19 is unique. sentence 20 is unique. sentence 21 is unique. sentence 22 is unique. sentence 23 is unique. sentence 24 is unique. sentence 25 is unique. sentence 26 is unique. sentence 27 is unique. sentence 28 is unique. sentence 29 is unique. sentence 30 is unique. sentence 31 is unique. sentence 32 is unique. sentence 33 is unique. sentence 34 is unique. sentence 35 is unique. sentence 36 is unique. sentence 37 is unique. sentence 38 is unique. sentence 39 is unique. sentence 40 is unique. sentence 41 is unique. sentence 42 is unique. sentence 43 is unique. sentence 44 is unique. sentence 45 is unique. sentence 46 is unique. sentence 47 is unique. sentence 48 is unique. sentence 49 is unique. sentence 50 is unique. sentence 51 is unique. sentence 52 is unique. sentence 53 is unique. sentence 54 is unique. sentence 55 is unique. sentence 56 is unique. sentence 57 is unique. sentence 58 is unique. sentence 59 is unique. sentence 60 is unique. sentence 61 is unique. sentence 62 is unique. sentence 63 is unique. sentence 64 is unique. sentence 65 is unique. sentence 66 is unique. sentence 67 is unique. sentence 68 is unique. sentence 69 is unique. sentence 70 is unique. sentence 71 is unique. sentence 72 is unique. sentence 73 is unique. sentence 74 is unique. sentence 75 is unique. sentence 76 is unique. sentence 77 is unique. sentence 78 is unique. sentence 79 is unique. repeat me now."
+      }
+    },
+    {
+      "name": "astral characters streamed one code point at a time",
+      "input": {
+        "op": "prefixLoops",
+        "text": "🙂 ok 🙂 ok 🙂 ok 🙂 ok"
+      },
+      "expected": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "name": "an emoji line repeated three times is a loop",
+      "input": {
+        "op": "detect",
+        "text": "intro\n🙂🙂🙂 done\n🙂🙂🙂 done\n🙂🙂🙂 done"
+      },
+      "expected": {
+        "hasLoop": true,
+        "pattern": "🙂🙂🙂 done",
+        "repeatCount": 3,
+        "trimmedText": "intro\n🙂🙂🙂 done"
+      }
+    }
+  ]
+}

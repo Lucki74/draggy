@@ -1,0 +1,1074 @@
+{
+  "area": "agent",
+  "description": "The permission verdict for a tool call, grant coverage and merging, and what an approval remembers (permissions.rs). Stateless per case; the op names what is under test.",
+  "cases": [
+    {
+      "name": "reading is allowed in plan mode",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {
+          "readOnly": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This tool only reads."
+      }
+    },
+    {
+      "name": "reading the web is allowed in every mode",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {
+          "readOnly": true,
+          "openWorld": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This tool only reads."
+      }
+    },
+    {
+      "name": "reading is allowed in accept-edits mode",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "a_tool",
+        "annotations": {
+          "readOnly": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This tool only reads."
+      }
+    },
+    {
+      "name": "reading is allowed in auto mode",
+      "input": {
+        "op": "decide",
+        "mode": "auto",
+        "tool": "a_tool",
+        "annotations": {
+          "readOnly": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This tool only reads."
+      }
+    },
+    {
+      "name": "reading the web is allowed in plan mode",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {
+          "readOnly": true,
+          "openWorld": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This tool only reads."
+      }
+    },
+    {
+      "name": "plan mode refuses an edit",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {}
+      },
+      "expected": {
+        "decision": "deny",
+        "reason": "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide."
+      }
+    },
+    {
+      "name": "plan mode refuses Draggy's own storage",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {
+          "sandboxed": true
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reason": "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide."
+      }
+    },
+    {
+      "name": "plan mode refuses a deletion",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reason": "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide."
+      }
+    },
+    {
+      "name": "plan mode refuses even an allowed tool",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "a_tool",
+        "annotations": {},
+        "grants": [
+          {
+            "tool": "a_tool"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "deny",
+        "reason": "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide."
+      }
+    },
+    {
+      "name": "draggy's own storage runs in ask mode",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {
+          "sandboxed": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This stays inside Draggy's own storage."
+      }
+    },
+    {
+      "name": "draggy's own storage runs in accept-edits mode",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "a_tool",
+        "annotations": {
+          "sandboxed": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This stays inside Draggy's own storage."
+      }
+    },
+    {
+      "name": "a sandboxed deletion still asks",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {
+          "sandboxed": true,
+          "destructive": true
+        }
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This can lose work, so the user is asked first."
+      }
+    },
+    {
+      "name": "ask mode asks for an edit",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {}
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "ask mode asks for a deletion",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        }
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This can lose work, so the user is asked first."
+      }
+    },
+    {
+      "name": "a granted tool is allowed in ask mode",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {},
+        "grants": [
+          {
+            "tool": "a_tool"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "another tool's grant does not cover this one",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {},
+        "grants": [
+          {
+            "tool": "other_tool"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "accept-edits lets an edit through",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "a_tool",
+        "annotations": {}
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "Edits are accepted in this workspace."
+      }
+    },
+    {
+      "name": "accept-edits still asks for a deletion",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        }
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This can lose work, so the user is asked first."
+      }
+    },
+    {
+      "name": "accept-edits lets an allowed deletion through",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        },
+        "grants": [
+          {
+            "tool": "a_tool"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "auto runs an edit",
+      "input": {
+        "op": "decide",
+        "mode": "auto",
+        "tool": "a_tool",
+        "annotations": {}
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This workspace runs tools without asking."
+      }
+    },
+    {
+      "name": "auto runs a deletion",
+      "input": {
+        "op": "decide",
+        "mode": "auto",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This workspace runs tools without asking."
+      }
+    },
+    {
+      "name": "a command asks in ask mode",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "npm test"
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This runs a command on the user's computer, so the user is asked first."
+      }
+    },
+    {
+      "name": "a command asks in accept-edits mode",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "git status"
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This runs a command on the user's computer, so the user is asked first."
+      }
+    },
+    {
+      "name": "a command runs in auto mode",
+      "input": {
+        "op": "decide",
+        "mode": "auto",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "rm -rf build"
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "This workspace runs tools without asking."
+      }
+    },
+    {
+      "name": "a command is refused in plan mode even when allowed",
+      "input": {
+        "op": "decide",
+        "mode": "plan",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "npm test",
+        "grants": [
+          {
+            "tool": "run_command",
+            "target": "npm test"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "deny",
+        "reason": "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide."
+      }
+    },
+    {
+      "name": "an allowed command runs in accept-edits mode",
+      "input": {
+        "op": "decide",
+        "mode": "acceptEdits",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "npm test -- --watch",
+        "grants": [
+          {
+            "tool": "run_command",
+            "target": "npm test"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this command."
+      }
+    },
+    {
+      "name": "an allowed command with a chained one asks",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "target": "git status && rm -rf .",
+        "grants": [
+          {
+            "tool": "run_command",
+            "target": "git status"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This runs a command on the user's computer, so the user is asked first."
+      }
+    },
+    {
+      "name": "a command with no target asks",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "run_command",
+        "annotations": {
+          "executes": true,
+          "openWorld": true
+        },
+        "grants": [
+          {
+            "tool": "run_command",
+            "target": "git status"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This runs a command on the user's computer, so the user is asked first."
+      }
+    },
+    {
+      "name": "a folder grant covers the folder itself",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projects\\draggy",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a folder grant covers a file under it",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projects\\draggy\\src\\App.tsx",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a sibling with a longer name is not covered",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projects\\draggy-website\\index.html",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "the folder above is not covered",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projects\\notes.txt",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "paths are compared the way the file system does",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "c:/projects/draggy/src/App.tsx",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a trailing separator on the grant is ignored",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projects\\draggy",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy\\"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a non-ASCII folder is compared in lower case",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "C:\\projets\\CAFÉ\\a.txt",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\Projets\\Café"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a call that names nothing asks again",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "a grant of a bare slash covers every path (TS quirk)",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "write_file",
+        "target": "D:\\anything.txt",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "/"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "allow",
+        "reason": "The user has already allowed this."
+      }
+    },
+    {
+      "name": "a plain edit with no annotations asks",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool"
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This changes something outside Draggy, so the user is asked first."
+      }
+    },
+    {
+      "name": "a deletion with a non-ASCII path asks",
+      "input": {
+        "op": "decide",
+        "mode": "ask",
+        "tool": "a_tool",
+        "annotations": {
+          "destructive": true
+        },
+        "target": "notes/日記.md"
+      },
+      "expected": {
+        "decision": "ask",
+        "reason": "This can lose work, so the user is asked first."
+      }
+    },
+    {
+      "name": "a folder grant covers a path in a different case",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\projects\\draggy"
+        },
+        "tool": "write_file",
+        "target": "c:\\PROJECTS\\Draggy\\x.ts"
+      },
+      "expected": true
+    },
+    {
+      "name": "a grant for another tool does not cover",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "read_file"
+        },
+        "tool": "write_file",
+        "target": "a"
+      },
+      "expected": false
+    },
+    {
+      "name": "a grant with no target covers any target",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file"
+        },
+        "tool": "write_file",
+        "target": "C:\\anywhere"
+      },
+      "expected": true
+    },
+    {
+      "name": "a grant with no target covers a call that names nothing",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file"
+        },
+        "tool": "write_file",
+        "target": null
+      },
+      "expected": true
+    },
+    {
+      "name": "a grant with a target does not cover a call that names nothing",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\a"
+        },
+        "tool": "write_file",
+        "target": null
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty target string names nothing",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\a"
+        },
+        "tool": "write_file",
+        "target": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "a grant of an empty target covers everything",
+      "input": {
+        "op": "grantCovers",
+        "grant": {
+          "tool": "write_file",
+          "target": ""
+        },
+        "tool": "write_file",
+        "target": "x"
+      },
+      "expected": true
+    },
+    {
+      "name": "a broader grant replaces a narrower one",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\a\\b"
+          }
+        ],
+        "grant": {
+          "tool": "write_file"
+        }
+      },
+      "expected": [
+        {
+          "tool": "write_file"
+        }
+      ]
+    },
+    {
+      "name": "grants for other tools are kept",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "read_file"
+          }
+        ],
+        "grant": {
+          "tool": "write_file"
+        }
+      },
+      "expected": [
+        {
+          "tool": "read_file"
+        },
+        {
+          "tool": "write_file"
+        }
+      ]
+    },
+    {
+      "name": "a narrower grant is dropped under one already held",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "write_file"
+          }
+        ],
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\a"
+        }
+      },
+      "expected": [
+        {
+          "tool": "write_file"
+        },
+        {
+          "tool": "write_file",
+          "target": "C:\\a"
+        }
+      ]
+    },
+    {
+      "name": "a folder grant replaces a deeper one",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\a\\b"
+          },
+          {
+            "tool": "write_file",
+            "target": "C:\\a\\c"
+          }
+        ],
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\a"
+        }
+      },
+      "expected": [
+        {
+          "tool": "write_file",
+          "target": "C:\\a"
+        }
+      ]
+    },
+    {
+      "name": "a sibling grant is kept beside a folder grant",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects\\draggy"
+          }
+        ],
+        "grant": {
+          "tool": "write_file",
+          "target": "C:\\projects\\draggy-web"
+        }
+      },
+      "expected": [
+        {
+          "tool": "write_file",
+          "target": "C:\\projects\\draggy"
+        },
+        {
+          "tool": "write_file",
+          "target": "C:\\projects\\draggy-web"
+        }
+      ]
+    },
+    {
+      "name": "a command grant keeps each command's prefix",
+      "input": {
+        "op": "grantsFor",
+        "tool": "run_command",
+        "target": "git status -s",
+        "annotations": {
+          "executes": true
+        }
+      },
+      "expected": [
+        {
+          "tool": "run_command",
+          "target": "git status"
+        }
+      ]
+    },
+    {
+      "name": "a command grant for an interpreter keeps the whole line",
+      "input": {
+        "op": "grantsFor",
+        "tool": "run_command",
+        "target": "python -c \"print(1)\"",
+        "annotations": {
+          "executes": true
+        }
+      },
+      "expected": [
+        {
+          "tool": "run_command",
+          "target": "python -c \"print(1)\""
+        }
+      ]
+    },
+    {
+      "name": "a command grant of an unreadable line keeps nothing",
+      "input": {
+        "op": "grantsFor",
+        "tool": "run_command",
+        "target": "echo $(whoami)",
+        "annotations": {
+          "executes": true
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "a command grant with no target keeps nothing",
+      "input": {
+        "op": "grantsFor",
+        "tool": "run_command",
+        "target": null,
+        "annotations": {
+          "executes": true
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "a file grant keeps its path",
+      "input": {
+        "op": "grantsFor",
+        "tool": "write_file",
+        "target": "src/a.ts",
+        "annotations": {}
+      },
+      "expected": [
+        {
+          "tool": "write_file",
+          "target": "src/a.ts"
+        }
+      ]
+    },
+    {
+      "name": "a file grant with an empty path keeps no target",
+      "input": {
+        "op": "grantsFor",
+        "tool": "write_file",
+        "target": "",
+        "annotations": {}
+      },
+      "expected": [
+        {
+          "tool": "write_file"
+        }
+      ]
+    },
+    {
+      "name": "a target from a path key",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "path": "  C:\\a\\b.txt  "
+        }
+      },
+      "expected": "C:\\a\\b.txt"
+    },
+    {
+      "name": "a target from a filename key",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "filename": "report.docx"
+        }
+      },
+      "expected": "report.docx"
+    },
+    {
+      "name": "a target from a url key",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "url": "https://example.com"
+        }
+      },
+      "expected": "https://example.com"
+    },
+    {
+      "name": "a path key wins over a command key",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "command": "ls",
+          "path": "p.txt"
+        }
+      },
+      "expected": "p.txt"
+    },
+    {
+      "name": "a target with non-ASCII text",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "file": " notes/日記.md "
+        }
+      },
+      "expected": "notes/日記.md"
+    },
+    {
+      "name": "no target when the call is about nothing",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "query": "weather"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a blank target is no target",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "path": "   "
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a non-string target is no target",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "path": 7
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "the command is what the user is asked about",
+      "input": {
+        "op": "targetFromArgs",
+        "args": {
+          "command": "gh pr list"
+        }
+      },
+      "expected": "gh pr list"
+    },
+    {
+      "name": "a refusal in the shape tools answer in",
+      "input": {
+        "op": "refusal",
+        "tool": "write_file",
+        "verdict": {
+          "decision": "deny",
+          "reason": "Because."
+        }
+      },
+      "expected": "TOOL RESULT (write_file): Not allowed. Because."
+    },
+    {
+      "name": "the user declined a tool",
+      "input": {
+        "op": "denied",
+        "tool": "run_command"
+      },
+      "expected": "TOOL RESULT (run_command): The user declined this. Do not try it again; ask them what to do instead, or carry on without it."
+    }
+  ]
+}

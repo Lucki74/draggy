@@ -10,6 +10,11 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+fancy-regex = "0.19"
+# Keeps object keys in insertion order, as JavaScript does, so re-serialised tool calls read the same.
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+tracing = "0.1"
 
 [dev-dependencies]
 draggy-testkit = { path = "../testkit" }

@@ -1,0 +1,357 @@
+{
+  "area": "agent",
+  "description": "Which prompt profile (compact or full) a model is sent, from its reference, provider instance and listing (prompts.rs).",
+  "cases": [
+    {
+      "name": "the built-in engine is compact whatever else is said",
+      "input": {
+        "op": "profileFor",
+        "model": "qwen-72b.gguf",
+        "instance": {
+          "kind": "cloud",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "qwen-72b",
+          "contextLength": 131072
+        }
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a cloud model is full",
+      "input": {
+        "op": "profileFor",
+        "model": "@openai/gpt-x",
+        "instance": {
+          "kind": "cloud",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "gpt-x",
+          "contextLength": 8192
+        }
+      },
+      "expected": "full"
+    },
+    {
+      "name": "an account model is full",
+      "input": {
+        "op": "profileFor",
+        "model": "@account/x",
+        "instance": {
+          "kind": "account",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a local large model by context is full",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/small",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "small",
+          "contextLength": 65536
+        }
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a local 32b model is full",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:32b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "qwen3:32b",
+          "contextLength": 8192
+        }
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a local 8b model with a small context is compact",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:8b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "qwen3:8b",
+          "contextLength": 32768
+        }
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a local model with no listing is compact",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:8b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "the instance's own compact choice wins",
+      "input": {
+        "op": "profileFor",
+        "model": "@openai/gpt-x",
+        "instance": {
+          "kind": "cloud",
+          "promptProfile": "compact"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "the instance's own full choice wins",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:8b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "full"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a missing instance is compact",
+      "input": {
+        "op": "profileFor",
+        "model": "@gone/x",
+        "instance": null,
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a builtin model with an instance is compact",
+      "input": {
+        "op": "profileFor",
+        "model": "gguf:qwen.gguf",
+        "instance": {
+          "kind": "cloud",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "an unset profile on a local instance uses the size rule",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:32b",
+        "instance": {
+          "kind": "local"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a context of 65535 is not large enough",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "x",
+          "contextLength": 65535
+        }
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a context of exactly 65536 is large",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "x",
+          "contextLength": 65536
+        }
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a parameter count of 30 is large",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x-30b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a parameter count of 29.9 is not large",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x-29.9b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a decimal count of 1.5 is small",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x-1.5b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "an upper-case B counts",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x-30B",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a unit followed by letters is not a count",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/x-30bit",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a count followed by a dash counts",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/model-7b-chat",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "the listed id is used before the model name",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/tiny",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "llama-70b",
+          "contextLength": 4096
+        }
+      },
+      "expected": "full"
+    },
+    {
+      "name": "an empty listed id is used as it is (nullish, not falsy)",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/qwen3:32b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "",
+          "contextLength": 1000
+        }
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a mixture count names the expert size",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/mixtral:8x22b",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "compact"
+    },
+    {
+      "name": "a non-ASCII id with a count",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/模型-32B",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": null
+      },
+      "expected": "full"
+    },
+    {
+      "name": "a context with no count",
+      "input": {
+        "op": "profileFor",
+        "model": "@ollama/tiny",
+        "instance": {
+          "kind": "local",
+          "promptProfile": "auto"
+        },
+        "listed": {
+          "id": "tiny",
+          "contextLength": null
+        }
+      },
+      "expected": "compact"
+    }
+  ]
+}

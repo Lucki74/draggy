@@ -1,0 +1,4047 @@
+{
+  "area": "agent",
+  "description": "Tool-call parsing from raw model output (parsing.rs): detection, stripping, parseToolCall, think blocks, marker overlap and streamed file arguments. Stateless per case; names are passed explicitly.",
+  "cases": [
+    {
+      "name": "detect: canonical tool tag",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n{\"name\": \"search_web\", \"args\": {\"query\": \"weather in Paris\"}}\n</tool>"
+      },
+      "expected": "\n{\"name\": \"search_web\", \"args\": {\"query\": \"weather in Paris\"}}\n"
+    },
+    {
+      "name": "detect then parse: canonical tool tag",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n{\"name\": \"search_web\", \"args\": {\"query\": \"weather in Paris\"}}\n</tool>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "weather in Paris"
+        }
+      }
+    },
+    {
+      "name": "strip: canonical tool tag",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n{\"name\": \"search_web\", \"args\": {\"query\": \"weather in Paris\"}}\n</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: tool_call tag alias",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool_call>{\"name\": \"read_url\", \"args\": {\"url\": \"https://example.com\"}}</tool_call>"
+      },
+      "expected": "{\"name\": \"read_url\", \"args\": {\"url\": \"https://example.com\"}}"
+    },
+    {
+      "name": "detect then parse: tool_call tag alias",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool_call>{\"name\": \"read_url\", \"args\": {\"url\": \"https://example.com\"}}</tool_call>"
+      },
+      "expected": {
+        "name": "read_url",
+        "args": {
+          "url": "https://example.com"
+        }
+      }
+    },
+    {
+      "name": "strip: tool_call tag alias",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool_call>{\"name\": \"read_url\", \"args\": {\"url\": \"https://example.com\"}}</tool_call>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: function tag alias",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<function>{\"name\": \"browser_close\", \"args\": {}}</function>"
+      },
+      "expected": "{\"name\": \"browser_close\", \"args\": {}}"
+    },
+    {
+      "name": "detect then parse: function tag alias",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<function>{\"name\": \"browser_close\", \"args\": {}}</function>"
+      },
+      "expected": {
+        "name": "browser_close",
+        "args": {}
+      }
+    },
+    {
+      "name": "strip: function tag alias",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<function>{\"name\": \"browser_close\", \"args\": {}}</function>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: invoke tag alias",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<invoke>{\"name\": \"browser_get_text\", \"args\": {}}</invoke>"
+      },
+      "expected": "{\"name\": \"browser_get_text\", \"args\": {}}"
+    },
+    {
+      "name": "detect then parse: invoke tag alias",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<invoke>{\"name\": \"browser_get_text\", \"args\": {}}</invoke>"
+      },
+      "expected": {
+        "name": "browser_get_text",
+        "args": {}
+      }
+    },
+    {
+      "name": "strip: invoke tag alias",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<invoke>{\"name\": \"browser_get_text\", \"args\": {}}</invoke>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: prose before a canonical call",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Let me look that up.\n\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"llama keep_alive\"}}</tool>"
+      },
+      "expected": "{\"name\": \"search_web\", \"args\": {\"query\": \"llama keep_alive\"}}"
+    },
+    {
+      "name": "detect then parse: prose before a canonical call",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Let me look that up.\n\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"llama keep_alive\"}}</tool>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "llama keep_alive"
+        }
+      }
+    },
+    {
+      "name": "strip: prose before a canonical call",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Let me look that up.\n\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"llama keep_alive\"}}</tool>"
+      },
+      "expected": "Let me look that up."
+    },
+    {
+      "name": "detect: shorthand tag with bare text",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>current bitcoin price</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"current bitcoin price\"}}"
+    },
+    {
+      "name": "detect then parse: shorthand tag with bare text",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>current bitcoin price</search_web>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "current bitcoin price"
+        }
+      }
+    },
+    {
+      "name": "strip: shorthand tag with bare text",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>current bitcoin price</search_web>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: shorthand tag holding JSON",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"uk bank holidays\"}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"uk bank holidays\"}}"
+    },
+    {
+      "name": "detect then parse: shorthand tag holding JSON",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"uk bank holidays\"}</search_web>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "uk bank holidays"
+        }
+      }
+    },
+    {
+      "name": "strip: shorthand tag holding JSON",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"uk bank holidays\"}</search_web>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: shorthand tag for read_url uses the url argument",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<read_url>https://news.example/story</read_url>"
+      },
+      "expected": "{\"name\":\"read_url\",\"args\":{\"url\":\"https://news.example/story\"}}"
+    },
+    {
+      "name": "detect then parse: shorthand tag for read_url uses the url argument",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<read_url>https://news.example/story</read_url>"
+      },
+      "expected": {
+        "name": "read_url",
+        "args": {
+          "url": "https://news.example/story"
+        }
+      }
+    },
+    {
+      "name": "strip: shorthand tag for read_url uses the url argument",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<read_url>https://news.example/story</read_url>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: shorthand tag for the library tool",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_library>vendor contract renewal date</search_library>"
+      },
+      "expected": "{\"name\":\"search_library\",\"args\":{\"query\":\"vendor contract renewal date\"}}"
+    },
+    {
+      "name": "detect then parse: shorthand tag for the library tool",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_library>vendor contract renewal date</search_library>"
+      },
+      "expected": {
+        "name": "search_library",
+        "args": {
+          "query": "vendor contract renewal date"
+        }
+      }
+    },
+    {
+      "name": "strip: shorthand tag for the library tool",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_library>vendor contract renewal date</search_library>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: malformed opener with no closing tag",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"tomorrow forecast\"}"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"tomorrow forecast\"}}"
+    },
+    {
+      "name": "detect then parse: malformed opener with no closing tag",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"tomorrow forecast\"}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "tomorrow forecast"
+        }
+      }
+    },
+    {
+      "name": "strip: malformed opener with no closing tag",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"tomorrow forecast\"}"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: malformed opener with stray closing braces",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"nvidia driver version\"}}>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"nvidia driver version\"}}"
+    },
+    {
+      "name": "detect then parse: malformed opener with stray closing braces",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"nvidia driver version\"}}>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "nvidia driver version"
+        }
+      }
+    },
+    {
+      "name": "strip: malformed opener with stray closing braces",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"nvidia driver version\"}}>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: bare JSON with no wrapper",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"search_web\", \"args\": {\"query\": \"electron 42 release notes\"}}"
+      },
+      "expected": "{\"name\": \"search_web\", \"args\": {\"query\": \"electron 42 release notes\"}}"
+    },
+    {
+      "name": "detect then parse: bare JSON with no wrapper",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"search_web\", \"args\": {\"query\": \"electron 42 release notes\"}}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "electron 42 release notes"
+        }
+      }
+    },
+    {
+      "name": "strip: bare JSON with no wrapper",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"search_web\", \"args\": {\"query\": \"electron 42 release notes\"}}"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: bare JSON using arguments instead of args",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"read_url\", \"arguments\": {\"url\": \"https://a.example\"}}"
+      },
+      "expected": "{\"name\": \"read_url\", \"arguments\": {\"url\": \"https://a.example\"}}"
+    },
+    {
+      "name": "detect then parse: bare JSON using arguments instead of args",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"read_url\", \"arguments\": {\"url\": \"https://a.example\"}}"
+      },
+      "expected": {
+        "name": "read_url",
+        "args": {
+          "url": "https://a.example"
+        }
+      }
+    },
+    {
+      "name": "strip: bare JSON using arguments instead of args",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"read_url\", \"arguments\": {\"url\": \"https://a.example\"}}"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: JSX-flavoured attribute form",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\": \"best local llm 2026\"} />"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"best local llm 2026\"}}"
+    },
+    {
+      "name": "detect then parse: JSX-flavoured attribute form",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\": \"best local llm 2026\"} />"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "best local llm 2026"
+        }
+      }
+    },
+    {
+      "name": "strip: JSX-flavoured attribute form",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\": \"best local llm 2026\"} />"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: fenced JSON inside a tool tag",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n```json\n{\"name\": \"create_file\", \"args\": {\"filename\": \"notes.md\", \"content\": \"hi\"}}\n```\n</tool>"
+      },
+      "expected": "\n```json\n{\"name\": \"create_file\", \"args\": {\"filename\": \"notes.md\", \"content\": \"hi\"}}\n```\n"
+    },
+    {
+      "name": "detect then parse: fenced JSON inside a tool tag",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n```json\n{\"name\": \"create_file\", \"args\": {\"filename\": \"notes.md\", \"content\": \"hi\"}}\n```\n</tool>"
+      },
+      "expected": {
+        "name": "create_file",
+        "args": {
+          "filename": "notes.md",
+          "content": "hi"
+        }
+      }
+    },
+    {
+      "name": "strip: fenced JSON inside a tool tag",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>\n```json\n{\"name\": \"create_file\", \"args\": {\"filename\": \"notes.md\", \"content\": \"hi\"}}\n```\n</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: call after a closed think block",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>The user wants current data, so I should search.</think>\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"eur usd rate\"}}</tool>"
+      },
+      "expected": "{\"name\": \"search_web\", \"args\": {\"query\": \"eur usd rate\"}}"
+    },
+    {
+      "name": "detect then parse: call after a closed think block",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>The user wants current data, so I should search.</think>\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"eur usd rate\"}}</tool>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "eur usd rate"
+        }
+      }
+    },
+    {
+      "name": "strip: call after a closed think block",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>The user wants current data, so I should search.</think>\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"eur usd rate\"}}</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: integer argument survives",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_click\", \"args\": {\"index\": 3}}</tool>"
+      },
+      "expected": "{\"name\": \"browser_click\", \"args\": {\"index\": 3}}"
+    },
+    {
+      "name": "detect then parse: integer argument survives",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_click\", \"args\": {\"index\": 3}}</tool>"
+      },
+      "expected": {
+        "name": "browser_click",
+        "args": {
+          "index": 3
+        }
+      }
+    },
+    {
+      "name": "strip: integer argument survives",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_click\", \"args\": {\"index\": 3}}</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: two arguments survive",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_type\", \"args\": {\"index\": 2, \"text\": \"hello world\"}}</tool>"
+      },
+      "expected": "{\"name\": \"browser_type\", \"args\": {\"index\": 2, \"text\": \"hello world\"}}"
+    },
+    {
+      "name": "detect then parse: two arguments survive",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_type\", \"args\": {\"index\": 2, \"text\": \"hello world\"}}</tool>"
+      },
+      "expected": {
+        "name": "browser_type",
+        "args": {
+          "index": 2,
+          "text": "hello world"
+        }
+      }
+    },
+    {
+      "name": "strip: two arguments survive",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"browser_type\", \"args\": {\"index\": 2, \"text\": \"hello world\"}}</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "detect: run_code with a multi-line program",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"run_code\", \"args\": {\"language\": \"python\", \"source\": \"for i in range(3):\\n    print(i)\"}}</tool>"
+      },
+      "expected": "{\"name\": \"run_code\", \"args\": {\"language\": \"python\", \"source\": \"for i in range(3):\\n    print(i)\"}}"
+    },
+    {
+      "name": "detect then parse: run_code with a multi-line program",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"run_code\", \"args\": {\"language\": \"python\", \"source\": \"for i in range(3):\\n    print(i)\"}}</tool>"
+      },
+      "expected": {
+        "name": "run_code",
+        "args": {
+          "language": "python",
+          "source": "for i in range(3):\n    print(i)"
+        }
+      }
+    },
+    {
+      "name": "strip: run_code with a multi-line program",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"run_code\", \"args\": {\"language\": \"python\", \"source\": \"for i in range(3):\\n    print(i)\"}}</tool>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "ignores: plain prose",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "The capital of France is Paris. It has about 2.1 million residents."
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: prose that mentions searching the web",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "I could search the web for that, but I already know the answer."
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: a fenced code block that defines a function",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "```python\ndef search_web(query):\n    return requests.get(url, params={\"q\": query})\n```"
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: JSON that is not a tool call",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Here is the config:\n\n```json\n{\"name\": \"my-app\", \"version\": \"1.0.0\"}\n```"
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: an unrelated XML-ish tag",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<result>42</result>"
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: markdown discussing the tool names",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "The available tools are `search_web`, `read_url` and `create_file`."
+      },
+      "expected": null
+    },
+    {
+      "name": "ignores: an unclosed think block mid-stream",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>Let me consider what the user is really asking"
+      },
+      "expected": null
+    },
+    {
+      "name": "leaked: OpenAI-style function envelope echoed after a native tool call",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "The answer is 788454.\n\n}\n{\"type\":\"function\",\"function\":}}}"
+      },
+      "expected": "The answer is 788454."
+    },
+    {
+      "name": "leaked: complete function envelope echoed into content",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Done.\n{\"type\":\"function\",\"function\":{\"name\":\"run_code\",\"arguments\":{\"language\":\"python\"}}}"
+      },
+      "expected": "Done."
+    },
+    {
+      "name": "leaked: orphan closing braces on their own line",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Here is the result.\n}\n}}}"
+      },
+      "expected": "Here is the result."
+    },
+    {
+      "name": "leaked: orphan opening brace",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "All done.\n{"
+      },
+      "expected": "All done."
+    },
+    {
+      "name": "leaked: tool_calls envelope echoed into content",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Result ready.\n{\"tool_calls\":[{\"function\":{\"name\":\"run_code\"}}]}"
+      },
+      "expected": "Result ready."
+    },
+    {
+      "name": "leaked: leaked envelope with nothing else",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"type\":\"function\",\"function\":}}}"
+      },
+      "expected": ""
+    },
+    {
+      "name": "keeps: a fenced JSON block the user asked about",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Here is your config:\n\n```json\n{\"type\": \"function\", \"name\": \"handler\"}\n```"
+      },
+      "expected": "Here is your config:\n\n```json\n{\"type\": \"function\", \"name\": \"handler\"}\n```"
+    },
+    {
+      "name": "keeps: prose containing braces",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Use {} for an empty object in Python."
+      },
+      "expected": "Use {} for an empty object in Python."
+    },
+    {
+      "name": "keeps: an inline code span with braces",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "The value `{a: 1}` is an object literal."
+      },
+      "expected": "The value `{a: 1}` is an object literal."
+    },
+    {
+      "name": "think: closed think block",
+      "input": {
+        "op": "thought",
+        "raw": "<think>Step one, then step two.</think>The answer is 4."
+      },
+      "expected": "Step one, then step two."
+    },
+    {
+      "name": "think: unclosed think block while still streaming",
+      "input": {
+        "op": "thought",
+        "raw": "<think>I am still working through"
+      },
+      "expected": "I am still working through"
+    },
+    {
+      "name": "think: no think block at all",
+      "input": {
+        "op": "thought",
+        "raw": "Just an answer."
+      },
+      "expected": null
+    },
+    {
+      "name": "think: think block after some prose",
+      "input": {
+        "op": "thought",
+        "raw": "Sure.\n<think>Reasoning here.</think>\nDone."
+      },
+      "expected": "Reasoning here."
+    },
+    {
+      "name": "uppercase tool tag",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<TOOL>{\"name\": \"search_web\", \"args\": {\"query\": \"x\"}}</TOOL>"
+      },
+      "expected": "{\"name\": \"search_web\", \"args\": {\"query\": \"x\"}}"
+    },
+    {
+      "name": "non-ASCII query in a canonical tag",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"café ☕ 東京\"}}</tool>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "café ☕ 東京"
+        }
+      }
+    },
+    {
+      "name": "shorthand holding Chinese text",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>北京天气</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"北京天气\"}}"
+    },
+    {
+      "name": "shorthand holding Cyrillic JSON",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"погода в Москве\"}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"погода в Москве\"}}"
+    },
+    {
+      "name": "shorthand with invalid JSON keeps the text as the query",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{not json}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"{not json}\"}}"
+    },
+    {
+      "name": "shorthand whose closing name differs",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>x</read_url>"
+      },
+      "expected": null
+    },
+    {
+      "name": "shorthand closing tag in other case",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<Search_Web>x</search_web>"
+      },
+      "expected": "{\"name\":\"Search_Web\",\"args\":{\"query\":\"x\"}}"
+    },
+    {
+      "name": "malformed opener with Cyrillic query",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": \"Привет мир\"}"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"Привет мир\"}}"
+    },
+    {
+      "name": "malformed opener with invalid JSON is ignored",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\": oops}"
+      },
+      "expected": null
+    },
+    {
+      "name": "JSX attribute form with Japanese query",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\": \"東京\"} />"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"東京\"}}"
+    },
+    {
+      "name": "JSX attribute form with nested object is ignored",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\": {\"a\": 1}} />"
+      },
+      "expected": null
+    },
+    {
+      "name": "bare JSON with a parameters key",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"read_url\", \"parameters\": {\"url\": \"https://a.example\"}}"
+      },
+      "expected": "{\"name\": \"read_url\", \"parameters\": {\"url\": \"https://a.example\"}}"
+    },
+    {
+      "name": "bare JSON naming an unregistered tool",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\": \"delete_all\", \"args\": {}}"
+      },
+      "expected": null
+    },
+    {
+      "name": "tool tag holding only prose returns the prose",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>just words</tool>"
+      },
+      "expected": "just words"
+    },
+    {
+      "name": "tool tag holding only prose parses to nothing",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>just words</tool>"
+      },
+      "expected": {
+        "name": null,
+        "args": null
+      }
+    },
+    {
+      "name": "unclosed tool tag falls back to a later shorthand",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\":\"a\"}\n<search_web>q</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"q\"}}"
+    },
+    {
+      "name": "tool name with a regex metacharacter is literal",
+      "input": {
+        "op": "detect",
+        "names": [
+          "weird.tool+name"
+        ],
+        "raw": "<weird.tool+name>{\"query\": \"x\"}</weird.tool+name>"
+      },
+      "expected": "{\"name\":\"weird.tool+name\",\"args\":{\"query\":\"x\"}}"
+    },
+    {
+      "name": "tool name with a regex metacharacter does not match a near miss",
+      "input": {
+        "op": "detect",
+        "names": [
+          "weird.tool+name"
+        ],
+        "raw": "<weirdXtool+name>x</weirdXtool+name>"
+      },
+      "expected": null
+    },
+    {
+      "name": "a name with a space is matched literally",
+      "input": {
+        "op": "detect",
+        "names": [
+          "my tool"
+        ],
+        "raw": "<my tool>x</my tool>"
+      },
+      "expected": "{\"name\":\"my tool\",\"args\":{\"query\":\"x\"}}"
+    },
+    {
+      "name": "a non-ASCII tool name",
+      "input": {
+        "op": "detect",
+        "names": [
+          "搜索"
+        ],
+        "raw": "<搜索>北京</搜索>"
+      },
+      "expected": "{\"name\":\"搜索\",\"args\":{\"query\":\"北京\"}}"
+    },
+    {
+      "name": "NBSP and BOM around the reply are trimmed",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "﻿Hello there. <tool>{\"name\": \"search_web\", \"args\": {\"query\": \"x\"}}</tool> "
+      },
+      "expected": "Hello there."
+    },
+    {
+      "name": "non-ASCII prose is kept",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Привет! Как дела? 你好。"
+      },
+      "expected": "Привет! Как дела? 你好。"
+    },
+    {
+      "name": "fenced code with tool syntax and an emoji after it",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "```js\nconst s = '<tool>x</tool>';\n```\nDone 🙂"
+      },
+      "expected": "```js\nconst s = '<tool>x</tool>';\n```\nDone 🙂"
+    },
+    {
+      "name": "inline code holding a tool tag",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Use `<search_web>` to search."
+      },
+      "expected": "Use `<search_web>` to search."
+    },
+    {
+      "name": "unclosed fence keeps everything after it",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Look:\n```python\nprint('<tool>')"
+      },
+      "expected": "Look:\n```python\nprint('<tool>')"
+    },
+    {
+      "name": "placeholder text with no code blocks is kept",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Literal __DRAGGY_CODE_0__ text"
+      },
+      "expected": "Literal __DRAGGY_CODE_0__ text"
+    },
+    {
+      "name": "a placeholder that matches stored code is restored",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "`a` and __DRAGGY_CODE_0__"
+      },
+      "expected": "`a` and `a`"
+    },
+    {
+      "name": "a placeholder past the stored code is kept",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "`a` and __DRAGGY_CODE_9__"
+      },
+      "expected": "`a` and __DRAGGY_CODE_9__"
+    },
+    {
+      "name": "orphan brace lines between paragraphs",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Result:\n{\n}\nDone"
+      },
+      "expected": "Result:\nDone"
+    },
+    {
+      "name": "a function envelope after Cyrillic prose",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "Ответ.\n{\"type\":\"function\",\"function\":{\"name\":\"run_code\",\"arguments\":{\"language\":\"python\"}}}"
+      },
+      "expected": "Ответ."
+    },
+    {
+      "name": "a think block holding Cyrillic",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>Думаю…</think>Ответ: 4"
+      },
+      "expected": "Ответ: 4"
+    },
+    {
+      "name": "an unclosed think block mid-stream with emoji",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>Let me count 🙂 carefully"
+      },
+      "expected": ""
+    },
+    {
+      "name": "a call after a Japanese reply",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "了解しました。\n<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"天気\"}}</tool>"
+      },
+      "expected": "了解しました。"
+    },
+    {
+      "name": "a call inside an unclosed fence stays visible",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "```\n<tool>{\"name\": \"search_web\", \"args\": {}}</tool>"
+      },
+      "expected": "```\n<tool>{\"name\": \"search_web\", \"args\": {}}</tool>"
+    },
+    {
+      "name": "parse: fence with CRLF line endings",
+      "input": {
+        "op": "parse",
+        "raw": "```json\r\n{\"name\":\"a\",\"args\":{}}\r\n```"
+      },
+      "expected": {
+        "name": "a",
+        "args": {}
+      }
+    },
+    {
+      "name": "parse: a json fence",
+      "input": {
+        "op": "parse",
+        "raw": "```json\n{\"name\":\"a\",\"args\":{}}\n```"
+      },
+      "expected": {
+        "name": "a",
+        "args": {}
+      }
+    },
+    {
+      "name": "parse: a bare fence",
+      "input": {
+        "op": "parse",
+        "raw": "```\n{\"name\":\"b\",\"args\":{}}\n```"
+      },
+      "expected": {
+        "name": "b",
+        "args": {}
+      }
+    },
+    {
+      "name": "parse: unparseable input",
+      "input": {
+        "op": "parse",
+        "raw": "not json at all"
+      },
+      "expected": {
+        "name": null,
+        "args": null
+      }
+    },
+    {
+      "name": "parse: parameters as an alias for args",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"c\",\"parameters\":{\"q\":1}}"
+      },
+      "expected": {
+        "name": "c",
+        "args": {
+          "q": 1
+        }
+      }
+    },
+    {
+      "name": "detect: a tag still being streamed",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"half"
+      },
+      "expected": null
+    },
+    {
+      "name": "detect: the same tag once complete",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool>{\"name\": \"search_web\", \"args\": {\"query\": \"half-written\"}}</tool>"
+      },
+      "expected": "{\"name\": \"search_web\", \"args\": {\"query\": \"half-written\"}}"
+    },
+    {
+      "name": "detect: a call split across a chunk boundary",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "I will search. <search_web>{\"query\": \"x\"}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\"}}"
+    },
+    {
+      "name": "strip: ordinary prose is kept intact",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "The capital of France is Paris."
+      },
+      "expected": "The capital of France is Paris."
+    },
+    {
+      "name": "strip: a code block that mentions a tool name is kept",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "```python\ndef search_web(q):\n    pass\n```"
+      },
+      "expected": "```python\ndef search_web(q):\n    pass\n```"
+    },
+    {
+      "name": "parse: args null falls through to arguments",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"d\",\"args\":null,\"arguments\":{\"x\":1}}"
+      },
+      "expected": {
+        "name": "d",
+        "args": {
+          "x": 1
+        }
+      }
+    },
+    {
+      "name": "parse: text with no object",
+      "input": {
+        "op": "parse",
+        "raw": "name: x"
+      },
+      "expected": {
+        "name": null,
+        "args": null
+      }
+    },
+    {
+      "name": "parse: two objects read as one and fail",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"f\",\"args\":{}} {\"name\":\"g\"}"
+      },
+      "expected": {
+        "name": null,
+        "args": null
+      }
+    },
+    {
+      "name": "parse: unicode arguments",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":{\"query\":\"Zürich 天気\"}}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "Zürich 天気"
+        }
+      }
+    },
+    {
+      "name": "parse: parameters alias with unicode",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"c\",\"parameters\":{\"q\":\"日本\"}}"
+      },
+      "expected": {
+        "name": "c",
+        "args": {
+          "q": "日本"
+        }
+      }
+    },
+    {
+      "name": "parse: fence with language tag and trailing prose",
+      "input": {
+        "op": "parse",
+        "raw": "```json\n{\"name\":\"h\",\"args\":{\"n\":2}}\n```\nthanks"
+      },
+      "expected": {
+        "name": "h",
+        "args": {
+          "n": 2
+        }
+      }
+    },
+    {
+      "name": "marker: split on the boundary of a chunk",
+      "input": {
+        "op": "markerOverlap",
+        "chunk": "Looking that up now. <tool"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker: half arrived",
+      "input": {
+        "op": "markerOverlap",
+        "chunk": "Looking that up now. <to"
+      },
+      "expected": false
+    },
+    {
+      "name": "marker: found by the full-text test",
+      "input": {
+        "op": "markerIn",
+        "text": "Привет <tool"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker: uppercase tag",
+      "input": {
+        "op": "markerIn",
+        "text": "ok <TOOL>"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker: quoted name key",
+      "input": {
+        "op": "markerIn",
+        "text": "data {\"name\": 1}"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker: plain prose",
+      "input": {
+        "op": "markerIn",
+        "text": "tools and functions are words"
+      },
+      "expected": false
+    },
+    {
+      "name": "marker: Kelvin sign is not a k for JS",
+      "input": {
+        "op": "markerIn",
+        "text": "<invoKe>"
+      },
+      "expected": false
+    },
+    {
+      "name": "marker: long s is not an s for JS",
+      "input": {
+        "op": "markerIn",
+        "text": "<ſearch_web>"
+      },
+      "expected": false
+    },
+    {
+      "name": "marker: split across a boundary",
+      "input": {
+        "op": "markerIn",
+        "text": "ill search. <search_web>{\"query\": \"x\"}</search_web>"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker overlap width",
+      "input": {
+        "op": "markerOverlapWidth"
+      },
+      "expected": 16
+    },
+    {
+      "name": "marker: window keeps the marker when only the tail is ASCII",
+      "input": {
+        "op": "markerOverlap",
+        "chunk": "éééééééééééééééééééééééééééééééééééééééé<create_"
+      },
+      "expected": true
+    },
+    {
+      "name": "file args: escaped tab in content",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"a.txt\", \"content\": \"tab\\there\"}"
+      },
+      "expected": {
+        "filename": "a.txt",
+        "content": "tab\there"
+      }
+    },
+    {
+      "name": "file args: \\b and \\f come out as the letters (TS quirk)",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"q.txt\", \"content\": \"x\\by\\fz\"}"
+      },
+      "expected": {
+        "filename": "q.txt",
+        "content": "xbyfz"
+      }
+    },
+    {
+      "name": "file args: surrogate pair escape becomes one emoji",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"e.txt\", \"content\": \"\\ud83d\\ude00 ok\"}"
+      },
+      "expected": {
+        "filename": "e.txt",
+        "content": "😀 ok"
+      }
+    },
+    {
+      "name": "file args: unknown escape keeps its backslash",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"u.txt\", \"content\": \"a\\qb\"}"
+      },
+      "expected": {
+        "filename": "u.txt",
+        "content": "a\\qb"
+      }
+    },
+    {
+      "name": "file args: content ends on a lone backslash",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"t.txt\", \"content\": \"abc\\"
+      },
+      "expected": {
+        "filename": "t.txt",
+        "content": "abc"
+      }
+    },
+    {
+      "name": "file args: filename escape is decoded",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"dir\\\\file.txt\", \"content\": \"\"}"
+      },
+      "expected": {
+        "filename": "dir\\file.txt",
+        "content": ""
+      }
+    },
+    {
+      "name": "file args: filename with an invalid escape stays raw",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"path\": \"a\\qb\"}"
+      },
+      "expected": {
+        "filename": "a\\qb",
+        "content": null
+      }
+    },
+    {
+      "name": "file args: non-ASCII filename",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"отчёт 2026.docx\", \"content\": \"Итог: 42\""
+      },
+      "expected": {
+        "filename": "отчёт 2026.docx",
+        "content": "Итог: 42"
+      }
+    },
+    {
+      "name": "file args: raw newline inside content is kept",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"n.md\", \"content\": \"line one\nline two"
+      },
+      "expected": {
+        "filename": "n.md",
+        "content": "line one\nline two"
+      }
+    },
+    {
+      "name": "file args: space before the colon",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"path\"   :   \"notes/日記.md\", \"content\": \"今日\""
+      },
+      "expected": {
+        "filename": "notes/日記.md",
+        "content": "今日"
+      }
+    },
+    {
+      "name": "file args: content before the filename",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"content\": \"first\", \"filename\": \"later.txt\""
+      },
+      "expected": {
+        "filename": "later.txt",
+        "content": "first"
+      }
+    },
+    {
+      "name": "file args: no content key yet",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"only.txt\", \"conte"
+      },
+      "expected": {
+        "filename": "only.txt",
+        "content": null
+      }
+    },
+    {
+      "name": "file args: backslash before a newline stops the content",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"content\": \"a\\\nb\""
+      },
+      "expected": {
+        "filename": null,
+        "content": "a"
+      }
+    },
+    {
+      "name": "file args: escaped quote and slash",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"x\", \"content\": \"say \\\"hi\\\" \\/ bye\""
+      },
+      "expected": {
+        "filename": "x",
+        "content": "say \"hi\" / bye"
+      }
+    },
+    {
+      "name": "file args: filename and partial content",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"test.txt\", \"content\": \"hello\\nworld"
+      },
+      "expected": {
+        "filename": "test.txt",
+        "content": "hello\nworld"
+      }
+    },
+    {
+      "name": "file args: path alias and partial content",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"path\": \"src/App.tsx\", \"content\": \"const x = 1;"
+      },
+      "expected": {
+        "filename": "src/App.tsx",
+        "content": "const x = 1;"
+      }
+    },
+    {
+      "name": "file args: filename before content starts streaming",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"report.docx\""
+      },
+      "expected": {
+        "filename": "report.docx",
+        "content": null
+      }
+    },
+    {
+      "name": "file args: quotes, slashes and a unicode escape in content",
+      "input": {
+        "op": "fileArgs",
+        "raw": "{\"filename\": \"data.json\", \"content\": \"{\\\"title\\\": \\\"caf\\u00e9\\\", \\\"path\\\": \\\"C:\\\\test\\\"}"
+      },
+      "expected": {
+        "filename": "data.json",
+        "content": "{\"title\": \"café\", \"path\": \"C:\\test\"}"
+      }
+    },
+    {
+      "name": "names: empty registry finds nothing",
+      "input": {
+        "op": "detect",
+        "names": [],
+        "raw": "<search_web>x</search_web>"
+      },
+      "expected": null
+    },
+    {
+      "name": "names: empty registry strips nothing",
+      "input": {
+        "op": "strip",
+        "names": [],
+        "raw": "plain text"
+      },
+      "expected": "plain text"
+    },
+    {
+      "name": "names: a tool outside the registry is not detected",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_web"
+        ],
+        "raw": "<run_code>print(1)</run_code>"
+      },
+      "expected": null
+    },
+    {
+      "name": "names: a tool registered at runtime is detected",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_web",
+          "mcp_lookup"
+        ],
+        "raw": "<mcp_lookup>{\"query\": \"x\"}</mcp_lookup>"
+      },
+      "expected": {
+        "name": "mcp_lookup",
+        "args": {
+          "query": "x"
+        }
+      }
+    },
+    {
+      "name": "names: metacharacters do not break detection",
+      "input": {
+        "op": "detect",
+        "names": [
+          "weird.tool+name"
+        ],
+        "raw": "nothing here"
+      },
+      "expected": null
+    },
+    {
+      "name": "names: empty strings in the list are ignored",
+      "input": {
+        "op": "detect",
+        "names": [
+          "",
+          "search_web"
+        ],
+        "raw": "<search_web>{\"query\": \"x\"}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\"}}"
+    },
+    {
+      "name": "names: detection is case-insensitive on the name",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_web"
+        ],
+        "raw": "<SEARCH_WEB>cat</SEARCH_WEB>"
+      },
+      "expected": "{\"name\":\"SEARCH_WEB\",\"args\":{\"query\":\"cat\"}}"
+    },
+    {
+      "name": "detect: a whole number written with a fraction is an integer",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"x\", \"n\": 1.0}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":1}}"
+    },
+    {
+      "name": "detect then parse: a whole number written with a fraction",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\": \"x\", \"n\": 1.0}</search_web>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "x",
+          "n": 1
+        }
+      }
+    },
+    {
+      "name": "detect: an exponent reads as the plain integer",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"x\",\"n\":1e2}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":100}}"
+    },
+    {
+      "name": "detect: negative zero writes as zero",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"x\",\"n\":-0}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":0}}"
+    },
+    {
+      "name": "detect: an integer above 2^53 keeps JavaScript's digits",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"x\",\"n\":12345678901234567890}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":12345678901234567000}}"
+    },
+    {
+      "name": "detect: 2^53 prints as written",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":9007199254740992}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":9007199254740992}}"
+    },
+    {
+      "name": "detect: 2^53 plus one rounds to the nearest double",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":9007199254740993}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":9007199254740992}}"
+    },
+    {
+      "name": "detect: fractions keep their shortest digits",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":0.1,\"m\":1.10,\"k\":2.50}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":0.1,\"m\":1.1,\"k\":2.5}}"
+    },
+    {
+      "name": "detect: a tiny fraction uses an exponent",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":2.5e-7}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":2.5e-7}}"
+    },
+    {
+      "name": "detect: one millionth stays positional",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":0.000001}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":0.000001}}"
+    },
+    {
+      "name": "detect: a large value uses a plus sign in its exponent",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"n\":1e21}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":1e+21}}"
+    },
+    {
+      "name": "detect: an out-of-range number writes as null",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<read_url>{\"name\":[\"\"],\"text\":1e400}</read_url>"
+      },
+      "expected": "{\"name\":\"read_url\",\"args\":{\"name\":[\"\"],\"text\":null}}"
+    },
+    {
+      "name": "detect: an integer-reading argument accepts 3.0",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<run_code>{\"index\":3.0,\"code\":\"x\"}</run_code>"
+      },
+      "expected": "{\"name\":\"run_code\",\"args\":{\"index\":3,\"code\":\"x\"}}"
+    },
+    {
+      "name": "detect: a malformed opener normalises numbers",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web {\"query\":\"x\",\"n\":2.0}>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":2}}"
+    },
+    {
+      "name": "detect: a JSX attribute normalises numbers",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool search_web={\"query\":\"x\",\"n\":3.0} />"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":3}}"
+    },
+    {
+      "name": "detect: a bare JSON call is returned as written",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":1.0}}"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":1.0}}"
+    },
+    {
+      "name": "detect: a tagged call is returned as written",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<tool_call>{\"name\":\"search_web\",\"args\":{\"n\":1.0}}</tool_call>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"n\":1.0}}"
+    },
+    {
+      "name": "detect: a number with a leading zero is not JSON",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"x\",\"n\":01}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"{\\\"query\\\":\\\"x\\\",\\\"n\\\":01}\"}}"
+    },
+    {
+      "name": "detect: a number with a bare dot is not JSON",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"x\",\"n\":1.}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"{\\\"query\\\":\\\"x\\\",\\\"n\\\":1.}\"}}"
+    },
+    {
+      "name": "detect: a raw tab inside a JSON string is not JSON",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"a\tb\"}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"{\\\"query\\\":\\\"a\\tb\\\"}\"}}"
+    },
+    {
+      "name": "detect: a JSON body that is an array falls back to the query",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>[1.0, 2]</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"[1.0, 2]\"}}"
+    },
+    {
+      "name": "detect: whitespace inside the JSON body is dropped",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{ \"query\" :  \"x\" ,\n \"n\" : 1.50 }</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"x\",\"n\":1.5}}"
+    },
+    {
+      "name": "detect: array-index keys are listed first in ascending order",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"b\":1,\"2\":2,\"a\":3,\"1\":4}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"1\":4,\"2\":2,\"b\":1,\"a\":3}}"
+    },
+    {
+      "name": "detect: a repeated key keeps its first place and the last value",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"a\":1,\"b\":2,\"a\":3}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"a\":3,\"b\":2}}"
+    },
+    {
+      "name": "detect: a key with a leading zero is not an index",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"b\":1,\"01\":2,\"1\":3}</search_web>"
+      },
+      "expected": "{\"name\":\"search_web\",\"args\":{\"1\":3,\"b\":1,\"01\":2}}"
+    },
+    {
+      "name": "detect: a lone surrogate escape is removed from the visible reply",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"query\":\"\\ud83d\"}</search_web>"
+      },
+      "expected": ""
+    },
+    {
+      "name": "parse: whole numbers and exponents read as integers",
+      "input": {
+        "op": "detectParse",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<search_web>{\"index\":3.0,\"n\":1e2,\"neg\":-0}</search_web>"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "index": 3,
+          "n": 100,
+          "neg": 0
+        }
+      }
+    },
+    {
+      "name": "parse: a numeric name is returned as typed",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":1,\"args\":{\"a\":1}}"
+      },
+      "expected": {
+        "name": 1,
+        "args": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "parse: a boolean name is returned as typed",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":true,\"args\":{}}"
+      },
+      "expected": {
+        "name": true,
+        "args": {}
+      }
+    },
+    {
+      "name": "parse: a null name reads as missing",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":null,\"args\":{\"a\":1}}"
+      },
+      "expected": {
+        "name": null,
+        "args": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "parse: an array name is returned as typed",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":[\"search_web\"],\"args\":{\"q\":\"x\"}}"
+      },
+      "expected": {
+        "name": [
+          "search_web"
+        ],
+        "args": {
+          "q": "x"
+        }
+      }
+    },
+    {
+      "name": "parse: a string args value is kept",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":\"plain text\"}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": "plain text"
+      }
+    },
+    {
+      "name": "parse: a number args value is kept",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":42}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": 42
+      }
+    },
+    {
+      "name": "parse: an array args value is kept",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":[1,2]}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "name": "parse: false args value is kept over arguments",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":false,\"arguments\":{\"q\":1}}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": false
+      }
+    },
+    {
+      "name": "parse: zero args value is kept over arguments",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\",\"args\":0,\"arguments\":{\"q\":1}}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": 0
+      }
+    },
+    {
+      "name": "parse: a missing args key reads as null",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"search_web\"}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": null
+      }
+    },
+    {
+      "name": "parse: an unclosed object reads as nothing",
+      "input": {
+        "op": "parse",
+        "raw": "{\"name\":\"x\", \"args\": {}"
+      },
+      "expected": {
+        "name": null,
+        "args": null
+      }
+    },
+    {
+      "name": "detect: shorthand browser_navigate uses the url argument",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<browser_navigate>https://example.com/a?b=1</browser_navigate>"
+      },
+      "expected": "{\"name\":\"browser_navigate\",\"args\":{\"url\":\"https://example.com/a?b=1\"}}"
+    },
+    {
+      "name": "detect: shorthand browser_press_key uses the key argument",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<browser_press_key>Enter</browser_press_key>"
+      },
+      "expected": "{\"name\":\"browser_press_key\",\"args\":{\"key\":\"Enter\"}}"
+    },
+    {
+      "name": "detect: shorthand browser_click uses the query argument",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<browser_click>#submit</browser_click>"
+      },
+      "expected": "{\"name\":\"browser_click\",\"args\":{\"query\":\"#submit\"}}"
+    },
+    {
+      "name": "detect: a shorthand name in upper case uses the default argument",
+      "input": {
+        "op": "detect",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<READ_URL>https://a.b</READ_URL>"
+      },
+      "expected": "{\"name\":\"READ_URL\",\"args\":{\"query\":\"https://a.b\"}}"
+    },
+    {
+      "name": "think: a second block after a closed one is ignored",
+      "input": {
+        "op": "thought",
+        "raw": "<think>one</think> reply <think>two</think>"
+      },
+      "expected": "one"
+    },
+    {
+      "name": "think: an open block after a closed one is ignored",
+      "input": {
+        "op": "thought",
+        "raw": "<think>a</think>b<think>c"
+      },
+      "expected": "a"
+    },
+    {
+      "name": "think: a stray closing tag gives no thought",
+      "input": {
+        "op": "thought",
+        "raw": "plain</think>"
+      },
+      "expected": null
+    },
+    {
+      "name": "strip: a stray closing think tag is removed",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "answer</think> more"
+      },
+      "expected": "answer more"
+    },
+    {
+      "name": "strip: a second think block is removed too",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>a</think>x<think>b</think>y"
+      },
+      "expected": "xy"
+    },
+    {
+      "name": "strip: an open think block after a closed one runs to the end",
+      "input": {
+        "op": "strip",
+        "names": [
+          "search_library",
+          "search_web",
+          "read_url",
+          "browser_navigate",
+          "browser_get_elements",
+          "browser_click",
+          "browser_type",
+          "browser_press_key",
+          "browser_get_text",
+          "browser_close",
+          "create_file",
+          "run_code"
+        ],
+        "raw": "<think>a</think>x<think>b"
+      },
+      "expected": "x"
+    },
+    {
+      "name": "marker across: a tag split over the chunk boundary",
+      "input": {
+        "op": "markerAcross",
+        "first": "I will check <se",
+        "second": "arch_web>"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker across: a tag still short at the boundary",
+      "input": {
+        "op": "markerAcross",
+        "first": "I will check <se",
+        "second": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "marker across: a marker before the overlap is not scanned again",
+      "input": {
+        "op": "markerAcross",
+        "first": "<toolxxxxxxxxxxxxxxxxxxxx",
+        "second": "y"
+      },
+      "expected": false
+    },
+    {
+      "name": "marker across: a marker inside the new chunk",
+      "input": {
+        "op": "markerAcross",
+        "first": "plain prose",
+        "second": "<browser_click>"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker across: a quoted name split across the boundary",
+      "input": {
+        "op": "markerAcross",
+        "first": "reply {\"na",
+        "second": "me\": \"search_web\"}"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker across: an empty first chunk",
+      "input": {
+        "op": "markerAcross",
+        "first": "",
+        "second": "<tool"
+      },
+      "expected": true
+    },
+    {
+      "name": "marker across: an upper-case tag split across the boundary",
+      "input": {
+        "op": "markerAcross",
+        "first": "X <TO",
+        "second": "OL>"
+      },
+      "expected": true
+    },
+    {
+      "name": "detect: a non-ASCII tool name matches in the malformed form ignoring case",
+      "input": {
+        "op": "detect",
+        "names": [
+          "Ärger"
+        ],
+        "raw": "<ärger {\"query\":\"x\"}>"
+      },
+      "expected": "{\"name\":\"ärger\",\"args\":{\"query\":\"x\"}}"
+    }
+  ]
+}
