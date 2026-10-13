@@ -1,0 +1,257 @@
+{
+  "area": "diagnostics",
+  "description": "JSON numbers and correlation ids as JSON.stringify writes them. Numbers use the JavaScript Number-to-string rules in every file. A correlation id is any truthy value in the data; a falsy one counts as none.",
+  "cases": [
+    {
+      "name": "whole and fractional numbers follow JavaScript's rules",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "values",
+            "message": "numbers",
+            "data": {
+              "a": 2,
+              "b": 2,
+              "c": 10000000000000000,
+              "d": 1e+21,
+              "e": 123456789012345680000,
+              "f": 0.1,
+              "g": 1e-7,
+              "h": 0.000001,
+              "i": 0,
+              "j": -2.5,
+              "k": 1152921504606847000
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [values] numbers {\"a\":2,\"b\":2,\"c\":10000000000000000,\"d\":1e+21,\"e\":123456789012345680000,\"f\":0.1,\"g\":1e-7,\"h\":0.000001,\"i\":0,\"j\":-2.5,\"k\":1152921504606847000}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [values] numbers {\"a\":2,\"b\":2,\"c\":10000000000000000,\"d\":1e+21,\"e\":123456789012345680000,\"f\":0.1,\"g\":1e-7,\"h\":0.000001,\"i\":0,\"j\":-2.5,\"k\":1152921504606847000}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"values\",\"msg\":\"numbers\",\"data\":{\"a\":2,\"b\":2,\"c\":10000000000000000,\"d\":1e+21,\"e\":123456789012345680000,\"f\":0.1,\"g\":1e-7,\"h\":0.000001,\"i\":0,\"j\":-2.5,\"k\":1152921504606847000}}"
+        ]
+      }
+    },
+    {
+      "name": "a numeric correlation id is printed and written as a number",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "turn",
+            "data": {
+              "cid": 5
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [5] [chat] turn {\"cid\":5}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [5] [chat] turn {\"cid\":5}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"turn\",\"cid\":5,\"data\":{\"cid\":5}}"
+        ]
+      }
+    },
+    {
+      "name": "zero, empty and false correlation ids count as none",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "a",
+            "data": {
+              "cid": 0
+            }
+          },
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "b",
+            "data": {
+              "cid": ""
+            }
+          },
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "c",
+            "data": {
+              "cid": false
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [chat] a {\"cid\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [chat] b {\"cid\":\"\"}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [chat] c {\"cid\":false}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [chat] a {\"cid\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [chat] b {\"cid\":\"\"}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [chat] c {\"cid\":false}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"a\",\"data\":{\"cid\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"b\",\"data\":{\"cid\":\"\"}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"c\",\"data\":{\"cid\":false}}"
+        ]
+      }
+    },
+    {
+      "name": "true, an array and an object correlation id are written as given",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "t",
+            "data": {
+              "cid": true
+            }
+          },
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "arr",
+            "data": {
+              "cid": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          {
+            "op": "info",
+            "scope": "chat",
+            "message": "obj",
+            "data": {
+              "cid": {
+                "a": 1
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [true] [chat] t {\"cid\":true}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [a,b] [chat] arr {\"cid\":[\"a\",\"b\"]}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [[object Object]] [chat] obj {\"cid\":{\"a\":1}}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [true] [chat] t {\"cid\":true}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [a,b] [chat] arr {\"cid\":[\"a\",\"b\"]}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [[object Object]] [chat] obj {\"cid\":{\"a\":1}}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"t\",\"cid\":true,\"data\":{\"cid\":true}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"arr\",\"cid\":[\"a\",\"b\"],\"data\":{\"cid\":[\"a\",\"b\"]}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"chat\",\"msg\":\"obj\",\"cid\":{\"a\":1},\"data\":{\"cid\":{\"a\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "a duration that is not a number is ignored, durationMs is then not used",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "timed",
+            "data": {
+              "durMs": "9",
+              "durationMs": 7
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine] timed {\"durMs\":\"9\",\"durationMs\":7}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine] timed {\"durMs\":\"9\",\"durationMs\":7}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"timed\",\"data\":{\"durMs\":\"9\",\"durationMs\":7}}"
+        ]
+      }
+    },
+    {
+      "name": "a duration rounds to a tenth",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "timed",
+            "data": {
+              "durMs": 2.25
+            }
+          },
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "timed",
+            "data": {
+              "durationMs": 0.05
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine] timed {\"durMs\":2.25}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [engine] timed {\"durationMs\":0.05}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine] timed {\"durMs\":2.25}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [engine] timed {\"durationMs\":0.05}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"timed\",\"durMs\":2.3,\"data\":{\"durMs\":2.25}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"timed\",\"durMs\":0.1,\"data\":{\"durationMs\":0.05}}"
+        ]
+      }
+    }
+  ]
+}

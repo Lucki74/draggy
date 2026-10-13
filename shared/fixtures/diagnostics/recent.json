@@ -1,0 +1,1465 @@
+{
+  "area": "diagnostics",
+  "description": "The recent-line ring that `dumpRecent` writes: the last 100 lines the writer kept, oldest first, each cut at 120 units. Each case's expected value is the list of dump records in order. Lines the levels drop and logger's own lines are never in the ring.",
+  "cases": [
+    {
+      "name": "a dump of 130 warnings keeps the last 100 oldest first and leaves itself out",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 0",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 1",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 2",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 3",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 4",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 5",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 6",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 7",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 8",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 9",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 10",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 11",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 12",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 13",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 14",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 15",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 16",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 17",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 18",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 19",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 20",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 21",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 22",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 23",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 24",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 25",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 26",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 27",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 28",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 29",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 30",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 31",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 32",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 33",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 34",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 35",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 36",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 37",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 38",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 39",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 40",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 41",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 42",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 43",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 44",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 45",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 46",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 47",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 48",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 49",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 50",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 51",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 52",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 53",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 54",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 55",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 56",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 57",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 58",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 59",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 60",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 61",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 62",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 63",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 64",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 65",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 66",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 67",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 68",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 69",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 70",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 71",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 72",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 73",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 74",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 75",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 76",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 77",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 78",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 79",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 80",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 81",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 82",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 83",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 84",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 85",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 86",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 87",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 88",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 89",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 90",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 91",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 92",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 93",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 94",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 95",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 96",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 97",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 98",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 99",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 100",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 101",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 102",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 103",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 104",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 105",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 106",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 107",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 108",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 109",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 110",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 111",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 112",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 113",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 114",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 115",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 116",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 117",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 118",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 119",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 120",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 121",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 122",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 123",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 124",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 125",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 126",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 127",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 128",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "warn",
+            "scope": "engine.llama",
+            "message": "step 129",
+            "data": {
+              "cid": "t1"
+            }
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "test"
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "again"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "test",
+          "count": 100,
+          "recent": [
+            "00:00:00.123 WARN engine.llama [t1] step 30",
+            "00:00:00.123 WARN engine.llama [t1] step 31",
+            "00:00:00.123 WARN engine.llama [t1] step 32",
+            "00:00:00.123 WARN engine.llama [t1] step 33",
+            "00:00:00.123 WARN engine.llama [t1] step 34",
+            "00:00:00.123 WARN engine.llama [t1] step 35",
+            "00:00:00.123 WARN engine.llama [t1] step 36",
+            "00:00:00.123 WARN engine.llama [t1] step 37",
+            "00:00:00.123 WARN engine.llama [t1] step 38",
+            "00:00:00.123 WARN engine.llama [t1] step 39",
+            "00:00:00.123 WARN engine.llama [t1] step 40",
+            "00:00:00.123 WARN engine.llama [t1] step 41",
+            "00:00:00.123 WARN engine.llama [t1] step 42",
+            "00:00:00.123 WARN engine.llama [t1] step 43",
+            "00:00:00.123 WARN engine.llama [t1] step 44",
+            "00:00:00.123 WARN engine.llama [t1] step 45",
+            "00:00:00.123 WARN engine.llama [t1] step 46",
+            "00:00:00.123 WARN engine.llama [t1] step 47",
+            "00:00:00.123 WARN engine.llama [t1] step 48",
+            "00:00:00.123 WARN engine.llama [t1] step 49",
+            "00:00:00.123 WARN engine.llama [t1] step 50",
+            "00:00:00.123 WARN engine.llama [t1] step 51",
+            "00:00:00.123 WARN engine.llama [t1] step 52",
+            "00:00:00.123 WARN engine.llama [t1] step 53",
+            "00:00:00.123 WARN engine.llama [t1] step 54",
+            "00:00:00.123 WARN engine.llama [t1] step 55",
+            "00:00:00.123 WARN engine.llama [t1] step 56",
+            "00:00:00.123 WARN engine.llama [t1] step 57",
+            "00:00:00.123 WARN engine.llama [t1] step 58",
+            "00:00:00.123 WARN engine.llama [t1] step 59",
+            "00:00:00.123 WARN engine.llama [t1] step 60",
+            "00:00:00.123 WARN engine.llama [t1] step 61",
+            "00:00:00.123 WARN engine.llama [t1] step 62",
+            "00:00:00.123 WARN engine.llama [t1] step 63",
+            "00:00:00.123 WARN engine.llama [t1] step 64",
+            "00:00:00.123 WARN engine.llama [t1] step 65",
+            "00:00:00.123 WARN engine.llama [t1] step 66",
+            "00:00:00.123 WARN engine.llama [t1] step 67",
+            "00:00:00.123 WARN engine.llama [t1] step 68",
+            "00:00:00.123 WARN engine.llama [t1] step 69",
+            "00:00:00.123 WARN engine.llama [t1] step 70",
+            "00:00:00.123 WARN engine.llama [t1] step 71",
+            "00:00:00.123 WARN engine.llama [t1] step 72",
+            "00:00:00.123 WARN engine.llama [t1] step 73",
+            "00:00:00.123 WARN engine.llama [t1] step 74",
+            "00:00:00.123 WARN engine.llama [t1] step 75",
+            "00:00:00.123 WARN engine.llama [t1] step 76",
+            "00:00:00.123 WARN engine.llama [t1] step 77",
+            "00:00:00.123 WARN engine.llama [t1] step 78",
+            "00:00:00.123 WARN engine.llama [t1] step 79",
+            "00:00:00.123 WARN engine.llama [t1] step 80",
+            "00:00:00.123 WARN engine.llama [t1] step 81",
+            "00:00:00.123 WARN engine.llama [t1] step 82",
+            "00:00:00.123 WARN engine.llama [t1] step 83",
+            "00:00:00.123 WARN engine.llama [t1] step 84",
+            "00:00:00.123 WARN engine.llama [t1] step 85",
+            "00:00:00.123 WARN engine.llama [t1] step 86",
+            "00:00:00.123 WARN engine.llama [t1] step 87",
+            "00:00:00.123 WARN engine.llama [t1] step 88",
+            "00:00:00.123 WARN engine.llama [t1] step 89",
+            "00:00:00.123 WARN engine.llama [t1] step 90",
+            "00:00:00.123 WARN engine.llama [t1] step 91",
+            "00:00:00.123 WARN engine.llama [t1] step 92",
+            "00:00:00.123 WARN engine.llama [t1] step 93",
+            "00:00:00.123 WARN engine.llama [t1] step 94",
+            "00:00:00.123 WARN engine.llama [t1] step 95",
+            "00:00:00.123 WARN engine.llama [t1] step 96",
+            "00:00:00.123 WARN engine.llama [t1] step 97",
+            "00:00:00.123 WARN engine.llama [t1] step 98",
+            "00:00:00.123 WARN engine.llama [t1] step 99",
+            "00:00:00.123 WARN engine.llama [t1] step 100",
+            "00:00:00.123 WARN engine.llama [t1] step 101",
+            "00:00:00.123 WARN engine.llama [t1] step 102",
+            "00:00:00.123 WARN engine.llama [t1] step 103",
+            "00:00:00.123 WARN engine.llama [t1] step 104",
+            "00:00:00.123 WARN engine.llama [t1] step 105",
+            "00:00:00.123 WARN engine.llama [t1] step 106",
+            "00:00:00.123 WARN engine.llama [t1] step 107",
+            "00:00:00.123 WARN engine.llama [t1] step 108",
+            "00:00:00.123 WARN engine.llama [t1] step 109",
+            "00:00:00.123 WARN engine.llama [t1] step 110",
+            "00:00:00.123 WARN engine.llama [t1] step 111",
+            "00:00:00.123 WARN engine.llama [t1] step 112",
+            "00:00:00.123 WARN engine.llama [t1] step 113",
+            "00:00:00.123 WARN engine.llama [t1] step 114",
+            "00:00:00.123 WARN engine.llama [t1] step 115",
+            "00:00:00.123 WARN engine.llama [t1] step 116",
+            "00:00:00.123 WARN engine.llama [t1] step 117",
+            "00:00:00.123 WARN engine.llama [t1] step 118",
+            "00:00:00.123 WARN engine.llama [t1] step 119",
+            "00:00:00.123 WARN engine.llama [t1] step 120",
+            "00:00:00.123 WARN engine.llama [t1] step 121",
+            "00:00:00.123 WARN engine.llama [t1] step 122",
+            "00:00:00.123 WARN engine.llama [t1] step 123",
+            "00:00:00.123 WARN engine.llama [t1] step 124",
+            "00:00:00.123 WARN engine.llama [t1] step 125",
+            "00:00:00.123 WARN engine.llama [t1] step 126",
+            "00:00:00.123 WARN engine.llama [t1] step 127",
+            "00:00:00.123 WARN engine.llama [t1] step 128",
+            "00:00:00.123 WARN engine.llama [t1] step 129"
+          ]
+        },
+        {
+          "reason": "again",
+          "count": 100,
+          "recent": [
+            "00:00:00.123 WARN engine.llama [t1] step 30",
+            "00:00:00.123 WARN engine.llama [t1] step 31",
+            "00:00:00.123 WARN engine.llama [t1] step 32",
+            "00:00:00.123 WARN engine.llama [t1] step 33",
+            "00:00:00.123 WARN engine.llama [t1] step 34",
+            "00:00:00.123 WARN engine.llama [t1] step 35",
+            "00:00:00.123 WARN engine.llama [t1] step 36",
+            "00:00:00.123 WARN engine.llama [t1] step 37",
+            "00:00:00.123 WARN engine.llama [t1] step 38",
+            "00:00:00.123 WARN engine.llama [t1] step 39",
+            "00:00:00.123 WARN engine.llama [t1] step 40",
+            "00:00:00.123 WARN engine.llama [t1] step 41",
+            "00:00:00.123 WARN engine.llama [t1] step 42",
+            "00:00:00.123 WARN engine.llama [t1] step 43",
+            "00:00:00.123 WARN engine.llama [t1] step 44",
+            "00:00:00.123 WARN engine.llama [t1] step 45",
+            "00:00:00.123 WARN engine.llama [t1] step 46",
+            "00:00:00.123 WARN engine.llama [t1] step 47",
+            "00:00:00.123 WARN engine.llama [t1] step 48",
+            "00:00:00.123 WARN engine.llama [t1] step 49",
+            "00:00:00.123 WARN engine.llama [t1] step 50",
+            "00:00:00.123 WARN engine.llama [t1] step 51",
+            "00:00:00.123 WARN engine.llama [t1] step 52",
+            "00:00:00.123 WARN engine.llama [t1] step 53",
+            "00:00:00.123 WARN engine.llama [t1] step 54",
+            "00:00:00.123 WARN engine.llama [t1] step 55",
+            "00:00:00.123 WARN engine.llama [t1] step 56",
+            "00:00:00.123 WARN engine.llama [t1] step 57",
+            "00:00:00.123 WARN engine.llama [t1] step 58",
+            "00:00:00.123 WARN engine.llama [t1] step 59",
+            "00:00:00.123 WARN engine.llama [t1] step 60",
+            "00:00:00.123 WARN engine.llama [t1] step 61",
+            "00:00:00.123 WARN engine.llama [t1] step 62",
+            "00:00:00.123 WARN engine.llama [t1] step 63",
+            "00:00:00.123 WARN engine.llama [t1] step 64",
+            "00:00:00.123 WARN engine.llama [t1] step 65",
+            "00:00:00.123 WARN engine.llama [t1] step 66",
+            "00:00:00.123 WARN engine.llama [t1] step 67",
+            "00:00:00.123 WARN engine.llama [t1] step 68",
+            "00:00:00.123 WARN engine.llama [t1] step 69",
+            "00:00:00.123 WARN engine.llama [t1] step 70",
+            "00:00:00.123 WARN engine.llama [t1] step 71",
+            "00:00:00.123 WARN engine.llama [t1] step 72",
+            "00:00:00.123 WARN engine.llama [t1] step 73",
+            "00:00:00.123 WARN engine.llama [t1] step 74",
+            "00:00:00.123 WARN engine.llama [t1] step 75",
+            "00:00:00.123 WARN engine.llama [t1] step 76",
+            "00:00:00.123 WARN engine.llama [t1] step 77",
+            "00:00:00.123 WARN engine.llama [t1] step 78",
+            "00:00:00.123 WARN engine.llama [t1] step 79",
+            "00:00:00.123 WARN engine.llama [t1] step 80",
+            "00:00:00.123 WARN engine.llama [t1] step 81",
+            "00:00:00.123 WARN engine.llama [t1] step 82",
+            "00:00:00.123 WARN engine.llama [t1] step 83",
+            "00:00:00.123 WARN engine.llama [t1] step 84",
+            "00:00:00.123 WARN engine.llama [t1] step 85",
+            "00:00:00.123 WARN engine.llama [t1] step 86",
+            "00:00:00.123 WARN engine.llama [t1] step 87",
+            "00:00:00.123 WARN engine.llama [t1] step 88",
+            "00:00:00.123 WARN engine.llama [t1] step 89",
+            "00:00:00.123 WARN engine.llama [t1] step 90",
+            "00:00:00.123 WARN engine.llama [t1] step 91",
+            "00:00:00.123 WARN engine.llama [t1] step 92",
+            "00:00:00.123 WARN engine.llama [t1] step 93",
+            "00:00:00.123 WARN engine.llama [t1] step 94",
+            "00:00:00.123 WARN engine.llama [t1] step 95",
+            "00:00:00.123 WARN engine.llama [t1] step 96",
+            "00:00:00.123 WARN engine.llama [t1] step 97",
+            "00:00:00.123 WARN engine.llama [t1] step 98",
+            "00:00:00.123 WARN engine.llama [t1] step 99",
+            "00:00:00.123 WARN engine.llama [t1] step 100",
+            "00:00:00.123 WARN engine.llama [t1] step 101",
+            "00:00:00.123 WARN engine.llama [t1] step 102",
+            "00:00:00.123 WARN engine.llama [t1] step 103",
+            "00:00:00.123 WARN engine.llama [t1] step 104",
+            "00:00:00.123 WARN engine.llama [t1] step 105",
+            "00:00:00.123 WARN engine.llama [t1] step 106",
+            "00:00:00.123 WARN engine.llama [t1] step 107",
+            "00:00:00.123 WARN engine.llama [t1] step 108",
+            "00:00:00.123 WARN engine.llama [t1] step 109",
+            "00:00:00.123 WARN engine.llama [t1] step 110",
+            "00:00:00.123 WARN engine.llama [t1] step 111",
+            "00:00:00.123 WARN engine.llama [t1] step 112",
+            "00:00:00.123 WARN engine.llama [t1] step 113",
+            "00:00:00.123 WARN engine.llama [t1] step 114",
+            "00:00:00.123 WARN engine.llama [t1] step 115",
+            "00:00:00.123 WARN engine.llama [t1] step 116",
+            "00:00:00.123 WARN engine.llama [t1] step 117",
+            "00:00:00.123 WARN engine.llama [t1] step 118",
+            "00:00:00.123 WARN engine.llama [t1] step 119",
+            "00:00:00.123 WARN engine.llama [t1] step 120",
+            "00:00:00.123 WARN engine.llama [t1] step 121",
+            "00:00:00.123 WARN engine.llama [t1] step 122",
+            "00:00:00.123 WARN engine.llama [t1] step 123",
+            "00:00:00.123 WARN engine.llama [t1] step 124",
+            "00:00:00.123 WARN engine.llama [t1] step 125",
+            "00:00:00.123 WARN engine.llama [t1] step 126",
+            "00:00:00.123 WARN engine.llama [t1] step 127",
+            "00:00:00.123 WARN engine.llama [t1] step 128",
+            "00:00:00.123 WARN engine.llama [t1] step 129"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a dump of a few lines lists them in order",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "warn",
+            "scope": "engine",
+            "message": "a"
+          },
+          {
+            "op": "warn",
+            "scope": "engine",
+            "message": "b"
+          },
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "dropped"
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "uncaughtException"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "uncaughtException",
+          "count": 2,
+          "recent": [
+            "00:00:00.123 WARN engine a",
+            "00:00:00.123 WARN engine b"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lines the levels drop are not remembered",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "engine",
+            "message": "hidden"
+          },
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "also hidden"
+          },
+          {
+            "op": "error",
+            "scope": "mcp.github",
+            "message": "shown"
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "unhandledRejection"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "unhandledRejection",
+          "count": 1,
+          "recent": [
+            "00:00:00.123 ERROR mcp.github shown"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the logger's own lines are not remembered",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG"
+          },
+          {
+            "op": "warn",
+            "scope": "engine",
+            "message": "kept"
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "test"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "test",
+          "count": 1,
+          "recent": [
+            "00:00:00.123 WARN engine kept"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a long message is cut at 120 units with three dots",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "warn",
+            "scope": "engine",
+            "message": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "test"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "test",
+          "count": 1,
+          "recent": [
+            "00:00:00.123 WARN engine mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a renderer entry is remembered under its renderer context and correlation id",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "WARN",
+              "context": "chat",
+              "message": "hi",
+              "correlationId": "c9"
+            }
+          },
+          {
+            "op": "dumpRecent",
+            "reason": "test"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "reason": "test",
+          "count": 1,
+          "recent": [
+            "00:00:00.123 WARN renderer.chat [c9] hi"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1183 @@
+{
+  "area": "diagnostics",
+  "description": "Log lines one call writes, after the boot line: app.log cut, debug.log and events.jsonl in full. Covers levels, hashing of sensitive text, secret key names (any letter case, any depth, and the look-alikes that stay), cuts, numbers, depth, error chains, timers and how their data spreads, swallow, and keystore values.",
+  "cases": [
+    {
+      "name": "info line: stamp, tag, system id, context and data",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "engine.llama",
+            "message": "ready",
+            "data": {
+              "port": 8080,
+              "model": "llama3"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] ready {\"port\":8080,\"model\":\"llama3\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] ready {\"port\":8080,\"model\":\"llama3\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"ready\",\"data\":{\"port\":8080,\"model\":\"llama3\"}}"
+        ]
+      }
+    },
+    {
+      "name": "correlation id from data replaces the system id",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "agent",
+            "message": "turn start",
+            "data": {
+              "cid": "turn-1",
+              "model": "llama3"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-1] [agent] turn start {\"cid\":\"turn-1\",\"model\":\"llama3\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-1] [agent] turn start {\"cid\":\"turn-1\",\"model\":\"llama3\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"agent\",\"msg\":\"turn start\",\"cid\":\"turn-1\",\"data\":{\"cid\":\"turn-1\",\"model\":\"llama3\"}}"
+        ]
+      }
+    },
+    {
+      "name": "debug stays out of app.log and reaches debug.log and events",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "providers",
+            "message": "retry scheduled",
+            "data": {
+              "attempt": 2
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [providers] retry scheduled {\"attempt\":2}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"providers\",\"msg\":\"retry scheduled\",\"data\":{\"attempt\":2}}"
+        ]
+      }
+    },
+    {
+      "name": "app level WARN hides info from app.log only",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "APP_LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "hidden info"
+          },
+          {
+            "op": "warn",
+            "scope": "engine",
+            "message": "visible warn"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [engine] visible warn"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine] hidden info",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [engine] visible warn"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"hidden info\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"visible warn\"}"
+        ]
+      }
+    },
+    {
+      "name": "a raised scope reaches app.log at DEBUG",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "DRAGGY_DEBUG": "providers"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "providers.openai",
+            "message": "raised child",
+            "data": {
+              "attempt": 1
+            }
+          },
+          {
+            "op": "debug",
+            "scope": "engine",
+            "message": "not raised"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [providers.openai] raised child {\"attempt\":1}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [providers.openai] raised child {\"attempt\":1}",
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.3 [system] [engine] not raised"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"providers.openai\",\"msg\":\"raised child\",\"data\":{\"attempt\":1}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine\",\"msg\":\"not raised\"}"
+        ]
+      }
+    },
+    {
+      "name": "prompts and replies are hashed in every file",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "agent",
+            "message": "turn",
+            "data": {
+              "cid": "turn-2",
+              "prompt": "please summarise my confidential merger memo",
+              "reply": "the merger closes on the ninth of March",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "please summarise my confidential merger memo"
+                },
+                {
+                  "role": "assistant",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "the merger closes on the ninth of March"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-2] [agent] turn {\"cid\":\"turn-2\",\"prompt\":\"[44 chars, sha256:974fa8e1]\",\"reply\":\"[39 chars, sha256:f2de1b10]\",\"messages\":[{\"role\":\"user\",\"content\":\"[44 chars, sha256:974fa8e1]\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"[4 chars, sha256:982d9e3e]\",\"text\":\"[39 chars, sha256:f2de1b10]\"}]}]}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-2] [agent] turn {\"cid\":\"turn-2\",\"prompt\":\"[44 chars, sha256:974fa8e1]\",\"reply\":\"[39 chars, sha256:f2de1b10]\",\"messages\":[{\"role\":\"user\",\"content\":\"[44 chars, sha256:974fa8e1]\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"[4 chars, sha256:982d9e3e]\",\"text\":\"[39 chars, sha256:f2de1b10]\"}]}]}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"agent\",\"msg\":\"turn\",\"cid\":\"turn-2\",\"data\":{\"cid\":\"turn-2\",\"prompt\":\"[44 chars, sha256:974fa8e1]\",\"reply\":\"[39 chars, sha256:f2de1b10]\",\"messages\":[{\"role\":\"user\",\"content\":\"[44 chars, sha256:974fa8e1]\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"[4 chars, sha256:982d9e3e]\",\"text\":\"[39 chars, sha256:f2de1b10]\"}]}]}}"
+        ]
+      }
+    },
+    {
+      "name": "stream chunks are recorded by byte count and the raw chunk is hashed",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "proc.command",
+            "message": "stdout chunk",
+            "data": {
+              "bytes": 42,
+              "rawChunk": "The quarterly figures"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [proc.command] stdout chunk {\"bytes\":42,\"rawChunk\":\"[21 chars, sha256:aab962a4]\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"proc.command\",\"msg\":\"stdout chunk\",\"data\":{\"bytes\":42,\"rawChunk\":\"[21 chars, sha256:aab962a4]\"}}"
+        ]
+      }
+    },
+    {
+      "name": "long strings are cut in app.log only",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tools",
+            "message": "readFile:start",
+            "data": {
+              "path": "C:/nested/nested/nested/nested/nested/nested/nested/nested/nested/nested/file.txt"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tools] readFile:start {\"path\":\"C:/nested/nested/nested/nested/nested/nested/neste... [81 chars, sha256:d821b197]\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tools] readFile:start {\"path\":\"C:/nested/nested/nested/nested/nested/nested/nested/nested/nested/nested/file.txt\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tools\",\"msg\":\"readFile:start\",\"data\":{\"path\":\"C:/nested/nested/nested/nested/nested/nested/nested/nested/nested/nested/file.txt\"}}"
+        ]
+      }
+    },
+    {
+      "name": "secret field names are dropped without a hash",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "settings",
+            "message": "saved",
+            "data": {
+              "apiKey": "sk-live-0123456789abcdef",
+              "token": "abc123xyz",
+              "nested": {
+                "password": "hunter22",
+                "theme": "dark"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [settings] saved {\"apiKey\":\"[secret:apiKey]\",\"token\":\"[secret:token]\",\"nested\":{\"password\":\"[secret:password]\",\"theme\":\"dark\"}}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [settings] saved {\"apiKey\":\"[secret:apiKey]\",\"token\":\"[secret:token]\",\"nested\":{\"password\":\"[secret:password]\",\"theme\":\"dark\"}}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"settings\",\"msg\":\"saved\",\"data\":{\"apiKey\":\"[secret:apiKey]\",\"token\":\"[secret:token]\",\"nested\":{\"password\":\"[secret:password]\",\"theme\":\"dark\"}}}"
+        ]
+      }
+    },
+    {
+      "name": "keys in urls and bearer headers are scrubbed",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "providers",
+            "message": "request",
+            "data": {
+              "url": "https://api.test/v1/chat?key=AIzaSyD1234567890abcdefghijklmnopqrs",
+              "headers": {
+                "Authorization": "Bearer abcdefghijklmnop",
+                "x-trace": "abc"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [providers] request {\"url\":\"https://api.test/v1/chat?key=[secret:query]\",\"headers\":{\"Authorization\":\"[secret:Authorization]\",\"x-trace\":\"abc\"}}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [providers] request {\"url\":\"https://api.test/v1/chat?key=[secret:query]\",\"headers\":{\"Authorization\":\"[secret:Authorization]\",\"x-trace\":\"abc\"}}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"providers\",\"msg\":\"request\",\"data\":{\"url\":\"https://api.test/v1/chat?key=[secret:query]\",\"headers\":{\"Authorization\":\"[secret:Authorization]\",\"x-trace\":\"abc\"}}}"
+        ]
+      }
+    },
+    {
+      "name": "fail with a cause chain: events keep it, app.log cuts the echoed message",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "fail",
+            "scope": "providers.openai",
+            "message": "request failed",
+            "error": {
+              "name": "Error",
+              "message": "provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body END",
+              "stack": "Error: provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body END\n    at call (/app/providers/openai.js:10:5)\n    at run (/app/main.js:3:1)",
+              "status": 502,
+              "cause": {
+                "name": "Error",
+                "message": "fetch failed",
+                "cause": {
+                  "name": "Error",
+                  "message": "connect refused",
+                  "code": "ECONNREFUSED",
+                  "errno": -111,
+                  "syscall": "connect"
+                }
+              }
+            },
+            "data": {
+              "attempt": 2,
+              "cid": "turn-3"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [turn-3] [providers.openai] request failed {\"attempt\":2,\"cid\":\"turn-3\"}",
+          "Error: provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request b... [270 chars, sha256:a3bb1b90]",
+          "    at call (/app/providers/openai.js:10:5)",
+          "    at run (/app/main.js:3:1)",
+          "  [status=502]",
+          "  caused by: Error: fetch failed",
+          "  ",
+          "    caused by: Error: connect refused",
+          "    ",
+          "      [code=ECONNREFUSED errno=-111 syscall=connect]"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [turn-3] [providers.openai] request failed {\"attempt\":2,\"cid\":\"turn-3\"}",
+          "Error: provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body END",
+          "    at call (/app/providers/openai.js:10:5)",
+          "    at run (/app/main.js:3:1)",
+          "  [status=502]",
+          "  caused by: Error: fetch failed",
+          "    caused by: Error: connect refused",
+          "      [code=ECONNREFUSED errno=-111 syscall=connect]"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"providers.openai\",\"msg\":\"request failed\",\"cid\":\"turn-3\",\"data\":{\"attempt\":2,\"cid\":\"turn-3\"},\"err\":{\"name\":\"Error\",\"message\":\"provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body END\",\"stack\":\"Error: provider said: private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body private request body END\\n    at call (/app/providers/openai.js:10:5)\\n    at run (/app/main.js:3:1)\",\"status\":502,\"cause\":{\"name\":\"Error\",\"message\":\"fetch failed\",\"cause\":{\"name\":\"Error\",\"message\":\"connect refused\",\"code\":\"ECONNREFUSED\",\"errno\":-111,\"syscall\":\"connect\"}}}}"
+        ]
+      }
+    },
+    {
+      "name": "a plain error without a stack",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "fail",
+            "scope": "mcp",
+            "message": "sign-in failed",
+            "error": {
+              "name": "Error",
+              "message": "access denied"
+            },
+            "data": {
+              "server": "github"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [mcp] sign-in failed {\"server\":\"github\"}",
+          "Error: access denied",
+          ""
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [mcp] sign-in failed {\"server\":\"github\"}",
+          "Error: access denied"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"mcp\",\"msg\":\"sign-in failed\",\"data\":{\"server\":\"github\"},\"err\":{\"name\":\"Error\",\"message\":\"access denied\"}}"
+        ]
+      }
+    },
+    {
+      "name": "a timer records its duration and data",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "load",
+            "data": {
+              "model": "llama3"
+            },
+            "elapsedMs": 25,
+            "end": "ok",
+            "endData": {
+              "ok": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"model\":\"llama3\",\"ok\":true,\"durMs\":25}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"model\":\"llama3\",\"ok\":true,\"durMs\":25}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"load\",\"durMs\":25,\"data\":{\"model\":\"llama3\",\"ok\":true,\"durMs\":25}}"
+        ]
+      }
+    },
+    {
+      "name": "a slow timer warns",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "warm",
+            "warnMs": 5,
+            "elapsedMs": 20,
+            "end": "ok"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [engine.llama] warm slow {\"durMs\":20}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [engine.llama] warm slow {\"durMs\":20}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"warm slow\",\"durMs\":20,\"data\":{\"durMs\":20}}"
+        ]
+      }
+    },
+    {
+      "name": "a failed timer is an error with its code",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "bind",
+            "data": {
+              "port": 8080
+            },
+            "elapsedMs": 3,
+            "end": "fail",
+            "error": {
+              "name": "Error",
+              "message": "port in use",
+              "code": "EADDRINUSE"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [engine.llama] bind failed {\"port\":8080,\"durMs\":3}",
+          "Error: port in use",
+          "",
+          "  [code=EADDRINUSE]"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [engine.llama] bind failed {\"port\":8080,\"durMs\":3}",
+          "Error: port in use",
+          "  [code=EADDRINUSE]"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"bind failed\",\"durMs\":3,\"data\":{\"port\":8080,\"durMs\":3},\"err\":{\"name\":\"Error\",\"message\":\"port in use\",\"code\":\"EADDRINUSE\"}}"
+        ]
+      }
+    },
+    {
+      "name": "swallow logs the reason and the error code",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "swallow",
+            "scope": "files",
+            "why": "temp file already removed",
+            "error": {
+              "name": "Error",
+              "message": "gone",
+              "code": "ENOENT"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [files] swallowed: temp file already removed {\"error\":\"gone\",\"code\":\"ENOENT\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"files\",\"msg\":\"swallowed: temp file already removed\",\"data\":{\"error\":\"gone\",\"code\":\"ENOENT\"}}"
+        ]
+      }
+    },
+    {
+      "name": "swallow without an error",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "swallow",
+            "scope": "files",
+            "why": "nothing to clean"
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [files] swallowed: nothing to clean {}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"files\",\"msg\":\"swallowed: nothing to clean\",\"data\":{}}"
+        ]
+      }
+    },
+    {
+      "name": "numbers keep their JSON types",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "data",
+            "message": "types",
+            "data": {
+              "n": 1.5,
+              "whole": 2,
+              "big": 1234567,
+              "flag": true,
+              "nothing": null,
+              "list": [
+                1,
+                "two",
+                false
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] types {\"n\":1.5,\"whole\":2,\"big\":1234567,\"flag\":true,\"nothing\":null,\"list\":[1,\"two\",false]}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] types {\"n\":1.5,\"whole\":2,\"big\":1234567,\"flag\":true,\"nothing\":null,\"list\":[1,\"two\",false]}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"types\",\"data\":{\"n\":1.5,\"whole\":2,\"big\":1234567,\"flag\":true,\"nothing\":null,\"list\":[1,\"two\",false]}}"
+        ]
+      }
+    },
+    {
+      "name": "escapes and unicode in plain fields",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "data",
+            "message": "escapes",
+            "data": {
+              "note": "a\u0001b \"q\" \\ /",
+              "title": "café 你好 😀"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"escapes\",\"data\":{\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}}"
+        ]
+      }
+    },
+    {
+      "name": "deep objects stop at depth six",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "data",
+            "message": "deep",
+            "data": {
+              "a": {
+                "b": {
+                  "c": {
+                    "d": {
+                      "e": {
+                        "f": {
+                          "g": "deep"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] deep {\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":\"[Depth]\"}}}}}}}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] deep {\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":\"[Depth]\"}}}}}}}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"deep\",\"data\":{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":\"[Depth]\"}}}}}}}}"
+        ]
+      }
+    },
+    {
+      "name": "integer-like keys print first, as in JavaScript",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "data",
+            "message": "keys",
+            "data": {
+              "2": 3,
+              "10": 2,
+              "b": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] keys {\"2\":3,\"10\":2,\"b\":1}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] keys {\"2\":3,\"10\":2,\"b\":1}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"keys\",\"data\":{\"2\":3,\"10\":2,\"b\":1}}"
+        ]
+      }
+    },
+    {
+      "name": "events name the process from the scope",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "renderer.chat",
+            "message": "tick"
+          },
+          {
+            "op": "warn",
+            "scope": "mcp.github",
+            "message": "slow handshake"
+          },
+          {
+            "op": "info",
+            "scope": "engine.llama",
+            "message": "ready"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [mcp.github] slow handshake",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [engine.llama] ready"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [renderer.chat] tick",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [mcp.github] slow handshake",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [engine.llama] ready"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"tick\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"mcp:github\",\"pid\":4242,\"scope\":\"mcp.github\",\"msg\":\"slow handshake\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"ready\"}"
+        ]
+      }
+    },
+    {
+      "name": "an empty session id shows a dash in the tag",
+      "input": {
+        "clock": 1767225600123,
+        "session": "",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "x",
+            "message": "y"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO -.2 [system] [x] y"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO -.2 [system] [x] y"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"x\",\"msg\":\"y\"}"
+        ]
+      }
+    },
+    {
+      "name": "a line with no data ends at the message",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "system",
+            "message": "plain line"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [system] plain line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [system] plain line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"system\",\"msg\":\"plain line\"}"
+        ]
+      }
+    },
+    {
+      "name": "a registered keystore value is replaced everywhere",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "register",
+            "value": "plain-looking-value"
+          },
+          {
+            "op": "info",
+            "scope": "settings",
+            "message": "saved",
+            "data": {
+              "note": "key plain-looking-value here"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [settings] saved {\"note\":\"key [secret:stored] here\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [settings] saved {\"note\":\"key [secret:stored] here\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"settings\",\"msg\":\"saved\",\"data\":{\"note\":\"key [secret:stored] here\"}}"
+        ]
+      }
+    },
+    {
+      "name": "secret key names are dropped in any letter case",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "auth",
+            "message": "keys",
+            "data": {
+              "ACCESS_TOKEN": "plain value",
+              "Api-Key": "plain value",
+              "Set-Cookie": "plain value",
+              "Client_Secret": "plain value",
+              "PASSWORD": "plain value"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] keys {\"ACCESS_TOKEN\":\"[secret:ACCESS_TOKEN]\",\"Api-Key\":\"[secret:Api-Key]\",\"Set-Cookie\":\"[secret:Set-Cookie]\",\"Client_Secret\":\"[secret:Client_Secret]\",\"PASSWORD\":\"[secret:PASSWORD]\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] keys {\"ACCESS_TOKEN\":\"[secret:ACCESS_TOKEN]\",\"Api-Key\":\"[secret:Api-Key]\",\"Set-Cookie\":\"[secret:Set-Cookie]\",\"Client_Secret\":\"[secret:Client_Secret]\",\"PASSWORD\":\"[secret:PASSWORD]\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"auth\",\"msg\":\"keys\",\"data\":{\"ACCESS_TOKEN\":\"[secret:ACCESS_TOKEN]\",\"Api-Key\":\"[secret:Api-Key]\",\"Set-Cookie\":\"[secret:Set-Cookie]\",\"Client_Secret\":\"[secret:Client_Secret]\",\"PASSWORD\":\"[secret:PASSWORD]\"}}"
+        ]
+      }
+    },
+    {
+      "name": "secret key names with a long s or a Kelvin sign are kept, as JavaScript keeps them",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "auth",
+            "message": "keys",
+            "data": {
+              "ſecret": "plain value",
+              "accessToKen": "plain value"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] keys {\"ſecret\":\"plain value\",\"accessToKen\":\"plain value\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] keys {\"ſecret\":\"plain value\",\"accessToKen\":\"plain value\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"auth\",\"msg\":\"keys\",\"data\":{\"ſecret\":\"plain value\",\"accessToKen\":\"plain value\"}}"
+        ]
+      }
+    },
+    {
+      "name": "key names that contain a secret word but are not one are kept",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "usage",
+            "message": "counts",
+            "data": {
+              "tokens": 12,
+              "inputTokens": 3,
+              "model": "m",
+              "code": "E1",
+              "status": 200,
+              "tokenCount": 4
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [usage] counts {\"tokens\":12,\"inputTokens\":3,\"model\":\"m\",\"code\":\"E1\",\"status\":200,\"tokenCount\":4}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [usage] counts {\"tokens\":12,\"inputTokens\":3,\"model\":\"m\",\"code\":\"E1\",\"status\":200,\"tokenCount\":4}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"usage\",\"msg\":\"counts\",\"data\":{\"tokens\":12,\"inputTokens\":3,\"model\":\"m\",\"code\":\"E1\",\"status\":200,\"tokenCount\":4}}"
+        ]
+      }
+    },
+    {
+      "name": "secret key names are dropped at any depth",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "auth",
+            "message": "nested",
+            "data": {
+              "outer": {
+                "cookie": "plain value",
+                "inner": [
+                  {
+                    "client_secret": "plain value"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] nested {\"outer\":{\"cookie\":\"[secret:cookie]\",\"inner\":[{\"client_secret\":\"[secret:client_secret]\"}]}}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] nested {\"outer\":{\"cookie\":\"[secret:cookie]\",\"inner\":[{\"client_secret\":\"[secret:client_secret]\"}]}}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"auth\",\"msg\":\"nested\",\"data\":{\"outer\":{\"cookie\":\"[secret:cookie]\",\"inner\":[{\"client_secret\":\"[secret:client_secret]\"}]}}}"
+        ]
+      }
+    },
+    {
+      "name": "a timer whose start data is a string spreads its characters under their indexes",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "load",
+            "data": "ab",
+            "endData": [
+              "x"
+            ],
+            "elapsedMs": 12
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"0\":\"x\",\"1\":\"b\",\"durMs\":12}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"0\":\"x\",\"1\":\"b\",\"durMs\":12}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"load\",\"durMs\":12,\"data\":{\"0\":\"x\",\"1\":\"b\",\"durMs\":12}}"
+        ]
+      }
+    },
+    {
+      "name": "a timer whose data is a number keeps only its duration",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "load",
+            "data": 7,
+            "elapsedMs": 12
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"durMs\":12}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"durMs\":12}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"load\",\"durMs\":12,\"data\":{\"durMs\":12}}"
+        ]
+      }
+    },
+    {
+      "name": "a timer whose data is an array keeps the items under their indexes",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "load",
+            "data": [
+              "a",
+              {
+                "x": 1
+              }
+            ],
+            "endData": {
+              "ok": true
+            },
+            "elapsedMs": 3
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"0\":\"a\",\"1\":{\"x\":1},\"ok\":true,\"durMs\":3}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"0\":\"a\",\"1\":{\"x\":1},\"ok\":true,\"durMs\":3}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"load\",\"durMs\":3,\"data\":{\"0\":\"a\",\"1\":{\"x\":1},\"ok\":true,\"durMs\":3}}"
+        ]
+      }
+    },
+    {
+      "name": "a timer with null end data keeps its start data",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "time",
+            "scope": "engine.llama",
+            "label": "load",
+            "data": {
+              "model": "m"
+            },
+            "endData": null,
+            "elapsedMs": 3
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"model\":\"m\",\"durMs\":3}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [engine.llama] load {\"model\":\"m\",\"durMs\":3}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"engine\",\"pid\":4242,\"scope\":\"engine.llama\",\"msg\":\"load\",\"durMs\":3,\"data\":{\"model\":\"m\",\"durMs\":3}}"
+        ]
+      }
+    },
+    {
+      "name": "camel case secret key names are dropped",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "auth",
+            "message": "camel",
+            "data": {
+              "accessToken": "plain value",
+              "apiKey": "plain value",
+              "Authorization": "plain value",
+              "code_verifier": "plain value"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] camel {\"accessToken\":\"[secret:accessToken]\",\"apiKey\":\"[secret:apiKey]\",\"Authorization\":\"[secret:Authorization]\",\"code_verifier\":\"[secret:code_verifier]\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [auth] camel {\"accessToken\":\"[secret:accessToken]\",\"apiKey\":\"[secret:apiKey]\",\"Authorization\":\"[secret:Authorization]\",\"code_verifier\":\"[secret:code_verifier]\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"auth\",\"msg\":\"camel\",\"data\":{\"accessToken\":\"[secret:accessToken]\",\"apiKey\":\"[secret:apiKey]\",\"Authorization\":\"[secret:Authorization]\",\"code_verifier\":\"[secret:code_verifier]\"}}"
+        ]
+      }
+    }
+  ]
+}

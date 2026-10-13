@@ -1,0 +1,51 @@
+{
+  "area": "diagnostics",
+  "description": "Sensitive text as events.jsonl stores it. Input is the text under a `prompt` key; expected is the value the writer puts in its place, [N chars, sha256:<8 hex>], with N counted in UTF-16 units and the hash over the full text.",
+  "cases": [
+    {
+      "name": "empty text",
+      "input": "",
+      "expected": "[0 chars, sha256:e3b0c442]"
+    },
+    {
+      "name": "ascii prompt",
+      "input": "Summarise my merger memo.",
+      "expected": "[25 chars, sha256:366af663]"
+    },
+    {
+      "name": "emoji counts as two units",
+      "input": "😀",
+      "expected": "[2 chars, sha256:f0443a34]"
+    },
+    {
+      "name": "accented text counts by UTF-16 unit",
+      "input": "café déjà vu",
+      "expected": "[12 chars, sha256:916a04a8]"
+    },
+    {
+      "name": "cjk text",
+      "input": "你好世界",
+      "expected": "[4 chars, sha256:beca6335]"
+    },
+    {
+      "name": "newline and quotes",
+      "input": "line one\n\"quoted\" text",
+      "expected": "[22 chars, sha256:94574467]"
+    },
+    {
+      "name": "long prompt is hashed whole",
+      "input": "The quarterly figures my accountant sent me show a loss of 4,200 euros, and I want to know whether to file.",
+      "expected": "[107 chars, sha256:b88039c8]"
+    },
+    {
+      "name": "secret-shaped text is hashed, not scrubbed",
+      "input": "sk-ant-api03-ABCDEFGH1234",
+      "expected": "[25 chars, sha256:29dea7a3]"
+    },
+    {
+      "name": "whitespace only",
+      "input": "   ",
+      "expected": "[3 chars, sha256:0aad7da7]"
+    }
+  ]
+}

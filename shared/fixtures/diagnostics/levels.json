@@ -1,0 +1,849 @@
+{
+  "area": "diagnostics",
+  "description": "The level state after the ops, with the probe lines that reached each file. Covers environment levels, DRAGGY_DEBUG scopes, runtime setLevel changes, string and array scopes (array items trimmed, blanks dropped, kept whole at 50 items and 80 units), and null scopes.",
+  "cases": [
+    {
+      "name": "defaults: app INFO, debug DEBUG",
+      "input": {
+        "env": {},
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "d-probe",
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "LOG_LEVEL sets both levels",
+      "input": {
+        "env": {
+          "LOG_LEVEL": "warn"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "WARN",
+        "scopes": [],
+        "app": [
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "APP_LOG_LEVEL overrides only the app level",
+      "input": {
+        "env": {
+          "LOG_LEVEL": "error",
+          "APP_LOG_LEVEL": "info"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "DEBUG_LOG_LEVEL overrides only the debug level",
+      "input": {
+        "env": {
+          "DEBUG_LOG_LEVEL": "warn"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "level names are case-insensitive",
+      "input": {
+        "env": {
+          "APP_LOG_LEVEL": "Debug"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "DEBUG",
+        "scopes": [],
+        "app": [
+          "d-probe",
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "d-probe",
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "unknown names fall back to the defaults",
+      "input": {
+        "env": {
+          "APP_LOG_LEVEL": "loud",
+          "DEBUG_LOG_LEVEL": "verbose"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "d-probe",
+          "i-probe",
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "an empty variable counts as unset",
+      "input": {
+        "env": {
+          "APP_LOG_LEVEL": "",
+          "LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "lvl",
+            "message": "d-probe"
+          },
+          {
+            "op": "info",
+            "scope": "lvl",
+            "message": "i-probe"
+          },
+          {
+            "op": "warn",
+            "scope": "lvl",
+            "message": "w-probe"
+          },
+          {
+            "op": "error",
+            "scope": "lvl",
+            "message": "e-probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "WARN",
+        "scopes": [],
+        "app": [
+          "w-probe",
+          "e-probe"
+        ],
+        "debug": [
+          "w-probe",
+          "e-probe"
+        ]
+      }
+    },
+    {
+      "name": "DRAGGY_DEBUG raises listed scopes and their children to DEBUG in app.log",
+      "input": {
+        "env": {
+          "DRAGGY_DEBUG": "providers, mcp.github"
+        },
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "providers.openai",
+            "message": "child-raised"
+          },
+          {
+            "op": "debug",
+            "scope": "providers",
+            "message": "exact-raised"
+          },
+          {
+            "op": "debug",
+            "scope": "providers:retry",
+            "message": "colon-raised"
+          },
+          {
+            "op": "debug",
+            "scope": "providersx",
+            "message": "sibling-skip"
+          },
+          {
+            "op": "debug",
+            "scope": "mcp.github",
+            "message": "mcp-raised"
+          },
+          {
+            "op": "debug",
+            "scope": "mcp.gitlab",
+            "message": "gitlab-skip"
+          },
+          {
+            "op": "info",
+            "scope": "engine",
+            "message": "info-kept"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [
+          "providers",
+          "mcp.github"
+        ],
+        "app": [
+          "child-raised",
+          "exact-raised",
+          "colon-raised",
+          "mcp-raised",
+          "info-kept"
+        ],
+        "debug": [
+          "child-raised",
+          "exact-raised",
+          "colon-raised",
+          "sibling-skip",
+          "mcp-raised",
+          "gitlab-skip",
+          "info-kept"
+        ]
+      }
+    },
+    {
+      "name": "setLevel changes the app level at runtime",
+      "input": {
+        "env": {},
+        "ops": [
+          {
+            "op": "debug",
+            "scope": "rt",
+            "message": "before-change"
+          },
+          {
+            "op": "setLevel",
+            "level": "DEBUG"
+          },
+          {
+            "op": "debug",
+            "scope": "rt",
+            "message": "after-change"
+          },
+          {
+            "op": "setLevel",
+            "level": "INFO"
+          },
+          {
+            "op": "debug",
+            "scope": "rt",
+            "message": "after-revert"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [
+          "after-change"
+        ],
+        "debug": [
+          "before-change",
+          "after-change",
+          "after-revert"
+        ]
+      }
+    },
+    {
+      "name": "an unknown runtime level returns to the startup level",
+      "input": {
+        "env": {
+          "APP_LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG"
+          },
+          {
+            "op": "info",
+            "scope": "rt",
+            "message": "info-one"
+          },
+          {
+            "op": "setLevel",
+            "level": "nope"
+          },
+          {
+            "op": "info",
+            "scope": "rt",
+            "message": "info-two"
+          },
+          {
+            "op": "warn",
+            "scope": "rt",
+            "message": "warn-kept"
+          }
+        ]
+      },
+      "expected": {
+        "level": "WARN",
+        "scopes": [],
+        "app": [
+          "info-one",
+          "warn-kept"
+        ],
+        "debug": [
+          "info-one",
+          "info-two",
+          "warn-kept"
+        ]
+      }
+    },
+    {
+      "name": "setLevel scopes replace the raised list",
+      "input": {
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": "alpha"
+          },
+          {
+            "op": "debug",
+            "scope": "alpha.child",
+            "message": "child-raised"
+          },
+          {
+            "op": "debug",
+            "scope": "beta",
+            "message": "beta-skip"
+          },
+          {
+            "op": "setLevel",
+            "scopes": "beta"
+          },
+          {
+            "op": "debug",
+            "scope": "alpha.child",
+            "message": "child-skipped-now"
+          },
+          {
+            "op": "debug",
+            "scope": "beta",
+            "message": "beta-raised"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [
+          "beta"
+        ],
+        "app": [
+          "child-raised",
+          "beta-raised"
+        ],
+        "debug": [
+          "child-raised",
+          "beta-skip",
+          "child-skipped-now",
+          "beta-raised"
+        ]
+      }
+    },
+    {
+      "name": "a setLevel array raises each item, trimmed, and skips blanks",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": [
+              " alpha ",
+              "beta",
+              "",
+              "gamma.delta"
+            ]
+          },
+          {
+            "op": "debug",
+            "scope": "alpha",
+            "message": "in alpha"
+          },
+          {
+            "op": "debug",
+            "scope": "gamma",
+            "message": "gamma parent"
+          },
+          {
+            "op": "debug",
+            "scope": "gamma.delta.x",
+            "message": "gamma child"
+          },
+          {
+            "op": "debug",
+            "scope": "delta",
+            "message": "not raised"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [
+          "alpha",
+          "beta",
+          "gamma.delta"
+        ],
+        "app": [
+          "in alpha",
+          "gamma child"
+        ],
+        "debug": [
+          "in alpha",
+          "gamma parent",
+          "gamma child",
+          "not raised"
+        ]
+      }
+    },
+    {
+      "name": "an array item keeps its comma and is not split",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": [
+              "a,b",
+              "c"
+            ]
+          },
+          {
+            "op": "debug",
+            "scope": "a,b",
+            "message": "comma scope"
+          },
+          {
+            "op": "debug",
+            "scope": "a",
+            "message": "split scope"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [
+          "a,b",
+          "c"
+        ],
+        "app": [
+          "comma scope"
+        ],
+        "debug": [
+          "comma scope",
+          "split scope"
+        ]
+      }
+    },
+    {
+      "name": "a setLevel array keeps at most 50 items and cuts each to 80 units",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": [
+              "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+              "s0",
+              "s1",
+              "s2",
+              "s3",
+              "s4",
+              "s5",
+              "s6",
+              "s7",
+              "s8",
+              "s9",
+              "s10",
+              "s11",
+              "s12",
+              "s13",
+              "s14",
+              "s15",
+              "s16",
+              "s17",
+              "s18",
+              "s19",
+              "s20",
+              "s21",
+              "s22",
+              "s23",
+              "s24",
+              "s25",
+              "s26",
+              "s27",
+              "s28",
+              "s29",
+              "s30",
+              "s31",
+              "s32",
+              "s33",
+              "s34",
+              "s35",
+              "s36",
+              "s37",
+              "s38",
+              "s39",
+              "s40",
+              "s41",
+              "s42",
+              "s43",
+              "s44",
+              "s45",
+              "s46",
+              "s47",
+              "s48",
+              "s49",
+              "s50",
+              "s51",
+              "s52",
+              "s53",
+              "s54"
+            ]
+          },
+          {
+            "op": "debug",
+            "scope": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+            "message": "long scope"
+          },
+          {
+            "op": "debug",
+            "scope": "s48",
+            "message": "last kept"
+          },
+          {
+            "op": "debug",
+            "scope": "s49",
+            "message": "first dropped"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [
+          "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+          "s0",
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8",
+          "s9",
+          "s10",
+          "s11",
+          "s12",
+          "s13",
+          "s14",
+          "s15",
+          "s16",
+          "s17",
+          "s18",
+          "s19",
+          "s20",
+          "s21",
+          "s22",
+          "s23",
+          "s24",
+          "s25",
+          "s26",
+          "s27",
+          "s28",
+          "s29",
+          "s30",
+          "s31",
+          "s32",
+          "s33",
+          "s34",
+          "s35",
+          "s36",
+          "s37",
+          "s38",
+          "s39",
+          "s40",
+          "s41",
+          "s42",
+          "s43",
+          "s44",
+          "s45",
+          "s46",
+          "s47",
+          "s48"
+        ],
+        "app": [
+          "long scope",
+          "last kept"
+        ],
+        "debug": [
+          "long scope",
+          "last kept",
+          "first dropped"
+        ]
+      }
+    },
+    {
+      "name": "an empty array raises nothing",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "WARN",
+            "scopes": [
+              "alpha"
+            ]
+          },
+          {
+            "op": "debug",
+            "scope": "alpha",
+            "message": "first probe"
+          },
+          {
+            "op": "setLevel",
+            "scopes": []
+          },
+          {
+            "op": "debug",
+            "scope": "alpha",
+            "message": "second probe"
+          }
+        ]
+      },
+      "expected": {
+        "level": "WARN",
+        "scopes": [],
+        "app": [
+          "first probe"
+        ],
+        "debug": [
+          "first probe",
+          "second probe"
+        ]
+      }
+    },
+    {
+      "name": "null scopes read as an empty list",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": [
+              "alpha"
+            ]
+          },
+          {
+            "op": "setLevel",
+            "scopes": null
+          },
+          {
+            "op": "debug",
+            "scope": "alpha",
+            "message": "after null"
+          }
+        ]
+      },
+      "expected": {
+        "level": "INFO",
+        "scopes": [],
+        "app": [],
+        "debug": [
+          "after null"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "area": "diagnostics",
+  "description": "IPC slow limits in milliseconds: the channel's entry, or the 2000 ms default for a channel not in the table, as electron/ipcLog.cjs looks them up.",
+  "cases": [
+    {
+      "name": "a long model download",
+      "input": "models:download",
+      "expected": 30000
+    },
+    {
+      "name": "a model load",
+      "input": "gguf:start",
+      "expected": 120000
+    },
+    {
+      "name": "code execution",
+      "input": "run-code",
+      "expected": 60000
+    },
+    {
+      "name": "a tool call to an MCP server",
+      "input": "mcp:call",
+      "expected": 120000
+    },
+    {
+      "name": "a web search",
+      "input": "search-web",
+      "expected": 15000
+    },
+    {
+      "name": "a connectivity probe",
+      "input": "check-internet",
+      "expected": 10000
+    },
+    {
+      "name": "image generation",
+      "input": "sd:generate",
+      "expected": 300000
+    },
+    {
+      "name": "the updater check",
+      "input": "updater:check",
+      "expected": 15000
+    },
+    {
+      "name": "a hardware benchmark",
+      "input": "hardware:benchmark",
+      "expected": 120000
+    },
+    {
+      "name": "a channel not in the table uses the default",
+      "input": "settings:save",
+      "expected": 2000
+    },
+    {
+      "name": "an empty channel uses the default",
+      "input": "",
+      "expected": 2000
+    },
+    {
+      "name": "channel names are case-sensitive",
+      "input": "MCP:CALL",
+      "expected": 2000
+    },
+    {
+      "name": "constructor is a prototype member and never warns",
+      "input": "constructor",
+      "expected": "never"
+    },
+    {
+      "name": "toString is a prototype member and never warns",
+      "input": "toString",
+      "expected": "never"
+    },
+    {
+      "name": "__proto__ is a prototype member and never warns",
+      "input": "__proto__",
+      "expected": "never"
+    },
+    {
+      "name": "hasOwnProperty is a prototype member and never warns",
+      "input": "hasOwnProperty",
+      "expected": "never"
+    }
+  ]
+}
