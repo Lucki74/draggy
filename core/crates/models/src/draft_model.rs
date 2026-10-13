@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::mmproj::{Stamp, basename_of, stamp_of};
 use crate::shards::{basename, parse_shard, strip_suffix_ci};
@@ -72,7 +72,7 @@ impl Drafts {
             } else {
                 "draft cleared"
             };
-            debug!(target: "engine.draft", model = %basename_of(&key), "{message}");
+            info!(target: "engine.draft", model = %basename_of(&key), "{message}");
         }
         draft
     }
