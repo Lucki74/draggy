@@ -30,7 +30,9 @@ use serde_json::{Value, json};
 
 /// A whole number as a decimal string, exact for any double; anything else stays a JSON number.
 fn canon(n: f64) -> Value {
-    if n.is_finite() && n.fract() == 0.0 {
+    // The TypeScript runner throws on a non-finite result, so a NaN here must fail instead of reading as null.
+    assert!(n.is_finite(), "a fixture result was not finite: {n}");
+    if n.fract() == 0.0 {
         // The reference prints negative zero as "0".
         if n == 0.0 {
             Value::String("0".to_owned())
