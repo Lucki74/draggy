@@ -10,6 +10,17 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+hex = "0.4"
+rusqlite = { version = "0.40", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+# Keeps object keys in insertion order. JavaScript lists array-index keys first, which metrics.rs follows (js::key_order).
+serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
+# Grows the stack for payloads nested deeper than serde_json's default limit, as the reference's JSON.parse accepts them.
+serde_stacker = "0.1"
+sha2 = "0.10"
+thiserror = "2"
+tracing = "0.1"
 
 [dev-dependencies]
 draggy-testkit = { path = "../testkit" }
+tempfile = "3"

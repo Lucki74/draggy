@@ -1,0 +1,369 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over a database closed by quitting: each call that arrives after close answers as refused, empty or null, never with a throw, and a reopen brings the stored chats back. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "a save after close is refused with the closed message, and the stored chat is kept",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "kept",
+                "title": "k",
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "before the quit"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "late",
+                "title": "l",
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "after the quit"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        null,
+        [
+          {
+            "id": "kept",
+            "title": "k",
+            "updatedAt": {
+              "$any": "now"
+            },
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "before the quit"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "every other call answers as refused or empty after close",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "a",
+                "messages": []
+              }
+            ]
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "setValue",
+            "args": [
+              "k",
+              "v"
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "k"
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "a"
+            ]
+          },
+          {
+            "call": "clearChats"
+          },
+          {
+            "call": "importSessions",
+            "args": [
+              [
+                {
+                  "id": "x",
+                  "messages": []
+                }
+              ]
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m"
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          },
+          {
+            "call": "clearMetrics"
+          },
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w",
+                "name": "w"
+              }
+            ]
+          },
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "",
+                "name": "no id"
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w"
+            ]
+          },
+          {
+            "call": "listWorkspaces"
+          },
+          {
+            "call": "deleteWorkspace",
+            "args": [
+              "default"
+            ]
+          },
+          {
+            "call": "deleteWorkspace",
+            "args": [
+              "w"
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/a"
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          },
+          {
+            "call": "dropCheckpoint",
+            "args": [
+              1
+            ]
+          },
+          {
+            "call": "checkpointHashes"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "loadChatSummaries"
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "a"
+            ]
+          },
+          {
+            "call": "stats"
+          },
+          {
+            "call": "collectGarbage"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        null,
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open.",
+          "imported": 0
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        [],
+        {
+          "success": false,
+          "error": "The chat database is not open.",
+          "removed": 0
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        null,
+        [],
+        {
+          "success": false,
+          "error": "The chat database is not open.",
+          "deleted": 0
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open.",
+          "deleted": 0
+        },
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        null,
+        [],
+        {
+          "success": false,
+          "error": "The chat database is not open."
+        },
+        [],
+        [],
+        [],
+        [],
+        null,
+        0
+      ]
+    },
+    {
+      "name": "closing twice is harmless, and a reopen restores every call",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c",
+                "title": "c",
+                "messages": []
+              }
+            ]
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        null,
+        [],
+        null,
+        [
+          {
+            "id": "c",
+            "title": "c",
+            "updatedAt": {
+              "$any": "now"
+            },
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          }
+        ]
+      ]
+    }
+  ]
+}

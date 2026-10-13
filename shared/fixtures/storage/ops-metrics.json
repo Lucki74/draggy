@@ -1,0 +1,1543 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over per-turn statistics: ordering, the since filter, numbers the store refuses to trust, length caps, refusal without a model, clearing, and survival across deletes and reopens. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "keeps a finished turn and gives it back",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "lists newest first, and only since a given time",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 1000,
+                "workspaceId": "default",
+                "chatId": "old",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 9000,
+                "workspaceId": "default",
+                "chatId": "new",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              5000
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 9000,
+            "workspaceId": "default",
+            "chatId": "new",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          },
+          {
+            "recordedAt": 1000,
+            "workspaceId": "default",
+            "chatId": "old",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ],
+        [
+          {
+            "recordedAt": 9000,
+            "workspaceId": "default",
+            "chatId": "new",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "stores nothing it cannot trust as a number",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": -5,
+                "responseMs": -1,
+                "firstTokenMs": -1,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 0,
+                "tools": {
+                  "x": -1,
+                  "y": 0,
+                  "z": 2.9
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 1,
+            "tools": {
+              "z": 2
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a turn with no first-token time stores none",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "refuses a turn with no model",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": false
+        },
+        []
+      ]
+    },
+    {
+      "name": "forgets every turn when cleared",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c2",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "clearMetrics"
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true,
+          "removed": 2
+        },
+        []
+      ]
+    },
+    {
+      "name": "clearing an empty table removes nothing",
+      "input": {
+        "ops": [
+          {
+            "call": "clearMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "removed": 0
+        }
+      ]
+    },
+    {
+      "name": "keeps the numbers when a conversation is deleted",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "Chat c1",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "workspaceId": "default"
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "c1"
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "rounds token counts down",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "promptTokens": 10.7,
+                "responseTokens": 3.9,
+                "recordedAt": 100
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 100,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 10,
+            "responseTokens": 3,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a turn with no recorded time is stamped now",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "responseTokens": 1
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": {
+              "$any": "now"
+            },
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 1,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "caps the tools a turn reports at fifty names",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "tool0": 1,
+                  "tool1": 1,
+                  "tool2": 1,
+                  "tool3": 1,
+                  "tool4": 1,
+                  "tool5": 1,
+                  "tool6": 1,
+                  "tool7": 1,
+                  "tool8": 1,
+                  "tool9": 1,
+                  "tool10": 1,
+                  "tool11": 1,
+                  "tool12": 1,
+                  "tool13": 1,
+                  "tool14": 1,
+                  "tool15": 1,
+                  "tool16": 1,
+                  "tool17": 1,
+                  "tool18": 1,
+                  "tool19": 1,
+                  "tool20": 1,
+                  "tool21": 1,
+                  "tool22": 1,
+                  "tool23": 1,
+                  "tool24": 1,
+                  "tool25": 1,
+                  "tool26": 1,
+                  "tool27": 1,
+                  "tool28": 1,
+                  "tool29": 1,
+                  "tool30": 1,
+                  "tool31": 1,
+                  "tool32": 1,
+                  "tool33": 1,
+                  "tool34": 1,
+                  "tool35": 1,
+                  "tool36": 1,
+                  "tool37": 1,
+                  "tool38": 1,
+                  "tool39": 1,
+                  "tool40": 1,
+                  "tool41": 1,
+                  "tool42": 1,
+                  "tool43": 1,
+                  "tool44": 1,
+                  "tool45": 1,
+                  "tool46": 1,
+                  "tool47": 1,
+                  "tool48": 1,
+                  "tool49": 1,
+                  "tool50": 1,
+                  "tool51": 1,
+                  "tool52": 1,
+                  "tool53": 1,
+                  "tool54": 1,
+                  "tool55": 1,
+                  "tool56": 1,
+                  "tool57": 1,
+                  "tool58": 1,
+                  "tool59": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "tool0": 1,
+              "tool1": 1,
+              "tool2": 1,
+              "tool3": 1,
+              "tool4": 1,
+              "tool5": 1,
+              "tool6": 1,
+              "tool7": 1,
+              "tool8": 1,
+              "tool9": 1,
+              "tool10": 1,
+              "tool11": 1,
+              "tool12": 1,
+              "tool13": 1,
+              "tool14": 1,
+              "tool15": 1,
+              "tool16": 1,
+              "tool17": 1,
+              "tool18": 1,
+              "tool19": 1,
+              "tool20": 1,
+              "tool21": 1,
+              "tool22": 1,
+              "tool23": 1,
+              "tool24": 1,
+              "tool25": 1,
+              "tool26": 1,
+              "tool27": 1,
+              "tool28": 1,
+              "tool29": 1,
+              "tool30": 1,
+              "tool31": 1,
+              "tool32": 1,
+              "tool33": 1,
+              "tool34": 1,
+              "tool35": 1,
+              "tool36": 1,
+              "tool37": 1,
+              "tool38": 1,
+              "tool39": 1,
+              "tool40": 1,
+              "tool41": 1,
+              "tool42": 1,
+              "tool43": 1,
+              "tool44": 1,
+              "tool45": 1,
+              "tool46": 1,
+              "tool47": 1,
+              "tool48": 1,
+              "tool49": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "cuts a tool name at 120 characters",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt": 3
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt": 3
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "cuts the model name at 200 characters",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "statistics survive a reopen",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "workspaceId": "default",
+                "chatId": "c1",
+                "model": "qwen3:8b",
+                "promptTokens": 1200,
+                "responseTokens": 300,
+                "responseMs": 6000,
+                "firstTokenMs": 450,
+                "loadMs": 0,
+                "taskMs": 9000,
+                "loops": 2,
+                "tools": {
+                  "search_web": 2,
+                  "read_url": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": "default",
+            "chatId": "c1",
+            "model": "qwen3:8b",
+            "promptTokens": 1200,
+            "responseTokens": 300,
+            "responseMs": 6000,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 9000,
+            "loops": 2,
+            "tools": {
+              "search_web": 2,
+              "read_url": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a null first-token time is stored as zero, as the reference stores it",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "firstTokenMs": null,
+                "responseMs": 10
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 10,
+            "firstTokenMs": 0,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "reads numeric text as the numbers Number reads it",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": "5000",
+                "model": "m",
+                "promptTokens": "12",
+                "responseTokens": " 7 ",
+                "responseMs": "250",
+                "firstTokenMs": "450",
+                "loadMs": "",
+                "taskMs": "1e3",
+                "loops": "3"
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 12,
+            "responseTokens": 7,
+            "responseMs": 250,
+            "firstTokenMs": 450,
+            "loadMs": 0,
+            "taskMs": 1000,
+            "loops": 3,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "reads true as one and false as zero, and an unreadable number as zero",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "promptTokens": true,
+                "responseTokens": false,
+                "responseMs": "abc",
+                "loadMs": [
+                  7
+                ],
+                "taskMs": {},
+                "loops": true,
+                "firstTokenMs": true
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 1,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": 1,
+            "loadMs": 7,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a first-token time that is unreadable or negative is none",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5001,
+                "model": "m",
+                "firstTokenMs": "abc"
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5002,
+                "model": "m",
+                "firstTokenMs": "-5"
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5002,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 5001,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "counts a tool by its Number, so true is one and numeric text is its count",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "tools": {
+                  "a": true,
+                  "b": "3",
+                  "c": "x",
+                  "d": null,
+                  "e": [
+                    2
+                  ],
+                  "f": false,
+                  "g": " 2 "
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "a": 1,
+              "b": 3,
+              "e": 2,
+              "g": 2
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "stores a model given as a number as text, and refuses a falsy one",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": 42
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5001,
+                "model": 0
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": false
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "42",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "reads a falsy workspace or chat as none, and other values as text",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "workspaceId": 0,
+                "chatId": ""
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5001,
+                "model": "m",
+                "workspaceId": "w",
+                "chatId": 7
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5001,
+            "workspaceId": "w",
+            "chatId": "7",
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "counts an array of tools by its positions",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "tools": [
+                  2,
+                  0,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "0": 2,
+              "2": 3
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a turn with an unreadable recorded time is stamped now",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": "soon"
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": {
+              "$any": "now"
+            },
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "keeps the tools JavaScript lists first when a turn names more than fifty",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 5000,
+                "model": "m",
+                "tools": {
+                  "tool0": 1,
+                  "tool1": 1,
+                  "tool2": 1,
+                  "tool3": 1,
+                  "tool4": 1,
+                  "tool5": 1,
+                  "tool6": 1,
+                  "tool7": 1,
+                  "tool8": 1,
+                  "tool9": 1,
+                  "tool10": 1,
+                  "tool11": 1,
+                  "tool12": 1,
+                  "tool13": 1,
+                  "tool14": 1,
+                  "tool15": 1,
+                  "tool16": 1,
+                  "tool17": 1,
+                  "tool18": 1,
+                  "tool19": 1,
+                  "tool20": 1,
+                  "tool21": 1,
+                  "tool22": 1,
+                  "tool23": 1,
+                  "tool24": 1,
+                  "tool25": 1,
+                  "tool26": 1,
+                  "tool27": 1,
+                  "tool28": 1,
+                  "tool29": 1,
+                  "tool30": 1,
+                  "tool31": 1,
+                  "tool32": 1,
+                  "tool33": 1,
+                  "tool34": 1,
+                  "tool35": 1,
+                  "tool36": 1,
+                  "tool37": 1,
+                  "tool38": 1,
+                  "tool39": 1,
+                  "tool40": 1,
+                  "tool41": 1,
+                  "tool42": 1,
+                  "tool43": 1,
+                  "tool44": 1,
+                  "tool45": 1,
+                  "tool46": 1,
+                  "tool47": 1,
+                  "tool48": 1,
+                  "tool49": 1,
+                  "99": 1,
+                  "3": 2
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "3": 2,
+              "99": 1,
+              "tool0": 1,
+              "tool1": 1,
+              "tool2": 1,
+              "tool3": 1,
+              "tool4": 1,
+              "tool5": 1,
+              "tool6": 1,
+              "tool7": 1,
+              "tool8": 1,
+              "tool9": 1,
+              "tool10": 1,
+              "tool11": 1,
+              "tool12": 1,
+              "tool13": 1,
+              "tool14": 1,
+              "tool15": 1,
+              "tool16": 1,
+              "tool17": 1,
+              "tool18": 1,
+              "tool19": 1,
+              "tool20": 1,
+              "tool21": 1,
+              "tool22": 1,
+              "tool23": 1,
+              "tool24": 1,
+              "tool25": 1,
+              "tool26": 1,
+              "tool27": 1,
+              "tool28": 1,
+              "tool29": 1,
+              "tool30": 1,
+              "tool31": 1,
+              "tool32": 1,
+              "tool33": 1,
+              "tool34": 1,
+              "tool35": 1,
+              "tool36": 1,
+              "tool37": 1,
+              "tool38": 1,
+              "tool39": 1,
+              "tool40": 1,
+              "tool41": 1,
+              "tool42": 1,
+              "tool43": 1,
+              "tool44": 1,
+              "tool45": 1,
+              "tool46": 1,
+              "tool47": 1
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}

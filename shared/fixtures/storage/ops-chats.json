@@ -1,0 +1,2469 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over chats, messages, summaries, deletes and imports. Each case starts from an empty database and runs ops in order: expected[i] is the result of ops[i], so later reads see earlier writes. Pseudo-ops: reopen closes and reopens the database; sql runs raw statements on the file; schema dumps sqlite_master. A timestamp the call defaulted to now is written as {\"$any\":\"number\"}.",
+  "cases": [
+    {
+      "name": "stores and reloads messages in order",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hello",
+                    "textContent": "hello"
+                  },
+                  {
+                    "id": "m2",
+                    "role": "assistant",
+                    "content": "hi there",
+                    "textContent": "hi there"
+                  },
+                  {
+                    "id": "m3",
+                    "role": "user",
+                    "content": "again",
+                    "textContent": "again"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hello",
+                "textContent": "hello"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "hi there",
+                "textContent": "hi there"
+              },
+              {
+                "id": "m3",
+                "role": "user",
+                "content": "again",
+                "textContent": "again"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "preserves nested message fields",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "assistant",
+                    "content": "answer",
+                    "textContent": "answer",
+                    "steps": [
+                      {
+                        "id": "s1",
+                        "type": "searching",
+                        "content": "looking",
+                        "isComplete": true
+                      }
+                    ],
+                    "metrics": {
+                      "responseTokens": 42,
+                      "tokensPerSecond": 12.5
+                    },
+                    "versions": [
+                      {
+                        "content": "older"
+                      }
+                    ],
+                    "currentVersionIndex": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "assistant",
+                "content": "answer",
+                "textContent": "answer",
+                "steps": [
+                  {
+                    "id": "s1",
+                    "type": "searching",
+                    "content": "looking",
+                    "isComplete": true
+                  }
+                ],
+                "metrics": {
+                  "responseTokens": 42,
+                  "tokensPerSecond": 12.5
+                },
+                "versions": [
+                  {
+                    "content": "older"
+                  }
+                ],
+                "currentVersionIndex": 0
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "keeps a provider's state on a reply and on its versions",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "assistant",
+                    "content": "answer",
+                    "textContent": "answer",
+                    "provider_state": {
+                      "instanceId": "codex",
+                      "state": {
+                        "threadId": "t1",
+                        "consumed": 3,
+                        "prefixHash": "abc"
+                      }
+                    },
+                    "versions": [
+                      {
+                        "content": "old",
+                        "provider_state": {
+                          "instanceId": "codex",
+                          "state": {
+                            "threadId": "t1",
+                            "consumed": 3,
+                            "prefixHash": "abc"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "assistant",
+                "content": "answer",
+                "textContent": "answer",
+                "provider_state": {
+                  "instanceId": "codex",
+                  "state": {
+                    "threadId": "t1",
+                    "consumed": 3,
+                    "prefixHash": "abc"
+                  }
+                },
+                "versions": [
+                  {
+                    "content": "old",
+                    "provider_state": {
+                      "instanceId": "codex",
+                      "state": {
+                        "threadId": "t1",
+                        "consumed": 3,
+                        "prefixHash": "abc"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "always reloads with generation stopped",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [],
+                "isGenerating": true
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "orders chats by recency",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "old",
+                "title": "Chat old",
+                "updatedAt": 100,
+                "isOutOfContext": false,
+                "messages": []
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "new",
+                "title": "Chat new",
+                "updatedAt": 900,
+                "isOutOfContext": false,
+                "messages": []
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "new",
+            "title": "Chat new",
+            "updatedAt": 900,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          },
+          {
+            "id": "old",
+            "title": "Chat old",
+            "updatedAt": 100,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          }
+        ],
+        [
+          {
+            "id": "new",
+            "title": "Chat new",
+            "updatedAt": 900,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 0
+          },
+          {
+            "id": "old",
+            "title": "Chat old",
+            "updatedAt": 100,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 0
+          }
+        ]
+      ]
+    },
+    {
+      "name": "overwrites rather than duplicating on re-save",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "one",
+                    "textContent": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "one",
+                    "textContent": "one"
+                  },
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "two",
+                    "textContent": "two"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "one",
+                "textContent": "one"
+              },
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "two",
+                "textContent": "two"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "shrinks a conversation when messages are removed",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "1",
+                    "textContent": "1"
+                  },
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "2",
+                    "textContent": "2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "1",
+                    "textContent": "1"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "1",
+                "textContent": "1"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "carries the out-of-context flag",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": true,
+                "messages": []
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": true,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a plan comes back with the conversation",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "do it",
+                    "textContent": "do it"
+                  }
+                ],
+                "plan": [
+                  {
+                    "id": "step-1",
+                    "text": "Read the config",
+                    "status": "done"
+                  },
+                  {
+                    "id": "step-2",
+                    "text": "Change the port",
+                    "status": "doing"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": [
+              {
+                "id": "step-1",
+                "text": "Read the config",
+                "status": "done"
+              },
+              {
+                "id": "step-2",
+                "text": "Change the port",
+                "status": "doing"
+              }
+            ],
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "do it",
+                "textContent": "do it"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a plan is null for a conversation that never had one",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "an empty plan is stored as no plan",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "d",
+                "title": "Chat d",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "do it",
+                    "textContent": "do it"
+                  }
+                ],
+                "plan": [
+                  {
+                    "id": "s",
+                    "text": "t",
+                    "status": "doing"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "d",
+                "title": "Chat d",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "do it",
+                    "textContent": "do it"
+                  }
+                ],
+                "plan": []
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "d",
+            "title": "Chat d",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "do it",
+                "textContent": "do it"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a folded summary comes back with the conversation",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "Chat c1",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": {
+                  "throughIndex": 4,
+                  "summary": "Budget is 4200 GBP. Deadline 14 March.",
+                  "updatedAt": 1700000000000
+                }
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "c1",
+            "title": "Chat c1",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 4,
+              "summary": "Budget is 4200 GBP. Deadline 14 March.",
+              "updatedAt": 1700000000000
+            },
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a summary is cleared when the chat is saved again without one",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c3",
+                "title": "Chat c3",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": {
+                  "throughIndex": 4,
+                  "summary": "notes",
+                  "updatedAt": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c3",
+                "title": "Chat c3",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": null
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "c3",
+            "title": "Chat c3",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a summary with no index to anchor it is ignored",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c4",
+                "title": "Chat c4",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": {
+                  "throughIndex": 4
+                }
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c5",
+                "title": "Chat c5",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": {
+                  "summary": "notes with nowhere to sit"
+                }
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c6",
+                "title": "Chat c6",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "compaction": "just text"
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "c4",
+            "title": "Chat c4",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          },
+          {
+            "id": "c5",
+            "title": "Chat c5",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          },
+          {
+            "id": "c6",
+            "title": "Chat c6",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a summary and a plan survive a reopen",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "Chat c1",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "do it",
+                    "textContent": "do it"
+                  }
+                ],
+                "plan": [
+                  {
+                    "id": "step-1",
+                    "text": "Change the port",
+                    "status": "doing"
+                  }
+                ],
+                "compaction": {
+                  "throughIndex": 0,
+                  "summary": "Start here.",
+                  "updatedAt": 9
+                }
+              }
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        [
+          {
+            "id": "c1",
+            "title": "Chat c1",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": [
+              {
+                "id": "step-1",
+                "text": "Change the port",
+                "status": "doing"
+              }
+            ],
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 0,
+              "summary": "Start here.",
+              "updatedAt": 9
+            },
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "do it",
+                "textContent": "do it"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "message ids only need to be unique within a chat",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "shared-id",
+                    "role": "user",
+                    "content": "in chat a",
+                    "textContent": "in chat a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 900,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "shared-id",
+                    "role": "user",
+                    "content": "in chat b",
+                    "textContent": "in chat b",
+                    "attachments": [
+                      {
+                        "name": "b.txt",
+                        "type": "text/plain",
+                        "content": "beta"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "shared-id",
+                "role": "user",
+                "content": "in chat a",
+                "textContent": "in chat a"
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 900,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "shared-id",
+                "role": "user",
+                "content": "in chat b",
+                "textContent": "in chat b",
+                "attachments": [
+                  {
+                    "name": "b.txt",
+                    "type": "text/plain",
+                    "content": "beta"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a repeated id inside one chat is suffixed rather than refused",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "dup",
+                    "role": "user",
+                    "content": "first",
+                    "textContent": "first"
+                  },
+                  {
+                    "id": "dup",
+                    "role": "assistant",
+                    "content": "second",
+                    "textContent": "second"
+                  },
+                  {
+                    "id": "dup",
+                    "role": "user",
+                    "content": "third",
+                    "textContent": "third"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "dup",
+                "role": "user",
+                "content": "first",
+                "textContent": "first"
+              },
+              {
+                "id": "dup-1",
+                "role": "assistant",
+                "content": "second",
+                "textContent": "second"
+              },
+              {
+                "id": "dup-2",
+                "role": "user",
+                "content": "third",
+                "textContent": "third"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a message with no id is named after its position",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "x"
+                  },
+                  {
+                    "role": "assistant",
+                    "content": "y"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "x",
+                "id": "message-0"
+              },
+              {
+                "role": "assistant",
+                "content": "y",
+                "id": "message-1"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a chat that reuses ids across many saves keeps its last content",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "take 0",
+                    "textContent": "take 0"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "other 0",
+                    "textContent": "other 0"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1001,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "take 1",
+                    "textContent": "take 1"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2001,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "other 1",
+                    "textContent": "other 1"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1002,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "take 2",
+                    "textContent": "take 2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2002,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "other 2",
+                    "textContent": "other 2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1003,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "take 3",
+                    "textContent": "take 3"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2003,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "other 3",
+                    "textContent": "other 3"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1004,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "take 4",
+                    "textContent": "take 4"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2004,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "other 4",
+                    "textContent": "other 4"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 2004,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "other 4",
+                "textContent": "other 4"
+              }
+            ]
+          },
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1004,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "take 4",
+                "textContent": "take 4"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "deletes one chat and leaves the rest",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "x",
+                    "textContent": "x"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "y",
+                    "textContent": "y"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "a"
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "y",
+                "textContent": "y"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "deleting a chat cascades to its messages",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "x",
+                    "textContent": "x"
+                  },
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "y",
+                    "textContent": "y"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "a"
+            ]
+          },
+          {
+            "call": "stats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "chats": 0,
+          "messages": 0,
+          "attachments": 0,
+          "attachmentBytes": 0
+        }
+      ]
+    },
+    {
+      "name": "clears everything",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "x",
+                    "textContent": "x"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "y",
+                    "textContent": "y"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "clearChats"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "stats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [],
+        {
+          "chats": 0,
+          "messages": 0,
+          "attachments": 0,
+          "attachmentBytes": 0
+        }
+      ]
+    },
+    {
+      "name": "ignores a delete for a chat that is not there",
+      "input": {
+        "ops": [
+          {
+            "call": "deleteChat",
+            "args": [
+              "ghost"
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        []
+      ]
+    },
+    {
+      "name": "reports message counts without loading the bodies",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "x",
+                    "textContent": "x"
+                  },
+                  {
+                    "id": "m2",
+                    "role": "assistant",
+                    "content": "y",
+                    "textContent": "y"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "name": "imports a batch of sessions",
+      "input": {
+        "ops": [
+          {
+            "call": "importSessions",
+            "args": [
+              [
+                {
+                  "id": "a",
+                  "title": "Chat a",
+                  "updatedAt": 1000,
+                  "isOutOfContext": false,
+                  "messages": [
+                    {
+                      "id": "m1",
+                      "role": "user",
+                      "content": "one",
+                      "textContent": "one"
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "title": "Chat b",
+                  "updatedAt": 2000,
+                  "isOutOfContext": false,
+                  "messages": [
+                    {
+                      "id": "m2",
+                      "role": "user",
+                      "content": "two",
+                      "textContent": "two"
+                    }
+                  ]
+                }
+              ]
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "imported": 2
+        },
+        [
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "two",
+                "textContent": "two"
+              }
+            ]
+          },
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "one",
+                "textContent": "one"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "skips entries with no id rather than failing the whole import",
+      "input": {
+        "ops": [
+          {
+            "call": "importSessions",
+            "args": [
+              [
+                {
+                  "id": "a",
+                  "title": "Chat a",
+                  "updatedAt": 1000,
+                  "isOutOfContext": false,
+                  "messages": [
+                    {
+                      "id": "m1",
+                      "role": "user",
+                      "content": "one",
+                      "textContent": "one"
+                    }
+                  ]
+                },
+                {
+                  "title": "broken"
+                },
+                null
+              ]
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "imported": 1
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "one",
+                "textContent": "one"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "tolerates a session with no messages array",
+      "input": {
+        "ops": [
+          {
+            "call": "importSessions",
+            "args": [
+              [
+                {
+                  "id": "x",
+                  "title": "t"
+                }
+              ]
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "imported": 1
+        },
+        [
+          {
+            "id": "x",
+            "title": "t",
+            "updatedAt": {
+              "$any": "now"
+            },
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "an import keeps neither the plan nor the summary of a session",
+      "input": {
+        "ops": [
+          {
+            "call": "importSessions",
+            "args": [
+              [
+                {
+                  "id": "a",
+                  "title": "Chat a",
+                  "updatedAt": 1000,
+                  "isOutOfContext": false,
+                  "messages": [
+                    {
+                      "id": "m1",
+                      "role": "user",
+                      "content": "one",
+                      "textContent": "one"
+                    }
+                  ],
+                  "plan": [
+                    {
+                      "id": "s",
+                      "text": "t",
+                      "status": "doing"
+                    }
+                  ],
+                  "compaction": {
+                    "throughIndex": 0,
+                    "summary": "x",
+                    "updatedAt": 1
+                  }
+                }
+              ]
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "imported": 1
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "one",
+                "textContent": "one"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a message with no role is refused, and the chat keeps what it had",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "Old",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "first"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "New",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "second"
+                  },
+                  {
+                    "id": "m3",
+                    "content": "no role"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "first"
+            ]
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "second"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "threw": true
+        },
+        [
+          {
+            "id": "c1",
+            "title": "Old",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "first"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "chatId": "c1",
+            "messageId": "m1",
+            "title": "Old",
+            "excerpt": "[first]\n"
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "name": "a message whose role is null is refused, and no chat is saved",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c2",
+                "title": "Null",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": null,
+                    "content": "x"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "threw": true
+        },
+        []
+      ]
+    },
+    {
+      "name": "an empty role is a role, and it is saved",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c3",
+                "title": "Empty",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "",
+                    "content": "x"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "c3",
+            "title": "Empty",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "",
+                "content": "x"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a stored payload nested two hundred levels still loads",
+      "input": {
+        "ops": [
+          {
+            "call": "sql",
+            "args": [
+              [
+                "INSERT INTO chats (id, title, updated_at) VALUES ('deep', 'Deep', 1000)",
+                "INSERT INTO messages (id, chat_id, position, role, payload) VALUES ('m1', 'deep', 0, 'user', '{\"id\":\"m1\",\"role\":\"user\",\"content\":\"deep\",\"deep\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}')"
+              ]
+            ]
+          },
+          {
+            "call": "payloadDepths"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        [
+          {
+            "id": "deep",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "deep",
+                "depth": 201
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}
