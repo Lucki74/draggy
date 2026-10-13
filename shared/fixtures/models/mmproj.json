@@ -1,0 +1,265 @@
+{
+  "area": "models",
+  "description": "Vision projector companions. `companionName` and `isCompanionFile` are pure. Cases with op `sequence` are stateful: `files` are created with the given size, `steps` run in order, and expected is one result per step (find gives the companion's basename or null, wasRefused a bool, refuse and write give null). Stamps are path, size and mtime, so a replacement is told apart by a changed size.",
+  "cases": [
+    {
+      "name": "companion of a plain model",
+      "input": {
+        "op": "companionName",
+        "filename": "gemma-4-12b-it-Q4_K_M.gguf"
+      },
+      "expected": "gemma-4-12b-it-Q4_K_M-mmproj.gguf"
+    },
+    {
+      "name": "companion of a split model drops the part counter",
+      "input": {
+        "op": "companionName",
+        "filename": "big-Q4_K_M-00001-of-00004.gguf"
+      },
+      "expected": "big-Q4_K_M-mmproj.gguf"
+    },
+    {
+      "name": "companion of a path uses the basename",
+      "input": {
+        "op": "companionName",
+        "filename": "/models/vision/qwen-Q4_K_M.gguf"
+      },
+      "expected": "qwen-Q4_K_M-mmproj.gguf"
+    },
+    {
+      "name": "companion of an uppercase extension",
+      "input": {
+        "op": "companionName",
+        "filename": "Model-Q8_0.GGUF"
+      },
+      "expected": "Model-Q8_0-mmproj.gguf"
+    },
+    {
+      "name": "companion of a name without extension keeps the name",
+      "input": {
+        "op": "companionName",
+        "filename": "notes"
+      },
+      "expected": "notes-mmproj.gguf"
+    },
+    {
+      "name": "projector file is recognised",
+      "input": {
+        "op": "isCompanionFile",
+        "name": "gemma-4-12b-it-Q4_K_M-mmproj.gguf"
+      },
+      "expected": true
+    },
+    {
+      "name": "mmproj-F16 is recognised",
+      "input": {
+        "op": "isCompanionFile",
+        "name": "mmproj-F16.gguf"
+      },
+      "expected": true
+    },
+    {
+      "name": "upper-case MMPROJ is recognised",
+      "input": {
+        "op": "isCompanionFile",
+        "name": "MMPROJ-model.gguf"
+      },
+      "expected": true
+    },
+    {
+      "name": "plain model is not a projector",
+      "input": {
+        "op": "isCompanionFile",
+        "name": "gemma-4-12b-it-Q4_K_M.gguf"
+      },
+      "expected": false
+    },
+    {
+      "name": "companion is found only when it is there",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "write",
+            "file": "a-mmproj.gguf",
+            "size": 1
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        "a-mmproj.gguf"
+      ]
+    },
+    {
+      "name": "refused projector is not offered again",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          },
+          {
+            "name": "a-mmproj.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "refuse",
+            "file": "a-mmproj.gguf"
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "wasRefused",
+            "model": "a.gguf"
+          },
+          {
+            "op": "wasRefused",
+            "model": "other.gguf"
+          }
+        ]
+      },
+      "expected": [
+        "a-mmproj.gguf",
+        null,
+        null,
+        true,
+        false
+      ]
+    },
+    {
+      "name": "replacing a refused projector gives it another try",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          },
+          {
+            "name": "a-mmproj.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "refuse",
+            "file": "a-mmproj.gguf"
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "write",
+            "file": "a-mmproj.gguf",
+            "size": 25
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "wasRefused",
+            "model": "a.gguf"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        null,
+        "a-mmproj.gguf",
+        false
+      ]
+    },
+    {
+      "name": "refusal is per projector path, not per model name",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a-mmproj.gguf",
+            "size": 3
+          },
+          {
+            "name": "b-mmproj.gguf",
+            "size": 3
+          },
+          {
+            "name": "a.gguf",
+            "size": 1
+          },
+          {
+            "name": "b.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "refuse",
+            "file": "a-mmproj.gguf"
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "find",
+            "model": "b.gguf"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        "b-mmproj.gguf"
+      ]
+    },
+    {
+      "name": "split model finds the projector named after its stem",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "big-Q4-mmproj.gguf",
+            "size": 2
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "big-Q4-00001-of-00002.gguf"
+          }
+        ]
+      },
+      "expected": [
+        "big-Q4-mmproj.gguf"
+      ]
+    }
+  ]
+}

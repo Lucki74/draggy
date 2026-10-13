@@ -1,0 +1,312 @@
+{
+  "area": "models",
+  "description": "What a model can do, from the capability list the engine reports. `capabilities` null stands for an unanswered question (undefined). `selectableModels` returns the kept names in order.",
+  "cases": [
+    {
+      "name": "cannotGenerate: chat model",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "completion",
+          "tools",
+          "insert"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: chat model",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "completion",
+          "tools",
+          "insert"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: chat model",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "completion",
+          "tools",
+          "insert"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: reasoning model",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking",
+          "vision"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: reasoning model",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking",
+          "vision"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: reasoning model",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking",
+          "vision"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: embedder",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "embedding"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "isEmbeddingModel: embedder",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "embedding"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "isImageModel: embedder",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "embedding"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: image generator",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "image-generation"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "isEmbeddingModel: image generator",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "image-generation"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: image generator",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "image-generation"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "cannotGenerate: unanswered question",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": null
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: unanswered question",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": null
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: unanswered question",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": null
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: empty list",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": []
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: empty list",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": []
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: empty list",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": []
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: completion only",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "completion"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: completion only",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "completion"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isImageModel: completion only",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "completion"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "cannotGenerate: embedder that also reports completion",
+      "input": {
+        "op": "cannotGenerate",
+        "capabilities": [
+          "completion",
+          "embedding"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "isEmbeddingModel: embedder that also reports completion",
+      "input": {
+        "op": "isEmbeddingModel",
+        "capabilities": [
+          "completion",
+          "embedding"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "isImageModel: embedder that also reports completion",
+      "input": {
+        "op": "isImageModel",
+        "capabilities": [
+          "completion",
+          "embedding"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "selectableModels drops embedders and image models",
+      "input": {
+        "op": "selectableModels",
+        "models": [
+          {
+            "name": "qwen3.5:9b",
+            "capabilities": [
+              "completion",
+              "tools",
+              "insert"
+            ]
+          },
+          {
+            "name": "llama3.2:1b",
+            "capabilities": [
+              "completion",
+              "tools",
+              "insert"
+            ]
+          },
+          {
+            "name": "nomic-embed-text:latest",
+            "capabilities": [
+              "embedding"
+            ]
+          },
+          {
+            "name": "flux:dev",
+            "capabilities": [
+              "image-generation"
+            ]
+          },
+          {
+            "name": "something-custom",
+            "capabilities": []
+          },
+          {
+            "name": "embedded-coder:7b",
+            "capabilities": [
+              "completion"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "qwen3.5:9b",
+        "llama3.2:1b",
+        "something-custom",
+        "embedded-coder:7b"
+      ]
+    },
+    {
+      "name": "selectableModels on an empty list",
+      "input": {
+        "op": "selectableModels",
+        "models": []
+      },
+      "expected": []
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "area": "models",
+  "description": "Draft companions of a main model, same shape as mmproj.json. `draftCompanionName` and `isCompanionDraft` are pure. `sequence` cases are stateful: expected is one result per step. The draft registry logs only, so it does not appear in expected.",
+  "cases": [
+    {
+      "name": "draft of a plain model",
+      "input": {
+        "op": "draftCompanionName",
+        "filename": "qwen-7b-Q4_K_M.gguf"
+      },
+      "expected": "qwen-7b-Q4_K_M-draft.gguf"
+    },
+    {
+      "name": "draft of a split model drops the part counter",
+      "input": {
+        "op": "draftCompanionName",
+        "filename": "big-Q4_K_M-00001-of-00004.gguf"
+      },
+      "expected": "big-Q4_K_M-draft.gguf"
+    },
+    {
+      "name": "draft of a path uses the basename",
+      "input": {
+        "op": "draftCompanionName",
+        "filename": "/models/llama-8b-Q4_K_M.gguf"
+      },
+      "expected": "llama-8b-Q4_K_M-draft.gguf"
+    },
+    {
+      "name": "draft file is recognised",
+      "input": {
+        "op": "isCompanionDraft",
+        "name": "qwen-7b-Q4_K_M-draft.gguf"
+      },
+      "expected": true
+    },
+    {
+      "name": "upper-case -DRAFT is recognised",
+      "input": {
+        "op": "isCompanionDraft",
+        "name": "qwen-7b-DRAFT.GGUF"
+      },
+      "expected": true
+    },
+    {
+      "name": "main model is not a draft",
+      "input": {
+        "op": "isCompanionDraft",
+        "name": "qwen-7b-Q4_K_M.gguf"
+      },
+      "expected": false
+    },
+    {
+      "name": "draft in the middle of a name is not a draft",
+      "input": {
+        "op": "isCompanionDraft",
+        "name": "draft-qwen.gguf"
+      },
+      "expected": false
+    },
+    {
+      "name": "companion draft is found only when present",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "write",
+            "file": "a-draft.gguf",
+            "size": 1
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        "a-draft.gguf"
+      ]
+    },
+    {
+      "name": "refused draft is not offered again",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          },
+          {
+            "name": "a-draft.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "refuse",
+            "file": "a-draft.gguf"
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "wasRefused",
+            "model": "a.gguf"
+          }
+        ]
+      },
+      "expected": [
+        "a-draft.gguf",
+        null,
+        null,
+        true
+      ]
+    },
+    {
+      "name": "replacing a refused draft gives it another try",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "a.gguf",
+            "size": 1
+          },
+          {
+            "name": "a-draft.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "refuse",
+            "file": "a-draft.gguf"
+          },
+          {
+            "op": "write",
+            "file": "a-draft.gguf",
+            "size": 14
+          },
+          {
+            "op": "find",
+            "model": "a.gguf"
+          },
+          {
+            "op": "wasRefused",
+            "model": "a.gguf"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        "a-draft.gguf",
+        false
+      ]
+    },
+    {
+      "name": "shards of one split model share one draft name",
+      "input": {
+        "op": "sequence",
+        "files": [
+          {
+            "name": "big-draft.gguf",
+            "size": 1
+          }
+        ],
+        "steps": [
+          {
+            "op": "find",
+            "model": "big-00001-of-00002.gguf"
+          },
+          {
+            "op": "find",
+            "model": "big-00002-of-00002.gguf"
+          }
+        ]
+      },
+      "expected": [
+        "big-draft.gguf",
+        "big-draft.gguf"
+      ]
+    }
+  ]
+}

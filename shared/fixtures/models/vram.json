@@ -1,0 +1,1417 @@
+{
+  "area": "models",
+  "description": "GPU fit of a model on a card. `describe` takes modelBytes, vramGB (the strings NaN for unmeasured) and unifiedMemory, and expects {fit, split}: the fit's tone, gpuPercent, sizeGB, neededGB and usableGB, and the split text. `fitStatus` maps a tone to the status dot. `constants` pins the overhead and usable fractions.",
+  "cases": [
+    {
+      "name": "0.5 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 7.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 7.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": "9"
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 9.5
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 21.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 22.799999999999997
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "0.5 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "0.5 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "0.5 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "0.5 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 536870912,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 0.5,
+          "neededGB": 1.3,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "1 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 7.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 7.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": "9"
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 9.5
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 21.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 22.799999999999997
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "1 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "1 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "1 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "1 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 1073741824,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "1",
+          "neededGB": 1.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "4.9 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 7.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 7.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": "9"
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 9.5
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 21.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 22.799999999999997
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "4.9 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "4.9 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "4.9 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "4.9 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 5261334937.6,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": 4.9,
+          "neededGB": 5.7,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "9 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "73",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 7.2
+        },
+        "split": "73% GPU / 27% CPU"
+      }
+    },
+    {
+      "name": "9 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "78",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 7.6
+        },
+        "split": "78% GPU / 22% CPU"
+      }
+    },
+    {
+      "name": "9 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "92",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": "9"
+        },
+        "split": "92% GPU / 8% CPU"
+      }
+    },
+    {
+      "name": "9 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "97",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 9.5
+        },
+        "split": "97% GPU / 3% CPU"
+      }
+    },
+    {
+      "name": "9 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 21.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "9 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 22.799999999999997
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "9 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "9 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "9 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "9 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "9 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "9 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 9663676416,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "9",
+          "neededGB": 9.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "14 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "49",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 7.2
+        },
+        "split": "49% GPU / 51% CPU"
+      }
+    },
+    {
+      "name": "14 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "51",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 7.6
+        },
+        "split": "51% GPU / 49% CPU"
+      }
+    },
+    {
+      "name": "14 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "61",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": "9"
+        },
+        "split": "61% GPU / 39% CPU"
+      }
+    },
+    {
+      "name": "14 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "amber",
+          "gpuPercent": "64",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 9.5
+        },
+        "split": "64% GPU / 36% CPU"
+      }
+    },
+    {
+      "name": "14 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 21.6
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "14 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 22.799999999999997
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "14 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "14 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "14 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "14 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "14 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "14 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 15032385536,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "14",
+          "neededGB": 14.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "40 GB on 8 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 8,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "18",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 7.2
+        },
+        "split": "18% GPU / 82% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 8 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 8,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "19",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 7.6
+        },
+        "split": "19% GPU / 81% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 10 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 10,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "22",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": "9"
+        },
+        "split": "22% GPU / 78% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 10 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 10,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "23",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 9.5
+        },
+        "split": "23% GPU / 77% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 24 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 24,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "53",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 21.6
+        },
+        "split": "53% GPU / 47% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 24 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 24,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "red",
+          "gpuPercent": "56",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 22.799999999999997
+        },
+        "split": "56% GPU / 44% CPU"
+      }
+    },
+    {
+      "name": "40 GB on 48 GB card",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 48,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 43.2
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "40 GB on 48 GB card, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 48,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "green",
+          "gpuPercent": "100",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": 45.599999999999994
+        },
+        "split": "100% GPU"
+      }
+    },
+    {
+      "name": "40 GB on no reading",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 0,
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "40 GB on no reading, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": 0,
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "40 GB on unmeasured",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": "NaN",
+        "unifiedMemory": false
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "40 GB on unmeasured, unified",
+      "input": {
+        "op": "describe",
+        "modelBytes": 42949672960,
+        "vramGB": "NaN",
+        "unifiedMemory": true
+      },
+      "expected": {
+        "fit": {
+          "tone": "unknown",
+          "gpuPercent": "0",
+          "sizeGB": "40",
+          "neededGB": 40.8,
+          "usableGB": "0"
+        },
+        "split": ""
+      }
+    },
+    {
+      "name": "status dot for green",
+      "input": {
+        "op": "fitStatus",
+        "tone": "green"
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "status dot for amber",
+      "input": {
+        "op": "fitStatus",
+        "tone": "amber"
+      },
+      "expected": "warn"
+    },
+    {
+      "name": "status dot for red",
+      "input": {
+        "op": "fitStatus",
+        "tone": "red"
+      },
+      "expected": "danger"
+    },
+    {
+      "name": "status dot for unknown",
+      "input": {
+        "op": "fitStatus",
+        "tone": "unknown"
+      },
+      "expected": null
+    },
+    {
+      "name": "constants",
+      "input": {
+        "op": "constants"
+      },
+      "expected": {
+        "RUNTIME_OVERHEAD_GB": 0.8,
+        "USABLE_VRAM_FRACTION": 0.9,
+        "USABLE_UNIFIED_FRACTION": 0.95
+      }
+    }
+  ]
+}

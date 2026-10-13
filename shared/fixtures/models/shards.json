@@ -1,0 +1,204 @@
+{
+  "area": "models",
+  "description": "Split-model file names. Each case gives `shard` (parseShard: stem, index, total, totalText, or null) and `names` (shardNames: every file the model is made of, in order, or the one basename for a single-file model).",
+  "cases": [
+    {
+      "name": "single-file model has no shard and one name",
+      "input": {
+        "filename": "llama-3.1-8b-Q4_K_M.gguf"
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          "llama-3.1-8b-Q4_K_M.gguf"
+        ]
+      }
+    },
+    {
+      "name": "first of four shards lists all four",
+      "input": {
+        "filename": "big-Q4_K_M-00001-of-00004.gguf"
+      },
+      "expected": {
+        "shard": {
+          "stem": "big-Q4_K_M",
+          "index": "1",
+          "total": "4",
+          "totalText": "00004"
+        },
+        "names": [
+          "big-Q4_K_M-00001-of-00004.gguf",
+          "big-Q4_K_M-00002-of-00004.gguf",
+          "big-Q4_K_M-00003-of-00004.gguf",
+          "big-Q4_K_M-00004-of-00004.gguf"
+        ]
+      }
+    },
+    {
+      "name": "a path is reduced to its basename",
+      "input": {
+        "filename": "/models/big/big-Q4_K_M-00002-of-00003.gguf"
+      },
+      "expected": {
+        "shard": {
+          "stem": "big-Q4_K_M",
+          "index": "2",
+          "total": "3",
+          "totalText": "00003"
+        },
+        "names": [
+          "big-Q4_K_M-00001-of-00003.gguf",
+          "big-Q4_K_M-00002-of-00003.gguf",
+          "big-Q4_K_M-00003-of-00003.gguf"
+        ]
+      }
+    },
+    {
+      "name": "a trailing slash is ignored",
+      "input": {
+        "filename": "/models/big/big-00001-of-00002.gguf/"
+      },
+      "expected": {
+        "shard": {
+          "stem": "big",
+          "index": "1",
+          "total": "2",
+          "totalText": "00002"
+        },
+        "names": [
+          "big-00001-of-00002.gguf",
+          "big-00002-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "uppercase OF and extension still match, names come out lowercase",
+      "input": {
+        "filename": "Big-00001-OF-00002.GGUF"
+      },
+      "expected": {
+        "shard": {
+          "stem": "Big",
+          "index": "1",
+          "total": "2",
+          "totalText": "00002"
+        },
+        "names": [
+          "Big-00001-of-00002.gguf",
+          "Big-00002-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "four-digit part counter is not a shard",
+      "input": {
+        "filename": "big-0001-of-0002.gguf"
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          "big-0001-of-0002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "zero total lists no names",
+      "input": {
+        "filename": "m-00001-of-00000.gguf"
+      },
+      "expected": {
+        "shard": {
+          "stem": "m",
+          "index": "1",
+          "total": "0",
+          "totalText": "00000"
+        },
+        "names": []
+      }
+    },
+    {
+      "name": "index above total still lists total names",
+      "input": {
+        "filename": "m-00005-of-00002.gguf"
+      },
+      "expected": {
+        "shard": {
+          "stem": "m",
+          "index": "5",
+          "total": "2",
+          "totalText": "00002"
+        },
+        "names": [
+          "m-00001-of-00002.gguf",
+          "m-00002-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "stem may contain dashes",
+      "input": {
+        "filename": "qwen-3-Q4-00001-of-00002.gguf"
+      },
+      "expected": {
+        "shard": {
+          "stem": "qwen-3-Q4",
+          "index": "1",
+          "total": "2",
+          "totalText": "00002"
+        },
+        "names": [
+          "qwen-3-Q4-00001-of-00002.gguf",
+          "qwen-3-Q4-00002-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "part counter with no stem is not a shard",
+      "input": {
+        "filename": "00001-of-00002.gguf"
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          "00001-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "newline in the stem is not a match",
+      "input": {
+        "filename": "a\nb-00001-of-00002.gguf"
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          "a\nb-00001-of-00002.gguf"
+        ]
+      }
+    },
+    {
+      "name": "other extension is not a shard",
+      "input": {
+        "filename": "big-00001-of-00002.bin"
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          "big-00001-of-00002.bin"
+        ]
+      }
+    },
+    {
+      "name": "empty name lists one empty name",
+      "input": {
+        "filename": ""
+      },
+      "expected": {
+        "shard": null,
+        "names": [
+          ""
+        ]
+      }
+    }
+  ]
+}
