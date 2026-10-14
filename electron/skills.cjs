@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { log } = require("./logger.cjs");
+const { isDeniedName, isInside } = require("./fsGuard.cjs");
 
 /** Skills: folders with a SKILL.md, the shared format. Only name and description sit in the prompt;
  * the body loads on request, so a hundred cost about one. */
@@ -123,12 +124,25 @@ function readCatalogue() {
   }
 }
 
-function readSkillFolder(folder, source, catalogue) {
-  const file = path.join(folder, SKILL_FILE);
+/** The text of a skill's SKILL.md, read through its real path. Null when a link takes it out of the skill folder,
+ * or to a credentials-named file, which readSkillFile would refuse too. */
+function readSkillText(folder) {
+  const realFolder = fs.realpathSync.native(folder);
+  const realFile = fs.realpathSync.native(path.join(folder, SKILL_FILE));
+  if (!isInside(realFolder, realFile)) return null;
+  if (path.relative(realFolder, realFile).split(/[\\/]+/).some(isDeniedName)) return null;
+  return fs.readFileSync(realFile, "utf8");
+}
 
+function readSkillFolder(folder, source, catalogue) {
   let parsed;
   try {
-    parsed = parseSkill(fs.readFileSync(file, "utf8"));
+    const text = readSkillText(folder);
+    if (text === null) {
+      log.warn("skills", "skill file refused", { skill: path.basename(folder), source });
+      return null;
+    }
+    parsed = parseSkill(text);
   } catch (error) {
     log.warn("skills", "skill file unreadable", { skill: path.basename(folder), source, code: error?.code ?? error?.name ?? null });
     return null;
@@ -256,10 +270,31 @@ function readSkillFile(skill, name) {
     return { success: false, error: `"${name}" is not a file in the ${skill.id} skill.` };
   }
 
+  // The real paths decide, so a link inside the skill cannot reach a file outside it or a denied name.
+  let realFolder;
+  let realTarget;
+  try {
+    realFolder = fs.realpathSync.native(skill.path);
+    realTarget = fs.realpathSync.native(target);
+  } catch {
+    return { success: false, error: `The ${skill.id} skill has no file called "${name}".` };
+  }
+
+  if (!isInside(realFolder, realTarget)) {
+    log.warn("skills", "file refused", { skill: skill.id, rule: "outside" });
+    return { success: false, error: `"${name}" is not a file in the ${skill.id} skill.` };
+  }
+
+  const within = path.relative(realFolder, realTarget);
+  if (within.split(/[\\/]+/).some(isDeniedName)) {
+    log.warn("skills", "file refused", { skill: skill.id, rule: "credentials" });
+    return { success: false, error: `"${name}" holds credentials, so Draggy does not open it.` };
+  }
+
   let content;
   try {
-    if (!fs.statSync(target).isFile()) throw new Error("not a file");
-    content = fs.readFileSync(target, "utf8");
+    if (!fs.statSync(realTarget).isFile()) throw new Error("not a file");
+    content = fs.readFileSync(realTarget, "utf8");
   } catch {
     return { success: false, error: `The ${skill.id} skill has no file called "${name}".` };
   }
@@ -293,7 +328,8 @@ function readSkill(id, projectRoot, options = {}) {
       return read.success ? { success: true, skill: { ...skill, body: "", files }, file: read.file } : read;
     }
 
-    const parsed = parseSkill(fs.readFileSync(path.join(skill.path, SKILL_FILE), "utf8"));
+    const text = readSkillText(skill.path);
+    const parsed = text === null ? null : parseSkill(text);
 
     if (!parsed) return { success: false, error: "That skill could not be read." };
 

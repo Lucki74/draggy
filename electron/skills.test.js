@@ -343,6 +343,45 @@ describe("files that come with a skill", () => {
     expect(skills.readSkill("reports", undefined, { file: "nope.md" }).success).toBe(false);
     expect(skills.readSkill("reports", undefined, { file: "logo.png" }).error).toContain("not a text file");
   });
+
+  /** Windows needs a privilege for links, so these checks skip without it. */
+  function linkOrSkip(target, linkPath) {
+    try {
+      fs.symlinkSync(target, linkPath, "file");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  it("refuses a link inside the skill that points to a file outside it", () => {
+    const folder = skillWithFiles();
+    if (!linkOrSkip(path.join(userData, "settings.json"), path.join(folder, "escape.md"))) return;
+    fs.writeFileSync(path.join(userData, "settings.json"), "{}");
+
+    expect(skills.readSkill("reports", undefined, { file: "escape.md" }).success).toBe(false);
+  });
+
+  it("refuses a link inside the skill to a credentials-named file", () => {
+    const folder = skillWithFiles();
+    fs.writeFileSync(path.join(folder, "credentials"), "token=fake\n");
+    if (!linkOrSkip(path.join(folder, "credentials"), path.join(folder, "creds.txt"))) return;
+
+    const result = skills.readSkill("reports", undefined, { file: "creds.txt" });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("holds credentials");
+  });
+
+  it("still reads a link that stays inside the skill", () => {
+    const folder = skillWithFiles();
+    if (!linkOrSkip(path.join(folder, "templates", "weekly.md"), path.join(folder, "alias.md"))) return;
+
+    const result = skills.readSkill("reports", undefined, { file: "alias.md" });
+
+    expect(result.success).toBe(true);
+    expect(result.file).toEqual({ name: "alias.md", content: "# Weekly\n" });
+  });
 });
 
 describe("the library Draggy ships", () => {

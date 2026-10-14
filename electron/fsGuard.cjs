@@ -58,6 +58,17 @@ function realpathOrNull(target) {
   }
 }
 
+/** A symbolic link whose target is missing. Only the link itself shows it: `existsSync` is false. */
+function isDanglingLink(target) {
+  try {
+    return Boolean(fs.lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink());
+  } catch (error) {
+    // A path under a file or a link loop cannot be stat'd, so it is not a link we can name.
+    log.swallow("files.guard", error, "a path that cannot be stat'd is not a dangling link");
+    return false;
+  }
+}
+
 /** Is `target` the folder itself or something under it? Compared after both have been resolved, so
  * `..` and a symlink out of the tree are already gone. */
 function isInside(folder, target) {
@@ -68,15 +79,19 @@ function isInside(folder, target) {
   );
 }
 
-/** A name that is never opened. Exported so folder walks refuse what `resolveWithin` refuses, or a
- * search would get around this module. */
-function isDeniedName(name) {
-  const part = String(name || "");
-
+function isDeniedForm(part) {
   return (
     DENIED_SEGMENTS.has(part.toLowerCase()) ||
     DENIED_NAMES.some((pattern) => pattern.test(part))
   );
+}
+
+/** A name that is never opened. Exported so folder walks refuse what `resolveWithin` refuses, or a
+ * search would get around this module. The NFKC form is tested too, so a Kelvin sign is a k. */
+function isDeniedName(name) {
+  const part = String(name || "");
+
+  return isDeniedForm(part) || isDeniedForm(part.normalize("NFKC"));
 }
 
 function hasDeniedPart(target) {
@@ -131,6 +146,15 @@ function resolveWithin(roots, requested, options = {}) {
 
   const exists = fs.existsSync(absolute);
   if (mustExist && !exists) return refuse(`There is no ${path.basename(absolute)}.`);
+
+  // A write would follow the link to its missing target, which may be outside the folder.
+  if (!exists && isDanglingLink(absolute)) {
+    return refuse(
+      "That is a link to a file that is not there, so Draggy will not create it.",
+      "dangling_link",
+      { path: absolute },
+    );
+  }
 
   // A new file inherits its folder, so the folder is what must be real. `createParents` lets the
   // check reach up for folders a write will make.
