@@ -24,10 +24,49 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
 /** Hosts on this machine or its network: a router panel, a staging box, the engine itself. Checked
  * literally, so a name resolving to 127.0.0.1 still gets through. */
-const PRIVATE_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
+const PRIVATE_HOSTNAMES = new Set([
+  "localhost",
+  "localhost.localdomain",
+  "localhost4",
+  "localhost4.localdomain4",
+  "localhost6",
+  "localhost6.localdomain6",
+  "ip6-localhost",
+  "ip6-loopback",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "[::1]",
+]);
+
+/** An IPv6 literal in the spelling the URL parser gives it, so every spelling of one address agrees. Null when it is not one. */
+function canonicalIPv6(host) {
+  if (!host.includes(":") || !/^[0-9a-f:.]+$/i.test(host)) return null;
+  try {
+    return new URL(`http://[${host}]/`).hostname.slice(1, -1);
+  } catch {
+    return null;
+  }
+}
+
+/** Loopback, unspecified and link-local IPv6, and IPv4-mapped addresses under the IPv4 rules. */
+function isPrivateIPv6(address) {
+  if (address === "::1" || address === "::") return true;
+  if (/^fe[89ab][0-9a-f]:/.test(address)) return true;
+
+  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(address);
+  if (mapped) {
+    const high = parseInt(mapped[1], 16);
+    const low = parseInt(mapped[2], 16);
+    return isPrivateHostname(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+  }
+
+  return false;
+}
 
 function isPrivateHostname(hostname) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  // A trailing dot names the same host, so one is dropped before any check.
+  const host = hostname.toLowerCase().replace(/\.$/, "").replace(/^\[|\]$/g, "");
 
   if (PRIVATE_HOSTNAMES.has(host) || PRIVATE_HOSTNAMES.has(hostname.toLowerCase())) {
     return true;
@@ -36,9 +75,11 @@ function isPrivateHostname(hostname) {
   // mDNS and the suffix Chromium maps to loopback on its own.
   if (host.endsWith(".local") || host.endsWith(".localhost")) return true;
 
-  // IPv6 loopback and unique-local, written out rather than abbreviated.
-  if (host === "0:0:0:0:0:0:0:1") return true;
+  // IPv6 unique-local, fc00::/7.
   if (/^f[cd][0-9a-f]{2}:/i.test(host)) return true;
+
+  const canonical = canonicalIPv6(host);
+  if (canonical !== null) return isPrivateIPv6(canonical);
 
   const octets = host.split(".");
   if (octets.length === 4 && octets.every((part) => /^\d{1,3}$/.test(part))) {
@@ -51,6 +92,8 @@ function isPrivateHostname(hostname) {
     // Link-local, which is also where every cloud provider keeps its metadata
     // service on 169.254.169.254.
     if (a === 169 && b === 254) return true;
+    // Carrier-grade NAT, 100.64.0.0/10.
+    if (a === 100 && b >= 64 && b <= 127) return true;
   }
 
   return false;
