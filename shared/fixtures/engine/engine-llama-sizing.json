@@ -1,0 +1,343 @@
+{
+  "area": "engine",
+  "description": "The sizing rules of a launch, picked by `op`: batch sizes, the --fit reserve on Windows and elsewhere, the prompt RAM cache, whether a draft fits beside its model, and the expert streaming flags. Each `expected` is the reference's answer for that rule.",
+  "cases": [
+    {
+      "name": "CUDA with 10 GB or more gets a 2048 micro-batch",
+      "input": {
+        "op": "batch",
+        "runnerType": "cuda",
+        "vramGB": 12,
+        "moe": false
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 2048
+      }
+    },
+    {
+      "name": "CUDA with less than 10 GB gets 1024",
+      "input": {
+        "op": "batch",
+        "runnerType": "cuda",
+        "vramGB": 8,
+        "moe": false
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 1024
+      }
+    },
+    {
+      "name": "a mixture of experts on CUDA gets 2048 whatever the card",
+      "input": {
+        "op": "batch",
+        "runnerType": "cuda",
+        "vramGB": 8,
+        "moe": true
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 2048
+      }
+    },
+    {
+      "name": "Vulkan keeps the default micro-batch",
+      "input": {
+        "op": "batch",
+        "runnerType": "vulkan",
+        "vramGB": 12,
+        "moe": false
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 512
+      }
+    },
+    {
+      "name": "Metal with a mixture of experts keeps 512",
+      "input": {
+        "op": "batch",
+        "runnerType": "metal",
+        "vramGB": 36,
+        "moe": true
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 512
+      }
+    },
+    {
+      "name": "ROCm with 12 GB or more gets 1024",
+      "input": {
+        "op": "batch",
+        "runnerType": "rocm",
+        "vramGB": 12,
+        "moe": false
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 1024
+      }
+    },
+    {
+      "name": "no runner keeps the defaults",
+      "input": {
+        "op": "batch",
+        "runnerType": null,
+        "vramGB": 0,
+        "moe": false
+      },
+      "expected": {
+        "batch": 2048,
+        "ubatch": 512
+      }
+    },
+    {
+      "name": "Windows reserves 2662 MiB on 12 GB",
+      "input": {
+        "op": "fitTarget",
+        "windows": true,
+        "vramGB": 12
+      },
+      "expected": {
+        "fitTargetMiB": 2662
+      }
+    },
+    {
+      "name": "Windows reserves 2048 MiB on 8 GB",
+      "input": {
+        "op": "fitTarget",
+        "windows": true,
+        "vramGB": 8
+      },
+      "expected": {
+        "fitTargetMiB": 2048
+      }
+    },
+    {
+      "name": "Windows with no card reserves 1024 MiB",
+      "input": {
+        "op": "fitTarget",
+        "windows": true,
+        "vramGB": 0
+      },
+      "expected": {
+        "fitTargetMiB": 1024
+      }
+    },
+    {
+      "name": "other systems reserve 1229 MiB on 12 GB",
+      "input": {
+        "op": "fitTarget",
+        "windows": false,
+        "vramGB": 12
+      },
+      "expected": {
+        "fitTargetMiB": 1229
+      }
+    },
+    {
+      "name": "other systems reserve at least 1024 MiB",
+      "input": {
+        "op": "fitTarget",
+        "windows": false,
+        "vramGB": 8
+      },
+      "expected": {
+        "fitTargetMiB": 1024
+      }
+    },
+    {
+      "name": "the prompt cache is 16 GB on a 64 GB machine",
+      "input": {
+        "op": "promptCache",
+        "modelBytes": 17179869184,
+        "totalRamBytes": 68719476736
+      },
+      "expected": {
+        "promptCacheMiB": 16384
+      }
+    },
+    {
+      "name": "the prompt cache is what the weights leave on 32 GB",
+      "input": {
+        "op": "promptCache",
+        "modelBytes": 17179869184,
+        "totalRamBytes": 34359738368
+      },
+      "expected": {
+        "promptCacheMiB": 5120
+      }
+    },
+    {
+      "name": "the prompt cache never drops below 1 GB",
+      "input": {
+        "op": "promptCache",
+        "modelBytes": 17179869184,
+        "totalRamBytes": 17179869184
+      },
+      "expected": {
+        "promptCacheMiB": 1024
+      }
+    },
+    {
+      "name": "a draft fits beside a 7 GB model on a 12 GB card",
+      "input": {
+        "op": "draftFits",
+        "modelBytes": 7516192768,
+        "draftBytes": 1073741824,
+        "vramGB": 12,
+        "moe": false
+      },
+      "expected": {
+        "fits": true
+      }
+    },
+    {
+      "name": "a draft pushes a 7 GB model off an 8 GB card",
+      "input": {
+        "op": "draftFits",
+        "modelBytes": 7516192768,
+        "draftBytes": 1073741824,
+        "vramGB": 8,
+        "moe": false
+      },
+      "expected": {
+        "fits": false
+      }
+    },
+    {
+      "name": "a draft beside a mixture of experts always fits",
+      "input": {
+        "op": "draftFits",
+        "modelBytes": 7516192768,
+        "draftBytes": 1073741824,
+        "vramGB": 8,
+        "moe": true
+      },
+      "expected": {
+        "fits": true
+      }
+    },
+    {
+      "name": "a draft with no known card always fits",
+      "input": {
+        "op": "draftFits",
+        "modelBytes": 7516192768,
+        "draftBytes": 1073741824,
+        "vramGB": 0,
+        "moe": false
+      },
+      "expected": {
+        "fits": true
+      }
+    },
+    {
+      "name": "expert streaming sizes come from the plan",
+      "input": {
+        "op": "moeStream",
+        "flags": [
+          "--moe-stream-cache",
+          "--moe-stream-io-threads",
+          "--moe-stream-direct",
+          "--moe-expert-cache"
+        ],
+        "stream": {
+          "cacheGB": 38.6,
+          "ioThreads": 6,
+          "direct": true,
+          "vramSlots": 12.9
+        }
+      },
+      "expected": {
+        "args": [
+          "--moe-stream-cache",
+          "38G",
+          "--moe-stream-io-threads",
+          "6",
+          "--moe-stream-direct",
+          "--moe-expert-cache",
+          "12"
+        ]
+      }
+    },
+    {
+      "name": "direct I/O stays off unless asked, and so do flags the build lacks",
+      "input": {
+        "op": "moeStream",
+        "flags": [
+          "--moe-stream-cache",
+          "--moe-stream-direct"
+        ],
+        "stream": {
+          "cacheGB": 38.6,
+          "ioThreads": 6,
+          "direct": false,
+          "vramSlots": 0
+        }
+      },
+      "expected": {
+        "args": [
+          "--moe-stream-cache",
+          "38G"
+        ]
+      }
+    },
+    {
+      "name": "an old build gets no streaming flags",
+      "input": {
+        "op": "moeStream",
+        "flags": [
+          "--cache-ram"
+        ],
+        "stream": {
+          "cacheGB": 38.6,
+          "ioThreads": 6,
+          "direct": true,
+          "vramSlots": 12.9
+        }
+      },
+      "expected": {
+        "args": []
+      }
+    },
+    {
+      "name": "no stream plan gets no flags",
+      "input": {
+        "op": "moeStream",
+        "flags": [
+          "--moe-stream-cache"
+        ],
+        "stream": null
+      },
+      "expected": {
+        "args": []
+      }
+    },
+    {
+      "name": "io threads of zero fall back to four",
+      "input": {
+        "op": "moeStream",
+        "flags": [
+          "--moe-stream-cache",
+          "--moe-stream-io-threads"
+        ],
+        "stream": {
+          "cacheGB": 2,
+          "ioThreads": 0,
+          "direct": false,
+          "vramSlots": 0
+        }
+      },
+      "expected": {
+        "args": [
+          "--moe-stream-cache",
+          "2G",
+          "--moe-stream-io-threads",
+          "4"
+        ]
+      }
+    }
+  ]
+}

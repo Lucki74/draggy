@@ -1,0 +1,318 @@
+{
+  "area": "engine",
+  "description": "GPU runner beside the server and the install state of the engine folder. Paths in `files` are relative to the engine folder; a trailing slash makes a folder. `runner` gives {runnerDir, backendDll, runnerType} with paths relative to the engine folder (\".\" for the folder itself, null for no backend). `state` gives {present, complete, runnerType}. `nvidia` says whether an NVIDIA driver is installed.",
+  "cases": [
+    {
+      "name": "CUDA folder wins over Vulkan on NVIDIA",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "cuda_v12/",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": true
+      },
+      "expected": {
+        "runnerDir": "cuda_v12",
+        "backendDll": "cuda_v12/ggml-cuda.dll",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "CUDA 13 folder when there is no 12",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "cuda_v13/"
+        ],
+        "vramGB": 8,
+        "nvidia": true
+      },
+      "expected": {
+        "runnerDir": "cuda_v13",
+        "backendDll": "cuda_v13/ggml-cuda.dll",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "no NVIDIA driver skips CUDA and takes Vulkan",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "cuda_v12/",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/ggml-vulkan.dll",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "no NVIDIA driver with only CUDA is CPU",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "cuda_v12/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "flat CUDA build beats a leftover vulkan folder",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "ggml-cuda.dll",
+          "vulkan/"
+        ],
+        "vramGB": 12,
+        "nvidia": true
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "ggml-cuda.dll",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "flat Vulkan build",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "ggml-vulkan.dll"
+        ],
+        "vramGB": 4,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "ggml-vulkan.dll",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "flat folder with no runner is CPU",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "llama-server.exe"
+        ],
+        "vramGB": 4,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "Metal on macOS has no backend library",
+      "input": {
+        "op": "runner",
+        "platform": "darwin",
+        "files": [
+          "llama-server"
+        ],
+        "vramGB": 0,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "metal"
+      }
+    },
+    {
+      "name": "flat CUDA library on Linux",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "libggml-cuda.so",
+          "libggml-vulkan.so"
+        ],
+        "vramGB": 12,
+        "nvidia": true
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "libggml-cuda.so",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "Vulkan library on Linux without a driver",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "libggml-cuda.so",
+          "libggml-vulkan.so"
+        ],
+        "vramGB": 12,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "libggml-vulkan.so",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "ROCm folder on Linux",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "rocm/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "rocm",
+        "backendDll": "rocm/libggml-hip.so",
+        "runnerType": "rocm"
+      }
+    },
+    {
+      "name": "Vulkan folder on Linux",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/libggml-vulkan.so",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "nothing beside the server on Linux is CPU",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "llama-server"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "Windows engine with a Vulkan runner is complete",
+      "input": {
+        "op": "state",
+        "platform": "win32",
+        "files": [
+          "llama-server.exe",
+          "vulkan/"
+        ],
+        "vramGB": 4,
+        "nvidia": false
+      },
+      "expected": {
+        "present": true,
+        "complete": true,
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "Windows engine with no runner is incomplete on a GPU",
+      "input": {
+        "op": "state",
+        "platform": "win32",
+        "files": [
+          "llama-server.exe"
+        ],
+        "vramGB": 8,
+        "nvidia": true
+      },
+      "expected": {
+        "present": true,
+        "complete": false,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "Windows engine with no runner is complete without a GPU",
+      "input": {
+        "op": "state",
+        "platform": "win32",
+        "files": [
+          "llama-server.exe"
+        ],
+        "vramGB": 0,
+        "nvidia": false
+      },
+      "expected": {
+        "present": true,
+        "complete": true,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "macOS engine is complete without a runner",
+      "input": {
+        "op": "state",
+        "platform": "darwin",
+        "files": [
+          "llama-server"
+        ],
+        "vramGB": 16,
+        "nvidia": false
+      },
+      "expected": {
+        "present": true,
+        "complete": true,
+        "runnerType": "metal"
+      }
+    },
+    {
+      "name": "Linux folder without the server is absent",
+      "input": {
+        "op": "state",
+        "platform": "linux",
+        "files": [
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "present": false,
+        "complete": false,
+        "runnerType": "vulkan"
+      }
+    }
+  ]
+}

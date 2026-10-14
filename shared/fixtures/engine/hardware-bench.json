@@ -1,0 +1,131 @@
+{
+  "area": "engine",
+  "description": "Benchmark arithmetic. `summarize` turns the timings of a run into the rates it caches (rounded as the reference rounds them). `isFresh` says whether a cached stamp is younger than thirty days and not from the future; `at` is the stamp, the string \"NaN\" for a bad one, or null when there is no entry.",
+  "cases": [
+    {
+      "name": "summary of a fast disk",
+      "input": {
+        "op": "summarize",
+        "seqBytes": 4000000000,
+        "seqMs": 1000,
+        "randBytes": 1000000000,
+        "randMs": 500,
+        "smallReads": 2000,
+        "smallMs": 400,
+        "unbuffered": true
+      },
+      "expected": {
+        "seqMBps": 4000,
+        "expertMBps": 2000,
+        "rand4kMBps": 20.5,
+        "rand4kIops": 5000,
+        "unbuffered": true
+      }
+    },
+    {
+      "name": "summary with zero durations",
+      "input": {
+        "op": "summarize",
+        "seqBytes": 1,
+        "seqMs": 0,
+        "randBytes": 1,
+        "randMs": 0,
+        "smallReads": 1,
+        "smallMs": 0,
+        "unbuffered": false
+      },
+      "expected": {
+        "seqMBps": 0,
+        "expertMBps": 0,
+        "rand4kMBps": 0,
+        "rand4kIops": 0,
+        "unbuffered": false
+      }
+    },
+    {
+      "name": "summary rounds to whole MB/s and IOPS and one decimal",
+      "input": {
+        "op": "summarize",
+        "seqBytes": 1234567890,
+        "seqMs": 333,
+        "randBytes": 99999999,
+        "randMs": 77,
+        "smallReads": 2000,
+        "smallMs": 123,
+        "unbuffered": false
+      },
+      "expected": {
+        "seqMBps": 3707,
+        "expertMBps": 1299,
+        "rand4kMBps": 66.6,
+        "rand4kIops": 16260,
+        "unbuffered": false
+      }
+    },
+    {
+      "name": "summary rounds half up on the MB/s",
+      "input": {
+        "op": "summarize",
+        "seqBytes": 100000000,
+        "seqMs": 8000,
+        "randBytes": 100000000,
+        "randMs": 1000,
+        "smallReads": 3,
+        "smallMs": 1000,
+        "unbuffered": false
+      },
+      "expected": {
+        "seqMBps": 13,
+        "expertMBps": 100,
+        "rand4kMBps": 0,
+        "rand4kIops": 3,
+        "unbuffered": false
+      }
+    },
+    {
+      "name": "fresh one millisecond before thirty days",
+      "input": {
+        "op": "isFresh",
+        "at": 1000,
+        "now": 2592000999
+      },
+      "expected": true
+    },
+    {
+      "name": "stale at exactly thirty days",
+      "input": {
+        "op": "isFresh",
+        "at": 1000,
+        "now": 2592001000
+      },
+      "expected": false
+    },
+    {
+      "name": "no entry is not fresh",
+      "input": {
+        "op": "isFresh",
+        "at": null,
+        "now": 5
+      },
+      "expected": false
+    },
+    {
+      "name": "a stamp from the future is not fresh",
+      "input": {
+        "op": "isFresh",
+        "at": 5,
+        "now": 3
+      },
+      "expected": false
+    },
+    {
+      "name": "a bad stamp is not fresh",
+      "input": {
+        "op": "isFresh",
+        "at": "NaN",
+        "now": 3
+      },
+      "expected": false
+    }
+  ]
+}

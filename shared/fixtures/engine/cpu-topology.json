@@ -1,0 +1,288 @@
+{
+  "area": "engine",
+  "description": "CPU topology. `fromCounts`, `parseCpuList`, `windowsTopology` (model name and thread count) and `linuxTopology` (sysfs files, keyed by path under the sysfs root) expect the topology {logical, physical, performance} or null, and the list for parseCpuList.",
+  "cases": [
+    {
+      "name": "hybrid i9 counts give the P-cores",
+      "input": {
+        "op": "fromCounts",
+        "logical": 32,
+        "physical": 24
+      },
+      "expected": {
+        "logical": 32,
+        "physical": 24,
+        "performance": 8
+      }
+    },
+    {
+      "name": "uniform SMT chip uses every core",
+      "input": {
+        "op": "fromCounts",
+        "logical": 16,
+        "physical": 8
+      },
+      "expected": {
+        "logical": 16,
+        "physical": 8,
+        "performance": 8
+      }
+    },
+    {
+      "name": "no SMT means every core is performance",
+      "input": {
+        "op": "fromCounts",
+        "logical": 8,
+        "physical": 8
+      },
+      "expected": {
+        "logical": 8,
+        "physical": 8,
+        "performance": 8
+      }
+    },
+    {
+      "name": "unknown physical count falls back to logical",
+      "input": {
+        "op": "fromCounts",
+        "logical": 6,
+        "physical": 0
+      },
+      "expected": {
+        "logical": 6,
+        "physical": 6,
+        "performance": 6
+      }
+    },
+    {
+      "name": "physical count above logical is capped",
+      "input": {
+        "op": "fromCounts",
+        "logical": 4,
+        "physical": 9
+      },
+      "expected": {
+        "logical": 4,
+        "physical": 4,
+        "performance": 4
+      }
+    },
+    {
+      "name": "zero threads still reports one core",
+      "input": {
+        "op": "fromCounts",
+        "logical": 0,
+        "physical": 0
+      },
+      "expected": {
+        "logical": 0,
+        "physical": 1,
+        "performance": 1
+      }
+    },
+    {
+      "name": "cpu list with ranges and singles",
+      "input": {
+        "op": "parseCpuList",
+        "text": "0-3,8,10-11\n"
+      },
+      "expected": [
+        0,
+        1,
+        2,
+        3,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "cpu list ending in a dash skips the item",
+      "input": {
+        "op": "parseCpuList",
+        "text": "5-"
+      },
+      "expected": []
+    },
+    {
+      "name": "empty cpu list",
+      "input": {
+        "op": "parseCpuList",
+        "text": ""
+      },
+      "expected": []
+    },
+    {
+      "name": "cpu list with spaces around items",
+      "input": {
+        "op": "parseCpuList",
+        "text": " 2 , 4-5 "
+      },
+      "expected": [
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "AMD core count from the name",
+      "input": {
+        "op": "windowsTopology",
+        "model": "AMD Ryzen 9 7900X3D 12-Core Processor          ",
+        "logical": 24
+      },
+      "expected": {
+        "logical": 24,
+        "physical": 12,
+        "performance": 12
+      }
+    },
+    {
+      "name": "Intel 13th gen hybrid from the name",
+      "input": {
+        "op": "windowsTopology",
+        "model": "13th Gen Intel(R) Core(TM) i7-13700K",
+        "logical": 24
+      },
+      "expected": {
+        "logical": 24,
+        "physical": 16,
+        "performance": 8
+      }
+    },
+    {
+      "name": "Intel hybrid below twenty threads is unknown",
+      "input": {
+        "op": "windowsTopology",
+        "model": "13th Gen Intel(R) Core(TM) i7-13700K",
+        "logical": 16
+      },
+      "expected": null
+    },
+    {
+      "name": "older Intel is unknown",
+      "input": {
+        "op": "windowsTopology",
+        "model": "Intel(R) Core(TM) i3-10100",
+        "logical": 8
+      },
+      "expected": null
+    },
+    {
+      "name": "no model name is unknown",
+      "input": {
+        "op": "windowsTopology",
+        "model": null,
+        "logical": 8
+      },
+      "expected": null
+    },
+    {
+      "name": "core count in a Xeon name",
+      "input": {
+        "op": "windowsTopology",
+        "model": "Intel Xeon 8-Core E5",
+        "logical": 16
+      },
+      "expected": {
+        "logical": 16,
+        "physical": 8,
+        "performance": 8
+      }
+    },
+    {
+      "name": "linux SMT pairs without a P-core list",
+      "input": {
+        "op": "linuxTopology",
+        "files": {
+          "system/cpu/cpu0/topology/thread_siblings_list": "0-1\n",
+          "system/cpu/cpu1/topology/thread_siblings_list": "0-1\n",
+          "system/cpu/cpu2/topology/thread_siblings_list": "2-3\n",
+          "system/cpu/cpu3/topology/thread_siblings_list": "2-3\n",
+          "system/cpu/cpu4/topology/thread_siblings_list": "4\n",
+          "system/cpu/cpu5/topology/thread_siblings_list": "5\n"
+        }
+      },
+      "expected": {
+        "logical": 6,
+        "physical": 4,
+        "performance": 4
+      }
+    },
+    {
+      "name": "linux P-core list narrows performance",
+      "input": {
+        "op": "linuxTopology",
+        "files": {
+          "system/cpu/cpu0/topology/thread_siblings_list": "0-1\n",
+          "system/cpu/cpu1/topology/thread_siblings_list": "0-1\n",
+          "system/cpu/cpu2/topology/thread_siblings_list": "2-3\n",
+          "system/cpu/cpu3/topology/thread_siblings_list": "2-3\n",
+          "system/cpu/cpu4/topology/thread_siblings_list": "4\n",
+          "system/cpu/cpu5/topology/thread_siblings_list": "5\n",
+          "cpu_core/cpus": "0-3\n"
+        }
+      },
+      "expected": {
+        "logical": 6,
+        "physical": 4,
+        "performance": 2
+      }
+    },
+    {
+      "name": "linux reads core_cpus_list when siblings are missing",
+      "input": {
+        "op": "linuxTopology",
+        "files": {
+          "system/cpu/cpu0/topology/core_cpus_list": "0-1\n",
+          "system/cpu/cpu1/topology/core_cpus_list": "0-1\n"
+        }
+      },
+      "expected": {
+        "logical": 2,
+        "physical": 1,
+        "performance": 1
+      }
+    },
+    {
+      "name": "linux with no cpu folder is unknown",
+      "input": {
+        "op": "linuxTopology",
+        "files": {}
+      },
+      "expected": null
+    },
+    {
+      "name": "linux ignores folders that are not cpu numbers",
+      "input": {
+        "op": "linuxTopology",
+        "files": {
+          "system/cpu/cpufreq/boost": "1\n",
+          "system/cpu/cpuidle/state0": "x\n",
+          "system/cpu/cpu0/topology/thread_siblings_list": "0\n"
+        }
+      },
+      "expected": {
+        "logical": 1,
+        "physical": 1,
+        "performance": 1
+      }
+    },
+    {
+      "name": "linux P-core list naming no known cpu falls back to physical",
+      "input": {
+        "op": "linuxTopology",
+        "files": {
+          "system/cpu/cpu0/topology/thread_siblings_list": "0\n",
+          "system/cpu/cpu1/topology/thread_siblings_list": "1\n",
+          "cpu_core/cpus": "7\n"
+        }
+      },
+      "expected": {
+        "logical": 2,
+        "physical": 2,
+        "performance": 2
+      }
+    }
+  ]
+}

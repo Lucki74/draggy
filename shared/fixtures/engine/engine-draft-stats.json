@@ -1,0 +1,804 @@
+{
+  "area": "engine",
+  "description": "Draft measurements kept in draft-stats.json (draftStats.cjs). Each input is an ordered op list over a folder that starts as `initial` (the file a previous run left, or null): `record` folds a reply's acceptance in, `refuse` marks the draft refused. `expected` is the draft `settings` read for `model` ({enabled, max, rate}) and the `stored` file afterwards (null when none was written).",
+  "cases": [
+    {
+      "name": "a model nothing has measured drafts eight tokens",
+      "input": {
+        "initial": null,
+        "ops": [],
+        "model": "/m/new.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": null
+        },
+        "stored": null
+      }
+    },
+    {
+      "name": "a first reply sets the rate and counts one sample",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.95,
+            "accepted": 10,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.95
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.95,
+            "samples": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "two replies at a high rate still draft eight tokens",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.9
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "three replies at a high rate ask for sixteen tokens",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 16,
+          "rate": 0.9
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "the running average folds each reply in at a weight of 0.3",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.8,
+            "accepted": 8,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.2,
+            "accepted": 2,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.6199999999999999
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.6199999999999999,
+            "samples": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "three replies under 0.3 switch the draft off",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 0,
+          "rate": 0.09999999999999999
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.09999999999999999,
+            "samples": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "two replies under 0.3 keep the draft at the default length",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.09999999999999999
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.09999999999999999,
+            "samples": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "a refusal with no replies turns the draft off",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "refuse",
+            "model": "/m/a.gguf"
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 8,
+          "rate": 0
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0,
+            "samples": 0,
+            "refused": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a refusal after measured replies turns the draft off and keeps the rate",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "refuse",
+            "model": "/m/a.gguf"
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 0,
+          "rate": 0.9
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 3,
+            "refused": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a reply after a refusal does not re-enable the draft",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "refuse",
+            "model": "/m/a.gguf"
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 0,
+          "rate": 0.9
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 3,
+            "refused": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a reply that generated nothing is not recorded",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0,
+            "accepted": 0,
+            "generated": 0
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": null
+        },
+        "stored": null
+      }
+    },
+    {
+      "name": "a model keeps its record across folders, by lowercased file name",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/a/Qwen-7B.GGUF",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/a/Qwen-7B.GGUF",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/a/Qwen-7B.GGUF",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          }
+        ],
+        "model": "/b/qwen-7b.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 16,
+          "rate": 0.9
+        },
+        "stored": {
+          "qwen-7b.gguf": {
+            "rate": 0.9,
+            "samples": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "a measurement the last run left is read back",
+      "input": {
+        "initial": {
+          "qwen.gguf": {
+            "rate": 0.7,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/QWEN.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 12,
+          "rate": 0.7
+        },
+        "stored": {
+          "qwen.gguf": {
+            "rate": 0.7,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate of exactly 0.8 drafts sixteen tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.8,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 16,
+          "rate": 0.8
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.8,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate just under 0.8 drafts twelve tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.79,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 12,
+          "rate": 0.79
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.79,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate of exactly 0.6 drafts twelve tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.6,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 12,
+          "rate": 0.6
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.6,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate just under 0.6 drafts eight tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.59,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.59
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.59,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate of exactly 0.45 drafts eight tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.45,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.45
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.45,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate just under 0.45 drafts four tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.44,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 4,
+          "rate": 0.44
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.44,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate of exactly 0.3 keeps the draft on at four tokens",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.3,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 4,
+          "rate": 0.3
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.3,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a rate just under 0.3 turns the draft off",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.29,
+            "samples": 5
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 0,
+          "rate": 0.29
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.29,
+            "samples": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a stored entry with no sample count is read as measured",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.9
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 16,
+          "rate": 0.9
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.9
+          }
+        }
+      }
+    },
+    {
+      "name": "a stored value that is not an object is read as empty",
+      "input": {
+        "initial": 5,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          }
+        ],
+        "model": "/m/a.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 16,
+          "rate": 0.9
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "a refused entry keeps its measurements and stays off",
+      "input": {
+        "initial": {
+          "x.gguf": {
+            "rate": 0.5,
+            "samples": 4,
+            "refused": true
+          }
+        },
+        "ops": [],
+        "model": "/m/x.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": false,
+          "max": 0,
+          "rate": 0.5
+        },
+        "stored": {
+          "x.gguf": {
+            "rate": 0.5,
+            "samples": 4,
+            "refused": true
+          }
+        }
+      }
+    },
+    {
+      "name": "each model's entry is kept in the same file",
+      "input": {
+        "initial": null,
+        "ops": [
+          {
+            "op": "record",
+            "model": "/m/a.gguf",
+            "rate": 0.9,
+            "accepted": 9,
+            "generated": 10
+          },
+          {
+            "op": "record",
+            "model": "/m/b.gguf",
+            "rate": 0.1,
+            "accepted": 1,
+            "generated": 10
+          }
+        ],
+        "model": "/m/b.gguf"
+      },
+      "expected": {
+        "settings": {
+          "enabled": true,
+          "max": 8,
+          "rate": 0.1
+        },
+        "stored": {
+          "a.gguf": {
+            "rate": 0.9,
+            "samples": 1
+          },
+          "b.gguf": {
+            "rate": 0.1,
+            "samples": 1
+          }
+        }
+      }
+    }
+  ]
+}

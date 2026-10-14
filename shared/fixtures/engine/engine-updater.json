@@ -1,0 +1,370 @@
+{
+  "area": "engine",
+  "description": "Engine updater. `variantFamily`, `sameFamily`, `parseBuild` and `cudaMajor` are pure. `steps` run the swap, confirm and rollback steps (`apply`, `confirm`, `rollback`, `unconfirmed`) on an engine folder built from `files` (keys under the user data folder, contents as text; engine.json is parsed). Each step gives its result, and the final `tree` lists every file (installedAt is removed). The server file is named llama-server.",
+  "cases": [
+    {
+      "name": "CUDA 12.4 is the cuda-12 family",
+      "input": {
+        "op": "variantFamily",
+        "variant": "cuda-12.4"
+      },
+      "expected": "cuda-12"
+    },
+    {
+      "name": "ROCm version is dropped",
+      "input": {
+        "op": "variantFamily",
+        "variant": "rocm-10.0"
+      },
+      "expected": "rocm"
+    },
+    {
+      "name": "vulkan is its own family",
+      "input": {
+        "op": "variantFamily",
+        "variant": "vulkan"
+      },
+      "expected": "vulkan"
+    },
+    {
+      "name": "CUDA with no version",
+      "input": {
+        "op": "variantFamily",
+        "variant": "cuda"
+      },
+      "expected": "cuda"
+    },
+    {
+      "name": "same CUDA major with a different minor",
+      "input": {
+        "op": "sameFamily",
+        "installed": "cuda-12",
+        "wanted": "cuda-12.8"
+      },
+      "expected": true
+    },
+    {
+      "name": "different CUDA major",
+      "input": {
+        "op": "sameFamily",
+        "installed": "cuda-12",
+        "wanted": "cuda-13.4"
+      },
+      "expected": false
+    },
+    {
+      "name": "Vulkan is not CUDA",
+      "input": {
+        "op": "sameFamily",
+        "installed": "vulkan",
+        "wanted": "cuda-12.4"
+      },
+      "expected": false
+    },
+    {
+      "name": "engine from before engine.json matches any CUDA build",
+      "input": {
+        "op": "sameFamily",
+        "installed": "cuda",
+        "wanted": "cuda-13.4"
+      },
+      "expected": true
+    },
+    {
+      "name": "build from the new banner",
+      "input": {
+        "op": "parseBuild",
+        "output": "version: 0.25.1 (build 11146, commit a1b2c3)\nbuilt with gcc"
+      },
+      "expected": 11146
+    },
+    {
+      "name": "build from the old banner",
+      "input": {
+        "op": "parseBuild",
+        "output": "version: 6789 (a1b2c3)\nbuilt with MSVC"
+      },
+      "expected": 6789
+    },
+    {
+      "name": "no banner gives zero",
+      "input": {
+        "op": "parseBuild",
+        "output": "usage: llama-server"
+      },
+      "expected": 0
+    },
+    {
+      "name": "CUDA major from the runtime library",
+      "input": {
+        "op": "cudaMajor",
+        "files": [
+          "cudart64_13.dll"
+        ]
+      },
+      "expected": 13
+    },
+    {
+      "name": "no runtime library gives zero",
+      "input": {
+        "op": "cudaMajor",
+        "files": [
+          "llama-server"
+        ]
+      },
+      "expected": 0
+    },
+    {
+      "name": "apply, keep until confirmed, then confirm",
+      "input": {
+        "op": "steps",
+        "files": {
+          "bin/llama/llama-server": "x",
+          "bin/llama/engine.json": "{\"tag\": \"b100\"}",
+          "bin/llama.pending/llama-server": "x",
+          "bin/llama.pending/engine.json": "{\"tag\": \"b200\", \"previousTag\": \"b100\"}"
+        },
+        "steps": [
+          {
+            "op": "apply"
+          },
+          {
+            "op": "unconfirmed"
+          },
+          {
+            "op": "confirm"
+          },
+          {
+            "op": "unconfirmed"
+          },
+          {
+            "op": "confirm"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": true,
+            "tag": "b200"
+          },
+          true,
+          true,
+          false,
+          false
+        ],
+        "tree": {
+          "bin/llama/engine.json": {
+            "tag": "b200",
+            "previousTag": "b100"
+          },
+          "bin/llama/llama-server": "x"
+        }
+      }
+    },
+    {
+      "name": "a crashed first load rolls back and blocks the build",
+      "input": {
+        "op": "steps",
+        "files": {
+          "bin/llama/llama-server": "x",
+          "bin/llama/engine.json": "{\"tag\": \"b100\"}",
+          "bin/llama.pending/llama-server": "x",
+          "bin/llama.pending/engine.json": "{\"tag\": \"b200\"}"
+        },
+        "steps": [
+          {
+            "op": "apply"
+          },
+          {
+            "op": "rollback"
+          },
+          {
+            "op": "rollback"
+          },
+          {
+            "op": "unconfirmed"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": true,
+            "tag": "b200"
+          },
+          {
+            "rolledBack": true,
+            "tag": "b200"
+          },
+          {
+            "rolledBack": false
+          },
+          false
+        ],
+        "tree": {
+          "bin/llama/engine.json": {
+            "tag": "b100",
+            "failedTags": [
+              "b200"
+            ]
+          },
+          "bin/llama/llama-server": "x"
+        }
+      }
+    },
+    {
+      "name": "nothing staged leaves the engine alone",
+      "input": {
+        "op": "steps",
+        "files": {
+          "bin/llama/llama-server": "x",
+          "bin/llama/engine.json": "{\"tag\": \"b100\"}"
+        },
+        "steps": [
+          {
+            "op": "apply"
+          },
+          {
+            "op": "confirm"
+          },
+          {
+            "op": "rollback"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": false
+          },
+          false,
+          {
+            "rolledBack": false
+          }
+        ],
+        "tree": {
+          "bin/llama/engine.json": {
+            "tag": "b100"
+          },
+          "bin/llama/llama-server": "x"
+        }
+      }
+    },
+    {
+      "name": "a staged folder without a server is removed",
+      "input": {
+        "op": "steps",
+        "files": {
+          "bin/llama/llama-server": "x",
+          "bin/llama/engine.json": "{\"tag\": \"b100\"}",
+          "bin/llama.pending/engine.json": "{\"tag\": \"b200\", \"previousTag\": \"b100\"}"
+        },
+        "steps": [
+          {
+            "op": "apply"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": false
+          }
+        ],
+        "tree": {
+          "bin/llama/engine.json": {
+            "tag": "b100"
+          },
+          "bin/llama/llama-server": "x"
+        }
+      }
+    },
+    {
+      "name": "no engine folder at all",
+      "input": {
+        "op": "steps",
+        "files": {},
+        "steps": [
+          {
+            "op": "apply"
+          },
+          {
+            "op": "rollback"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": false
+          },
+          {
+            "rolledBack": false
+          }
+        ],
+        "tree": {}
+      }
+    },
+    {
+      "name": "a failed build list keeps the last twenty tags",
+      "input": {
+        "op": "steps",
+        "files": {
+          "bin/llama/llama-server": "x",
+          "bin/llama/engine.json": "{\"tag\": \"b100\", \"failedTags\": [\"b1\", \"b2\", \"b3\", \"b4\", \"b5\", \"b6\", \"b7\", \"b8\", \"b9\", \"b10\", \"b11\", \"b12\", \"b13\", \"b14\", \"b15\", \"b16\", \"b17\", \"b18\", \"b19\", \"b20\"]}",
+          "bin/llama.pending/llama-server": "x",
+          "bin/llama.pending/engine.json": "{\"tag\": \"b200\"}"
+        },
+        "steps": [
+          {
+            "op": "apply"
+          },
+          {
+            "op": "rollback"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "applied": true,
+            "tag": "b200"
+          },
+          {
+            "rolledBack": true,
+            "tag": "b200"
+          }
+        ],
+        "tree": {
+          "bin/llama/engine.json": {
+            "tag": "b100",
+            "failedTags": [
+              "b2",
+              "b3",
+              "b4",
+              "b5",
+              "b6",
+              "b7",
+              "b8",
+              "b9",
+              "b10",
+              "b11",
+              "b12",
+              "b13",
+              "b14",
+              "b15",
+              "b16",
+              "b17",
+              "b18",
+              "b19",
+              "b20",
+              "b200"
+            ]
+          },
+          "bin/llama/llama-server": "x"
+        }
+      }
+    }
+  ]
+}

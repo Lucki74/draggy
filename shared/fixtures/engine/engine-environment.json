@@ -1,0 +1,155 @@
+{
+  "area": "engine",
+  "description": "Environment the engine runs in. `environment` gives the PATH and LD_LIBRARY_PATH the runner needs, GGML_BACKEND_PATH when a backend library is found, the runner type and the server path. Folders under the engine root are written with the `<root>` prefix. `explicit` names a server outside the engine folder, relative to the root.",
+  "cases": [
+    {
+      "name": "Vulkan folder runs first on PATH",
+      "input": {
+        "op": "environment",
+        "platform": "linux",
+        "files": [
+          "llama-server",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "path": "/usr/bin",
+        "ldLibraryPath": "/opt/lib"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/bin/llama/vulkan:<root>/bin/llama:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/bin/llama/vulkan:<root>/bin/llama:/opt/lib",
+          "GGML_BACKEND_PATH": "<root>/bin/llama/vulkan/libggml-vulkan.so"
+        },
+        "runnerDir": "bin/llama/vulkan",
+        "runnerType": "vulkan",
+        "binaryPath": "bin/llama/llama-server"
+      }
+    },
+    {
+      "name": "CUDA runner with its backend library",
+      "input": {
+        "op": "environment",
+        "platform": "linux",
+        "files": [
+          "llama-server",
+          "cuda_v12/",
+          "cuda_v12/libggml-cuda.so"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "path": "/usr/bin",
+        "ldLibraryPath": "/opt/lib"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/bin/llama/cuda_v12:<root>/bin/llama:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/bin/llama/cuda_v12:<root>/bin/llama:/opt/lib",
+          "GGML_BACKEND_PATH": "<root>/bin/llama/cuda_v12/libggml-cuda.so"
+        },
+        "runnerDir": "bin/llama/cuda_v12",
+        "runnerType": "cuda",
+        "binaryPath": "bin/llama/llama-server"
+      }
+    },
+    {
+      "name": "flat layout has no separate backend path",
+      "input": {
+        "op": "environment",
+        "platform": "linux",
+        "files": [
+          "llama-server",
+          "libggml-vulkan.so"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "path": "/usr/bin",
+        "ldLibraryPath": "/opt/lib"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/bin/llama:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/bin/llama:/opt/lib"
+        },
+        "runnerDir": "bin/llama",
+        "runnerType": "vulkan",
+        "binaryPath": "bin/llama/llama-server"
+      }
+    },
+    {
+      "name": "CPU build sets the library paths only",
+      "input": {
+        "op": "environment",
+        "platform": "linux",
+        "files": [
+          "llama-server"
+        ],
+        "vramGB": 0,
+        "nvidia": false,
+        "path": "/usr/bin",
+        "ldLibraryPath": "/opt/lib"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/bin/llama:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/bin/llama:/opt/lib"
+        },
+        "runnerDir": "bin/llama",
+        "runnerType": "cpu",
+        "binaryPath": "bin/llama/llama-server"
+      }
+    },
+    {
+      "name": "macOS Metal has no backend path",
+      "input": {
+        "op": "environment",
+        "platform": "darwin",
+        "files": [
+          "llama-server"
+        ],
+        "vramGB": 0,
+        "nvidia": false,
+        "path": "/usr/bin",
+        "ldLibraryPath": "/opt/lib"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/bin/llama:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/bin/llama:/opt/lib"
+        },
+        "runnerDir": "bin/llama",
+        "runnerType": "metal",
+        "binaryPath": "bin/llama/llama-server"
+      }
+    },
+    {
+      "name": "explicit server outside the engine folder finds its own runner",
+      "input": {
+        "op": "environment",
+        "platform": "linux",
+        "files": [],
+        "explicitFiles": [
+          "ext/llama-server",
+          "ext/cuda_v12/",
+          "ext/cuda_v12/libggml-cuda.so"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "path": "/usr/bin",
+        "ldLibraryPath": "",
+        "explicit": "ext/llama-server"
+      },
+      "expected": {
+        "env": {
+          "PATH": "<root>/ext/cuda_v12:<root>/ext:/usr/bin",
+          "LD_LIBRARY_PATH": "<root>/ext/cuda_v12:<root>/ext",
+          "GGML_BACKEND_PATH": "<root>/ext/cuda_v12/libggml-cuda.so"
+        },
+        "runnerDir": "ext/cuda_v12",
+        "runnerType": "cuda",
+        "binaryPath": "ext/llama-server"
+      }
+    }
+  ]
+}
