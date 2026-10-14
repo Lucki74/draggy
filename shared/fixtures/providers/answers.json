@@ -1,0 +1,430 @@
+{
+  "area": "providers",
+  "description": "A non-streaming answer into neutral form (adapters/*.cjs translateJson): text, reasoning, calls, finish, counts and signed state. A refusal or a hosted tool in the answer is an error.",
+  "cases": [
+    {
+      "name": "OpenAI: a plain answer",
+      "input": {
+        "protocol": "openai",
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "ok"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 2,
+            "completion_tokens": 1
+          }
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "ok",
+          "reasoning": "",
+          "tool_calls": [],
+          "finish": "stop",
+          "usage": {
+            "prompt_tokens": 2,
+            "output_tokens": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "OpenAI: reasoning and a call, with a length finish",
+      "input": {
+        "protocol": "openai",
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": null,
+                "reasoning": "r",
+                "tool_calls": [
+                  {
+                    "id": "c",
+                    "type": "function",
+                    "function": {
+                      "name": "f",
+                      "arguments": "{\"a\":1}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 4,
+            "completion_tokens": 8
+          }
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "",
+          "reasoning": "r",
+          "tool_calls": [
+            {
+              "id": "c",
+              "name": "f",
+              "arguments": "{\"a\":1}"
+            }
+          ],
+          "finish": "length",
+          "usage": {
+            "prompt_tokens": 4,
+            "output_tokens": 8
+          }
+        }
+      }
+    },
+    {
+      "name": "OpenAI: a hosted call is an error",
+      "input": {
+        "protocol": "openai",
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "tool_calls": [
+                  {
+                    "id": "w",
+                    "type": "web_search"
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": {
+          "kind": "provider-unknown-error",
+          "status": 0,
+          "message": "The provider called its own tool (web_search), which Draggy never offers.",
+          "providerMessage": ""
+        }
+      }
+    },
+    {
+      "name": "Anthropic: text, a call and the signed thinking tagged for its instance",
+      "input": {
+        "protocol": "anthropic",
+        "body": {
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "look in a",
+              "signature": "sig-1"
+            },
+            {
+              "type": "redacted_thinking",
+              "data": "x"
+            },
+            {
+              "type": "text",
+              "text": "Hi"
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_1",
+              "name": "read_file",
+              "input": {
+                "path": "a"
+              }
+            }
+          ],
+          "stop_reason": "tool_use",
+          "usage": {
+            "input_tokens": 3,
+            "output_tokens": 4
+          }
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "Hi",
+          "reasoning": "look in a",
+          "tool_calls": [
+            {
+              "id": "toolu_1",
+              "name": "read_file",
+              "arguments": "{\"path\":\"a\"}"
+            }
+          ],
+          "finish": "tool_calls",
+          "usage": {
+            "prompt_tokens": 3,
+            "output_tokens": 4
+          },
+          "provider_state": {
+            "instanceId": "anthropic",
+            "state": {
+              "blocks": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "redacted_thinking",
+                  "data": "x"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a refusal is an error",
+      "input": {
+        "protocol": "anthropic",
+        "body": {
+          "content": [],
+          "stop_reason": "refusal"
+        }
+      },
+      "expected": {
+        "error": {
+          "kind": "provider-refused",
+          "status": 200,
+          "message": "refusal",
+          "providerMessage": "refusal"
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a hosted block is an error",
+      "input": {
+        "protocol": "anthropic",
+        "body": {
+          "content": [
+            {
+              "type": "web_search_tool_result",
+              "content": []
+            }
+          ],
+          "stop_reason": "end_turn"
+        }
+      },
+      "expected": {
+        "error": {
+          "kind": "provider-unknown-error",
+          "status": 0,
+          "message": "The provider called its own tool (web_search_tool_result), which Draggy never offers.",
+          "providerMessage": ""
+        }
+      }
+    },
+    {
+      "name": "Gemini: text with a signature on the text",
+      "input": {
+        "protocol": "gemini",
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "Hi",
+                    "thoughtSignature": "sig-text"
+                  }
+                ]
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 3,
+            "candidatesTokenCount": 4
+          }
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "Hi",
+          "reasoning": "",
+          "tool_calls": [],
+          "finish": "stop",
+          "usage": {
+            "prompt_tokens": 3,
+            "output_tokens": 4
+          },
+          "provider_state": {
+            "instanceId": "gemini",
+            "state": {
+              "calls": [],
+              "text": "sig-text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini: a safety stop is an error",
+      "input": {
+        "protocol": "gemini",
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "x"
+                  }
+                ]
+              },
+              "finishReason": "SAFETY"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": {
+          "kind": "provider-refused",
+          "status": 200,
+          "message": "SAFETY",
+          "providerMessage": "SAFETY"
+        }
+      }
+    },
+    {
+      "name": "Gemini: calls with their signatures and thoughts",
+      "input": {
+        "protocol": "gemini",
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "think",
+                    "thought": true
+                  },
+                  {
+                    "functionCall": {
+                      "name": "f",
+                      "args": {
+                        "a": "b"
+                      }
+                    },
+                    "thoughtSignature": "sig"
+                  }
+                ]
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 1,
+            "candidatesTokenCount": 1,
+            "thoughtsTokenCount": 2
+          }
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "",
+          "reasoning": "think",
+          "tool_calls": [
+            {
+              "id": "call_0",
+              "name": "f",
+              "arguments": "{\"a\":\"b\"}"
+            }
+          ],
+          "finish": "tool_calls",
+          "usage": {
+            "prompt_tokens": 1,
+            "output_tokens": 3
+          },
+          "provider_state": {
+            "instanceId": "gemini",
+            "state": {
+              "calls": [
+                "sig"
+              ],
+              "text": ""
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Ollama: a call numbered from zero, with the counts",
+      "input": {
+        "protocol": "ollama",
+        "body": {
+          "message": {
+            "content": "",
+            "tool_calls": [
+              {
+                "function": {
+                  "name": "read_file",
+                  "arguments": {
+                    "path": "a"
+                  }
+                }
+              }
+            ]
+          },
+          "done": true,
+          "done_reason": "stop",
+          "prompt_eval_count": 5,
+          "eval_count": 6
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "",
+          "reasoning": "",
+          "tool_calls": [
+            {
+              "id": "call_0",
+              "name": "read_file",
+              "arguments": "{\"path\":\"a\"}"
+            }
+          ],
+          "finish": "tool_calls",
+          "usage": {
+            "prompt_tokens": 5,
+            "output_tokens": 6
+          }
+        }
+      }
+    },
+    {
+      "name": "Ollama: a length stop with thinking",
+      "input": {
+        "protocol": "ollama",
+        "body": {
+          "message": {
+            "content": "cut",
+            "thinking": "t"
+          },
+          "done": true,
+          "done_reason": "length"
+        }
+      },
+      "expected": {
+        "completion": {
+          "content": "cut",
+          "reasoning": "t",
+          "tool_calls": [],
+          "finish": "length",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

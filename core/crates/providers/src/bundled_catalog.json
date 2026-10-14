@@ -1,0 +1,872 @@
+[
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.openai.com/v1",
+    "keyUrl": "https://platform.openai.com/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "^(o\\d|gpt-5|gpt-6)",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ]
+      },
+      {
+        "match": "^gpt-4(o|\\.1)",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "^gpt-",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [
+      "gpt-5.5",
+      "gpt-5-mini"
+    ],
+    "quirks": {
+      "maxTokensField": "max_completion_tokens",
+      "reasoningEffort": true
+    },
+    "vendor": "openai"
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "kind": "cloud",
+    "protocol": "anthropic",
+    "baseUrl": "https://api.anthropic.com/v1",
+    "keyUrl": "https://platform.claude.com/settings/keys",
+    "auth": "x-api-key",
+    "capabilityPatterns": [
+      {
+        "match": "^claude-3-(opus|haiku)",
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "maxOutputTokens": 4096
+      },
+      {
+        "match": "^claude-3-5",
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "maxOutputTokens": 8192
+      },
+      {
+        "match": "^claude-",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "maxOutputTokens": 32000
+      }
+    ],
+    "defaultModels": [
+      "claude-sonnet-5-5",
+      "claude-opus-5-5"
+    ],
+    "quirks": {},
+    "vendor": "anthropic"
+  },
+  {
+    "id": "gemini",
+    "name": "Google Gemini",
+    "kind": "cloud",
+    "protocol": "gemini",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+    "keyUrl": "https://aistudio.google.com/apikey",
+    "auth": "x-goog-api-key",
+    "capabilityPatterns": [
+      {
+        "match": "embedding|imagen|veo|tts|aqa|native-audio",
+        "capabilities": []
+      },
+      {
+        "match": "^gemini-(2\\.5|[3-9])",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ]
+      },
+      {
+        "match": "^gemini",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "^gemma",
+        "capabilities": []
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {},
+    "vendor": "google"
+  },
+  {
+    "id": "xai",
+    "name": "xAI",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.x.ai/v1",
+    "keyUrl": "https://console.x.ai",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "mini|reason",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "vision|grok-4",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "^grok",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {
+      "reasoningEffort": true
+    }
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "keyUrl": "https://platform.deepseek.com/api_keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "reasoner",
+        "capabilities": [
+          "thinking"
+        ]
+      },
+      {
+        "match": "chat",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [
+      "deepseek-chat",
+      "deepseek-reasoner"
+    ],
+    "quirks": {
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "mistral",
+    "name": "Mistral",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.mistral.ai/v1",
+    "keyUrl": "https://console.mistral.ai/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "magistral",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "pixtral|medium|small",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "groq",
+    "name": "Groq",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.groq.com/openai/v1",
+    "keyUrl": "https://console.groq.com/keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "whisper|tts|guard",
+        "capabilities": []
+      },
+      {
+        "match": "qwen3|gpt-oss|deepseek-r1",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "llama-4|scout|maverick",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "cerebras",
+    "name": "Cerebras",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.cerebras.ai/v1",
+    "keyUrl": "https://cloud.cerebras.ai",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "together",
+    "name": "Together AI",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.together.xyz/v1",
+    "keyUrl": "https://api.together.ai/settings/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "fireworks",
+    "name": "Fireworks",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.fireworks.ai/inference/v1",
+    "keyUrl": "https://fireworks.ai/account/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://openrouter.ai/api/v1",
+    "keyUrl": "https://openrouter.ai/keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "huggingface",
+    "name": "Hugging Face",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://router.huggingface.co/v1",
+    "keyUrl": "https://huggingface.co/settings/tokens",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "qwen",
+    "name": "Qwen (DashScope)",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    "keyUrl": "https://modelstudio.console.alibabacloud.com",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "vl",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "qwen3|qwq|plus|max|turbo",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {
+      "reasoningContent": true,
+      "enableThinking": true
+    }
+  },
+  {
+    "id": "moonshot",
+    "name": "Moonshot (Kimi)",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.moonshot.ai/v1",
+    "keyUrl": "https://platform.moonshot.ai/console/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "thinking",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "vision",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "zai",
+    "name": "Z.ai (GLM)",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.z.ai/api/paas/v4",
+    "keyUrl": "https://z.ai/manage-apikey/apikey-list",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "\\d(\\.\\d+)?v\\b|vision",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.minimax.io/v1",
+    "keyUrl": "https://www.minimax.io/platform",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "cohere",
+    "name": "Cohere",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.cohere.ai/compatibility/v1",
+    "keyUrl": "https://dashboard.cohere.com/api-keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "vision",
+        "capabilities": [
+          "vision"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "nvidia",
+    "name": "NVIDIA NIM",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://integrate.api.nvidia.com/v1",
+    "keyUrl": "https://build.nvidia.com",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "custom",
+    "name": "Custom (OpenAI-compatible)",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "",
+    "keyUrl": "",
+    "auth": "bearer",
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {},
+    "keyOptional": true
+  },
+  {
+    "id": "chatgpt",
+    "name": "ChatGPT",
+    "kind": "account",
+    "protocol": "codex",
+    "vendor": "openai",
+    "auth": "account",
+    "baseUrl": "",
+    "keyUrl": "",
+    "signInHosts": [
+      "auth.openai.com"
+    ],
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ]
+      }
+    ],
+    "defaultModels": []
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "kind": "account",
+    "protocol": "claude",
+    "vendor": "anthropic",
+    "auth": "account",
+    "baseUrl": "",
+    "keyUrl": "",
+    "signInHosts": [
+      "claude.com"
+    ],
+    "capabilityPatterns": [
+      {
+        "match": "^claude-haiku-",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": 200000
+      },
+      {
+        "match": "^claude-(opus|sonnet)-4-[0-5]",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": 200000
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": 1000000
+      }
+    ],
+    "defaultModels": []
+  },
+  {
+    "id": "google",
+    "name": "Google",
+    "kind": "account",
+    "protocol": "gemini-cli",
+    "vendor": "google",
+    "auth": "account",
+    "baseUrl": "",
+    "keyUrl": "",
+    "signInHosts": [
+      "accounts.google.com"
+    ],
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": 1048576
+      }
+    ],
+    "defaultModels": []
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "kind": "local",
+    "protocol": "ollama",
+    "baseUrl": "http://127.0.0.1:11434",
+    "auth": "none",
+    "discovery": {
+      "port": 11434,
+      "probe": "/api/version"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "lmstudio",
+    "name": "LM Studio",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:1234/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 1234,
+      "probe": "/api/v0/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "llamacpp",
+    "name": "llama.cpp server",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8080,
+      "probe": "/props"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "vllm",
+    "name": "vLLM",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8000/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8000,
+      "probe": "/version"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "sglang",
+    "name": "SGLang",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:30000/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 30000,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "jan",
+    "name": "Jan",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:1337/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 1337,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "localai",
+    "name": "LocalAI",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8080,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "koboldcpp",
+    "name": "KoboldCpp",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:5001/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 5001,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "textgen",
+    "name": "text-generation-webui",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:5000/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 5000,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "gpt4all",
+    "name": "GPT4All",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:4891/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 4891,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "llamafile",
+    "name": "llamafile",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8080,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "mlx",
+    "name": "MLX-LM",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8080,
+      "probe": "/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "colibri",
+    "name": "colibri",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8000/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8000,
+      "probe": "/metrics"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  },
+  {
+    "id": "lemonade",
+    "name": "Lemonade",
+    "kind": "local",
+    "protocol": "openai",
+    "baseUrl": "http://127.0.0.1:8000/api/v1",
+    "auth": "none",
+    "discovery": {
+      "port": 8000,
+      "probe": "/api/v1/models"
+    },
+    "capabilityPatterns": [],
+    "defaultModels": [],
+    "quirks": {
+      "templateKwargs": true,
+      "reasoningContent": true
+    }
+  }
+]

@@ -1,0 +1,166 @@
+{
+  "area": "providers",
+  "description": "adapters/codex.cjs turnFailure(): Codex's error tags named by kind, with the reset time from the limits (fn turnFailure).",
+  "cases": [
+    {
+      "name": "usage limit with the spent window's reset",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "limit",
+          "codexErrorInfo": "usageLimitExceeded"
+        },
+        "limits": {
+          "primary": {
+            "resetsAt": 300,
+            "usedPercent": 100
+          }
+        }
+      },
+      "expected": {
+        "kind": "account-limit-reached",
+        "status": 0,
+        "message": "limit",
+        "providerMessage": "limit",
+        "resetsAt": 300
+      }
+    },
+    {
+      "name": "a session budget",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "budget",
+          "codexErrorInfo": "sessionBudgetExceeded"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "account-limit-reached",
+        "status": 0,
+        "message": "budget",
+        "providerMessage": "budget"
+      }
+    },
+    {
+      "name": "unauthorized is a sign-out",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "no",
+          "codexErrorInfo": "unauthorized"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "account-signed-out",
+        "status": 0,
+        "message": "no",
+        "providerMessage": "no"
+      }
+    },
+    {
+      "name": "rate limited",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "slow",
+          "codexErrorInfo": "rateLimitExceeded"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 0,
+        "message": "slow",
+        "providerMessage": "slow"
+      }
+    },
+    {
+      "name": "overloaded is rate limited",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "busy",
+          "codexErrorInfo": "serverOverloaded"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 0,
+        "message": "busy",
+        "providerMessage": "busy"
+      }
+    },
+    {
+      "name": "a policy refusal",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "no",
+          "codexErrorInfo": "cyberPolicy"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-refused",
+        "status": 0,
+        "message": "no",
+        "providerMessage": "no"
+      }
+    },
+    {
+      "name": "a dropped connection, named as an object tag",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "lost",
+          "codexErrorInfo": {
+            "httpConnectionFailed": {
+              "httpStatusCode": 500
+            }
+          }
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-unreachable",
+        "status": 0,
+        "message": "lost",
+        "providerMessage": "lost"
+      }
+    },
+    {
+      "name": "an unknown tag is unknown",
+      "input": {
+        "fn": "turnFailure",
+        "error": {
+          "message": "odd",
+          "codexErrorInfo": "other"
+        },
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 0,
+        "message": "odd",
+        "providerMessage": "odd"
+      }
+    },
+    {
+      "name": "no error at all says the turn failed",
+      "input": {
+        "fn": "turnFailure",
+        "error": null,
+        "limits": null
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 0,
+        "message": "The turn failed.",
+        "providerMessage": "The turn failed."
+      }
+    }
+  ]
+}

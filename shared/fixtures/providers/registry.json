@@ -1,0 +1,2197 @@
+{
+  "area": "providers",
+  "description": "The provider registry (registry.cjs) as an ordered op list over a kv store and a keystore. Each op's result is its value or its error message, and the final providers record and vault are listed. Keys appear only in the vault.",
+  "cases": [
+    {
+      "name": "adding a provider starts it off with its curated models, and a second one gets -2",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "add",
+            "args": {
+              "type": "openai",
+              "label": "OpenAI (work)"
+            }
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai-2",
+              "type": "openai",
+              "label": "OpenAI (work)",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": [
+              {
+                "id": "openai",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "pinnedModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "knownModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "name": "OpenAI",
+                "kind": "cloud",
+                "protocol": "openai",
+                "baseUrl": "https://api.openai.com/v1",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": true,
+                "newModels": []
+              },
+              {
+                "id": "openai-2",
+                "type": "openai",
+                "label": "OpenAI (work)",
+                "enabled": false,
+                "pinnedModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "knownModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "name": "OpenAI",
+                "kind": "cloud",
+                "protocol": "openai",
+                "baseUrl": "https://api.openai.com/v1",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": true,
+                "newModels": []
+              }
+            ]
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            },
+            {
+              "id": "openai-2",
+              "type": "openai",
+              "label": "OpenAI (work)",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "an unknown type is refused",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "nope"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Unknown provider type: nope"
+          }
+        ],
+        "providers": null,
+        "vault": {}
+      }
+    },
+    {
+      "name": "a Claude plan ticked before default left its listing has opus in its place",
+      "input": {
+        "store": {
+          "providers": {
+            "instances": [
+              {
+                "id": "claude",
+                "type": "claude",
+                "label": "Claude",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "default",
+                  "opus",
+                  "haiku"
+                ]
+              },
+              {
+                "id": "other",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "default"
+                ]
+              }
+            ]
+          }
+        },
+        "ops": [
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": [
+              {
+                "id": "claude",
+                "type": "claude",
+                "label": "Claude",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "opus",
+                  "haiku"
+                ],
+                "name": "Claude",
+                "kind": "account",
+                "protocol": "claude",
+                "baseUrl": "",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": false,
+                "newModels": []
+              },
+              {
+                "id": "other",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "default"
+                ],
+                "name": "OpenAI",
+                "kind": "cloud",
+                "protocol": "openai",
+                "baseUrl": "https://api.openai.com/v1",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": true,
+                "newModels": []
+              }
+            ]
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "claude",
+              "type": "claude",
+              "label": "Claude",
+              "enabled": false,
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "pinnedModels": [
+                "default",
+                "opus",
+                "haiku"
+              ]
+            },
+            {
+              "id": "other",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "pinnedModels": [
+                "default"
+              ]
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a ChatGPT plan ticked before gpt-5.5 left its listing loses it and keeps the rest",
+      "input": {
+        "store": {
+          "providers": {
+            "instances": [
+              {
+                "id": "chatgpt",
+                "type": "chatgpt",
+                "label": "ChatGPT",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "gpt-6-astra",
+                  "gpt-5.5",
+                  "gpt-5.6-sol"
+                ]
+              },
+              {
+                "id": "openai",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "gpt-5.5"
+                ]
+              }
+            ]
+          }
+        },
+        "ops": [
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": [
+              {
+                "id": "chatgpt",
+                "type": "chatgpt",
+                "label": "ChatGPT",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "gpt-6-astra",
+                  "gpt-5.6-sol"
+                ],
+                "name": "ChatGPT",
+                "kind": "account",
+                "protocol": "codex",
+                "baseUrl": "",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": false,
+                "newModels": []
+              },
+              {
+                "id": "openai",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "pinnedModels": [
+                  "gpt-5.5"
+                ],
+                "name": "OpenAI",
+                "kind": "cloud",
+                "protocol": "openai",
+                "baseUrl": "https://api.openai.com/v1",
+                "hasKey": false,
+                "keyHint": "",
+                "needsKey": true,
+                "newModels": []
+              }
+            ]
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "chatgpt",
+              "type": "chatgpt",
+              "label": "ChatGPT",
+              "enabled": false,
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "pinnedModels": [
+                "gpt-6-astra",
+                "gpt-5.5",
+                "gpt-5.6-sol"
+              ]
+            },
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "pinnedModels": [
+                "gpt-5.5"
+              ]
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "the key goes to the keystore, and only its last four characters are listed",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": "sk-live-abcdef1234"
+          },
+          {
+            "op": "list"
+          },
+          {
+            "op": "connectionFor",
+            "id": "openai"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "1234",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": [
+              {
+                "id": "openai",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "pinnedModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "knownModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "promptProfile": "auto",
+                "modelOverrides": {},
+                "name": "OpenAI",
+                "kind": "cloud",
+                "protocol": "openai",
+                "baseUrl": "https://api.openai.com/v1",
+                "hasKey": true,
+                "keyHint": "1234",
+                "needsKey": true,
+                "newModels": []
+              }
+            ]
+          },
+          {
+            "value": {
+              "instance": {
+                "id": "openai",
+                "type": "openai",
+                "label": "OpenAI",
+                "enabled": false,
+                "pinnedModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "knownModels": [
+                  "gpt-5.5",
+                  "gpt-5-mini"
+                ],
+                "promptProfile": "auto",
+                "modelOverrides": {}
+              },
+              "baseUrl": "https://api.openai.com/v1",
+              "apiKey": "sk-live-abcdef1234",
+              "headers": {},
+              "entryId": "openai"
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {
+          "provider:openai": "sk-live-abcdef1234"
+        }
+      }
+    },
+    {
+      "name": "a keyed provider is not switched on without a key",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "enabled": true
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": "sk-1"
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "error": "Add a key first."
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "sk-1",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": true,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "sk-1",
+              "needsKey": true,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": true,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {
+          "provider:openai": "sk-1"
+        }
+      }
+    },
+    {
+      "name": "without a keystore a key cannot be stored or a keyed provider switched on",
+      "input": {
+        "keystore": false,
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": "sk-1"
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "error": "No keystore on this system."
+          },
+          {
+            "error": "No keystore on this system."
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a local server needs no keystore",
+      "input": {
+        "keystore": false,
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "ollama"
+            }
+          },
+          {
+            "op": "update",
+            "id": "ollama",
+            "patch": {
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": true,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": true,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "removing a provider takes its key with it",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": "sk-1"
+          },
+          {
+            "op": "remove",
+            "id": "openai"
+          },
+          {
+            "op": "vaultSize"
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "sk-1",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "success": true
+            }
+          },
+          {
+            "value": 0
+          },
+          {
+            "value": []
+          }
+        ],
+        "providers": {
+          "instances": []
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "clearing the key switches the provider off",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": "sk-1"
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "enabled": true
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "openai",
+            "key": ""
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "sk-1",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": true,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": true,
+              "keyHint": "sk-1",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a cloud provider's address cannot be changed",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "baseUrl": "https://evil.test/v1"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "error": "This provider's address cannot be changed."
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a local server stays on this computer and a LAN server goes to Custom",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "lmstudio"
+            }
+          },
+          {
+            "op": "update",
+            "id": "lmstudio",
+            "patch": {
+              "baseUrl": "http://127.0.0.1:1235/v1"
+            }
+          },
+          {
+            "op": "update",
+            "id": "lmstudio",
+            "patch": {
+              "baseUrl": "http://192.168.1.5:1234/v1"
+            }
+          },
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "http://192.168.1.5:1234/v1/"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "lmstudio",
+              "type": "lmstudio",
+              "label": "LM Studio",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "LM Studio",
+              "kind": "local",
+              "protocol": "openai",
+              "baseUrl": "http://127.0.0.1:1234/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "lmstudio",
+              "type": "lmstudio",
+              "label": "LM Studio",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://127.0.0.1:1235/v1",
+              "name": "LM Studio",
+              "kind": "local",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "error": "A server elsewhere on the network is added as Custom."
+          },
+          {
+            "value": {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://192.168.1.5:1234/v1",
+              "name": "Custom (OpenAI-compatible)",
+              "kind": "cloud",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "lmstudio",
+              "type": "lmstudio",
+              "label": "LM Studio",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://127.0.0.1:1235/v1"
+            },
+            {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://192.168.1.5:1234/v1"
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a key or credentials in an address, or a file address, is refused",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "https://x.test/v1?key=abc"
+            }
+          },
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "https://user:pw@x.test/v1"
+            }
+          },
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "file:///etc/passwd"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Put a key in the key field, not in the address."
+          },
+          {
+            "error": "Put a key in the key field, not in the address."
+          },
+          {
+            "error": "Only http and https addresses are allowed."
+          }
+        ],
+        "providers": null,
+        "vault": {}
+      }
+    },
+    {
+      "name": "only enabled providers' addresses reach the gateway",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "ollama"
+            }
+          },
+          {
+            "op": "add",
+            "args": {
+              "type": "lmstudio"
+            }
+          },
+          {
+            "op": "update",
+            "id": "ollama",
+            "patch": {
+              "enabled": true
+            }
+          },
+          {
+            "op": "enabledBaseUrls"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "lmstudio",
+              "type": "lmstudio",
+              "label": "LM Studio",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "LM Studio",
+              "kind": "local",
+              "protocol": "openai",
+              "baseUrl": "http://127.0.0.1:1234/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": true,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": [
+              "http://127.0.0.1:11434"
+            ]
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": true,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            },
+            {
+              "id": "lmstudio",
+              "type": "lmstudio",
+              "label": "LM Studio",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a per-model override keeps only known capability flags",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "ollama"
+            }
+          },
+          {
+            "op": "update",
+            "id": "ollama",
+            "patch": {
+              "modelOverrides": {
+                "llama3.2": {
+                  "vision": true,
+                  "tools": "yes",
+                  "web": true
+                },
+                "empty": {}
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {
+                "llama3.2": {
+                  "vision": true
+                }
+              },
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {
+                "llama3.2": {
+                  "vision": true
+                }
+              }
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a header that could smuggle another line is refused",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "https://x.test/v1"
+            }
+          },
+          {
+            "op": "update",
+            "id": "custom",
+            "patch": {
+              "headers": {
+                "X-A": "a\r\nX-B: b"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "https://x.test/v1",
+              "name": "Custom (OpenAI-compatible)",
+              "kind": "cloud",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "error": "Bad header value for X-A"
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "https://x.test/v1"
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "a bad header name is refused and a good one kept",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "custom",
+              "baseUrl": "https://x.test/v1"
+            }
+          },
+          {
+            "op": "update",
+            "id": "custom",
+            "patch": {
+              "headers": {
+                "Bad Name": "x"
+              }
+            }
+          },
+          {
+            "op": "update",
+            "id": "custom",
+            "patch": {
+              "headers": {
+                "X-Org": "acme"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "https://x.test/v1",
+              "name": "Custom (OpenAI-compatible)",
+              "kind": "cloud",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "error": "Bad header name: Bad Name"
+          },
+          {
+            "value": {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "https://x.test/v1",
+              "headers": {
+                "X-Org": "acme"
+              },
+              "name": "Custom (OpenAI-compatible)",
+              "kind": "cloud",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "custom",
+              "type": "custom",
+              "label": "Custom (OpenAI-compatible)",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "https://x.test/v1",
+              "headers": {
+                "X-Org": "acme"
+              }
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "an unknown prompt profile is refused",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "ollama"
+            }
+          },
+          {
+            "op": "update",
+            "id": "ollama",
+            "patch": {
+              "promptProfile": "huge"
+            }
+          },
+          {
+            "op": "update",
+            "id": "ollama",
+            "patch": {
+              "promptProfile": "full"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          },
+          {
+            "error": "Unknown prompt profile"
+          },
+          {
+            "value": {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "full",
+              "modelOverrides": {},
+              "name": "Ollama",
+              "kind": "local",
+              "protocol": "ollama",
+              "baseUrl": "http://127.0.0.1:11434",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "ollama",
+              "type": "ollama",
+              "label": "Ollama",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "full",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "pinned models are unique and kept, and the label falls back to the catalog name",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "openai"
+            }
+          },
+          {
+            "op": "update",
+            "id": "openai",
+            "patch": {
+              "pinnedModels": [
+                "gpt-4o",
+                "gpt-4o",
+                "gpt-5.5"
+              ],
+              "label": ""
+            }
+          },
+          {
+            "op": "get",
+            "id": "openai"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-4o",
+                "gpt-5.5"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "OpenAI",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.openai.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-4o",
+                "gpt-5.5"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "openai",
+              "type": "openai",
+              "label": "OpenAI",
+              "enabled": false,
+              "pinnedModels": [
+                "gpt-4o",
+                "gpt-5.5"
+              ],
+              "knownModels": [
+                "gpt-5.5",
+                "gpt-5-mini"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {}
+      }
+    },
+    {
+      "name": "setting a key on an unknown provider is refused",
+      "input": {
+        "ops": [
+          {
+            "op": "setKey",
+            "id": "ghost",
+            "key": "k"
+          },
+          {
+            "op": "update",
+            "id": "ghost",
+            "patch": {
+              "label": "x"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "No provider ghost"
+          },
+          {
+            "error": "No provider ghost"
+          }
+        ],
+        "providers": null,
+        "vault": {}
+      }
+    },
+    {
+      "name": "a key is not returned to the renderer with the connection, and the vault holds it",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "anthropic"
+            }
+          },
+          {
+            "op": "setKey",
+            "id": "anthropic",
+            "key": "sk-ant-zzzz"
+          },
+          {
+            "op": "connectionFor",
+            "id": "anthropic"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "anthropic",
+              "type": "anthropic",
+              "label": "Anthropic",
+              "enabled": false,
+              "pinnedModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "knownModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Anthropic",
+              "kind": "cloud",
+              "protocol": "anthropic",
+              "baseUrl": "https://api.anthropic.com/v1",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "id": "anthropic",
+              "type": "anthropic",
+              "label": "Anthropic",
+              "enabled": false,
+              "pinnedModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "knownModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "name": "Anthropic",
+              "kind": "cloud",
+              "protocol": "anthropic",
+              "baseUrl": "https://api.anthropic.com/v1",
+              "hasKey": true,
+              "keyHint": "zzzz",
+              "needsKey": true,
+              "newModels": []
+            }
+          },
+          {
+            "value": {
+              "instance": {
+                "id": "anthropic",
+                "type": "anthropic",
+                "label": "Anthropic",
+                "enabled": false,
+                "pinnedModels": [
+                  "claude-sonnet-5-5",
+                  "claude-opus-5-5"
+                ],
+                "knownModels": [
+                  "claude-sonnet-5-5",
+                  "claude-opus-5-5"
+                ],
+                "promptProfile": "auto",
+                "modelOverrides": {}
+              },
+              "baseUrl": "https://api.anthropic.com/v1",
+              "apiKey": "sk-ant-zzzz",
+              "headers": {},
+              "entryId": "anthropic"
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "anthropic",
+              "type": "anthropic",
+              "label": "Anthropic",
+              "enabled": false,
+              "pinnedModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "knownModels": [
+                "claude-sonnet-5-5",
+                "claude-opus-5-5"
+              ],
+              "promptProfile": "auto",
+              "modelOverrides": {}
+            }
+          ]
+        },
+        "vault": {
+          "provider:anthropic": "sk-ant-zzzz"
+        }
+      }
+    },
+    {
+      "name": "a bare local server adds with its usual address",
+      "input": {
+        "ops": [
+          {
+            "op": "add",
+            "args": {
+              "type": "llamacpp",
+              "baseUrl": "http://localhost:9000/v1/"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "value": {
+              "id": "llamacpp",
+              "type": "llamacpp",
+              "label": "llama.cpp server",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://localhost:9000/v1",
+              "name": "llama.cpp server",
+              "kind": "local",
+              "protocol": "openai",
+              "hasKey": false,
+              "keyHint": "",
+              "needsKey": false,
+              "newModels": []
+            }
+          }
+        ],
+        "providers": {
+          "instances": [
+            {
+              "id": "llamacpp",
+              "type": "llamacpp",
+              "label": "llama.cpp server",
+              "enabled": false,
+              "pinnedModels": [],
+              "knownModels": [],
+              "promptProfile": "auto",
+              "modelOverrides": {},
+              "baseUrl": "http://localhost:9000/v1"
+            }
+          ]
+        },
+        "vault": {}
+      }
+    }
+  ]
+}

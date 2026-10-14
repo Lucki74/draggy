@@ -1,0 +1,6368 @@
+{
+  "area": "providers",
+  "description": "The provider request built from the neutral chat request (adapters/*.cjs buildRequest, modelsRequest and showRequest): the whitelisted body, the key in a header, the thinking switch as each provider spells it, and the output limit under its own name.",
+  "cases": [
+    {
+      "name": "OpenAI sends only the whitelisted fields and only function tools",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk-test",
+        "modelId": "gpt-5.5",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "let me look",
+              "provider_state": {
+                "instanceId": "openai",
+                "state": {}
+              },
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": {
+                      "path": "a"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search"
+            },
+            {
+              "type": "code_interpreter",
+              "container": {
+                "type": "auto"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk-test"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_0",
+              "content": "42"
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "name": "OpenRouter's :online model is asked without its web search",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openrouter",
+        "apiKey": "sk-or",
+        "modelId": "openai/gpt-5.5:online",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk-or"
+        },
+        "body": {
+          "model": "openai/gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a keyless local server gets no Authorization",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "lmstudio",
+        "apiKey": "",
+        "modelId": "m",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:1234/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "m",
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "OpenAI's thinking pill maps to reasoning_effort, and off is low",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search"
+            },
+            {
+              "type": "code_interpreter",
+              "container": {
+                "type": "auto"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "reasoning_effort": "low"
+        }
+      }
+    },
+    {
+      "name": "no thinking field leaves reasoning_effort out",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-4o",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-4o",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "Qwen gets enable_thinking",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "qwen",
+        "apiKey": "sk",
+        "modelId": "qwen3-max",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "let me look",
+              "provider_state": {
+                "instanceId": "openai",
+                "state": {}
+              },
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": {
+                      "path": "a"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search"
+            },
+            {
+              "type": "code_interpreter",
+              "container": {
+                "type": "auto"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "qwen3-max",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_0",
+              "content": "42"
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "enable_thinking": true
+        }
+      }
+    },
+    {
+      "name": "a local llama.cpp server gets the template switch and its reasoning history",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "llamacpp",
+        "apiKey": "",
+        "modelId": "m",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "let me look",
+              "provider_state": {
+                "instanceId": "openai",
+                "state": {}
+              },
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": {
+                      "path": "a"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search"
+            },
+            {
+              "type": "code_interpreter",
+              "container": {
+                "type": "auto"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:8080/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "m",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ],
+              "reasoning_content": "let me look"
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_0",
+              "content": "42"
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          }
+        }
+      }
+    },
+    {
+      "name": "DeepSeek never gets reasoning_content back",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "deepseek",
+        "apiKey": "sk",
+        "modelId": "deepseek-chat",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "let me look",
+              "provider_state": {
+                "instanceId": "openai",
+                "state": {}
+              },
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": {
+                      "path": "a"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search"
+            },
+            {
+              "type": "code_interpreter",
+              "container": {
+                "type": "auto"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "deepseek-chat",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_0",
+              "content": "42"
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "OpenAI names its output limit max_completion_tokens",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "max_tokens": 500,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "max_completion_tokens": 500
+        }
+      }
+    },
+    {
+      "name": "Groq keeps max_tokens",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "groq",
+        "apiKey": "sk",
+        "modelId": "m",
+        "body": {
+          "max_tokens": 500,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "m",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "max_tokens": 500
+        }
+      }
+    },
+    {
+      "name": "a non-streaming request has no stream_options",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "stream": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "temperature": 0.5,
+          "top_p": 0.9
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "temperature": 0.5,
+          "top_p": 0.9
+        }
+      }
+    },
+    {
+      "name": "a response format goes only to a local server",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "llamacpp",
+        "apiKey": "",
+        "modelId": "m",
+        "body": {
+          "response_format": {
+            "type": "json_object"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:8080/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "m",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "response_format": {
+            "type": "json_object"
+          }
+        }
+      }
+    },
+    {
+      "name": "a response format is dropped for OpenAI",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "response_format": {
+            "type": "json_object"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a tool result with no id takes the call's id",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "function": {
+                    "name": "f",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "ok"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "f",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_0",
+              "content": "ok"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a call with object arguments becomes a JSON string",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi",
+              "tool_calls": [
+                {
+                  "id": "c",
+                  "function": {
+                    "name": "f",
+                    "arguments": {
+                      "a": 1
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi",
+              "tool_calls": [
+                {
+                  "id": "c",
+                  "type": "function",
+                  "function": {
+                    "name": "f",
+                    "arguments": "{\"a\":1}"
+                  }
+                }
+              ]
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "an image in a user message goes through as an image_url part",
+      "input": {
+        "protocol": "openai",
+        "op": "request",
+        "provider": "openai",
+        "apiKey": "sk",
+        "modelId": "gpt-5.5",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "see"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sk"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "see"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a newer model thinks adaptively at high effort",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: the whitelist, the key in a header, the cache marks and the tool list",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a signed thinking block from another instance is never sent",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "instanceId": "anthropic-work",
+        "apiKey": "sk",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: an unsigned thinking field is never sent",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "tool_calls": [
+                {
+                  "id": "c",
+                  "function": {
+                    "name": "f",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "c",
+                  "name": "f",
+                  "input": {}
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a 4.5 model gets a budget and the interleaved header",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-haiku-4-5-20251001",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk",
+          "anthropic-beta": "interleaved-thinking-2025-05-14"
+        },
+        "body": {
+          "model": "claude-haiku-4-5-20251001",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 24576
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: an older Opus gets the medium budget",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-opus-4-20250514",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "medium",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk",
+          "anthropic-beta": "interleaved-thinking-2025-05-14"
+        },
+        "body": {
+          "model": "claude-opus-4-20250514",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 8192
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a budget stays under the output limit",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-3-7-sonnet-20250219",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ],
+          "max_tokens": 4096
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk",
+          "anthropic-beta": "interleaved-thinking-2025-05-14"
+        },
+        "body": {
+          "model": "claude-3-7-sonnet-20250219",
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 3072
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a newer model thinks adaptively at the pill's effort",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "medium",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "medium"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: Opus 5.5 is adaptive-only and sends no beta header",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-opus-5-5",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a model that cannot be off gets the least it allows",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-opus-5-5",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "low"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: Opus 4.8 is disabled when off",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-opus-4-8",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-opus-4-8",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "disabled"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: Sonnet 5.5 between tools when off",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-sonnet-5-5",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "between_tools"
+          },
+          "output_config": {
+            "effort": "low"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: Sonnet 5 is disabled when off",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test",
+        "modelId": "claude-sonnet-5",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": "hi",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "anthropic",
+                "state": {
+                  "blocks": [
+                    {
+                      "type": "thinking",
+                      "thinking": "look in a",
+                      "signature": "sig-1"
+                    }
+                  ]
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call.1",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call.1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "web_search_20250305",
+              "name": "web_search"
+            },
+            {
+              "type": "code_execution_20250825",
+              "name": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        },
+        "body": {
+          "model": "claude-sonnet-5",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hi"
+                },
+                {
+                  "type": "text",
+                  "text": "and this"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call_1",
+                  "name": "read_file",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call_1",
+                  "content": "42"
+                }
+              ]
+            }
+          ],
+          "system": [
+            {
+              "type": "text",
+              "text": "You are Draggy.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "tools": [
+            {
+              "name": "read_file",
+              "description": "Read.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ],
+          "stream": true,
+          "thinking": {
+            "type": "disabled"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a 3.5 Haiku gets the catalog's 8192 limit",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-3-5-haiku-20241022",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-3-5-haiku-20241022",
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a 3 Opus gets 4096",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-3-opus-20240229",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-3-opus-20240229",
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Anthropic: a current model gets 32000 when none is asked",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 32000,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Anthropic: an asked limit wins",
+      "input": {
+        "protocol": "anthropic",
+        "op": "request",
+        "provider": "anthropic",
+        "apiKey": "sk",
+        "modelId": "claude-sonnet-4-6",
+        "body": {
+          "max_tokens": 900,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk"
+        },
+        "body": {
+          "model": "claude-sonnet-4-6",
+          "max_tokens": 900,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Gemini: whitelisted body, schemas cut down, and the key in a header",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "AIza-test",
+        "modelId": "gemini-3-flash",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "AIza-test"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingLevel": "high",
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini: the streaming and non-streaming endpoints, with the model name escaped",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "AIza-test",
+        "modelId": "../../x",
+        "body": {
+          "stream": false,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/..%2F..%2Fx:generateContent",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "AIza-test"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingLevel": "high",
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini: a signature from another instance is replaced by the stand-in on Gemini 3",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "instanceId": "gemini-work",
+        "apiKey": "k",
+        "modelId": "gemini-3-flash",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "skip_thought_signature_validator"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingLevel": "high",
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini 2.5: no stand-in signature before Gemini 3",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "instanceId": "gemini-work",
+        "apiKey": "k",
+        "modelId": "gemini-2.5-flash",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  }
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingBudget": 24576,
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini 2.5 Flash gets a budget when on",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-2.5-flash",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "medium",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingBudget": 8192,
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini 2.5 Pro never goes to zero",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-2.5-pro",
+        "body": {
+          "stream": true,
+          "think": false,
+          "thinking_level": "low",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingBudget": 128
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini 2.0 gets no thinking config",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-2.0-flash",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Gemini 3 Pro on gets a high level and thoughts",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-3.1-pro-preview",
+        "body": {
+          "stream": true,
+          "think": true,
+          "thinking_level": "high",
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          },
+          "temperature": 0.7,
+          "options": {
+            "num_ctx": 32768,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Draggy."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "Looking.",
+              "thinking": "look in a",
+              "provider_state": {
+                "instanceId": "gemini",
+                "state": {
+                  "calls": [
+                    "sig-call"
+                  ],
+                  "text": ""
+                }
+              },
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                },
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "list_files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_call_id": "call_0"
+            },
+            {
+              "role": "tool",
+              "content": "a, b",
+              "tool_call_id": "call_1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "Read.",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "examples": [
+                        "a"
+                      ]
+                    },
+                    "mode": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_files",
+                "description": "List.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "googleSearch": {}
+            },
+            {
+              "type": "code_execution"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:streamGenerateContent?alt=sse",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "what is this"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "Looking."
+                },
+                {
+                  "functionCall": {
+                    "name": "read_file",
+                    "args": {
+                      "path": "a"
+                    }
+                  },
+                  "thoughtSignature": "sig-call"
+                },
+                {
+                  "functionCall": {
+                    "name": "list_files",
+                    "args": {}
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "read_file",
+                    "response": {
+                      "content": "42"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "list_files",
+                    "response": {
+                      "content": "a, b"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are Draggy."
+              }
+            ]
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "read_file",
+                  "description": "Read.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "mode": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "list_files",
+                  "description": "List."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingLevel": "high",
+              "includeThoughts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Gemini: a request with no tools and no limit has no generationConfig",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-2.5-flash",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Gemini: a system message becomes systemInstruction and tool results are user turns",
+      "input": {
+        "protocol": "gemini",
+        "op": "request",
+        "provider": "gemini",
+        "apiKey": "k",
+        "modelId": "gemini-2.5-flash",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "A"
+            },
+            {
+              "role": "system",
+              "content": "B"
+            },
+            {
+              "role": "user",
+              "content": "x"
+            },
+            {
+              "role": "tool",
+              "content": "r",
+              "tool_name": "f"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-goog-api-key": "k"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "x"
+                },
+                {
+                  "functionResponse": {
+                    "name": "f",
+                    "response": {
+                      "content": "r"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "A\n\nB"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Ollama: native endpoint, context size kept, the thinking switch and no key",
+      "input": {
+        "protocol": "ollama",
+        "op": "request",
+        "provider": "ollama",
+        "apiKey": "",
+        "modelId": "qwen3:8b",
+        "body": {
+          "stream": true,
+          "think": false,
+          "options": {
+            "num_ctx": 16384,
+            "num_predict": -1
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "what is this?"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,iVBOR"
+                  }
+                }
+              ],
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": " ",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file",
+              "tool_call_id": "x"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "parameters": {}
+              }
+            },
+            {
+              "type": "web_search"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:11434/api/chat",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "qwen3:8b",
+          "messages": [
+            {
+              "role": "user",
+              "content": "what is this?",
+              "images": [
+                "iVBOR"
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": " ",
+              "tool_calls": [
+                {
+                  "function": {
+                    "name": "read_file",
+                    "arguments": {
+                      "path": "a"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "content": "42",
+              "tool_name": "read_file"
+            }
+          ],
+          "stream": true,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "description": "",
+                "parameters": {}
+              }
+            }
+          ],
+          "options": {
+            "num_ctx": 16384
+          },
+          "think": false
+        }
+      }
+    },
+    {
+      "name": "Ollama: a structured-output schema becomes format",
+      "input": {
+        "protocol": "ollama",
+        "op": "request",
+        "provider": "ollama",
+        "apiKey": "",
+        "modelId": "qwen3:8b",
+        "body": {
+          "response_format": {
+            "json_schema": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:11434/api/chat",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "qwen3:8b",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "format": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "Ollama: a numeric limit and temperature go in options",
+      "input": {
+        "protocol": "ollama",
+        "op": "request",
+        "provider": "ollama",
+        "apiKey": "",
+        "modelId": "m",
+        "body": {
+          "max_tokens": 64,
+          "temperature": 0.2,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "url": "http://127.0.0.1:11434/api/chat",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "m",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false,
+          "options": {
+            "num_predict": 64,
+            "temperature": 0.2
+          }
+        }
+      }
+    },
+    {
+      "name": "OpenAI model listing asks with the key",
+      "input": {
+        "protocol": "openai",
+        "op": "models_request",
+        "provider": "openai",
+        "apiKey": "sk-test"
+      },
+      "expected": {
+        "url": "https://api.openai.com/v1/models",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer sk-test"
+        }
+      }
+    },
+    {
+      "name": "a keyless listing sends no Authorization",
+      "input": {
+        "protocol": "openai",
+        "op": "models_request",
+        "provider": "lmstudio",
+        "apiKey": ""
+      },
+      "expected": {
+        "url": "http://127.0.0.1:1234/v1/models",
+        "method": "GET",
+        "headers": {}
+      }
+    },
+    {
+      "name": "Anthropic listing asks with x-api-key and the version",
+      "input": {
+        "protocol": "anthropic",
+        "op": "models_request",
+        "provider": "anthropic",
+        "apiKey": "sk-ant-test"
+      },
+      "expected": {
+        "url": "https://api.anthropic.com/v1/models?limit=1000",
+        "method": "GET",
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-test"
+        }
+      }
+    },
+    {
+      "name": "Gemini listing asks with the key header",
+      "input": {
+        "protocol": "gemini",
+        "op": "models_request",
+        "provider": "gemini",
+        "apiKey": "AIza-test"
+      },
+      "expected": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+        "method": "GET",
+        "headers": {
+          "x-goog-api-key": "AIza-test"
+        }
+      }
+    },
+    {
+      "name": "Ollama's tag listing never carries a key",
+      "input": {
+        "protocol": "ollama",
+        "op": "models_request",
+        "provider": "ollama",
+        "apiKey": "k"
+      },
+      "expected": {
+        "url": "http://127.0.0.1:11434/api/tags",
+        "method": "GET",
+        "headers": {}
+      }
+    },
+    {
+      "name": "Ollama's show request names the model in its body",
+      "input": {
+        "protocol": "ollama",
+        "op": "show_request",
+        "provider": "ollama",
+        "model": "qwen3:8b"
+      },
+      "expected": {
+        "url": "http://127.0.0.1:11434/api/show",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "qwen3:8b"
+        }
+      }
+    }
+  ]
+}

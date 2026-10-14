@@ -1,0 +1,494 @@
+{
+  "area": "providers",
+  "description": "Model listings and the helpers next to them (adapters/*.cjs parseModels, parseShow, sanitizeSchema and thinkingStyle): what each provider's listing says about a model, Gemini's schema subset, and which Claude thinking switch a model takes.",
+  "cases": [
+    {
+      "name": "OpenAI: ids, with no window or facts when the listing gives none",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "data": [
+            {
+              "id": "gpt-5.5"
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "gpt-5.5",
+          "contextLength": null,
+          "supported": null,
+          "inputModalities": null
+        }
+      ]
+    },
+    {
+      "name": "OpenRouter: window, parameters and modalities",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "data": [
+            {
+              "id": "anthropic/claude-x",
+              "context_length": 200000,
+              "supported_parameters": [
+                "tools",
+                "reasoning"
+              ],
+              "architecture": {
+                "input_modalities": [
+                  "text",
+                  "image"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "anthropic/claude-x",
+          "contextLength": 200000,
+          "supported": [
+            "tools",
+            "reasoning"
+          ],
+          "inputModalities": [
+            "text",
+            "image"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a window under another key, and a model with no id is left out",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "models": [
+            {
+              "name": "m1",
+              "context_window": 4096
+            },
+            {
+              "name": ""
+            },
+            {
+              "id": "m2",
+              "max_context_length": "8192"
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "m1",
+          "contextLength": 4096,
+          "supported": null,
+          "inputModalities": null
+        },
+        {
+          "id": "m2",
+          "contextLength": 8192,
+          "supported": null,
+          "inputModalities": null
+        }
+      ]
+    },
+    {
+      "name": "Ollama: the cloud models are marked",
+      "input": {
+        "op": "parse_models",
+        "protocol": "ollama",
+        "json": {
+          "models": [
+            {
+              "name": "llama3.2:3b"
+            },
+            {
+              "name": "gpt-oss:120b-cloud"
+            },
+            {
+              "name": "kimi:cloud"
+            },
+            {
+              "model": "remote:1",
+              "remote_host": "https://x"
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "llama3.2:3b",
+          "contextLength": null,
+          "cloud": false
+        },
+        {
+          "id": "gpt-oss:120b-cloud",
+          "contextLength": null,
+          "cloud": true
+        },
+        {
+          "id": "kimi:cloud",
+          "contextLength": null,
+          "cloud": true
+        },
+        {
+          "id": "remote:1",
+          "contextLength": null,
+          "cloud": true
+        }
+      ]
+    },
+    {
+      "name": "Ollama: capabilities and the window from /api/show",
+      "input": {
+        "op": "parse_show",
+        "json": {
+          "capabilities": [
+            "completion",
+            "tools",
+            "vision"
+          ],
+          "model_info": {
+            "gemma3.context_length": 131072
+          }
+        }
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "contextLength": 131072
+      }
+    },
+    {
+      "name": "Ollama: a model with no window or capabilities",
+      "input": {
+        "op": "parse_show",
+        "json": {}
+      },
+      "expected": {
+        "capabilities": [],
+        "contextLength": null
+      }
+    },
+    {
+      "name": "Ollama: a zero window is no window",
+      "input": {
+        "op": "parse_show",
+        "json": {
+          "capabilities": [
+            "thinking"
+          ],
+          "model_info": {
+            "x.context_length": 0
+          }
+        }
+      },
+      "expected": {
+        "capabilities": [
+          "thinking"
+        ],
+        "contextLength": null
+      }
+    },
+    {
+      "name": "Anthropic: ids and max input tokens, a blank id left out",
+      "input": {
+        "op": "parse_models",
+        "protocol": "anthropic",
+        "json": {
+          "data": [
+            {
+              "id": "claude-opus-5-5",
+              "max_input_tokens": 1000000
+            },
+            {
+              "id": ""
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "claude-opus-5-5",
+          "contextLength": 1000000
+        }
+      ]
+    },
+    {
+      "name": "Gemini: chat models only, with the models/ prefix removed",
+      "input": {
+        "op": "parse_models",
+        "protocol": "gemini",
+        "json": {
+          "models": [
+            {
+              "name": "models/gemini-3-flash",
+              "inputTokenLimit": 1048576,
+              "supportedGenerationMethods": [
+                "generateContent",
+                "countTokens"
+              ]
+            },
+            {
+              "name": "models/text-embedding-004",
+              "supportedGenerationMethods": [
+                "embedContent"
+              ]
+            },
+            {
+              "name": "models/no-methods"
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "gemini-3-flash",
+          "contextLength": 1048576
+        },
+        {
+          "id": "no-methods",
+          "contextLength": null
+        }
+      ]
+    },
+    {
+      "name": "Gemini: a schema keeps its type, drops keywords it does not read",
+      "input": {
+        "op": "sanitize",
+        "schema": {
+          "$schema": "x",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "examples": [
+                "a"
+              ]
+            },
+            "mode": {
+              "const": "text"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      },
+      "expected": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "nullable": true
+          },
+          "mode": {
+            "enum": [
+              "text"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "Gemini: a null-only type is a nullable string",
+      "input": {
+        "op": "sanitize",
+        "schema": {
+          "type": [
+            "null"
+          ]
+        }
+      },
+      "expected": {
+        "type": "string",
+        "nullable": true
+      }
+    },
+    {
+      "name": "Gemini: an enum becomes strings and takes string type",
+      "input": {
+        "op": "sanitize",
+        "schema": {
+          "enum": [
+            1,
+            "two",
+            true
+          ]
+        }
+      },
+      "expected": {
+        "enum": [
+          "1",
+          "two",
+          "true"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "Gemini: nested items, anyOf and property order survive",
+      "input": {
+        "op": "sanitize",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "n": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "anyOf": [
+            {
+              "type": "string"
+            }
+          ],
+          "propertyOrdering": [
+            "n"
+          ],
+          "default": 3
+        }
+      },
+      "expected": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "n": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "anyOf": [
+          {
+            "type": "string"
+          }
+        ],
+        "propertyOrdering": [
+          "n"
+        ]
+      }
+    },
+    {
+      "name": "Gemini: a schema with no type is left without one",
+      "input": {
+        "op": "sanitize",
+        "schema": {
+          "description": "d"
+        }
+      },
+      "expected": {
+        "description": "d"
+      }
+    },
+    {
+      "name": "a Claude 4.5 model thinks on a budget",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "expected": "budget"
+    },
+    {
+      "name": "a Claude 3.7 model thinks on a budget",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-3-7-sonnet-20250219"
+      },
+      "expected": "budget"
+    },
+    {
+      "name": "a Claude 4.6 model thinks adaptively",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-sonnet-4-6"
+      },
+      "expected": "adaptive-off-by-default"
+    },
+    {
+      "name": "a Claude 4.8 model is adaptive and off by default when not asked",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-opus-4-8"
+      },
+      "expected": "adaptive-off-by-default"
+    },
+    {
+      "name": "Claude 5 is adaptive, not off by default",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-sonnet-5"
+      },
+      "expected": "adaptive"
+    },
+    {
+      "name": "Claude 5.5 Sonnet between tools",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-sonnet-5-5"
+      },
+      "expected": "between-tools"
+    },
+    {
+      "name": "Claude 5.5 Opus adaptive only",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-opus-5-5"
+      },
+      "expected": "adaptive-only"
+    },
+    {
+      "name": "a Fable model is adaptive only",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-fable-5-1"
+      },
+      "expected": "adaptive-only"
+    },
+    {
+      "name": "a Mythos preview is adaptive only",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-mythos-preview"
+      },
+      "expected": "adaptive-only"
+    },
+    {
+      "name": "a name with no version is adaptive only",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-opus"
+      },
+      "expected": "adaptive-only"
+    },
+    {
+      "name": "a three-digit minor is not read as a minor",
+      "input": {
+        "op": "thinking_style",
+        "model": "claude-opus-4-123"
+      },
+      "expected": "budget"
+    }
+  ]
+}

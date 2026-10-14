@@ -1,0 +1,1544 @@
+{
+  "area": "providers",
+  "description": "gateway.cjs createGateway(): refusals, routing of provider models to each adapter, retries, failures and both answer forms, driven against a scripted fetch. Stream bodies are SSE frames with the timings field removed (fn gatewayRoutes).",
+  "cases": [
+    {
+      "name": "refuses a foreign origin before anything else",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "https://evil.example",
+          "body": "{}"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "contentType": "application/json",
+        "allowOrigin": null,
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "This origin may not use the gateway."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "refuses the null origin",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "null",
+          "body": "{}"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "contentType": "application/json",
+        "allowOrigin": null,
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "This origin may not use the gateway."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "answers the preflight for its own origin",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "app://draggy",
+          "method": "OPTIONS"
+        }
+      },
+      "expected": {
+        "status": 204,
+        "contentType": null,
+        "allowOrigin": "app://draggy",
+        "text": "",
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "answers an unknown method on the chat endpoint with 404",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "app://draggy",
+          "method": "GET",
+          "body": null
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "Unknown gateway endpoint."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "answers an unknown endpoint with 404",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "app://draggy",
+          "url": "draggy-ai://models",
+          "body": "{}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "Unknown gateway endpoint."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a provider model with no instance set up is refused, nothing sent",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@anthropic/claude-x\"}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "No enabled provider is set up for @anthropic/claude-x."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a reference with no model part is refused",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "k"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom\"}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "No enabled provider is set up for @custom."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a switched-off instance is refused, nothing sent",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "ollama",
+            "baseUrl": "http://127.0.0.1:11434",
+            "enabled": false
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@ollama/qwen3:8b\"}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "No enabled provider is set up for @ollama/qwen3:8b."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "an OpenAI-compatible instance: its own address, Draggy's fields left behind, streamed back",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "contentType": "text/event-stream",
+            "body": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":1}}\n\ndata: [DONE]\n\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/some/model\",\"stream\":true,\"think\":true,\"options\":{\"num_ctx\":8192,\"num_predict\":-1},\"messages\":[{\"role\":\"user\",\"content\":\"hi\",\"draggy_ref\":{\"id\":\"u1\",\"hash\":\"h\"}}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "Hello"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 4,
+              "completion_tokens": 1,
+              "total_tokens": 5
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "some/model",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a request id travels upstream",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "contentType": "text/event-stream",
+            "body": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "requestId": "cid-7",
+          "body": "{\"model\":\"@custom/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "ok"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "x-request-id": "cid-7",
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "an Ollama model goes to Ollama's own chat with its context size",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "ollama",
+            "baseUrl": "http://127.0.0.1:11434"
+          }
+        ],
+        "upstream": [
+          {
+            "contentType": "application/x-ndjson",
+            "body": "{\"message\":{\"content\":\"ok\"},\"done\":true,\"done_reason\":\"stop\"}\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@ollama/qwen3:8b\",\"stream\":true,\"options\":{\"num_ctx\":8192},\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "ok"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://127.0.0.1:11434/api/chat",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "model": "qwen3:8b",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "options": {
+                "num_ctx": 8192
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a rate limit is retried, reported with each wait, then streamed",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 429,
+            "body": "{\"error\":{\"message\":\"Rate limit reached\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          },
+          {
+            "status": 503,
+            "body": "{\"error\":{\"message\":\"busy\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          },
+          {
+            "contentType": "text/event-stream",
+            "body": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "draggy_retry": {
+              "attempt": 1,
+              "of": 2,
+              "retryAfterMs": 0
+            }
+          },
+          {
+            "draggy_retry": {
+              "attempt": 2,
+              "of": 2,
+              "retryAfterMs": 0
+            }
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "Hello"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          },
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          },
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "gives up after two retries and names the failure",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 429,
+            "body": "{\"error\":{\"message\":\"Rate limit reached\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          },
+          {
+            "status": 429,
+            "body": "{\"error\":{\"message\":\"Rate limit reached\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          },
+          {
+            "status": 429,
+            "body": "{\"error\":{\"message\":\"Rate limit reached\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "draggy_retry": {
+              "attempt": 1,
+              "of": 2,
+              "retryAfterMs": 0
+            }
+          },
+          {
+            "draggy_retry": {
+              "attempt": 2,
+              "of": 2,
+              "retryAfterMs": 0
+            }
+          },
+          {
+            "error": {
+              "kind": "provider-rate-limited",
+              "status": 429,
+              "message": "Rate limit reached",
+              "providerMessage": "Rate limit reached",
+              "retryAfter": 0,
+              "provider": "Custom (OpenAI-compatible)"
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          },
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          },
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "an exhausted quota is not retried",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 429,
+            "body": "{\"error\":{\"message\":\"You exceeded your current quota\",\"code\":\"insufficient_quota\"}}",
+            "headers": {
+              "Retry-After": "0"
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "error": {
+              "kind": "provider-no-credit",
+              "status": 429,
+              "message": "You exceeded your current quota",
+              "providerMessage": "You exceeded your current quota",
+              "retryAfter": 0,
+              "provider": "Custom (OpenAI-compatible)"
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a bad key is not retried",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 401,
+            "body": "{\"error\":{\"message\":\"Incorrect API key provided\"}}"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "error": {
+              "kind": "provider-invalid-key",
+              "status": 401,
+              "message": "Incorrect API key provided",
+              "providerMessage": "Incorrect API key provided",
+              "provider": "Custom (OpenAI-compatible)"
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "an unreachable provider is named in the stream, not a failed fetch",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "ollama",
+            "baseUrl": "http://127.0.0.1:9"
+          }
+        ],
+        "upstream": [
+          {
+            "error": true
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@ollama/m\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "error": {
+              "kind": "provider-unreachable",
+              "status": 0,
+              "message": "ECONNREFUSED",
+              "providerMessage": "ECONNREFUSED",
+              "provider": "Ollama"
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "http://127.0.0.1:9/api/chat",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": true
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "the non-streaming form answers as choices with usage",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "body": "{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":1}}"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "ok"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 2,
+            "completion_tokens": 1,
+            "total_tokens": 3
+          }
+        },
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": false
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "the non-streaming form keeps the upstream status with the named error",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "custom",
+            "baseUrl": "http://up.test/v1",
+            "key": "sk-test"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 404,
+            "body": "{\"error\":{\"message\":\"The model `m` does not exist\"}}"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@custom/m\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-model-not-found",
+            "status": 404,
+            "message": "The model `m` does not exist",
+            "providerMessage": "The model `m` does not exist",
+            "provider": "Custom (OpenAI-compatible)"
+          }
+        },
+        "upstream": [
+          {
+            "url": "http://up.test/v1/chat/completions",
+            "headers": {
+              "content-type": "application/json",
+              "authorization": "Bearer sk-test"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": false
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "the non-streaming form answers 502 when the provider cannot be reached",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "ollama",
+            "baseUrl": "http://127.0.0.1:9"
+          }
+        ],
+        "upstream": [
+          {
+            "error": true
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@ollama/m\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 502,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unreachable",
+            "status": 0,
+            "message": "ECONNREFUSED",
+            "providerMessage": "ECONNREFUSED",
+            "provider": "Ollama"
+          }
+        },
+        "upstream": [
+          {
+            "url": "http://127.0.0.1:9/api/chat",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "model": "m",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "hi"
+                }
+              ],
+              "stream": false
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "Anthropic streams the signed thinking tagged with its instance",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "anthropic",
+            "key": "sk-ant-test"
+          }
+        ],
+        "upstream": [
+          {
+            "contentType": "text/event-stream",
+            "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":1}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"t\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"sig\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@anthropic/claude-opus-5-5\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "reasoning_content": "t"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "provider_state": {
+              "instanceId": "anthropic",
+              "state": {
+                "blocks": [
+                  {
+                    "type": "thinking",
+                    "thinking": "t",
+                    "signature": "sig"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 1,
+              "completion_tokens": 1,
+              "total_tokens": 2
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "https://api.anthropic.com/v1/messages",
+            "headers": {
+              "content-type": "application/json",
+              "anthropic-version": "2023-06-01",
+              "x-api-key": "sk-ant-test"
+            },
+            "body": {
+              "model": "claude-opus-5-5",
+              "max_tokens": 32000,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "hi"
+                    }
+                  ]
+                }
+              ],
+              "stream": true,
+              "thinking": {
+                "type": "adaptive",
+                "display": "summarized"
+              },
+              "output_config": {
+                "effort": "low"
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "Anthropic answers once with the signed thinking on the completion",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "anthropic",
+            "key": "sk-ant-test"
+          }
+        ],
+        "upstream": [
+          {
+            "body": "{\"content\":[{\"type\":\"thinking\",\"thinking\":\"t\",\"signature\":\"sig\"},{\"type\":\"text\",\"text\":\"Hi\"}],\"stop_reason\":\"end_turn\",\"usage\":{}}"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@anthropic/claude-opus-5-5\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hi",
+                "reasoning_content": "t"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "provider_state": {
+            "instanceId": "anthropic",
+            "state": {
+              "blocks": [
+                {
+                  "type": "thinking",
+                  "thinking": "t",
+                  "signature": "sig"
+                }
+              ]
+            }
+          }
+        },
+        "upstream": [
+          {
+            "url": "https://api.anthropic.com/v1/messages",
+            "headers": {
+              "content-type": "application/json",
+              "anthropic-version": "2023-06-01",
+              "x-api-key": "sk-ant-test"
+            },
+            "body": {
+              "model": "claude-opus-5-5",
+              "max_tokens": 32000,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "hi"
+                    }
+                  ]
+                }
+              ],
+              "thinking": {
+                "type": "adaptive",
+                "display": "summarized"
+              },
+              "output_config": {
+                "effort": "low"
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "Gemini sends the key in a header and streams the signature back",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "gemini",
+            "key": "AIza-test"
+          }
+        ],
+        "upstream": [
+          {
+            "contentType": "text/event-stream",
+            "body": "data: {\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"read_file\",\"args\":{}},\"thoughtSignature\":\"sig\"}]},\"finishReason\":\"STOP\"}]}\n\n"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@gemini/gemini-3-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "id": "call_0",
+                      "type": "function",
+                      "function": {
+                        "name": "read_file",
+                        "arguments": "{}"
+                      }
+                    }
+                  ]
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "provider_state": {
+              "instanceId": "gemini",
+              "state": {
+                "calls": [
+                  "sig"
+                ],
+                "text": ""
+              }
+            }
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "tool_calls"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "total_tokens": 0
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [
+          {
+            "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse",
+            "headers": {
+              "content-type": "application/json",
+              "x-goog-api-key": "AIza-test"
+            },
+            "body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "hi"
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {
+                "thinkingConfig": {
+                  "thinkingLevel": "minimal"
+                }
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "Gemini answers once with the signature on the completion",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "gemini",
+            "key": "AIza-test"
+          }
+        ],
+        "upstream": [
+          {
+            "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hi\",\"thoughtSignature\":\"sig\"}]},\"finishReason\":\"STOP\"}]}"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@gemini/gemini-3-flash\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hi"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "provider_state": {
+            "instanceId": "gemini",
+            "state": {
+              "calls": [],
+              "text": "sig"
+            }
+          }
+        },
+        "upstream": [
+          {
+            "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent",
+            "headers": {
+              "content-type": "application/json",
+              "x-goog-api-key": "AIza-test"
+            },
+            "body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "hi"
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {
+                "thinkingConfig": {
+                  "thinkingLevel": "minimal"
+                }
+              }
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "the chat endpoint is one host with no port, so a port makes it unknown",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "request": {
+          "url": "draggy-ai://chat:8080/",
+          "body": "{}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "*",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "Unknown gateway endpoint."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "the engine is sent the content type the renderer sent",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [],
+        "upstream": [
+          {
+            "status": 200,
+            "body": "{}"
+          }
+        ],
+        "request": {
+          "body": "{\"model\":\"m.gguf\"}",
+          "contentType": "text/plain;charset=UTF-8"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "*",
+        "json": {},
+        "upstream": [
+          {
+            "url": "http://127.0.0.1:9/v1/chat/completions",
+            "headers": {
+              "content-type": "text/plain;charset=UTF-8"
+            },
+            "body": {
+              "model": "m.gguf"
+            }
+          }
+        ],
+        "accountCalls": []
+      }
+    }
+  ]
+}

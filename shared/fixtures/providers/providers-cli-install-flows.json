@@ -1,0 +1,340 @@
+{
+  "area": "providers-cli-install-flows",
+  "description": "The pinned runtimes' installs against a real folder, with the download, the unpacker and npm replaced (fn claudeInstall, codexInstall, geminiInstall): verify, unpack, pin replacement, refusals and the files left behind. Lockfile copies are not listed.",
+  "cases": [
+    {
+      "name": "a pin installs once, reports each chunk, and removes the pin it replaces",
+      "input": {
+        "fn": "claudeInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "musl": false,
+        "table": {
+          "linux-x64": [
+            "56efb780d8bcb7f7ea9e7df6ca7a0a260524853790f8e28939d8e90e2ecaa3be",
+            13
+          ]
+        },
+        "chunks": [
+          "claude ",
+          "binary"
+        ],
+        "existing": [
+          "claude/bin/2.1.200/claude"
+        ]
+      },
+      "expected": {
+        "result": "claude/bin/2.1.284/claude",
+        "files": [
+          {
+            "path": "claude/bin/2.1.284/claude",
+            "sha256": "56efb780d8bcb7f7ea9e7df6ca7a0a260524853790f8e28939d8e90e2ecaa3be",
+            "executable": true
+          }
+        ],
+        "progress": [
+          {
+            "completed": 7,
+            "total": 13,
+            "percent": 53.8
+          },
+          {
+            "completed": 13,
+            "total": 13,
+            "percent": 100
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "name": "a digest that differs leaves nothing to run",
+      "input": {
+        "fn": "claudeInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "musl": false,
+        "table": {
+          "linux-x64": [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            3
+          ]
+        },
+        "chunks": [
+          "bad"
+        ],
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "progress": [
+          {
+            "completed": 3,
+            "total": 3,
+            "percent": 100
+          }
+        ],
+        "error": "Checksum mismatch for claude"
+      }
+    },
+    {
+      "name": "a refused download leaves nothing and says what the transport said",
+      "input": {
+        "fn": "claudeInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "musl": false,
+        "table": {
+          "linux-x64": [
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            0
+          ]
+        },
+        "chunks": [],
+        "refuse": "offline",
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "progress": [],
+        "error": "offline"
+      }
+    },
+    {
+      "name": "a platform with no build is refused before anything is downloaded",
+      "input": {
+        "fn": "claudeInstall",
+        "platformName": "freebsd",
+        "arch": "x64",
+        "musl": false,
+        "table": {},
+        "chunks": [],
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "progress": [],
+        "error": "Claude Code has no build for freebsd x64"
+      }
+    },
+    {
+      "name": "a musl host takes the musl build and nothing else",
+      "input": {
+        "fn": "claudeInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "musl": true,
+        "table": {
+          "linux-x64-musl": [
+            "d118b5113dbc21d57365d4e969beb7a19789eb991199ca71accaa9e62e6b4b51",
+            5
+          ],
+          "linux-x64": [
+            "26e369d4ec572fc67cc564a173870070ff1f86cbdf8d92d4b10914791d264770",
+            6
+          ]
+        },
+        "chunks": [
+          "musl!"
+        ],
+        "existing": []
+      },
+      "expected": {
+        "result": "claude/bin/2.1.284/claude",
+        "files": [
+          {
+            "path": "claude/bin/2.1.284/claude",
+            "sha256": "d118b5113dbc21d57365d4e969beb7a19789eb991199ca71accaa9e62e6b4b51",
+            "executable": true
+          }
+        ],
+        "progress": [
+          {
+            "completed": 5,
+            "total": 5,
+            "percent": 100
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "name": "the archive is verified, unpacked, and the app-server installed",
+      "input": {
+        "fn": "codexInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "table": {
+          "linux-x64": [
+            "x86_64-unknown-linux-musl.tar.gz",
+            "ee5b3346ede73ba6ea3e552775e029195fe8722044029111b2c3c02448807b19",
+            15
+          ]
+        },
+        "chunks": [
+          "release ",
+          "archive"
+        ],
+        "existing": []
+      },
+      "expected": {
+        "result": "codex/bin/0.157.1/codex-app-server-x86_64-unknown-linux-musl",
+        "files": [
+          {
+            "path": "codex/bin/0.157.1/codex-app-server-x86_64-unknown-linux-musl",
+            "sha256": "a172cedcae47474b615c54d510a5d84a8dea3032e958587430b413538be3f333",
+            "executable": true
+          }
+        ],
+        "progress": [
+          {
+            "completed": 8,
+            "total": 15,
+            "percent": 53.3
+          },
+          {
+            "completed": 15,
+            "total": 15,
+            "percent": 100
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "name": "an archive whose digest differs is refused and nothing is kept",
+      "input": {
+        "fn": "codexInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "table": {
+          "linux-x64": [
+            "x86_64-unknown-linux-musl.tar.gz",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            3
+          ]
+        },
+        "chunks": [
+          "bad"
+        ],
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "progress": [
+          {
+            "completed": 3,
+            "total": 3,
+            "percent": 100
+          }
+        ],
+        "error": "Checksum mismatch for codex-app-server-x86_64-unknown-linux-musl.tar.gz"
+      }
+    },
+    {
+      "name": "an installed app-server is not downloaded again",
+      "input": {
+        "fn": "codexInstall",
+        "platformName": "linux",
+        "arch": "x64",
+        "table": {
+          "linux-x64": [
+            "x86_64-unknown-linux-musl.tar.gz",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            3
+          ]
+        },
+        "chunks": [
+          "bad"
+        ],
+        "existing": [
+          "codex/bin/0.157.1/codex-app-server-x86_64-unknown-linux-musl"
+        ]
+      },
+      "expected": {
+        "result": "codex/bin/0.157.1/codex-app-server-x86_64-unknown-linux-musl",
+        "files": [
+          {
+            "path": "codex/bin/0.157.1/codex-app-server-x86_64-unknown-linux-musl",
+            "sha256": "cba06b5736faf67e54b07b561eae94395e774c517a7d910a54369e1263ccfbd4",
+            "executable": false
+          }
+        ],
+        "progress": [],
+        "error": null
+      }
+    },
+    {
+      "name": "a locked install runs npm and keeps the entry point it leaves",
+      "input": {
+        "fn": "geminiInstall",
+        "npm": true,
+        "existing": []
+      },
+      "expected": {
+        "result": "gemini/cli/0.61.0/node_modules/@google/gemini-cli/bundle/gemini.js",
+        "files": [
+          {
+            "path": "gemini/cli/0.61.0/node_modules/@google/gemini-cli/bundle/gemini.js",
+            "sha256": "0a286891c11c056e1ab5bfc25bf5d6b2f5b06d38eac10944f678fd8a2e70c393",
+            "executable": false
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "name": "npm failing says why, from the last three lines of its error",
+      "input": {
+        "fn": "geminiInstall",
+        "npm": true,
+        "npmCode": 1,
+        "stderr": "one\ntwo\nthree\nfour\nfive",
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "error": "The Gemini CLI could not be installed: three four five"
+      }
+    },
+    {
+      "name": "a machine with no npm is told so before anything is written",
+      "input": {
+        "fn": "geminiInstall",
+        "npm": false,
+        "existing": []
+      },
+      "expected": {
+        "result": null,
+        "files": [],
+        "error": "The Google account needs npm, which comes with Node.js, to install the Gemini CLI."
+      }
+    },
+    {
+      "name": "an installed CLI is not installed again",
+      "input": {
+        "fn": "geminiInstall",
+        "npm": true,
+        "existing": [
+          "gemini/cli/0.61.0/node_modules/@google/gemini-cli/bundle/gemini.js"
+        ]
+      },
+      "expected": {
+        "result": "gemini/cli/0.61.0/node_modules/@google/gemini-cli/bundle/gemini.js",
+        "files": [
+          {
+            "path": "gemini/cli/0.61.0/node_modules/@google/gemini-cli/bundle/gemini.js",
+            "sha256": "cba06b5736faf67e54b07b561eae94395e774c517a7d910a54369e1263ccfbd4",
+            "executable": false
+          }
+        ],
+        "error": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,436 @@
+{
+  "area": "providers",
+  "description": "Finding local servers (discovery.cjs) with the network as a fake: each server is named by what it answers, Draggy's own ports are never probed, and an empty port costs one probe. The ports op lists the ports a scan would touch.",
+  "cases": [
+    {
+      "name": "each server is named by what it answers, not by its port",
+      "input": {
+        "servers": {
+          "1234": {
+            "/api/v0/models": {
+              "data": []
+            }
+          },
+          "1337": {
+            "/v1/models": {
+              "data": [
+                {
+                  "id": "m"
+                }
+              ]
+            }
+          },
+          "8000": {
+            "/api/v1/models": {
+              "data": []
+            }
+          },
+          "8080": {
+            "/props": {
+              "default_generation_settings": {},
+              "total_slots": 1
+            },
+            "/v1/models": {
+              "data": []
+            }
+          },
+          "11434": {
+            "/api/version": {
+              "version": "0.12.0"
+            }
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [
+          {
+            "type": "ollama",
+            "name": "Ollama",
+            "port": 11434,
+            "baseUrl": "http://127.0.0.1:11434",
+            "guessed": false
+          },
+          {
+            "type": "lmstudio",
+            "name": "LM Studio",
+            "port": 1234,
+            "baseUrl": "http://127.0.0.1:1234/v1",
+            "guessed": false
+          },
+          {
+            "type": "llamacpp",
+            "name": "llama.cpp server",
+            "port": 8080,
+            "baseUrl": "http://127.0.0.1:8080/v1",
+            "guessed": false
+          },
+          {
+            "type": "lemonade",
+            "name": "Lemonade",
+            "port": 8000,
+            "baseUrl": "http://127.0.0.1:8000/api/v1",
+            "guessed": false
+          },
+          {
+            "type": "jan",
+            "name": "Jan",
+            "port": 1337,
+            "baseUrl": "http://127.0.0.1:1337/v1",
+            "guessed": true
+          }
+        ],
+        "probes": {
+          "1234": 2,
+          "1337": 8,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 7,
+          "8080": 3,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "Draggy's own ports and the dev port are never probed",
+      "input": {
+        "servers": {
+          "8080": {
+            "/props": {
+              "total_slots": 1
+            }
+          }
+        },
+        "excludedPorts": [
+          8080,
+          11500
+        ],
+        "isDev": true
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "an empty network finds nothing, one probe per port",
+      "input": {
+        "servers": {}
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 1,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "colibri is named by its scheduler metrics on a shared port",
+      "input": {
+        "servers": {
+          "8000": {
+            "/metrics": "# TYPE colibri_scheduler_active gauge\ncolibri_scheduler_active 0\n",
+            "/v1/models": {
+              "data": []
+            }
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [
+          {
+            "type": "colibri",
+            "name": "colibri",
+            "port": 8000,
+            "baseUrl": "http://127.0.0.1:8000/v1",
+            "guessed": false
+          }
+        ],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 4,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "colibri is named by its health counters when metrics need a key",
+      "input": {
+        "servers": {
+          "8000": {
+            "/health": {
+              "active": 0,
+              "queued": 0,
+              "completed": 3,
+              "rejected": 0
+            }
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [
+          {
+            "type": "colibri",
+            "name": "colibri",
+            "port": 8000,
+            "baseUrl": "http://127.0.0.1:8000/v1",
+            "guessed": false
+          }
+        ],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 5,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "vLLM on the shared port is not taken for colibri",
+      "input": {
+        "servers": {
+          "8000": {
+            "/version": {
+              "version": "0.11"
+            },
+            "/health": "",
+            "/metrics": "vllm:num_requests_running 0"
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [
+          {
+            "type": "vllm",
+            "name": "vLLM",
+            "port": 8000,
+            "baseUrl": "http://127.0.0.1:8000/v1",
+            "guessed": false
+          }
+        ],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 6,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "a server that answers only its listing is a guess named after the usual server",
+      "input": {
+        "servers": {
+          "1337": {
+            "/v1/models": {
+              "data": [
+                {
+                  "id": "m"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [
+          {
+            "type": "jan",
+            "name": "Jan",
+            "port": 1337,
+            "baseUrl": "http://127.0.0.1:1337/v1",
+            "guessed": true
+          }
+        ],
+        "probes": {
+          "1234": 1,
+          "1337": 8,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 1,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "a port that answers with no listing is not a server",
+      "input": {
+        "servers": {
+          "5001": {
+            "/v1/models": {
+              "nope": true
+            }
+          }
+        }
+      },
+      "expected": {
+        "ports": [
+          11434,
+          1234,
+          8080,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [],
+        "probes": {
+          "1234": 1,
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 8,
+          "8000": 1,
+          "8080": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    },
+    {
+      "name": "the ports a scan touches, minus the excluded ones",
+      "input": {
+        "servers": {},
+        "excludedPorts": [
+          8080,
+          1234
+        ]
+      },
+      "expected": {
+        "ports": [
+          11434,
+          8000,
+          30000,
+          1337,
+          5001,
+          5000,
+          4891
+        ],
+        "found": [],
+        "probes": {
+          "1337": 1,
+          "4891": 1,
+          "5000": 1,
+          "5001": 1,
+          "8000": 1,
+          "11434": 1,
+          "30000": 1
+        }
+      }
+    }
+  ]
+}

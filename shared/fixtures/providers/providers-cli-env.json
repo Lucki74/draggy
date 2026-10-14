@@ -1,0 +1,429 @@
+{
+  "area": "providers",
+  "description": "account/env.cjs accountEnv() and privateHome(): the environment a runtime starts with, or the error it throws (fn accountEnv, privateHome).",
+  "cases": [
+    {
+      "name": "keeps only what a runtime needs to start",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "codex",
+        "appData": "/data/Draggy",
+        "instanceId": "acct-1",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        }
+      },
+      "expected": {
+        "env": {
+          "PATH": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "HOME": "/data/Draggy/codex/acct-1",
+          "USERPROFILE": "/data/Draggy/codex/acct-1",
+          "CODEX_HOME": "/data/Draggy/codex/acct-1"
+        },
+        "home": "/data/Draggy/codex/acct-1"
+      }
+    },
+    {
+      "name": "points claude's home at the private folder",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "claude",
+        "appData": "/data/Draggy",
+        "instanceId": "acct-1",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        }
+      },
+      "expected": {
+        "env": {
+          "PATH": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "HOME": "/data/Draggy/claude/acct-1",
+          "USERPROFILE": "/data/Draggy/claude/acct-1",
+          "CLAUDE_CONFIG_DIR": "/data/Draggy/claude/acct-1"
+        },
+        "home": "/data/Draggy/claude/acct-1"
+      }
+    },
+    {
+      "name": "points gemini's home at the private folder",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "gemini",
+        "appData": "/data/Draggy",
+        "instanceId": "acct-1",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        }
+      },
+      "expected": {
+        "env": {
+          "PATH": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "HOME": "/data/Draggy/gemini/acct-1",
+          "USERPROFILE": "/data/Draggy/gemini/acct-1",
+          "GEMINI_CLI_HOME": "/data/Draggy/gemini/acct-1"
+        },
+        "home": "/data/Draggy/gemini/acct-1"
+      }
+    },
+    {
+      "name": "takes the extras a runtime names",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "claude",
+        "appData": "/data/Draggy",
+        "instanceId": "a",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        },
+        "extra": {
+          "ELECTRON_RUN_AS_NODE": "1",
+          "DISABLE_TELEMETRY": "1"
+        }
+      },
+      "expected": {
+        "env": {
+          "PATH": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "ELECTRON_RUN_AS_NODE": "1",
+          "DISABLE_TELEMETRY": "1",
+          "HOME": "/data/Draggy/claude/a",
+          "USERPROFILE": "/data/Draggy/claude/a",
+          "CLAUDE_CONFIG_DIR": "/data/Draggy/claude/a"
+        },
+        "home": "/data/Draggy/claude/a"
+      }
+    },
+    {
+      "name": "refuses a forbidden extra",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "claude",
+        "appData": "/data/Draggy",
+        "instanceId": "a",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        },
+        "extra": {
+          "ANTHROPIC_BASE_URL": "http://x"
+        }
+      },
+      "expected": {
+        "error": "ANTHROPIC_BASE_URL never reaches an account runtime"
+      }
+    },
+    {
+      "name": "refuses a proxy extra in any case",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "claude",
+        "appData": "/data/Draggy",
+        "instanceId": "a",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        },
+        "extra": {
+          "https_proxy": "http://x"
+        }
+      },
+      "expected": {
+        "error": "https_proxy never reaches an account runtime"
+      }
+    },
+    {
+      "name": "refuses a cloud switch",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "gemini",
+        "appData": "/data/Draggy",
+        "instanceId": "a",
+        "parent": {
+          "Path": "C:\\Windows\\system32",
+          "SystemRoot": "C:\\Windows",
+          "TEMP": "C:\\Temp",
+          "TMP": "C:\\Temp",
+          "USERPROFILE": "C:\\Users\\me",
+          "HOME": "C:\\Users\\me",
+          "CODEX_HOME": "C:\\Users\\me\\.codex",
+          "CLAUDE_CONFIG_DIR": "C:\\Users\\me\\.claude",
+          "GEMINI_CLI_HOME": "C:\\Users\\me",
+          "HTTPS_PROXY": "http://proxy:8080",
+          "http_proxy": "http://proxy:8080",
+          "ALL_PROXY": "socks5://proxy:1080",
+          "NO_PROXY": "localhost",
+          "NODE_OPTIONS": "--require evil.js",
+          "OPENAI_API_KEY": "from-the-shell",
+          "OPENAI_BASE_URL": "from-the-shell",
+          "CODEX_API_KEY": "from-the-shell",
+          "ANTHROPIC_API_KEY": "from-the-shell",
+          "ANTHROPIC_AUTH_TOKEN": "from-the-shell",
+          "ANTHROPIC_BASE_URL": "from-the-shell",
+          "CLAUDE_CODE_USE_BEDROCK": "from-the-shell",
+          "CLAUDE_CODE_USE_VERTEX": "from-the-shell",
+          "CLAUDE_CODE_OAUTH_TOKEN": "from-the-shell",
+          "CLAUDE_SECURESTORAGE_CONFIG_DIR": "from-the-shell",
+          "GEMINI_API_KEY": "from-the-shell",
+          "GOOGLE_API_KEY": "from-the-shell",
+          "GOOGLE_GENAI_USE_VERTEXAI": "from-the-shell",
+          "GOOGLE_CLOUD_PROJECT": "from-the-shell",
+          "GOOGLE_APPLICATION_CREDENTIALS": "from-the-shell"
+        },
+        "extra": {
+          "GOOGLE_GENAI_USE_VERTEXAI": "1"
+        }
+      },
+      "expected": {
+        "error": "GOOGLE_GENAI_USE_VERTEXAI never reaches an account runtime"
+      }
+    },
+    {
+      "name": "finds a Windows name whatever its case",
+      "input": {
+        "fn": "accountEnv",
+        "runtime": "codex",
+        "appData": "/data/Draggy",
+        "instanceId": "a",
+        "parent": {
+          "path": "/usr/bin",
+          "systemroot": "/sys"
+        }
+      },
+      "expected": {
+        "env": {
+          "PATH": "/usr/bin",
+          "SystemRoot": "/sys",
+          "HOME": "/data/Draggy/codex/a",
+          "USERPROFILE": "/data/Draggy/codex/a",
+          "CODEX_HOME": "/data/Draggy/codex/a"
+        },
+        "home": "/data/Draggy/codex/a"
+      }
+    },
+    {
+      "name": "an instance id may not leave the app folder",
+      "input": {
+        "fn": "privateHome",
+        "runtime": "codex",
+        "appData": "/data/Draggy",
+        "instanceId": "../../.codex"
+      },
+      "expected": {
+        "error": "An instance id names one folder, nothing more"
+      }
+    },
+    {
+      "name": "an empty instance id is refused",
+      "input": {
+        "fn": "privateHome",
+        "runtime": "codex",
+        "appData": "/data/Draggy",
+        "instanceId": ""
+      },
+      "expected": {
+        "error": "An instance id names one folder, nothing more"
+      }
+    },
+    {
+      "name": "an unknown runtime is refused",
+      "input": {
+        "fn": "privateHome",
+        "runtime": "other",
+        "appData": "/data/Draggy",
+        "instanceId": "a"
+      },
+      "expected": {
+        "error": "Unknown account runtime: other"
+      }
+    },
+    {
+      "name": "a private home is one folder per runtime and instance",
+      "input": {
+        "fn": "privateHome",
+        "runtime": "gemini",
+        "appData": "/data/Draggy",
+        "instanceId": "acct-9"
+      },
+      "expected": {
+        "home": "/data/Draggy/gemini/acct-9"
+      }
+    }
+  ]
+}

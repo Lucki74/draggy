@@ -1,0 +1,1563 @@
+{
+  "area": "providers",
+  "description": "The bundled provider catalog (electron/providers/catalog.cjs): one case per entry, the capability lookup by the first pattern that matches, and the bar a catalog entry must meet.",
+  "cases": [
+    {
+      "name": "entry openai",
+      "input": {
+        "op": "entry",
+        "id": "openai"
+      },
+      "expected": {
+        "id": "openai",
+        "name": "OpenAI",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.openai.com/v1",
+        "keyUrl": "https://platform.openai.com/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "^(o\\d|gpt-5|gpt-6)",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ]
+          },
+          {
+            "match": "^gpt-4(o|\\.1)",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "^gpt-",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [
+          "gpt-5.5",
+          "gpt-5-mini"
+        ],
+        "quirks": {
+          "maxTokensField": "max_completion_tokens",
+          "reasoningEffort": true
+        },
+        "vendor": "openai"
+      }
+    },
+    {
+      "name": "entry anthropic",
+      "input": {
+        "op": "entry",
+        "id": "anthropic"
+      },
+      "expected": {
+        "id": "anthropic",
+        "name": "Anthropic",
+        "kind": "cloud",
+        "protocol": "anthropic",
+        "baseUrl": "https://api.anthropic.com/v1",
+        "keyUrl": "https://platform.claude.com/settings/keys",
+        "auth": "x-api-key",
+        "capabilityPatterns": [
+          {
+            "match": "^claude-3-(opus|haiku)",
+            "capabilities": [
+              "tools",
+              "vision"
+            ],
+            "maxOutputTokens": 4096
+          },
+          {
+            "match": "^claude-3-5",
+            "capabilities": [
+              "tools",
+              "vision"
+            ],
+            "maxOutputTokens": 8192
+          },
+          {
+            "match": "^claude-",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "maxOutputTokens": 32000
+          }
+        ],
+        "defaultModels": [
+          "claude-sonnet-5-5",
+          "claude-opus-5-5"
+        ],
+        "quirks": {},
+        "vendor": "anthropic"
+      }
+    },
+    {
+      "name": "entry gemini",
+      "input": {
+        "op": "entry",
+        "id": "gemini"
+      },
+      "expected": {
+        "id": "gemini",
+        "name": "Google Gemini",
+        "kind": "cloud",
+        "protocol": "gemini",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+        "keyUrl": "https://aistudio.google.com/apikey",
+        "auth": "x-goog-api-key",
+        "capabilityPatterns": [
+          {
+            "match": "embedding|imagen|veo|tts|aqa|native-audio",
+            "capabilities": []
+          },
+          {
+            "match": "^gemini-(2\\.5|[3-9])",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ]
+          },
+          {
+            "match": "^gemini",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "^gemma",
+            "capabilities": []
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {},
+        "vendor": "google"
+      }
+    },
+    {
+      "name": "entry xai",
+      "input": {
+        "op": "entry",
+        "id": "xai"
+      },
+      "expected": {
+        "id": "xai",
+        "name": "xAI",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.x.ai/v1",
+        "keyUrl": "https://console.x.ai",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "mini|reason",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          },
+          {
+            "match": "vision|grok-4",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "^grok",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {
+          "reasoningEffort": true
+        }
+      }
+    },
+    {
+      "name": "entry deepseek",
+      "input": {
+        "op": "entry",
+        "id": "deepseek"
+      },
+      "expected": {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.deepseek.com/v1",
+        "keyUrl": "https://platform.deepseek.com/api_keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "reasoner",
+            "capabilities": [
+              "thinking"
+            ]
+          },
+          {
+            "match": "chat",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [
+          "deepseek-chat",
+          "deepseek-reasoner"
+        ],
+        "quirks": {
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry mistral",
+      "input": {
+        "op": "entry",
+        "id": "mistral"
+      },
+      "expected": {
+        "id": "mistral",
+        "name": "Mistral",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.mistral.ai/v1",
+        "keyUrl": "https://console.mistral.ai/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "magistral",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          },
+          {
+            "match": "pixtral|medium|small",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry groq",
+      "input": {
+        "op": "entry",
+        "id": "groq"
+      },
+      "expected": {
+        "id": "groq",
+        "name": "Groq",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.groq.com/openai/v1",
+        "keyUrl": "https://console.groq.com/keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "whisper|tts|guard",
+            "capabilities": []
+          },
+          {
+            "match": "qwen3|gpt-oss|deepseek-r1",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          },
+          {
+            "match": "llama-4|scout|maverick",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry cerebras",
+      "input": {
+        "op": "entry",
+        "id": "cerebras"
+      },
+      "expected": {
+        "id": "cerebras",
+        "name": "Cerebras",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.cerebras.ai/v1",
+        "keyUrl": "https://cloud.cerebras.ai",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry together",
+      "input": {
+        "op": "entry",
+        "id": "together"
+      },
+      "expected": {
+        "id": "together",
+        "name": "Together AI",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.together.xyz/v1",
+        "keyUrl": "https://api.together.ai/settings/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry fireworks",
+      "input": {
+        "op": "entry",
+        "id": "fireworks"
+      },
+      "expected": {
+        "id": "fireworks",
+        "name": "Fireworks",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.fireworks.ai/inference/v1",
+        "keyUrl": "https://fireworks.ai/account/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry openrouter",
+      "input": {
+        "op": "entry",
+        "id": "openrouter"
+      },
+      "expected": {
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "keyUrl": "https://openrouter.ai/keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry huggingface",
+      "input": {
+        "op": "entry",
+        "id": "huggingface"
+      },
+      "expected": {
+        "id": "huggingface",
+        "name": "Hugging Face",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://router.huggingface.co/v1",
+        "keyUrl": "https://huggingface.co/settings/tokens",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry qwen",
+      "input": {
+        "op": "entry",
+        "id": "qwen"
+      },
+      "expected": {
+        "id": "qwen",
+        "name": "Qwen (DashScope)",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "keyUrl": "https://modelstudio.console.alibabacloud.com",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "vl",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "qwen3|qwq|plus|max|turbo",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {
+          "reasoningContent": true,
+          "enableThinking": true
+        }
+      }
+    },
+    {
+      "name": "entry moonshot",
+      "input": {
+        "op": "entry",
+        "id": "moonshot"
+      },
+      "expected": {
+        "id": "moonshot",
+        "name": "Moonshot (Kimi)",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.moonshot.ai/v1",
+        "keyUrl": "https://platform.moonshot.ai/console/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "thinking",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          },
+          {
+            "match": "vision",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry zai",
+      "input": {
+        "op": "entry",
+        "id": "zai"
+      },
+      "expected": {
+        "id": "zai",
+        "name": "Z.ai (GLM)",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.z.ai/api/paas/v4",
+        "keyUrl": "https://z.ai/manage-apikey/apikey-list",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "\\d(\\.\\d+)?v\\b|vision",
+            "capabilities": [
+              "tools",
+              "vision"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools",
+              "thinking"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry minimax",
+      "input": {
+        "op": "entry",
+        "id": "minimax"
+      },
+      "expected": {
+        "id": "minimax",
+        "name": "MiniMax",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.minimax.io/v1",
+        "keyUrl": "https://www.minimax.io/platform",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry cohere",
+      "input": {
+        "op": "entry",
+        "id": "cohere"
+      },
+      "expected": {
+        "id": "cohere",
+        "name": "Cohere",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://api.cohere.ai/compatibility/v1",
+        "keyUrl": "https://dashboard.cohere.com/api-keys",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "vision",
+            "capabilities": [
+              "vision"
+            ]
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry nvidia",
+      "input": {
+        "op": "entry",
+        "id": "nvidia"
+      },
+      "expected": {
+        "id": "nvidia",
+        "name": "NVIDIA NIM",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "https://integrate.api.nvidia.com/v1",
+        "keyUrl": "https://build.nvidia.com",
+        "auth": "bearer",
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools"
+            ]
+          }
+        ],
+        "defaultModels": [],
+        "quirks": {}
+      }
+    },
+    {
+      "name": "entry custom",
+      "input": {
+        "op": "entry",
+        "id": "custom"
+      },
+      "expected": {
+        "id": "custom",
+        "name": "Custom (OpenAI-compatible)",
+        "kind": "cloud",
+        "protocol": "openai",
+        "baseUrl": "",
+        "keyUrl": "",
+        "auth": "bearer",
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {},
+        "keyOptional": true
+      }
+    },
+    {
+      "name": "entry chatgpt",
+      "input": {
+        "op": "entry",
+        "id": "chatgpt"
+      },
+      "expected": {
+        "id": "chatgpt",
+        "name": "ChatGPT",
+        "kind": "account",
+        "protocol": "codex",
+        "vendor": "openai",
+        "auth": "account",
+        "baseUrl": "",
+        "keyUrl": "",
+        "signInHosts": [
+          "auth.openai.com"
+        ],
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ]
+          }
+        ],
+        "defaultModels": []
+      }
+    },
+    {
+      "name": "entry claude",
+      "input": {
+        "op": "entry",
+        "id": "claude"
+      },
+      "expected": {
+        "id": "claude",
+        "name": "Claude",
+        "kind": "account",
+        "protocol": "claude",
+        "vendor": "anthropic",
+        "auth": "account",
+        "baseUrl": "",
+        "keyUrl": "",
+        "signInHosts": [
+          "claude.com"
+        ],
+        "capabilityPatterns": [
+          {
+            "match": "^claude-haiku-",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "contextLength": 200000
+          },
+          {
+            "match": "^claude-(opus|sonnet)-4-[0-5]",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "contextLength": 200000
+          },
+          {
+            "match": "",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "contextLength": 1000000
+          }
+        ],
+        "defaultModels": []
+      }
+    },
+    {
+      "name": "entry google",
+      "input": {
+        "op": "entry",
+        "id": "google"
+      },
+      "expected": {
+        "id": "google",
+        "name": "Google",
+        "kind": "account",
+        "protocol": "gemini-cli",
+        "vendor": "google",
+        "auth": "account",
+        "baseUrl": "",
+        "keyUrl": "",
+        "signInHosts": [
+          "accounts.google.com"
+        ],
+        "capabilityPatterns": [
+          {
+            "match": "",
+            "capabilities": [
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "contextLength": 1048576
+          }
+        ],
+        "defaultModels": []
+      }
+    },
+    {
+      "name": "entry ollama",
+      "input": {
+        "op": "entry",
+        "id": "ollama"
+      },
+      "expected": {
+        "id": "ollama",
+        "name": "Ollama",
+        "kind": "local",
+        "protocol": "ollama",
+        "baseUrl": "http://127.0.0.1:11434",
+        "auth": "none",
+        "discovery": {
+          "port": 11434,
+          "probe": "/api/version"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry lmstudio",
+      "input": {
+        "op": "entry",
+        "id": "lmstudio"
+      },
+      "expected": {
+        "id": "lmstudio",
+        "name": "LM Studio",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:1234/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 1234,
+          "probe": "/api/v0/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry llamacpp",
+      "input": {
+        "op": "entry",
+        "id": "llamacpp"
+      },
+      "expected": {
+        "id": "llamacpp",
+        "name": "llama.cpp server",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8080,
+          "probe": "/props"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry vllm",
+      "input": {
+        "op": "entry",
+        "id": "vllm"
+      },
+      "expected": {
+        "id": "vllm",
+        "name": "vLLM",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8000,
+          "probe": "/version"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry sglang",
+      "input": {
+        "op": "entry",
+        "id": "sglang"
+      },
+      "expected": {
+        "id": "sglang",
+        "name": "SGLang",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:30000/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 30000,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry jan",
+      "input": {
+        "op": "entry",
+        "id": "jan"
+      },
+      "expected": {
+        "id": "jan",
+        "name": "Jan",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:1337/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 1337,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry localai",
+      "input": {
+        "op": "entry",
+        "id": "localai"
+      },
+      "expected": {
+        "id": "localai",
+        "name": "LocalAI",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8080,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry koboldcpp",
+      "input": {
+        "op": "entry",
+        "id": "koboldcpp"
+      },
+      "expected": {
+        "id": "koboldcpp",
+        "name": "KoboldCpp",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:5001/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 5001,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry textgen",
+      "input": {
+        "op": "entry",
+        "id": "textgen"
+      },
+      "expected": {
+        "id": "textgen",
+        "name": "text-generation-webui",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:5000/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 5000,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry gpt4all",
+      "input": {
+        "op": "entry",
+        "id": "gpt4all"
+      },
+      "expected": {
+        "id": "gpt4all",
+        "name": "GPT4All",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:4891/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 4891,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry llamafile",
+      "input": {
+        "op": "entry",
+        "id": "llamafile"
+      },
+      "expected": {
+        "id": "llamafile",
+        "name": "llamafile",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8080,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry mlx",
+      "input": {
+        "op": "entry",
+        "id": "mlx"
+      },
+      "expected": {
+        "id": "mlx",
+        "name": "MLX-LM",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8080,
+          "probe": "/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry colibri",
+      "input": {
+        "op": "entry",
+        "id": "colibri"
+      },
+      "expected": {
+        "id": "colibri",
+        "name": "colibri",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8000,
+          "probe": "/metrics"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "entry lemonade",
+      "input": {
+        "op": "entry",
+        "id": "lemonade"
+      },
+      "expected": {
+        "id": "lemonade",
+        "name": "Lemonade",
+        "kind": "local",
+        "protocol": "openai",
+        "baseUrl": "http://127.0.0.1:8000/api/v1",
+        "auth": "none",
+        "discovery": {
+          "port": 8000,
+          "probe": "/api/v1/models"
+        },
+        "capabilityPatterns": [],
+        "defaultModels": [],
+        "quirks": {
+          "templateKwargs": true,
+          "reasoningContent": true
+        }
+      }
+    },
+    {
+      "name": "gpt-4o-mini sees tools and vision",
+      "input": {
+        "op": "capabilities",
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a deepseek reasoner thinks but does not call tools",
+      "input": {
+        "op": "capabilities",
+        "provider": "deepseek",
+        "model": "deepseek-reasoner"
+      },
+      "expected": {
+        "capabilities": [
+          "thinking"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a model no pattern names claims nothing",
+      "input": {
+        "op": "capabilities",
+        "provider": "perplexity",
+        "model": "sonar"
+      },
+      "expected": {
+        "capabilities": [],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "an embedding model claims nothing on OpenAI",
+      "input": {
+        "op": "capabilities",
+        "provider": "openai",
+        "model": "text-embedding-3-small"
+      },
+      "expected": {
+        "capabilities": [],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a Claude 3 Haiku gets the 4096 output limit",
+      "input": {
+        "op": "capabilities",
+        "provider": "anthropic",
+        "model": "claude-3-haiku-20240307"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": 4096
+      }
+    },
+    {
+      "name": "a current Claude gets the 32000 output limit",
+      "input": {
+        "op": "capabilities",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-6"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": 32000
+      }
+    },
+    {
+      "name": "a Claude plan id matches the alias's full name",
+      "input": {
+        "op": "capabilities",
+        "provider": "claude",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": 200000,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a Gemini 2.5 model thinks",
+      "input": {
+        "op": "capabilities",
+        "provider": "gemini",
+        "model": "gemini-2.5-flash"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision",
+          "thinking"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a Gemma model claims nothing",
+      "input": {
+        "op": "capabilities",
+        "provider": "gemini",
+        "model": "gemma-3-27b"
+      },
+      "expected": {
+        "capabilities": [],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a Qwen VL model sees",
+      "input": {
+        "op": "capabilities",
+        "provider": "qwen",
+        "model": "qwen-vl-max"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a GLM vision model sees",
+      "input": {
+        "op": "capabilities",
+        "provider": "zai",
+        "model": "glm-4.5v"
+      },
+      "expected": {
+        "capabilities": [
+          "tools",
+          "vision"
+        ],
+        "contextLength": null,
+        "maxOutputTokens": null
+      }
+    },
+    {
+      "name": "a shipped entry passes the bar",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "plain http for a cloud entry is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "http://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "cloud baseUrl is not https"
+    },
+    {
+      "name": "a local entry off loopback is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "local",
+          "protocol": "openai",
+          "auth": "none",
+          "baseUrl": "http://192.168.1.2:8080/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "local baseUrl is not loopback"
+    },
+    {
+      "name": "account auth outside an account is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "account",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "account auth outside an account"
+    },
+    {
+      "name": "an account with an address is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "account",
+          "protocol": "claude",
+          "auth": "account",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "account with a baseUrl"
+    },
+    {
+      "name": "a query string in the address is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1?key=abc",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "baseUrl carries a query or credentials"
+    },
+    {
+      "name": "an unknown protocol is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "smtp",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "bad protocol"
+    },
+    {
+      "name": "an unknown auth is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "query-key",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "bad auth"
+    },
+    {
+      "name": "an unknown capability is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [
+            {
+              "match": "",
+              "capabilities": [
+                "web_search"
+              ]
+            }
+          ],
+          "defaultModels": []
+        }
+      },
+      "expected": "unknown capability"
+    },
+    {
+      "name": "a pattern that is not a regex is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [
+            {
+              "match": "(",
+              "capabilities": []
+            }
+          ],
+          "defaultModels": []
+        }
+      },
+      "expected": "bad pattern"
+    },
+    {
+      "name": "an unknown vendor is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "vendor": "acme",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "bad vendor"
+    },
+    {
+      "name": "an id with capitals is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "Bad",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "bad id"
+    },
+    {
+      "name": "an entry with no name is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "no name"
+    },
+    {
+      "name": "a cloud entry with no address is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "capabilityPatterns": [],
+          "defaultModels": []
+        }
+      },
+      "expected": "no baseUrl"
+    },
+    {
+      "name": "defaultModels that is not a list is refused",
+      "input": {
+        "op": "problem",
+        "entry": {
+          "id": "x",
+          "name": "X",
+          "kind": "cloud",
+          "protocol": "openai",
+          "auth": "bearer",
+          "baseUrl": "https://api.x.test/v1",
+          "capabilityPatterns": [],
+          "defaultModels": "gpt"
+        }
+      },
+      "expected": "bad defaultModels"
+    }
+  ]
+}

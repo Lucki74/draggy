@@ -1,0 +1,574 @@
+{
+  "area": "providers",
+  "description": "Model listing end to end (models.cjs createModels over a registry): a provider's listing, its own facts, the catalog's patterns and the user's override, with the network as a fake. Each case is a single listing; the cache over time is covered by tests/stateful.rs.",
+  "cases": [
+    {
+      "name": "an OpenAI listing with its key, the catalog's capabilities and pinned models",
+      "input": {
+        "type": "openai",
+        "setKey": "sk-test",
+        "routes": {
+          "https://api.openai.com/v1/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "gpt-5.5"
+                },
+                {
+                  "id": "gpt-4o"
+                },
+                {
+                  "id": "whisper-1"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "gpt-4o",
+            "ref": "@openai/gpt-4o",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          },
+          {
+            "id": "gpt-5.5",
+            "ref": "@openai/gpt-5.5",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": true,
+            "override": null
+          },
+          {
+            "id": "whisper-1",
+            "ref": "@openai/whisper-1",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a user override wins over the catalog",
+      "input": {
+        "type": "openai",
+        "setKey": "sk-test",
+        "routes": {
+          "https://api.openai.com/v1/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "gpt-5.5"
+                },
+                {
+                  "id": "gpt-4o"
+                },
+                {
+                  "id": "whisper-1"
+                }
+              ]
+            }
+          }
+        },
+        "update": {
+          "modelOverrides": {
+            "gpt-4o": {
+              "vision": false,
+              "thinking": true
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "gpt-4o",
+            "ref": "@openai/gpt-4o",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": {
+              "vision": false,
+              "thinking": true
+            }
+          },
+          {
+            "id": "gpt-5.5",
+            "ref": "@openai/gpt-5.5",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": true,
+            "override": null
+          },
+          {
+            "id": "whisper-1",
+            "ref": "@openai/whisper-1",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a refused key is named by kind",
+      "input": {
+        "type": "openai",
+        "setKey": "sk",
+        "routes": {
+          "https://api.openai.com/v1/models": {
+            "status": 401,
+            "body": {
+              "error": {
+                "message": "Incorrect API key provided"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "error": {
+          "failure": {
+            "kind": "provider-invalid-key",
+            "status": 401,
+            "message": "Incorrect API key provided",
+            "providerMessage": "Incorrect API key provided"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unreachable server is named unreachable",
+      "input": {
+        "type": "openai",
+        "setKey": "sk",
+        "routes": {}
+      },
+      "expected": {
+        "error": {
+          "failure": {
+            "kind": "provider-unreachable",
+            "status": 0,
+            "message": "ECONNREFUSED",
+            "providerMessage": "ECONNREFUSED"
+          }
+        }
+      }
+    },
+    {
+      "name": "OpenRouter's parameters and modalities win over the patterns",
+      "input": {
+        "type": "openrouter",
+        "setKey": "sk",
+        "routes": {
+          "https://openrouter.ai/api/v1/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "a/text-only",
+                  "supported_parameters": [
+                    "temperature"
+                  ],
+                  "architecture": {
+                    "input_modalities": [
+                      "text"
+                    ]
+                  }
+                },
+                {
+                  "id": "b/seeing",
+                  "context_length": 200000,
+                  "supported_parameters": [
+                    "tools"
+                  ],
+                  "architecture": {
+                    "input_modalities": [
+                      "text",
+                      "image"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "a/text-only",
+            "ref": "@openrouter/a/text-only",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          },
+          {
+            "id": "b/seeing",
+            "ref": "@openrouter/b/seeing",
+            "name": null,
+            "contextLength": 200000,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Ollama reads /api/show and marks its cloud models",
+      "input": {
+        "type": "ollama",
+        "routes": {
+          "http://127.0.0.1:11434/api/tags": {
+            "body": {
+              "models": [
+                {
+                  "name": "qwen3:8b"
+                },
+                {
+                  "name": "gpt-oss:120b-cloud"
+                }
+              ]
+            }
+          },
+          "http://127.0.0.1:11434/api/show": {
+            "byModel": {
+              "qwen3:8b": {
+                "body": {
+                  "capabilities": [
+                    "completion",
+                    "tools",
+                    "thinking"
+                  ],
+                  "model_info": {
+                    "qwen3.context_length": 40960
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "gpt-oss:120b-cloud",
+            "ref": "@ollama/gpt-oss:120b-cloud",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          },
+          {
+            "id": "qwen3:8b",
+            "ref": "@ollama/qwen3:8b",
+            "name": null,
+            "contextLength": 40960,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "thinking"
+            ],
+            "cloud": false,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "LM Studio's own listing, leaving out embeddings",
+      "input": {
+        "type": "lmstudio",
+        "routes": {
+          "http://127.0.0.1:1234/api/v0/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "gemma-3",
+                  "type": "vlm",
+                  "capabilities": [
+                    "tool_use"
+                  ],
+                  "max_context_length": 131072
+                },
+                {
+                  "id": "nomic-embed",
+                  "type": "embeddings"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "gemma-3",
+            "ref": "@lmstudio/gemma-3",
+            "name": null,
+            "contextLength": 131072,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision"
+            ],
+            "cloud": false,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "DeepSeek reports no thinking where Draggy has no switch to send",
+      "input": {
+        "type": "deepseek",
+        "setKey": "sk",
+        "routes": {
+          "https://api.deepseek.com/v1/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "deepseek-reasoner"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "deepseek-reasoner",
+            "ref": "@deepseek/deepseek-reasoner",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": true,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a ChatGPT plan asks its runtime, never an address",
+      "input": {
+        "type": "chatgpt",
+        "accounts": {
+          "codex": {
+            "models": [
+              {
+                "id": "gpt-5.5",
+                "name": "GPT-5.5",
+                "inputModalities": [
+                  "text",
+                  "image"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "gpt-5.5",
+            "ref": "@chatgpt/gpt-5.5",
+            "name": "GPT-5.5",
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a ChatGPT plan with no runtime is named as unavailable",
+      "input": {
+        "type": "chatgpt"
+      },
+      "expected": {
+        "error": {
+          "failure": {
+            "kind": "account-runtime-unavailable",
+            "message": "ChatGPT is not available here."
+          }
+        }
+      }
+    },
+    {
+      "name": "a Claude plan gives an alias its resolved window and keeps the versioned name",
+      "input": {
+        "type": "claude",
+        "accounts": {
+          "claude": {
+            "models": [
+              {
+                "id": "opus",
+                "name": "Opus 5.5",
+                "resolved": "claude-opus-5-5"
+              },
+              {
+                "id": "sonnet",
+                "name": "Sonnet 5.5",
+                "resolved": "claude-sonnet-5-5"
+              },
+              {
+                "id": "haiku",
+                "name": "Haiku 4.5",
+                "resolved": "claude-haiku-4-5-20251001"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "haiku",
+            "ref": "@claude/haiku",
+            "name": "Haiku 4.5",
+            "contextLength": 200000,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          },
+          {
+            "id": "opus",
+            "ref": "@claude/opus",
+            "name": "Opus 5.5",
+            "contextLength": 1000000,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          },
+          {
+            "id": "sonnet",
+            "ref": "@claude/sonnet",
+            "name": "Sonnet 5.5",
+            "contextLength": 1000000,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion",
+              "tools",
+              "vision",
+              "thinking"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a Claude runtime refusal is passed on as its message",
+      "input": {
+        "type": "claude",
+        "accounts": {
+          "claude": {
+            "error": "refused"
+          }
+        }
+      },
+      "expected": {
+        "error": {
+          "message": "refused"
+        }
+      }
+    }
+  ]
+}

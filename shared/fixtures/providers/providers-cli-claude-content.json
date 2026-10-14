@@ -1,0 +1,443 @@
+{
+  "area": "providers",
+  "description": "adapters/claude.cjs pure helpers: turn content, flattening, tool specs, effort, model listing (fn textOf, flatten, toContent, mcpTools, effortOf, listedModels).",
+  "cases": [
+    {
+      "name": "text of a plain string",
+      "input": {
+        "fn": "textOf",
+        "content": "hello"
+      },
+      "expected": "hello"
+    },
+    {
+      "name": "text of parts skips images",
+      "input": {
+        "fn": "textOf",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "x"
+            }
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      },
+      "expected": "ab"
+    },
+    {
+      "name": "text of nothing is empty",
+      "input": {
+        "fn": "textOf",
+        "content": null
+      },
+      "expected": ""
+    },
+    {
+      "name": "flattens earlier turns, tool calls included, and skips system and tool-less blanks",
+      "input": {
+        "fn": "flatten",
+        "history": [
+          {
+            "role": "system",
+            "content": "prompt"
+          },
+          {
+            "role": "user",
+            "content": "hi",
+            "draggy_ref": {
+              "id": "u1",
+              "hash": "h-hi"
+            }
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "yo"
+              }
+            ],
+            "tool_calls": [
+              {
+                "id": "c1",
+                "function": {
+                  "name": "read",
+                  "arguments": {
+                    "path": "a"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "result",
+            "tool_call_id": "c1"
+          },
+          {
+            "role": "assistant",
+            "content": "   "
+          }
+        ]
+      },
+      "expected": "<conversation_so_far>\nUser: hi\n\nAssistant: yo\n[called read with {\"path\":\"a\"}]\n\nTool result: result\n</conversation_so_far>"
+    },
+    {
+      "name": "flattens to nothing when there is no earlier turn",
+      "input": {
+        "fn": "flatten",
+        "history": [
+          {
+            "role": "system",
+            "content": "prompt"
+          }
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "a string argument is sent as it is",
+      "input": {
+        "fn": "flatten",
+        "history": [
+          {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+              {
+                "function": {
+                  "name": "f",
+                  "arguments": "{\"a\":1}"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "<conversation_so_far>\nAssistant: [called f with {\"a\":1}]\n</conversation_so_far>"
+    },
+    {
+      "name": "content for a turn keeps earlier turns, text and images as base64 blocks",
+      "input": {
+        "fn": "toContent",
+        "history": [
+          {
+            "role": "user",
+            "content": "earlier",
+            "draggy_ref": {
+              "id": "u0",
+              "hash": "h-earlier"
+            }
+          }
+        ],
+        "input": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "look"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,QUJD"
+              }
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "https://x/y.png"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "text",
+          "text": "<conversation_so_far>\nUser: earlier\n</conversation_so_far>"
+        },
+        {
+          "type": "text",
+          "text": "look"
+        },
+        {
+          "type": "image",
+          "source": {
+            "type": "base64",
+            "media_type": "image/png",
+            "data": "QUJD"
+          }
+        }
+      ]
+    },
+    {
+      "name": "content with no input text is only the earlier turns",
+      "input": {
+        "fn": "toContent",
+        "history": [
+          {
+            "role": "assistant",
+            "content": "answer"
+          }
+        ],
+        "input": null
+      },
+      "expected": [
+        {
+          "type": "text",
+          "text": "<conversation_so_far>\nAssistant: answer\n</conversation_so_far>"
+        }
+      ]
+    },
+    {
+      "name": "content of a bare text input",
+      "input": {
+        "fn": "toContent",
+        "history": [],
+        "input": {
+          "role": "user",
+          "content": "just text"
+        }
+      },
+      "expected": [
+        {
+          "type": "text",
+          "text": "just text"
+        }
+      ]
+    },
+    {
+      "name": "offers only function tools with a name",
+      "input": {
+        "fn": "mcpTools",
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read",
+              "description": "Reads",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "p": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "web_search"
+          },
+          {
+            "type": "function",
+            "function": {
+              "description": "nameless"
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "bare"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "name": "read",
+          "description": "Reads",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "p": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "name": "bare",
+          "description": "",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "no tools is an empty list",
+      "input": {
+        "fn": "mcpTools",
+        "tools": null
+      },
+      "expected": []
+    },
+    {
+      "name": "effort: thinking unset is adaptive",
+      "input": {
+        "fn": "effortOf",
+        "body": {}
+      },
+      "expected": {
+        "thinking": true
+      }
+    },
+    {
+      "name": "effort: thinking off is a switch",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": false,
+          "thinking_level": "high"
+        }
+      },
+      "expected": {
+        "thinking": false
+      }
+    },
+    {
+      "name": "effort: thinking on with a level",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": true,
+          "thinking_level": "low"
+        }
+      },
+      "expected": {
+        "thinking": true,
+        "effort": "low"
+      }
+    },
+    {
+      "name": "effort: thinking on with a bogus level is medium",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": true,
+          "thinking_level": "max"
+        }
+      },
+      "expected": {
+        "thinking": true,
+        "effort": "medium"
+      }
+    },
+    {
+      "name": "effort: the template switch counts",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          }
+        }
+      },
+      "expected": {
+        "thinking": false
+      }
+    },
+    {
+      "name": "models: drops default, names by the description's first part",
+      "input": {
+        "fn": "listedModels",
+        "listed": [
+          {
+            "value": "default",
+            "description": "Default"
+          },
+          {
+            "value": "opus",
+            "description": "Opus 5.5 · Most capable",
+            "displayName": "Opus"
+          },
+          {
+            "value": "haiku",
+            "displayName": "Haiku",
+            "description": ""
+          },
+          {
+            "value": "sonnet",
+            "description": "",
+            "resolvedModel": "claude-sonnet-5",
+            "displayName": ""
+          },
+          {
+            "value": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "id": "opus",
+          "name": "Opus 5.5",
+          "inputModalities": [
+            "text",
+            "image"
+          ]
+        },
+        {
+          "id": "haiku",
+          "name": "Haiku",
+          "inputModalities": [
+            "text",
+            "image"
+          ]
+        },
+        {
+          "id": "sonnet",
+          "name": "sonnet",
+          "resolved": "claude-sonnet-5",
+          "inputModalities": [
+            "text",
+            "image"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "inputModalities": [
+            "text",
+            "image"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tool arguments keep the order they were written in",
+      "input": {
+        "fn": "flatten",
+        "history": [
+          {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+              {
+                "function": {
+                  "name": "f",
+                  "arguments": {
+                    "b": 1,
+                    "a": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "<conversation_so_far>\nAssistant: [called f with {\"b\":1,\"a\":2}]\n</conversation_so_far>"
+    }
+  ]
+}

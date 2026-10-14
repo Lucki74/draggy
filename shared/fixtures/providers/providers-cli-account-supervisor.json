@@ -1,0 +1,387 @@
+{
+  "area": "providers-cli-account-supervisor",
+  "description": "electron/providers/account/supervisor.cjs: start on first use, idle stop, quit, crash backoff and give-up, and reset, as an ordered list of steps (fn supervisor) with the states reported, the starts, stops and backoff waits.",
+  "cases": [
+    {
+      "name": "starts nothing until first used, then shares one runtime",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "release"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running"
+        ],
+        "starts": 1,
+        "stops": 0,
+        "sleeps": [],
+        "state": "running"
+      }
+    },
+    {
+      "name": "stops ten minutes after the last user lets go, and not while one holds on",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "advance",
+            "ms": 700000
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "advance",
+            "ms": 599999
+          },
+          {
+            "op": "advance",
+            "ms": 1
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped"
+        ],
+        "starts": 1,
+        "stops": 1,
+        "sleeps": [],
+        "state": "stopped"
+      }
+    },
+    {
+      "name": "stops at once on quit, and a stop on purpose is not a crash",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "stop"
+          },
+          {
+            "op": "acquire"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running"
+        ],
+        "starts": 2,
+        "stops": 1,
+        "sleeps": [],
+        "state": "running"
+      }
+    },
+    {
+      "name": "restarts after a crash with growing backoff, and gives up after the third",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "The runtime crashed too often and was given up on"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "unavailable"
+        ],
+        "starts": 4,
+        "stops": 0,
+        "sleeps": [
+          1000,
+          4000,
+          16000
+        ],
+        "state": "unavailable"
+      }
+    },
+    {
+      "name": "counts a start that fails as a crash, and the next start waits its backoff",
+      "input": {
+        "fn": "supervisor",
+        "failStarts": 1,
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "acquire"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "spawn failed",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "stopped",
+          "starting",
+          "running"
+        ],
+        "starts": 2,
+        "stops": 0,
+        "sleeps": [
+          1000
+        ],
+        "state": "running"
+      }
+    },
+    {
+      "name": "forgets old crashes once a run idles out cleanly",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "advance",
+            "ms": 600000
+          },
+          {
+            "op": "acquire"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running"
+        ],
+        "starts": 3,
+        "stops": 1,
+        "sleeps": [
+          1000
+        ],
+        "state": "running"
+      }
+    },
+    {
+      "name": "reports each state change once",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "release"
+          },
+          {
+            "op": "stop"
+          },
+          {
+            "op": "stop"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped"
+        ],
+        "starts": 1,
+        "stops": 1,
+        "sleeps": [],
+        "state": "stopped"
+      }
+    },
+    {
+      "name": "a runtime given up on gets its three chances back after a reset",
+      "input": {
+        "fn": "supervisor",
+        "ops": [
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "acquire"
+          },
+          {
+            "op": "reset"
+          },
+          {
+            "op": "acquire"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "The runtime crashed too often and was given up on",
+          "ok"
+        ],
+        "states": [
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "stopped",
+          "starting",
+          "running",
+          "unavailable",
+          "stopped",
+          "starting",
+          "running"
+        ],
+        "starts": 5,
+        "stops": 0,
+        "sleeps": [
+          1000,
+          4000,
+          16000
+        ],
+        "state": "running"
+      }
+    }
+  ]
+}

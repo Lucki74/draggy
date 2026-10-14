@@ -1,0 +1,86 @@
+{
+  "area": "providers",
+  "description": "codex/process.cjs configToml(): the config Draggy writes before each start, and the flags and feature list (fn configToml, constants).",
+  "cases": [
+    {
+      "name": "the default config",
+      "input": {
+        "fn": "configToml",
+        "catalogPath": "/home/x/draggy-models.json"
+      },
+      "expected": "model_catalog_json = \"/home/x/draggy-models.json\"\nweb_search = \"disabled\"\nforced_login_method = \"chatgpt\"\ncli_auth_credentials_store = \"file\"\ncheck_for_update_on_startup = false\ninclude_permissions_instructions = false\ninclude_environment_context = false\ninclude_apps_instructions = false\ninclude_collaboration_mode_instructions = false\nproject_doc_max_bytes = 0\n[analytics]\nenabled = false\n[feedback]\nenabled = false\n[features]\ncode_mode = false\ncode_mode_only = false\ncontext_management = false\ncurrent_time_reminder = false\ndeferred_executor = false\nimage_generation = false\nmemories = false\nmulti_agent = false\nmulti_agent_v2 = false\nplugins = false\nrequest_permissions_tool = false\nshell_snapshot = false\nshell_tool = false\nstandalone_web_search = false\ntoken_budget = false\ntool_suggest = false\nunified_exec = false\nview_image = false\ngoals = false\napps = false\nbrowser_use = false\ncomputer_use = false\nin_app_browser = false\nskill_search = false\nsleep_tool = false\nhooks = false\n[skills]\ninclude_instructions = false\n[cloud.skills]\nenabled = false\n[tools.experimental_request_user_input]\nenabled = false\n[tools.update_plan]\nenabled = false\n"
+    },
+    {
+      "name": "top-level keys come before the first table",
+      "input": {
+        "fn": "configToml",
+        "catalogPath": "C:\\c\\m.json",
+        "topLevel": [
+          "model = \"gpt-5.5\""
+        ],
+        "tables": [
+          "[mcp_servers.x]",
+          "enabled = true"
+        ]
+      },
+      "expected": "model_catalog_json = \"C:\\\\c\\\\m.json\"\nmodel = \"gpt-5.5\"\nweb_search = \"disabled\"\nforced_login_method = \"chatgpt\"\ncli_auth_credentials_store = \"file\"\ncheck_for_update_on_startup = false\ninclude_permissions_instructions = false\ninclude_environment_context = false\ninclude_apps_instructions = false\ninclude_collaboration_mode_instructions = false\nproject_doc_max_bytes = 0\n[analytics]\nenabled = false\n[feedback]\nenabled = false\n[features]\ncode_mode = false\ncode_mode_only = false\ncontext_management = false\ncurrent_time_reminder = false\ndeferred_executor = false\nimage_generation = false\nmemories = false\nmulti_agent = false\nmulti_agent_v2 = false\nplugins = false\nrequest_permissions_tool = false\nshell_snapshot = false\nshell_tool = false\nstandalone_web_search = false\ntoken_budget = false\ntool_suggest = false\nunified_exec = false\nview_image = false\ngoals = false\napps = false\nbrowser_use = false\ncomputer_use = false\nin_app_browser = false\nskill_search = false\nsleep_tool = false\nhooks = false\n[skills]\ninclude_instructions = false\n[cloud.skills]\nenabled = false\n[tools.experimental_request_user_input]\nenabled = false\n[tools.update_plan]\nenabled = false\n[mcp_servers.x]\nenabled = true\n"
+    },
+    {
+      "name": "the start flags",
+      "input": {
+        "fn": "constants",
+        "name": "ARGS"
+      },
+      "expected": [
+        "--strict-config",
+        "--session-source",
+        "draggy",
+        "--listen",
+        "stdio://"
+      ]
+    },
+    {
+      "name": "the features switched off",
+      "input": {
+        "fn": "constants",
+        "name": "FEATURES_OFF"
+      },
+      "expected": [
+        "code_mode",
+        "code_mode_only",
+        "context_management",
+        "current_time_reminder",
+        "deferred_executor",
+        "image_generation",
+        "memories",
+        "multi_agent",
+        "multi_agent_v2",
+        "plugins",
+        "request_permissions_tool",
+        "shell_snapshot",
+        "shell_tool",
+        "standalone_web_search",
+        "token_budget",
+        "tool_suggest",
+        "unified_exec",
+        "view_image",
+        "goals",
+        "apps",
+        "browser_use",
+        "computer_use",
+        "in_app_browser",
+        "skill_search",
+        "sleep_tool",
+        "hooks"
+      ]
+    },
+    {
+      "name": "the catalog file name",
+      "input": {
+        "fn": "constants",
+        "name": "CATALOG_NAME"
+      },
+      "expected": "draggy-models.json"
+    }
+  ]
+}

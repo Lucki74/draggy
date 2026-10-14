@@ -1,0 +1,166 @@
+{
+  "area": "providers",
+  "description": "claude/process.cjs workFolder(), sessionArgs() and the constants (fn workFolder, sessionArgs, constants).",
+  "cases": [
+    {
+      "name": "linux work folder holds no user name",
+      "input": {
+        "fn": "workFolder",
+        "instanceId": "acct-1",
+        "platformName": "linux",
+        "env": {},
+        "uid": 501
+      },
+      "expected": "/tmp/draggy-501-claude-acct-1"
+    },
+    {
+      "name": "windows work folder under ProgramData",
+      "input": {
+        "fn": "workFolder",
+        "instanceId": "acct-1",
+        "platformName": "win32",
+        "env": {
+          "ProgramData": "D:\\PD"
+        }
+      },
+      "expected": "D:\\PD\\Draggy\\claude-acct-1"
+    },
+    {
+      "name": "windows falls back to the default ProgramData",
+      "input": {
+        "fn": "workFolder",
+        "instanceId": "a",
+        "platformName": "win32",
+        "env": {}
+      },
+      "expected": "C:\\ProgramData\\Draggy\\claude-a"
+    },
+    {
+      "name": "a new session with model, effort and prompt",
+      "input": {
+        "fn": "sessionArgs",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "thinking": true,
+        "systemPrompt": "P",
+        "sessionId": "s1"
+      },
+      "expected": [
+        "--system-prompt",
+        "P",
+        "--model",
+        "claude-opus-5",
+        "--effort",
+        "high",
+        "--thinking",
+        "adaptive",
+        "--session-id",
+        "s1"
+      ]
+    },
+    {
+      "name": "thinking off and no prompt",
+      "input": {
+        "fn": "sessionArgs",
+        "thinking": false,
+        "sessionId": "s2"
+      },
+      "expected": [
+        "--system-prompt",
+        "",
+        "--thinking",
+        "disabled",
+        "--session-id",
+        "s2"
+      ]
+    },
+    {
+      "name": "a stored session is resumed",
+      "input": {
+        "fn": "sessionArgs",
+        "thinking": true,
+        "sessionId": "s3",
+        "resume": true,
+        "systemPrompt": ""
+      },
+      "expected": [
+        "--system-prompt",
+        "",
+        "--thinking",
+        "adaptive",
+        "--resume",
+        "s3"
+      ]
+    },
+    {
+      "name": "a fork copies up to the reply into the new session",
+      "input": {
+        "fn": "sessionArgs",
+        "thinking": true,
+        "sessionId": "s4",
+        "forkFrom": "s3",
+        "at": "uuid-9",
+        "systemPrompt": ""
+      },
+      "expected": [
+        "--system-prompt",
+        "",
+        "--thinking",
+        "adaptive",
+        "--resume",
+        "s3",
+        "--resume-session-at=uuid-9",
+        "--fork-session",
+        "--session-id",
+        "s4"
+      ]
+    },
+    {
+      "name": "the start flags",
+      "input": {
+        "fn": "constants",
+        "name": "FLAGS"
+      },
+      "expected": [
+        "-p",
+        "--input-format",
+        "stream-json",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--tools",
+        "",
+        "--setting-sources",
+        "",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--permission-prompt-tool",
+        "stdio",
+        "--mcp-config",
+        "{\"mcpServers\":{\"draggy\":{\"type\":\"sdk\",\"name\":\"draggy\"}}}"
+      ]
+    },
+    {
+      "name": "the quiet environment",
+      "input": {
+        "fn": "constants",
+        "name": "QUIET"
+      },
+      "expected": {
+        "DISABLE_TELEMETRY": "1",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        "DISABLE_ERROR_REPORTING": "1",
+        "DISABLE_AUTOUPDATER": "1"
+      }
+    },
+    {
+      "name": "the tool timeout",
+      "input": {
+        "fn": "constants",
+        "name": "TOOL_TIMEOUT_MS"
+      },
+      "expected": 86400000
+    }
+  ]
+}

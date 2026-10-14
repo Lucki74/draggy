@@ -1,0 +1,79 @@
+{
+  "area": "providers",
+  "description": "codex/binary.cjs assetFor() and installDir(): the pinned release asset per platform (fn assetFor, installDir).",
+  "cases": [
+    {
+      "name": "linux x64",
+      "input": {
+        "fn": "assetFor",
+        "platformName": "linux",
+        "arch": "x64"
+      },
+      "expected": {
+        "name": "codex-app-server-x86_64-unknown-linux-musl.tar.gz",
+        "url": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-app-server-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "4bccc8c9f59dbbc473ce602ec9ef332e9e763d04ef4e1a3c206bfb9f132e7234",
+        "size": 83275904
+      }
+    },
+    {
+      "name": "linux arm64",
+      "input": {
+        "fn": "assetFor",
+        "platformName": "linux",
+        "arch": "arm64"
+      },
+      "expected": {
+        "name": "codex-app-server-aarch64-unknown-linux-musl.tar.gz",
+        "url": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-app-server-aarch64-unknown-linux-musl.tar.gz",
+        "sha256": "c9bd7ae2864a11f324eb99dfd6a3260865894739c2014024805baabd0f4659d3",
+        "size": 77526660
+      }
+    },
+    {
+      "name": "darwin arm64 archive",
+      "input": {
+        "fn": "assetFor",
+        "platformName": "darwin",
+        "arch": "arm64"
+      },
+      "expected": {
+        "name": "codex-app-server-aarch64-apple-darwin.tar.gz",
+        "url": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-app-server-aarch64-apple-darwin.tar.gz",
+        "sha256": "a427487e775e3053feacb9dee699439e36e1dac2fe9516fa5c22e922fcc70d60",
+        "size": 72664357
+      }
+    },
+    {
+      "name": "windows x64 zip",
+      "input": {
+        "fn": "assetFor",
+        "platformName": "win32",
+        "arch": "x64"
+      },
+      "expected": {
+        "name": "codex-app-server-x86_64-pc-windows-msvc.exe.zip",
+        "url": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-app-server-x86_64-pc-windows-msvc.exe.zip",
+        "sha256": "85ca951a6859757fe425407c4afe3ee1c59f3d35f739cdbd3be109393493048c",
+        "size": 79967102
+      }
+    },
+    {
+      "name": "a platform with no build",
+      "input": {
+        "fn": "assetFor",
+        "platformName": "freebsd",
+        "arch": "x64"
+      },
+      "expected": null
+    },
+    {
+      "name": "the install folder",
+      "input": {
+        "fn": "installDir",
+        "appData": "/data/Draggy"
+      },
+      "expected": "/data/Draggy/codex/bin/0.157.1"
+    }
+  ]
+}
