@@ -1,0 +1,678 @@
+{
+  "area": "apiserver",
+  "description": "readCompletionRequest: the usual shape, developer as system, text parts joined, the non-text and bad-role refusals with their indexes, and the messages checks in the reference's order. Errors are the message text.",
+  "cases": [
+    {
+      "name": "takes the usual shape",
+      "input": {
+        "body": {
+          "model": "qwen3:8b",
+          "stream": true,
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Hi"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "qwen3:8b",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Hi"
+            }
+          ],
+          "stream": true
+        }
+      }
+    },
+    {
+      "name": "reads a developer message as a system one, and text parts as text",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "developer",
+              "content": "Rules."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Hello "
+                },
+                {
+                  "type": "text",
+                  "text": "there"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Rules."
+            },
+            {
+              "role": "user",
+              "content": "Hello there"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a part with no type is read as text",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "text": "Hi"
+                },
+                {
+                  "type": "text",
+                  "text": "!"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hi!"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a falsy type passes as text",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "",
+                  "text": "a"
+                },
+                {
+                  "type": null,
+                  "text": "b"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ab"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a text part with no text reads as empty",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text"
+                },
+                {
+                  "type": "text",
+                  "text": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "number text is converted as JavaScript converts it",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": 42
+                },
+                {
+                  "type": "text",
+                  "text": 1.5
+                },
+                {
+                  "type": "text",
+                  "text": 1e+21
+                },
+                {
+                  "type": "text",
+                  "text": 1e-7
+                },
+                {
+                  "type": "text",
+                  "text": true
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "421.51e+211e-7true"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "an array as text is joined with commas, and null items read as empty",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": [
+                    1,
+                    null,
+                    "x"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "1,,x"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "an object as text reads as object text",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": {
+                    "a": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "[object Object]"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a missing content reads as empty",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "null content reads as empty",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": null
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a non-text part is refused",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "x"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[0] has a part that is not text, which this endpoint does not take yet."
+      }
+    },
+    {
+      "name": "the refused part names its message index",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "audio"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[1] has a part that is not text, which this endpoint does not take yet."
+      }
+    },
+    {
+      "name": "a body that is null is refused",
+      "input": {
+        "body": null
+      },
+      "expected": {
+        "error": "The body must be a JSON object."
+      }
+    },
+    {
+      "name": "a body that is a string is refused",
+      "input": {
+        "body": "hi"
+      },
+      "expected": {
+        "error": "The body must be a JSON object."
+      }
+    },
+    {
+      "name": "a body that is a number is refused",
+      "input": {
+        "body": 3
+      },
+      "expected": {
+        "error": "The body must be a JSON object."
+      }
+    },
+    {
+      "name": "a body that is false is refused",
+      "input": {
+        "body": false
+      },
+      "expected": {
+        "error": "The body must be a JSON object."
+      }
+    },
+    {
+      "name": "an array body fails on messages, not on the body",
+      "input": {
+        "body": []
+      },
+      "expected": {
+        "error": "messages must be a non-empty array."
+      }
+    },
+    {
+      "name": "a body with no messages is refused",
+      "input": {
+        "body": {}
+      },
+      "expected": {
+        "error": "messages must be a non-empty array."
+      }
+    },
+    {
+      "name": "an empty messages array is refused",
+      "input": {
+        "body": {
+          "messages": []
+        }
+      },
+      "expected": {
+        "error": "messages must be a non-empty array."
+      }
+    },
+    {
+      "name": "a role outside the list is refused with its index",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "role": "tool",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[1].role must be system, user or assistant."
+      }
+    },
+    {
+      "name": "a missing role is refused",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[0].role must be system, user or assistant."
+      }
+    },
+    {
+      "name": "a message that is not an object is refused",
+      "input": {
+        "body": {
+          "messages": [
+            "hi"
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[0].role must be system, user or assistant."
+      }
+    },
+    {
+      "name": "a number for content is refused",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": 5
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages[0].content must be a string or an array of text parts."
+      }
+    },
+    {
+      "name": "a message list with no user message is refused",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "messages needs at least one user message."
+      }
+    },
+    {
+      "name": "a non-string model reads as empty",
+      "input": {
+        "body": {
+          "model": 7,
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "stream must be exactly true",
+      "input": {
+        "body": {
+          "stream": "true",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "x"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a large number in a text part keeps its digits",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": 123456789012345680000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "123456789012345680000"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a large exponent in a text part reads as JavaScript writes it",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": 1e+21
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "1e+21"
+            }
+          ],
+          "stream": false
+        }
+      }
+    },
+    {
+      "name": "a small exponent in a text part reads as JavaScript writes it",
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": 1.5e-7
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "request": {
+          "model": "",
+          "messages": [
+            {
+              "role": "user",
+              "content": "1.5e-7"
+            }
+          ],
+          "stream": false
+        }
+      }
+    }
+  ]
+}

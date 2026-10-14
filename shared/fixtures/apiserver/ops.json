@@ -1,0 +1,697 @@
+{
+  "area": "apiserver",
+  "description": "Stateful sequences, run as ordered steps against one server with a fixed clock. A send with hold ignore_cancel never finishes, and one with until_cancelled finishes once its client leaves. Pins the busy 429 while replies are still held, slot release after a client leaves, the cancel signal, and the request handed to the backend. Each expected value is the list of step results.",
+  "cases": [
+    {
+      "name": "an abandoned reply keeps its slot until generate settles",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!",
+          "usage": {
+            "promptTokens": 12,
+            "responseTokens": 2
+          }
+        },
+        "steps": [
+          {
+            "op": "send",
+            "as": "first",
+            "hold": "ignore_cancel",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "send",
+            "as": "second",
+            "hold": "ignore_cancel",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "abandon",
+            "as": "first"
+          },
+          {
+            "op": "abandon",
+            "as": "second"
+          },
+          {
+            "op": "send",
+            "as": "third",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "report"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "pending": true
+        },
+        {
+          "pending": true
+        },
+        {
+          "cancelled": true,
+          "settled": false
+        },
+        {
+          "cancelled": true,
+          "settled": false
+        },
+        {
+          "status": 429,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "error": {
+              "message": "Draggy is already answering other requests. Try again shortly.",
+              "type": "rate_limit_error"
+            }
+          }
+        },
+        {
+          "calls": [
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": true,
+              "settled": false
+            },
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": true,
+              "settled": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an abandoned reply that stops frees its slot",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!",
+          "usage": {
+            "promptTokens": 12,
+            "responseTokens": 2
+          }
+        },
+        "steps": [
+          {
+            "op": "send",
+            "as": "first",
+            "hold": "until_cancelled",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "send",
+            "as": "second",
+            "hold": "until_cancelled",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "abandon",
+            "as": "first"
+          },
+          {
+            "op": "send",
+            "as": "third",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "abandon",
+            "as": "second"
+          },
+          {
+            "op": "report"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "pending": true
+        },
+        {
+          "pending": true
+        },
+        {
+          "cancelled": true,
+          "settled": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "id": "chatcmpl-<random>",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "qwen3:8b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Hello!"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 12,
+              "completion_tokens": 2,
+              "total_tokens": 14
+            }
+          }
+        },
+        {
+          "cancelled": true,
+          "settled": true
+        },
+        {
+          "calls": [
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": true,
+              "settled": true
+            },
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": true,
+              "settled": true
+            },
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": false,
+              "settled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "replies that finish free their slots",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!",
+          "usage": {
+            "promptTokens": 12,
+            "responseTokens": 2
+          }
+        },
+        "steps": [
+          {
+            "op": "send",
+            "as": "one",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "send",
+            "as": "two",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "send",
+            "as": "three",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "report"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "id": "chatcmpl-<random>",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "qwen3:8b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Hello!"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 12,
+              "completion_tokens": 2,
+              "total_tokens": 14
+            }
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "id": "chatcmpl-<random>",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "qwen3:8b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Hello!"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 12,
+              "completion_tokens": 2,
+              "total_tokens": 14
+            }
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "id": "chatcmpl-<random>",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "qwen3:8b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Hello!"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 12,
+              "completion_tokens": 2,
+              "total_tokens": 14
+            }
+          }
+        },
+        {
+          "calls": [
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": false,
+              "settled": true
+            },
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": false,
+              "settled": true
+            },
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": false,
+              "settled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the backend is handed the request as the reference reads it",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!",
+          "usage": {
+            "promptTokens": 12,
+            "responseTokens": 2
+          }
+        },
+        "steps": [
+          {
+            "op": "send",
+            "as": "one",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"stream\":false,\"messages\":[{\"role\":\"developer\",\"content\":\"Rules.\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Hello \"},{\"type\":\"text\",\"text\":\"there\"}]},{\"role\":\"assistant\",\"content\":null}]}"
+            }
+          },
+          {
+            "op": "report"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": null
+          },
+          "body": {
+            "id": "chatcmpl-<random>",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "qwen3:8b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Hello!"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 12,
+              "completion_tokens": 2,
+              "total_tokens": 14
+            }
+          }
+        },
+        {
+          "calls": [
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "system",
+                    "content": "Rules."
+                  },
+                  {
+                    "role": "user",
+                    "content": "Hello there"
+                  },
+                  {
+                    "role": "assistant",
+                    "content": ""
+                  }
+                ],
+                "stream": false
+              },
+              "cancelled": false,
+              "settled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a streamed reply is handed over and read to the end",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "announce": "qwen3:8b",
+          "chunks": [
+            "Hel",
+            "lo"
+          ],
+          "model": "qwen3:8b",
+          "content": "Hello"
+        },
+        "steps": [
+          {
+            "op": "send",
+            "as": "one",
+            "request": {
+              "method": "POST",
+              "url": "/v1/chat/completions",
+              "headers": {
+                "host": "127.0.0.1:11500",
+                "authorization": "Bearer draggy-test-key-0123456789",
+                "content-type": "application/json"
+              },
+              "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+            }
+          },
+          {
+            "op": "report"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "text/event-stream",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+            "connection": "keep-alive"
+          },
+          "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+        },
+        {
+          "calls": [
+            {
+              "request": {
+                "model": "qwen3:8b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Hi"
+                  }
+                ],
+                "stream": true
+              },
+              "cancelled": false,
+              "settled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "area": "apiserver",
+  "description": "The JSON the reference writes: stream chunks and their empty deltas, the whole-reply body with usage and the model list. Compared as the exact text the reference writes; error bodies are covered by http.json.",
+  "cases": [
+    {
+      "name": "a content delta",
+      "input": {
+        "op": "chunkLine",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": "Hi"
+      },
+      "expected": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n"
+    },
+    {
+      "name": "an empty delta when there is no content",
+      "input": {
+        "op": "chunkLine",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": null
+      },
+      "expected": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":null}]}\n\n"
+    },
+    {
+      "name": "the final chunk stops",
+      "input": {
+        "op": "chunkLine",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": null,
+        "finish": "stop"
+      },
+      "expected": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+    },
+    {
+      "name": "an empty string is still a delta",
+      "input": {
+        "op": "chunkLine",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": ""
+      },
+      "expected": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\"},\"finish_reason\":null}]}\n\n"
+    },
+    {
+      "name": "quotes, control characters and non-ASCII are escaped as JSON.stringify does",
+      "input": {
+        "op": "chunkLine",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": "say \"hi\"\n\u0001 héllo 😀 a/b"
+      },
+      "expected": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"say \\\"hi\\\"\\n\\u0001 héllo 😀 a/b\"},\"finish_reason\":null}]}\n\n"
+    },
+    {
+      "name": "a whole reply with usage",
+      "input": {
+        "op": "completionBody",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": "Done",
+        "usage": {
+          "promptTokens": 10,
+          "responseTokens": 3
+        }
+      },
+      "expected": "{\"id\":\"c1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Done\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":3,\"total_tokens\":13}}"
+    },
+    {
+      "name": "missing usage counts as zero",
+      "input": {
+        "op": "completionBody",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": "Done",
+        "usage": null
+      },
+      "expected": "{\"id\":\"c1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Done\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0}}"
+    },
+    {
+      "name": "partial usage counts the missing side as zero",
+      "input": {
+        "op": "completionBody",
+        "id": "c1",
+        "model": "m",
+        "created": 1,
+        "content": "Done",
+        "usage": {
+          "promptTokens": 4
+        }
+      },
+      "expected": "{\"id\":\"c1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Done\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":0,\"total_tokens\":4}}"
+    },
+    {
+      "name": "lists each model as owned locally",
+      "input": {
+        "op": "modelsBody",
+        "names": [
+          "a",
+          "b"
+        ],
+        "created": 5
+      },
+      "expected": "{\"object\":\"list\",\"data\":[{\"id\":\"a\",\"object\":\"model\",\"created\":5,\"owned_by\":\"local\"},{\"id\":\"b\",\"object\":\"model\",\"created\":5,\"owned_by\":\"local\"}]}"
+    },
+    {
+      "name": "an empty model list",
+      "input": {
+        "op": "modelsBody",
+        "names": [],
+        "created": 5
+      },
+      "expected": "{\"object\":\"list\",\"data\":[]}"
+    }
+  ]
+}

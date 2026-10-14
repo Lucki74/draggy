@@ -1,0 +1,1717 @@
+{
+  "area": "apiserver",
+  "description": "HTTP routes, invoked directly on apiServer.cjs's request listener with a fixed clock. Covers the refusals in their order, model listing, completions in one piece and streamed, error events, body limits. Headers that matter are compared; the random completion id is written as a placeholder. Dot segments are resolved as WHATWG URL parsing resolves them, and a failed model list answers 500.",
+  "cases": [
+    {
+      "name": "lists the installed models",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "object": "list",
+          "data": [
+            {
+              "id": "qwen3:8b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            },
+            {
+              "id": "llama3.2:3b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "lists models when the path has a query string",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models?x=1",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "object": "list",
+          "data": [
+            {
+              "id": "qwen3:8b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            },
+            {
+              "id": "llama3.2:3b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a model list with the wrong key is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer nope"
+          }
+        }
+      },
+      "expected": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Missing or wrong API key.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a web page cannot list models",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "origin": "https://example.com"
+          }
+        }
+      },
+      "expected": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Requests from web pages are not accepted.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a request for another host is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models",
+          "headers": {
+            "host": "attacker.example:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "This endpoint only answers on 127.0.0.1.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown path is 404 with the key",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/embeddings",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a wrong key is refused before routing",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/embeddings",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer nope"
+          }
+        }
+      },
+      "expected": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Missing or wrong API key.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "GET on the completions path is 404",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "POST to the models path is 404",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a completion comes back in one piece",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!",
+          "usage": {
+            "promptTokens": 12,
+            "responseTokens": 2
+          }
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "qwen3:8b",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 12,
+            "completion_tokens": 2,
+            "total_tokens": 14
+          }
+        }
+      }
+    },
+    {
+      "name": "a completion with no usage counts zero",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "qwen3:8b",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "the scheme is accepted in lower case",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "qwen3:8b",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "a developer message and text parts are accepted",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hi!"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"messages\":[{\"role\":\"developer\",\"content\":\"Be brief.\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Hi\"},{\"type\":\"text\",\"text\":\"!\"}]}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "qwen3:8b",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hi!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "a streamed completion sends deltas, the stop and DONE",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "announce": "qwen3:8b",
+          "chunks": [
+            "Hel",
+            "lo"
+          ],
+          "model": "qwen3:8b",
+          "content": "Hello"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+      }
+    },
+    {
+      "name": "an empty chunk is not sent",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "announce": "qwen3:8b",
+          "chunks": [
+            "",
+            "Hi"
+          ],
+          "model": "qwen3:8b",
+          "content": "Hi"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+      }
+    },
+    {
+      "name": "a streamed reply with no model of its own uses the announced one",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "announce": "llama3.2:3b",
+          "chunks": [
+            "Hi"
+          ],
+          "model": "",
+          "content": "Hi"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"llama3.2:3b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"llama3.2:3b\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+      }
+    },
+    {
+      "name": "a streamed reply with nothing announced uses the requested model",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "chunks": [
+            "Hi"
+          ],
+          "model": "",
+          "content": "Hi"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+      }
+    },
+    {
+      "name": "a streamed failure is an error event, with no DONE",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "chunks": [
+            "Hi"
+          ],
+          "error": "The model ran out of memory."
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"id\":\"chatcmpl-<random>\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"qwen3:8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\ndata: {\"error\":{\"message\":\"The model ran out of memory.\",\"type\":\"server_error\"}}\n\n"
+      }
+    },
+    {
+      "name": "a streamed failure with no message sends the default",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "error": ""
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": "keep-alive"
+        },
+        "body": "data: {\"error\":{\"message\":\"The reply failed.\",\"type\":\"server_error\"}}\n\n"
+      }
+    },
+    {
+      "name": "a failed reply sends its message",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "error": "Out of memory."
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 500,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Out of memory.",
+            "type": "server_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a failed reply with no message says the reply failed",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "error": ""
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 500,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "The reply failed.",
+            "type": "server_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a body that is not JSON is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{not json"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "The body is not valid JSON.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "an empty body is refused as not JSON",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": ""
+        }
+      },
+      "expected": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "The body is not valid JSON.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a body with no messages is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"messages\":[]}"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "messages must be a non-empty array.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a bad role is refused with its index",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"tool\",\"content\":\"x\"}]}"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "messages[1].role must be system, user or assistant.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "an image part is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"x\"}}]}]}"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "messages[0] has a part that is not text, which this endpoint does not take yet.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a body exactly at the limit is accepted",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "content": "ok"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "userContentPadding": 1048514
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "ok"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "a body one byte over the limit is refused",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "content": "ok"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "userContentPadding": 1048515
+        }
+      },
+      "expected": {
+        "status": 413,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "The request is too large.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a web page is refused before its body is read",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json",
+            "origin": "https://example.com"
+          },
+          "body": "{not json"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Requests from web pages are not accepted.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a wrong key is refused before its body is read",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer nope",
+            "content-type": "application/json"
+          },
+          "body": "{not json"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Missing or wrong API key.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "another host is refused before its body is read",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/completions",
+          "headers": {
+            "host": "attacker.example:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{not json"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "This endpoint only answers on 127.0.0.1.",
+            "type": "authentication_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a dot segment is resolved before routing",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/../v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "object": "list",
+          "data": [
+            {
+              "id": "qwen3:8b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            },
+            {
+              "id": "llama3.2:3b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a single-dot segment is resolved before routing",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/./v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "object": "list",
+          "data": [
+            {
+              "id": "qwen3:8b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            },
+            {
+              "id": "llama3.2:3b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "an encoded dot segment is resolved before routing",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/%2e%2e/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "object": "list",
+          "data": [
+            {
+              "id": "qwen3:8b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            },
+            {
+              "id": "llama3.2:3b",
+              "object": "model",
+              "created": 1700000000,
+              "owned_by": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a dot segment at the end of the path leaves a trailing slash",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models/.",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a dot segment that climbs above the models path is not that path",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models/..",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "dot segments in a completion path are resolved before routing",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {
+          "model": "qwen3:8b",
+          "content": "Hello!"
+        },
+        "request": {
+          "method": "POST",
+          "url": "/v1/chat/../chat/./completions",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "id": "chatcmpl-<random>",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "qwen3:8b",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "a double slash starts a host, so the path is the rest",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ]
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "//v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "Only /v1/chat/completions and /v1/models are served here.",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    },
+    {
+      "name": "a failed model list is a server error",
+      "input": {
+        "config": {
+          "port": 11500,
+          "key": "draggy-test-key-0123456789",
+          "models": [
+            "qwen3:8b",
+            "llama3.2:3b"
+          ],
+          "modelsFail": true
+        },
+        "now": 1700000000,
+        "reply": {},
+        "request": {
+          "method": "GET",
+          "url": "/v1/models",
+          "headers": {
+            "host": "127.0.0.1:11500",
+            "authorization": "Bearer draggy-test-key-0123456789"
+          }
+        }
+      },
+      "expected": {
+        "status": 500,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "connection": null
+        },
+        "body": {
+          "error": {
+            "message": "The server hit an error.",
+            "type": "server_error"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,526 @@
+{
+  "area": "apiserver",
+  "description": "Who is let in. sameKey is the constant-time key compare (an empty key never matches). checkRequest returns null when a request may be answered, otherwise the status and message refused with, checked in the reference's order: web page origin, host, then key. generateKey is pinned with fixed random bytes. Header values are Latin-1 text, as Node decodes them, and the Bearer whitespace follows the reference's regular expression.",
+  "cases": [
+    {
+      "name": "matching keys match",
+      "input": {
+        "op": "sameKey",
+        "given": "draggy-test-key-0123456789",
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": true
+    },
+    {
+      "name": "a key of the same length with different text does not match",
+      "input": {
+        "op": "sameKey",
+        "given": "draggy-test-key-0123456780",
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": false
+    },
+    {
+      "name": "a key of another length does not match",
+      "input": {
+        "op": "sameKey",
+        "given": "draggy-test-key-0123456789x",
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": false
+    },
+    {
+      "name": "a prefix of the key does not match",
+      "input": {
+        "op": "sameKey",
+        "given": "draggy-test-",
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty expected key never matches",
+      "input": {
+        "op": "sameKey",
+        "given": "",
+        "expected": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "a missing given key never matches",
+      "input": {
+        "op": "sameKey",
+        "given": null,
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty given key does not match a set key",
+      "input": {
+        "op": "sameKey",
+        "given": "",
+        "expected": "draggy-test-key-0123456789"
+      },
+      "expected": false
+    },
+    {
+      "name": "a local client with the key gets in",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "localhost with the key gets in",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "localhost:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "the host is compared without case",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "LOCALHOST:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "the scheme is matched without case",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "extra spaces after the scheme are allowed",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer    draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a tab after the scheme is allowed",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer\tdraggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "trailing spaces on the key are trimmed",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789   "
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a web page origin is refused even with the key",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789",
+          "origin": "https://example.com"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "Requests from web pages are not accepted."
+      }
+    },
+    {
+      "name": "an origin of null is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789",
+          "origin": "null"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "Requests from web pages are not accepted."
+      }
+    },
+    {
+      "name": "an empty origin header is still an origin",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789",
+          "origin": ""
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "Requests from web pages are not accepted."
+      }
+    },
+    {
+      "name": "another host is refused, as DNS rebinding looks",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "evil.example:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "This endpoint only answers on 127.0.0.1."
+      }
+    },
+    {
+      "name": "another port on loopback is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:9999",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "This endpoint only answers on 127.0.0.1."
+      }
+    },
+    {
+      "name": "a missing host is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "This endpoint only answers on 127.0.0.1."
+      }
+    },
+    {
+      "name": "a missing key is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "a wrong key is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer nope"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "the bare key without the scheme is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "the scheme alone is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "the scheme followed only by spaces is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer   "
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "an empty configured key refuses every request",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "a non-breaking space after the scheme is whitespace",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a byte that is not whitespace after the scheme is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearerdraggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "only whitespace after the scheme is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer   "
+        }
+      },
+      "expected": {
+        "status": 401,
+        "message": "Missing or wrong API key."
+      }
+    },
+    {
+      "name": "a Latin-1 letter in the key is matched as text",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-é",
+        "headers": {
+          "host": "127.0.0.1:11500",
+          "authorization": "Bearer draggy-test-key-é"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "a Latin-1 letter in the host is refused",
+      "input": {
+        "op": "checkRequest",
+        "port": 11500,
+        "key": "draggy-test-key-0123456789",
+        "headers": {
+          "host": "127.0.0.1:11500é",
+          "authorization": "Bearer draggy-test-key-0123456789"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "message": "This endpoint only answers on 127.0.0.1."
+      }
+    },
+    {
+      "name": "a key of fixed bytes is written as base64url",
+      "input": {
+        "op": "generateKey",
+        "bytes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ]
+      },
+      "expected": "draggy-AAECAwQFBgcICQoLDA0ODxAREhMUFRYX"
+    },
+    {
+      "name": "a key of all ones is written as base64url",
+      "input": {
+        "op": "generateKey",
+        "bytes": [
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255,
+          255
+        ]
+      },
+      "expected": "draggy-________________________________"
+    },
+    {
+      "name": "a key of zeros is written as base64url",
+      "input": {
+        "op": "generateKey",
+        "bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "expected": "draggy-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ]
+}
