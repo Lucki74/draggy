@@ -1,0 +1,355 @@
+{
+  "area": "mcp",
+  "description": "exchange and refresh: the form a token request sends, and what the sign-in server's reply makes of it. A refusal reports its status and the start of its body.",
+  "cases": [
+    {
+      "name": "sends the verifier, not the challenge",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "code": "the-code",
+        "verifier": "the-verifier",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "resource": "https://tools.example/mcp",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-access",
+            "refresh_token": "fake-refresh",
+            "expires_in": 3600
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "the-code",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "client-123",
+          "code_verifier": "the-verifier",
+          "resource": "https://tools.example/mcp"
+        },
+        "result": {
+          "access_token": "fake-access",
+          "refresh_token": "fake-refresh",
+          "expires_in": 3600
+        }
+      }
+    },
+    {
+      "name": "sends the client secret when one is given",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "clientSecret": "fake-secret",
+        "code": "the-code",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-access",
+            "refresh_token": "fake-refresh",
+            "expires_in": 3600
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "the-code",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "client-123",
+          "client_secret": "fake-secret",
+          "code_verifier": "v"
+        },
+        "result": {
+          "access_token": "fake-access",
+          "refresh_token": "fake-refresh",
+          "expires_in": 3600
+        }
+      }
+    },
+    {
+      "name": "leaves out the client secret for a client with none",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "clientSecret": null,
+        "code": "the-code",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-access",
+            "refresh_token": "fake-refresh",
+            "expires_in": 3600
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "the-code",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "client-123",
+          "code_verifier": "v"
+        },
+        "result": {
+          "access_token": "fake-access",
+          "refresh_token": "fake-refresh",
+          "expires_in": 3600
+        }
+      }
+    },
+    {
+      "name": "sends an empty client secret, which is not absent",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "clientSecret": "",
+        "code": "the-code",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-access",
+            "refresh_token": "fake-refresh",
+            "expires_in": 3600
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "the-code",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "client-123",
+          "client_secret": "",
+          "code_verifier": "v"
+        },
+        "result": {
+          "access_token": "fake-access",
+          "refresh_token": "fake-refresh",
+          "expires_in": 3600
+        }
+      }
+    },
+    {
+      "name": "leaves out the resource when none is given",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "code": "the-code",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "resource": null,
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-b",
+            "expires_in": 60
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "the-code",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "client-123",
+          "code_verifier": "v"
+        },
+        "result": {
+          "access_token": "fake-b",
+          "expires_in": 60
+        }
+      }
+    },
+    {
+      "name": "refreshes with the refresh token",
+      "input": {
+        "grant": "refresh_token",
+        "endpoint": "https://auth.example/token",
+        "clientId": "client-123",
+        "refreshToken": "fake-refresh",
+        "resource": "https://tools.example/mcp",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "access_token": "fake-access-2"
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "refresh_token",
+          "refresh_token": "fake-refresh",
+          "client_id": "client-123",
+          "resource": "https://tools.example/mcp"
+        },
+        "result": {
+          "access_token": "fake-access-2"
+        }
+      }
+    },
+    {
+      "name": "reads tokens from a text body as well",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "code": "x",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "body": "{\"access_token\":\"fake-a\"}"
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "x",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "c",
+          "code_verifier": "v"
+        },
+        "result": {
+          "access_token": "fake-a"
+        }
+      }
+    },
+    {
+      "name": "reports what a refusal said",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "code": "x",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 400,
+          "body": {
+            "error": "invalid_grant"
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "x",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "c",
+          "code_verifier": "v"
+        },
+        "error": "The sign-in server answered 400: {\"error\":\"invalid_grant\"}"
+      }
+    },
+    {
+      "name": "reports a refused refresh the same way",
+      "input": {
+        "grant": "refresh_token",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "refreshToken": "r",
+        "reply": {
+          "status": 401,
+          "body": "nope"
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "refresh_token",
+          "refresh_token": "r",
+          "client_id": "c"
+        },
+        "error": "The sign-in server answered 401: nope"
+      }
+    },
+    {
+      "name": "cuts a long refusal to 200 characters",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "code": "x",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 500,
+          "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "x",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "c",
+          "code_verifier": "v"
+        },
+        "error": "The sign-in server answered 500: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "name": "reports a reply that is not JSON",
+      "input": {
+        "grant": "authorization_code",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "code": "x",
+        "verifier": "v",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "body": "<html>"
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "authorization_code",
+          "code": "x",
+          "redirect_uri": "http://127.0.0.1:9/callback",
+          "client_id": "c",
+          "code_verifier": "v"
+        },
+        "error": "invalid json"
+      }
+    },
+    {
+      "name": "reports a network failure as it is",
+      "input": {
+        "grant": "refresh_token",
+        "endpoint": "https://auth.example/token",
+        "clientId": "c",
+        "refreshToken": "r",
+        "reply": {
+          "fail": "offline"
+        }
+      },
+      "expected": {
+        "sent": {
+          "grant_type": "refresh_token",
+          "refresh_token": "r",
+          "client_id": "c"
+        },
+        "error": "offline"
+      }
+    }
+  ]
+}

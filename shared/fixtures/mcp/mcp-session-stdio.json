@@ -1,0 +1,6103 @@
+{
+  "area": "mcp",
+  "description": "Recorded JSON-RPC sessions over stdio, driven through a scripted process. Each case lists sessions (one per start, in order: the stderr written at start, the answers to the requests in order, and the exit code when stopped) and ops applied in order. Expected: one result per op, the wire (every message the client wrote, in order), and the log lines (durations dropped, the executable named node). A silent answer is the client's timer firing on the fake clock. A session may set spawn_error, so the program cannot start, and a reply may set process_error, so the process fails without ending. A case may set npm to false, for a machine with no npm. An object {\"repeat\": text, \"count\": n} stands for its text repeated n times.",
+  "cases": [
+    {
+      "name": "a server answers the handshake and lists its tools",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read_graph",
+                      "description": "Read the whole knowledge graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      },
+                      "annotations": {
+                        "readOnlyHint": true
+                      }
+                    },
+                    {
+                      "name": "web.search",
+                      "description": "Search the web",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                          "q": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read_graph",
+                "qualifiedName": "memory__read_graph",
+                "description": "Read the whole knowledge graph",
+                "annotations": {
+                  "readOnlyHint": true
+                },
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              },
+              {
+                "name": "web.search",
+                "qualifiedName": "memory__web_search",
+                "description": "Search the web",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "q": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "read_graph",
+                  "qualifiedName": "memory__read_graph",
+                  "description": "Read the whole knowledge graph",
+                  "annotations": {
+                    "readOnlyHint": true
+                  },
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                },
+                {
+                  "name": "web.search",
+                  "qualifiedName": "memory__web_search",
+                  "description": "Search the web",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                      "q": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 320
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 2,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool call returns its text, and a dotted tool name is qualified",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "found 2"
+                    },
+                    {
+                      "type": "text",
+                      "text": "second"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {
+              "query": "x"
+            },
+            "cid": "turn-3"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "found 2\n\nsecond"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {
+                "query": "x"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-3",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "3b7b5a17"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 112
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "cid": "turn-3",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 15,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool that reports isError comes back as a failure",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "isError": true,
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "no such node"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {
+              "query": "x"
+            },
+            "cid": "turn-4"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "no such node"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {
+                "query": "x"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-4",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "3b7b5a17"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 100
+            }
+          },
+          {
+            "level": "warn",
+            "scope": "mcp.memory",
+            "msg": "tool returned an error",
+            "data": {
+              "cid": "turn-4",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 12,
+              "isError": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a call the server rejects with an error",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "error": {
+                  "message": "bad arguments"
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {
+              "query": 1
+            },
+            "cid": "turn-4b"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "bad arguments"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {
+                "query": 1
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-4b",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "5dac66b7"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 60
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-4b",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "bad arguments"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that never answers the handshake times out, with its stderr in the error",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "silent": true
+              }
+            ],
+            "stop_code": 0,
+            "stderr": [
+              "booting",
+              "missing config"
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "The memory server did not answer initialize in time.: booting missing config",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server failed the handshake",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "The memory server did not answer initialize in time.",
+              "stderr": "booting\nmissing config"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that exits during a call is reported as a crash and the call fails with its exit code",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "exit": 3,
+                "stderr": [
+                  "panic: boom"
+                ]
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-5"
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The memory server stopped (exit code 3)."
+          },
+          []
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-5",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server exited unexpectedly",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 3,
+              "stderr": "panic: boom"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-5",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "The memory server stopped (exit code 3)."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server restarts after a crash with a fresh handshake",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "exit": 3
+              }
+            ],
+            "stop_code": 0
+          },
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-6"
+          },
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The memory server stopped (exit code 3)."
+          },
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "search_nodes",
+                  "qualifiedName": "memory__search_nodes",
+                  "description": "Search the graph",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-6",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server exited unexpectedly",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 3,
+              "stderr": ""
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-6",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "The memory server stopped (exit code 3)."
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "stopping a server ends its process and the log says it stopped",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "stop",
+            "id": "memory"
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true
+          },
+          []
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a second start of a running server returns it without spawning another",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "search_nodes",
+                  "qualifiedName": "memory__search_nodes",
+                  "description": "Search the graph",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that is not configured yet is not started",
+      "input": {
+        "sessions": [],
+        "ops": [
+          {
+            "op": "start",
+            "id": "github",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "github",
+            "status": "error",
+            "error": "Not configured yet: GitHub personal access token.",
+            "tools": []
+          }
+        ],
+        "wire": [],
+        "logs": []
+      }
+    },
+    {
+      "name": "an unknown server id is refused",
+      "input": {
+        "sessions": [],
+        "ops": [
+          {
+            "op": "start",
+            "id": "nope",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "nope",
+            "status": "error",
+            "error": "There is no server called \"nope\".",
+            "tools": []
+          }
+        ],
+        "wire": [],
+        "logs": []
+      }
+    },
+    {
+      "name": "a call to a server that is not running is refused and logged with no transport",
+      "input": {
+        "sessions": [],
+        "ops": [
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "read_graph",
+            "args": {},
+            "cid": "turn-7"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "The memory server is not running."
+          }
+        ],
+        "wire": [],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.memory",
+            "msg": "cannot call tool, server not running",
+            "data": {
+              "cid": "turn-7",
+              "server": "memory",
+              "transport": "none",
+              "toolName": "read_graph"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a call that never answers times out after two minutes",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "silent": true
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-8"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The memory server did not answer tools/call in time."
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-8",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-8",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "The memory server did not answer tools/call in time."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an answer with a widget reads the interface from resources/read",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "resource",
+                      "resource": {
+                        "uri": "ui://board/1",
+                        "text": "<div/>"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "resources/read",
+                "result": {
+                  "contents": [
+                    {
+                      "uri": "ui://board/1",
+                      "mimeType": "text/html",
+                      "text": "<html>board</html>"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-9"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "[interface: ui://board/1]",
+            "app": {
+              "uri": "ui://board/1",
+              "html": "<html>board</html>"
+            }
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "resources/read",
+            "params": {
+              "uri": "ui://board/1"
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-9",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 117
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 122
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "cid": "turn-9",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 25,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "widgets switched off leave the interface unread",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "resource",
+                      "resource": {
+                        "uri": "ui://board/1",
+                        "text": "<div/>"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "widgets": false
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "[interface: ui://board/1]"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 117
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 25,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a widget without an html mime type falls back to its first text that is not blank",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "resource",
+                      "resource": {
+                        "uri": "ui://board/1",
+                        "text": "<div/>"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "resources/read",
+                "result": {
+                  "contents": [
+                    {
+                      "uri": "ui://board/1",
+                      "text": "   "
+                    },
+                    {
+                      "uri": "ui://board/1",
+                      "mimeType": "text/plain",
+                      "text": "plain board"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "[interface: ui://board/1]",
+            "app": {
+              "uri": "ui://board/1",
+              "html": "plain board"
+            }
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "resources/read",
+            "params": {
+              "uri": "ui://board/1"
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 117
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 152
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 25,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "lines before the reply, and a reply split across chunks, are read whole",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {},
+                    "resources": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                },
+                "before": [
+                  "Server listening on stdio\n",
+                  "not json\n"
+                ],
+                "split": true
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "non-json line",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 25
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "non-json line",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 8
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 158
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools",
+                "resources"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool with no schema or description is listed with the defaults",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "ping"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "ping",
+                "qualifiedName": "memory__ping",
+                "description": "",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "ping",
+                  "qualifiedName": "memory__ping",
+                  "description": "",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 61
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a call with an empty answer says the tool returned nothing",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "(the tool returned nothing)"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 48
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 0,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool answer with only structured content is passed on as JSON",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "structuredContent": {
+                    "rows": 3
+                  }
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "{\"rows\":3}"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 66
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 10,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a crash while the handshake waits is logged as a crash, not as a failed handshake",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "exit": 2
+              }
+            ],
+            "stop_code": 0,
+            "stderr": [
+              "bad flag"
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "The memory server stopped (exit code 2).: bad flag",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server exited unexpectedly",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 2,
+              "stderr": "bad flag"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an error answer to initialize fails the start with its message, and the failed handshake is logged",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "error": {
+                  "message": "unsupported"
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "unsupported",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 58
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server failed the handshake",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "unsupported",
+              "stderr": ""
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an answer that arrives after its timeout is dropped and the next call is answered",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "silent": true
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "fresh"
+                    }
+                  ]
+                },
+                "before": [
+                  "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"late\"}]}}\n"
+                ]
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-10"
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-11"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The memory server did not answer tools/call in time."
+          },
+          {
+            "success": true,
+            "text": "fresh"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {
+              "name": "search_nodes",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-10",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-10",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "The memory server did not answer tools/call in time."
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-11",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 77
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 78
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "cid": "turn-11",
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "search_nodes",
+              "resultChars": 5,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "stopAll stops every server, in the order they started",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          },
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "custom",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "start",
+            "id": "custom-pkg",
+            "config": {
+              "package": "@modelcontextprotocol/server-memory"
+            }
+          },
+          {
+            "op": "stopAll"
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "memory__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "id": "custom-pkg",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          },
+          null,
+          []
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 150
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.custom-pkg",
+            "msg": "spawning server",
+            "data": {
+              "server": "custom-pkg",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.custom-pkg",
+            "msg": "message in",
+            "data": {
+              "server": "custom-pkg",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.custom-pkg",
+            "msg": "message in",
+            "data": {
+              "server": "custom-pkg",
+              "transport": "stdio",
+              "bytes": 46
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.custom-pkg",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "custom-pkg",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "custom"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.custom-pkg",
+            "msg": "server stopped",
+            "data": {
+              "server": "custom-pkg",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "two tools whose names clean to the same qualified name are both listed",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "web.search"
+                    },
+                    {
+                      "name": "web_search"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "web.search",
+                "qualifiedName": "memory__web_search",
+                "description": "",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              },
+              {
+                "name": "web_search",
+                "qualifiedName": "memory__web_search",
+                "description": "",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "web.search",
+                  "qualifiedName": "memory__web_search",
+                  "description": "",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                },
+                {
+                  "name": "web_search",
+                  "qualifiedName": "memory__web_search",
+                  "description": "",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 89
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 2,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a long stderr is cut to 400 characters in the error and to 500 per line in the crash report",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "silent": true
+              }
+            ],
+            "stop_code": 0,
+            "stderr": [
+              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "The memory server did not answer initialize in time.: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server failed the handshake",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "The memory server did not answer initialize in time.",
+              "stderr": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a program that cannot start is reported with its error and no handshake",
+      "input": {
+        "sessions": [
+          {
+            "spawn_error": "spawn node ENOENT",
+            "replies": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "spawn node ENOENT",
+            "tools": []
+          }
+        ],
+        "wire": [],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a widget that cannot be read is left out, and the answer says why",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "board",
+                      "description": "d"
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "resource",
+                      "resource": {
+                        "uri": "ui://board/1",
+                        "text": "<div/>"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "resources/read",
+                "error": {
+                  "message": "no such widget"
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "board",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "board",
+                "qualifiedName": "memory__board",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "[interface: ui://board/1]"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "board",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "resources/read",
+            "params": {
+              "uri": "ui://board/1"
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 80
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "board",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 117
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 61
+            }
+          },
+          {
+            "level": "warn",
+            "scope": "mcp.memory",
+            "msg": "could not read widget",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "no such widget"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "board",
+              "resultChars": 25,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an interface past the size limit is not handed over, and the log says its size",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "board",
+                      "description": "d"
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "resource",
+                      "resource": {
+                        "uri": "ui://board/1",
+                        "text": "<div/>"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "resources/read",
+                "result": {
+                  "contents": [
+                    {
+                      "uri": "ui://board/1",
+                      "mimeType": "text/html",
+                      "text": {
+                        "repeat": "x",
+                        "count": 262145
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "board",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "board",
+                "qualifiedName": "memory__board",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "[interface: ui://board/1]"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "board",
+              "arguments": {}
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "resources/read",
+            "params": {
+              "uri": "ui://board/1"
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 80
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "board",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 117
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 262249
+            }
+          },
+          {
+            "level": "warn",
+            "scope": "mcp.memory",
+            "msg": "widget too large to show",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "chars": 262145
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "board",
+              "resultChars": 25,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a call answered with an error that has an empty message gets the generic text",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read",
+                      "description": "d"
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "error": {
+                  "message": ""
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "read",
+            "args": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read",
+                "qualifiedName": "memory__read",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The server reported an error."
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "read",
+              "arguments": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 79
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "read",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 47
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "tool call threw",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "read",
+              "isError": true,
+              "reason": "The server reported an error."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an answer with a string id or an id nobody asked for is ignored",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                },
+                "before": [
+                  "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"tools\":[]}}\n",
+                  "{\"jsonrpc\":\"2.0\",\"id\":99,\"result\":{}}\n",
+                  "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\",\"params\":{\"level\":\"info\"}}\n"
+                ]
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read",
+                      "description": "d"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read",
+                "qualifiedName": "memory__read",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 48
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 37
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 76
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 79
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a JSON null line is logged as junk and delivers nothing",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                },
+                "before": [
+                  "null\n"
+                ]
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read",
+                      "description": "d"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read",
+                "qualifiedName": "memory__read",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 4
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "non-json line",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 4
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 79
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool with no name is listed without a name",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "description": "Has no name"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "qualifiedName": "memory__undefined",
+                "description": "Has no name",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "memory",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "qualifiedName": "memory__undefined",
+                  "description": "Has no name",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ]
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 75
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "arguments are hashed the way JSON.stringify writes them",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read",
+                      "description": "d"
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "ok"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          },
+          {
+            "op": "call",
+            "server": "memory",
+            "tool": "read",
+            "args": {
+              "b": 1,
+              "2": 3,
+              "n": 3.0,
+              "big": 1e+21,
+              "small": 1e-07,
+              "nested": {
+                "z": [
+                  1,
+                  {
+                    "y": 0.5,
+                    "1": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read",
+                "qualifiedName": "memory__read",
+                "description": "d",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "ok"
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+          },
+          {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+              "name": "read",
+              "arguments": {
+                "2": 3,
+                "b": 1,
+                "n": 3,
+                "big": 1e+21,
+                "small": 1e-07,
+                "nested": {
+                  "z": [
+                    1,
+                    {
+                      "1": true,
+                      "y": 0.5
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 143
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 79
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "started",
+            "data": {
+              "transport": "stdio",
+              "protocol": "2025-06-18",
+              "server": "memory",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "memory"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool call",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "read",
+              "argHash": "ed47a402"
+            }
+          },
+          {
+            "level": "debug",
+            "scope": "mcp.memory",
+            "msg": "message in",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "bytes": 75
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "tool finished",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "toolName": "read",
+              "resultChars": 2,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "with no npm on the machine nothing starts and nothing is logged",
+      "input": {
+        "npm": false,
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "memory",
+                    "version": "0.6.3"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "npm could not be found on this machine, and extensions are installed with it. Install Node.js and try again.",
+            "tools": []
+          }
+        ],
+        "wire": [],
+        "logs": []
+      }
+    },
+    {
+      "name": "a process error is logged and the start fails with its text",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "process_error": "pipe broke"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "memory",
+            "config": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "memory",
+            "status": "error",
+            "error": "pipe broke",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18",
+              "capabilities": {},
+              "clientInfo": {
+                "name": "Draggy",
+                "version": "1.1.6"
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "spawning server",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "command": "node",
+              "argCount": 1
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.memory",
+            "msg": "process error",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "pipe broke"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "proc.mcp",
+            "msg": "server failed the handshake",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "reason": "pipe broke",
+              "stderr": ""
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.memory",
+            "msg": "server stopped",
+            "data": {
+              "server": "memory",
+              "transport": "stdio",
+              "code": 0
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

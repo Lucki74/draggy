@@ -1,0 +1,99 @@
+{
+  "area": "mcp",
+  "description": "Qualified tool names: the server and tool joined with a double underscore, each UTF-16 unit that a tool name cannot hold replaced by an underscore, and the split back at the first separator. Expected: the joined name, or the split parts (null when there is no separator).",
+  "cases": [
+    {
+      "name": "prefixes the tool with the server it came from",
+      "input": {
+        "op": "qualified",
+        "server": "github",
+        "tool": "create_issue"
+      },
+      "expected": "github__create_issue"
+    },
+    {
+      "name": "replaces characters that cannot appear in a tool name",
+      "input": {
+        "op": "qualified",
+        "server": "brave-search",
+        "tool": "web.search"
+      },
+      "expected": "brave_search__web_search"
+    },
+    {
+      "name": "round-trips through the split",
+      "input": {
+        "op": "qualified",
+        "server": "slack",
+        "tool": "post_message"
+      },
+      "expected": "slack__post_message"
+    },
+    {
+      "name": "keeps a tool name that itself contains the separator",
+      "input": {
+        "op": "split",
+        "name": "memory__create__entities"
+      },
+      "expected": {
+        "serverId": "memory",
+        "toolName": "create__entities"
+      }
+    },
+    {
+      "name": "has nothing to split when there is no prefix",
+      "input": {
+        "op": "split",
+        "name": "search_web"
+      },
+      "expected": null
+    },
+    {
+      "name": "counts an astral character as two underscores",
+      "input": {
+        "op": "qualified",
+        "server": "s",
+        "tool": "a😀"
+      },
+      "expected": "s__a__"
+    },
+    {
+      "name": "splits an empty server id off a leading separator",
+      "input": {
+        "op": "split",
+        "name": "__x"
+      },
+      "expected": {
+        "serverId": "",
+        "toolName": "x"
+      }
+    },
+    {
+      "name": "two empty names still give the separator",
+      "input": {
+        "op": "qualified",
+        "server": "",
+        "tool": ""
+      },
+      "expected": "__"
+    },
+    {
+      "name": "replaces a space in a server id",
+      "input": {
+        "op": "qualified",
+        "server": "a b",
+        "tool": "c"
+      },
+      "expected": "a_b__c"
+    },
+    {
+      "name": "replaces a BMP non-ASCII character with one underscore",
+      "input": {
+        "op": "qualified",
+        "server": "Ω",
+        "tool": "t"
+      },
+      "expected": "___t"
+    }
+  ]
+}

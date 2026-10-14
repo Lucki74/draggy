@@ -1,0 +1,184 @@
+{
+  "area": "mcp",
+  "description": "readEventStream: the JSON-RPC messages in a server-sent event stream, read across chunk boundaries. Keep-alive lines and frames that are not JSON are skipped. A final frame with no blank line after it is dropped, as the reference does.",
+  "cases": [
+    {
+      "name": "reads past the notifications to the message it asked for",
+      "input": {
+        "chunks": [
+          "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\n",
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "method": "notifications/progress"
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "ok": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "ignores the keep-alive lines between frames",
+      "input": {
+        "chunks": [
+          ": keeping the connection open\n\n",
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "ok": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads a frame split across chunks",
+      "input": {
+        "chunks": [
+          "data: {\"jsonrpc\":\"2.0\",",
+          "\"id\":1,\"result\":{\"ok\":true}}\n",
+          "\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "ok": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads a frame whose lines end in CRLF",
+      "input": {
+        "chunks": [
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r\n\r\n",
+          "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "notifications/progress"
+        }
+      ]
+    },
+    {
+      "name": "reads a data line with no space after the colon",
+      "input": {
+        "chunks": [
+          "data:{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":1}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": 1
+        }
+      ]
+    },
+    {
+      "name": "reads each data line of a frame as its own message",
+      "input": {
+        "chunks": [
+          "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":2}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "method": "notifications/progress"
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": 2
+        }
+      ]
+    },
+    {
+      "name": "drops a frame that is not JSON",
+      "input": {
+        "chunks": [
+          "data: not json\n\n",
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":3}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": 3
+        }
+      ]
+    },
+    {
+      "name": "drops an empty data line",
+      "input": {
+        "chunks": [
+          "data:\n\n",
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":4}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": 4
+        }
+      ]
+    },
+    {
+      "name": "drops a final frame that never ends with a blank line",
+      "input": {
+        "chunks": [
+          "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":5}\n\n",
+          "data: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":6}\n"
+        ]
+      },
+      "expected": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": 5
+        }
+      ]
+    },
+    {
+      "name": "reads an empty stream as no messages",
+      "input": {
+        "chunks": []
+      },
+      "expected": []
+    },
+    {
+      "name": "reads a stream of keep-alives only as no messages",
+      "input": {
+        "chunks": [
+          ": ping\n\n",
+          ": ping\n\n"
+        ]
+      },
+      "expected": []
+    }
+  ]
+}

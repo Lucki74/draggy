@@ -1,0 +1,666 @@
+{
+  "area": "mcp",
+  "description": "parseServers: the registry's answer as installable and callable entries. Drops what needs uvx and what Draggy already ships.",
+  "cases": [
+    {
+      "name": "takes a server it can install and one it can call, and drops a Python one",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.someone/weather",
+              "description": "Weather for anywhere.",
+              "repository": {
+                "url": "https://github.com/someone/weather"
+              },
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "@someone/weather-mcp"
+                }
+              ]
+            },
+            {
+              "name": "com.example/tickets",
+              "description": "Our ticket system.",
+              "remotes": [
+                {
+                  "type": "streamable-http",
+                  "url": "https://tickets.example/mcp"
+                }
+              ]
+            },
+            {
+              "name": "com.example/python-only",
+              "description": "Needs uvx, which Draggy does not have.",
+              "packages": [
+                {
+                  "registry_name": "pypi",
+                  "name": "python-thing"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "weather",
+          "name": "io.github.someone/weather",
+          "description": "Weather for anywhere.",
+          "source": "registry",
+          "docs": "https://github.com/someone/weather",
+          "package": "@someone/weather-mcp",
+          "args": [],
+          "env": []
+        },
+        {
+          "id": "tickets",
+          "name": "com.example/tickets",
+          "description": "Our ticket system.",
+          "source": "registry",
+          "docs": "",
+          "url": "https://tickets.example/mcp",
+          "transport": "http",
+          "remote": true
+        }
+      ]
+    },
+    {
+      "name": "takes a server it can call",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/tickets",
+              "description": "Our ticket system.",
+              "remotes": [
+                {
+                  "type": "streamable-http",
+                  "url": "https://tickets.example/mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "tickets",
+          "name": "com.example/tickets",
+          "description": "Our ticket system.",
+          "source": "registry",
+          "docs": "",
+          "url": "https://tickets.example/mcp",
+          "transport": "http",
+          "remote": true
+        }
+      ]
+    },
+    {
+      "name": "leaves out anything it could not run",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/python-only",
+              "description": "Needs uvx, which Draggy does not have.",
+              "packages": [
+                {
+                  "registry_name": "pypi",
+                  "name": "python-thing"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "leaves out what Draggy already ships",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.modelcontextprotocol/github",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "someone-elses-github"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "survives a shape it has never seen",
+      "input": {
+        "payload": null
+      },
+      "expected": []
+    },
+    {
+      "name": "survives servers that are empty or null",
+      "input": {
+        "payload": {
+          "servers": [
+            {},
+            null
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "accepts a bare list of servers",
+      "input": {
+        "payload": [
+          {
+            "name": "io.github.someone/weather",
+            "description": "Weather for anywhere.",
+            "repository": {
+              "url": "https://github.com/someone/weather"
+            },
+            "packages": [
+              {
+                "registry_name": "npm",
+                "name": "@someone/weather-mcp"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "id": "weather",
+          "name": "io.github.someone/weather",
+          "description": "Weather for anywhere.",
+          "source": "registry",
+          "docs": "https://github.com/someone/weather",
+          "package": "@someone/weather-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "unwraps a server nested under a server key",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "server": {
+                "name": "io.github.someone/weather",
+                "description": "Weather for anywhere.",
+                "repository": {
+                  "url": "https://github.com/someone/weather"
+                },
+                "packages": [
+                  {
+                    "registry_name": "npm",
+                    "name": "@someone/weather-mcp"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "weather",
+          "name": "io.github.someone/weather",
+          "description": "Weather for anywhere.",
+          "source": "registry",
+          "docs": "https://github.com/someone/weather",
+          "package": "@someone/weather-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "takes the title over the name",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/nice-tool",
+              "title": "Nice Tool",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "nice-tool"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "nice-tool",
+          "name": "Nice Tool",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "nice-tool",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "reads the environment variables of an npm package",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/envy",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "envy-mcp",
+                  "environment_variables": [
+                    {
+                      "name": "ENVY_TOKEN",
+                      "description": "Envy token",
+                      "is_required": true,
+                      "is_secret": true
+                    },
+                    {
+                      "name": "ENVY_REGION",
+                      "is_required": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "envy",
+          "name": "io.github.a/envy",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "envy-mcp",
+          "args": [],
+          "env": [
+            {
+              "key": "ENVY_TOKEN",
+              "label": "Envy token",
+              "required": true,
+              "secret": true
+            },
+            {
+              "key": "ENVY_REGION",
+              "label": "ENVY_REGION",
+              "required": false,
+              "secret": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reads camel-case environment variables",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/camel",
+              "packages": [
+                {
+                  "registryType": "npm",
+                  "identifier": "camel-mcp",
+                  "environmentVariables": [
+                    {
+                      "key": "CAMEL_KEY",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "camel",
+          "name": "io.github.a/camel",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "camel-mcp",
+          "args": [],
+          "env": [
+            {
+              "key": "CAMEL_KEY",
+              "label": "CAMEL_KEY",
+              "required": true,
+              "secret": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reads server-level environment variables when the package has none",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/shared",
+              "environment_variables": [
+                {
+                  "name": "SHARED_SECRET",
+                  "is_secret": true
+                }
+              ],
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "shared-mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "shared",
+          "name": "io.github.a/shared",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "shared-mcp",
+          "args": [],
+          "env": [
+            {
+              "key": "SHARED_SECRET",
+              "label": "SHARED_SECRET",
+              "required": false,
+              "secret": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "takes the package name from its identifier when it has no name",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/ident",
+              "packages": [
+                {
+                  "registryType": "npm",
+                  "identifier": "ident-mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "ident",
+          "name": "io.github.a/ident",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "ident-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "prefers an npm package to a remote",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "io.github.a/both",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "both-mcp"
+                }
+              ],
+              "remotes": [
+                {
+                  "type": "streamable-http",
+                  "url": "https://both.example/mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "both",
+          "name": "io.github.a/both",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "both-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "recognises an sse remote, whatever the case of its type",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/sse",
+              "remotes": [
+                {
+                  "type": "SSE",
+                  "url": "https://sse.example/mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "sse",
+          "name": "com.example/sse",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "url": "https://sse.example/mcp",
+          "transport": "http",
+          "remote": true
+        }
+      ]
+    },
+    {
+      "name": "recognises a remote that names its transport another way",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/other",
+              "remotes": [
+                {
+                  "transport_type": "streamable",
+                  "url": "https://other.example/mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "other",
+          "name": "com.example/other",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "url": "https://other.example/mcp",
+          "transport": "http",
+          "remote": true
+        }
+      ]
+    },
+    {
+      "name": "drops a remote with a transport it cannot call",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/ws",
+              "remotes": [
+                {
+                  "type": "websocket",
+                  "url": "wss://ws.example"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "takes the website when there is no repository",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/site",
+              "website_url": "https://site.example",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "site-mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "site",
+          "name": "com.example/site",
+          "description": "",
+          "source": "registry",
+          "docs": "https://site.example",
+          "package": "site-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "leaves the docs empty when there is no link at all",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/bare",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "bare-mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "bare",
+          "name": "com.example/bare",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "package": "bare-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "trims the description",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/spaces",
+              "description": "  Padded.  ",
+              "packages": [
+                {
+                  "registry_name": "npm",
+                  "name": "spaced-mcp"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "spaces",
+          "name": "com.example/spaces",
+          "description": "Padded.",
+          "source": "registry",
+          "docs": "",
+          "package": "spaced-mcp",
+          "args": [],
+          "env": []
+        }
+      ]
+    },
+    {
+      "name": "gives a remote the call details and not the package ones",
+      "input": {
+        "payload": {
+          "servers": [
+            {
+              "name": "com.example/tickets",
+              "remotes": [
+                {
+                  "type": "sse",
+                  "url": "https://tickets.example/sse"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "tickets",
+          "name": "com.example/tickets",
+          "description": "",
+          "source": "registry",
+          "docs": "",
+          "url": "https://tickets.example/sse",
+          "transport": "http",
+          "remote": true
+        }
+      ]
+    }
+  ]
+}

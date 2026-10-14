@@ -1,0 +1,201 @@
+{
+  "area": "mcp",
+  "description": "register: dynamic client registration with no secret. Says nothing (null) when the server does not offer it, refuses it, or cannot be reached.",
+  "cases": [
+    {
+      "name": "asks for a client with no secret to keep",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "client_id": "client-123"
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": {
+          "client_id": "client-123"
+        }
+      }
+    },
+    {
+      "name": "asks for the authorization code and refresh grants",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "client_id": "c"
+          }
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": {
+          "client_id": "c"
+        }
+      }
+    },
+    {
+      "name": "says nothing when the server does not offer registration",
+      "input": {
+        "endpoint": null,
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {
+            "client_id": "c"
+          }
+        }
+      },
+      "expected": {
+        "sent": null,
+        "registered": null
+      }
+    },
+    {
+      "name": "says nothing when registration is refused",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 403
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": null
+      }
+    },
+    {
+      "name": "says nothing when the reply has no client id",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "headers": {},
+          "body": {}
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": null
+      }
+    },
+    {
+      "name": "says nothing when the network fails",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "fail": "offline"
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": null
+      }
+    },
+    {
+      "name": "says nothing when the reply is not JSON",
+      "input": {
+        "endpoint": "https://auth.example/register",
+        "redirectUri": "http://127.0.0.1:9/callback",
+        "reply": {
+          "status": 200,
+          "body": "<html>"
+        }
+      },
+      "expected": {
+        "sent": {
+          "client_name": "Draggy",
+          "redirect_uris": [
+            "http://127.0.0.1:9/callback"
+          ],
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "token_endpoint_auth_method": "none"
+        },
+        "registered": null
+      }
+    }
+  ]
+}

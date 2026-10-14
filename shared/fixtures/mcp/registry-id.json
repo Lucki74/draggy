@@ -1,0 +1,76 @@
+{
+  "area": "mcp",
+  "description": "idFor: the last segment of a registry name, reduced to a safe id. Each UTF-16 unit that is not ASCII becomes a dash, as the reference does.",
+  "cases": [
+    {
+      "name": "takes the last part of a namespaced name",
+      "input": {
+        "name": "io.github.someone/weather-mcp"
+      },
+      "expected": "weather-mcp"
+    },
+    {
+      "name": "makes something usable out of anything",
+      "input": {
+        "name": "Something Odd!"
+      },
+      "expected": "something-odd"
+    },
+    {
+      "name": "gives server for an empty name",
+      "input": {
+        "name": ""
+      },
+      "expected": "server"
+    },
+    {
+      "name": "gives server for a missing name",
+      "input": {
+        "name": null
+      },
+      "expected": "server"
+    },
+    {
+      "name": "turns a non-ASCII letter into a dash",
+      "input": {
+        "name": "naïve"
+      },
+      "expected": "na-ve"
+    },
+    {
+      "name": "turns an emoji into two dashes, one per UTF-16 unit",
+      "input": {
+        "name": "a😀b"
+      },
+      "expected": "a--b"
+    },
+    {
+      "name": "gives server when only an emoji is left",
+      "input": {
+        "name": "x/😀"
+      },
+      "expected": "server"
+    },
+    {
+      "name": "trims dashes at both ends",
+      "input": {
+        "name": "--weird--name--"
+      },
+      "expected": "weird--name"
+    },
+    {
+      "name": "keeps underscores",
+      "input": {
+        "name": "my_server"
+      },
+      "expected": "my_server"
+    },
+    {
+      "name": "keeps only the last segment",
+      "input": {
+        "name": "a/b/c"
+      },
+      "expected": "c"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "area": "mcp",
+  "description": "docsUrl: the npm page of a package. Derived from the package name, so the link cannot drift from it.",
+  "cases": [
+    {
+      "name": "links the package's npm page",
+      "input": {
+        "entry": "github"
+      },
+      "expected": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
+    },
+    {
+      "name": "links a server that is a URL too",
+      "input": {
+        "entry": "composio"
+      },
+      "expected": "https://www.npmjs.com/package/composio-mcp"
+    },
+    {
+      "name": "gives no link for no server",
+      "input": {
+        "entry": null
+      },
+      "expected": null
+    },
+    {
+      "name": "links an entry with no package to the word undefined, as the reference does",
+      "input": {
+        "entry": {
+          "id": "bare",
+          "name": "Bare"
+        }
+      },
+      "expected": "https://www.npmjs.com/package/undefined"
+    }
+  ]
+}
