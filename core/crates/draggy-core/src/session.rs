@@ -314,7 +314,7 @@ impl Session {
         let (mut refs, mut skills, mut ids) = (Refs, NoSkills, Counter::default());
         let clock = WallClock;
 
-        let result: AgentResult = run_turn(
+        let result = run_turn(
             &request,
             &mut tail_notes,
             Ports {
@@ -329,7 +329,17 @@ impl Session {
                 clock: &clock,
                 cancel: cancel.signal(),
             },
-        )?;
+        );
+        let result: AgentResult = match result {
+            Ok(result) => result,
+            Err(error) => {
+                // The turn failed before it answered. Leaving the question in place would stack a second user turn on
+                // the next send, so the conversation goes back to where it was.
+                let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+                state.messages.pop();
+                return Err(error.into());
+            }
+        };
 
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         state.tail_notes = tail_notes;

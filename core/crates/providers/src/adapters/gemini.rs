@@ -448,8 +448,9 @@ fn read_chunk(
 ) -> Result<(), ProviderError> {
     if truthy(json.get("error")) {
         let code = js::number(json.pointer("/error/code"));
-        let status = if code.is_finite() && code != 0.0 {
-            code as i64 as u16
+        // A code outside the HTTP range is the provider's own number, not a status; it must not wrap into one.
+        let status = if code.is_finite() && (100.0..=599.0).contains(&code) {
+            code as u16
         } else {
             500
         };

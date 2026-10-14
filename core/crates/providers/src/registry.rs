@@ -384,7 +384,23 @@ impl<K: KvStore, S: Keystore> Registry<K, S> {
     }
 
     fn save(&mut self, instances: &[Instance]) {
-        let text = serde_json::json!({ "instances": instances }).to_string();
+        // Records this build cannot read are written back untouched, so a newer or damaged entry is not lost the
+        // first time something else is added, changed or removed.
+        let unread: Vec<Value> = self
+            .storage
+            .get(KEY)
+            .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+            .and_then(|parsed| parsed.get("instances").and_then(Value::as_array).cloned())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|item| serde_json::from_value::<Instance>(item.clone()).is_err())
+            .collect();
+        let mut all: Vec<Value> = instances
+            .iter()
+            .filter_map(|instance| serde_json::to_value(instance).ok())
+            .collect();
+        all.extend(unread);
+        let text = serde_json::json!({ "instances": all }).to_string();
         self.storage.set(KEY, &text);
     }
 

@@ -539,3 +539,23 @@ fn a_bundled_entry_is_checked_on_the_same_bar_as_a_remote_one() {
         );
     }
 }
+
+#[test]
+fn a_stored_record_this_build_cannot_read_survives_other_changes() {
+    let store = Kv::default();
+    store.0.borrow_mut().insert(
+        "providers".to_owned(),
+        r#"{"instances":[{"id":"future-thing","somethingNew":true}]}"#.to_owned(),
+    );
+    let mut registry = Registry::new(store.clone(), Vault::default(), Catalog::bundled());
+    registry
+        .add(AddArgs {
+            provider_type: "openai".to_owned(),
+            ..AddArgs::default()
+        })
+        .expect("openai is in the catalog");
+
+    let after = store.0.borrow().get("providers").cloned().expect("stored");
+    assert!(after.contains("future-thing"), "{after}");
+    assert!(after.contains("openai"), "{after}");
+}
