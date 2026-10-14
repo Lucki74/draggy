@@ -344,6 +344,38 @@ fn a_store_it_cannot_read_starts_empty_and_is_replaced_by_the_next_save() {
 }
 
 #[test]
+fn an_unreadable_store_is_kept_beside_the_new_one_and_a_save_leaves_no_temp_file() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    fs::write(dir.path().join(STORE), "not encrypted by us").expect("write");
+    let mut store = open_store(dir.path(), &FakeVault::working());
+    assert!(store.owners().is_empty());
+    assert!(store.set("github", &object(json!({"GITHUB_TOKEN": SECRET}))));
+
+    let names: Vec<String> = fs::read_dir(dir.path())
+        .expect("dir")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    let kept = names
+        .iter()
+        .find(|name| name.starts_with("secrets.bin.unreadable-"))
+        .expect("the unreadable file is kept");
+    assert_eq!(
+        fs::read(dir.path().join(kept)).expect("kept file"),
+        b"not encrypted by us"
+    );
+    assert!(
+        !names.iter().any(|name| name.ends_with(".tmp")),
+        "{names:?}"
+    );
+}
+
+#[test]
 fn adopt_moves_the_credential_fields_and_returns_the_rest() {
     let dir = tempfile::tempdir().expect("temp dir");
     let mut store = open_store(dir.path(), &FakeVault::working());

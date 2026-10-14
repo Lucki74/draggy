@@ -234,11 +234,12 @@ impl<V: SecretVault> SecretStore<V> {
                 let mut merged: Map<String, Value> =
                     js_entries(&self.get(owner)).into_iter().collect();
                 merged.extend(secrets.clone());
-                self.set(owner, &merged);
+                // When the store cannot take them, the values stay in the record: the only other copy is in memory.
+                let stored = self.set(owner, &merged);
 
                 let kept_env: Map<String, Value> = env
                     .into_iter()
-                    .filter(|(field, _)| !js_has_key(&secrets, field))
+                    .filter(|(field, _)| !stored || !js_has_key(&secrets, field))
                     .collect();
                 rest.insert("env".to_string(), Value::Object(kept_env));
             }
@@ -288,6 +289,7 @@ impl<V: SecretVault> SecretStore<V> {
             Ok(plain) => plain,
             Err(_) => {
                 tracing::warn!(target: "storage.secrets", stage = "decrypt", "could not read the store");
+                self.set_aside();
                 return Cache::default();
             }
         };
@@ -304,8 +306,22 @@ impl<V: SecretVault> SecretStore<V> {
             Ok(_) => Cache::default(),
             Err(_) => {
                 tracing::warn!(target: "storage.secrets", stage = "parse", "could not read the store");
+                self.set_aside();
                 Cache::default()
             }
+        }
+    }
+
+    /// Moves a file that could not be read out of the way, so the next save does not overwrite credentials a later
+    /// run (or a repaired keystore) might still open.
+    fn set_aside(&self) {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis());
+        let mut name = self.path.as_os_str().to_owned();
+        name.push(format!(".unreadable-{stamp}"));
+        if fs::rename(&self.path, PathBuf::from(name)).is_err() {
+            tracing::warn!(target: "storage.secrets", stage = "set-aside", "could not keep the unreadable store");
         }
     }
 
@@ -530,8 +546,12 @@ fn js_order_map(map: &Map<String, Value>) -> Map<String, Value> {
         .collect()
 }
 
-/// Creates or truncates the file with owner-only permissions, as `writeFileSync` with mode 0600 does.
+/// Writes the file with owner-only permissions. The bytes go to a sibling file that is flushed and then renamed over
+/// the target, so a crash or a full disk leaves the old store intact instead of a half-written one.
 fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut name = path.as_os_str().to_owned();
+    name.push(".tmp");
+    let temp = PathBuf::from(name);
     let mut options = OpenOptions::new();
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
@@ -539,5 +559,14 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
-    options.open(path)?.write_all(bytes)
+    let written = (|| {
+        let mut file = options.open(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()
+    })();
+    if let Err(error) = written.and_then(|()| fs::rename(&temp, path)) {
+        drop(fs::remove_file(&temp));
+        return Err(error);
+    }
+    Ok(())
 }
