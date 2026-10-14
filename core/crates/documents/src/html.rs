@@ -430,6 +430,9 @@ fn tag_at(slots: &[Slot], index: usize) -> Option<&str> {
     }
 }
 
+/// The most open elements the parser keeps nested. The converters recurse once per level on a 2 MiB thread stack.
+const MAX_DEPTH: usize = 32;
+
 /// Parses HTML the way the reference does: unclosed items and paragraphs close at the next block, void and
 /// self-closing tags take no children, and a closing tag closes the nearest open element of its name.
 pub fn parse_html(html: &str) -> Node {
@@ -528,7 +531,8 @@ pub fn parse_html(html: &str) -> Node {
             },
         );
         let self_closing = caps.get(4).is_some();
-        if !self_closing && !VOID_TAGS.contains(&tag.as_str()) {
+        // Deeper than any real page nests: later tags land beside this one, so the walkers that recurse stay shallow.
+        if !self_closing && !VOID_TAGS.contains(&tag.as_str()) && stack.len() < MAX_DEPTH {
             stack.push(index);
         }
     }

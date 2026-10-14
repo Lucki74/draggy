@@ -7,6 +7,7 @@ use regex::Regex;
 
 use crate::js::{Pattern, captures, compile, trim};
 use crate::office_error::OfficeError;
+use crate::office_files::DOCUMENT_TEXT_LIMIT;
 use crate::office_xml::{decode_xml_entities, xml_to_text};
 use crate::office_zip::Package;
 
@@ -67,12 +68,17 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<String, OfficeError> {
     let date_styles = date_styles(&package.text("xl/styles.xml")?.unwrap_or_default());
 
     let mut parts = Vec::new();
+    // Callers keep the first DOCUMENT_TEXT_LIMIT characters; reading much past that only spends memory.
+    let mut budget = DOCUMENT_TEXT_LIMIT * 2;
     for (index, sheet) in sheet_tags(&workbook).into_iter().enumerate() {
+        if budget == 0 {
+            break;
+        }
         let target = relationship_target(&relationships, &sheet.relationship_id)
             .unwrap_or_else(|| format!("xl/worksheets/sheet{}.xml", index + 1));
         parts.push(format!("--- Sheet: {} ---", sheet.name));
         let xml = package.text(&target)?.unwrap_or_default();
-        parts.extend(csv_rows(&xml, &strings, &date_styles)?);
+        parts.extend(csv_rows(&xml, &strings, &date_styles, &mut budget)?);
     }
     Ok(parts.join("\n"))
 }
@@ -233,12 +239,16 @@ fn csv_rows(
     xml: &str,
     strings: &[String],
     date_styles: &[bool],
+    budget: &mut usize,
 ) -> Result<Vec<String>, OfficeError> {
     let (Some(rows), Some(cells)) = (ROW.as_ref(), CELL.as_ref()) else {
         return Ok(Vec::new());
     };
     let mut lines = Vec::new();
     for row in rows.captures_iter(xml) {
+        if *budget == 0 {
+            break;
+        }
         let body = row.get(1).map_or("", |m| m.as_str());
         let mut values: Vec<(usize, Option<String>)> = Vec::new();
         for cell in cells.captures_iter(body) {
@@ -277,13 +287,13 @@ fn csv_rows(
                 *slot = text;
             }
         }
-        lines.push(
-            slots
-                .iter()
-                .map(|slot| csv_cell(slot.as_deref().unwrap_or("")))
-                .collect::<Vec<_>>()
-                .join(","),
-        );
+        let line = slots
+            .iter()
+            .map(|slot| csv_cell(slot.as_deref().unwrap_or("")))
+            .collect::<Vec<_>>()
+            .join(",");
+        *budget = budget.saturating_sub(line.len() + 1);
+        lines.push(line);
     }
     Ok(lines)
 }

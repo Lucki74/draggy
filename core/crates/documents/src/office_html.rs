@@ -530,7 +530,7 @@ fn parse_border(raw: Option<&str>) -> Option<(String, usize)> {
             color = Some(found);
         }
         if let Some(width) = parse_int(Some(part)).filter(|width| *width > 0) {
-            size = (width * 8) as usize;
+            size = width.saturating_mul(8).clamp(1, 4096) as usize;
         }
     }
     Some((color.unwrap_or_else(|| DEFAULT_BORDER.to_owned()), size))
@@ -1178,6 +1178,26 @@ mod tests {
     fn part(bytes: &[u8], name: &str) -> String {
         let mut package = Package::open(bytes).expect("opens");
         package.text(name).expect("reads").expect("has the part")
+    }
+
+    #[test]
+    fn a_part_that_inflates_past_the_cap_is_refused_not_read() {
+        let (bytes, _) =
+            docx_from_html(&format!("<p>{}</p>", "a".repeat(2_000_000))).expect("writes");
+        assert!(matches!(read_docx(&bytes), Err(OfficeError::Corrupt(_))));
+    }
+
+    #[test]
+    fn thousands_of_nested_elements_convert_without_overflowing_the_stack() {
+        let html = format!(
+            "{}<p>deep</p>{}",
+            "<div>".repeat(5_000),
+            "</div>".repeat(5_000)
+        );
+        let (bytes, _) = docx_from_html(&html).expect("writes");
+        assert!(read_docx(&bytes).is_ok());
+        let spans = format!("{}deep", "<span>".repeat(5_000));
+        assert!(docx_from_html(&spans).is_ok());
     }
 
     #[test]

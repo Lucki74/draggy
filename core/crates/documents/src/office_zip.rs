@@ -12,6 +12,13 @@ pub(crate) struct Package<'a> {
     archive: ZipArchive<Cursor<&'a [u8]>>,
 }
 
+/// The most one part of a package may inflate to.
+#[cfg(not(test))]
+const MAX_PART_BYTES: u64 = 256 * 1024 * 1024;
+/// Small under test, so the refusal can be shown with a part that is cheap to build.
+#[cfg(test)]
+const MAX_PART_BYTES: u64 = 1024 * 1024;
+
 impl<'a> Package<'a> {
     pub(crate) fn open(bytes: &'a [u8]) -> Result<Self, OfficeError> {
         let archive = ZipArchive::new(Cursor::new(bytes)).map_err(|_| OfficeError::NotAPackage)?;
@@ -32,9 +39,17 @@ impl<'a> Package<'a> {
             Err(ZipError::FileNotFound) => return Ok(None),
             Err(error) => return Err(OfficeError::Corrupt(error.to_string())),
         };
+        // A few kilobytes of zip can inflate to gigabytes, so a part is read only up to a size no real document has.
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)
+        file.by_ref()
+            .take(MAX_PART_BYTES + 1)
+            .read_to_end(&mut buffer)
             .map_err(|error| OfficeError::Corrupt(error.to_string()))?;
+        if buffer.len() as u64 > MAX_PART_BYTES {
+            return Err(OfficeError::Corrupt(
+                "a part of the package is too large".to_owned(),
+            ));
+        }
         Ok(Some(String::from_utf8_lossy(&buffer).into_owned()))
     }
 }
