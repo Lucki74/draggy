@@ -4,6 +4,7 @@
 
 use serde_json::{Map, Value, json};
 
+use crate::http::loggable;
 use crate::js::to_js_string;
 use crate::log::{Level, Log};
 use crate::names::scope_for;
@@ -154,6 +155,14 @@ async fn attempt_sign_in<H: Http>(
     )
     .await
     .map_err(|error| error.to_string())?;
+    // A reply with no access token is not a sign-in: storing it would send later calls out unauthenticated.
+    if tokens
+        .as_object()
+        .and_then(|record| text_field(record, "access_token"))
+        .is_none()
+    {
+        return Err("The sign-in server did not send an access token.".to_owned());
+    }
 
     let expires = expires_value(expiry_of(Some(&tokens), ports.clock.now_ms()));
     let mut record = tokens.as_object().cloned().unwrap_or_default();
@@ -209,7 +218,7 @@ pub async fn refresh_tokens<H: Http>(
                 Level::Warn,
                 &scope_for(id),
                 "could not refresh sign-in",
-                json!({"server": id, "transport": "http", "reason": reason}),
+                json!({"server": id, "transport": "http", "reason": loggable(&reason)}),
             );
             false
         }

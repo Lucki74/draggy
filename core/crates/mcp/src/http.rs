@@ -325,6 +325,18 @@ pub fn status_error(status: u16, detail: &str) -> String {
     }
 }
 
+/// A failure message as the log may keep it: the status stays, the start of the body does not. A body can echo a
+/// token or a code that no scrubber knows the shape of.
+pub fn loggable(message: &str) -> String {
+    match message.find("answered ").map(|at| at + "answered ".len()) {
+        Some(from) => match message[from..].find(':') {
+            Some(colon) => format!("{}.", &message[..from + colon]),
+            None => message.to_owned(),
+        },
+        None => message.to_owned(),
+    }
+}
+
 /// The JSON-RPC message for a call (with an id) or a notification (without one).
 fn rpc_body(id: Option<u64>, method: &str, params: Option<Value>) -> Value {
     let mut body = Map::new();

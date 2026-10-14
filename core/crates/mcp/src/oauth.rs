@@ -225,6 +225,11 @@ pub async fn register<H: Http>(
 /// The address the user is sent to. Its own query is kept; each parameter Draggy sets replaces any earlier one.
 pub fn authorize_url(request: &AuthorizeRequest<'_>) -> Result<String, OauthError> {
     let mut url = Url::parse(request.endpoint).map_err(|_| OauthError::InvalidUrl)?;
+    // The address goes to the system's opener, so a server that names `file:` or an app's own scheme must not reach it.
+    let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
+    if url.scheme() != "https" && !(url.scheme() == "http" && local) {
+        return Err(OauthError::InvalidUrl);
+    }
     let mut pairs: Vec<(String, String)> = url
         .query_pairs()
         .map(|(key, value)| (key.into_owned(), value.into_owned()))

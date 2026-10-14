@@ -160,9 +160,20 @@ impl<P: Process> Conn<P> {
                 &json!({"jsonrpc": "2.0", "id": message_id, "method": method, "params": params})
             )
         );
-        if !self.process.write_line(line).await {
-            self.shared.pending().remove(&message_id);
-            return Err(self.not_running());
+        // A server that stops reading its stdin would hold the write, and every other call behind it, for good.
+        match timeout(limit, self.process.write_line(line)).await {
+            Ok(true) => {}
+            Ok(false) => {
+                self.shared.pending().remove(&message_id);
+                return Err(self.not_running());
+            }
+            Err(_) => {
+                self.shared.pending().remove(&message_id);
+                return Err(format!(
+                    "The {} server did not answer {method} in time.",
+                    self.shared.id
+                ));
+            }
         }
 
         match timeout(limit, receiver).await {
@@ -266,6 +277,10 @@ fn handle_line(shared: &Shared, raw: &str) {
 
 /// Hands an answer to the request waiting for its id. Messages without an id, and answers nobody waits for, are dropped.
 fn deliver(shared: &Shared, message: &Value) {
+    // A message with a method is the server asking something of its own, not an answer to a call of ours.
+    if message.get("method").is_some() {
+        return;
+    }
     let Some(id) = message
         .get("id")
         .filter(|id| !id.is_null())
