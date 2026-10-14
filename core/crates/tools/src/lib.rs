@@ -3,6 +3,7 @@
 pub mod files;
 pub mod fs_guard;
 pub mod git;
+mod js;
 pub mod shell;
 pub mod skills;
 pub mod spawn;

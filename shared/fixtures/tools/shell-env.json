@@ -1,0 +1,51 @@
+{
+  "area": "tools",
+  "description": "defaultShellEnv's PATH on macOS and Linux: the current PATH, then /usr/local/bin and /opt/homebrew/bin, each folder once and empty entries dropped. Input is {PATH} (null when unset); expected is {PATH}.",
+  "cases": [
+    {
+      "name": "the Homebrew and /usr/local folders follow the current PATH",
+      "input": {
+        "PATH": "/usr/bin:/bin"
+      },
+      "expected": {
+        "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"
+      }
+    },
+    {
+      "name": "each folder appears once",
+      "input": {
+        "PATH": "/usr/bin:/usr/local/bin:/usr/bin"
+      },
+      "expected": {
+        "PATH": "/usr/bin:/usr/local/bin:/opt/homebrew/bin"
+      }
+    },
+    {
+      "name": "with no PATH, only the two extra folders remain",
+      "input": {
+        "PATH": null
+      },
+      "expected": {
+        "PATH": "/usr/local/bin:/opt/homebrew/bin"
+      }
+    },
+    {
+      "name": "empty PATH entries are dropped",
+      "input": {
+        "PATH": "::/usr/bin::"
+      },
+      "expected": {
+        "PATH": "/usr/bin:/usr/local/bin:/opt/homebrew/bin"
+      }
+    },
+    {
+      "name": "a folder already listed keeps its place",
+      "input": {
+        "PATH": "/opt/homebrew/bin:/usr/bin"
+      },
+      "expected": {
+        "PATH": "/opt/homebrew/bin:/usr/bin:/usr/local/bin"
+      }
+    }
+  ]
+}

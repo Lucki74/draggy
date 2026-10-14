@@ -1,0 +1,27 @@
+{
+  "area": "tools",
+  "description": "checkpoints.keep: the content hash a checkpoint is stored under (SHA-256 of the UTF-8 bytes, lowercase hex). Input: {text}. Expected: the hash string.",
+  "cases": [
+    {
+      "name": "empty content has the empty-string digest",
+      "input": {
+        "text": ""
+      },
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "a line of text",
+      "input": {
+        "text": "hello\n"
+      },
+      "expected": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+    },
+    {
+      "name": "non-ASCII text is hashed as UTF-8",
+      "input": {
+        "text": "café 你好"
+      },
+      "expected": "e98077b530ebbc6d26830964d10c6bbbaad3599a1fbca705795f8cb302c3d2d0"
+    }
+  ]
+}

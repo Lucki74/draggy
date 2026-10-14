@@ -1,0 +1,77 @@
+{
+  "area": "tools",
+  "description": "git.countChanges: how many files of each kind changed. Input: {files: [{kind}]}. Expected: counts for all six kinds.",
+  "cases": [
+    {
+      "name": "no files gives zero of every kind",
+      "input": {
+        "files": []
+      },
+      "expected": {
+        "modified": 0,
+        "added": 0,
+        "deleted": 0,
+        "renamed": 0,
+        "untracked": 0,
+        "conflicted": 0
+      }
+    },
+    {
+      "name": "two modified and one untracked",
+      "input": {
+        "files": [
+          {
+            "kind": "modified"
+          },
+          {
+            "kind": "modified"
+          },
+          {
+            "kind": "untracked"
+          }
+        ]
+      },
+      "expected": {
+        "modified": 2,
+        "added": 0,
+        "deleted": 0,
+        "renamed": 0,
+        "untracked": 1,
+        "conflicted": 0
+      }
+    },
+    {
+      "name": "one of every kind",
+      "input": {
+        "files": [
+          {
+            "kind": "modified"
+          },
+          {
+            "kind": "added"
+          },
+          {
+            "kind": "deleted"
+          },
+          {
+            "kind": "renamed"
+          },
+          {
+            "kind": "untracked"
+          },
+          {
+            "kind": "conflicted"
+          }
+        ]
+      },
+      "expected": {
+        "modified": 1,
+        "added": 1,
+        "deleted": 1,
+        "renamed": 1,
+        "untracked": 1,
+        "conflicted": 1
+      }
+    }
+  ]
+}

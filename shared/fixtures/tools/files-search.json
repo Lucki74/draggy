@@ -1,0 +1,357 @@
+{
+  "area": "tools",
+  "description": "fileOps.search with a limit over ordered steps, in a fresh project folder {base}/project. A step with countOnly reports how many hits came back, since which of several equal hits comes first depends on folder order. Input: {tree, state, ops}. Expected: {results}, where each search result is {success, count, truncated} or {success, hits, truncated} or {success, error}.",
+  "cases": [
+    {
+      "name": "a name search counts every match when no limit is given",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "n",
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 4,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a zero limit is not a limit, so the default of fifty applies",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "f",
+            "limit": 0,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 50,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a null limit is not a limit, so the default of fifty applies",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "f",
+            "limit": null,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 50,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a limit of two stops after two hits",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "n",
+            "limit": 2,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 2,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a fractional limit stops after the first whole count above it",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "n",
+            "limit": 2.5,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 3,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a limit above fifty is cut to fifty",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "f",
+            "limit": 500,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 50,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a negative limit finds nothing",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "name": "n",
+            "limit": -1,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 0,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a text search counts each matching line",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "text": "alpha",
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 4,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a text search stops at a fractional limit",
+      "input": {
+        "tree": {
+          "files": {
+            "project/n1.txt": "alpha\nbeta\n",
+            "project/n2.txt": "alpha\n",
+            "project/n3.txt": "alpha alpha\n",
+            "project/n4.txt": "alpha\n"
+          },
+          "numbered": {
+            "project/many": {
+              "count": 60,
+              "stem": "f"
+            }
+          }
+        },
+        "state": false,
+        "ops": [
+          {
+            "call": "search",
+            "text": "alpha",
+            "limit": 2.5,
+            "countOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "count": 3,
+            "truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a search with neither a name nor text is refused",
+      "input": {
+        "tree": {},
+        "state": false,
+        "ops": [
+          {
+            "call": "search"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "Give a file name or some text to look for."
+          }
+        ]
+      }
+    }
+  ]
+}

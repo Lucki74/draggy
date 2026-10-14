@@ -1,0 +1,46 @@
+{
+  "area": "tools",
+  "description": "git.toPathspec: a path relative to the project with forward slashes, or null when it is outside. Input: {root, absolute} using {base}. Expected: string or null.",
+  "cases": [
+    {
+      "name": "makes it relative with forward slashes",
+      "input": {
+        "root": "{base}/work/project",
+        "absolute": "{base}/work/project/src/app.ts"
+      },
+      "expected": "src/app.ts"
+    },
+    {
+      "name": "names the project itself as the current folder",
+      "input": {
+        "root": "{base}/work/project",
+        "absolute": "{base}/work/project"
+      },
+      "expected": "."
+    },
+    {
+      "name": "refuses a path outside the project",
+      "input": {
+        "root": "{base}/work/project",
+        "absolute": "{base}/work/other/file.ts"
+      },
+      "expected": null
+    },
+    {
+      "name": "refuses a name that starts with two dots (TS quirk)",
+      "input": {
+        "root": "{base}/work/project",
+        "absolute": "{base}/work/project/..notes"
+      },
+      "expected": null
+    },
+    {
+      "name": "keeps the nested path",
+      "input": {
+        "root": "{base}/work/project",
+        "absolute": "{base}/work/project/a/b/c.md"
+      },
+      "expected": "a/b/c.md"
+    }
+  ]
+}

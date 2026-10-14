@@ -1,0 +1,112 @@
+{
+  "area": "tools",
+  "description": "The skill layer's INFO lines: a skill installed or removed between listings, and a change to the switched-on set. Stateful: steps (list, install, remove) run in order in a fresh user folder. The first step sets the baseline and its lines are not checked, since the reference keeps its last listing across cases. Expected: {results, logs}.",
+  "cases": [
+    {
+      "name": "an install, a switch and a removal are each logged once",
+      "input": {
+        "steps": [
+          {
+            "call": "list"
+          },
+          {
+            "call": "install",
+            "id": "s1",
+            "text": "---\nname: s1\ndescription: First skill.\n---\nBody.\n"
+          },
+          {
+            "call": "list"
+          },
+          {
+            "call": "list"
+          },
+          {
+            "call": "list",
+            "overrides": {
+              "s1": false
+            }
+          },
+          {
+            "call": "remove",
+            "id": "s1"
+          },
+          {
+            "call": "list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "skills": []
+          },
+          {
+            "success": true
+          },
+          {
+            "skills": [
+              {
+                "id": "s1",
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "skills": [
+              {
+                "id": "s1",
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "skills": [
+              {
+                "id": "s1",
+                "enabled": false
+              }
+            ]
+          },
+          {
+            "success": true
+          },
+          {
+            "skills": []
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "message": "skill installed",
+            "data": {
+              "id": "s1"
+            }
+          },
+          {
+            "level": "info",
+            "message": "enabled skills changed",
+            "data": {
+              "total": 1,
+              "enabled": 1
+            }
+          },
+          {
+            "level": "info",
+            "message": "enabled skills changed",
+            "data": {
+              "total": 1,
+              "enabled": 0
+            }
+          },
+          {
+            "level": "info",
+            "message": "skill removed",
+            "data": {
+              "id": "s1"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

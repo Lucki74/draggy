@@ -1,0 +1,41 @@
+{
+  "area": "tools",
+  "description": "timeoutFor: a command's time limit in milliseconds. Missing or non-positive asks use the 120000 ms default; other asks are held between 1000 and 600000 ms.",
+  "cases": [
+    {
+      "name": "no limit asked uses the two-minute default",
+      "input": null,
+      "expected": 120000
+    },
+    {
+      "name": "zero uses the default",
+      "input": 0,
+      "expected": 120000
+    },
+    {
+      "name": "a negative limit uses the default",
+      "input": -5,
+      "expected": 120000
+    },
+    {
+      "name": "a limit under a second is raised to one second",
+      "input": 10,
+      "expected": 1000
+    },
+    {
+      "name": "a limit inside the range is kept",
+      "input": 1500,
+      "expected": 1500
+    },
+    {
+      "name": "the ten-minute ceiling is kept",
+      "input": 600000,
+      "expected": 600000
+    },
+    {
+      "name": "a limit over ten minutes is capped",
+      "input": 1000000000,
+      "expected": 600000
+    }
+  ]
+}
