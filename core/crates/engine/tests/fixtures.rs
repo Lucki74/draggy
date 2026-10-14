@@ -149,7 +149,7 @@ impl MapFiles {
             path.strip_prefix(&self.root)
                 .ok()?
                 .to_string_lossy()
-                .into_owned(),
+                .replace(std::path::MAIN_SEPARATOR, "/"),
         )
     }
 }
@@ -1020,6 +1020,13 @@ fn run(file: &str, input: &Value) -> Value {
     }
 }
 
+/// A canonical value with Windows' backslash separators read as slashes, on both sides of a comparison.
+fn neutral(value: Value) -> Value {
+    let slash = char::from(92u8);
+    let text = value.to_string().replace(&format!("{slash}{slash}"), "/");
+    serde_json::from_str(&text).expect("a replaced JSON text parses")
+}
+
 #[test]
 fn fixtures_match_the_typescript_reference() {
     let mut failures = Vec::new();
@@ -1027,8 +1034,8 @@ fn fixtures_match_the_typescript_reference() {
     for file in files("engine") {
         for case in cases("engine", &file) {
             let name = case["name"].as_str().unwrap_or("").to_owned();
-            let actual = canon(run(&file, &case["input"]));
-            let expected = canon(case["expected"].clone());
+            let actual = neutral(canon(run(&file, &case["input"])));
+            let expected = neutral(canon(case["expected"].clone()));
             ran += 1;
             if actual != expected {
                 failures.push(format!(

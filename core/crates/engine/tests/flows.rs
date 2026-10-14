@@ -776,9 +776,20 @@ fn an_expired_or_unknown_benchmark_is_not_listed() {
 
 struct Files2(HashMap<String, String>);
 
+impl Files2 {
+    /// A path is the same entry whichever separator the platform wrote it with.
+    fn find(&self, path: &Path) -> Option<&String> {
+        let slashed = |p: &str| p.replace(std::path::MAIN_SEPARATOR, "/");
+        let wanted = slashed(&path.to_string_lossy());
+        self.0
+            .iter()
+            .find_map(|(key, value)| (slashed(key) == wanted).then_some(value))
+    }
+}
+
 impl Files for Files2 {
     fn read_text(&self, path: &Path) -> Option<String> {
-        self.0.get(path.to_string_lossy().as_ref()).cloned()
+        self.find(path).cloned()
     }
 
     fn list_dir(&self, path: &Path) -> Option<Vec<String>> {
@@ -789,7 +800,7 @@ impl Files for Files2 {
     }
 
     fn exists(&self, path: &Path) -> bool {
-        self.0.contains_key(path.to_string_lossy().as_ref())
+        self.find(path).is_some()
     }
 }
 
