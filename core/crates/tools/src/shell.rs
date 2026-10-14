@@ -424,12 +424,7 @@ mod tests {
         matches!(kill(Pid::from_raw(pid), None), Err(Errno::ESRCH))
     }
 
-    // The process tests need /bin/sh; this keeps the module compiling where they cannot run.
-    #[cfg(not(unix))]
-    fn is_gone(_pid: i32) -> bool {
-        true
-    }
-
+    #[cfg(unix)]
     async fn wait_until_gone(pid: i32) -> bool {
         for _ in 0..50 {
             if is_gone(pid) {
@@ -440,6 +435,7 @@ mod tests {
         false
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn echo_returns_output_and_success() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -452,6 +448,7 @@ mod tests {
         assert_eq!(result.shell, "sh");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_failing_command_reports_its_exit_code() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -463,6 +460,7 @@ mod tests {
         assert!(result.output.contains("oops"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn stderr_is_part_of_the_output() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -479,6 +477,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn the_command_runs_in_the_project_folder() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -489,6 +488,7 @@ mod tests {
         assert_eq!(result.output.trim(), expected.display().to_string());
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_long_output_keeps_its_start_and_end() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -510,6 +510,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_command_past_its_limit_is_stopped_with_its_children() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -535,6 +536,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn cancel_stops_the_command_and_its_children() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -564,6 +566,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_command_cancelled_before_it_starts_stops_at_once() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -634,6 +637,7 @@ mod tests {
         assert!(parse_login_env("PATH=/usr/bin\n").is_empty());
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn login_shell_env_reads_the_shells_environment() {
         let env = login_shell_env(Some(Path::new("/bin/sh")))

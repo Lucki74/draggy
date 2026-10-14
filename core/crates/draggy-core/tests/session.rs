@@ -379,6 +379,7 @@ fn commands_are_not_offered_unless_the_session_allows_them() {
     assert!(!folder.path().join("made.txt").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn an_approved_command_runs_and_the_model_reads_its_output() {
     let folder = tempfile::tempdir().expect("folder");
@@ -463,6 +464,7 @@ fn plan_mode_refuses_commands_without_asking() {
     assert!(!folder.path().join("made.txt").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn auto_mode_runs_commands_without_asking() {
     let folder = tempfile::tempdir().expect("folder");
@@ -483,6 +485,7 @@ fn auto_mode_runs_commands_without_asking() {
     assert!(folder.path().join("made.txt").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_session_wide_grant_covers_the_same_command_in_a_later_turn() {
     let folder = tempfile::tempdir().expect("folder");
