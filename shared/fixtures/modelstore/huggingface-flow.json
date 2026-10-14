@@ -1,0 +1,2789 @@
+{
+  "area": "modelstore",
+  "description": "Ordered operations on one fresh huggingface module with a stubbed hub: each op's result and the URLs it fetched. Caches carry between the ops of one case.",
+  "cases": [
+    {
+      "name": "an empty query asks for the trending GGUF models with every field expanded",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Meta-Llama-3.1-8B-Instruct",
+              "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+              "description": "Meta's Llama 3.1: multilingual instruction-tuned models with 128K context and native tool calling. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "repeated empty searches are served from memory",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          },
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Qwen2.5-7B-Instruct",
+              "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+              "description": "Alibaba's Qwen 2.5 series, with exceptional strength in coding, math and instruction following. GGUF by Qwen.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        },
+        {
+          "value": [
+            {
+              "name": "Qwen2.5-7B-Instruct",
+              "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+              "description": "Alibaba's Qwen 2.5 series, with exceptional strength in coding, math and instruction following. GGUF by Qwen.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a failed empty search is not cached, so the next one asks again",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [],
+            "error": "offline",
+            "times": 1
+          },
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          },
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        },
+        {
+          "value": [
+            {
+              "name": "Qwen2.5-7B-Instruct",
+              "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+              "description": "Alibaba's Qwen 2.5 series, with exceptional strength in coding, math and instruction following. GGUF by Qwen.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "speech, detection and image repos are listed with the kind of model they are",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "audio-cpp/audio.cpp-gguf",
+                "pipeline_tag": "text-to-speech",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "mudler/locate-anything.cpp-gguf",
+                "pipeline_tag": "object-detection",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "city96/FLUX.1-dev-gguf",
+                "pipeline_tag": "text-to-image",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "someone/brand-new-task-gguf",
+                "pipeline_tag": "a-task-made-up-next-year",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "bartowski/phi-4-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "audio.cpp",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "description": "Text to speech model. GGUF by audio-cpp.",
+              "capabilities": [
+                "text-to-speech"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "locate-anything.cpp",
+              "repo": "mudler/locate-anything.cpp-gguf",
+              "description": "Image analysis model. GGUF by mudler.",
+              "capabilities": [
+                "image-analysis"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "FLUX.1-dev",
+              "repo": "city96/FLUX.1-dev-gguf",
+              "description": "Image generation model. GGUF by city96.",
+              "capabilities": [
+                "image-generation"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "brand-new-task",
+              "repo": "someone/brand-new-task-gguf",
+              "description": "Other model. GGUF by someone.",
+              "capabilities": [
+                "other"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "phi-4",
+              "repo": "bartowski/phi-4-GGUF",
+              "description": "Microsoft's Phi-4, compact models trained heavily on synthetic data for strong reasoning and STEM results. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a model that does not chat is described by its type, not as a language model",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "city96/FLUX.1-dev-gguf",
+                "pipeline_tag": "text-to-image",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "FLUX.1-dev",
+              "repo": "city96/FLUX.1-dev-gguf",
+              "description": "Image generation model. GGUF by city96.",
+              "capabilities": [
+                "image-generation"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "titles drop the author and the GGUF suffix but keep the repo for resolving",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "mixedbread-ai/mxbai-embed-large-v1",
+                "pipeline_tag": "feature-extraction",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Meta-Llama-3.1-8B-Instruct",
+              "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+              "description": "Meta's Llama 3.1: multilingual instruction-tuned models with 128K context and native tool calling. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "mxbai-embed-large-v1",
+              "repo": "mixedbread-ai/mxbai-embed-large-v1",
+              "description": "Embedding model. GGUF by mixedbread-ai.",
+              "capabilities": [
+                "embedding"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "canonical blurbs name the popular families",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "unsloth/Qwen3-30B-A3B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "bartowski/phi-4-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "bartowski/gemma-2-9b-it-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "ibm-granite/granite-3.3-8b-instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "openbmb/MiniCPM4-8B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "CohereLabs/c4ai-command-a-03-2025-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Meta-Llama-3.1-8B-Instruct",
+              "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+              "description": "Meta's Llama 3.1: multilingual instruction-tuned models with 128K context and native tool calling. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "DeepSeek-R1-Distill-Qwen-7B",
+              "repo": "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+              "description": "DeepSeek-R1 reasoning models, trained to think step by step. Distilled versions bring that to Qwen and Llama sizes. GGUF by bartowski.",
+              "capabilities": [
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Qwen3-30B-A3B",
+              "repo": "unsloth/Qwen3-30B-A3B-GGUF",
+              "description": "Alibaba's Qwen3 generation: dense and mixture-of-experts models with strong multilingual, coding and agent skills. GGUF by unsloth.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "phi-4",
+              "repo": "bartowski/phi-4-GGUF",
+              "description": "Microsoft's Phi-4, compact models trained heavily on synthetic data for strong reasoning and STEM results. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "gemma-2-9b-it",
+              "repo": "bartowski/gemma-2-9b-it-GGUF",
+              "description": "Google's Gemma 2, lightweight open models built from the same research as Gemini, from 2B to 27B. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "granite-3.3-8b-instruct",
+              "repo": "ibm-granite/granite-3.3-8b-instruct-GGUF",
+              "description": "IBM's Granite models, open enterprise-grade models for instruction following, tool calling and retrieval. GGUF by ibm-granite.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "MiniCPM4-8B",
+              "repo": "openbmb/MiniCPM4-8B-GGUF",
+              "description": "OpenBMB's MiniCPM, compact models built for efficient on-device use, with MiniCPM-V adding vision. GGUF by openbmb.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Mistral-7B-Instruct-v0.3",
+              "repo": "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
+              "description": "Mistral AI's open models, fast and capable general-purpose assistants with native function calling. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "c4ai-command-a-03-2025",
+              "repo": "CohereLabs/c4ai-command-a-03-2025-GGUF",
+              "description": "Cohere's Command models, built for enterprise agents, retrieval and tool use; the family behind Cohere North. GGUF by CohereLabs.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a community model describes itself from its card",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "ornith-ai/Ornith-1.5-9B-GGUF",
+                "pipeline_tag": "image-text-to-text",
+                "tags": [
+                  "gguf",
+                  "coding",
+                  "moe"
+                ],
+                "cardData": {
+                  "base_model": [
+                    "ornith-ai/Ornith-1.5"
+                  ]
+                },
+                "baseModels": {
+                  "relation": "finetune",
+                  "models": [
+                    {
+                      "id": "ornith-ai/Ornith-1.5"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Ornith-1.5-9B",
+              "repo": "ornith-ai/Ornith-1.5-9B-GGUF",
+              "description": "Vision-language model with 9B parameters, fine-tuned from ornith-ai/Ornith-1.5. GGUF by ornith-ai. Tagged coding, mixture-of-experts.",
+              "capabilities": [
+                "vision",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a Qwen-based community model does not take the stock Qwen3 blurb",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "cardData": {
+                  "base_model": [
+                    "Qwen/Qwen3.8-27B"
+                  ]
+                }
+              },
+              {
+                "id": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "cardData": {
+                  "base_model": [
+                    "Qwen/Qwen3.8-27B"
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Ternary-Bonsai-2-27B",
+              "repo": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+              "description": "Text generation model with 27B parameters, based on Qwen/Qwen3.8-27B. GGUF by prism-ml.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Qwen3.8-27B-GSQ-RCO",
+              "repo": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+              "description": "Text generation model with 27B parameters, based on Qwen/Qwen3.8-27B. GGUF by ISTA-DASLab.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the parameter count falls back to the GGUF total",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "someone/Odd-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "total": 8953803264
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Odd-Model",
+              "repo": "someone/Odd-Model-GGUF",
+              "description": "Text generation model with 9.0B parameters. GGUF by someone.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the description names at most three tags, and skips the ones it has no label for",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "acme/Plain-7B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf",
+                  "conversational",
+                  "math",
+                  "coding",
+                  "moe",
+                  "reasoning"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Plain-7B",
+              "repo": "acme/Plain-7B-GGUF",
+              "description": "Text generation model with 7B parameters. GGUF by acme. Tagged math, coding, mixture-of-experts.",
+              "capabilities": [
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a library entry offers the quants the repo really has",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "siblings": [
+                  {
+                    "rfilename": "a-PQ2_0.gguf"
+                  },
+                  {
+                    "rfilename": "a-F16.gguf"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Ternary-Bonsai-2-27B",
+              "repo": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+              "description": "Text generation model with 27B parameters. GGUF by prism-ml.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "PQ2_0",
+                "F16"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tool support is read from the chat template",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "someone/Plain-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "chat_template": "{% if tools %}{{ tools }}{% endif %}"
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Plain-Model",
+              "repo": "someone/Plain-Model-GGUF",
+              "description": "Text generation model. GGUF by someone.",
+              "capabilities": [
+                "tools",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "thinking is flagged by template, tag or name",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "someone/Think-A-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "chat_template": "<think>"
+                }
+              },
+              {
+                "id": "someone/Tagged-B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "reasoning"
+                ]
+              },
+              {
+                "id": "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "unsloth/Inkling-Small-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Think-A",
+              "repo": "someone/Think-A-GGUF",
+              "description": "Text generation model. GGUF by someone.",
+              "capabilities": [
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Tagged-B",
+              "repo": "someone/Tagged-B-GGUF",
+              "description": "Text generation model. GGUF by someone. Tagged reasoning.",
+              "capabilities": [
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "DeepSeek-R1-Distill-Qwen-7B",
+              "repo": "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+              "description": "DeepSeek-R1 reasoning models, trained to think step by step. Distilled versions bring that to Qwen and Llama sizes. GGUF by bartowski.",
+              "capabilities": [
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Inkling-Small",
+              "repo": "unsloth/Inkling-Small-GGUF",
+              "description": "Text generation model. GGUF by unsloth.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "vision comes from the pipeline tag",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "someone/Seer-GGUF",
+                "pipeline_tag": "image-text-to-text",
+                "tags": [
+                  "gguf"
+                ]
+              },
+              {
+                "id": "someone/Plain-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Seer",
+              "repo": "someone/Seer-GGUF",
+              "description": "Vision-language model. GGUF by someone.",
+              "capabilities": [
+                "vision",
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            },
+            {
+              "name": "Plain-Model",
+              "repo": "someone/Plain-Model-GGUF",
+              "description": "Text generation model. GGUF by someone.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an embedding model reports embedding only",
+      "input": {
+        "responses": [
+          {
+            "match": "sort=trendingScore",
+            "json": [
+              {
+                "id": "someone/Embed-GGUF",
+                "pipeline_tag": "feature-extraction",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Embed",
+              "repo": "someone/Embed-GGUF",
+              "description": "Embedding model. GGUF by someone.",
+              "capabilities": [
+                "embedding"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?filter=gguf&sort=trendingScore&direction=-1&limit=100&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a query returns curated matches first, then the remote results",
+      "input": {
+        "responses": [
+          {
+            "match": "search=llama",
+            "json": [
+              {
+                "id": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ]
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "llama"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "llama3.1",
+              "description": "Llama 3.1 is a state-of-the-art model from Meta available in 8B and 70B parameter sizes.",
+              "capabilities": [
+                "tools",
+                "completion"
+              ],
+              "sizes": [
+                "8b",
+                "70b"
+              ]
+            },
+            {
+              "name": "llama3.2",
+              "description": "Llama 3.2 is Meta's lightweight model family tuned for high-speed local inference.",
+              "capabilities": [
+                "tools",
+                "completion"
+              ],
+              "sizes": [
+                "1b",
+                "3b"
+              ]
+            },
+            {
+              "name": "Llama-3.2-3B-Instruct",
+              "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+              "description": "Meta's Llama 3.2: lightweight 1B and 3B models for fast local inference, plus larger vision variants. GGUF by bartowski.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=llama&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a query with no network returns the curated matches only",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "deepseek"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "deepseek-r1",
+              "description": "DeepSeek-R1 is a family of open reasoning models with performance approaching leading frontier models.",
+              "capabilities": [
+                "tools",
+                "thinking",
+                "completion"
+              ],
+              "sizes": [
+                "1.5b",
+                "7b",
+                "8b",
+                "14b",
+                "32b",
+                "70b"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=deepseek&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a query is trimmed, lowercased and percent-encoded",
+      "input": {
+        "responses": [
+          {
+            "match": "search=qwen",
+            "json": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "  Qwen 2.5 "
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "qwen2.5",
+              "description": "Qwen 2.5 is Alibaba's flagship series with exceptional strength in coding, math and instruction following.",
+              "capabilities": [
+                "tools",
+                "completion"
+              ],
+              "sizes": [
+                "0.5b",
+                "1.5b",
+                "3b",
+                "7b",
+                "14b",
+                "32b"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=qwen%202.5&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a curated size is exact and needs no network",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "llama3.1",
+              "8b"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "4920733696"
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "an unknown variant fails without crashing",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "nonexistent-model",
+              "999b"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": false,
+            "error": "Size lookup unavailable"
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a curated reference resolves to its Hugging Face resolve URL",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "llama3.1:8b"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+            "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+            "size": "4920733696",
+            "draft": {
+              "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+              "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M-draft.gguf",
+              "size": "807694464"
+            }
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a curated reference without a tag takes its first size",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "phi-4"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf?download=true",
+            "filename": "phi-4-Q4_K_M.gguf",
+            "size": "9140000000"
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "an unknown reference resolves to null",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "nonexistent-model:xyz"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": null,
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a companion draft is listed without being bundled by default",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "llama3.1:8b"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+            "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+            "size": "4920733696",
+            "draft": {
+              "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+              "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M-draft.gguf",
+              "size": "807694464"
+            }
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "including the draft bundles it into the parts and adds its size",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "llama3.1:8b",
+              {
+                "includeDraft": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+            "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+            "size": "5728428160",
+            "draft": {
+              "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+              "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M-draft.gguf",
+              "size": "807694464"
+            },
+            "parts": [
+              {
+                "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf?download=true",
+                "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+                "size": "4920733696"
+              },
+              {
+                "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+                "filename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M-draft.gguf",
+                "size": "807694464"
+              }
+            ]
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a repo size counts the whole tree, and the projector only in the size",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Bonsai-gguf/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "Bonsai-F16.gguf",
+                "size": 50100000000
+              },
+              {
+                "type": "file",
+                "path": "Bonsai-mmproj-Q8_0.gguf",
+                "size": 600000000
+              },
+              {
+                "type": "file",
+                "path": "Bonsai-Q8_0.gguf",
+                "size": 28000000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Bonsai-gguf",
+              "Q8_0"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "28600000000"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Bonsai-gguf/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "quants held in sub-folders are found for sizes and downloads alike",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Flash-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "mmproj-F16.gguf",
+                "size": 800000000
+              },
+              {
+                "type": "file",
+                "path": "IQ2_XS/Flash-IQ2_XS.gguf",
+                "size": 9000000000
+              },
+              {
+                "type": "file",
+                "path": "Q2_0/Flash-Q2_0.gguf",
+                "size": 11000000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Flash-GGUF",
+              "IQ2_XS"
+            ]
+          },
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Flash-GGUF:Q2_0"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "9800000000"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Flash-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Flash-GGUF/resolve/main/Q2_0/Flash-Q2_0.gguf?download=true",
+            "filename": "Flash-Q2_0.gguf",
+            "size": "11800000000",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/Flash-GGUF/resolve/main/Q2_0/Flash-Q2_0.gguf?download=true",
+                "filename": "Flash-Q2_0.gguf",
+                "size": "11000000000"
+              },
+              {
+                "url": "https://huggingface.co/acme/Flash-GGUF/resolve/main/mmproj-F16.gguf?download=true",
+                "filename": "Flash-Q2_0-mmproj.gguf",
+                "size": "800000000"
+              }
+            ]
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a split model sums its shards, and the plain file beats the -mtp one",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Big-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "big-Q4_K_M-00001-of-00002.gguf",
+                "size": 30
+              },
+              {
+                "type": "file",
+                "path": "big-Q4_K_M-00002-of-00002.gguf",
+                "size": 12
+              }
+            ]
+          },
+          {
+            "match": "/api/models/acme/Small-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "small-Q5_K_M-mtp.gguf",
+                "size": 99
+              },
+              {
+                "type": "file",
+                "path": "small-Q5_K_M.gguf",
+                "size": 7
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Big-GGUF:Q4_K_M"
+            ]
+          },
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Small-GGUF:Q5_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Big-GGUF/resolve/main/big-Q4_K_M-00001-of-00002.gguf?download=true",
+            "filename": "big-Q4_K_M-00001-of-00002.gguf",
+            "size": "42",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/Big-GGUF/resolve/main/big-Q4_K_M-00001-of-00002.gguf?download=true",
+                "filename": "big-Q4_K_M-00001-of-00002.gguf",
+                "size": "30"
+              },
+              {
+                "url": "https://huggingface.co/acme/Big-GGUF/resolve/main/big-Q4_K_M-00002-of-00002.gguf?download=true",
+                "filename": "big-Q4_K_M-00002-of-00002.gguf",
+                "size": "12"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Big-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Small-GGUF/resolve/main/small-Q5_K_M.gguf?download=true",
+            "filename": "small-Q5_K_M.gguf",
+            "size": "7"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Small-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a multi-token-prediction draft head is never taken for the model",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/unsloth/gemma-4-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "MTP/mtp-gemma-4-26B-A4B-it-Q8_0.gguf",
+                "size": 460000000
+              },
+              {
+                "type": "file",
+                "path": "mtp-gemma-4-26B-A4B-it.gguf",
+                "size": 460000000
+              },
+              {
+                "type": "file",
+                "path": "gemma-4-26B-A4B-it-Q8_0.gguf",
+                "size": 26860000000
+              },
+              {
+                "type": "file",
+                "path": "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+                "size": 16950000000
+              },
+              {
+                "type": "file",
+                "path": "mmproj-F16.gguf",
+                "size": 1190000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "unsloth/gemma-4-GGUF",
+              "Q8_0"
+            ]
+          },
+          {
+            "op": "resolve",
+            "args": [
+              "unsloth/gemma-4-GGUF:Q8_0"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "28050000000"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/unsloth/gemma-4-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": {
+            "url": "https://huggingface.co/unsloth/gemma-4-GGUF/resolve/main/gemma-4-26B-A4B-it-Q8_0.gguf?download=true",
+            "filename": "gemma-4-26B-A4B-it-Q8_0.gguf",
+            "size": "28050000000",
+            "parts": [
+              {
+                "url": "https://huggingface.co/unsloth/gemma-4-GGUF/resolve/main/gemma-4-26B-A4B-it-Q8_0.gguf?download=true",
+                "filename": "gemma-4-26B-A4B-it-Q8_0.gguf",
+                "size": "26860000000"
+              },
+              {
+                "url": "https://huggingface.co/unsloth/gemma-4-GGUF/resolve/main/mmproj-F16.gguf?download=true",
+                "filename": "gemma-4-26B-A4B-it-Q8_0-mmproj.gguf",
+                "size": "1190000000"
+              }
+            ]
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "a quant only a draft head has is not offered",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Draft-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "MTP/mtp-model-F16.gguf",
+                "size": 900000000
+              },
+              {
+                "type": "file",
+                "path": "model-Q4_K_M.gguf",
+                "size": 5000000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Draft-GGUF",
+              "F16"
+            ]
+          },
+          {
+            "op": "size",
+            "args": [
+              "acme/Draft-GGUF",
+              "Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": false,
+            "error": "Size lookup unavailable"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Draft-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": {
+            "success": true,
+            "bytes": "5000000000"
+          },
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "Q2_0 never picks up a PQ2_0 file",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/PQ-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "m-PQ2_0.gguf",
+                "size": 5
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/PQ-GGUF:Q2_0"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": null,
+          "fetches": [
+            "https://huggingface.co/api/models/acme/PQ-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a missing quant never falls back to the first file",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Missing-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "Bonsai-F16.gguf",
+                "size": 50100000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Missing-GGUF",
+              "Q4_K_M"
+            ]
+          },
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Missing-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": false,
+            "error": "Size lookup unavailable"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Missing-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": null,
+          "fetches": []
+        }
+      ]
+    },
+    {
+      "name": "tree pages are followed through the Link header so later shards count",
+      "input": {
+        "responses": [
+          {
+            "match": "cursor=2",
+            "json": [
+              {
+                "type": "file",
+                "path": "m-Q4_K_M-00002-of-00002.gguf",
+                "size": 12
+              }
+            ]
+          },
+          {
+            "match": "acme/Paged-GGUF/tree/main",
+            "link": "https://huggingface.co/api/models/acme/Paged-GGUF/tree/main?recursive=true&cursor=2",
+            "json": [
+              {
+                "type": "file",
+                "path": "m-Q4_K_M-00001-of-00002.gguf",
+                "size": 30
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Paged-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Paged-GGUF/resolve/main/m-Q4_K_M-00001-of-00002.gguf?download=true",
+            "filename": "m-Q4_K_M-00001-of-00002.gguf",
+            "size": "30"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Paged-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an LFS file is sized by its real size, not the pointer's",
+      "input": {
+        "responses": [
+          {
+            "match": "acme/Lfs-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "lfs-Q4_K_M.gguf",
+                "size": 134,
+                "lfs": {
+                  "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "size": 4000000000
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Lfs-GGUF",
+              "Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "4000000000"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Lfs-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a slow tree page is tried once more before giving up",
+      "input": {
+        "responses": [
+          {
+            "match": "acme/Retry-GGUF/tree/main",
+            "error": "timeout",
+            "times": 1
+          },
+          {
+            "match": "/api/models/acme/Retry-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "r-Q4_K_M.gguf",
+                "size": 7
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "size",
+            "args": [
+              "acme/Retry-GGUF",
+              "Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "success": true,
+            "bytes": "7"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Retry-GGUF/tree/main?recursive=true",
+            "https://huggingface.co/api/models/acme/Retry-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "every part of a split model is resolved so none is left behind",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Split-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "Big-Q4_K_M-00001-of-00003.gguf",
+                "size": 10
+              },
+              {
+                "type": "file",
+                "path": "Big-Q4_K_M-00002-of-00003.gguf",
+                "size": 20
+              },
+              {
+                "type": "file",
+                "path": "Big-Q4_K_M-00003-of-00003.gguf",
+                "size": 5
+              },
+              {
+                "type": "file",
+                "path": "Big-Q8_0.gguf",
+                "size": 99
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Split-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Split-GGUF/resolve/main/Big-Q4_K_M-00001-of-00003.gguf?download=true",
+            "filename": "Big-Q4_K_M-00001-of-00003.gguf",
+            "size": "35",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/Split-GGUF/resolve/main/Big-Q4_K_M-00001-of-00003.gguf?download=true",
+                "filename": "Big-Q4_K_M-00001-of-00003.gguf",
+                "size": "10"
+              },
+              {
+                "url": "https://huggingface.co/acme/Split-GGUF/resolve/main/Big-Q4_K_M-00002-of-00003.gguf?download=true",
+                "filename": "Big-Q4_K_M-00002-of-00003.gguf",
+                "size": "20"
+              },
+              {
+                "url": "https://huggingface.co/acme/Split-GGUF/resolve/main/Big-Q4_K_M-00003-of-00003.gguf?download=true",
+                "filename": "Big-Q4_K_M-00003-of-00003.gguf",
+                "size": "5"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Split-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a model held in one file has no parts",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Whole-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "Whole-Q4_K_M.gguf",
+                "size": 10
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Whole-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/Whole-GGUF/resolve/main/Whole-Q4_K_M.gguf?download=true",
+            "filename": "Whole-Q4_K_M.gguf",
+            "size": "10"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Whole-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the projector is fetched after the model under a name that belongs to the model",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/VisionSeer-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "seer-Q4_K_M.gguf",
+                "size": 5000000000
+              },
+              {
+                "type": "file",
+                "path": "mmproj-F16.gguf",
+                "size": 175000000
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/VisionSeer-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/VisionSeer-GGUF/resolve/main/seer-Q4_K_M.gguf?download=true",
+            "filename": "seer-Q4_K_M.gguf",
+            "size": "5175000000",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/VisionSeer-GGUF/resolve/main/seer-Q4_K_M.gguf?download=true",
+                "filename": "seer-Q4_K_M.gguf",
+                "size": "5000000000"
+              },
+              {
+                "url": "https://huggingface.co/acme/VisionSeer-GGUF/resolve/main/mmproj-F16.gguf?download=true",
+                "filename": "seer-Q4_K_M-mmproj.gguf",
+                "size": "175000000"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/VisionSeer-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "half precision is taken over the wider or narrower projector builds",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/VisionHalf-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "m-Q4_K_M.gguf",
+                "size": 100
+              },
+              {
+                "type": "file",
+                "path": "mmproj-F32.gguf",
+                "size": 40
+              },
+              {
+                "type": "file",
+                "path": "mmproj-BF16.gguf",
+                "size": 20
+              },
+              {
+                "type": "file",
+                "path": "mmproj-F16.gguf",
+                "size": 20
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/VisionHalf-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/VisionHalf-GGUF/resolve/main/m-Q4_K_M.gguf?download=true",
+            "filename": "m-Q4_K_M.gguf",
+            "size": "120",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/VisionHalf-GGUF/resolve/main/m-Q4_K_M.gguf?download=true",
+                "filename": "m-Q4_K_M.gguf",
+                "size": "100"
+              },
+              {
+                "url": "https://huggingface.co/acme/VisionHalf-GGUF/resolve/main/mmproj-F16.gguf?download=true",
+                "filename": "m-Q4_K_M-mmproj.gguf",
+                "size": "20"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/VisionHalf-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the only projector is taken whatever its name",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/VisionOnly-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "visionpsy-q4_k_m.gguf",
+                "size": 303
+              },
+              {
+                "type": "file",
+                "path": "mmproj-visionpsy-q8.gguf",
+                "size": 109
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/VisionOnly-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/VisionOnly-GGUF/resolve/main/visionpsy-q4_k_m.gguf?download=true",
+            "filename": "visionpsy-q4_k_m.gguf",
+            "size": "412",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/VisionOnly-GGUF/resolve/main/visionpsy-q4_k_m.gguf?download=true",
+                "filename": "visionpsy-q4_k_m.gguf",
+                "size": "303"
+              },
+              {
+                "url": "https://huggingface.co/acme/VisionOnly-GGUF/resolve/main/mmproj-visionpsy-q8.gguf?download=true",
+                "filename": "visionpsy-q4_k_m-mmproj.gguf",
+                "size": "109"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/VisionOnly-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the projector is added after every part of a split model",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/VisionSplit-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "big-Q4_K_M-00001-of-00002.gguf",
+                "size": 30
+              },
+              {
+                "type": "file",
+                "path": "big-Q4_K_M-00002-of-00002.gguf",
+                "size": 12
+              },
+              {
+                "type": "file",
+                "path": "mmproj-F16.gguf",
+                "size": 5
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/VisionSplit-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/VisionSplit-GGUF/resolve/main/big-Q4_K_M-00001-of-00002.gguf?download=true",
+            "filename": "big-Q4_K_M-00001-of-00002.gguf",
+            "size": "47",
+            "parts": [
+              {
+                "url": "https://huggingface.co/acme/VisionSplit-GGUF/resolve/main/big-Q4_K_M-00001-of-00002.gguf?download=true",
+                "filename": "big-Q4_K_M-00001-of-00002.gguf",
+                "size": "30"
+              },
+              {
+                "url": "https://huggingface.co/acme/VisionSplit-GGUF/resolve/main/big-Q4_K_M-00002-of-00002.gguf?download=true",
+                "filename": "big-Q4_K_M-00002-of-00002.gguf",
+                "size": "12"
+              },
+              {
+                "url": "https://huggingface.co/acme/VisionSplit-GGUF/resolve/main/mmproj-F16.gguf?download=true",
+                "filename": "big-Q4_K_M-mmproj.gguf",
+                "size": "5"
+              }
+            ]
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/VisionSplit-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a text model is left as it was",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/VisionPlain-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "plain-Q4_K_M.gguf",
+                "size": 7
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/VisionPlain-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": {
+            "url": "https://huggingface.co/acme/VisionPlain-GGUF/resolve/main/plain-Q4_K_M.gguf?download=true",
+            "filename": "plain-Q4_K_M.gguf",
+            "size": "7"
+          },
+          "fetches": [
+            "https://huggingface.co/api/models/acme/VisionPlain-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a repo whose tree is unreachable resolves to null and is not cached",
+      "input": {
+        "responses": [
+          {
+            "match": "/api/models/acme/Gone-GGUF/tree/main",
+            "json": [
+              {
+                "type": "file",
+                "path": "g-Q4_K_M.gguf",
+                "size": 7
+              }
+            ],
+            "error": "offline",
+            "times": 1
+          }
+        ],
+        "ops": [
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Gone-GGUF:Q4_K_M"
+            ]
+          },
+          {
+            "op": "resolve",
+            "args": [
+              "acme/Gone-GGUF:Q4_K_M"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": null,
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Gone-GGUF/tree/main?recursive=true",
+            "https://huggingface.co/api/models/acme/Gone-GGUF/tree/main?recursive=true"
+          ]
+        },
+        {
+          "value": null,
+          "fetches": [
+            "https://huggingface.co/api/models/acme/Gone-GGUF/tree/main?recursive=true",
+            "https://huggingface.co/api/models/acme/Gone-GGUF/tree/main?recursive=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a GGUF total on a binary tie rounds up like toFixed",
+      "input": {
+        "responses": [
+          {
+            "match": "search=acme",
+            "json": [
+              {
+                "id": "acme/Odd-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "total": 2250000000
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "acme"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Odd-Model",
+              "repo": "acme/Odd-Model-GGUF",
+              "description": "Text generation model with 2.3B parameters. GGUF by acme.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=acme&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a GGUF total just under a tie rounds down",
+      "input": {
+        "responses": [
+          {
+            "match": "search=acme",
+            "json": [
+              {
+                "id": "acme/Odd-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "total": 1150000000
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "acme"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Odd-Model",
+              "repo": "acme/Odd-Model-GGUF",
+              "description": "Text generation model with 1.1B parameters. GGUF by acme.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=acme&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a GGUF total that reads as 6.85 in decimal rounds down to 6.8",
+      "input": {
+        "responses": [
+          {
+            "match": "search=acme",
+            "json": [
+              {
+                "id": "acme/Odd-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "total": 6850000000
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "acme"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Odd-Model",
+              "repo": "acme/Odd-Model-GGUF",
+              "description": "Text generation model with 6.8B parameters. GGUF by acme.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=acme&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a GGUF total just over a tie rounds up",
+      "input": {
+        "responses": [
+          {
+            "match": "search=acme",
+            "json": [
+              {
+                "id": "acme/Odd-Model-GGUF",
+                "pipeline_tag": "text-generation",
+                "tags": [
+                  "gguf"
+                ],
+                "gguf": {
+                  "total": 1550000000
+                }
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "search",
+            "args": [
+              "acme"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "value": [
+            {
+              "name": "Odd-Model",
+              "repo": "acme/Odd-Model-GGUF",
+              "description": "Text generation model with 1.6B parameters. GGUF by acme.",
+              "capabilities": [
+                "completion"
+              ],
+              "sizes": [
+                "Q4_K_M",
+                "Q5_K_M",
+                "Q8_0"
+              ]
+            }
+          ],
+          "fetches": [
+            "https://huggingface.co/api/models?search=acme&filter=gguf&sort=downloads&direction=-1&limit=20&expand[]=cardData&expand[]=baseModels&expand[]=gguf&expand[]=pipeline_tag&expand[]=tags&expand[]=siblings"
+          ]
+        }
+      ]
+    }
+  ]
+}

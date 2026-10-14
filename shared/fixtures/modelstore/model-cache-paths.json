@@ -1,0 +1,78 @@
+{
+  "area": "modelstore",
+  "description": "cachedPath: where a model file lives under the cache root, or null when the path would leave it.",
+  "cases": [
+    {
+      "name": "a plain relative path lands under the root",
+      "input": {
+        "root": "/cache/models",
+        "relative": "org/model/resolve/main/a.onnx"
+      },
+      "expected": "/cache/models/org/model/resolve/main/a.onnx"
+    },
+    {
+      "name": "a path that climbs out of the root is refused",
+      "input": {
+        "root": "/cache/models",
+        "relative": "../escape"
+      },
+      "expected": null
+    },
+    {
+      "name": "a path that climbs and comes back stays inside",
+      "input": {
+        "root": "/cache/models",
+        "relative": "a/../b.bin"
+      },
+      "expected": "/cache/models/b.bin"
+    },
+    {
+      "name": "an empty path is refused",
+      "input": {
+        "root": "/cache/models",
+        "relative": ""
+      },
+      "expected": null
+    },
+    {
+      "name": "the root itself is refused",
+      "input": {
+        "root": "/cache/models",
+        "relative": "."
+      },
+      "expected": null
+    },
+    {
+      "name": "a leading slash stays inside the root",
+      "input": {
+        "root": "/cache/models",
+        "relative": "/etc/passwd"
+      },
+      "expected": "/cache/models/etc/passwd"
+    },
+    {
+      "name": "a name starting with two dots is refused, as the reference does",
+      "input": {
+        "root": "/cache/models",
+        "relative": "..x/file"
+      },
+      "expected": null
+    },
+    {
+      "name": "doubled slashes collapse",
+      "input": {
+        "root": "/cache/models",
+        "relative": "a//b.bin"
+      },
+      "expected": "/cache/models/a/b.bin"
+    },
+    {
+      "name": "a path that climbs past the root is refused",
+      "input": {
+        "root": "/cache/models",
+        "relative": "a/../../x"
+      },
+      "expected": null
+    }
+  ]
+}

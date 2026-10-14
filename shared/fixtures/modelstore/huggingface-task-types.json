@@ -1,0 +1,281 @@
+{
+  "area": "modelstore",
+  "description": "typeOfTask: the kind of model each Hugging Face task is, or null for a chat or vision-language task.",
+  "cases": [
+    {
+      "name": "text-classification",
+      "input": "text-classification",
+      "expected": "text-classification"
+    },
+    {
+      "name": "token-classification",
+      "input": "token-classification",
+      "expected": "text-classification"
+    },
+    {
+      "name": "table-question-answering",
+      "input": "table-question-answering",
+      "expected": "question-answering"
+    },
+    {
+      "name": "question-answering",
+      "input": "question-answering",
+      "expected": "question-answering"
+    },
+    {
+      "name": "zero-shot-classification",
+      "input": "zero-shot-classification",
+      "expected": "text-classification"
+    },
+    {
+      "name": "translation",
+      "input": "translation",
+      "expected": "translation"
+    },
+    {
+      "name": "summarization",
+      "input": "summarization",
+      "expected": "summarization"
+    },
+    {
+      "name": "feature-extraction",
+      "input": "feature-extraction",
+      "expected": "embedding"
+    },
+    {
+      "name": "text-generation",
+      "input": "text-generation",
+      "expected": null
+    },
+    {
+      "name": "fill-mask",
+      "input": "fill-mask",
+      "expected": "fill-mask"
+    },
+    {
+      "name": "sentence-similarity",
+      "input": "sentence-similarity",
+      "expected": "embedding"
+    },
+    {
+      "name": "text-ranking",
+      "input": "text-ranking",
+      "expected": "reranking"
+    },
+    {
+      "name": "text-to-speech",
+      "input": "text-to-speech",
+      "expected": "text-to-speech"
+    },
+    {
+      "name": "text-to-audio",
+      "input": "text-to-audio",
+      "expected": "audio-generation"
+    },
+    {
+      "name": "automatic-speech-recognition",
+      "input": "automatic-speech-recognition",
+      "expected": "speech-recognition"
+    },
+    {
+      "name": "audio-to-audio",
+      "input": "audio-to-audio",
+      "expected": "audio-processing"
+    },
+    {
+      "name": "audio-classification",
+      "input": "audio-classification",
+      "expected": "audio-processing"
+    },
+    {
+      "name": "voice-activity-detection",
+      "input": "voice-activity-detection",
+      "expected": "audio-processing"
+    },
+    {
+      "name": "depth-estimation",
+      "input": "depth-estimation",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "image-classification",
+      "input": "image-classification",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "object-detection",
+      "input": "object-detection",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "image-segmentation",
+      "input": "image-segmentation",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "text-to-image",
+      "input": "text-to-image",
+      "expected": "image-generation"
+    },
+    {
+      "name": "image-to-text",
+      "input": "image-to-text",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "image-to-image",
+      "input": "image-to-image",
+      "expected": "image-generation"
+    },
+    {
+      "name": "image-to-video",
+      "input": "image-to-video",
+      "expected": "video-generation"
+    },
+    {
+      "name": "unconditional-image-generation",
+      "input": "unconditional-image-generation",
+      "expected": "image-generation"
+    },
+    {
+      "name": "video-classification",
+      "input": "video-classification",
+      "expected": "video-analysis"
+    },
+    {
+      "name": "text-to-video",
+      "input": "text-to-video",
+      "expected": "video-generation"
+    },
+    {
+      "name": "zero-shot-image-classification",
+      "input": "zero-shot-image-classification",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "mask-generation",
+      "input": "mask-generation",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "zero-shot-object-detection",
+      "input": "zero-shot-object-detection",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "text-to-3d",
+      "input": "text-to-3d",
+      "expected": "3d-generation"
+    },
+    {
+      "name": "image-to-3d",
+      "input": "image-to-3d",
+      "expected": "3d-generation"
+    },
+    {
+      "name": "image-feature-extraction",
+      "input": "image-feature-extraction",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "keypoint-detection",
+      "input": "keypoint-detection",
+      "expected": "image-analysis"
+    },
+    {
+      "name": "visual-question-answering",
+      "input": "visual-question-answering",
+      "expected": null
+    },
+    {
+      "name": "document-question-answering",
+      "input": "document-question-answering",
+      "expected": "question-answering"
+    },
+    {
+      "name": "reinforcement-learning",
+      "input": "reinforcement-learning",
+      "expected": "robotics"
+    },
+    {
+      "name": "robotics",
+      "input": "robotics",
+      "expected": "robotics"
+    },
+    {
+      "name": "tabular-classification",
+      "input": "tabular-classification",
+      "expected": "tabular"
+    },
+    {
+      "name": "tabular-regression",
+      "input": "tabular-regression",
+      "expected": "tabular"
+    },
+    {
+      "name": "time-series-forecasting",
+      "input": "time-series-forecasting",
+      "expected": "time-series"
+    },
+    {
+      "name": "graph-ml",
+      "input": "graph-ml",
+      "expected": "graph"
+    },
+    {
+      "name": "text2text-generation",
+      "input": "text2text-generation",
+      "expected": null
+    },
+    {
+      "name": "conversational",
+      "input": "conversational",
+      "expected": null
+    },
+    {
+      "name": "image-text-to-text",
+      "input": "image-text-to-text",
+      "expected": null
+    },
+    {
+      "name": "video-text-to-text",
+      "input": "video-text-to-text",
+      "expected": null
+    },
+    {
+      "name": "audio-text-to-text",
+      "input": "audio-text-to-text",
+      "expected": null
+    },
+    {
+      "name": "any-to-any",
+      "input": "any-to-any",
+      "expected": null
+    },
+    {
+      "name": "multiple-choice",
+      "input": "multiple-choice",
+      "expected": "question-answering"
+    },
+    {
+      "name": "text-retrieval",
+      "input": "text-retrieval",
+      "expected": "embedding"
+    },
+    {
+      "name": "visual-document-retrieval",
+      "input": "visual-document-retrieval",
+      "expected": "embedding"
+    },
+    {
+      "name": "no task",
+      "input": "",
+      "expected": null
+    },
+    {
+      "name": "something-new",
+      "input": "something-new",
+      "expected": "other"
+    }
+  ]
+}

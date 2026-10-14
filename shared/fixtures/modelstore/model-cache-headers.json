@@ -1,0 +1,82 @@
+{
+  "area": "modelstore",
+  "description": "modelFileHeaders: the isolation pair, the length when known, and the content type from the extension.",
+  "cases": [
+    {
+      "name": "a file with no known length carries only the isolation pair and an octet stream",
+      "input": {
+        "relative": "org/x/a.onnx",
+        "size": null
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "a JSON file takes its type from the extension, whatever its case",
+      "input": {
+        "relative": "cfg/config.JSON",
+        "size": 12
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Length": "12",
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      "name": "a text file with no bytes still says its length",
+      "input": {
+        "relative": "notes.txt",
+        "size": 0
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Length": "0",
+        "Content-Type": "text/plain"
+      }
+    },
+    {
+      "name": "a dot-file name has no extension",
+      "input": {
+        "relative": ".json",
+        "size": 5
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Length": "5",
+        "Content-Type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "a NaN length is no length",
+      "input": {
+        "relative": "weights.bin",
+        "size": "NaN"
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Type": "application/octet-stream"
+      }
+    },
+    {
+      "name": "a large model says its exact length",
+      "input": {
+        "relative": "big.gguf",
+        "size": 4920733696
+      },
+      "expected": {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Content-Length": "4920733696",
+        "Content-Type": "application/octet-stream"
+      }
+    }
+  ]
+}

@@ -1,4 +1,6 @@
-//! The parts of JavaScript number semantics the reference relies on: `Number(string)`, `Math.round`, `Math.min`.
+//! The parts of JavaScript semantics the reference relies on: `Number(string)`, `Math.round`, `Math.min`, `toFixed`, `localeCompare`.
+
+use std::cmp::Ordering;
 
 /// Whitespace and line terminators that JavaScript's `trim` and `Number()` skip. Rust's `is_whitespace` also takes U+0085.
 fn is_js_space(c: char) -> bool {
@@ -104,6 +106,78 @@ pub(crate) fn round(x: f64) -> f64 {
     if x - floor >= 0.5 { floor + 1.0 } else { floor }
 }
 
+/// `Number(value).toFixed(digits)` for finite values below 1e21: the exact binary value rounded to `digits` places, ties going up.
+pub(crate) fn to_fixed(value: f64, digits: usize) -> String {
+    if value.is_nan() {
+        return "NaN".to_owned();
+    }
+    if value.is_infinite() {
+        return if value > 0.0 { "Infinity" } else { "-Infinity" }.to_owned();
+    }
+    let sign = if value < 0.0 { "-" } else { "" };
+    // A double has at most 1074 fractional digits, so this expansion is exact and rounding it is not a guess.
+    let exact = format!("{:.1074}", value.abs());
+    let (whole, fraction) = exact.split_once('.').unwrap_or((exact.as_str(), ""));
+    let mut kept: Vec<u8> = whole.bytes().map(|b| b - b'0').collect();
+    let mut shown: Vec<u8> = fraction.bytes().take(digits).map(|b| b - b'0').collect();
+    shown.resize(digits, 0);
+    let round_up = fraction.as_bytes().get(digits).is_some_and(|b| *b >= b'5');
+    kept.extend(shown);
+    if round_up {
+        let mut carry = true;
+        for digit in kept.iter_mut().rev() {
+            if !carry {
+                break;
+            }
+            if *digit == 9 {
+                *digit = 0;
+            } else {
+                *digit += 1;
+                carry = false;
+            }
+        }
+        if carry {
+            kept.insert(0, 1);
+        }
+    }
+    let split = kept.len() - digits;
+    let mut text = String::with_capacity(kept.len() + 2);
+    text.push_str(sign);
+    for (at, digit) in kept.iter().enumerate() {
+        if at == split && digits > 0 {
+            text.push('.');
+        }
+        text.push(char::from(b'0' + digit));
+    }
+    text
+}
+
+/// `Number(value.toFixed(digits))`: the rounded value read back as a number.
+pub(crate) fn to_fixed_number(value: f64, digits: usize) -> f64 {
+    to_fixed(value, digits).parse::<f64>().unwrap_or(f64::NAN)
+}
+
+/// `a.localeCompare(b)` for file names: letters compared without case first, then lowercase before uppercase.
+/// An approximation of the root collation for ASCII names; punctuation may order differently from ICU.
+pub(crate) fn locale_cmp(a: &str, b: &str) -> Ordering {
+    let folded = a
+        .chars()
+        .map(|c| c.to_ascii_lowercase())
+        .cmp(b.chars().map(|c| c.to_ascii_lowercase()));
+    folded.then_with(|| {
+        a.chars()
+            .zip(b.chars())
+            .find(|(x, y)| x != y)
+            .map_or(Ordering::Equal, |(x, _)| {
+                if x.is_ascii_lowercase() {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+    })
+}
+
 /// `Math.min` for two numbers: NaN wins, unlike `f64::min`.
 pub(crate) fn min(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
@@ -145,5 +219,35 @@ mod tests {
         assert_eq!(round(49.4), 49.0);
         assert!(min(1.0, f64::NAN).is_nan());
         assert_eq!(min(1.0, 0.5), 0.5);
+    }
+
+    #[test]
+    fn to_fixed_rounds_the_exact_binary_value_like_javascript() {
+        // 2.25 is exact, so the tie goes up; 1.15 and 6.85 sit just below their decimal, so they go down.
+        assert_eq!(to_fixed(2.25, 1), "2.3");
+        assert_eq!(to_fixed(1.15, 1), "1.1");
+        assert_eq!(to_fixed(6.85, 1), "6.8");
+        assert_eq!(to_fixed(1.45, 1), "1.4");
+        assert_eq!(to_fixed(9.96, 1), "10.0");
+        assert_eq!(to_fixed(2.5, 0), "3");
+        assert_eq!(to_fixed(-2.5, 0), "-3");
+        assert_eq!(to_fixed(-0.04, 1), "-0.0");
+        assert_eq!(to_fixed(0.0, 1), "0.0");
+        assert_eq!(to_fixed(f64::NAN, 1), "NaN");
+        assert_eq!(to_fixed(f64::NEG_INFINITY, 1), "-Infinity");
+    }
+
+    #[test]
+    fn locale_order_ignores_case_first_and_puts_lowercase_before_uppercase() {
+        assert_eq!(
+            locale_cmp("mmproj-f16.gguf", "mmproj-F16.gguf"),
+            Ordering::Less
+        );
+        assert_eq!(locale_cmp("b.gguf", "A.gguf"), Ordering::Greater);
+        assert_eq!(
+            locale_cmp("model-00001-of-00002.gguf", "model-00002-of-00002.gguf"),
+            Ordering::Less
+        );
+        assert_eq!(locale_cmp("same", "same"), Ordering::Equal);
     }
 }

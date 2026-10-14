@@ -1,0 +1,136 @@
+{
+  "area": "modelstore",
+  "description": "extractAvailableSizes over a repo's sibling files: quants offered, preferred order, cap, fallback.",
+  "cases": [
+    {
+      "name": "projector, imatrix and the unquantized names are not offered",
+      "input": [
+        {
+          "rfilename": "README.md"
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-F16.gguf"
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-PQ2_0.gguf"
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-PTQ1_0.gguf"
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf"
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-imatrix-Q5_K_M.gguf"
+        }
+      ],
+      "expected": [
+        "PQ2_0",
+        "PTQ1_0",
+        "F16"
+      ]
+    },
+    {
+      "name": "preferred quants come first, shard suffixes are stripped, the list is capped at five",
+      "input": [
+        {
+          "rfilename": "m-Q8_0-00001-of-00002.gguf"
+        },
+        {
+          "rfilename": "m-Q8_0-00002-of-00002.gguf"
+        },
+        {
+          "rfilename": "m-Q4_K_M.gguf"
+        },
+        {
+          "rfilename": "m-Q4_K_XL.gguf"
+        },
+        {
+          "rfilename": "m-Q6_K.gguf"
+        },
+        {
+          "rfilename": "m-Q3_K_L.gguf"
+        },
+        {
+          "rfilename": "m-Q2_K.gguf"
+        }
+      ],
+      "expected": [
+        "Q4_K_M",
+        "Q8_0",
+        "Q6_K",
+        "Q4_K_XL",
+        "Q3_K_L"
+      ]
+    },
+    {
+      "name": "quants read from folder names",
+      "input": [
+        {
+          "rfilename": "IQ2_XS/model.gguf"
+        },
+        {
+          "rfilename": "Q2_0/model.gguf"
+        }
+      ],
+      "expected": [
+        "IQ2_XS",
+        "Q2_0"
+      ]
+    },
+    {
+      "name": "no siblings falls back to the usual trio",
+      "input": null,
+      "expected": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q8_0"
+      ]
+    },
+    {
+      "name": "an empty list falls back to the usual trio",
+      "input": [],
+      "expected": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q8_0"
+      ]
+    },
+    {
+      "name": "draft heads in MTP folders never offer a quant",
+      "input": [
+        {
+          "rfilename": "MTP/mtp-model-F16.gguf"
+        },
+        {
+          "rfilename": "mtp-model.gguf"
+        },
+        {
+          "rfilename": "model-Q4_K_M.gguf"
+        }
+      ],
+      "expected": [
+        "Q4_K_M"
+      ]
+    },
+    {
+      "name": "files without a readable quant fall back to the trio",
+      "input": [
+        {
+          "rfilename": "README.md"
+        },
+        {
+          "rfilename": "model.gguf"
+        },
+        {
+          "rfilename": "weights.safetensors"
+        }
+      ],
+      "expected": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q8_0"
+      ]
+    }
+  ]
+}
