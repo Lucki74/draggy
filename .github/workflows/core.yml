@@ -1,0 +1,95 @@
+name: Core
+
+# Format, lint, test and licence checks for the shared Rust core, on the three OS families it ships on.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "shared/fixtures/**"
+      - "src/__tests__/fixtures/**"
+      - ".github/workflows/core.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "shared/fixtures/**"
+      - "src/__tests__/fixtures/**"
+      - ".github/workflows/core.yml"
+  workflow_dispatch:
+
+# The jobs only read the repository.
+permissions:
+  contents: read
+
+# A newer push to the same ref makes the older run pointless.
+concurrency:
+  group: core-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Format, clippy and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+
+    defaults:
+      run:
+        working-directory: core
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The runners ship rustup; the workspace needs a toolchain with edition 2024.
+      - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - run: cargo fmt --all --check
+
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - run: cargo test --workspace --locked
+
+  fixtures:
+    name: Fixtures in vitest
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The same JSON files run under cargo test in the job above.
+      - run: npx vitest run src/__tests__/fixtures
+
+  deny:
+    name: Licences and advisories
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: core
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - run: cargo install cargo-deny --locked --version 0.20.2
+
+      - run: cargo deny check
