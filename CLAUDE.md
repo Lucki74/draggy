@@ -39,3 +39,5 @@ When compacting, keep test output, changed file paths and open decisions.
 ## Cloud sessions
 
 The cloud VM is Linux with no display. Run only `npm run typecheck`, `npm run lint` and `npm test` (or `npm run check`). Do not run `electron:dev` or any electron-builder target.
+
+The VM runs Node 22, not the 24 in `.nvmrc`. Typecheck, lint and tests pass on it, so treat them as the gate and expect `EBADENGINE` warnings.
