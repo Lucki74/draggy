@@ -1009,8 +1009,8 @@ fn providers_cli_and_gateway_fixtures_match_the_typescript_reference() {
         for case in cases("providers", &file) {
             total += 1;
             let name = case["name"].as_str().unwrap_or_default();
-            let actual = canon(&run(&area, &case["input"]));
-            let expected = canon(&case["expected"]);
+            let actual = neutral(canon(&run(&area, &case["input"])));
+            let expected = neutral(canon(&case["expected"]));
             if actual != expected {
                 failures.push(format!(
                     "{area} / {name}\n  expected {expected}\n  actual   {actual}"
@@ -1040,16 +1040,30 @@ struct Folder {
     executable: BTreeSet<String>,
 }
 
+/// Windows joins write backslashes where the fixtures write slashes; one entry has one key.
+fn key(path: &str) -> String {
+    path.replace(std::path::MAIN_SEPARATOR, "/")
+}
+
+/// A canonical JSON text with Windows' escaped backslash separators read as slashes, on both sides of a comparison.
+fn neutral(json: String) -> String {
+    let slash = char::from(92u8);
+    json.replace(&format!("{slash}{slash}"), "/")
+}
+
 fn under(path: &str, root: &str) -> bool {
     path == root || path.starts_with(&format!("{root}/"))
 }
 
 impl FileView for Folder {
     fn exists(&self, path: &str) -> bool {
-        self.files.contains_key(path) || self.dirs.contains(path)
+        let path = key(path);
+        self.files.contains_key(&path) || self.dirs.contains(&path)
     }
 
     fn list(&self, dir: &str) -> Option<Vec<String>> {
+        let dir = key(dir);
+        let dir = dir.as_str();
         let prefix = format!("{dir}/");
         let names: BTreeSet<String> = self
             .dirs
@@ -1069,27 +1083,31 @@ impl FileView for Folder {
 
 impl InstallFs for Folder {
     fn write_file(&mut self, path: &str, bytes: &[u8]) {
-        self.files.insert(path.to_owned(), bytes.to_vec());
+        self.files.insert(key(path), bytes.to_vec());
     }
 
     fn append_file(&mut self, path: &str, bytes: &[u8]) {
         self.files
-            .entry(path.to_owned())
+            .entry(key(path))
             .or_default()
             .extend_from_slice(bytes);
     }
 
     fn make_dir(&mut self, path: &str) {
-        self.dirs.insert(path.to_owned());
+        self.dirs.insert(key(path));
     }
 
     fn remove_tree(&mut self, path: &str) {
+        let path = key(path);
+        let path = path.as_str();
         self.dirs.retain(|d| !under(d, path));
         self.files.retain(|f, _| !under(f, path));
         self.executable.retain(|f| !under(f, path));
     }
 
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
+        let (from, to) = (key(from), key(to));
+        let (from, to) = (from.as_str(), to.as_str());
         if !self.dirs.contains(from) {
             return Err(format!("no folder {from}"));
         }
@@ -1129,11 +1147,11 @@ impl InstallFs for Folder {
     }
 
     fn sha256(&self, path: &str) -> Option<String> {
-        self.files.get(path).map(|bytes| sha256_hex(bytes))
+        self.files.get(&key(path)).map(|bytes| sha256_hex(bytes))
     }
 
     fn set_executable(&mut self, path: &str) {
-        self.executable.insert(path.to_owned());
+        self.executable.insert(key(path));
     }
 }
 
@@ -1255,7 +1273,8 @@ fn listing(folder: &Folder, skip: &dyn Fn(&str) -> bool) -> Value {
 }
 
 fn relative(value: &str) -> Value {
-    json!(value.strip_prefix(&format!("{APP}/")).unwrap_or(value))
+    let value = key(value);
+    json!(value.strip_prefix(&format!("{APP}/")).unwrap_or(&value))
 }
 
 fn progress_json(progress: &Progress) -> Value {
