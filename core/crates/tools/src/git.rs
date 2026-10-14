@@ -608,6 +608,7 @@ pub fn to_pathspec(root: &Path, absolute: &Path) -> Option<String> {
 mod tests {
     use super::*;
     use std::fs;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
 
@@ -907,11 +908,14 @@ mod tests {
     fn trap(root: &Path) -> (PathBuf, String) {
         let marker = root.join("RAN");
         let script = root.join("trap.sh");
-        let body = format!("#!/bin/sh\necho ran > \"{}\"\ncat\n", marker.display());
+        // The shell reads backslashes as escapes, so hand it forward slashes on Windows.
+        let shell_path = |path: &Path| path.display().to_string().replace('\\', "/");
+        let body = format!("#!/bin/sh\necho ran > \"{}\"\ncat\n", shell_path(&marker));
         fs::write(&script, body).expect("script writes");
+        #[cfg(unix)]
         fs::set_permissions(&script, fs::Permissions::from_mode(0o755))
             .expect("script is executable");
-        (marker, script.display().to_string())
+        (marker, shell_path(&script))
     }
 
     #[tokio::test]
