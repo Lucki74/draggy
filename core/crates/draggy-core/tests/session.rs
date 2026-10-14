@@ -8,7 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 use draggy_core::{
-    CancelToken, CoreError, Session, SessionConfig, TurnEventRecord, TurnObserver, TurnOutcome,
+    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, PermissionModeRecord,
+    Session, SessionConfig, TurnEventRecord, TurnObserver, TurnOutcome,
 };
 use serde_json::{Value, json};
 
@@ -127,17 +128,71 @@ fn config(url: &str, folder: Option<&std::path::Path>) -> SessionConfig {
         folder: folder.map(|path| path.display().to_string()),
         context_tokens: Some(4096),
         loop_limit: Some(6),
+        allow_commands: false,
+        permission_mode: None,
+    }
+}
+
+fn command_config(
+    url: &str,
+    folder: &std::path::Path,
+    mode: Option<PermissionModeRecord>,
+) -> SessionConfig {
+    SessionConfig {
+        allow_commands: true,
+        permission_mode: mode,
+        ..config(url, Some(folder))
+    }
+}
+
+/// Answers every approval the same way and keeps what it was asked.
+struct Scripted {
+    choice: ApprovalChoice,
+    asked: Mutex<Vec<ApprovalRecord>>,
+}
+
+impl Scripted {
+    fn new(choice: ApprovalChoice) -> Arc<Self> {
+        Arc::new(Self {
+            choice,
+            asked: Mutex::new(Vec::new()),
+        })
+    }
+
+    fn count(&self) -> usize {
+        self.asked.lock().expect("asked").len()
+    }
+}
+
+impl ApprovalHandler for Scripted {
+    fn ask(&self, request: ApprovalRecord) -> ApprovalChoice {
+        self.asked.lock().expect("asked").push(request);
+        self.choice
     }
 }
 
 fn run(session: &Arc<Session>, text: &str, recorder: &Arc<Recorder>) -> TurnOutcome {
+    run_asking(session, text, recorder, None)
+}
+
+fn run_asking(
+    session: &Arc<Session>,
+    text: &str,
+    recorder: &Arc<Recorder>,
+    approvals: Option<Arc<dyn ApprovalHandler>>,
+) -> TurnOutcome {
     let observer: Arc<dyn TurnObserver> = recorder.clone();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
         .expect("runtime");
     runtime
-        .block_on(Arc::clone(session).send(text.to_owned(), observer, CancelToken::new()))
+        .block_on(Arc::clone(session).send(
+            text.to_owned(),
+            observer,
+            approvals,
+            CancelToken::new(),
+        ))
         .expect("turn")
 }
 
@@ -240,7 +295,7 @@ fn cancelling_stops_the_turn_and_marks_it_aborted() {
         .build()
         .expect("runtime");
     let outcome = runtime
-        .block_on(Arc::clone(&session).send("Count".to_owned(), observer, cancel))
+        .block_on(Arc::clone(&session).send("Count".to_owned(), observer, None, cancel))
         .expect("turn");
 
     assert!(outcome.aborted);
@@ -270,7 +325,7 @@ fn a_server_error_reaches_the_shell_as_a_model_error() {
         .expect("runtime");
 
     let error = runtime
-        .block_on(session.send("Hi".to_owned(), observer, CancelToken::new()))
+        .block_on(session.send("Hi".to_owned(), observer, None, CancelToken::new()))
         .expect_err("a 503 fails the turn");
 
     match error {
@@ -292,4 +347,195 @@ fn a_session_needs_an_address_and_a_model() {
         Session::new(empty),
         Err(CoreError::Invalid { .. })
     ));
+}
+
+fn command_reply(command: &str) -> Reply {
+    tool_reply(
+        "run_command",
+        &serde_json::json!({ "command": command }).to_string(),
+    )
+}
+
+#[test]
+fn commands_are_not_offered_unless_the_session_allows_them() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Done."]),
+    ]);
+    let session = Session::new(config(&server.url, Some(folder.path()))).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    run(&session, "Run it", &recorder);
+
+    let bodies = server.bodies.lock().expect("bodies");
+    assert!(
+        !bodies[0]["tools"].to_string().contains("run_command"),
+        "{}",
+        bodies[0]["tools"]
+    );
+    let second = bodies[1]["messages"].to_string();
+    assert!(second.contains("TOOL RESULT (run_command)"), "{second}");
+    assert!(!folder.path().join("made.txt").exists());
+}
+
+#[test]
+fn an_approved_command_runs_and_the_model_reads_its_output() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo draggy-ran-this"),
+        text_reply(&["It printed the words."]),
+    ]);
+    let session = Session::new(command_config(&server.url, folder.path(), None)).expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    let outcome = run_asking(&session, "Say it", &recorder, Some(handler.clone()));
+
+    assert_eq!(outcome.tool_calls.get("run_command"), Some(&1));
+    assert_eq!(handler.count(), 1);
+    let asked = handler.asked.lock().expect("asked");
+    assert_eq!(asked[0].tool, "run_command");
+    assert!(
+        asked[0].target.as_deref().unwrap_or("").contains("echo"),
+        "{:?}",
+        asked[0]
+    );
+    drop(asked);
+    let bodies = server.bodies.lock().expect("bodies");
+    let second = bodies[1]["messages"].to_string();
+    assert!(second.contains("TOOL RESULT (run_command)"), "{second}");
+    assert!(second.contains("draggy-ran-this"), "{second}");
+    assert!(second.contains("Exit code 0"), "{second}");
+}
+
+#[test]
+fn a_refused_command_does_not_run() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Understood."]),
+    ]);
+    let session = Session::new(command_config(&server.url, folder.path(), None)).expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let handler = Scripted::new(ApprovalChoice::No);
+
+    run_asking(&session, "Make it", &recorder, Some(handler.clone()));
+
+    assert_eq!(handler.count(), 1);
+    assert!(!folder.path().join("made.txt").exists());
+}
+
+#[test]
+fn a_command_that_needs_an_answer_is_refused_when_nobody_can_give_one() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Understood."]),
+    ]);
+    let session = Session::new(command_config(&server.url, folder.path(), None)).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    run(&session, "Make it", &recorder);
+
+    assert!(!folder.path().join("made.txt").exists());
+}
+
+#[test]
+fn plan_mode_refuses_commands_without_asking() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Understood."]),
+    ]);
+    let session = Session::new(command_config(
+        &server.url,
+        folder.path(),
+        Some(PermissionModeRecord::Plan),
+    ))
+    .expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    run_asking(&session, "Make it", &recorder, Some(handler.clone()));
+
+    assert_eq!(handler.count(), 0);
+    assert!(!folder.path().join("made.txt").exists());
+}
+
+#[test]
+fn auto_mode_runs_commands_without_asking() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Made."]),
+    ]);
+    let session = Session::new(command_config(
+        &server.url,
+        folder.path(),
+        Some(PermissionModeRecord::Auto),
+    ))
+    .expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    run(&session, "Make it", &recorder);
+
+    assert!(folder.path().join("made.txt").exists());
+}
+
+#[test]
+fn a_session_wide_grant_covers_the_same_command_in_a_later_turn() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo again"),
+        text_reply(&["First."]),
+        command_reply("echo again"),
+        text_reply(&["Second."]),
+    ]);
+    let session = Session::new(command_config(&server.url, folder.path(), None)).expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let handler = Scripted::new(ApprovalChoice::Workspace);
+
+    run_asking(&session, "Once", &recorder, Some(handler.clone()));
+    run_asking(&session, "Twice", &recorder, Some(handler.clone()));
+
+    assert_eq!(handler.count(), 1, "the second turn was not asked again");
+    let bodies = server.bodies.lock().expect("bodies");
+    assert!(bodies[3]["messages"].to_string().contains("Exit code 0"));
+}
+
+#[cfg(unix)]
+#[test]
+fn cancelling_stops_a_running_command() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![command_reply("sleep 30"), text_reply(&["Stopped."])]);
+    let session = Session::new(command_config(
+        &server.url,
+        folder.path(),
+        Some(PermissionModeRecord::Auto),
+    ))
+    .expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let cancel = CancelToken::new();
+    let stopper = Arc::clone(&cancel);
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(700));
+        stopper.cancel();
+    });
+
+    let observer: Arc<dyn TurnObserver> = recorder.clone();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .expect("runtime");
+    let started = std::time::Instant::now();
+    let outcome = runtime
+        .block_on(Arc::clone(&session).send("Wait".to_owned(), observer, None, cancel))
+        .expect("turn");
+
+    assert!(outcome.aborted);
+    assert!(
+        started.elapsed() < Duration::from_secs(15),
+        "the command was left running"
+    );
 }

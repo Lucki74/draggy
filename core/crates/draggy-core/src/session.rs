@@ -4,12 +4,13 @@
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::{
     AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
     MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
     run_turn,
 };
-use draggy_agent::permissions::Grant;
+use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{
     PromptEnvironment, PromptProfile, PromptSettings, ThinkingMode, WebMode,
 };
@@ -22,8 +23,8 @@ use crate::cancel::CancelToken;
 use crate::error::CoreError;
 use crate::model::OpenAiModel;
 use crate::net::Net;
-use crate::observer::{Bridge, TurnObserver};
-use crate::records::{MessageRecord, SessionConfig, TurnOutcome};
+use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
+use crate::records::{ApprovalChoice, ApprovalRecord, MessageRecord, SessionConfig, TurnOutcome};
 use crate::tools::{FileTools, NoTools, definitions};
 
 struct WallClock;
@@ -98,8 +99,12 @@ impl Engine for RunningServer {
     }
 }
 
-/// Nobody can answer an approval through this boundary yet, so a call that needs one is refused.
-struct Host;
+/// Puts approvals to the shell's handler. Without one nobody can answer, so a call that needs an answer is refused.
+/// Grants the user keeps for the session are collected here and stored once the turn ends.
+struct Host {
+    approvals: Option<Arc<dyn ApprovalHandler>>,
+    kept: Vec<Grant>,
+}
 
 impl TurnHost for Host {
     fn text(&self, key: &str) -> String {
@@ -107,14 +112,28 @@ impl TurnHost for Host {
     }
 
     fn can_ask(&self) -> bool {
-        false
+        self.approvals.is_some()
     }
 
-    fn request_approval(&mut self, _request: &ApprovalRequest) -> Option<ApprovalAnswer> {
-        None
+    fn request_approval(&mut self, request: &ApprovalRequest) -> Option<ApprovalAnswer> {
+        let handler = self.approvals.as_ref()?;
+        let choice = handler.ask(ApprovalRecord {
+            id: request.id.clone(),
+            tool: request.tool.clone(),
+            target: request.target.clone(),
+            reason: request.reason.clone(),
+        });
+        Some(match choice {
+            ApprovalChoice::Once => ApprovalAnswer::Once,
+            ApprovalChoice::Task => ApprovalAnswer::Task,
+            ApprovalChoice::Workspace => ApprovalAnswer::Workspace,
+            ApprovalChoice::No => ApprovalAnswer::No,
+        })
     }
 
-    fn on_grant(&mut self, _grant: &Grant) {}
+    fn on_grant(&mut self, grant: &Grant) {
+        self.kept.push(grant.clone());
+    }
 
     fn get_plan(&mut self) -> Option<Vec<draggy_agent::agent_loop::PlanItem>> {
         None
@@ -128,6 +147,8 @@ struct State {
     messages: Vec<Message>,
     tail_notes: TailNotes,
     next_message: u64,
+    /// What the user allowed for the rest of the session.
+    grants: Vec<Grant>,
 }
 
 #[derive(uniffi::Object)]
@@ -175,8 +196,9 @@ fn stamp() -> (String, String) {
 }
 
 impl Session {
-    fn request(&self, messages: Vec<Message>) -> TurnRequest {
+    fn request(&self, messages: Vec<Message>, grants: Vec<Grant>) -> TurnRequest {
         let has_folder = self.config.folder.is_some();
+        let commands = has_folder && self.config.allow_commands;
         let (date, now) = stamp();
         TurnRequest {
             profile: ModelProfile {
@@ -200,12 +222,12 @@ impl Session {
             environment: PromptEnvironment {
                 has_folder,
                 project_root: self.config.folder.clone(),
-                code_execution: false,
+                code_execution: commands,
                 library_ready: false,
                 has_skills: false,
             },
             tools: if has_folder {
-                definitions()
+                definitions(commands)
             } else {
                 Vec::new()
             },
@@ -218,7 +240,13 @@ impl Session {
             is_continuation: false,
             seed: None,
             compaction: None,
-            permission: None,
+            permission: Some(Permission {
+                mode: self
+                    .config
+                    .permission_mode
+                    .map_or(PermissionMode::Ask, PermissionMode::from),
+                grants,
+            }),
             context_base: None,
         }
     }
@@ -228,17 +256,22 @@ impl Session {
         &self,
         text: &str,
         observer: Arc<dyn TurnObserver>,
+        approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: &CancelToken,
     ) -> Result<TurnOutcome, CoreError> {
-        let (messages, mut tail_notes) = {
+        let (messages, mut tail_notes, grants) = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             state.next_message += 1;
             let id = format!("m{}", state.next_message);
             state.messages.push(message(id, "user", text));
-            (state.messages.clone(), state.tail_notes.clone())
+            (
+                state.messages.clone(),
+                state.tail_notes.clone(),
+                state.grants.clone(),
+            )
         };
 
-        let request = self.request(messages);
+        let request = self.request(messages, grants);
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
             &self.config.base_url,
@@ -248,11 +281,15 @@ impl Session {
             window: self.config.context_tokens.unwrap_or(8192),
         };
         let mut files: Box<dyn ToolRuntime> = match &self.config.folder {
-            Some(folder) => Box::new(FileTools::new(folder)),
+            Some(folder) => Box::new(FileTools::new(folder, self.config.allow_commands)),
             None => Box::new(NoTools),
         };
         let mut bridge = Bridge(observer);
-        let (mut host, mut refs, mut skills, mut ids) = (Host, Refs, NoSkills, Counter::default());
+        let mut host = Host {
+            approvals,
+            kept: Vec::new(),
+        };
+        let (mut refs, mut skills, mut ids) = (Refs, NoSkills, Counter::default());
         let clock = WallClock;
 
         let result: AgentResult = run_turn(
@@ -274,6 +311,11 @@ impl Session {
 
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         state.tail_notes = tail_notes;
+        for grant in host.kept {
+            if !state.grants.contains(&grant) {
+                state.grants.push(grant);
+            }
+        }
         state.next_message += 1;
         let id = format!("m{}", state.next_message);
         let mut reply = message(id, "assistant", &result.content);
@@ -317,11 +359,13 @@ impl Session {
             .collect()
     }
 
-    /// Adds the user's message and runs the turn to its end. Events reach the observer while it runs.
+    /// Adds the user's message and runs the turn to its end. Events reach the observer while it runs. A call that
+    /// needs the user's answer goes to `approvals`; without one it is refused.
     pub async fn send(
         self: Arc<Self>,
         text: String,
         observer: Arc<dyn TurnObserver>,
+        approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: Arc<CancelToken>,
     ) -> Result<TurnOutcome, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
@@ -329,7 +373,7 @@ impl Session {
         std::thread::Builder::new()
             .name("draggy-turn".to_owned())
             .spawn(move || {
-                let outcome = session.run_blocking(&text, observer, &cancel);
+                let outcome = session.run_blocking(&text, observer, approvals, &cancel);
                 // The receiver is gone when the shell dropped the call; nothing is waiting for the outcome.
                 drop(reply.send(outcome));
             })

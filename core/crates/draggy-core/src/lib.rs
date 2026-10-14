@@ -16,10 +16,10 @@ pub mod tools;
 
 pub use cancel::CancelToken;
 pub use error::CoreError;
-pub use observer::TurnObserver;
+pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
-    LiveRecord, MessageRecord, MetricsRecord, SessionConfig, StepRecord, TurnEventRecord,
-    TurnOutcome,
+    ApprovalChoice, ApprovalRecord, LiveRecord, MessageRecord, MetricsRecord, PermissionModeRecord,
+    SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
 };
 pub use session::Session;
 

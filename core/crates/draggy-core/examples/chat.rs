@@ -90,6 +90,8 @@ fn main() -> Result<(), String> {
         folder,
         context_tokens: None,
         loop_limit: None,
+        allow_commands: false,
+        permission_mode: None,
     })
     .map_err(|error| error.to_string())?;
 
@@ -98,7 +100,7 @@ fn main() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     let observer: Arc<dyn TurnObserver> = Arc::new(Printer::default());
     let outcome = runtime
-        .block_on(session.send(prompt.join(" "), observer, CancelToken::new()))
+        .block_on(session.send(prompt.join(" "), observer, None, CancelToken::new()))
         .map_err(|error| error.to_string())?;
     println!();
     if outcome.exhausted {

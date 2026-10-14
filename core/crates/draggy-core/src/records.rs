@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use draggy_agent::agent_loop::{AgentPatch, AgentResult, GenerationMetrics, TurnEvent};
 use draggy_agent::live_turn::LiveTurn;
+use draggy_agent::permissions::PermissionMode;
 use draggy_agent::resume::SearchStep;
 
 /// One entry of the timeline a turn builds: a search, a tool call, a thought, a file.
@@ -197,4 +198,54 @@ pub struct SessionConfig {
     pub context_tokens: Option<i64>,
     /// How many passes a turn may take before it stops with `exhausted`.
     pub loop_limit: Option<u32>,
+    /// Offers the model `run_command`. Needs a folder; every call still goes through the permission engine.
+    pub allow_commands: bool,
+    /// How tool calls are decided. Leave it out to ask before anything that is not a read.
+    pub permission_mode: Option<PermissionModeRecord>,
+}
+
+/// How tool calls are decided, as the shell names them.
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PermissionModeRecord {
+    /// Reads only; every other call is refused.
+    Plan,
+    /// Edits and commands ask first.
+    Ask,
+    /// Edits run; commands still ask.
+    AcceptEdits,
+    /// Everything runs without asking.
+    Auto,
+}
+
+impl From<PermissionModeRecord> for PermissionMode {
+    fn from(mode: PermissionModeRecord) -> Self {
+        match mode {
+            PermissionModeRecord::Plan => Self::Plan,
+            PermissionModeRecord::Ask => Self::Ask,
+            PermissionModeRecord::AcceptEdits => Self::AcceptEdits,
+            PermissionModeRecord::Auto => Self::Auto,
+        }
+    }
+}
+
+/// A tool call waiting for the user.
+#[derive(uniffi::Record, Debug, Clone, PartialEq)]
+pub struct ApprovalRecord {
+    pub id: String,
+    pub tool: String,
+    /// The path, address or command line the call acts on.
+    pub target: Option<String>,
+    pub reason: String,
+}
+
+/// What the user said to an approval.
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApprovalChoice {
+    /// Run this call only.
+    Once,
+    /// Run it, and similar calls for the rest of this turn.
+    Task,
+    /// Run it, and similar calls for the rest of this session.
+    Workspace,
+    No,
 }
