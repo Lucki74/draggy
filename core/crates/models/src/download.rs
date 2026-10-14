@@ -101,6 +101,7 @@ pub async fn read_all<B: Body>(body: &mut B) -> Result<Vec<u8>, TransportError> 
 }
 
 /// An OS count widened to 64 bits; the widths differ between platforms.
+#[cfg(unix)]
 fn widen<T: TryInto<u64>>(count: T) -> Option<u64> {
     count.try_into().ok()
 }
@@ -122,9 +123,15 @@ impl Env for SystemEnv {
         tokio::time::sleep(delay).await;
     }
 
+    #[cfg(unix)]
     fn free_bytes(&self, dir: &Path) -> Option<u64> {
         let stats = nix::sys::statvfs::statvfs(dir).ok()?;
         Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.block_size())?))
+    }
+
+    #[cfg(windows)]
+    fn free_bytes(&self, dir: &Path) -> Option<u64> {
+        fs4::available_space(dir).ok()
     }
 }
 
