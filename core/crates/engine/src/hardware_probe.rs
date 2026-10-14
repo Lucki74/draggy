@@ -82,7 +82,9 @@ where
 /// Decodes hex as far as it has whole byte pairs, as `Buffer.from(hex, "hex")` does.
 fn decode_hex(text: &str) -> Vec<u8> {
     text.as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .filter_map(|pair| {
             std::str::from_utf8(pair)
                 .ok()
@@ -106,8 +108,10 @@ pub fn parse_mounted_devices(text: &str) -> Vec<(char, bool)> {
         // A device path is UTF-16 text starting with \?? ; a fixed disk is a partition id.
         let device_path = if bytes.len() > 8 && bytes[0] == 0x5f && bytes[1] == 0 {
             let units: Vec<u16> = bytes
-                .chunks_exact(2)
-                .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|pair| u16::from_le_bytes(*pair))
                 .collect();
             String::from_utf16_lossy(&units)
         } else {
