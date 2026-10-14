@@ -11,6 +11,7 @@ mod migrate;
 pub mod onboarding;
 mod recovery;
 mod schema;
+pub mod secrets;
 mod workspaces;
 
 use std::path::{Path, PathBuf};

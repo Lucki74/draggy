@@ -10,8 +10,12 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
 hex = "0.4"
+pbkdf2 = "0.12"
 rusqlite = { version = "0.40", features = ["bundled"] }
+sha1 = "0.10"
 serde = { version = "1", features = ["derive"] }
 # Keeps object keys in insertion order. JavaScript lists array-index keys first, which metrics.rs follows (js::key_order).
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
@@ -22,5 +26,7 @@ thiserror = "2"
 tracing = "0.1"
 
 [dev-dependencies]
+base64 = "0.22"
 draggy-testkit = { path = "../testkit" }
 tempfile = "3"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
