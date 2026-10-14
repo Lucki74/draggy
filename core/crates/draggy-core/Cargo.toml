@@ -6,8 +6,20 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
-[lints]
-workspace = true
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+# The UniFFI scaffolding is generated `extern "C"` code, so `unsafe_code` cannot be forbidden in this crate the way it
+# is in the rest of the workspace. It is denied instead, and the scaffolding module is the one allowed exception.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
 
 [dependencies]
 draggy-storage = { path = "../storage" }
@@ -21,3 +33,14 @@ draggy-mcp = { path = "../mcp" }
 draggy-documents = { path = "../documents" }
 draggy-web = { path = "../web" }
 draggy-api = { path = "../api" }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+tracing = "0.1"
+uniffi = { version = "0.32", features = ["tokio", "cli"] }
+
+[dev-dependencies]
+tempfile = "3"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time"] }

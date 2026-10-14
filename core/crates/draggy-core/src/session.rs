@@ -1,0 +1,345 @@
+//! A conversation with a model. The shell holds the `Session` handle, calls `send` and reads events through its
+//! observer. The turn itself runs on a thread of its own, so the caller's thread is never blocked on the network.
+
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use draggy_agent::agent_loop::{
+    AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
+    MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
+    run_turn,
+};
+use draggy_agent::permissions::Grant;
+use draggy_agent::prompts::{
+    PromptEnvironment, PromptProfile, PromptSettings, ThinkingMode, WebMode,
+};
+use draggy_agent::resume::SearchStep;
+use draggy_agent::skills::{LoadedSkill, SkillReader};
+use draggy_agent::task_manager::Message;
+use draggy_tools::files::content_hash;
+
+use crate::cancel::CancelToken;
+use crate::error::CoreError;
+use crate::model::OpenAiModel;
+use crate::net::Net;
+use crate::observer::{Bridge, TurnObserver};
+use crate::records::{MessageRecord, SessionConfig, TurnOutcome};
+use crate::tools::{FileTools, NoTools, definitions};
+
+struct WallClock;
+
+impl Clock for WallClock {
+    fn now_ms(&self) -> f64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0.0, |elapsed| elapsed.as_secs_f64() * 1000.0)
+    }
+}
+
+#[derive(Default)]
+struct Counter(u64);
+
+impl IdSource for Counter {
+    fn next_id(&mut self) -> String {
+        self.0 += 1;
+        format!("step-{}", self.0)
+    }
+}
+
+struct Refs;
+
+impl MessageRefs for Refs {
+    fn reference(&mut self, message: &Message) -> DraggyRef {
+        DraggyRef {
+            id: message.id.clone(),
+            hash: content_hash(message.content.as_bytes()),
+        }
+    }
+}
+
+struct NoSkills;
+
+impl SkillReader for NoSkills {
+    fn read(&mut self, _workspace_id: &str, _id: &str) -> Option<LoadedSkill> {
+        None
+    }
+}
+
+/// The engine is whatever server `base_url` points at, already running. It is never started or stopped from here.
+struct RunningServer {
+    window: i64,
+}
+
+impl Engine for RunningServer {
+    fn context_size(
+        &mut self,
+        _model: &str,
+        _chars: i64,
+        max_context: Option<i64>,
+        fixed: Option<FixedContext>,
+    ) -> i64 {
+        match fixed {
+            Some(FixedContext::Tokens(tokens)) => tokens,
+            Some(FixedContext::Max) => max_context.unwrap_or(self.window),
+            None => self.window,
+        }
+    }
+
+    fn is_loaded_at(&mut self, _model: &str, _num_ctx: i64) -> Option<bool> {
+        None
+    }
+
+    fn start(&mut self, _model: &str, _num_ctx: i64, _exact: bool) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn gpu_percent(&mut self, _model: &str) -> Option<f64> {
+        None
+    }
+}
+
+/// Nobody can answer an approval through this boundary yet, so a call that needs one is refused.
+struct Host;
+
+impl TurnHost for Host {
+    fn text(&self, key: &str) -> String {
+        key.to_owned()
+    }
+
+    fn can_ask(&self) -> bool {
+        false
+    }
+
+    fn request_approval(&mut self, _request: &ApprovalRequest) -> Option<ApprovalAnswer> {
+        None
+    }
+
+    fn on_grant(&mut self, _grant: &Grant) {}
+
+    fn get_plan(&mut self) -> Option<Vec<draggy_agent::agent_loop::PlanItem>> {
+        None
+    }
+
+    fn on_plan(&mut self, _items: &[draggy_agent::agent_loop::PlanItem]) {}
+}
+
+#[derive(Default)]
+struct State {
+    messages: Vec<Message>,
+    tail_notes: TailNotes,
+    next_message: u64,
+}
+
+#[derive(uniffi::Object)]
+pub struct Session {
+    config: SessionConfig,
+    net: Arc<Net>,
+    state: Mutex<State>,
+}
+
+fn message(id: String, role: &str, content: &str) -> Message {
+    Message {
+        id,
+        role: role.to_owned(),
+        content: content.to_owned(),
+        ..Message::default()
+    }
+}
+
+/// `2026-10-14` and `12:30`, in UTC. The shell can pass its own formatted values once it has a locale to offer.
+fn stamp() -> (String, String) {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let days = i64::try_from(seconds / 86_400).unwrap_or(0);
+    let rest = seconds % 86_400;
+    // Days since 1970-01-01 to a calendar date (Howard Hinnant's civil_from_days).
+    let shifted = days + 719_468;
+    let era = shifted.div_euclid(146_097);
+    let day_of_era = shifted.rem_euclid(146_097);
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_index = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
+    let month = if month_index < 10 {
+        month_index + 3
+    } else {
+        month_index - 9
+    };
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    (
+        format!("{year:04}-{month:02}-{day:02}"),
+        format!("{:02}:{:02}", rest / 3600, rest % 3600 / 60),
+    )
+}
+
+impl Session {
+    fn request(&self, messages: Vec<Message>) -> TurnRequest {
+        let has_folder = self.config.folder.is_some();
+        let (date, now) = stamp();
+        TurnRequest {
+            profile: ModelProfile {
+                model: self.config.model.clone(),
+                tool_access: ToolAccess::Native,
+                probed: true,
+                has_thinking: false,
+                thinking_allowed: true,
+                native_vision: false,
+                prompt_profile: PromptProfile::Compact,
+                loop_limit: self.config.loop_limit.map_or(75, |limit| limit as usize),
+                max_context: None,
+                fixed_context: self.config.context_tokens.map(FixedContext::Tokens),
+            },
+            workspace_id: "default".to_owned(),
+            settings: PromptSettings {
+                thinking_mode: ThinkingMode::Medium,
+                web_mode: WebMode::Off,
+                custom_instructions: Vec::new(),
+            },
+            environment: PromptEnvironment {
+                has_folder,
+                project_root: self.config.folder.clone(),
+                code_execution: false,
+                library_ready: false,
+                has_skills: false,
+            },
+            tools: if has_folder {
+                definitions()
+            } else {
+                Vec::new()
+            },
+            prompt_tools: Vec::new(),
+            memory: None,
+            skills: Vec::new(),
+            date,
+            now,
+            messages,
+            is_continuation: false,
+            seed: None,
+            compaction: None,
+            permission: None,
+            context_base: None,
+        }
+    }
+
+    /// Runs one turn on the calling thread. Kept apart from `send` so tests can drive it without a runtime.
+    pub(crate) fn run_blocking(
+        &self,
+        text: &str,
+        observer: Arc<dyn TurnObserver>,
+        cancel: &CancelToken,
+    ) -> Result<TurnOutcome, CoreError> {
+        let (messages, mut tail_notes) = {
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+            state.next_message += 1;
+            let id = format!("m{}", state.next_message);
+            state.messages.push(message(id, "user", text));
+            (state.messages.clone(), state.tail_notes.clone())
+        };
+
+        let request = self.request(messages);
+        let mut model = OpenAiModel::new(
+            Arc::clone(&self.net),
+            &self.config.base_url,
+            self.config.api_key.as_deref(),
+        );
+        let mut engine = RunningServer {
+            window: self.config.context_tokens.unwrap_or(8192),
+        };
+        let mut files: Box<dyn ToolRuntime> = match &self.config.folder {
+            Some(folder) => Box::new(FileTools::new(folder)),
+            None => Box::new(NoTools),
+        };
+        let mut bridge = Bridge(observer);
+        let (mut host, mut refs, mut skills, mut ids) = (Host, Refs, NoSkills, Counter::default());
+        let clock = WallClock;
+
+        let result: AgentResult = run_turn(
+            &request,
+            &mut tail_notes,
+            Ports {
+                model: &mut model,
+                engine: &mut engine,
+                skills: &mut skills,
+                tools: &mut *files,
+                host: &mut host,
+                observer: &mut bridge,
+                refs: &mut refs,
+                ids: &mut ids,
+                clock: &clock,
+                cancel: cancel.signal(),
+            },
+        )?;
+
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state.tail_notes = tail_notes;
+        state.next_message += 1;
+        let id = format!("m{}", state.next_message);
+        let mut reply = message(id, "assistant", &result.content);
+        reply.text_content = Some(result.text_content.clone());
+        reply.steps =
+            Some(result.steps.clone()).filter(|steps: &Vec<SearchStep>| !steps.is_empty());
+        state.messages.push(reply);
+        Ok(TurnOutcome::from(&result))
+    }
+}
+
+#[uniffi::export(async_runtime = "tokio")]
+impl Session {
+    /// A session with no messages. Failing to build the HTTP client is the only way this can fail.
+    #[uniffi::constructor]
+    pub fn new(config: SessionConfig) -> Result<Arc<Self>, CoreError> {
+        let net = Net::new().map_err(|message| CoreError::Internal { message })?;
+        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
+            return Err(CoreError::Invalid {
+                message: "A session needs a server address and a model.".to_owned(),
+            });
+        }
+        Ok(Arc::new(Self {
+            config,
+            net: Arc::new(net),
+            state: Mutex::new(State::default()),
+        }))
+    }
+
+    /// The conversation so far.
+    pub fn messages(&self) -> Vec<MessageRecord> {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state
+            .messages
+            .iter()
+            .map(|message| MessageRecord {
+                id: message.id.clone(),
+                role: message.role.clone(),
+                content: message.content.clone(),
+            })
+            .collect()
+    }
+
+    /// Adds the user's message and runs the turn to its end. Events reach the observer while it runs.
+    pub async fn send(
+        self: Arc<Self>,
+        text: String,
+        observer: Arc<dyn TurnObserver>,
+        cancel: Arc<CancelToken>,
+    ) -> Result<TurnOutcome, CoreError> {
+        let (reply, answer) = tokio::sync::oneshot::channel();
+        let session = Arc::clone(&self);
+        std::thread::Builder::new()
+            .name("draggy-turn".to_owned())
+            .spawn(move || {
+                let outcome = session.run_blocking(&text, observer, &cancel);
+                // The receiver is gone when the shell dropped the call; nothing is waiting for the outcome.
+                drop(reply.send(outcome));
+            })
+            .map_err(|error| CoreError::Internal {
+                message: error.to_string(),
+            })?;
+        answer.await.unwrap_or_else(|_| {
+            Err(CoreError::Internal {
+                message: "The turn ended without an answer.".to_owned(),
+            })
+        })
+    }
+}
