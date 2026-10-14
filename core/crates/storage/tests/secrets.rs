@@ -474,6 +474,9 @@ fn no_logged_line_carries_a_credential_or_its_hash() {
     let dir = tempfile::tempdir().expect("temp dir");
     fs::write(dir.path().join(STORE), STANDARD.encode(torn)).expect("write");
 
+    // With one dispatcher alive, tracing decides a call site's interest from whichever thread reaches it first, so
+    // a parallel test with no subscriber can hide our lines. A second dispatcher makes it ask every live one.
+    let _second = tracing::Dispatch::new(tracing::subscriber::NoSubscriber::default());
     tracing::subscriber::with_default(subscriber, || {
         let mut store = open_store(dir.path(), &FakeVault::working());
         assert!(store.owners().is_empty());
