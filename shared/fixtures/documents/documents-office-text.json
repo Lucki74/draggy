@@ -1,0 +1,651 @@
+{
+  "area": "documents",
+  "description": "Pure helpers from electron/documents.cjs: slide splitting, CSV parsing, XML entity decoding, xml text extraction, executable names, pdf page text and constants.",
+  "cases": [
+    {
+      "name": "heading starts a slide",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "# One\nbody a\n\n# Two\nbody b"
+        ]
+      },
+      "expected": [
+        {
+          "title": "One",
+          "body": [
+            "body a"
+          ]
+        },
+        {
+          "title": "Two",
+          "body": [
+            "body b"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rule splits without a heading",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "first slide\n\n---\n\nsecond slide"
+        ]
+      },
+      "expected": [
+        {
+          "title": "",
+          "body": [
+            "first slide"
+          ]
+        },
+        {
+          "title": "",
+          "body": [
+            "second slide"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "asterisk rule splits",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "one\n***\ntwo"
+        ]
+      },
+      "expected": [
+        {
+          "title": "",
+          "body": [
+            "one"
+          ]
+        },
+        {
+          "title": "",
+          "body": [
+            "two"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "long slide continues after 12 lines",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "# Long\nline 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29"
+        ]
+      },
+      "expected": [
+        {
+          "title": "Long",
+          "body": [
+            "line 0",
+            "line 1",
+            "line 2",
+            "line 3",
+            "line 4",
+            "line 5",
+            "line 6",
+            "line 7",
+            "line 8",
+            "line 9",
+            "line 10",
+            "line 11"
+          ]
+        },
+        {
+          "title": "Long (cont.)",
+          "body": [
+            "line 12",
+            "line 13",
+            "line 14",
+            "line 15",
+            "line 16",
+            "line 17",
+            "line 18",
+            "line 19",
+            "line 20",
+            "line 21",
+            "line 22",
+            "line 23"
+          ]
+        },
+        {
+          "title": "Long (cont.) (cont.)",
+          "body": [
+            "line 24",
+            "line 25",
+            "line 26",
+            "line 27",
+            "line 28",
+            "line 29"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "continuation of an untitled slide has no title",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "row 0\nrow 1\nrow 2\nrow 3\nrow 4\nrow 5\nrow 6\nrow 7\nrow 8\nrow 9\nrow 10\nrow 11\nrow 12\nrow 13"
+        ]
+      },
+      "expected": [
+        {
+          "title": "",
+          "body": [
+            "row 0",
+            "row 1",
+            "row 2",
+            "row 3",
+            "row 4",
+            "row 5",
+            "row 6",
+            "row 7",
+            "row 8",
+            "row 9",
+            "row 10",
+            "row 11"
+          ]
+        },
+        {
+          "title": "",
+          "body": [
+            "row 12",
+            "row 13"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bullets become bullet characters",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "# T\n- alpha\n* beta"
+        ]
+      },
+      "expected": [
+        {
+          "title": "T",
+          "body": [
+            "• alpha",
+            "• beta"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ordered items are left alone",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "# T\n1. first"
+        ]
+      },
+      "expected": [
+        {
+          "title": "T",
+          "body": [
+            "1. first"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "blank-only content has no slides",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "\n\n   \n"
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a heading with no body is a slide",
+      "input": {
+        "fn": "splitIntoSlides",
+        "args": [
+          "# Only title"
+        ]
+      },
+      "expected": [
+        {
+          "title": "Only title",
+          "body": []
+        }
+      ]
+    },
+    {
+      "name": "csv splits plain rows",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "a,b\nc,d"
+        ]
+      },
+      "expected": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "c",
+          "d"
+        ]
+      ]
+    },
+    {
+      "name": "csv respects quoted commas",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "\"Smith, John\",42"
+        ]
+      },
+      "expected": [
+        [
+          "Smith, John",
+          "42"
+        ]
+      ]
+    },
+    {
+      "name": "csv handles escaped quotes",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "\"He said \"\"hi\"\"\",1"
+        ]
+      },
+      "expected": [
+        [
+          "He said \"hi\"",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "csv keeps a newline inside quotes",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "\"line one\nline two\",x"
+        ]
+      },
+      "expected": [
+        [
+          "line one\nline two",
+          "x"
+        ]
+      ]
+    },
+    {
+      "name": "csv strips carriage returns",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "a,b\r\nc,d"
+        ]
+      },
+      "expected": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "c",
+          "d"
+        ]
+      ]
+    },
+    {
+      "name": "csv drops fully blank rows",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "a,b\n\n,\nc,d"
+        ]
+      },
+      "expected": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "c",
+          "d"
+        ]
+      ]
+    },
+    {
+      "name": "csv keeps a trailing empty cell",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          "a,"
+        ]
+      },
+      "expected": [
+        [
+          "a",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "csv of empty text has no rows",
+      "input": {
+        "fn": "parseCsv",
+        "args": [
+          ""
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "entities the office files emit",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "a &amp; b &lt;c&gt; &quot;d&quot; &apos;e&apos;"
+        ]
+      },
+      "expected": "a & b <c> \"d\" 'e'"
+    },
+    {
+      "name": "numeric entities",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "caf&#233;"
+        ]
+      },
+      "expected": "café"
+    },
+    {
+      "name": "escaped ampersand is decoded last",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "&amp;lt;"
+        ]
+      },
+      "expected": "&lt;"
+    },
+    {
+      "name": "numeric entity through a sequence",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "&#38;lt;"
+        ]
+      },
+      "expected": "&lt;"
+    },
+    {
+      "name": "numeric entity wraps to 16 bits",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "&#65601;"
+        ]
+      },
+      "expected": "A"
+    },
+    {
+      "name": "xml text joins runs and breaks paragraphs",
+      "input": {
+        "fn": "xmlToText",
+        "args": [
+          "<w:p><w:r><w:t>Hello </w:t></w:r><w:r><w:t>world</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">again</w:t></w:r></w:p>",
+          "w:t",
+          "</w:p>"
+        ]
+      },
+      "expected": "Hello world\nagain\n"
+    },
+    {
+      "name": "xml text ignores tags that only start like the text tag",
+      "input": {
+        "fn": "xmlToText",
+        "args": [
+          "<w:tab/><w:tbl>x</w:tbl><w:t>kept</w:t>",
+          "w:t",
+          "</w:p>"
+        ]
+      },
+      "expected": "kept"
+    },
+    {
+      "name": "pptx text tag and break",
+      "input": {
+        "fn": "xmlToText",
+        "args": [
+          "<a:p><a:r><a:t>One &amp; two</a:t></a:r></a:p>",
+          "a:t",
+          "</a:p>"
+        ]
+      },
+      "expected": "One & two\n"
+    },
+    {
+      "name": "executable names are refused",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "payload.exe"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "executable check ignores case",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "Run.BaT"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "double extension ending in an executable is refused",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "invoice.pdf.exe"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a name that merely contains exe is allowed",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "executive-summary.docx"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "an extensionless name is allowed",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "Makefile"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "page text joins items and keeps line ends",
+      "input": {
+        "fn": "pageText",
+        "args": [
+          [
+            {
+              "str": "a",
+              "hasEOL": false
+            },
+            {
+              "str": "b",
+              "hasEOL": true
+            },
+            {
+              "str": "c"
+            }
+          ]
+        ]
+      },
+      "expected": "ab\nc"
+    },
+    {
+      "name": "page text collapses spaces and tabs",
+      "input": {
+        "fn": "pageText",
+        "args": [
+          [
+            {
+              "str": "a  \t b",
+              "hasEOL": true
+            }
+          ]
+        ]
+      },
+      "expected": "a b"
+    },
+    {
+      "name": "page text limits blank lines to one",
+      "input": {
+        "fn": "pageText",
+        "args": [
+          [
+            {
+              "str": "a",
+              "hasEOL": true
+            },
+            {
+              "str": "",
+              "hasEOL": true
+            },
+            {
+              "str": "",
+              "hasEOL": true
+            },
+            {
+              "str": "b"
+            }
+          ]
+        ]
+      },
+      "expected": "a\n\nb"
+    },
+    {
+      "name": "page text skips items without text",
+      "input": {
+        "fn": "pageText",
+        "args": [
+          [
+            {
+              "str": 5
+            },
+            {
+              "str": "kept"
+            }
+          ]
+        ]
+      },
+      "expected": "kept"
+    },
+    {
+      "name": "page text of nothing is empty",
+      "input": {
+        "fn": "pageText",
+        "args": [
+          []
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "office constants",
+      "input": {
+        "fn": "constants",
+        "args": []
+      },
+      "expected": {
+        "DOCUMENT_TEXT_LIMIT": 200000,
+        "MAX_PDF_PAGES": 500,
+        "EXECUTABLE_EXTENSIONS": [
+          ".app",
+          ".appimage",
+          ".appx",
+          ".bash",
+          ".bat",
+          ".cmd",
+          ".com",
+          ".command",
+          ".cpl",
+          ".desktop",
+          ".dll",
+          ".dmg",
+          ".exe",
+          ".gadget",
+          ".hta",
+          ".inf",
+          ".jar",
+          ".js",
+          ".jse",
+          ".lnk",
+          ".msc",
+          ".msi",
+          ".msix",
+          ".pif",
+          ".pkg",
+          ".ps1",
+          ".psd1",
+          ".psm1",
+          ".reg",
+          ".run",
+          ".scf",
+          ".scr",
+          ".sh",
+          ".url",
+          ".vbe",
+          ".vbs",
+          ".wsf",
+          ".wsh",
+          ".zsh"
+        ]
+      }
+    },
+    {
+      "name": "a surrogate pair of entities is one character",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "&#55357;&#56832;"
+        ]
+      },
+      "expected": "😀"
+    },
+    {
+      "name": "a pair among other text keeps the text around it",
+      "input": {
+        "fn": "decodeXmlEntities",
+        "args": [
+          "ok &#55357;&#56832; &amp;#55357;"
+        ]
+      },
+      "expected": "ok 😀 &#55357;"
+    }
+  ]
+}

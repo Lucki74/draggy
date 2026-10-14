@@ -1,0 +1,1264 @@
+{
+  "area": "documents",
+  "description": "parseHtml, the AST the converters walk: root, element and text nodes with lowercased tags and attributes, CSS from style blocks merged into each element's style, and the auto-close rules. nodeText is nodeText(parseHtml(html)).",
+  "cases": [
+    {
+      "name": "headings and paragraphs",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<h1>Hello</h1><p>x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "h1",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "Hello"
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "paragraph closed by the next paragraph",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p>one<p>two"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "one"
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "two"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "list items close each other",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<ul><li>a<li>b</ul>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "ul",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "li",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              },
+              {
+                "type": "element",
+                "tag": "li",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "table without tbody",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<table><tr><td>a</table>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "table",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "tr",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "element",
+                    "tag": "td",
+                    "attrs": {},
+                    "style": {},
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "void tag takes no children",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<br>text<img src=x>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "br",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "text",
+            "text": "text"
+          },
+          {
+            "type": "element",
+            "tag": "img",
+            "attrs": {
+              "src": "x"
+            },
+            "style": {},
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "self closing tag takes no children",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<br/>text"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "br",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "text",
+            "text": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "css from a style block applies to tags and classes",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style>.a{color:red} div.b{font-size:12px} p{font-weight:bold} h1, .a {margin: 0}</style><div class=\"a b\"><p>x</p></div>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "div",
+            "attrs": {
+              "class": "a b"
+            },
+            "style": {
+              "color": "red",
+              "margin": "0",
+              "font-size": "12px"
+            },
+            "children": [
+              {
+                "type": "element",
+                "tag": "p",
+                "attrs": {},
+                "style": {
+                  "font-weight": "bold"
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "inline style is merged over css",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style>p{color:red}</style><p style=\"COLOR: Blue; font-size: 14pt; bad; :x; y:\">t</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "style": "COLOR: Blue; font-size: 14pt; bad; :x; y:"
+            },
+            "style": {
+              "color": "Blue",
+              "font-size": "14pt"
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "t"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "later style blocks merge into earlier ones",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style>p{color:red}</style><style>p{color:blue;font-size:9pt}</style><p>x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {
+              "color": "blue",
+              "font-size": "9pt"
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "style block with attributes",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style media=\"print\">p{color:red}</style><p>x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {
+              "media": "print"
+            },
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {
+              "color": "red"
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "css selectors and property names are lowercased",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style>P{COLOR:RED}</style><p>x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {
+              "color": "RED"
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "comments are skipped and split text",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "a<!-- hidden -->b"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    },
+    {
+      "name": "entities in text are decoded",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "&lt;b&gt; &amp;amp;"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "text",
+            "text": "<b> &amp;"
+          }
+        ]
+      }
+    },
+    {
+      "name": "script content is not text",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<script>alert(1)</script>x"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "script",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "text",
+            "text": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "style content is not text",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<style>p{color:red}</style>x"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "style",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "text",
+            "text": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "attributes: quoted, bare and boolean",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<a href='x' data-y=z disabled>t</a>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "a",
+            "attrs": {
+              "href": "x",
+              "data-y": "z",
+              "disabled": ""
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "t"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unquoted value takes a slash",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<img src=a/>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "img",
+            "attrs": {
+              "src": "a/"
+            },
+            "style": {},
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "uppercase tags and attribute names",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<P CLASS=X>T</P>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "class": "X"
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "T"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unclosed tags stay open to the end",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<div><span>x"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "div",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "span",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "stray closing tag is ignored",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "</span>x"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "text",
+            "text": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a bare less-than sign splits the text",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "a < b"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "text",
+            "text": "a "
+          },
+          {
+            "type": "text",
+            "text": " b"
+          }
+        ]
+      }
+    },
+    {
+      "name": "heading closes an open paragraph",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p>a<h2>b</h2>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "a"
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "h2",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "section closes an open list",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<ul><li>a<section>b</section>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "ul",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "li",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "section",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "rule closes an open list item",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<ul><li>a<hr>b"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "ul",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "li",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "hr",
+            "attrs": {},
+            "style": {},
+            "children": []
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    },
+    {
+      "name": "heading inside a list item closes the list",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<ul><li>a<h3>b</h3>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "ul",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "li",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "h3",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "table closes an open paragraph",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p>x<table><tr><td>a</td></tr></table>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "table",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "tr",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "element",
+                    "tag": "td",
+                    "attrs": {},
+                    "style": {},
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "div closes only an open paragraph",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<div><p>a<div>b</div></p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "div",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "p",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              },
+              {
+                "type": "element",
+                "tag": "div",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate attribute keeps the last",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p a=1 a=\"2\">x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "a": "2"
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty class attribute is ignored",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p class=\"\">x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "class": ""
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "blank class attribute is split to one empty name",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p class=\"   \">x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "class": "   "
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty style attribute",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p style=\"\">x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "style": ""
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "valueless style attribute",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<p style>x</p>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "p",
+            "attrs": {
+              "style": ""
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown tags are kept",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<my-widget data-x=1>hi</my-widget>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "my-widget",
+            "attrs": {
+              "data-x": "1"
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested blocks in a div",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<div class=\"page\"><h1>R</h1><ul><li>One</li></ul></div>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "div",
+            "attrs": {
+              "class": "page"
+            },
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "h1",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "R"
+                  }
+                ]
+              },
+              {
+                "type": "element",
+                "tag": "ul",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "element",
+                    "tag": "li",
+                    "attrs": {},
+                    "style": {},
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "head and title",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          "<head>x<title>T</title></head><body>b</body>"
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": [
+          {
+            "type": "element",
+            "tag": "head",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "element",
+                "tag": "title",
+                "attrs": {},
+                "style": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "T"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "element",
+            "tag": "body",
+            "attrs": {},
+            "style": {},
+            "children": [
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty input",
+      "input": {
+        "fn": "parseHtml",
+        "args": [
+          ""
+        ]
+      },
+      "expected": {
+        "type": "root",
+        "children": []
+      }
+    },
+    {
+      "name": "nodeText of a fragment",
+      "input": {
+        "fn": "nodeText",
+        "args": [
+          "<p>Hello <b>big</b> &amp; <i>bold</i></p>"
+        ]
+      },
+      "expected": "Hello big & bold"
+    },
+    {
+      "name": "nodeText skips style and comments",
+      "input": {
+        "fn": "nodeText",
+        "args": [
+          "<style>p{}</style><p>a<!-- x -->b</p>"
+        ]
+      },
+      "expected": "ab"
+    },
+    {
+      "name": "nodeText of nothing",
+      "input": {
+        "fn": "nodeText",
+        "args": [
+          ""
+        ]
+      },
+      "expected": ""
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+
+  @page { size: A4; margin: 18mm 16mm 16mm 16mm; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Aptos, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #111;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Aptos Display", Aptos, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #0f4761;
+    line-height: 1.25;
+    margin: 1.4em 0 0.5em;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  h1 { font-size: 20pt; margin-top: 0; }
+  h2 { font-size: 15pt; }
+  h3 { font-size: 12.5pt; }
+  h4, h5, h6 { font-size: 11pt; }
+
+  p { margin: 0 0 0.75em; orphans: 2; widows: 2; }
+
+  ul, ol { margin: 0 0 0.9em; padding-left: 1.6em; }
+  li { margin: 0.2em 0; }
+
+  a { color: #0b5cad; text-decoration: none; }
+
+  code {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 9.5pt;
+    background: #f2f2f4;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+  }
+
+  pre {
+    background: #f6f6f8;
+    border: 1px solid #dcdce2;
+    border-radius: 6px;
+    padding: 10px 12px;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: 0 0 1em;
+  }
+
+  pre code { background: none; padding: 0; font-size: 9pt; }
+
+  blockquote {
+    margin: 0 0 0.9em;
+    padding: 0.1em 0 0.1em 0.9em;
+    border-left: 3px solid #ccccd4;
+    color: #444;
+  }
+
+  hr { border: none; border-top: 1px solid #d8d8de; margin: 1.4em 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 1em;
+    font-size: 10pt;
+  }
+
+  thead { display: table-header-group; }
+
+  th, td {
+    border: 1px solid #d0d0d8;
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { background: #f2f2f4; font-weight: 600; }
+
+  tr { break-inside: avoid; page-break-inside: avoid; }

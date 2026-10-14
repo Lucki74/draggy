@@ -1,0 +1,637 @@
+{
+  "area": "documents-office-routing",
+  "description": "Writes through the extension routing and reads them back. writeGeneratedFile reduces an Office file to its structure, as the writer cases do, and keeps other files as text. writeThenRead writes a file, then extracts its text.",
+  "cases": [
+    {
+      "name": "markup in a markdown file is written as the text it is",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "notes.md",
+          "# Title\n\n**bold** & <b>raw</b>"
+        ]
+      },
+      "expected": "# Title\n\n**bold** & <b>raw</b>"
+    },
+    {
+      "name": "a csv file is written as the text it is",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "data.csv",
+          "a,b\n1,2\n"
+        ]
+      },
+      "expected": "a,b\n1,2\n"
+    },
+    {
+      "name": "an extension is matched whatever its case",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "REPORT.DOCX",
+          "# Title\n\nBody text."
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Title",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Title",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Body text.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Body text.",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a docx is built from markdown",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "report.docx",
+          "# Title\n\nSome **bold** text.\n\n- one\n- two\n\n1. first\n\n---\n\nClosing."
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Title",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Title",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Some bold text.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Some ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "bold",
+                "bold": true,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " text.",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "one",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "one",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "two",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "two",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "first",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "first",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": true,
+            "runs": []
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Closing.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Closing.",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a workbook keeps numbers as numbers",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "book.xlsx",
+          "name,amount\nrent,1200.5\n,-3\n"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "name",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "amount",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "rent",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 1200.5,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": -3,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a deck is built from markdown slides",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "deck.pptx",
+          "# Plan\n\n- one\n- two\n\n# Next\n\nReview on Friday"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Plan"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "• one",
+                  "• two"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Next"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "Review on Friday"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a written docx reads back as its text",
+      "input": {
+        "fn": "writeThenRead",
+        "args": [
+          "report.docx",
+          "# Title\n\nSome **bold** text.\n\n- one"
+        ]
+      },
+      "expected": "Title\n\nSome bold text.\n\none\n"
+    },
+    {
+      "name": "a written deck reads back slide by slide",
+      "input": {
+        "fn": "writeThenRead",
+        "args": [
+          "deck.pptx",
+          "# Plan\n\n- one\n- two\n\n# Next\n\nReview on Friday"
+        ]
+      },
+      "expected": "--- Slide 1 ---\nPlan\n• one\n• two\n\n--- Slide 2 ---\nNext\nReview on Friday"
+    },
+    {
+      "name": "a written workbook reads back as csv",
+      "input": {
+        "fn": "writeThenRead",
+        "args": [
+          "book.xlsx",
+          "name,amount\nrent,1200.5\n,-3"
+        ]
+      },
+      "expected": "--- Sheet: Sheet1 ---\nname,amount\nrent,1200.5\n,-3"
+    },
+    {
+      "name": "cells with commas and quotes read back quoted",
+      "input": {
+        "fn": "writeThenRead",
+        "args": [
+          "book.xlsx",
+          "\"x,y\",plain\n"
+        ]
+      },
+      "expected": "--- Sheet: Sheet1 ---\n\"x,y\",plain"
+    },
+    {
+      "name": "a text file has no reader",
+      "input": {
+        "fn": "writeThenRead",
+        "args": [
+          "notes.txt",
+          "hello"
+        ]
+      },
+      "expected": {
+        "error": "Unsupported document type"
+      }
+    }
+  ]
+}

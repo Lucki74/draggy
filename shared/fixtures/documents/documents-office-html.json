@@ -1,0 +1,2504 @@
+{
+  "area": "documents-office-html",
+  "description": "HTML handed to the office writers. A document in each format is written through the routing and reduced to its structure, as the markdown writer cases are. Covers the HTML writers' walk: headings, runs and their formatting, lists, tables, slides and sheets.",
+  "cases": [
+    {
+      "name": "styled headings, paragraphs and a table keep their colours",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "\n      <h1 style=\"color: #FF0000;\">Styled Document</h1>\n      <p>A paragraph with <strong style=\"color: #008000;\">green bold</strong> and <em>italic</em>.</p>\n      <ul>\n        <li>First item</li>\n        <li>Second item</li>\n      </ul>\n      <table style=\"width: 100%;\">\n        <tr>\n          <th style=\"background-color: #336699; color: #FFFFFF; width: 120px;\">Column 1</th>\n          <th style=\"width: 80px;\">Column 2</th>\n        </tr>\n        <tr>\n          <td>Value 1</td>\n          <td>Value 2</td>\n        </tr>\n      </table>\n    "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Styled Document",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Styled Document",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "A paragraph with green bold and italic.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "A paragraph with ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "green bold",
+                "bold": true,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " and ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "italic",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": ".",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "First item",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "First item",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Second item",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "Second item",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Column 1",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Column 1",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Column 2",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Column 2",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Value 1",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Value 1",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Value 2",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Value 2",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a wrapping div keeps the blocks inside it",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "\n      <!DOCTYPE html>\n      <html><body>\n        <div class=\"page\">\n          <h1>Report</h1>\n          <p>Opening line.</p>\n          <ul><li>One</li><li>Two</li></ul>\n          <table><tr><th>Head</th></tr><tr><td>Cell</td></tr></table>\n        </div>\n      </body></html>\n    "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Report",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Report",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Opening line.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Opening line.",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "One",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "One",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Two",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "Two",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Head",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Head",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Cell",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Cell",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a heading keeps its own size when none is set",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<h1>Big</h1><p>Small</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Big",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Big",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Small",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Small",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a size the html asks for is honoured",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<p style=\"font-size: 18pt\">Large</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Large",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Large",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "preformatted lines keep their breaks",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<pre>first\nsecond\nthird</pre>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "<pre>first",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "<pre>first",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "second",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "second",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "third</pre>",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "third</pre>",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "inline emphasis, colour, a break and an emoji",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<p>Hi <b>bold</b> <i>it</i> <u>u</u> <s>s</s> <span style=\"color:#00AA00; font-family: 'Georgia', serif\">g</span><br>next 😀 ok</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Hi bold it u s gnext 😀 ok",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Hi ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "bold",
+                "bold": true,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "it",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": " ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "u",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "s",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "g",
+                "bold": false,
+                "italic": false,
+                "font": "Georgia"
+              },
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "next ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "😀",
+                "bold": false,
+                "italic": false,
+                "font": "Segoe UI Emoji"
+              },
+              {
+                "text": " ok",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a shaded paragraph with a left border",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<p style=\"background-color:#FFFF00; border-left: 3px solid #FF0000; text-align:center\">Note</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Note",
+            "style": null,
+            "list": null,
+            "border": true,
+            "runs": [
+              {
+                "text": "Note",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a rule and a block quote",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<p>a</p><hr><blockquote>quoted <em>text</em></blockquote>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "a",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "a",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": true,
+            "runs": []
+          },
+          {
+            "text": "quoted text",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "quoted ",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": "text",
+                "bold": false,
+                "italic": true,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "ordered and bullet lists",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<ol><li>one</li><li>two <b>bold</b></li></ol><ul><li>x</li></ul>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "one",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "one",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "two bold",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "two ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "bold",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "x",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "x",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "spans, alignment and a cell width",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<table><tr><th colspan=\"2\">H</th></tr><tr><td style=\"text-align:right;width:200px\">1</td><td>2</td></tr></table>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "H",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "1",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "1",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "2",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "2",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unclosed list items recover",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<ul><li>one<li>two</ul><p>after"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "one",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "one",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "two",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "two",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "after",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "after",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a document with no blocks gets one paragraph",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<div></div><span></span>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a heading with its own font, size and colour",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<h2 style=\"font-family: 'Georgia', serif; font-size: 20pt; color: #123456\">Head</h2>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Head",
+            "style": "Heading2",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Head",
+                "bold": true,
+                "italic": false,
+                "font": "Georgia"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a style block applies to the classed paragraph",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.docx",
+          "<style>.note { color: #0000FF; font-weight: bold; }</style><p class=\"note\">Noted</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Noted",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Noted",
+                "bold": true,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "sections with titles, a background and body runs",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "\n      <section style=\"background-color: #f0f0f0;\">\n        <h2 style=\"color: #000080;\">Introduction Slide</h2>\n        <p>Key takeaway for the audience</p>\n        <ul>\n          <li>First bullet point</li>\n          <li>Second bullet point</li>\n        </ul>\n      </section>\n      <section>\n        <h2>Data Slide</h2>\n        <p>Summary of results</p>\n      </section>\n    "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000080",
+                "text": [
+                  "Introduction Slide"
+                ]
+              },
+              {
+                "box": [
+                  0.6,
+                  1.5,
+                  8.8,
+                  5
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "333333",
+                "text": [
+                  "Key takeaway for the audience\r\n\r\n• First bullet point\r\n• Second bullet point\r\n"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "Data Slide"
+                ]
+              },
+              {
+                "box": [
+                  0.6,
+                  1.5,
+                  8.8,
+                  5
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "333333",
+                "text": [
+                  "Summary of results\r\n\r\n"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "slides split at first-level headings and rules",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "<h1>One</h1><p>a</p><hr><h1>Two</h1><ul><li>b</li></ul>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "One"
+                ]
+              },
+              {
+                "box": [
+                  0.6,
+                  1.5,
+                  8.8,
+                  5
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "333333",
+                "text": [
+                  "a\r\n\r\n"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "Two"
+                ]
+              },
+              {
+                "box": [
+                  0.6,
+                  1.5,
+                  8.8,
+                  5
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "333333",
+                "text": [
+                  "• b\r\n"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a slide with a table",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "<section><h2>T</h2><table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table></section>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "T"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a background colour on a section",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "<section style=\"background-color:#112233\"><h1>Dark</h1></section>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "Dark"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a document with no sections is one slide",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "<p>only text</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  6
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "333333",
+                "text": [
+                  "only text\r\n\r\n"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "subheadings and bold body paragraphs",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.pptx",
+          "<section><h1>T</h1><h3>Sub</h3><p style=\"font-weight:bold;color:#FF0000\">Bold red</p><p><em>it</em></p></section>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.6,
+                  0.5,
+                  8.8,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 26,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "111111",
+                "text": [
+                  "T"
+                ]
+              },
+              {
+                "box": [
+                  0.6,
+                  1.5,
+                  8.8,
+                  5
+                ],
+                "anchor": "t",
+                "size": 18,
+                "bold": true,
+                "font": "Aptos",
+                "color": "111111",
+                "text": [
+                  "Sub\r\n\r\nBold red\r\n\r\nit\r\n\r\n"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a table with styled cells and column widths",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.xlsx",
+          "\n      <table>\n        <tr>\n          <th style=\"width: 150px; background-color: #4f46e5; color: #ffffff;\">Name</th>\n          <th style=\"width: 100px; background-color: #4f46e5; color: #ffffff;\">Score</th>\n        </tr>\n        <tr>\n          <td>Ada Lovelace</td>\n          <td>98.5</td>\n        </tr>\n        <tr>\n          <td>Grace Hopper</td>\n          <td>100</td>\n        </tr>\n      </table>\n    "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "Name",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "Score",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "Ada Lovelace",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 98.5,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "Grace Hopper",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 100,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "spans and numbers in cells",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.xlsx",
+          "<table><tr><th colspan=\"2\">Total</th></tr><tr><td>1200</td><td>-3.5</td></tr><tr><td>007</td><td>x</td></tr></table>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "Total",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": 1200,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": -3.5,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "007",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "x",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "data-sheet and id name the sheets",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.xlsx",
+          "<table data-sheet=\"Budget\"><tr><td>a</td></tr></table><table id=\"Second\"><tr><td>b</td></tr></table><table><tr><td>c</td></tr></table>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Budget",
+            "rows": [
+              [
+                {
+                  "v": "a",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          },
+          {
+            "name": "Second",
+            "rows": [
+              [
+                {
+                  "v": "b",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          },
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "c",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no table gives one empty sheet",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.xlsx",
+          "<p>no tables here</p>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a rowspan keeps the cell below it",
+      "input": {
+        "fn": "writeGeneratedFile",
+        "args": [
+          "out.xlsx",
+          "<table><tr><td rowspan=\"2\">A</td><td>B</td></tr><tr><td>C</td></tr></table>"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "A",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "B",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "C",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,537 @@
+{
+  "area": "documents",
+  "description": "writeXlsx: CSV in, the structure of the generated .xlsx out (parts, sheets with cell values, bold and font name). Compared by structure, not bytes.",
+  "cases": [
+    {
+      "name": "numbers become numbers, text stays text",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "name,score\nAda,99\nGrace,-3.5"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "name",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "score",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "Ada",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 99,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "Grace",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": -3.5,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "quoted fields keep commas and quotes",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "\"Smith, John\",42\n\"He said \"\"hi\"\"\",1"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "Smith, John",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 42,
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "He said \"hi\"",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 1,
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a newline inside quotes stays in the cell",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "\"line one\nline two\",x"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "line one\nline two",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "x",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "carriage returns are dropped",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "a,b\r\nc,d"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "a",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "b",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "c",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "d",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "blank rows are dropped",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "a,b\n\n,\nc,d"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "a",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "b",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "c",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "d",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty cells are written as blank strings",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "a,,c\n,,\nx,y,"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "a",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "c",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "x",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "y",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "padded numbers become numbers, other forms stay text",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          " 42 ,042,1e3,+5,1.50,50%"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": 42,
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "042",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "1e3",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "+5",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": 1.5,
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "50%",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "leading zeros and percent signs stay text",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "007,50%"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "007",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "50%",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "formula-like text is not a formula",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "=1+1,@x"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "=1+1",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "@x",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unicode text is kept",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          "city,country\nMontréal,Canada\n東京,日本"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": [
+              [
+                {
+                  "v": "city",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "country",
+                  "bold": true,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "Montréal",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "Canada",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ],
+              [
+                {
+                  "v": "東京",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                },
+                {
+                  "v": "日本",
+                  "bold": false,
+                  "font": "Aptos Narrow"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty input writes an empty sheet",
+      "input": {
+        "fn": "writeXlsx",
+        "args": [
+          ""
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "xl/workbook.xml",
+          "xl/_rels/workbook.xml.rels",
+          "xl/styles.xml",
+          "xl/worksheets/sheet1.xml"
+        ],
+        "sheets": [
+          {
+            "name": "Sheet1",
+            "rows": []
+          }
+        ]
+      }
+    }
+  ]
+}

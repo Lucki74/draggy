@@ -1,0 +1,142 @@
+{
+  "area": "documents",
+  "description": "Text extraction from files under samples/. A case that expects { error } pins the message the reader throws. Routing is by extension. Samples: report.docx and deck.pptx come from the reference writers, book.xlsx from exceljs, paper.pdf and blank.pdf are hand-built PDFs with a valid xref table.",
+  "cases": [
+    {
+      "name": "docx text from a generated report",
+      "input": {
+        "fn": "readDocx",
+        "args": [
+          "samples/report.docx"
+        ]
+      },
+      "expected": "Quarterly report\n\nRevenue rose 12% and costs fell.\n\nNorth & South\nEast\n\nShip it\nMeasure it\n\n\n\n⚠️ Watch <margin>\n"
+    },
+    {
+      "name": "pptx text from a generated deck",
+      "input": {
+        "fn": "readPptx",
+        "args": [
+          "samples/deck.pptx"
+        ]
+      },
+      "expected": "--- Slide 1 ---\nPlan\n• one\n• two & three\n\n--- Slide 2 ---\nNext steps\nReview on Friday"
+    },
+    {
+      "name": "xlsx text across two sheets",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/book.xlsx"
+        ]
+      },
+      "expected": "--- Sheet: Summary ---\nItem,Amount,Paid\nRent,1200,true\nGroceries,340.5,false\nTotal,1540.5\n--- Sheet: Notes ---\n,second column\na & b,\"line1\nline2\""
+    },
+    {
+      "name": "pdf text, one section per page",
+      "input": {
+        "fn": "readPdf",
+        "args": [
+          "samples/paper.pdf"
+        ]
+      },
+      "expected": "--- Page 1 ---\nQuarterly plan\nRevenue grew\n\n--- Page 2 ---\nHiring plan"
+    },
+    {
+      "name": "pdf with no text is refused",
+      "input": {
+        "fn": "readPdf",
+        "args": [
+          "samples/blank.pdf"
+        ]
+      },
+      "expected": {
+        "error": "This PDF has no text to extract. It is most likely a scan or a set of images, and Draggy does not run OCR."
+      }
+    },
+    {
+      "name": "routing reads a docx by extension",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "report.docx",
+          "samples/report.docx"
+        ]
+      },
+      "expected": "Quarterly report\n\nRevenue rose 12% and costs fell.\n\nNorth & South\nEast\n\nShip it\nMeasure it\n\n\n\n⚠️ Watch <margin>\n"
+    },
+    {
+      "name": "routing ignores extension case",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "BOOK.XLSX",
+          "samples/book.xlsx"
+        ]
+      },
+      "expected": "--- Sheet: Summary ---\nItem,Amount,Paid\nRent,1200,true\nGroceries,340.5,false\nTotal,1540.5\n--- Sheet: Notes ---\n,second column\na & b,\"line1\nline2\""
+    },
+    {
+      "name": "routing reads a pdf by extension",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "paper.PDF",
+          "samples/paper.pdf"
+        ]
+      },
+      "expected": "--- Page 1 ---\nQuarterly plan\nRevenue grew\n\n--- Page 2 ---\nHiring plan"
+    },
+    {
+      "name": "unsupported type is refused",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "notes.odt",
+          null
+        ]
+      },
+      "expected": {
+        "error": "Unsupported document type"
+      }
+    },
+    {
+      "name": "a docx without a body is refused",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "report.docx",
+          "samples/deck.pptx"
+        ]
+      },
+      "expected": {
+        "error": "No document body found"
+      }
+    },
+    {
+      "name": "a pptx without slides is refused",
+      "input": {
+        "fn": "extractText",
+        "args": [
+          "deck.pptx",
+          "samples/report.docx"
+        ]
+      },
+      "expected": {
+        "error": "No slides found"
+      }
+    },
+    {
+      "name": "a file that is not a zip is refused",
+      "input": {
+        "fn": "findZipEntries",
+        "args": [
+          "not a zip"
+        ]
+      },
+      "expected": {
+        "error": "Not a valid Office file"
+      }
+    }
+  ]
+}

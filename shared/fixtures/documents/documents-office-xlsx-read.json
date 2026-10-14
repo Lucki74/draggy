@@ -1,0 +1,110 @@
+{
+  "area": "documents-office-xlsx-read",
+  "description": "Reads of hand-built workbooks under samples/ that pin how the reference's cell model reads values: date styles (built-in and custom), t=d, formula results of each type, shared and inline strings, empty cells, and the column and date errors.",
+  "cases": [
+    {
+      "name": "date styles, formulas and odd values across one sheet",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/quirks.xlsx"
+        ]
+      },
+      "expected": "--- Sheet: Quirks ---\n2026-01-15,2026-01-15,46037,46037,2026-01-15,2026-01-15,46037,1899-12-30\n2026,\n5,\"x,y\",[object Object]\n\ntrue,false\nBase,a &lt; b,,one\nfirstsecond,only & it\nNaN,1000,12\n,text\n1900-01-06,,1899-12-29\n,<,a &lt; b\na & b,true,[object Object],0.333,\nThu Jan 15 2026 00:00:00 GMT+0000 (Coordinated Universal Time),Invalid Date,Thu Jan 04 1900 00:00:00 GMT+0000 (Coordinated Universal Time),Sun Dec 31 1899 00:00:00 GMT+0000 (Coordinated Universal Time)"
+    },
+    {
+      "name": "a column past the last sheet column is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/column-past-limit.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Out of bounds. Invalid column letter: XFE"
+      }
+    },
+    {
+      "name": "a column of 14 letters is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/column-long.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Out of bounds. Invalid column letter: ZZZZZZZZZZZZZZ"
+      }
+    },
+    {
+      "name": "a column of 8 letters is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/column-overflow.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Out of bounds. Invalid column letter: ZZZZZZZZ"
+      }
+    },
+    {
+      "name": "a far column with no value is not in the row",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/column-empty.xlsx"
+        ]
+      },
+      "expected": "--- Sheet: Quirks ---\n1"
+    },
+    {
+      "name": "a styled empty cell in a far column is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/column-styled-empty.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Out of bounds. Invalid column letter: XFE"
+      }
+    },
+    {
+      "name": "a shared string index with no entry is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/shared-missing.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Cannot read properties of undefined (reading 'richText')"
+      }
+    },
+    {
+      "name": "a date style on text is refused",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/date-invalid.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Invalid time value"
+      }
+    },
+    {
+      "name": "a later row with a bad date fails the read",
+      "input": {
+        "fn": "readXlsx",
+        "args": [
+          "samples/date-invalid-row.xlsx"
+        ]
+      },
+      "expected": {
+        "error": "Invalid time value"
+      }
+    }
+  ]
+}

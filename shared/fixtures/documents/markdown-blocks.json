@@ -1,0 +1,476 @@
+{
+  "area": "documents",
+  "description": "markdownToHtml, the line walker. Covers headings, paragraphs, lists, rules, quotes, fences, tables with their separator row, CRLF input and the places where a line is not a block.",
+  "cases": [
+    {
+      "name": "heading level 1",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "# One"
+        ]
+      },
+      "expected": "<h1>One</h1>"
+    },
+    {
+      "name": "heading level 6",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "###### Six"
+        ]
+      },
+      "expected": "<h6>Six</h6>"
+    },
+    {
+      "name": "seven hashes is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "####### seven"
+        ]
+      },
+      "expected": "<p>####### seven</p>"
+    },
+    {
+      "name": "paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "Just text."
+        ]
+      },
+      "expected": "<p>Just text.</p>"
+    },
+    {
+      "name": "consecutive bullets form one list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "- a\n- b\n- c"
+        ]
+      },
+      "expected": "<ul>\n<li>a</li>\n<li>b</li>\n<li>c</li>\n</ul>"
+    },
+    {
+      "name": "consecutive numbers form one ordered list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "1. a\n2. b"
+        ]
+      },
+      "expected": "<ol>\n<li>a</li>\n<li>b</li>\n</ol>"
+    },
+    {
+      "name": "parenthesis numbering is an ordered list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "1) a\n2) b"
+        ]
+      },
+      "expected": "<ol>\n<li>a</li>\n<li>b</li>\n</ol>"
+    },
+    {
+      "name": "a blank line closes a list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "- a\n\nAfter."
+        ]
+      },
+      "expected": "<ul>\n<li>a</li>\n</ul>\n<p>After.</p>"
+    },
+    {
+      "name": "a change of list kind starts a new list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "- a\n1. b"
+        ]
+      },
+      "expected": "<ul>\n<li>a</li>\n</ul>\n<ol>\n<li>b</li>\n</ol>"
+    },
+    {
+      "name": "two ordered lists split by a blank line",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "1. one\n\n2. two"
+        ]
+      },
+      "expected": "<ol>\n<li>one</li>\n</ol>\n<ol>\n<li>two</li>\n</ol>"
+    },
+    {
+      "name": "indented bullet joins the list",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "- a\n  - nested"
+        ]
+      },
+      "expected": "<ul>\n<li>a</li>\n<li>nested</li>\n</ul>"
+    },
+    {
+      "name": "star and plus bullets",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "* star\n+ plus"
+        ]
+      },
+      "expected": "<ul>\n<li>star</li>\n<li>plus</li>\n</ul>"
+    },
+    {
+      "name": "a lone dash is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "-"
+        ]
+      },
+      "expected": "<p>-</p>"
+    },
+    {
+      "name": "emphasis at line start is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "*emph* start"
+        ]
+      },
+      "expected": "<p><em>emph</em> start</p>"
+    },
+    {
+      "name": "three dashes is a rule",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "---"
+        ]
+      },
+      "expected": "<hr />"
+    },
+    {
+      "name": "three stars is a rule",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "***"
+        ]
+      },
+      "expected": "<hr />"
+    },
+    {
+      "name": "three underscores is a rule",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "___"
+        ]
+      },
+      "expected": "<hr />"
+    },
+    {
+      "name": "a longer dash run is a rule",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "----"
+        ]
+      },
+      "expected": "<hr />"
+    },
+    {
+      "name": "blockquote",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "> quoted"
+        ]
+      },
+      "expected": "<blockquote>quoted</blockquote>"
+    },
+    {
+      "name": "blockquote without a space",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          ">quoted"
+        ]
+      },
+      "expected": "<blockquote>quoted</blockquote>"
+    },
+    {
+      "name": "nested blockquote keeps its marker",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "> > nested"
+        ]
+      },
+      "expected": "<blockquote>&gt; nested</blockquote>"
+    },
+    {
+      "name": "fenced code keeps its text verbatim",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```js\nconst a = 1 < 2;\n```"
+        ]
+      },
+      "expected": "<pre data-language=\"js\"><code>const a = 1 &lt; 2;</code></pre>"
+    },
+    {
+      "name": "fenced code does not format",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```\n**not bold**\n```"
+        ]
+      },
+      "expected": "<pre><code>**not bold**</code></pre>"
+    },
+    {
+      "name": "unterminated fence runs to the end",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```\nstill code"
+        ]
+      },
+      "expected": "<pre><code>still code</code></pre>"
+    },
+    {
+      "name": "fence language with trailing spaces",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```python  \ncode\n```"
+        ]
+      },
+      "expected": "<pre data-language=\"python\"><code>code</code></pre>"
+    },
+    {
+      "name": "fence language with plus and hash",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```c++\nx\n```"
+        ]
+      },
+      "expected": "<pre data-language=\"c++\"><code>x</code></pre>"
+    },
+    {
+      "name": "fence language with a hash",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```c#\nx\n```"
+        ]
+      },
+      "expected": "<pre data-language=\"c#\"><code>x</code></pre>"
+    },
+    {
+      "name": "fence with a space in the language is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```bad lang\nx\n```"
+        ]
+      },
+      "expected": "<p>```bad lang</p>\n<p>x</p>\n<pre><code></code></pre>"
+    },
+    {
+      "name": "unterminated fence keeps a trailing blank line",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "x\n```\nunterminated **stars**\n"
+        ]
+      },
+      "expected": "<p>x</p>\n<pre><code>unterminated **stars**\n</code></pre>"
+    },
+    {
+      "name": "indented closing fence closes",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "```\n  code\n  ```  \nafter"
+        ]
+      },
+      "expected": "<pre><code>  code</code></pre>\n<p>after</p>"
+    },
+    {
+      "name": "table with header and body",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "| a | b |\n| --- | --- |\n| 1 | 2 |"
+        ]
+      },
+      "expected": "<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>"
+    },
+    {
+      "name": "a pipe sentence without a separator is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "a | b is a choice"
+        ]
+      },
+      "expected": "<p>a | b is a choice</p>"
+    },
+    {
+      "name": "table with alignment colons",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "| a |\n|:---:|\n| x |"
+        ]
+      },
+      "expected": "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>x</td></tr></tbody></table>"
+    },
+    {
+      "name": "table without outer pipes",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "a | b\n--- | ---\n1 | 2"
+        ]
+      },
+      "expected": "<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>"
+    },
+    {
+      "name": "table ends at a line without a pipe",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "| a |\n| - |\n| 1 |\nafter"
+        ]
+      },
+      "expected": "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>\n<p>after</p>"
+    },
+    {
+      "name": "table cells keep inline formatting",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "| **a** | `x` |\n| - | - |\n| 1 | ~~2~~ |"
+        ]
+      },
+      "expected": "<table><thead><tr><th><strong>a</strong></th><th><code>x</code></th></tr></thead><tbody><tr><td>1</td><td><del>2</del></td></tr></tbody></table>"
+    },
+    {
+      "name": "empty document",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          ""
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "null document",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          null
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "CRLF line endings are normalised",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "# A\r\n\r\nB"
+        ]
+      },
+      "expected": "<h1>A</h1>\n<p>B</p>"
+    },
+    {
+      "name": "a lone carriage return breaks a heading match",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "# A\rB"
+        ]
+      },
+      "expected": "<p># A\rB</p>"
+    },
+    {
+      "name": "a lone carriage return inside a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "a\rb"
+        ]
+      },
+      "expected": "<p>a\rb</p>"
+    },
+    {
+      "name": "heading between paragraphs",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "text\n# heading\nmore"
+        ]
+      },
+      "expected": "<p>text</p>\n<h1>heading</h1>\n<p>more</p>"
+    },
+    {
+      "name": "blank lines collapse",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "a\n\n\nb"
+        ]
+      },
+      "expected": "<p>a</p>\n<p>b</p>"
+    },
+    {
+      "name": "bold line is a paragraph",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "**bold line**"
+        ]
+      },
+      "expected": "<p><strong>bold line</strong></p>"
+    },
+    {
+      "name": "ordered item with bold",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "1. ordered with **bold**"
+        ]
+      },
+      "expected": "<ol>\n<li>ordered with <strong>bold</strong></li>\n</ol>"
+    },
+    {
+      "name": "unicode heading and emoji",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "# Résumé 📄\n\n😀 emoji *x*"
+        ]
+      },
+      "expected": "<h1>Résumé 📄</h1>\n<p>😀 emoji <em>x</em></p>"
+    },
+    {
+      "name": "html in markdown is escaped",
+      "input": {
+        "fn": "markdownToHtml",
+        "args": [
+          "# Hi <script>x</script>"
+        ]
+      },
+      "expected": "<h1>Hi &lt;script&gt;x&lt;/script&gt;</h1>"
+    }
+  ]
+}
