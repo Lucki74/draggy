@@ -260,10 +260,23 @@ pub(crate) mod memory {
         pub executable: BTreeSet<String>,
     }
 
+    /// A path built the way the installers build theirs, so a test's expectation matches on any platform.
+    pub(crate) fn joined(first: &str, rest: &[&str]) -> String {
+        rest.iter()
+            .fold(Path::new(first).to_path_buf(), |p, part| p.join(part))
+            .to_string_lossy()
+            .into_owned()
+    }
+
     fn parent_of(path: &str) -> Option<String> {
         Path::new(path)
             .parent()
             .map(|p| p.to_string_lossy().into_owned())
+    }
+
+    /// The tests key folders with forward slashes; Windows joins add backslashes, so both name one entry.
+    fn key(path: &str) -> String {
+        path.replace(std::path::MAIN_SEPARATOR, "/")
     }
 
     fn under(path: &str, root: &str) -> bool {
@@ -271,6 +284,14 @@ pub(crate) mod memory {
     }
 
     impl MemFs {
+        pub fn has_file(&self, path: &str) -> bool {
+            self.files.contains_key(&key(path))
+        }
+
+        pub fn is_executable(&self, path: &str) -> bool {
+            self.executable.contains(&key(path))
+        }
+
         pub fn has_tree(&self, root: &str) -> bool {
             self.dirs.iter().any(|d| under(d, root)) || self.files.keys().any(|f| under(f, root))
         }
@@ -278,12 +299,15 @@ pub(crate) mod memory {
 
     impl FileView for MemFs {
         fn exists(&self, path: &str) -> bool {
-            self.files.contains_key(path)
-                || self.dirs.contains(path)
-                || self.links.contains_key(path)
+            let path = key(path);
+            self.files.contains_key(&path)
+                || self.dirs.contains(&path)
+                || self.links.contains_key(&path)
         }
 
         fn list(&self, dir: &str) -> Option<Vec<String>> {
+            let dir = key(dir);
+            let dir = dir.as_str();
             let names = self
                 .dirs
                 .iter()
@@ -306,21 +330,23 @@ pub(crate) mod memory {
 
     impl InstallFs for MemFs {
         fn write_file(&mut self, path: &str, bytes: &[u8]) {
-            self.files.insert(path.to_owned(), bytes.to_vec());
+            self.files.insert(key(path), bytes.to_vec());
         }
 
         fn append_file(&mut self, path: &str, bytes: &[u8]) {
             self.files
-                .entry(path.to_owned())
+                .entry(key(path))
                 .or_default()
                 .extend_from_slice(bytes);
         }
 
         fn make_dir(&mut self, path: &str) {
-            self.dirs.insert(path.to_owned());
+            self.dirs.insert(key(path));
         }
 
         fn remove_tree(&mut self, path: &str) {
+            let path = key(path);
+            let path = path.as_str();
             self.dirs.retain(|d| !under(d, path));
             self.files.retain(|f, _| !under(f, path));
             self.links.retain(|l, _| !under(l, path));
@@ -328,6 +354,8 @@ pub(crate) mod memory {
         }
 
         fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
+            let (from, to) = (key(from), key(to));
+            let (from, to) = (from.as_str(), to.as_str());
             if !self.dirs.contains(from) {
                 return Err(format!("no folder {from}"));
             }
@@ -367,11 +395,11 @@ pub(crate) mod memory {
         }
 
         fn sha256(&self, path: &str) -> Option<String> {
-            self.files.get(path).map(|bytes| sha256_hex(bytes))
+            self.files.get(&key(path)).map(|bytes| sha256_hex(bytes))
         }
 
         fn set_executable(&mut self, path: &str) {
-            self.executable.insert(path.to_owned());
+            self.executable.insert(key(path));
         }
     }
 }

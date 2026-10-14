@@ -302,6 +302,13 @@ mod tests {
             built.env.get("NO_BROWSER").map(String::as_str),
             Some("true")
         );
-        assert_eq!(built.home, format!("{APP}/gemini/acct"));
+        assert_eq!(
+            built.home,
+            Path::new(APP)
+                .join("gemini")
+                .join("acct")
+                .to_string_lossy()
+                .into_owned()
+        );
     }
 }

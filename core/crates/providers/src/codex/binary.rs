@@ -216,7 +216,7 @@ mod tests {
     use std::thread;
 
     use super::*;
-    use crate::install_fs::memory::{ChunkedDownload, MemFs};
+    use crate::install_fs::memory::{ChunkedDownload, MemFs, joined};
     use crate::install_fs::sha256_hex;
 
     /// Writes one app-server file into the folder, as the release archive holds it.
@@ -277,7 +277,7 @@ mod tests {
         fs.write_file(&format!("{}/codex-app-server-x", install_dir(APP)), b"app");
         assert_eq!(
             installed_binary(APP, &fs),
-            Some(format!("{}/codex-app-server-x", install_dir(APP)))
+            Some(joined(&install_dir(APP), &["codex-app-server-x"]))
         );
     }
 
@@ -301,12 +301,12 @@ mod tests {
             &mut fs,
             &mut |_| {},
         );
-        let expected = format!(
-            "{}/codex-app-server-x86_64-unknown-linux-musl",
-            install_dir(APP)
+        let expected = joined(
+            &install_dir(APP),
+            &["codex-app-server-x86_64-unknown-linux-musl"],
         );
         assert_eq!(binary, Ok(expected.clone()));
-        assert!(fs.executable.contains(&expected));
+        assert!(fs.is_executable(&expected));
         assert!(!fs.has_tree(&format!("{}.part", install_dir(APP))));
 
         let again = install_with(
@@ -424,9 +424,9 @@ mod tests {
             thread::yield_now();
         }
         release_tx.send(()).expect("the leader is waiting");
-        let expected = format!(
-            "{}/codex-app-server-x86_64-unknown-linux-musl",
-            install_dir(APP)
+        let expected = joined(
+            &install_dir(APP),
+            &["codex-app-server-x86_64-unknown-linux-musl"],
         );
         assert_eq!(leader.join().expect("leader joins"), Ok(expected.clone()));
         assert_eq!(follower.join().expect("follower joins"), Ok(expected));

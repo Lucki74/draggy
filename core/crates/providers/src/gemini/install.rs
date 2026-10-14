@@ -151,7 +151,7 @@ mod tests {
     use std::cell::RefCell;
 
     use super::*;
-    use crate::install_fs::memory::MemFs;
+    use crate::install_fs::memory::{MemFs, joined};
 
     const APP: &str = "/data/Draggy";
 
@@ -224,7 +224,7 @@ mod tests {
         let mut npm = FakeNpm::ok();
         let entry = install(APP, true, &lock(), &mut npm, &mut fs);
         assert_eq!(
-            entry.map(|e| e.map(|p| p.ends_with("bundle/gemini.js"))),
+            entry.map(|e| e.map(|p| Path::new(&p).ends_with("bundle/gemini.js"))),
             Ok(Some(true))
         );
         let seen = npm.seen.borrow();
@@ -234,10 +234,7 @@ mod tests {
             seen[0].1,
             NPM_ARGS.iter().map(|a| (*a).to_owned()).collect::<Vec<_>>()
         );
-        assert!(
-            fs.files
-                .contains_key(&format!("{}/package-lock.json", install_dir(APP)))
-        );
+        assert!(fs.has_file(&format!("{}/package-lock.json", install_dir(APP))));
         assert!(!fs.has_tree(&format!("{}.part", install_dir(APP))));
     }
 
@@ -344,10 +341,7 @@ mod tests {
             std::thread::yield_now();
         }
         release_tx.send(()).expect("npm is waiting");
-        let expected = Ok(Some(format!(
-            "{}/node_modules/@google/gemini-cli/bundle/gemini.js",
-            install_dir(APP)
-        )));
+        let expected = Ok(Some(joined(&install_dir(APP), &ENTRY)));
         assert_eq!(leader.join().expect("leader joins"), expected);
         assert_eq!(follower.join().expect("follower joins"), expected);
     }

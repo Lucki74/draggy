@@ -247,7 +247,7 @@ mod tests {
     use super::*;
     use crate::install_fs::Progress;
     use crate::install_fs::SingleFlight;
-    use crate::install_fs::memory::{ChunkedDownload, MemFs};
+    use crate::install_fs::memory::{ChunkedDownload, MemFs, joined};
     use crate::install_fs::sha256_hex;
 
     const APP: &str = "/data/Draggy";
@@ -303,7 +303,7 @@ mod tests {
             &mut fs,
             &mut progress,
         );
-        let binary = format!("{}/claude", install_dir(APP));
+        let binary = joined(&install_dir(APP), &["claude"]);
         assert_eq!(installed, Ok(Some(binary.clone())));
         assert_eq!(download.opened, 1);
         assert_eq!(
@@ -321,7 +321,7 @@ mod tests {
                 },
             ]
         );
-        assert!(fs.executable.contains(&binary));
+        assert!(fs.is_executable(&binary));
         assert!(!fs.has_tree(&format!("{APP}/claude/bin/2.1.200")));
         assert!(!fs.has_tree(&format!("{}.part", install_dir(APP))));
     }
@@ -425,7 +425,7 @@ mod tests {
             &mut fs,
             &mut |_| {},
         );
-        assert_eq!(first, Ok(Some(format!("{}/claude", install_dir(APP)))));
+        assert_eq!(first, Ok(Some(joined(&install_dir(APP), &["claude"]))));
         assert_eq!(second, first);
         assert_eq!(download.opened, 1);
     }
@@ -466,14 +466,14 @@ mod tests {
         fs.make_dir(&format!("{APP}/claude/bin/2.1.300.part"));
         assert_eq!(
             previous_binary(APP, &fs),
-            Some(format!("{APP}/claude/bin/2.1.200/claude"))
+            Some(joined(APP, &["claude", "bin", "2.1.200", "claude"]))
         );
         assert_eq!(installed_binary(APP, &fs), None);
         fs.make_dir(&install_dir(APP));
         fs.write_file(&format!("{}/claude", install_dir(APP)), b"new");
         assert_eq!(
             installed_binary(APP, &fs),
-            Some(format!("{}/claude", install_dir(APP)))
+            Some(joined(&install_dir(APP), &["claude"]))
         );
     }
 }
