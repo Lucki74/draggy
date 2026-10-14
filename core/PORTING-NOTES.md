@@ -109,6 +109,92 @@ Gaps that remain:
 - `parse_json` rejects lone surrogates and numbers out of range, where `JSON.parse` accepts them.
 - The native shell has to enforce `permissionGranted`: camera and microphone only from the app window, and the sanitized clipboard write only from app pages.
 
+## engine
+
+Ported: the llama process supervisor, argument building, health checks, output parsing, draft statistics, flag cache, binary manager, engine updater, hardware and VRAM probes. Two holes in the first port were fixed. A start that is dropped while loading no longer strands the next one, and a launch no longer overwrites a process another start still holds.
+
+Differences:
+
+- The RAM and VRAM lines the reference logs before and after each load and after each unload are not written.
+- A binary that fails to spawn is reported at once. The reference waits out the full load deadline first.
+- The health check applies one deadline to connect, write and read. The reference uses an idle-socket timeout, so a slow answer that keeps progressing is cut off here.
+- Two same-model starts racing on a multi-threaded runtime can both launch, because the join check and the slot claim use two locks. The window is microseconds and no test reproduces it.
+- A hand-edited `draft-stats.json` with a null or missing sample count behaves differently from the reference.
+- On Windows the spawn error code is empty for every failure except a permission error. That branch was not compiled here.
+
+## providers
+
+Ported: the neutral chat types, the OpenAI, Anthropic, Gemini and Ollama adapters, the claude, codex and gemini CLI adapters with their installers and the account supervisor, the gateway, the catalog, model listings, the registry, the signed catalog and local discovery. Network and storage are traits.
+
+The last round fixed the streaming gateway so that a reader that goes away stops the upstream request, falsy RPC errors that settle with the result, the codex handshake literal, single-flight installs and streamed downloads. Fixtures cover installs, the supervisor and the MCP keep-alive.
+
+This crate had no independent verification of its final state. Only the format, lint and test gates in this repo cover it, so treat it as the least reviewed of the wave.
+
+Small known differences: the chat check compares the host without the port, and non-stream account tool calls drop their index.
+
+## model store
+
+Ported: the Hugging Face resolver, the model cache, downloads with resume, and the JS helpers they need.
+
+Differences:
+
+- `locale_cmp` in the models crate is an ASCII-fold approximation of root collation, not `localeCompare`. It breaks projector ties and sorts shards. Punctuation can order differently. The tools crate uses the real ICU collator, so the two should share one.
+- A 204 or 205 answer is written to the cache as an empty model file. The reference refuses it.
+- An empty `Location` header returns the 3xx answer. Node follows it to the same URL and fails after twenty hops.
+- A cache root containing `..` resolves to a different folder than `path.resolve` gives.
+- The two download paths read Content-Length differently. Values such as `+5` or `1e3` pass in one and not the other.
+- `cancel()` removes the partial file without waiting for the transfer to let go of it.
+- The tools template check uses Unicode word boundaries where JavaScript uses ASCII ones.
+- The reference builds a nonsense URL for a curated key such as `llama3.1:constructor`. The port falls back to the first size.
+
+## agent loop
+
+Ported: the run loop, turn preparation, compaction, context breakdown, resume, task manager, live turn, subagents, tool channel and skill loading. The loop is pinned by a name-by-name mapping of the 131 TypeScript loop tests to Rust tests.
+
+Not ported: the window high-water rule for context size (it lives in the engine host and no Rust crate implements the engine host trait yet), so only the loop side is pinned. A provider state that is not in the typed wire shape is dropped, where TypeScript passes it through. The tail notes are kept per conversation instead of in a module map.
+
+## mcp
+
+Ported: the client, stdio and HTTP transports, tool results, npm provisioning, OAuth sign-in and sign-out with PKCE, token refresh on a 401, and the stdio supervisor. JSON text follows `JSON.stringify`, including number text and key order, and whitespace trimming follows JavaScript.
+
+Differences and gaps:
+
+- Environment and header values never appear in `Debug` output, only their names.
+- A JSON null line is handled the way the reference does by accident, and the quirk is pinned.
+- The stdio launcher goes through `exec_hidden` for the npm install. Running the server itself needs a spawn with a piped stdin in the tools crate, which does not exist yet. A real stdio server was not run here.
+
+## documents
+
+Ported: DOCX, XLSX, PPTX, CSV and PDF reading, the generated file writers and the three HTML writers. The Chromium PDF step is not ported.
+
+Differences:
+
+- PDF glyph clipping differs from pdf.js. The password, page limit and text limit cases are fixtured.
+- XLSX infinity values are not changed to match the reference.
+- The write logs, the timed `write docx` line and the failure step, are not ported. Rust logs a debug line on success only.
+- Date text is printed in UTC, and the runner sets `TZ=UTC` so the reference matches.
+- Columns past 16384 are refused with the reference message, only when the cell is present.
+
+## api
+
+Ported: the local OpenAI-compatible server, routing, auth, request parsing and error bodies.
+
+Differences, none pinned by a fixture:
+
+- Only one leading `//` pair is stripped. The reference skips every leading slash or backslash, so `///v1/models` answers 200 here and 404 there.
+- Authenticated `//` and `/\` paths make `new URL()` throw in the reference, which answers 500. Rust answers 404.
+- A listen failure other than address in use returns the Rust error text instead of Node's message.
+- Lone surrogate escapes and numbers beyond f64 answer 400 in Rust and 200 in the reference. Nesting deeper than 128 levels answers 400.
+- The Rust fixture runner coerces malformed inputs silently, so a future case could pass in Rust and fail in TypeScript.
+
+## secrets
+
+Ported: the secret store, adopt, the scrubber and the fake vault.
+
+Quirks kept on purpose: an owner named `__proto__` is dropped from the records, stored owner values that are not objects are returned as stored, array stores grow on a set past the end and do not shrink on remove, and the vault decodes base64 the way Node's `Buffer.from` does. `SecretStore::get` returns the raw JSON value, and `with_secrets` takes the environment as a JSON value. The scrubber threshold counts UTF-16 units, so five accented letters pass and six are scrubbed.
+
+The secrets test installs a scoped tracing subscriber, which has the same callsite-cache race the agent crate hit.
+
 ## Fixture harness
 
 Expected values come from the TypeScript reference, produced by a throwaway generator that is deleted afterwards. The DOM and decode expectations in the web fixtures come from a TypeScript stand-in, and `wellFormed` hides lone surrogates there. That limits what those fixtures prove.
