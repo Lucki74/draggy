@@ -1,14 +1,23 @@
-//! Pure agent logic ported from `src/toolParsing.ts`, `src/prompts.ts` and `src/agent/*.ts`; the loop comes later.
+//! Pure agent logic ported from `src/toolParsing.ts`, `src/prompts.ts` and `src/agent/*.ts`; `agent_loop` runs a turn.
 //! The TypeScript stays the reference, and `shared/fixtures/agent` pins both.
 
+pub mod agent_loop;
 pub mod announcement;
 pub mod command_rules;
+pub mod compaction;
+pub mod context_breakdown;
 mod js;
 pub mod json;
+pub mod live_turn;
 pub mod parsing;
 pub mod permissions;
 pub mod prompts;
 pub mod repetition;
+pub mod resume;
+pub mod skills;
+pub mod subagent;
+pub mod task_manager;
+pub mod tool_channel;
 
 /// Failures while building the agent's patterns. A runtime matching error is logged and reads as no match.
 #[derive(Debug, thiserror::Error)]

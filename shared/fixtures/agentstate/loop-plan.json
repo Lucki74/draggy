@@ -1,0 +1,543 @@
+{
+  "area": "agentLoop",
+  "description": "The plan helpers the loop uses (src/plan/plan.ts): parsing the checklist the model writes, comparing plans, and describing the plan or the user's edit to the model. Expected values are the TS results.",
+  "cases": [
+    {
+      "name": "reads checklist marks and bullets",
+      "input": {
+        "op": "parsePlan",
+        "text": "[x] Read it\n[ ] Fix it"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read it",
+          "status": "done"
+        },
+        {
+          "id": "step-2",
+          "text": "Fix it",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a list item without brackets is a todo",
+      "input": {
+        "op": "parsePlan",
+        "text": "- Read it\n2) Fix it"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read it",
+          "status": "todo"
+        },
+        {
+          "id": "step-2",
+          "text": "Fix it",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "the second doing step is put back to todo",
+      "input": {
+        "op": "parsePlan",
+        "text": "[>] One\n[>] Two"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "One",
+          "status": "doing"
+        },
+        {
+          "id": "step-2",
+          "text": "Two",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "any other line is a todo",
+      "input": {
+        "op": "parsePlan",
+        "text": "Here is my plan:\n[ ] Only step"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Here is my plan:",
+          "status": "todo"
+        },
+        {
+          "id": "step-2",
+          "text": "Only step",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "an empty text is no plan",
+      "input": {
+        "op": "parsePlan",
+        "text": ""
+      },
+      "expected": []
+    },
+    {
+      "name": "two plans with the same steps are the same",
+      "input": {
+        "op": "samePlan",
+        "left": "[x] A\n[ ] B",
+        "right": "[x] A\n[ ] B"
+      },
+      "expected": true
+    },
+    {
+      "name": "a changed status is a different plan",
+      "input": {
+        "op": "samePlan",
+        "left": "[x] A",
+        "right": "[ ] A"
+      },
+      "expected": false
+    },
+    {
+      "name": "describing the plan lists its steps",
+      "input": {
+        "op": "describePlan",
+        "text": "[x] Read it\n[ ] Fix it"
+      },
+      "expected": "The plan for this task so far:\n\n[x] Read it\n[ ] Fix it\n\nCarry on from it. Call update_plan with the whole list whenever a step changes, and stop when every step is done."
+    },
+    {
+      "name": "describing an edit lists the steps as the user left them",
+      "input": {
+        "op": "describeEdit",
+        "text": "[ ] First\n[ ] Second"
+      },
+      "expected": "The user edited the plan. It now reads:\n\n[ ] First\n[ ] Second\n\nWork to this, not to the version you wrote. Mark a step done as you finish it."
+    },
+    {
+      "name": "a bracket-only item with an empty body is dropped",
+      "input": {
+        "op": "parsePlan",
+        "text": "[ ]\n- [x]\n[x] Keep"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Keep",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "name": "done, doing and dash words map to their statuses",
+      "input": {
+        "op": "parsePlan",
+        "text": "[done] a\n[doing] b\n[-] c\n[X] d\n[ DOING ] e"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "a",
+          "status": "done"
+        },
+        {
+          "id": "step-2",
+          "text": "b",
+          "status": "doing"
+        },
+        {
+          "id": "step-3",
+          "text": "c",
+          "status": "todo"
+        },
+        {
+          "id": "step-4",
+          "text": "d",
+          "status": "done"
+        },
+        {
+          "id": "step-5",
+          "text": "e",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a second doing step is told back as to do",
+      "input": {
+        "op": "parsePlan",
+        "text": "[>] first\n[>] second\n[doing] third"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "first",
+          "status": "doing"
+        },
+        {
+          "id": "step-2",
+          "text": "second",
+          "status": "todo"
+        },
+        {
+          "id": "step-3",
+          "text": "third",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "an unknown mark is a to-do step that keeps its text",
+      "input": {
+        "op": "parsePlan",
+        "text": "[~] maybe"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "maybe",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a carriage return inside the text keeps the brackets",
+      "input": {
+        "op": "parsePlan",
+        "text": "[x] Read\rit"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "[x] Read\rit",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a carriage return straight after the bracket is skipped",
+      "input": {
+        "op": "parsePlan",
+        "text": "[x]\r Read"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "name": "a line separator inside the text keeps the brackets",
+      "input": {
+        "op": "parsePlan",
+        "text": "[x] Read it"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "[x] Read it",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a paragraph separator after the bracket is skipped",
+      "input": {
+        "op": "parsePlan",
+        "text": "[x] Read"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "name": "a bullet with no space still strips",
+      "input": {
+        "op": "parsePlan",
+        "text": "-[x] Read"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "name": "a parenthesis number and a unicode bullet strip",
+      "input": {
+        "op": "parsePlan",
+        "text": "3) Read\n• Write"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "Read",
+          "status": "todo"
+        },
+        {
+          "id": "step-2",
+          "text": "Write",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "a letter and a dot is not a bullet",
+      "input": {
+        "op": "parsePlan",
+        "text": "a. Read"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "a. Read",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "an unclosed bracket is plain text",
+      "input": {
+        "op": "parsePlan",
+        "text": "[ Read"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "[ Read",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "empty text has no steps",
+      "input": {
+        "op": "parsePlan",
+        "text": ""
+      },
+      "expected": []
+    },
+    {
+      "name": "the plan stops at twenty steps",
+      "input": {
+        "op": "parsePlan",
+        "text": "1. step 1\n2. step 2\n3. step 3\n4. step 4\n5. step 5\n6. step 6\n7. step 7\n8. step 8\n9. step 9\n10. step 10\n11. step 11\n12. step 12\n13. step 13\n14. step 14\n15. step 15\n16. step 16\n17. step 17\n18. step 18\n19. step 19\n20. step 20\n21. step 21\n22. step 22\n23. step 23\n24. step 24\n25. step 25"
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "step 1",
+          "status": "todo"
+        },
+        {
+          "id": "step-2",
+          "text": "step 2",
+          "status": "todo"
+        },
+        {
+          "id": "step-3",
+          "text": "step 3",
+          "status": "todo"
+        },
+        {
+          "id": "step-4",
+          "text": "step 4",
+          "status": "todo"
+        },
+        {
+          "id": "step-5",
+          "text": "step 5",
+          "status": "todo"
+        },
+        {
+          "id": "step-6",
+          "text": "step 6",
+          "status": "todo"
+        },
+        {
+          "id": "step-7",
+          "text": "step 7",
+          "status": "todo"
+        },
+        {
+          "id": "step-8",
+          "text": "step 8",
+          "status": "todo"
+        },
+        {
+          "id": "step-9",
+          "text": "step 9",
+          "status": "todo"
+        },
+        {
+          "id": "step-10",
+          "text": "step 10",
+          "status": "todo"
+        },
+        {
+          "id": "step-11",
+          "text": "step 11",
+          "status": "todo"
+        },
+        {
+          "id": "step-12",
+          "text": "step 12",
+          "status": "todo"
+        },
+        {
+          "id": "step-13",
+          "text": "step 13",
+          "status": "todo"
+        },
+        {
+          "id": "step-14",
+          "text": "step 14",
+          "status": "todo"
+        },
+        {
+          "id": "step-15",
+          "text": "step 15",
+          "status": "todo"
+        },
+        {
+          "id": "step-16",
+          "text": "step 16",
+          "status": "todo"
+        },
+        {
+          "id": "step-17",
+          "text": "step 17",
+          "status": "todo"
+        },
+        {
+          "id": "step-18",
+          "text": "step 18",
+          "status": "todo"
+        },
+        {
+          "id": "step-19",
+          "text": "step 19",
+          "status": "todo"
+        },
+        {
+          "id": "step-20",
+          "text": "step 20",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "blank lines do not count toward the cap",
+      "input": {
+        "op": "parsePlan",
+        "text": "1. step 1\n   \n3. step 3\n   \n5. step 5\n   \n7. step 7\n   \n9. step 9\n   \n11. step 11\n   \n13. step 13\n   \n15. step 15\n   \n17. step 17\n   \n19. step 19\n   \n21. step 21\n   "
+      },
+      "expected": [
+        {
+          "id": "step-1",
+          "text": "step 1",
+          "status": "todo"
+        },
+        {
+          "id": "step-2",
+          "text": "step 3",
+          "status": "todo"
+        },
+        {
+          "id": "step-3",
+          "text": "step 5",
+          "status": "todo"
+        },
+        {
+          "id": "step-4",
+          "text": "step 7",
+          "status": "todo"
+        },
+        {
+          "id": "step-5",
+          "text": "step 9",
+          "status": "todo"
+        },
+        {
+          "id": "step-6",
+          "text": "step 11",
+          "status": "todo"
+        },
+        {
+          "id": "step-7",
+          "text": "step 13",
+          "status": "todo"
+        },
+        {
+          "id": "step-8",
+          "text": "step 15",
+          "status": "todo"
+        },
+        {
+          "id": "step-9",
+          "text": "step 17",
+          "status": "todo"
+        },
+        {
+          "id": "step-10",
+          "text": "step 19",
+          "status": "todo"
+        },
+        {
+          "id": "step-11",
+          "text": "step 21",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "name": "plans with different lengths are not the same",
+      "input": {
+        "op": "samePlan",
+        "left": "[x] a",
+        "right": "[x] a\n[ ] b"
+      },
+      "expected": false
+    },
+    {
+      "name": "plans with the same texts and states are the same",
+      "input": {
+        "op": "samePlan",
+        "left": "1. [x] a\n2. [ ] b",
+        "right": "- [x] a\n- [ ] b"
+      },
+      "expected": true
+    },
+    {
+      "name": "the same texts in another state are not the same",
+      "input": {
+        "op": "samePlan",
+        "left": "[x] a",
+        "right": "[ ] a"
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty edit says the plan was cleared",
+      "input": {
+        "op": "describeEdit",
+        "text": ""
+      },
+      "expected": "The user cleared the plan. Ask them what they want instead of carrying on with the old steps."
+    }
+  ]
+}

@@ -1,0 +1,1112 @@
+{
+  "area": "resume",
+  "description": "Resume after a cut-off reply: the account of finished work, the resume message, and joining a continued reply. Pure functions in src/agent/resume.ts. Steps carry only the fields the logic reads.",
+  "cases": [
+    {
+      "name": "no steps means no account",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": []
+      },
+      "expected": null
+    },
+    {
+      "name": "no steps means no resume message",
+      "input": {
+        "op": "buildResumeMessage",
+        "steps": []
+      },
+      "expected": null
+    },
+    {
+      "name": "a created file is reported with its path",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "create_file",
+            "content": "Created **report.docx**",
+            "isComplete": true,
+            "filename": "report.docx",
+            "filepath": "C:/out/report.docx"
+          }
+        ]
+      },
+      "expected": "- Created the file report.docx at C:/out/report.docx. It is already written; do not create it again."
+    },
+    {
+      "name": "a file with no path is reported as an attempt",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "create_file",
+            "content": "Creating **x.docx**",
+            "isComplete": true,
+            "filename": "x.docx"
+          }
+        ]
+      },
+      "expected": "- Attempted to create x.docx: Creating x.docx"
+    },
+    {
+      "name": "code that already ran is reported with its output",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "run_code",
+            "content": "Code ran",
+            "isComplete": true,
+            "language": "python",
+            "stdout": "788454"
+          }
+        ]
+      },
+      "expected": "- Ran python already. Output: 788454 Do not run it again unless it needs changing."
+    },
+    {
+      "name": "code with errors reports them",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "run_code",
+            "content": "Code ran",
+            "isComplete": true,
+            "stderr": "NameError: x"
+          }
+        ]
+      },
+      "expected": "- Ran code already. Errors: NameError: x Do not run it again unless it needs changing."
+    },
+    {
+      "name": "code with no language says code",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "run_code",
+            "content": "Code ran",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Ran code already. Do not run it again unless it needs changing."
+    },
+    {
+      "name": "a command is reported with its output",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "command",
+            "content": "Ran **git status**...",
+            "isComplete": true,
+            "stdout": "clean"
+          }
+        ]
+      },
+      "expected": "- Ran git status. Output: clean Do not run it again unless something has changed."
+    },
+    {
+      "name": "search results carry their titles and links",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "results",
+            "content": "Search results for **paris**",
+            "isComplete": true,
+            "results": [
+              {
+                "title": "Paris - Wikipedia",
+                "url": "https://en.wikipedia.org/wiki/Paris",
+                "snippet": ""
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "- Search results already gathered: Paris - Wikipedia (https://en.wikipedia.org/wiki/Paris)"
+    },
+    {
+      "name": "search results with nothing in them keep the label",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "results",
+            "content": "Search results for **paris**",
+            "isComplete": true,
+            "results": []
+          }
+        ]
+      },
+      "expected": "- Search results for paris"
+    },
+    {
+      "name": "a library lookup lists what it found",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "library",
+            "content": "Looked up **react**",
+            "isComplete": true,
+            "libraryHits": [
+              {
+                "name": "react"
+              },
+              {
+                "name": "react-dom"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "- Looked up react Found: react; react-dom"
+    },
+    {
+      "name": "a finished picture is reported with its path",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "image",
+            "content": "cat",
+            "isComplete": true,
+            "image": {
+              "status": "done",
+              "prompt": "a cat",
+              "path": "C:/out/cat.png"
+            }
+          }
+        ]
+      },
+      "expected": "- Drew a picture of \"a cat\" and saved it at C:/out/cat.png. It is already made; do not draw it again."
+    },
+    {
+      "name": "a picture that did not finish is not reported",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "image",
+            "content": "cat",
+            "isComplete": true,
+            "image": {
+              "status": "failed",
+              "prompt": "a cat"
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "reasoning carries across",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "thinking",
+            "content": "I decided to build the table first.",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Reasoning so far: I decided to build the table first."
+    },
+    {
+      "name": "reasoning keeps only its tail",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "thinking",
+            "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa the end",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Reasoning so far: …aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa the end"
+    },
+    {
+      "name": "a failure is reported as failed",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "error",
+            "content": "**Timed out**",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Failed: Timed out"
+    },
+    {
+      "name": "text already said is quoted",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "text",
+            "content": "Here is the plan.",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Already said: Here is the plan."
+    },
+    {
+      "name": "a step still in flight is not claimed as done",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "create_file",
+            "content": "Creating **half.docx**",
+            "isComplete": false,
+            "filename": "half.docx"
+          },
+          {
+            "id": "2",
+            "type": "thinking",
+            "content": "Thought about it.",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Reasoning so far: Thought about it."
+    },
+    {
+      "name": "markdown is stripped from the step text",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "reading",
+            "content": "Reading **example.com**",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": "- Reading example.com"
+    },
+    {
+      "name": "an unknown step type contributes nothing",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "mystery",
+            "content": "x",
+            "isComplete": true
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "work that happened in order stays in order",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "1",
+            "type": "thinking",
+            "content": "First I thought.",
+            "isComplete": true
+          },
+          {
+            "id": "2",
+            "type": "create_file",
+            "content": "Created **a.txt**",
+            "isComplete": true,
+            "filename": "a.txt",
+            "filepath": "C:/out/a.txt"
+          },
+          {
+            "id": "3",
+            "type": "create_file",
+            "content": "Created **b.txt**",
+            "isComplete": true,
+            "filename": "b.txt",
+            "filepath": "C:/out/b.txt"
+          }
+        ]
+      },
+      "expected": "- Reasoning so far: First I thought.\n- Created the file a.txt at C:/out/a.txt. It is already written; do not create it again.\n- Created the file b.txt at C:/out/b.txt. It is already written; do not create it again."
+    },
+    {
+      "name": "a noisy history stays within the budget and keeps side effects",
+      "input": {
+        "op": "describeCompletedWork",
+        "steps": [
+          {
+            "id": "t0",
+            "type": "thinking",
+            "content": "Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. ",
+            "isComplete": true
+          },
+          {
+            "id": "t1",
+            "type": "thinking",
+            "content": "Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. ",
+            "isComplete": true
+          },
+          {
+            "id": "t2",
+            "type": "thinking",
+            "content": "Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. ",
+            "isComplete": true
+          },
+          {
+            "id": "t3",
+            "type": "thinking",
+            "content": "Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. ",
+            "isComplete": true
+          },
+          {
+            "id": "t4",
+            "type": "thinking",
+            "content": "Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. ",
+            "isComplete": true
+          },
+          {
+            "id": "t5",
+            "type": "thinking",
+            "content": "Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. ",
+            "isComplete": true
+          },
+          {
+            "id": "t6",
+            "type": "thinking",
+            "content": "Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. ",
+            "isComplete": true
+          },
+          {
+            "id": "t7",
+            "type": "thinking",
+            "content": "Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. ",
+            "isComplete": true
+          },
+          {
+            "id": "t8",
+            "type": "thinking",
+            "content": "Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. ",
+            "isComplete": true
+          },
+          {
+            "id": "t9",
+            "type": "thinking",
+            "content": "Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. ",
+            "isComplete": true
+          },
+          {
+            "id": "t10",
+            "type": "thinking",
+            "content": "Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. ",
+            "isComplete": true
+          },
+          {
+            "id": "t11",
+            "type": "thinking",
+            "content": "Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. ",
+            "isComplete": true
+          },
+          {
+            "id": "t12",
+            "type": "thinking",
+            "content": "Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. ",
+            "isComplete": true
+          },
+          {
+            "id": "t13",
+            "type": "thinking",
+            "content": "Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. ",
+            "isComplete": true
+          },
+          {
+            "id": "t14",
+            "type": "thinking",
+            "content": "Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. ",
+            "isComplete": true
+          },
+          {
+            "id": "t15",
+            "type": "thinking",
+            "content": "Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. ",
+            "isComplete": true
+          },
+          {
+            "id": "t16",
+            "type": "thinking",
+            "content": "Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. ",
+            "isComplete": true
+          },
+          {
+            "id": "t17",
+            "type": "thinking",
+            "content": "Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. ",
+            "isComplete": true
+          },
+          {
+            "id": "t18",
+            "type": "thinking",
+            "content": "Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. ",
+            "isComplete": true
+          },
+          {
+            "id": "t19",
+            "type": "thinking",
+            "content": "Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. ",
+            "isComplete": true
+          },
+          {
+            "id": "t20",
+            "type": "thinking",
+            "content": "Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. ",
+            "isComplete": true
+          },
+          {
+            "id": "t21",
+            "type": "thinking",
+            "content": "Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. ",
+            "isComplete": true
+          },
+          {
+            "id": "t22",
+            "type": "thinking",
+            "content": "Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. ",
+            "isComplete": true
+          },
+          {
+            "id": "t23",
+            "type": "thinking",
+            "content": "Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. ",
+            "isComplete": true
+          },
+          {
+            "id": "t24",
+            "type": "thinking",
+            "content": "Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. ",
+            "isComplete": true
+          },
+          {
+            "id": "t25",
+            "type": "thinking",
+            "content": "Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. ",
+            "isComplete": true
+          },
+          {
+            "id": "t26",
+            "type": "thinking",
+            "content": "Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. ",
+            "isComplete": true
+          },
+          {
+            "id": "t27",
+            "type": "thinking",
+            "content": "Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. ",
+            "isComplete": true
+          },
+          {
+            "id": "t28",
+            "type": "thinking",
+            "content": "Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. ",
+            "isComplete": true
+          },
+          {
+            "id": "t29",
+            "type": "thinking",
+            "content": "Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. ",
+            "isComplete": true
+          },
+          {
+            "id": "t30",
+            "type": "thinking",
+            "content": "Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. ",
+            "isComplete": true
+          },
+          {
+            "id": "t31",
+            "type": "thinking",
+            "content": "Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. ",
+            "isComplete": true
+          },
+          {
+            "id": "t32",
+            "type": "thinking",
+            "content": "Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. ",
+            "isComplete": true
+          },
+          {
+            "id": "t33",
+            "type": "thinking",
+            "content": "Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. ",
+            "isComplete": true
+          },
+          {
+            "id": "t34",
+            "type": "thinking",
+            "content": "Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. ",
+            "isComplete": true
+          },
+          {
+            "id": "t35",
+            "type": "thinking",
+            "content": "Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. ",
+            "isComplete": true
+          },
+          {
+            "id": "t36",
+            "type": "thinking",
+            "content": "Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. ",
+            "isComplete": true
+          },
+          {
+            "id": "t37",
+            "type": "thinking",
+            "content": "Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. ",
+            "isComplete": true
+          },
+          {
+            "id": "t38",
+            "type": "thinking",
+            "content": "Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. ",
+            "isComplete": true
+          },
+          {
+            "id": "t39",
+            "type": "thinking",
+            "content": "Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. ",
+            "isComplete": true
+          },
+          {
+            "id": "s0",
+            "type": "searching",
+            "content": "Searching for topic 0",
+            "isComplete": true
+          },
+          {
+            "id": "s1",
+            "type": "searching",
+            "content": "Searching for topic 1",
+            "isComplete": true
+          },
+          {
+            "id": "s2",
+            "type": "searching",
+            "content": "Searching for topic 2",
+            "isComplete": true
+          },
+          {
+            "id": "s3",
+            "type": "searching",
+            "content": "Searching for topic 3",
+            "isComplete": true
+          },
+          {
+            "id": "s4",
+            "type": "searching",
+            "content": "Searching for topic 4",
+            "isComplete": true
+          },
+          {
+            "id": "s5",
+            "type": "searching",
+            "content": "Searching for topic 5",
+            "isComplete": true
+          },
+          {
+            "id": "s6",
+            "type": "searching",
+            "content": "Searching for topic 6",
+            "isComplete": true
+          },
+          {
+            "id": "s7",
+            "type": "searching",
+            "content": "Searching for topic 7",
+            "isComplete": true
+          },
+          {
+            "id": "s8",
+            "type": "searching",
+            "content": "Searching for topic 8",
+            "isComplete": true
+          },
+          {
+            "id": "s9",
+            "type": "searching",
+            "content": "Searching for topic 9",
+            "isComplete": true
+          },
+          {
+            "id": "s10",
+            "type": "searching",
+            "content": "Searching for topic 10",
+            "isComplete": true
+          },
+          {
+            "id": "s11",
+            "type": "searching",
+            "content": "Searching for topic 11",
+            "isComplete": true
+          },
+          {
+            "id": "s12",
+            "type": "searching",
+            "content": "Searching for topic 12",
+            "isComplete": true
+          },
+          {
+            "id": "s13",
+            "type": "searching",
+            "content": "Searching for topic 13",
+            "isComplete": true
+          },
+          {
+            "id": "s14",
+            "type": "searching",
+            "content": "Searching for topic 14",
+            "isComplete": true
+          },
+          {
+            "id": "s15",
+            "type": "searching",
+            "content": "Searching for topic 15",
+            "isComplete": true
+          },
+          {
+            "id": "s16",
+            "type": "searching",
+            "content": "Searching for topic 16",
+            "isComplete": true
+          },
+          {
+            "id": "s17",
+            "type": "searching",
+            "content": "Searching for topic 17",
+            "isComplete": true
+          },
+          {
+            "id": "s18",
+            "type": "searching",
+            "content": "Searching for topic 18",
+            "isComplete": true
+          },
+          {
+            "id": "s19",
+            "type": "searching",
+            "content": "Searching for topic 19",
+            "isComplete": true
+          },
+          {
+            "id": "f",
+            "type": "create_file",
+            "content": "Created **important.docx**",
+            "isComplete": true,
+            "filename": "important.docx",
+            "filepath": "C:/out/important.docx"
+          },
+          {
+            "id": "r",
+            "type": "run_code",
+            "content": "Code ran",
+            "isComplete": true,
+            "language": "python",
+            "stdout": "the answer is 42"
+          }
+        ]
+      },
+      "expected": "- Reasoning so far: …umber 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0.\n- Reasoning so far: …umber 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1.\n- Reasoning so far: …umber 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2.\n- Searching for topic 0\n- Searching for topic 1\n- Searching for topic 2\n- Searching for topic 3\n- Searching for topic 4\n- Searching for topic 5\n- Searching for topic 6\n- Searching for topic 7\n- Searching for topic 8\n- Searching for topic 9\n- Searching for topic 10\n- Searching for topic 11\n- Searching for topic 12\n- Searching for topic 13\n- Searching for topic 14\n- Searching for topic 15\n- Searching for topic 16\n- Searching for topic 17\n- Searching for topic 18\n- Searching for topic 19\n- Created the file important.docx at C:/out/important.docx. It is already written; do not create it again.\n- Ran python already. Output: the answer is 42 Do not run it again unless it needs changing."
+    },
+    {
+      "name": "a tight budget keeps only the important work",
+      "input": {
+        "op": "describeCompletedWork",
+        "budget": 200,
+        "steps": [
+          {
+            "id": "t0",
+            "type": "thinking",
+            "content": "Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. Long deliberation number 0. ",
+            "isComplete": true
+          },
+          {
+            "id": "t1",
+            "type": "thinking",
+            "content": "Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. Long deliberation number 1. ",
+            "isComplete": true
+          },
+          {
+            "id": "t2",
+            "type": "thinking",
+            "content": "Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. Long deliberation number 2. ",
+            "isComplete": true
+          },
+          {
+            "id": "t3",
+            "type": "thinking",
+            "content": "Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. Long deliberation number 3. ",
+            "isComplete": true
+          },
+          {
+            "id": "t4",
+            "type": "thinking",
+            "content": "Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. Long deliberation number 4. ",
+            "isComplete": true
+          },
+          {
+            "id": "t5",
+            "type": "thinking",
+            "content": "Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. Long deliberation number 5. ",
+            "isComplete": true
+          },
+          {
+            "id": "t6",
+            "type": "thinking",
+            "content": "Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. Long deliberation number 6. ",
+            "isComplete": true
+          },
+          {
+            "id": "t7",
+            "type": "thinking",
+            "content": "Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. Long deliberation number 7. ",
+            "isComplete": true
+          },
+          {
+            "id": "t8",
+            "type": "thinking",
+            "content": "Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. Long deliberation number 8. ",
+            "isComplete": true
+          },
+          {
+            "id": "t9",
+            "type": "thinking",
+            "content": "Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. Long deliberation number 9. ",
+            "isComplete": true
+          },
+          {
+            "id": "t10",
+            "type": "thinking",
+            "content": "Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. Long deliberation number 10. ",
+            "isComplete": true
+          },
+          {
+            "id": "t11",
+            "type": "thinking",
+            "content": "Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. Long deliberation number 11. ",
+            "isComplete": true
+          },
+          {
+            "id": "t12",
+            "type": "thinking",
+            "content": "Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. Long deliberation number 12. ",
+            "isComplete": true
+          },
+          {
+            "id": "t13",
+            "type": "thinking",
+            "content": "Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. Long deliberation number 13. ",
+            "isComplete": true
+          },
+          {
+            "id": "t14",
+            "type": "thinking",
+            "content": "Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. Long deliberation number 14. ",
+            "isComplete": true
+          },
+          {
+            "id": "t15",
+            "type": "thinking",
+            "content": "Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. Long deliberation number 15. ",
+            "isComplete": true
+          },
+          {
+            "id": "t16",
+            "type": "thinking",
+            "content": "Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. Long deliberation number 16. ",
+            "isComplete": true
+          },
+          {
+            "id": "t17",
+            "type": "thinking",
+            "content": "Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. Long deliberation number 17. ",
+            "isComplete": true
+          },
+          {
+            "id": "t18",
+            "type": "thinking",
+            "content": "Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. Long deliberation number 18. ",
+            "isComplete": true
+          },
+          {
+            "id": "t19",
+            "type": "thinking",
+            "content": "Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. Long deliberation number 19. ",
+            "isComplete": true
+          },
+          {
+            "id": "t20",
+            "type": "thinking",
+            "content": "Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. Long deliberation number 20. ",
+            "isComplete": true
+          },
+          {
+            "id": "t21",
+            "type": "thinking",
+            "content": "Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. Long deliberation number 21. ",
+            "isComplete": true
+          },
+          {
+            "id": "t22",
+            "type": "thinking",
+            "content": "Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. Long deliberation number 22. ",
+            "isComplete": true
+          },
+          {
+            "id": "t23",
+            "type": "thinking",
+            "content": "Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. Long deliberation number 23. ",
+            "isComplete": true
+          },
+          {
+            "id": "t24",
+            "type": "thinking",
+            "content": "Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. Long deliberation number 24. ",
+            "isComplete": true
+          },
+          {
+            "id": "t25",
+            "type": "thinking",
+            "content": "Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. Long deliberation number 25. ",
+            "isComplete": true
+          },
+          {
+            "id": "t26",
+            "type": "thinking",
+            "content": "Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. Long deliberation number 26. ",
+            "isComplete": true
+          },
+          {
+            "id": "t27",
+            "type": "thinking",
+            "content": "Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. Long deliberation number 27. ",
+            "isComplete": true
+          },
+          {
+            "id": "t28",
+            "type": "thinking",
+            "content": "Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. Long deliberation number 28. ",
+            "isComplete": true
+          },
+          {
+            "id": "t29",
+            "type": "thinking",
+            "content": "Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. Long deliberation number 29. ",
+            "isComplete": true
+          },
+          {
+            "id": "t30",
+            "type": "thinking",
+            "content": "Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. Long deliberation number 30. ",
+            "isComplete": true
+          },
+          {
+            "id": "t31",
+            "type": "thinking",
+            "content": "Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. Long deliberation number 31. ",
+            "isComplete": true
+          },
+          {
+            "id": "t32",
+            "type": "thinking",
+            "content": "Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. Long deliberation number 32. ",
+            "isComplete": true
+          },
+          {
+            "id": "t33",
+            "type": "thinking",
+            "content": "Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. Long deliberation number 33. ",
+            "isComplete": true
+          },
+          {
+            "id": "t34",
+            "type": "thinking",
+            "content": "Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. Long deliberation number 34. ",
+            "isComplete": true
+          },
+          {
+            "id": "t35",
+            "type": "thinking",
+            "content": "Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. Long deliberation number 35. ",
+            "isComplete": true
+          },
+          {
+            "id": "t36",
+            "type": "thinking",
+            "content": "Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. Long deliberation number 36. ",
+            "isComplete": true
+          },
+          {
+            "id": "t37",
+            "type": "thinking",
+            "content": "Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. Long deliberation number 37. ",
+            "isComplete": true
+          },
+          {
+            "id": "t38",
+            "type": "thinking",
+            "content": "Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. Long deliberation number 38. ",
+            "isComplete": true
+          },
+          {
+            "id": "t39",
+            "type": "thinking",
+            "content": "Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. Long deliberation number 39. ",
+            "isComplete": true
+          },
+          {
+            "id": "f",
+            "type": "create_file",
+            "content": "Created **important.docx**",
+            "isComplete": true,
+            "filename": "important.docx",
+            "filepath": "C:/out/important.docx"
+          }
+        ]
+      },
+      "expected": "- Created the file important.docx at C:/out/important.docx. It is already written; do not create it again."
+    },
+    {
+      "name": "a resume message says the work really happened",
+      "input": {
+        "op": "buildResumeMessage",
+        "steps": [
+          {
+            "id": "1",
+            "type": "create_file",
+            "content": "Created **report.docx**",
+            "isComplete": true,
+            "filename": "report.docx",
+            "filepath": "C:/out/report.docx"
+          }
+        ]
+      },
+      "expected": "You were part-way through this reply when it was cut short. This is what you had already done:\n\n- Created the file report.docx at C:/out/report.docx. It is already written; do not create it again.\n\nEverything above has really happened. Carry on from there rather than starting again."
+    },
+    {
+      "name": "a split word is made whole with no separator",
+      "input": {
+        "op": "joinContinuation",
+        "before": "The sea is a vast expanse of salt",
+        "after": "water."
+      },
+      "expected": "The sea is a vast expanse of saltwater."
+    },
+    {
+      "name": "a continuation does not start a new line",
+      "input": {
+        "op": "joinContinuation",
+        "before": "the report covers three",
+        "after": " main areas."
+      },
+      "expected": "the report covers three main areas."
+    },
+    {
+      "name": "a repeated tail is removed",
+      "input": {
+        "op": "joinContinuation",
+        "before": "Beaches carry several risks, the most serious of which is",
+        "after": "the most serious of which is drowning in a rip current."
+      },
+      "expected": "Beaches carry several risks, the most serious of which is drowning in a rip current."
+    },
+    {
+      "name": "a restart from the top keeps only the new copy",
+      "input": {
+        "op": "joinContinuation",
+        "before": "Beaches carry several risks. The first is drowning, which",
+        "after": "Beaches carry several risks. The first is drowning, which happens fastest in rip currents."
+      },
+      "expected": "Beaches carry several risks. The first is drowning, which happens fastest in rip currents."
+    },
+    {
+      "name": "a short coincidence is not a repeat",
+      "input": {
+        "op": "joinContinuation",
+        "before": "I went to the",
+        "after": " the shop was shut."
+      },
+      "expected": "I went to the the shop was shut."
+    },
+    {
+      "name": "an empty before keeps the after",
+      "input": {
+        "op": "joinContinuation",
+        "before": "",
+        "after": "only this"
+      },
+      "expected": "only this"
+    },
+    {
+      "name": "an empty after keeps the before",
+      "input": {
+        "op": "joinContinuation",
+        "before": "only this",
+        "after": ""
+      },
+      "expected": "only this"
+    },
+    {
+      "name": "two empty halves join to nothing",
+      "input": {
+        "op": "joinContinuation",
+        "before": "",
+        "after": ""
+      },
+      "expected": ""
+    },
+    {
+      "name": "an ordinary continuation is left as written",
+      "input": {
+        "op": "joinContinuation",
+        "before": "First part.",
+        "after": " Second part."
+      },
+      "expected": "First part. Second part."
+    },
+    {
+      "name": "the resume budget",
+      "input": {
+        "op": "constants"
+      },
+      "expected": {
+        "RESUME_BUDGET": 2000
+      }
+    }
+  ]
+}

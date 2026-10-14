@@ -1,0 +1,1233 @@
+{
+  "area": "agentLoop",
+  "description": "Skill helpers of skills/skills.ts: slash commands, the loaded set and the text the model is given.",
+  "cases": [
+    {
+      "name": "a slash command starts its skill with the request after it",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/docx a packing list",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "docx",
+        "request": "a packing list"
+      }
+    },
+    {
+      "name": "a command alone has an empty request",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/docx",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "docx",
+        "request": ""
+      }
+    },
+    {
+      "name": "the command ignores case and keeps inner spacing",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/DOCX  spaced  out ",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "docx",
+        "request": "spaced  out"
+      }
+    },
+    {
+      "name": "a mixed case id is matched in lower case",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/dock-ops go",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "Dock-Ops",
+        "request": "go"
+      }
+    },
+    {
+      "name": "a message that only mentions a skill is not a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "make a docx for me",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "an unknown command is not a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/nope x",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a command followed by punctuation is not a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/docx, please",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a command must open the message",
+      "input": {
+        "op": "skillInvocation",
+        "text": " hello /docx",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a leading dash is not part of a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/-docx",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a tab separates the command from its request",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/docx\tlist",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "docx",
+        "request": "list"
+      }
+    },
+    {
+      "name": "a newline separates the command from a multi-line request",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/docx\nlist\nitems",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "docx",
+        "request": "list\nitems"
+      }
+    },
+    {
+      "name": "a command for a skill the model may not start still starts it",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/code-review src/app.ts",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": {
+        "id": "code-review",
+        "request": "src/app.ts"
+      }
+    },
+    {
+      "name": "an empty message is not a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a lone slash is not a command",
+      "input": {
+        "op": "skillInvocation",
+        "text": "/",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a command loads its skill",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "u1",
+            "role": "user",
+            "content": "/docx x"
+          }
+        ]
+      },
+      "expected": [
+        "docx"
+      ]
+    },
+    {
+      "name": "a completed skill step loads its skill",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "docx",
+                "isComplete": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "docx"
+      ]
+    },
+    {
+      "name": "an incomplete skill step does not load",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "docx",
+                "isComplete": false
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a skill no longer offered does not load",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "gone",
+                "isComplete": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a step names its skill by exact id only",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "dock-ops",
+                "isComplete": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a skill used again moves to the end",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "u1",
+            "role": "user",
+            "content": "/docx first"
+          },
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "Dock-Ops",
+                "isComplete": true
+              }
+            ]
+          },
+          {
+            "id": "u2",
+            "role": "user",
+            "content": "/docx again"
+          }
+        ]
+      },
+      "expected": [
+        "Dock-Ops",
+        "docx"
+      ]
+    },
+    {
+      "name": "only the last five loaded skills are kept",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "s1",
+            "name": "s1",
+            "description": "d"
+          },
+          {
+            "id": "s2",
+            "name": "s2",
+            "description": "d"
+          },
+          {
+            "id": "s3",
+            "name": "s3",
+            "description": "d"
+          },
+          {
+            "id": "s4",
+            "name": "s4",
+            "description": "d"
+          },
+          {
+            "id": "s5",
+            "name": "s5",
+            "description": "d"
+          },
+          {
+            "id": "s6",
+            "name": "s6",
+            "description": "d"
+          },
+          {
+            "id": "s7",
+            "name": "s7",
+            "description": "d"
+          }
+        ],
+        "messages": [
+          {
+            "id": "a1",
+            "role": "assistant",
+            "content": "",
+            "steps": [
+              {
+                "id": "t1",
+                "type": "skill",
+                "skill": "s1",
+                "isComplete": true
+              },
+              {
+                "id": "t2",
+                "type": "skill",
+                "skill": "s2",
+                "isComplete": true
+              },
+              {
+                "id": "t3",
+                "type": "skill",
+                "skill": "s3",
+                "isComplete": true
+              },
+              {
+                "id": "t4",
+                "type": "skill",
+                "skill": "s4",
+                "isComplete": true
+              },
+              {
+                "id": "t5",
+                "type": "skill",
+                "skill": "s5",
+                "isComplete": true
+              },
+              {
+                "id": "t6",
+                "type": "skill",
+                "skill": "s6",
+                "isComplete": true
+              },
+              {
+                "id": "t7",
+                "type": "skill",
+                "skill": "s7",
+                "isComplete": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7"
+      ]
+    },
+    {
+      "name": "a plain user message loads nothing",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "u1",
+            "role": "user",
+            "content": "hello"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "steps on a user message are not read",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": [
+          {
+            "id": "u1",
+            "role": "user",
+            "content": "hi",
+            "steps": [
+              {
+                "id": "s1",
+                "type": "skill",
+                "skill": "docx",
+                "isComplete": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "no messages load nothing",
+      "input": {
+        "op": "loadedSkillIds",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ],
+        "messages": []
+      },
+      "expected": []
+    },
+    {
+      "name": "nothing loaded renders nothing",
+      "input": {
+        "op": "renderLoadedSkills",
+        "loaded": []
+      },
+      "expected": ""
+    },
+    {
+      "name": "a loaded skill renders its body and its files",
+      "input": {
+        "op": "renderLoadedSkills",
+        "loaded": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "d",
+            "body": "Use the template.",
+            "files": [
+              "template.md",
+              "examples/a.md"
+            ]
+          }
+        ]
+      },
+      "expected": "LOADED SKILLS\n\nThese skills were loaded earlier in this conversation. Keep following them wherever they apply, without calling use_skill for them again.\n\nSKILL: docx\n\nUse the template.\n\nFiles that came with it. Read one with use_skill, passing this skill's id and the file:\n- template.md\n- examples/a.md"
+    },
+    {
+      "name": "several loaded skills are separated by a rule",
+      "input": {
+        "op": "renderLoadedSkills",
+        "loaded": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "d",
+            "body": "One.",
+            "files": []
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "d",
+            "body": "Two.",
+            "files": []
+          }
+        ]
+      },
+      "expected": "LOADED SKILLS\n\nThese skills were loaded earlier in this conversation. Keep following them wherever they apply, without calling use_skill for them again.\n\nSKILL: docx\n\nOne.\n\n---\n\nSKILL: Dock Ops\n\nTwo."
+    },
+    {
+      "name": "a skill with no files renders without a file list",
+      "input": {
+        "op": "renderSkill",
+        "skill": {
+          "id": "docx",
+          "name": "docx",
+          "description": "d",
+          "body": "Body.",
+          "files": []
+        }
+      },
+      "expected": "SKILL: docx\n\nBody."
+    },
+    {
+      "name": "a skill with files lists them",
+      "input": {
+        "op": "renderSkill",
+        "skill": {
+          "id": "docx",
+          "name": "docx",
+          "description": "d",
+          "body": "Body.",
+          "files": [
+            "a.md"
+          ]
+        }
+      },
+      "expected": "SKILL: docx\n\nBody.\n\nFiles that came with it. Read one with use_skill, passing this skill's id and the file:\n- a.md"
+    },
+    {
+      "name": "an invoked skill with a request says what the request is",
+      "input": {
+        "op": "renderInvokedSkill",
+        "skill": {
+          "id": "docx",
+          "name": "docx",
+          "description": "Creates Word documents."
+        },
+        "request": "a list"
+      },
+      "expected": "The user started this message with /docx, which runs the docx skill. Its instructions are loaded under LOADED SKILLS in your instructions, so there is no need to call use_skill for it. The request that came with it: a list"
+    },
+    {
+      "name": "an invoked skill without a request asks what to apply it to",
+      "input": {
+        "op": "renderInvokedSkill",
+        "skill": {
+          "id": "Dock-Ops",
+          "name": "Dock Ops",
+          "description": "Operates docks."
+        },
+        "request": ""
+      },
+      "expected": "The user started this message with /Dock-Ops, which runs the Dock Ops skill. Its instructions are loaded under LOADED SKILLS in your instructions, so there is no need to call use_skill for it. It came with no further request, so ask what the user wants it applied to if that is not clear from the conversation."
+    },
+    {
+      "name": "the skill list shows only the skills the model may invoke",
+      "input": {
+        "op": "describeSkills",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates Word documents."
+          },
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          },
+          {
+            "id": "Dock-Ops",
+            "name": "Dock Ops",
+            "description": "Operates docks."
+          }
+        ]
+      },
+      "expected": "SKILLS\n\nSkills are instructions for particular kinds of job, some shipped with Draggy and some written by the user. The description says when each one applies.\n\n- docx: Creates Word documents.\n- Dock-Ops: Dock Ops. Operates docks.\n\nWhen a request matches one, call use_skill with its id before you start, and follow what it says. When none of them matches, work as you normally would and do not mention them."
+    },
+    {
+      "name": "a skill whose name is its id is listed once",
+      "input": {
+        "op": "describeSkills",
+        "skills": [
+          {
+            "id": "docx",
+            "name": "docx",
+            "description": "Creates."
+          }
+        ]
+      },
+      "expected": "SKILLS\n\nSkills are instructions for particular kinds of job, some shipped with Draggy and some written by the user. The description says when each one applies.\n\n- docx: Creates.\n\nWhen a request matches one, call use_skill with its id before you start, and follow what it says. When none of them matches, work as you normally would and do not mention them."
+    },
+    {
+      "name": "no skill the model may invoke gives no list",
+      "input": {
+        "op": "describeSkills",
+        "skills": [
+          {
+            "id": "code-review",
+            "name": "Code review",
+            "description": "Reviews code changes.",
+            "modelInvocable": false
+          }
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "the skill list stops at forty",
+      "input": {
+        "op": "describeSkills",
+        "skills": [
+          {
+            "id": "k1",
+            "name": "k1",
+            "description": "d"
+          },
+          {
+            "id": "k2",
+            "name": "k2",
+            "description": "d"
+          },
+          {
+            "id": "k3",
+            "name": "k3",
+            "description": "d"
+          },
+          {
+            "id": "k4",
+            "name": "k4",
+            "description": "d"
+          },
+          {
+            "id": "k5",
+            "name": "k5",
+            "description": "d"
+          },
+          {
+            "id": "k6",
+            "name": "k6",
+            "description": "d"
+          },
+          {
+            "id": "k7",
+            "name": "k7",
+            "description": "d"
+          },
+          {
+            "id": "k8",
+            "name": "k8",
+            "description": "d"
+          },
+          {
+            "id": "k9",
+            "name": "k9",
+            "description": "d"
+          },
+          {
+            "id": "k10",
+            "name": "k10",
+            "description": "d"
+          },
+          {
+            "id": "k11",
+            "name": "k11",
+            "description": "d"
+          },
+          {
+            "id": "k12",
+            "name": "k12",
+            "description": "d"
+          },
+          {
+            "id": "k13",
+            "name": "k13",
+            "description": "d"
+          },
+          {
+            "id": "k14",
+            "name": "k14",
+            "description": "d"
+          },
+          {
+            "id": "k15",
+            "name": "k15",
+            "description": "d"
+          },
+          {
+            "id": "k16",
+            "name": "k16",
+            "description": "d"
+          },
+          {
+            "id": "k17",
+            "name": "k17",
+            "description": "d"
+          },
+          {
+            "id": "k18",
+            "name": "k18",
+            "description": "d"
+          },
+          {
+            "id": "k19",
+            "name": "k19",
+            "description": "d"
+          },
+          {
+            "id": "k20",
+            "name": "k20",
+            "description": "d"
+          },
+          {
+            "id": "k21",
+            "name": "k21",
+            "description": "d"
+          },
+          {
+            "id": "k22",
+            "name": "k22",
+            "description": "d"
+          },
+          {
+            "id": "k23",
+            "name": "k23",
+            "description": "d"
+          },
+          {
+            "id": "k24",
+            "name": "k24",
+            "description": "d"
+          },
+          {
+            "id": "k25",
+            "name": "k25",
+            "description": "d"
+          },
+          {
+            "id": "k26",
+            "name": "k26",
+            "description": "d"
+          },
+          {
+            "id": "k27",
+            "name": "k27",
+            "description": "d"
+          },
+          {
+            "id": "k28",
+            "name": "k28",
+            "description": "d"
+          },
+          {
+            "id": "k29",
+            "name": "k29",
+            "description": "d"
+          },
+          {
+            "id": "k30",
+            "name": "k30",
+            "description": "d"
+          },
+          {
+            "id": "k31",
+            "name": "k31",
+            "description": "d"
+          },
+          {
+            "id": "k32",
+            "name": "k32",
+            "description": "d"
+          },
+          {
+            "id": "k33",
+            "name": "k33",
+            "description": "d"
+          },
+          {
+            "id": "k34",
+            "name": "k34",
+            "description": "d"
+          },
+          {
+            "id": "k35",
+            "name": "k35",
+            "description": "d"
+          },
+          {
+            "id": "k36",
+            "name": "k36",
+            "description": "d"
+          },
+          {
+            "id": "k37",
+            "name": "k37",
+            "description": "d"
+          },
+          {
+            "id": "k38",
+            "name": "k38",
+            "description": "d"
+          },
+          {
+            "id": "k39",
+            "name": "k39",
+            "description": "d"
+          },
+          {
+            "id": "k40",
+            "name": "k40",
+            "description": "d"
+          },
+          {
+            "id": "k41",
+            "name": "k41",
+            "description": "d"
+          },
+          {
+            "id": "k42",
+            "name": "k42",
+            "description": "d"
+          },
+          {
+            "id": "k43",
+            "name": "k43",
+            "description": "d"
+          },
+          {
+            "id": "k44",
+            "name": "k44",
+            "description": "d"
+          },
+          {
+            "id": "k45",
+            "name": "k45",
+            "description": "d"
+          }
+        ]
+      },
+      "expected": "SKILLS\n\nSkills are instructions for particular kinds of job, some shipped with Draggy and some written by the user. The description says when each one applies.\n\n- k1: d\n- k2: d\n- k3: d\n- k4: d\n- k5: d\n- k6: d\n- k7: d\n- k8: d\n- k9: d\n- k10: d\n- k11: d\n- k12: d\n- k13: d\n- k14: d\n- k15: d\n- k16: d\n- k17: d\n- k18: d\n- k19: d\n- k20: d\n- k21: d\n- k22: d\n- k23: d\n- k24: d\n- k25: d\n- k26: d\n- k27: d\n- k28: d\n- k29: d\n- k30: d\n- k31: d\n- k32: d\n- k33: d\n- k34: d\n- k35: d\n- k36: d\n- k37: d\n- k38: d\n- k39: d\n- k40: d\n\nWhen a request matches one, call use_skill with its id before you start, and follow what it says. When none of them matches, work as you normally would and do not mention them."
+    }
+  ]
+}

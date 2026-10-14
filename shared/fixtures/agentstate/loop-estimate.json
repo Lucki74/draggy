@@ -1,0 +1,78 @@
+{
+  "area": "agentLoop",
+  "description": "estimateChars (src/agent/agentLoop.ts): the characters a wire takes for the context meter. Input is the wire fields it reads plus the tool characters; expected is the total.",
+  "cases": [
+    {
+      "name": "an empty conversation is zero characters",
+      "input": {
+        "messages": [],
+        "toolChars": 0
+      },
+      "expected": 0
+    },
+    {
+      "name": "messages count their content",
+      "input": {
+        "messages": [
+          {
+            "content": "hello"
+          },
+          {
+            "content": "there!"
+          }
+        ]
+      },
+      "expected": 11
+    },
+    {
+      "name": "reasoning counts with the content",
+      "input": {
+        "messages": [
+          {
+            "content": "abc",
+            "thinking": "defgh"
+          }
+        ]
+      },
+      "expected": 8
+    },
+    {
+      "name": "each image counts as 4000 characters",
+      "input": {
+        "messages": [
+          {
+            "content": "x",
+            "images": [
+              "a",
+              "b"
+            ]
+          }
+        ]
+      },
+      "expected": 8001
+    },
+    {
+      "name": "tool definitions add their characters",
+      "input": {
+        "messages": [
+          {
+            "content": "hi"
+          }
+        ],
+        "toolChars": 1500
+      },
+      "expected": 1502
+    },
+    {
+      "name": "UTF-16 units, so an emoji counts as two",
+      "input": {
+        "messages": [
+          {
+            "content": "😀"
+          }
+        ]
+      },
+      "expected": 2
+    }
+  ]
+}

@@ -331,6 +331,7 @@ fn prompts(input: &Value) -> Value {
                 project_root: optional(&input["environment"]["projectRoot"]).map(str::to_string),
                 code_execution: flag(&input["environment"]["codeExecution"]),
                 library_ready: flag(&input["environment"]["libraryReady"]),
+                has_skills: flag(&input["environment"]["hasSkills"]),
             };
             let tools = prompt_tools(&input["tools"]);
             let memory = match &input["memory"] {

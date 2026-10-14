@@ -4,6 +4,7 @@
 use std::sync::OnceLock;
 
 use crate::js::{CaseFold, Flags, JsRegex, cached};
+use crate::skills::MAX_LISTED_SKILLS;
 
 const PROMPT_HEAD: &str = r##"The assistant is Draggy, a desktop AI assistant that runs open-weight models locally on the user's computer.
 
@@ -161,7 +162,6 @@ const CUE_BREATH: &str = "<breath> before saying something difficult";
 
 const PROJECT_FOLDER_TEMPLATE_HEAD: &str = "PROJECT FOLDER";
 /// Skills listed in the prompt; the rest are left out.
-const SKILL_LIST_LIMIT: usize = 40;
 const LARGE_CONTEXT: u64 = 65_536;
 const LARGE_PARAMETERS_B: f64 = 30.0;
 const REASONING_INTERNAL: &str = "Reasoning is internal. Always output your actual answer and response to the user clearly after reasoning.";
@@ -233,6 +233,8 @@ pub struct PromptEnvironment {
     pub project_root: Option<String>,
     pub code_execution: bool,
     pub library_ready: bool,
+    /// Whether the turn may load skills. Off for a model that cannot call tools, as `withoutTools` turns it off.
+    pub has_skills: bool,
 }
 
 impl PromptEnvironment {
@@ -453,7 +455,7 @@ When done, name the files you changed instead of repeating their contents."##
 }
 
 /// `renderMemory`: the project's instructions file, which outranks Draggy's own habits.
-fn render_memory(memory: &ProjectMemory) -> String {
+pub fn render_memory(memory: &ProjectMemory) -> String {
     let path = &memory.path;
     let text = &memory.text;
     format!(
@@ -466,7 +468,7 @@ The user keeps this file in the project for whoever works in it, and it outranks
 }
 
 /// `describeSkills` from `skills/skills.ts`: the skills the model may call, up to the listing limit.
-fn describe_skills(skills: &[PromptSkill]) -> String {
+pub fn describe_skills(skills: &[PromptSkill]) -> String {
     let offered: Vec<&PromptSkill> = skills
         .iter()
         .filter(|skill| skill.model_invocable != Some(false))
@@ -476,7 +478,7 @@ fn describe_skills(skills: &[PromptSkill]) -> String {
     }
     let lines: Vec<String> = offered
         .iter()
-        .take(SKILL_LIST_LIMIT)
+        .take(MAX_LISTED_SKILLS)
         .map(|skill| {
             if skill.name == skill.id {
                 format!("- {}: {}", skill.id, skill.description)

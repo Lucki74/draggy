@@ -1,0 +1,657 @@
+{
+  "area": "agentLoop",
+  "description": "toWireMessage (src/agent/agentLoop.ts): attachments put on the wire as images, file blocks or notes, and a reply's reasoning kept only when asked. Input is the stored message plus the two flags; expected is the wire message.",
+  "cases": [
+    {
+      "name": "strips the data URL prefix and sends only base64",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this",
+        "images": [
+          "/9j/4AAQSkZJRgABAQEAYABgAAD"
+        ]
+      }
+    },
+    {
+      "name": "keeps base64 that arrives without a prefix",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "/9j/4AAQSkZJRg"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this",
+        "images": [
+          "/9j/4AAQSkZJRg"
+        ]
+      }
+    },
+    {
+      "name": "does not truncate base64 containing padding or slashes",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/png;base64,a/b+c/d=="
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this",
+        "images": [
+          "a/b+c/d=="
+        ]
+      }
+    },
+    {
+      "name": "never sends an empty image, and says it could not be read",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this\n\n[Attached image: photo.jpg. The image data could not be read, so it was not sent.]"
+      }
+    },
+    {
+      "name": "never sends a whitespace-only image",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,   \n  "
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this\n\n[Attached image: photo.jpg. The image data could not be read, so it was not sent.]"
+      }
+    },
+    {
+      "name": "never sends a completely empty attachment",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": ""
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this\n\n[Attached image: photo.jpg. The image data could not be read, so it was not sent.]"
+      }
+    },
+    {
+      "name": "explains the limitation when the model has no vision",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "look at this",
+          "attachments": [
+            {
+              "name": "photo.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD"
+            }
+          ]
+        },
+        "allowImages": false,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "look at this\n\n[Attached image: photo.jpg. This model cannot read images, so describe the limitation instead of guessing its contents.]"
+      }
+    },
+    {
+      "name": "sends several images in order",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "two",
+          "attachments": [
+            {
+              "name": "a.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,AAA"
+            },
+            {
+              "name": "b.png",
+              "type": "image/png",
+              "content": "data:image/png;base64,BBB"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "two",
+        "images": [
+          "AAA",
+          "BBB"
+        ]
+      }
+    },
+    {
+      "name": "drops only the broken image and keeps the good one",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "two",
+          "attachments": [
+            {
+              "name": "broken.jpg",
+              "type": "image/jpeg",
+              "content": "data:image/jpeg;base64,"
+            },
+            {
+              "name": "good.png",
+              "type": "image/png",
+              "content": "data:image/png;base64,BBB"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "two\n\n[Attached image: broken.jpg. The image data could not be read, so it was not sent.]",
+        "images": [
+          "BBB"
+        ]
+      }
+    },
+    {
+      "name": "recognises an image by extension when the type is missing",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "x",
+          "attachments": [
+            {
+              "name": "shot.png",
+              "type": "",
+              "content": "data:image/png;base64,CCC"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "x",
+        "images": [
+          "CCC"
+        ]
+      }
+    },
+    {
+      "name": "inlines a text attachment as a file block",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "read",
+          "attachments": [
+            {
+              "name": "notes.txt",
+              "type": "text/plain",
+              "content": "alpha\nbeta"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "read\n\n--- ATTACHED FILE: notes.txt ---\nalpha\nbeta\n--- END ATTACHED FILE ---"
+      }
+    },
+    {
+      "name": "names a binary attachment without its bytes",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "read",
+          "attachments": [
+            {
+              "name": "data.bin",
+              "type": "application/octet-stream",
+              "content": "\u0000\u0001\u0002abc"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "read\n\n[Attached Binary File: data.bin]"
+      }
+    },
+    {
+      "name": "names a video attachment",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "watch",
+          "attachments": [
+            {
+              "name": "clip.mp4",
+              "type": "video/mp4",
+              "content": ""
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "watch\n\n[Attached Video: clip.mp4]"
+      }
+    },
+    {
+      "name": "sends a blank message as a single space",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "   "
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": " "
+      }
+    },
+    {
+      "name": "keeps a reply's reasoning, every pass of it, when asked",
+      "input": {
+        "message": {
+          "id": "a1",
+          "role": "assistant",
+          "content": "156.",
+          "steps": [
+            {
+              "id": "12 times 13 is 156.",
+              "type": "thinking",
+              "content": "12 times 13 is 156.",
+              "isComplete": true
+            },
+            {
+              "id": "s",
+              "type": "searching",
+              "content": "searching",
+              "isComplete": true
+            },
+            {
+              "id": "  ",
+              "type": "thinking",
+              "content": "  ",
+              "isComplete": true
+            },
+            {
+              "id": "Checked: 13 times 12 is 156 too.",
+              "type": "thinking",
+              "content": "Checked: 13 times 12 is 156 too.",
+              "isComplete": true
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": true
+      },
+      "expected": {
+        "role": "assistant",
+        "content": "156.",
+        "thinking": "12 times 13 is 156.\n\nChecked: 13 times 12 is 156 too."
+      }
+    },
+    {
+      "name": "leaves a reply's reasoning out otherwise",
+      "input": {
+        "message": {
+          "id": "a1",
+          "role": "assistant",
+          "content": "156.",
+          "steps": [
+            {
+              "id": "12 times 13 is 156.",
+              "type": "thinking",
+              "content": "12 times 13 is 156.",
+              "isComplete": true
+            },
+            {
+              "id": "s",
+              "type": "searching",
+              "content": "searching",
+              "isComplete": true
+            },
+            {
+              "id": "  ",
+              "type": "thinking",
+              "content": "  ",
+              "isComplete": true
+            },
+            {
+              "id": "Checked: 13 times 12 is 156 too.",
+              "type": "thinking",
+              "content": "Checked: 13 times 12 is 156 too.",
+              "isComplete": true
+            }
+          ]
+        },
+        "allowImages": false,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "assistant",
+        "content": "156."
+      }
+    },
+    {
+      "name": "never puts reasoning on a user message",
+      "input": {
+        "message": {
+          "id": "u2",
+          "role": "user",
+          "content": "hi",
+          "steps": [
+            {
+              "id": "12 times 13 is 156.",
+              "type": "thinking",
+              "content": "12 times 13 is 156.",
+              "isComplete": true
+            },
+            {
+              "id": "s",
+              "type": "searching",
+              "content": "searching",
+              "isComplete": true
+            },
+            {
+              "id": "  ",
+              "type": "thinking",
+              "content": "  ",
+              "isComplete": true
+            },
+            {
+              "id": "Checked: 13 times 12 is 156 too.",
+              "type": "thinking",
+              "content": "Checked: 13 times 12 is 156 too.",
+              "isComplete": true
+            }
+          ]
+        },
+        "allowImages": false,
+        "keepThinking": true
+      },
+      "expected": {
+        "role": "user",
+        "content": "hi"
+      }
+    },
+    {
+      "name": "carries a provider state on an assistant reply",
+      "input": {
+        "message": {
+          "id": "a2",
+          "role": "assistant",
+          "content": "hello",
+          "provider_state": {
+            "instanceId": "anthropic",
+            "state": {
+              "signature": "sig-1"
+            }
+          }
+        },
+        "allowImages": false,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "assistant",
+        "content": "hello",
+        "provider_state": {
+          "instanceId": "anthropic",
+          "state": {
+            "signature": "sig-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "a name without a dot is read as its own extension",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "see",
+          "attachments": [
+            {
+              "name": "png",
+              "type": "",
+              "content": "AAAA"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "see",
+        "images": [
+          "AAAA"
+        ]
+      }
+    },
+    {
+      "name": "a name ending in a dot has no extension",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "see",
+          "attachments": [
+            {
+              "name": "notes.",
+              "type": "",
+              "content": "plain words"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "see\n\n--- ATTACHED FILE: notes. ---\nplain words\n--- END ATTACHED FILE ---"
+      }
+    },
+    {
+      "name": "null attachments are the same as none",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "hi",
+          "attachments": null
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "hi"
+      }
+    },
+    {
+      "name": "absent attachments are the same as none",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "hi"
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "hi"
+      }
+    },
+    {
+      "name": "a byte order mark and a no-break space are trimmed",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "﻿hello "
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "hello"
+      }
+    },
+    {
+      "name": "a no-break space alone is an empty message",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": " "
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": " "
+      }
+    },
+    {
+      "name": "a message with no content field is sent as a space",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user"
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": " "
+      }
+    },
+    {
+      "name": "a video attachment is named, not sent",
+      "input": {
+        "message": {
+          "id": "u1",
+          "role": "user",
+          "content": "watch",
+          "attachments": [
+            {
+              "name": "clip.mp4",
+              "type": "video/mp4",
+              "content": "data:video/mp4;base64,AAAA"
+            }
+          ]
+        },
+        "allowImages": true,
+        "keepThinking": false
+      },
+      "expected": {
+        "role": "user",
+        "content": "watch\n\n[Attached Video: clip.mp4]"
+      }
+    }
+  ]
+}
