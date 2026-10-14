@@ -54,6 +54,7 @@ impl Clock for FakeClock {
 type Supervisor = LlamaSupervisor<MarkerProbe, FakeClock, ProcessRunner>;
 
 /// The help text a stand-in answers `--help` with: enough flags to be believed, plus the ones the test names.
+#[cfg(unix)]
 fn help_block(extra: &[&str]) -> String {
     let mut block = String::from(
         "if [ \"$1\" = \"--help\" ]; then\n  i=0\n  while [ $i -lt 30 ]; do echo \"--flag-$i\"; i=$((i+1)); done\n  echo --spec-default\n  echo --cache-ram\n",
@@ -698,11 +699,13 @@ async fn a_draft_measured_well_is_asked_for_its_measured_length() {
 }
 
 /// Moves like `FakeClock`, but waits a real 20 ms per poll, so a start that is never answered lasts long enough to overlap.
+#[cfg(target_os = "linux")]
 #[derive(Default)]
 struct PacedClock {
     now: AtomicU64,
 }
 
+#[cfg(target_os = "linux")]
 impl Clock for PacedClock {
     fn elapsed_ms(&self) -> u64 {
         self.now.load(Ordering::SeqCst)
