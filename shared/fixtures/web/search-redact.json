@@ -1,0 +1,94 @@
+{
+  "area": "web",
+  "description": "The warning a failed provider logs (search.cjs redactQuery, then the first 120 units): the query is cut out in its raw, encoded and plus-encoded forms, the cut is made after the redaction, and a surrogate pair split by the cut becomes U+FFFD. Every provider fails with the message, so the first logged warning is the one compared.",
+  "cases": [
+    {
+      "name": "the query is cut from a message that echoes its plus-encoded form",
+      "input": {
+        "query": "rare zq9417",
+        "message": "request to https://api.search.brave.com/res/v1/web/search?q=rare+zq9417 failed"
+      },
+      "expected": "request to https://api.search.brave.com/res/v1/web/search?q=[query] failed"
+    },
+    {
+      "name": "the query is cut from a message that echoes it as typed",
+      "input": {
+        "query": "rare zq9417",
+        "message": "no results for rare zq9417"
+      },
+      "expected": "no results for [query]"
+    },
+    {
+      "name": "reserved characters are cut in their encoded form",
+      "input": {
+        "query": "a&b=c/d",
+        "message": "GET /search?q=a%26b%3Dc%2Fd returned 500"
+      },
+      "expected": "GET /search?q=[query] returned 500"
+    },
+    {
+      "name": "a message without the query is kept as it is",
+      "input": {
+        "query": "rare",
+        "message": "invalid body"
+      },
+      "expected": "invalid body"
+    },
+    {
+      "name": "a long message is cut at 120 characters",
+      "input": {
+        "query": "rare",
+        "message": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "a message cut at 120 units splits an emoji into U+FFFD",
+      "input": {
+        "query": "rare",
+        "message": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀zz"
+      },
+      "expected": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy�"
+    },
+    {
+      "name": "the query is cut before the length limit applies",
+      "input": {
+        "query": "rare zq9417",
+        "message": "rare zq9417 zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      },
+      "expected": "[query] zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    },
+    {
+      "name": "a term equal to its encoded form is cut once, not again inside its own marker",
+      "input": {
+        "query": "query",
+        "message": "failed for query"
+      },
+      "expected": "failed for [query]"
+    },
+    {
+      "name": "a one-letter term is cut once, and the marker it leaves is kept",
+      "input": {
+        "query": "q",
+        "message": "q"
+      },
+      "expected": "[query]"
+    },
+    {
+      "name": "a term with a space is cut in its raw, encoded and plus-encoded forms",
+      "input": {
+        "query": "a b",
+        "message": "a b and a%20b and a+b"
+      },
+      "expected": "[query] and [query] and [query]"
+    },
+    {
+      "name": "a term with no reserved characters is cut once in each place it appears",
+      "input": {
+        "query": "x-y",
+        "message": "searching x-y and x-y"
+      },
+      "expected": "searching [query] and [query]"
+    }
+  ]
+}

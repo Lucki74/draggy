@@ -1,0 +1,123 @@
+{
+  "area": "web",
+  "description": "DuckDuckGo lite page: each link's snippet is the next table row, with a fallback to that row's text. Duplicate urls are dropped. Input body is the canned HTML.",
+  "cases": [
+    {
+      "name": "pairs each link with the snippet in the next row",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body><table>\n<tr><td valign=\"top\">1.&nbsp;</td><td><a rel=\"nofollow\" href=\"https://lite.example/one\" class=\"result-link\">First lite result</a></td></tr>\n<tr><td>&nbsp;&nbsp;&nbsp;</td><td class=\"result-snippet\">First snippet text.</td></tr>\n<tr><td valign=\"top\">2.&nbsp;</td><td><a href=\"https://lite.example/two\" class=\"result-link\">Second</a></td></tr>\n<tr><td>&nbsp;&nbsp;&nbsp;</td><td>Fallback snippet from next row.</td></tr>\n<tr><td valign=\"top\">3.&nbsp;</td><td><a href=\"https://lite.example/one\" class=\"result-link\">Duplicate of one</a></td></tr>\n<tr><td></td><td class=\"result-snippet\">dup snippet</td></tr>\n<tr><td valign=\"top\">4.&nbsp;</td><td><a class=\"result-link\">No href</a></td></tr>\n<tr><td></td><td class=\"result-snippet\">x</td></tr>\n<tr><td valign=\"top\">5.&nbsp;</td><td><a href=\"https://lite.example/five\" class=\"result-link\">Last one</a></td></tr>\n</table></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "First lite result",
+            "url": "https://lite.example/one",
+            "snippet": "First snippet text."
+          },
+          {
+            "title": "Second",
+            "url": "https://lite.example/two",
+            "snippet": "Fallback snippet from next row."
+          },
+          {
+            "title": "Last one",
+            "url": "https://lite.example/five",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty page gives no results",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "hello",
+        "body": "<html><body><table></table></body></html>"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "a link with no row below it has an empty snippet",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "alpha",
+        "body": "<table><tr><td><a class=\"result-link\" href=\"https://l.example/a\">Alpha</a></td></tr></table>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Alpha",
+            "url": "https://l.example/a",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a next row without a snippet cell gives its own text",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "beta",
+        "body": "<table><tr><td><a class=\"result-link\" href=\"https://l.example/b\">Beta</a></td></tr><tr><td>Plain row text</td></tr></table>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Beta",
+            "url": "https://l.example/b",
+            "snippet": "Plain row text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a link without an href is dropped",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "nohref",
+        "body": "<table><tr><td><a class=\"result-link\">NoHref</a></td></tr><tr><td class=\"result-snippet\">Dropped.</td></tr></table>"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "link text is trimmed and its markup flattened",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "gamma",
+        "body": "<table><tr><td><a class=\"result-link\" href=\"https://l.example/c\">  Gamma <b>one</b>  </a></td></tr><tr><td class=\"result-snippet\">Snip <i>C</i></td></tr></table>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Gamma one",
+            "url": "https://l.example/c",
+            "snippet": "Snip C"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a relative href resolves against the lite page",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "relative",
+        "body": "<table><tr><td><a class=\"result-link\" href=\"/relative/path\">Rel</a></td></tr><tr><td class=\"result-snippet\">Rel snippet</td></tr></table>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Rel",
+            "url": "https://lite.duckduckgo.com/relative/path",
+            "snippet": "Rel snippet"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,585 @@
+{
+  "area": "web",
+  "description": "normaliseResults: keeps entries with a title and an http(s) url, unwraps DuckDuckGo redirects, drops duplicate urls (first wins), coerces fields the way String() does, trims, caps snippets at 500 and results at 10.",
+  "cases": [
+    {
+      "name": "well formed results are kept",
+      "input": {
+        "raw": [
+          {
+            "title": "A",
+            "url": "https://a.example",
+            "snippet": "one"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "A",
+          "url": "https://a.example",
+          "snippet": "one"
+        }
+      ]
+    },
+    {
+      "name": "entries without a title are dropped",
+      "input": {
+        "raw": [
+          {
+            "url": "https://a.example",
+            "title": ""
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a whitespace-only title is dropped",
+      "input": {
+        "raw": [
+          {
+            "url": "https://a.example",
+            "title": "   "
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "non-http schemes are dropped, javascript included",
+      "input": {
+        "raw": [
+          {
+            "title": "bad",
+            "url": "javascript:alert(1)"
+          },
+          {
+            "title": "bad",
+            "url": "file:///etc/passwd"
+          },
+          {
+            "title": "bad",
+            "url": "data:text/html,<script>"
+          },
+          {
+            "title": "good",
+            "url": "https://ok.example"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "good",
+          "url": "https://ok.example",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "scheme check ignores case",
+      "input": {
+        "raw": [
+          {
+            "title": "upper",
+            "url": "HTTPS://Example.com/X"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "upper",
+          "url": "HTTPS://Example.com/X",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "duplicate urls keep the first",
+      "input": {
+        "raw": [
+          {
+            "title": "first",
+            "url": "https://a.example"
+          },
+          {
+            "title": "second",
+            "url": "https://a.example"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "first",
+          "url": "https://a.example",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "the cap applies after duplicates are removed",
+      "input": {
+        "raw": [
+          {
+            "title": "t0",
+            "url": "https://d0.example/"
+          },
+          {
+            "title": "t1",
+            "url": "https://d1.example/"
+          },
+          {
+            "title": "t2",
+            "url": "https://d2.example/"
+          },
+          {
+            "title": "t3",
+            "url": "https://d3.example/"
+          },
+          {
+            "title": "t4",
+            "url": "https://d4.example/"
+          },
+          {
+            "title": "t5",
+            "url": "https://d5.example/"
+          },
+          {
+            "title": "t6",
+            "url": "https://d6.example/"
+          },
+          {
+            "title": "t7",
+            "url": "https://d7.example/"
+          },
+          {
+            "title": "t8",
+            "url": "https://d8.example/"
+          },
+          {
+            "title": "t9",
+            "url": "https://d9.example/"
+          },
+          {
+            "title": "t10",
+            "url": "https://d10.example/"
+          },
+          {
+            "title": "t11",
+            "url": "https://d0.example/"
+          },
+          {
+            "title": "t12",
+            "url": "https://d1.example/"
+          },
+          {
+            "title": "t13",
+            "url": "https://d2.example/"
+          },
+          {
+            "title": "t14",
+            "url": "https://d3.example/"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "t0",
+          "url": "https://d0.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t1",
+          "url": "https://d1.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t2",
+          "url": "https://d2.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t3",
+          "url": "https://d3.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t4",
+          "url": "https://d4.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t5",
+          "url": "https://d5.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t6",
+          "url": "https://d6.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t7",
+          "url": "https://d7.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t8",
+          "url": "https://d8.example/",
+          "snippet": ""
+        },
+        {
+          "title": "t9",
+          "url": "https://d9.example/",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a long snippet is cut to 500",
+      "input": {
+        "raw": [
+          {
+            "title": "t",
+            "url": "https://a.example",
+            "snippet": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "t",
+          "url": "https://a.example",
+          "snippet": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+        }
+      ]
+    },
+    {
+      "name": "titles and snippets are trimmed",
+      "input": {
+        "raw": [
+          {
+            "title": "  Padded  ",
+            "url": "  https://p.example  ",
+            "snippet": "  s  "
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "Padded",
+          "url": "https://p.example",
+          "snippet": "s"
+        }
+      ]
+    },
+    {
+      "name": "a missing snippet becomes empty",
+      "input": {
+        "raw": [
+          {
+            "title": "t",
+            "url": "https://a.example"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "t",
+          "url": "https://a.example",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "non-string fields are coerced the way String() does",
+      "input": {
+        "raw": [
+          {
+            "title": 42,
+            "url": "https://n.example/",
+            "snippet": false
+          },
+          {
+            "title": true,
+            "url": "https://t.example/"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "42",
+          "url": "https://n.example/",
+          "snippet": ""
+        },
+        {
+          "title": "true",
+          "url": "https://t.example/",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "an array title joins with commas",
+      "input": {
+        "raw": [
+          {
+            "title": [
+              "a",
+              "b"
+            ],
+            "url": "https://arr.example/"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "a,b",
+          "url": "https://arr.example/",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a redirector url is unwrapped before it is kept",
+      "input": {
+        "raw": [
+          {
+            "title": "CDC",
+            "url": "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.cdc.gov%2F"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "CDC",
+          "url": "https://www.cdc.gov/",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "junk entries are skipped",
+      "input": {
+        "raw": [
+          null,
+          5,
+          "x",
+          {
+            "title": "ok",
+            "url": "https://ok.example"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "ok",
+          "url": "https://ok.example",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a non-array input gives nothing",
+      "input": {
+        "raw": {
+          "title": "A",
+          "url": "https://a.example"
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "null input gives nothing",
+      "input": {
+        "raw": null
+      },
+      "expected": []
+    },
+    {
+      "name": "a number title is written the way JavaScript writes it",
+      "input": {
+        "raw": [
+          {
+            "title": 1e-7,
+            "url": "https://num.example/1",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "1e-7",
+          "url": "https://num.example/1",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a number past 1e21 keeps the exponent form",
+      "input": {
+        "raw": [
+          {
+            "title": "Big",
+            "url": "https://num.example/2",
+            "snippet": 1.5e+300
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "Big",
+          "url": "https://num.example/2",
+          "snippet": "1.5e+300"
+        }
+      ]
+    },
+    {
+      "name": "numbers from 1e-6 up to 1e21 are written in full",
+      "input": {
+        "raw": [
+          {
+            "title": 0.000001,
+            "url": "https://num.example/3",
+            "snippet": 123456789.125
+          },
+          {
+            "title": 100000000000000000000,
+            "url": "https://num.example/4",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "0.000001",
+          "url": "https://num.example/3",
+          "snippet": "123456789.125"
+        },
+        {
+          "title": "100000000000000000000",
+          "url": "https://num.example/4",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "an integer past 2^53 is rounded to a double first",
+      "input": {
+        "raw": [
+          {
+            "title": 9007199254740992,
+            "url": "https://num.example/5",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "9007199254740992",
+          "url": "https://num.example/5",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a small negative fraction keeps its sign and exponent",
+      "input": {
+        "raw": [
+          {
+            "title": -2.5e-8,
+            "url": "https://num.example/6",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "-2.5e-8",
+          "url": "https://num.example/6",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "negative zero inside an array prints as 0",
+      "input": {
+        "raw": [
+          {
+            "title": [
+              0
+            ],
+            "url": "https://num.example/7",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "0",
+          "url": "https://num.example/7",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "an array of numbers joins with commas in JavaScript form",
+      "input": {
+        "raw": [
+          {
+            "title": [
+              1e+21,
+              1e-7
+            ],
+            "url": "https://num.example/8",
+            "snippet": ""
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "1e+21,1e-7",
+          "url": "https://num.example/8",
+          "snippet": ""
+        }
+      ]
+    },
+    {
+      "name": "a snippet cut at 500 units keeps an emoji that ends exactly there",
+      "input": {
+        "raw": [
+          {
+            "title": "Emoji",
+            "url": "https://astral.example/1",
+            "snippet": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀bc"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "Emoji",
+          "url": "https://astral.example/1",
+          "snippet": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀"
+        }
+      ]
+    },
+    {
+      "name": "a snippet cut at 500 units splits an emoji into U+FFFD",
+      "input": {
+        "raw": [
+          {
+            "title": "Emoji",
+            "url": "https://astral.example/2",
+            "snippet": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀bc"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "title": "Emoji",
+          "url": "https://astral.example/2",
+          "snippet": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,231 @@
+{
+  "area": "web",
+  "description": "DuckDuckGo html page, run through its extract script in jsdom (a stand-in for the hidden window), then normalised. Input body is the canned HTML. Expected is the results, or the error the port reports. Also covers <base href> for relative links, and the innerText stand-in: hidden script, style, noscript and template text, table cell tabs, block line breaks and <br>.",
+  "cases": [
+    {
+      "name": "answers from result rows and drops ads, empty titles and missing hrefs",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body>\n<div id=\"links\" class=\"results\">\n  <div class=\"result results_links results_links_deep web-result\">\n    <div class=\"links_main links_deep result__body\">\n      <h2 class=\"result__title\"><a rel=\"nofollow\" class=\"result__a\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.cdc.gov%2Flightning%2F&amp;rut=abc\">Lightning <b>safety</b></a></h2>\n      <a class=\"result__snippet\" href=\"#\">Stay <b>indoors</b> when thunder roars.</a>\n    </div>\n  </div>\n  <div class=\"result result--ad\"><a class=\"result__a\" href=\"https://ads.example/\">Ad</a></div>\n  <div class=\"result\">\n    <a class=\"result__a\" href=\"https://example.org/page\">Example page</a>\n    <div class=\"result__snippet\">A plain snippet.</div>\n  </div>\n  <div class=\"result\">\n    <a class=\"result__a\">No href</a>\n    <div class=\"result__snippet\">Dropped: no href.</div>\n  </div>\n</div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Lightning safety",
+            "url": "https://www.cdc.gov/lightning/",
+            "snippet": "Stay indoors when thunder roars."
+          },
+          {
+            "title": "Example page",
+            "url": "https://example.org/page",
+            "snippet": "A plain snippet."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty page gives no results",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body><div id='links'></div></body></html>"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "only the first ten rows survive",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body><div class=\"result\"><a class=\"result__a\" href=\"https://many.example/0\">Row 0</a><div class=\"result__snippet\">S0</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/1\">Row 1</a><div class=\"result__snippet\">S1</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/2\">Row 2</a><div class=\"result__snippet\">S2</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/3\">Row 3</a><div class=\"result__snippet\">S3</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/4\">Row 4</a><div class=\"result__snippet\">S4</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/5\">Row 5</a><div class=\"result__snippet\">S5</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/6\">Row 6</a><div class=\"result__snippet\">S6</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/7\">Row 7</a><div class=\"result__snippet\">S7</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/8\">Row 8</a><div class=\"result__snippet\">S8</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/9\">Row 9</a><div class=\"result__snippet\">S9</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/10\">Row 10</a><div class=\"result__snippet\">S10</div></div>\n<div class=\"result\"><a class=\"result__a\" href=\"https://many.example/11\">Row 11</a><div class=\"result__snippet\">S11</div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Row 0",
+            "url": "https://many.example/0",
+            "snippet": "S0"
+          },
+          {
+            "title": "Row 1",
+            "url": "https://many.example/1",
+            "snippet": "S1"
+          },
+          {
+            "title": "Row 2",
+            "url": "https://many.example/2",
+            "snippet": "S2"
+          },
+          {
+            "title": "Row 3",
+            "url": "https://many.example/3",
+            "snippet": "S3"
+          },
+          {
+            "title": "Row 4",
+            "url": "https://many.example/4",
+            "snippet": "S4"
+          },
+          {
+            "title": "Row 5",
+            "url": "https://many.example/5",
+            "snippet": "S5"
+          },
+          {
+            "title": "Row 6",
+            "url": "https://many.example/6",
+            "snippet": "S6"
+          },
+          {
+            "title": "Row 7",
+            "url": "https://many.example/7",
+            "snippet": "S7"
+          },
+          {
+            "title": "Row 8",
+            "url": "https://many.example/8",
+            "snippet": "S8"
+          },
+          {
+            "title": "Row 9",
+            "url": "https://many.example/9",
+            "snippet": "S9"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server error page still parses, status is not checked",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body>\n<div id=\"links\" class=\"results\">\n  <div class=\"result results_links results_links_deep web-result\">\n    <div class=\"links_main links_deep result__body\">\n      <h2 class=\"result__title\"><a rel=\"nofollow\" class=\"result__a\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.cdc.gov%2Flightning%2F&amp;rut=abc\">Lightning <b>safety</b></a></h2>\n      <a class=\"result__snippet\" href=\"#\">Stay <b>indoors</b> when thunder roars.</a>\n    </div>\n  </div>\n  <div class=\"result result--ad\"><a class=\"result__a\" href=\"https://ads.example/\">Ad</a></div>\n  <div class=\"result\">\n    <a class=\"result__a\" href=\"https://example.org/page\">Example page</a>\n    <div class=\"result__snippet\">A plain snippet.</div>\n  </div>\n  <div class=\"result\">\n    <a class=\"result__a\">No href</a>\n    <div class=\"result__snippet\">Dropped: no href.</div>\n  </div>\n</div></body></html>",
+        "status": 503
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Lightning safety",
+            "url": "https://www.cdc.gov/lightning/",
+            "snippet": "Stay indoors when thunder roars."
+          },
+          {
+            "title": "Example page",
+            "url": "https://example.org/page",
+            "snippet": "A plain snippet."
+          }
+        ]
+      }
+    },
+    {
+      "name": "a base href is the base for relative result links",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "base",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><base href=\"https://base.example.test/docs/\"><div class=\"result\"><a class=\"result__a\" href=\"guide/one.html\">One</a></div><div class=\"result\"><a class=\"result__a\" href=\"/abs/two\">Two</a></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "One",
+            "url": "https://base.example.test/docs/guide/one.html",
+            "snippet": ""
+          },
+          {
+            "title": "Two",
+            "url": "https://base.example.test/abs/two",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a base href that does not parse leaves the page as the base",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "badbase",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><base href=\"http://[bad\"><div class=\"result\"><a class=\"result__a\" href=\"rel/three\">Three</a></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Three",
+            "url": "https://html.duckduckgo.com/html/rel/three",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "script and style text is left out of a title",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hidden title",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><div class=\"result\"><a class=\"result__a\" href=\"https://hidden.example/a\">Visible<script>var x = 1;</script><style>.a{}</style> title</a><div class=\"result__snippet\">Snippet.</div></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Visible title",
+            "url": "https://hidden.example/a",
+            "snippet": "Snippet."
+          }
+        ]
+      }
+    },
+    {
+      "name": "noscript and template text is left out of a snippet",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hidden snippet",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><div class=\"result\"><a class=\"result__a\" href=\"https://hidden.example/b\">Title B</a><div class=\"result__snippet\">Shown <noscript>hidden</noscript><template>tpl</template>text</div></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Title B",
+            "url": "https://hidden.example/b",
+            "snippet": "Shown text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "table cells are separated by a tab and rows by a line break",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "table",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><div class=\"result\"><a class=\"result__a\" href=\"https://table.example/c\">Title C</a><div class=\"result__snippet\"><table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table></div></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Title C",
+            "url": "https://table.example/c",
+            "snippet": "A\tB\nC\tD"
+          }
+        ]
+      }
+    },
+    {
+      "name": "block elements start new lines and a br breaks a line",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "blocks",
+        "body": "<!DOCTYPE html><html><body><div id=\"links\" class=\"results\"><div class=\"result\"><a class=\"result__a\" href=\"https://blocks.example/d\">Title D</a><div class=\"result__snippet\"><div>First</div><div>Second</div>Line one<br>Line two   <br>   Line three</div></div></div></body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Title D",
+            "url": "https://blocks.example/d",
+            "snippet": "First\nSecond\nLine one\nLine two\nLine three"
+          }
+        ]
+      }
+    }
+  ]
+}

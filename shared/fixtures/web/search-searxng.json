@@ -1,0 +1,131 @@
+{
+  "area": "web",
+  "description": "SearXNG JSON API: response body to normalised results, with the status check and the error messages the port reports. A byte order mark before the JSON is dropped, as response.json() drops it.",
+  "cases": [
+    {
+      "name": "SearXNG answers with title, url and content",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{\"query\":\"x\",\"results\":[{\"title\":\"SX one\",\"url\":\"https://sx.example/one\",\"content\":\"Content one\"},{\"title\":\"SX two\",\"url\":\"https://sx.example/two\"}],\"suggestions\":[]}"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "SX one",
+            "url": "https://sx.example/one",
+            "snippet": "Content one"
+          },
+          {
+            "title": "SX two",
+            "url": "https://sx.example/two",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "SearXNG null results gives none",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{\"results\":null}"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "SearXNG server error is reported with its status",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "oops",
+        "status": 500
+      },
+      "expected": {
+        "error": "SearXNG returned 500"
+      }
+    },
+    {
+      "name": "SearXNG rate limit is reported with its status",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{}",
+        "status": 429
+      },
+      "expected": {
+        "error": "SearXNG returned 429"
+      }
+    },
+    {
+      "name": "SearXNG invalid JSON is an invalid body",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "<html>not json</html>"
+      },
+      "expected": {
+        "error": "invalid body"
+      }
+    },
+    {
+      "name": "SearXNG results that are not a list are an invalid body",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{\"results\":5}"
+      },
+      "expected": {
+        "error": "invalid body"
+      }
+    },
+    {
+      "name": "SearXNG null entry is an invalid body",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{\"results\":[null]}"
+      },
+      "expected": {
+        "error": "invalid body"
+      }
+    },
+    {
+      "name": "SearXNG numeric titles are coerced to text",
+      "input": {
+        "provider": "searxng",
+        "query": "hello",
+        "body": "{\"results\":[{\"title\":42,\"url\":\"https://sx.example/n\"}]}"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "42",
+            "url": "https://sx.example/n",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a byte order mark before the JSON is dropped",
+      "input": {
+        "provider": "searxng",
+        "query": "bom",
+        "status": 200,
+        "body": "﻿{\"results\":[{\"title\":\"Bom\",\"url\":\"https://bom.example/\",\"content\":\"c\"}]}"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Bom",
+            "url": "https://bom.example/",
+            "snippet": "c"
+          }
+        ]
+      }
+    }
+  ]
+}

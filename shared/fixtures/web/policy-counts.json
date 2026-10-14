@@ -1,0 +1,195 @@
+{
+  "area": "web",
+  "description": "urlPolicy's session refusal counts, as the CJS sessionCounts() keeps them: one op per URL check, and a snapshot op for the counts. Each snapshot holds the refusals since the case began, so a case does not depend on the cases before it. A refusal is counted by its rule, and an allowed private URL is not counted.",
+  "cases": [
+    {
+      "name": "refusals are counted by rule for the session",
+      "input": {
+        "ops": [
+          {
+            "url": "https://ok.example/"
+          },
+          {
+            "url": ""
+          },
+          {
+            "url": "file:///etc/passwd"
+          },
+          {
+            "url": "http://localhost:8080/"
+          },
+          {
+            "url": "http://a\u0001b/"
+          },
+          {
+            "url": "not a url"
+          },
+          {
+            "counts": true
+          },
+          {
+            "url": "http://127.0.0.1/",
+            "allowPrivate": true
+          },
+          {
+            "url": "https://10.0.0.1"
+          },
+          {
+            "counts": true
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "fetchable": true
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "counts": {
+              "empty": 1,
+              "control_char": 1,
+              "invalid": 1,
+              "protocol": 1,
+              "no_host": 0,
+              "private_host": 1
+            }
+          },
+          {
+            "fetchable": true
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "counts": {
+              "empty": 1,
+              "control_char": 1,
+              "invalid": 1,
+              "protocol": 1,
+              "no_host": 0,
+              "private_host": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a fresh policy starts from zero",
+      "input": {
+        "ops": [
+          {
+            "counts": true
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "counts": {
+              "empty": 0,
+              "control_char": 0,
+              "invalid": 0,
+              "protocol": 0,
+              "no_host": 0,
+              "private_host": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an allowed private URL is not counted",
+      "input": {
+        "ops": [
+          {
+            "url": "http://192.168.1.5/",
+            "allowPrivate": true
+          },
+          {
+            "counts": true
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "fetchable": true
+          },
+          {
+            "counts": {
+              "empty": 0,
+              "control_char": 0,
+              "invalid": 0,
+              "protocol": 0,
+              "no_host": 0,
+              "private_host": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "trailing-dot, link-local, CGNAT and mapped hosts count as private_host",
+      "input": {
+        "ops": [
+          {
+            "url": "http://localhost./"
+          },
+          {
+            "url": "http://[fe80::1]/"
+          },
+          {
+            "url": "http://100.64.0.1/"
+          },
+          {
+            "url": "http://[::ffff:127.0.0.1]/"
+          },
+          {
+            "counts": true
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "fetchable": false
+          },
+          {
+            "counts": {
+              "empty": 0,
+              "control_char": 0,
+              "invalid": 0,
+              "protocol": 0,
+              "no_host": 0,
+              "private_host": 4
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

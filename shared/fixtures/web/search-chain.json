@@ -1,0 +1,183 @@
+{
+  "area": "web",
+  "description": "buildChain: the order providers are tried in, for each provider preference and set of configured credentials.",
+  "cases": [
+    {
+      "name": "default",
+      "input": {
+        "config": {}
+      },
+      "expected": [
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "empty provider name means auto",
+      "input": {
+        "config": {
+          "searchProvider": ""
+        }
+      },
+      "expected": [
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "unknown provider falls back to the automatic chain",
+      "input": {
+        "config": {
+          "searchProvider": "bing"
+        }
+      },
+      "expected": [
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "SearXNG configured goes first",
+      "input": {
+        "config": {
+          "searxngUrl": "http://localhost:8080"
+        }
+      },
+      "expected": [
+        "searxng",
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an empty SearXNG url is not configured",
+      "input": {
+        "config": {
+          "searxngUrl": ""
+        }
+      },
+      "expected": [
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "a Brave key goes first when SearXNG is absent",
+      "input": {
+        "config": {
+          "braveApiKey": "BSA-x"
+        }
+      },
+      "expected": [
+        "brave",
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "SearXNG beats Brave when both are configured",
+      "input": {
+        "config": {
+          "searxngUrl": "http://searx.test",
+          "braveApiKey": "BSA-x"
+        }
+      },
+      "expected": [
+        "searxng",
+        "brave",
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an explicit startpage choice is tried first",
+      "input": {
+        "config": {
+          "searchProvider": "startpage"
+        }
+      },
+      "expected": [
+        "startpage",
+        "duckduckgo",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an explicit brave choice without a key is not offered",
+      "input": {
+        "config": {
+          "searchProvider": "brave"
+        }
+      },
+      "expected": [
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an explicit brave choice with a key is tried first",
+      "input": {
+        "config": {
+          "searchProvider": "brave",
+          "searxngUrl": "http://searx.test",
+          "braveApiKey": "BSA-x"
+        }
+      },
+      "expected": [
+        "brave",
+        "searxng",
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an explicit SearXNG choice is tried first",
+      "input": {
+        "config": {
+          "searchProvider": "searxng",
+          "searxngUrl": "http://searx.test"
+        }
+      },
+      "expected": [
+        "searxng",
+        "duckduckgo",
+        "startpage",
+        "duckduckgo-lite",
+        "brave-html"
+      ]
+    },
+    {
+      "name": "an explicit duckduckgo-lite choice keeps the others as fallbacks",
+      "input": {
+        "config": {
+          "searchProvider": "duckduckgo-lite"
+        }
+      },
+      "expected": [
+        "duckduckgo-lite",
+        "duckduckgo",
+        "startpage",
+        "brave-html"
+      ]
+    }
+  ]
+}

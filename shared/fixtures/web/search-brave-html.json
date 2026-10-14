@@ -1,0 +1,95 @@
+{
+  "area": "web",
+  "description": "Brave html search page: the title is the last non-empty line of the heading, capped at 200 units. Input body is the canned HTML.",
+  "cases": [
+    {
+      "name": "takes the last line of the title and caps it at 200",
+      "input": {
+        "provider": "brave-html",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body>\n<div id=\"results\">\n  <div class=\"snippet\" data-type=\"web\">\n    <a href=\"https://brave.example/a\"><div class=\"title\">brave.example<br>Page A title</div></a>\n    <div class=\"snippet-description\">Description A</div>\n  </div>\n  <div class=\"snippet\" data-type=\"web\">\n    <a href=\"https://brave.example/b\"><span class=\"title-x\">Title B</span></a>\n    <p>Snippet <em>B</em></p>\n  </div>\n  <div class=\"snippet\"><span>no link here</span></div>\n  <div class=\"snippet\"><a href=\"/relative\">Relative link</a></div>\n  <div class=\"snippet\" data-type=\"web\">\n    <a href=\"https://brave.example/long\"><div class=\"title\">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div></a>\n  </div>\n</div>\n<div class=\"snippet\"><a href=\"https://brave.example/outside\">Outside results</a></div>\n</body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Page A title",
+            "url": "https://brave.example/a",
+            "snippet": "Description A"
+          },
+          {
+            "title": "Title B",
+            "url": "https://brave.example/b",
+            "snippet": "Snippet B"
+          },
+          {
+            "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "url": "https://brave.example/long",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a page with no snippet container gives none",
+      "input": {
+        "provider": "brave-html",
+        "query": "hello",
+        "body": "<html><body><div id='results'></div></body></html>"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "the title comes from snippet-title and the description from snippet-content",
+      "input": {
+        "provider": "brave-html",
+        "query": "brave snippets",
+        "body": "<div id=\"results\"><div class=\"snippet\" data-type=\"web\"><a href=\"https://b.example/x\"><div class=\"snippet-title\">Brave Title</div></a><div class=\"snippet-content\">Brave content.</div></div></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Brave Title",
+            "url": "https://b.example/x",
+            "snippet": "Brave content."
+          }
+        ]
+      }
+    },
+    {
+      "name": "a title cut at 200 units splits an emoji into U+FFFD",
+      "input": {
+        "provider": "brave-html",
+        "query": "emoji title",
+        "body": "<div id=\"results\"><div class=\"snippet\" data-type=\"web\"><a href=\"https://b.example/y\"><div class=\"title\">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀x</div></a><div class=\"snippet-description\">Y.</div></div></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�",
+            "url": "https://b.example/y",
+            "snippet": "Y."
+          }
+        ]
+      }
+    },
+    {
+      "name": "a title of exactly 200 units is kept whole",
+      "input": {
+        "provider": "brave-html",
+        "query": "exact title",
+        "body": "<div id=\"results\"><div class=\"snippet\" data-type=\"web\"><a href=\"https://b.example/z\"><div class=\"title\">bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</div></a></div></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "url": "https://b.example/z",
+            "snippet": ""
+          }
+        ]
+      }
+    }
+  ]
+}
