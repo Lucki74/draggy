@@ -138,7 +138,7 @@ Ported: the Hugging Face resolver, the model cache, downloads with resume, and t
 
 Differences:
 
-- `locale_cmp` in the models crate is an ASCII-fold approximation of root collation, not `localeCompare`. It breaks projector ties and sorts shards. Punctuation can order differently. The tools crate uses the real ICU collator, so the two should share one.
+- `locale_cmp` in the models crate now uses the same ICU root collator as the tools crate. It breaks projector ties and sorts shards. Like the tools crate, it follows root order, not the machine language the reference follows.
 - A 204 or 205 answer is written to the cache as an empty model file. The reference refuses it.
 - An empty `Location` header returns the 3xx answer. Node follows it to the same URL and fails after twenty hops.
 - A cache root containing `..` resolves to a different folder than `path.resolve` gives.
@@ -194,6 +194,27 @@ Ported: the secret store, adopt, the scrubber and the fake vault.
 Quirks kept on purpose: an owner named `__proto__` is dropped from the records, stored owner values that are not objects are returned as stored, array stores grow on a set past the end and do not shrink on remove, and the vault decodes base64 the way Node's `Buffer.from` does. `SecretStore::get` returns the raw JSON value, and `with_secrets` takes the environment as a JSON value. The scrubber threshold counts UTF-16 units, so five accented letters pass and six are scrubbed.
 
 The secrets test installs a scoped tracing subscriber, which has the same callsite-cache race the agent crate hit.
+
+## Review round after wave 2
+
+Four independent read-only passes covered providers, the agent loop, MCP, documents and secrets. These findings were real and are fixed, with tests:
+
+- Secrets: an unreadable store is renamed to `secrets.bin.unreadable-<ms>` before the next save, instead of being overwritten. Saves go to a sibling file, are flushed, then renamed over the store. `adopt` keeps the credential fields in the record when the store could not take them.
+- Documents: one package part may inflate to at most 256 MiB, spreadsheet text stops near twice `DOCUMENT_TEXT_LIMIT`, border widths no longer overflow, and the HTML parser keeps at most 32 elements nested (the converters recurse once per level on a 2 MiB thread stack). Deeper tags land beside their parent.
+- MCP: the sign-in address must be https, or http to a loopback host, before it reaches the system opener. A token reply with no `access_token` is refused. Refresh failures are logged without the start of the body. A stdio write that never returns now times out like the wait for the answer. A message that carries a `method` is no longer taken for the answer to a call.
+- Providers: records the registry cannot parse are written back untouched. A Gemini error code outside 100 to 599 becomes 500.
+- Agent loop and facade: stopping a turn answers a pending approval with no, so a blocked shell dialog cannot hold the turn, and a late yes does not run the tool. A turn that fails before answering is rolled back, so the next send does not stack a second user turn.
+
+Known and not fixed. Most of these match the reference, so they are changes to both sides, together with their fixtures. They are for after the Electron release:
+
+- The MCP log lines for a failed tool call and a failed widget read carry the start of an HTTP error body, because `mcp-session-http.json` pins them. A body that echoes a token would reach the log. Fix both sides and the fixture.
+- The Gemini process writes the loopback tool server's secret route into `.gemini/settings.json` in the private home, and it stays after exit. The reference does the same.
+- MCP: endpoints named by server metadata are not required to be https, and private hosts are not blocked. A pending stdio line has no size cap. `Conn` has no `Drop`, so a dropped `Servers` leaves processes until `stop_all`. An npm install that times out leaves npm's children. Package names go to npm unvalidated and a manifest `bin` that is an absolute path escapes the package folder. `Debug` on OAuth requests and `Response` prints secrets, although nothing logs them today.
+- Secrets: no production code gives stored values to the log scrubber yet, because the facade has no store. Wire the registrar where the shell builds one.
+- Documents: `Content::decode` on one huge PDF page and the column loops for a very wide table are unbounded. `date_styles` is quadratic in the style count. A bad CRC fails with `Corrupt` where the reference returns the text.
+- Providers: the install file helpers swallow write and chmod errors, the SSE splitter has no line cap and rescans pending bytes, the finish line lacks the cid and retry count, a non-stream retry that is cancelled returns status 0, provider-controlled counts can overflow in debug builds, and discovery probes ports one after another.
+- Agent loop: auto-folding at 60% of the window is ported but not called from the facade, and the facade has no slow-model detection, so a very slow model gets the full loop limit. Prose written before a tool call is dropped when Escape lands during that call. A stop after the final counts arrive drops that pass's metrics. A tool that never polls `ToolContext::cancel` keeps the turn blocked after Escape; only `run_command` polls it. For native-thinking models the reasoning time includes answer generation. A subagent timeout reports "took too long" where the reference returns the partial text.
+- The TypeScript logger sends a short prefix of free-text tool arguments such as a command to the log unhashed.
 
 ## Fixture harness
 

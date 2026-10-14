@@ -787,6 +787,7 @@ dependencies = [
  "draggy-testkit",
  "draggy-web",
  "fancy-regex",
+ "icu_collator",
  "nix 0.30.1",
  "reqwest",
  "serde",

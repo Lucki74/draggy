@@ -1,6 +1,10 @@
 //! The parts of JavaScript semantics the reference relies on: `Number(string)`, `Math.round`, `Math.min`, `toFixed`, `localeCompare`.
 
 use std::cmp::Ordering;
+use std::sync::OnceLock;
+
+use icu_collator::options::CollatorOptions;
+use icu_collator::{CollatorBorrowed, CollatorPreferences};
 
 /// Whitespace and line terminators that JavaScript's `trim` and `Number()` skip. Rust's `is_whitespace` also takes U+0085.
 fn is_js_space(c: char) -> bool {
@@ -157,25 +161,31 @@ pub(crate) fn to_fixed_number(value: f64, digits: usize) -> f64 {
     to_fixed(value, digits).parse::<f64>().unwrap_or(f64::NAN)
 }
 
-/// `a.localeCompare(b)` for file names: letters compared without case first, then lowercase before uppercase.
-/// An approximation of the root collation for ASCII names; punctuation may order differently from ICU.
+/// `a.localeCompare(b)` for file names, by ICU root collation (the same collator the tools crate uses).
 pub(crate) fn locale_cmp(a: &str, b: &str) -> Ordering {
-    let folded = a
-        .chars()
-        .map(|c| c.to_ascii_lowercase())
-        .cmp(b.chars().map(|c| c.to_ascii_lowercase()));
-    folded.then_with(|| {
-        a.chars()
-            .zip(b.chars())
-            .find(|(x, y)| x != y)
-            .map_or(Ordering::Equal, |(x, _)| {
-                if x.is_ascii_lowercase() {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
+    match collator() {
+        Some(collator) => collator.compare(a, b),
+        None => a.cmp(b),
+    }
+}
+
+/// Built once. Compiled data always builds, so the code point fallback only guards a broken build.
+fn collator() -> Option<&'static CollatorBorrowed<'static>> {
+    static COLLATOR: OnceLock<Option<CollatorBorrowed<'static>>> = OnceLock::new();
+    COLLATOR
+        .get_or_init(|| {
+            match CollatorBorrowed::try_new(
+                CollatorPreferences::default(),
+                CollatorOptions::default(),
+            ) {
+                Ok(collator) => Some(collator),
+                Err(error) => {
+                    tracing::error!(target: "models.collation", error = %error, "collator unavailable");
+                    None
                 }
-            })
-    })
+            }
+        })
+        .as_ref()
 }
 
 /// `Math.min` for two numbers: NaN wins, unlike `f64::min`.

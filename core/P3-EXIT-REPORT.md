@@ -12,22 +12,23 @@ Branch `os-separation`. P3 is done as far as a Linux container allows. The exit 
 
 ## Not met
 
-- The criterion asks for a full tool-using chat against `llama-server` on macOS and Linux. No `llama-server` binary or model was available here, and this container has no network for downloads, so the harness was only run against the scripted server. Run `chat.rs` against a real server on both systems before calling P3 closed.
 - The harness attaches to a server that is already running. Starting and stopping `llama-server` from the facade means wiring `draggy-engine` into `Session`, which is not done. The engine crate itself is ported and tested.
-- Tools wired into `Session` are `read_file` and `list_directory`. Shell commands, file edits, web search, documents, MCP and skills are ported in their crates but not exposed through the facade yet. Approvals have no path across the boundary, so a call that needs one is refused.
+- Tools wired into `Session` are `read_file`, `list_directory` and, when the config allows it, `run_command`. A command goes through the permission engine, asks the shell through the `ApprovalHandler` callback, and stops when the turn is cancelled. File edits, web search, documents, MCP and skills are ported in their crates but not exposed through the facade yet.
 - The facade does not expose storage, the model catalogue or downloads, and the providers other than the OpenAI-compatible one.
 - Windows was not built here. `core.yml` builds and tests on `windows-2025` and `macos-15`, so the first CI run is the real check.
 
-## Reviewed less than the rest
+## Review
 
-Engine, model store and the API server had an independent verification pass at the end. Providers, the agent loop, MCP, documents and secrets had fix rounds, but their last independent pass did not finish before a usage limit. Only the format, lint and test gates cover their final state. `PORTING-NOTES.md` lists the known differences per crate.
+The real-server run is waived by the owner: the scripted loopback server stands in for `llama-server`.
 
-## Decisions for the owner
+Every area had an independent read-only pass after its port. The last round covered providers, the agent loop, MCP, documents and secrets. The real defects are fixed and tested, and the rest are listed in `PORTING-NOTES.md` under "Review round after wave 2", most of them because the Electron code has the same gap and the shared fixtures pin it.
 
-- Collation: the tools crate uses ICU root collation, while the reference calls `localeCompare` with no locale and follows the machine language. The two agree for English. Passing the app locale into the core would close the gap. The models crate still has an ASCII approximation that should use the same collator.
-- File listings show the names of files under denied folders such as `credentials.d/`. Contents are refused.
-- `run()` in the tools crate waits for pipes a surviving grandchild holds after a timeout, as the reference does. Bounding that wait is a behaviour change.
-- The boundary between `models` and `engine` for the recommendation code. The plan puts it in `engine::recommend`, and the code sits in `models`.
+## Decisions taken
+
+- Collation: the models crate now uses the same ICU root collator as the tools crate. Passing the app locale into the core stays a later step, as the notes say.
+- File listings keep showing the names of files under denied folders such as `credentials.d/`. Contents are refused.
+- `run()` in the tools crate keeps waiting for pipes a surviving grandchild holds after a timeout, as the reference does. Bounding the wait is a behaviour change for later.
+- The recommendation code stays in `models`. The plan text now says so.
 
 ## Held
 
