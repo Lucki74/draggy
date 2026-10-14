@@ -331,7 +331,7 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
 
     /// Stops every server, for quitting.
     pub async fn stop_all(&mut self) {
-        let all: Vec<Live<H, L::Process>> = self.live.drain(..).collect();
+        let all: Vec<Live<H, L::Process>> = std::mem::take(&mut self.live);
         for mut live in all {
             live.link.close().await;
         }
