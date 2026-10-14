@@ -683,6 +683,9 @@ fn the_key_never_reaches_the_logs() {
         .unwrap_or_else(|error| panic!("cannot build a runtime: {error}"));
     let auth = format!("Bearer {KEY}");
 
+    // With one dispatcher alive, tracing decides a call site's interest from whichever thread reaches it first, so
+    // a parallel test with no subscriber can hide our lines. A second dispatcher makes it ask every live one.
+    let _second = tracing::Dispatch::new(tracing::subscriber::NoSubscriber::default());
     tracing::subscriber::with_default(capture.clone(), || {
         runtime.block_on(async {
             let app = router(PORT, Scripted::failing("Out of memory."), env());
