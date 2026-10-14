@@ -539,3 +539,63 @@ fn cancelling_stops_a_running_command() {
         "the command was left running"
     );
 }
+
+/// Blocks until released, the way a dialog the user has not answered yet would.
+struct Waiting {
+    release: Mutex<bool>,
+    seen: Mutex<bool>,
+}
+
+impl ApprovalHandler for Waiting {
+    fn ask(&self, _request: ApprovalRecord) -> ApprovalChoice {
+        *self.seen.lock().expect("seen") = true;
+        while !*self.release.lock().expect("release") {
+            thread::sleep(Duration::from_millis(20));
+        }
+        ApprovalChoice::Once
+    }
+}
+
+#[test]
+fn stopping_the_turn_does_not_wait_for_an_unanswered_approval_and_the_command_never_runs() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        command_reply("echo x > made.txt"),
+        text_reply(&["Never sent."]),
+    ]);
+    let session = Session::new(command_config(&server.url, folder.path(), None)).expect("session");
+    let recorder = Arc::new(Recorder::default());
+    let waiting = Arc::new(Waiting {
+        release: Mutex::new(false),
+        seen: Mutex::new(false),
+    });
+    let cancel = CancelToken::new();
+    let (stopper, watcher) = (Arc::clone(&cancel), Arc::clone(&waiting));
+    thread::spawn(move || {
+        while !*watcher.seen.lock().expect("seen") {
+            thread::sleep(Duration::from_millis(10));
+        }
+        stopper.cancel();
+    });
+
+    let observer: Arc<dyn TurnObserver> = recorder.clone();
+    let approvals: Arc<dyn ApprovalHandler> = waiting.clone();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .expect("runtime");
+    let outcome = runtime
+        .block_on(Arc::clone(&session).send(
+            "Make it".to_owned(),
+            observer,
+            Some(approvals),
+            cancel,
+        ))
+        .expect("turn");
+    // The user answers "yes" after the stop; it must not run anything now.
+    *waiting.release.lock().expect("release") = true;
+    thread::sleep(Duration::from_millis(100));
+
+    assert!(outcome.aborted);
+    assert!(!folder.path().join("made.txt").exists());
+}

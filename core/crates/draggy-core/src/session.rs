@@ -1,8 +1,9 @@
 //! A conversation with a model. The shell holds the `Session` handle, calls `send` and reads events through its
 //! observer. The turn itself runs on a thread of its own, so the caller's thread is never blocked on the network.
 
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::{
@@ -16,7 +17,7 @@ use draggy_agent::prompts::{
 };
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{LoadedSkill, SkillReader};
-use draggy_agent::task_manager::Message;
+use draggy_agent::task_manager::{CancelSignal, Message};
 use draggy_tools::files::content_hash;
 
 use crate::cancel::CancelToken;
@@ -103,6 +104,7 @@ impl Engine for RunningServer {
 /// Grants the user keeps for the session are collected here and stored once the turn ends.
 struct Host {
     approvals: Option<Arc<dyn ApprovalHandler>>,
+    cancel: CancelSignal,
     kept: Vec<Grant>,
 }
 
@@ -116,13 +118,32 @@ impl TurnHost for Host {
     }
 
     fn request_approval(&mut self, request: &ApprovalRequest) -> Option<ApprovalAnswer> {
-        let handler = self.approvals.as_ref()?;
-        let choice = handler.ask(ApprovalRecord {
+        let handler = Arc::clone(self.approvals.as_ref()?);
+        let record = ApprovalRecord {
             id: request.id.clone(),
             tool: request.tool.clone(),
             target: request.target.clone(),
             reason: request.reason.clone(),
-        });
+        };
+        // The shell's handler may block until the user decides. It runs on a thread of its own so that stopping the
+        // turn answers "no" at once instead of waiting for it.
+        let (send, receive) = mpsc::channel();
+        let asked = std::thread::Builder::new()
+            .name("draggy-approval".to_owned())
+            .spawn(move || {
+                // Nobody is listening once the turn was stopped; the answer has nowhere to go.
+                let _ = send.send(handler.ask(record));
+            });
+        if asked.is_err() {
+            return None;
+        }
+        let choice = loop {
+            match receive.recv_timeout(Duration::from_millis(50)) {
+                Ok(choice) => break choice,
+                Err(RecvTimeoutError::Timeout) if !self.cancel.is_aborted() => {}
+                Err(_) => break ApprovalChoice::No,
+            }
+        };
         Some(match choice {
             ApprovalChoice::Once => ApprovalAnswer::Once,
             ApprovalChoice::Task => ApprovalAnswer::Task,
@@ -287,6 +308,7 @@ impl Session {
         let mut bridge = Bridge(observer);
         let mut host = Host {
             approvals,
+            cancel: cancel.signal().clone(),
             kept: Vec::new(),
         };
         let (mut refs, mut skills, mut ids) = (Refs, NoSkills, Counter::default());

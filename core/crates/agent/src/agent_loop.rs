@@ -2236,7 +2236,8 @@ impl<'a> Turn<'a> {
         });
         self.sync_steps();
 
-        if answer == ApprovalAnswer::No {
+        // A stop that lands while the user is deciding wins over a late "yes".
+        if answer == ApprovalAnswer::No || self.ports.cancel.is_aborted() {
             return denied_by_user(name);
         }
         // "once" leaves nothing behind: the next call of the same tool asks again.
