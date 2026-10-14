@@ -304,10 +304,8 @@ mod tests {
     fn a_path_that_climbs_out_of_the_cache_is_refused() {
         assert_eq!(cached_path(Path::new("/c"), "../escape"), None);
         assert_eq!(cached_path(Path::new("/c"), "a/../../escape"), None);
-        assert_eq!(
-            cached_path(Path::new("/c"), "a/../b"),
-            Some(PathBuf::from("/c/b"))
-        );
+        let root = std::path::absolute("/c").expect("root resolves");
+        assert_eq!(cached_path(Path::new("/c"), "a/../b"), Some(root.join("b")));
         assert_eq!(cached_path(Path::new("/c"), ""), None);
     }
 

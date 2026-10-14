@@ -36,3 +36,14 @@ pub fn files(area: &str) -> Vec<String> {
     names.sort();
     names
 }
+
+/// A path as the fixtures write it: forward slashes and no drive letter, whatever platform produced it.
+pub fn posix_path(path: &str) -> String {
+    let slashed = path.replace(std::path::MAIN_SEPARATOR, "/");
+    match slashed.as_bytes() {
+        [drive, b':', ..] if cfg!(windows) && drive.is_ascii_alphabetic() => {
+            slashed[2..].to_owned()
+        }
+        _ => slashed,
+    }
+}

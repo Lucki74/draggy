@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::{Pin, pin};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -21,7 +21,7 @@ use draggy_models::model_cache::{
     CacheError, Served, cached_path, model_file_headers, serve_model_file,
 };
 use draggy_models::model_storage::{CapabilityCache, delete_gguf_model, list_gguf_models};
-use draggy_testkit::{cases, files};
+use draggy_testkit::{cases, files, posix_path};
 use serde_json::{Value, json};
 
 // ---- helpers --------------------------------------------------------------------------------------------------------
@@ -240,7 +240,7 @@ fn fixtures_match_the_typescript_reference() {
                     let relative = input["relative"].as_str().unwrap_or_default();
                     json!(
                         cached_path(Path::new(root), relative)
-                            .map(|path| path.to_string_lossy().into_owned())
+                            .map(|path| posix_path(&path.to_string_lossy()))
                     )
                 }
                 "model-cache-headers.json" => {
@@ -1459,7 +1459,7 @@ fn a_model_redirect_loop_stops_after_twenty_hops() {
 #[test]
 fn a_cache_path_is_the_root_joined_with_the_relative_path() {
     assert_eq!(
-        cached_path(Path::new("/cache"), "org/a.bin"),
-        Some(PathBuf::from("/cache/org/a.bin"))
+        cached_path(Path::new("/cache"), "org/a.bin").map(|p| posix_path(&p.to_string_lossy())),
+        Some("/cache/org/a.bin".to_owned())
     );
 }
