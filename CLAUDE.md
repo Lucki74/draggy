@@ -31,3 +31,11 @@
    Register IPC handlers through `electron/ipcLog.cjs`. Log through `electron/logger.cjs` with a dotted scope that follows the ones already in use. No `console.*` and no raw `fetch` in `src/` outside the allowlist. Every catch logs through `log.swallow` / `logSwallow` or returns a value; the baseline is in `src/__tests__/silentCatches.test.ts`. Messages are short lowercase phrases plus a data object.
 
 See [AGENTS.md](AGENTS.md) for full context, test guidelines, and house style.
+
+## Compact instructions
+
+When compacting, keep test output, changed file paths and open decisions.
+
+## Cloud sessions
+
+The cloud VM is Linux with no display. Run only `npm run typecheck`, `npm run lint` and `npm test` (or `npm run check`). Do not run `electron:dev` or any electron-builder target.
