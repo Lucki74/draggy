@@ -1,0 +1,127 @@
+{
+  "area": "tools",
+  "description": "fileOps.revert when the path cannot go back through the guard or the stored earlier version is gone. Stateful: ops run in order in a fresh project folder {base}/project with an in-memory store. close takes workspace w1's folder out of reach; lose_version forgets the earlier version of the change named by undo. Expected: {results, state, logs}.",
+  "cases": [
+    {
+      "name": "undo is refused once the workspace no longer has its folder",
+      "input": {
+        "tree": {
+          "files": {
+            "project/a.txt": "old\n"
+          }
+        },
+        "logs": true,
+        "ops": [
+          {
+            "call": "write",
+            "path": "a.txt",
+            "contents": "new\n"
+          },
+          {
+            "call": "close",
+            "workspace": "w1"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/a.txt",
+            "created": false,
+            "bytes": 4,
+            "checkpointId": 1
+          },
+          {
+            "success": true
+          },
+          {
+            "success": false,
+            "error": "This conversation has no folder to work in. Open a project first."
+          }
+        ],
+        "state": {
+          "a.txt": "new\n"
+        },
+        "logs": [
+          {
+            "level": "info",
+            "message": "checkpoint created",
+            "data": {
+              "files": 1,
+              "bytes": 4
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "write",
+              "path": "a.txt",
+              "bytes": 4,
+              "outcome": "ok"
+            }
+          },
+          {
+            "level": "warn",
+            "message": "file op refused",
+            "data": {
+              "op": "revert",
+              "outcome": "refused"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "undo is refused when the earlier version is no longer stored",
+      "input": {
+        "tree": {
+          "files": {
+            "project/a.txt": "old\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "a.txt",
+            "contents": "new\n"
+          },
+          {
+            "call": "lose_version",
+            "undo": 0
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/a.txt",
+            "created": false,
+            "bytes": 4,
+            "checkpointId": 1
+          },
+          {
+            "success": true
+          },
+          {
+            "success": false,
+            "error": "The earlier version is no longer stored."
+          }
+        ],
+        "state": {
+          "a.txt": "new\n"
+        }
+      }
+    }
+  ]
+}

@@ -41,3 +41,10 @@ docs/
 scratch/
 build/release-notes.md
 .env.local
+
+# Rust core build output
+core/target
+
+# SQLite sidecar files the storage fixtures leave behind when a test opens a database
+shared/fixtures/**/*.db-shm
+shared/fixtures/**/*.db-wal

@@ -1,0 +1,65 @@
+{
+  "area": "engine",
+  "description": "The short reason a llama-server stopped, from the last lines it printed (failureReason). `expected` is the reason text.",
+  "cases": [
+    {
+      "name": "the error line is shown without its log prefix",
+      "input": {
+        "lines": [
+          "0.00.130.001 E llama_model_load: error loading model: no such tensor"
+        ]
+      },
+      "expected": "llama_model_load: error loading model: no such tensor"
+    },
+    {
+      "name": "only the last two error lines are shown",
+      "input": {
+        "lines": [
+          "error one",
+          "info between",
+          "failed two",
+          "error three"
+        ]
+      },
+      "expected": "failed two error three"
+    },
+    {
+      "name": "with no error word the last two lines are shown",
+      "input": {
+        "lines": [
+          "loading layers",
+          "slot ready",
+          "tokenizer done"
+        ]
+      },
+      "expected": "slot ready tokenizer done"
+    },
+    {
+      "name": "a single line is shown as it is",
+      "input": {
+        "lines": [
+          "something odd"
+        ]
+      },
+      "expected": "something odd"
+    },
+    {
+      "name": "no lines give an empty reason",
+      "input": {
+        "lines": []
+      },
+      "expected": ""
+    },
+    {
+      "name": "unable and cannot count as errors",
+      "input": {
+        "lines": [
+          "0.00.001.001 I load",
+          "0.00.002.001 E unable to allocate buffer",
+          "cannot open file"
+        ]
+      },
+      "expected": "unable to allocate buffer cannot open file"
+    }
+  ]
+}

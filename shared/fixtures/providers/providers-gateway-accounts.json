@@ -1,0 +1,447 @@
+{
+  "area": "providers",
+  "description": "gateway.cjs routeAccount(): an account's runtime answers in place of an address, streamed and once, with its failures named (fn gatewayRoutes with accountProtocol and script).",
+  "cases": [
+    {
+      "name": "streams the runtime's answer and its provider state",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "delta": {
+              "content": "Hi"
+            }
+          },
+          {
+            "providerState": {
+              "instanceId": "chatgpt",
+              "state": {
+                "threadId": "t1"
+              }
+            }
+          },
+          {
+            "finish": {
+              "reason": "stop",
+              "usage": {
+                "promptTokens": 3,
+                "outputTokens": 1
+              }
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":true,\"think\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "provider_state": {
+              "instanceId": "chatgpt",
+              "state": {
+                "threadId": "t1"
+              }
+            }
+          },
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 3,
+              "completion_tokens": 1,
+              "total_tokens": 4
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [],
+        "accountCalls": [
+          {
+            "modelId": "gpt-5.5",
+            "instanceId": "chatgpt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "answers once with the collected text, reasoning and provider state",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "delta": {
+              "reasoning": "think "
+            }
+          },
+          {
+            "delta": {
+              "content": "Hi"
+            }
+          },
+          {
+            "providerState": {
+              "instanceId": "chatgpt",
+              "state": {
+                "threadId": "t2"
+              }
+            }
+          },
+          {
+            "finish": {
+              "reason": "length",
+              "usage": {
+                "promptTokens": 9,
+                "outputTokens": 4
+              }
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hi",
+                "reasoning_content": "think "
+              },
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 4,
+            "total_tokens": 13
+          },
+          "provider_state": {
+            "instanceId": "chatgpt",
+            "state": {
+              "threadId": "t2"
+            }
+          }
+        },
+        "upstream": [],
+        "accountCalls": [
+          {
+            "modelId": "gpt-5.5",
+            "instanceId": "chatgpt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a signed-out failure mid-stream is named after the text",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "delta": {
+              "content": "x"
+            }
+          },
+          {
+            "throwFailure": {
+              "message": "signed out",
+              "kind": "account-signed-out",
+              "status": 0,
+              "providerMessage": "signed out"
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "text/event-stream",
+        "allowOrigin": "app://draggy",
+        "frames": [
+          {
+            "choices": [
+              {
+                "index": 0,
+                "delta": {
+                  "content": "x"
+                },
+                "finish_reason": null
+              }
+            ]
+          },
+          {
+            "error": {
+              "message": "signed out",
+              "kind": "account-signed-out",
+              "status": 0,
+              "providerMessage": "signed out",
+              "provider": "ChatGPT"
+            }
+          },
+          "[DONE]"
+        ],
+        "upstream": [],
+        "accountCalls": [
+          {
+            "modelId": "gpt-5.5",
+            "instanceId": "chatgpt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a failure once answers 502 with the named error",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "throwFailure": {
+              "message": "signed out",
+              "kind": "account-signed-out",
+              "status": 0,
+              "providerMessage": "signed out"
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 502,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "message": "signed out",
+            "kind": "account-signed-out",
+            "status": 0,
+            "providerMessage": "signed out",
+            "provider": "ChatGPT"
+          }
+        },
+        "upstream": [],
+        "accountCalls": [
+          {
+            "modelId": "gpt-5.5",
+            "instanceId": "chatgpt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "an error that carries no failure is an unknown error with its message",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "throwPlain": "runtime exploded"
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 502,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "status": 0,
+            "message": "runtime exploded",
+            "providerMessage": "",
+            "provider": "ChatGPT"
+          }
+        },
+        "upstream": [],
+        "accountCalls": [
+          {
+            "modelId": "gpt-5.5",
+            "instanceId": "chatgpt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "without a runtime for the account, the model is refused",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 404,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "error": {
+            "kind": "provider-unknown-error",
+            "message": "No adapter for @chatgpt/gpt-5.5."
+          }
+        },
+        "upstream": [],
+        "accountCalls": []
+      }
+    },
+    {
+      "name": "a tool call answered whole keeps its id, type and function and drops its index",
+      "input": {
+        "fn": "gatewayRoutes",
+        "allowedOrigin": "app://draggy",
+        "accountProtocol": "codex",
+        "instances": [
+          {
+            "type": "chatgpt"
+          }
+        ],
+        "script": [
+          {
+            "delta": {
+              "toolCalls": [
+                {
+                  "index": 0,
+                  "id": "call-1",
+                  "type": "function",
+                  "function": {
+                    "name": "read",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "finish": {
+              "reason": "tool_calls",
+              "usage": {
+                "promptTokens": 2,
+                "outputTokens": 1
+              }
+            }
+          }
+        ],
+        "request": {
+          "origin": "app://draggy",
+          "body": "{\"model\":\"@chatgpt/gpt-5.5\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "contentType": "application/json",
+        "allowOrigin": "app://draggy",
+        "json": {
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{}",
+                      "name": "read"
+                    },
+                    "id": "call-1",
+                    "type": "function"
+                  }
+                ]
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 1,
+            "prompt_tokens": 2,
+            "total_tokens": 3
+          }
+        },
+        "upstream": [],
+        "accountCalls": [
+          {
+            "instanceId": "chatgpt",
+            "modelId": "gpt-5.5"
+          }
+        ]
+      }
+    }
+  ]
+}

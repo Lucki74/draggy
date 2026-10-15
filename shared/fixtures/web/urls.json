@@ -1,0 +1,1766 @@
+{
+  "area": "web",
+  "description": "isFetchableUrl and refusalFor over a table of URLs. Only http and https are allowed, and this machine, its network and the metadata address are refused unless allowPrivate is set. Refused hosts are the /etc/hosts loopback names localhost.localdomain, localhost4, localhost4.localdomain4, localhost6, localhost6.localdomain6, ip6-localhost and ip6-loopback, loopback, unspecified and link-local IPv6, unique-local fc00::/7, IPv4-mapped IPv6 under the IPv4 rules, 0/8, 10/8, 127/8, 172.16/12, 192.168/16, 169.254/16 and 100.64/10, after one trailing dot is dropped and with IPv6 in the URL parser's spelling. Still allowed on purpose: 198.18/15, 64:ff9b::/96 and the deprecated site-local fec0::/10. Refusal text is null when the URL is fetchable.",
+  "cases": [
+    {
+      "name": "\"https://example.com\"",
+      "input": {
+        "url": "https://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://example.com/path?q=1#top\"",
+      "input": {
+        "url": "http://example.com/path?q=1#top",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://sub.domain.example.co.uk/a/b\"",
+      "input": {
+        "url": "https://sub.domain.example.co.uk/a/b",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"  https://example.com  \"",
+      "input": {
+        "url": "  https://example.com  ",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"﻿https://example.com\"",
+      "input": {
+        "url": "﻿https://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"HTTPS://EXAMPLE.COM/\"",
+      "input": {
+        "url": "HTTPS://EXAMPLE.COM/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://example.com.\"",
+      "input": {
+        "url": "https://example.com.",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://example.com/été?x=☃\"",
+      "input": {
+        "url": "https://example.com/été?x=☃",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://例子.测试/\"",
+      "input": {
+        "url": "https://例子.测试/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http:example.com\"",
+      "input": {
+        "url": "http:example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https:///path\"",
+      "input": {
+        "url": "https:///path",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https:\\\\\\\\example.com\\\\docs\"",
+      "input": {
+        "url": "https:\\\\example.com\\docs",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://example.com:8443/x\"",
+      "input": {
+        "url": "https://example.com:8443/x",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://localhost@example.com/\"",
+      "input": {
+        "url": "https://localhost@example.com/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://printer.local.example/\"",
+      "input": {
+        "url": "https://printer.local.example/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://localhostings.com\"",
+      "input": {
+        "url": "https://localhostings.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://notlocal.example.com\"",
+      "input": {
+        "url": "https://notlocal.example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://172.15.255.255\"",
+      "input": {
+        "url": "https://172.15.255.255",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://172.32.0.1\"",
+      "input": {
+        "url": "https://172.32.0.1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://11.0.0.1\"",
+      "input": {
+        "url": "https://11.0.0.1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://192.169.1.1\"",
+      "input": {
+        "url": "https://192.169.1.1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://169.253.1.1\"",
+      "input": {
+        "url": "https://169.253.1.1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://100.63.255.255\"",
+      "input": {
+        "url": "https://100.63.255.255",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://8.8.8.8\"",
+      "input": {
+        "url": "https://8.8.8.8",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://0x08.0x08.0x08.0x08/\"",
+      "input": {
+        "url": "https://0x08.0x08.0x08.0x08/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://127.0.0.1@evil.example/\"",
+      "input": {
+        "url": "http://127.0.0.1@evil.example/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://[2606:4700::1111]\"",
+      "input": {
+        "url": "https://[2606:4700::1111]",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://[2001:db8::1]\"",
+      "input": {
+        "url": "https://[2001:db8::1]",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://[::ffff:8.8.8.8]\"",
+      "input": {
+        "url": "https://[::ffff:8.8.8.8]",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"file:///C:/Users/someone/.aws/credentials\"",
+      "input": {
+        "url": "file:///C:/Users/someone/.aws/credentials",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: file: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"file:///etc/passwd\"",
+      "input": {
+        "url": "file:///etc/passwd",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: file: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"FILE:///etc/passwd\"",
+      "input": {
+        "url": "FILE:///etc/passwd",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: file: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"app://draggy/index.html\"",
+      "input": {
+        "url": "app://draggy/index.html",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: app: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"draggy://models/config.json\"",
+      "input": {
+        "url": "draggy://models/config.json",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: draggy: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"draggy://favicon/example.com\"",
+      "input": {
+        "url": "draggy://favicon/example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: draggy: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"javascript:alert(1)\"",
+      "input": {
+        "url": "javascript:alert(1)",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: javascript: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"data:text/html,<script>alert(1)</script>\"",
+      "input": {
+        "url": "data:text/html,<script>alert(1)</script>",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: data: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"blob:https://example.com/abc\"",
+      "input": {
+        "url": "blob:https://example.com/abc",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: blob: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"about:blank\"",
+      "input": {
+        "url": "about:blank",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: about: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"devtools://devtools/bundled/inspector.html\"",
+      "input": {
+        "url": "devtools://devtools/bundled/inspector.html",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: devtools: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"chrome://settings\"",
+      "input": {
+        "url": "chrome://settings",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: chrome: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"ftp://example.com/file.txt\"",
+      "input": {
+        "url": "ftp://example.com/file.txt",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: ftp: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"ws://example.com\"",
+      "input": {
+        "url": "ws://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: ws: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"wss://example.com\"",
+      "input": {
+        "url": "wss://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: wss: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"mailto:someone@example.com\"",
+      "input": {
+        "url": "mailto:someone@example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: mailto: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"view-source:https://example.com\"",
+      "input": {
+        "url": "view-source:https://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: view-source: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"intent://example.com/#Intent;end\"",
+      "input": {
+        "url": "intent://example.com/#Intent;end",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: intent: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"file:///C:/Users/someone/.aws/credentials\" (allowPrivate)",
+      "input": {
+        "url": "file:///C:/Users/someone/.aws/credentials",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: file: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"java\\nscript:alert(1)\"",
+      "input": {
+        "url": "java\nscript:alert(1)",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: javascript: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"java\\tscript:alert(1)\"",
+      "input": {
+        "url": "java\tscript:alert(1)",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: javascript: addresses cannot be opened. Only http:// and https:// pages can be read, so local files and app-internal addresses are out of reach. Tell the user this rather than trying another way in."
+      }
+    },
+    {
+      "name": "\"https://example.com\\u0000\"",
+      "input": {
+        "url": "https://example.com\u0000",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"https://example.com\"",
+      "input": {
+        "url": "https://example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"https://exa\\nmple.com\"",
+      "input": {
+        "url": "https://exa\nmple.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"https://example.com/\\r\\nx\"",
+      "input": {
+        "url": "https://example.com/\r\nx",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"\"",
+      "input": {
+        "url": "",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"   \"",
+      "input": {
+        "url": "   ",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"example.com\"",
+      "input": {
+        "url": "example.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"not a url\"",
+      "input": {
+        "url": "not a url",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "null",
+      "input": {
+        "url": null,
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "42",
+      "input": {
+        "url": 42,
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"https:\"",
+      "input": {
+        "url": "https:",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"https://\"",
+      "input": {
+        "url": "https://",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://\"",
+      "input": {
+        "url": "http://",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://?q=1\"",
+      "input": {
+        "url": "http://?q=1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"https://exa mple.com\"",
+      "input": {
+        "url": "https://exa mple.com",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::1%25lo]/\"",
+      "input": {
+        "url": "http://[::1%25lo]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[1::2::3]/\"",
+      "input": {
+        "url": "http://[1::2::3]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost:3000\"",
+      "input": {
+        "url": "http://localhost:3000",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://127.0.0.1:11434/api/tags\"",
+      "input": {
+        "url": "http://127.0.0.1:11434/api/tags",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::1]:8080\"",
+      "input": {
+        "url": "http://[::1]:8080",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://192.168.1.1/admin\"",
+      "input": {
+        "url": "http://192.168.1.1/admin",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://10.0.0.5\"",
+      "input": {
+        "url": "http://10.0.0.5",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://172.16.4.2\"",
+      "input": {
+        "url": "http://172.16.4.2",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://172.31.255.255\"",
+      "input": {
+        "url": "http://172.31.255.255",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://192.168.0.1:8080/x\"",
+      "input": {
+        "url": "http://192.168.0.1:8080/x",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://169.254.169.254/latest/meta-data/\"",
+      "input": {
+        "url": "http://169.254.169.254/latest/meta-data/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://printer.local\"",
+      "input": {
+        "url": "http://printer.local",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0.0.0.0\"",
+      "input": {
+        "url": "http://0.0.0.0",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://127.1.2.3\"",
+      "input": {
+        "url": "http://127.1.2.3",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://LOCALHOST/\"",
+      "input": {
+        "url": "http://LOCALHOST/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://foo.localhost/\"",
+      "input": {
+        "url": "http://foo.localhost/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost.localhost/\"",
+      "input": {
+        "url": "http://localhost.localhost/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://printer.LOCAL/\"",
+      "input": {
+        "url": "http://printer.LOCAL/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[fd00::1]/\"",
+      "input": {
+        "url": "http://[fd00::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[FD12:3456::1]/\"",
+      "input": {
+        "url": "http://[FD12:3456::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[fc00::]/\"",
+      "input": {
+        "url": "http://[fc00::]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::0001]/\"",
+      "input": {
+        "url": "http://[::0001]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[0:0:0:0:0:0:0:1]/\"",
+      "input": {
+        "url": "http://[0:0:0:0:0:0:0:1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://2130706433/\"",
+      "input": {
+        "url": "http://2130706433/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0x7f000001/\"",
+      "input": {
+        "url": "http://0x7f000001/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0x7f.0.0.1/\"",
+      "input": {
+        "url": "http://0x7f.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0x7f.1/\"",
+      "input": {
+        "url": "http://0x7f.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0x7f.0x0.0x0.0x1/\"",
+      "input": {
+        "url": "http://0x7f.0x0.0x0.0x1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0177.0.0.1/\"",
+      "input": {
+        "url": "http://0177.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://017700000001/\"",
+      "input": {
+        "url": "http://017700000001/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://127.1/\"",
+      "input": {
+        "url": "http://127.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0/\"",
+      "input": {
+        "url": "http://0/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0xa9fea9fe/\"",
+      "input": {
+        "url": "http://0xa9fea9fe/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://2852039166/\"",
+      "input": {
+        "url": "http://2852039166/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0251.0376.0251.0376/\"",
+      "input": {
+        "url": "http://0251.0376.0251.0376/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://10.1/\"",
+      "input": {
+        "url": "http://10.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://192.168.257/\"",
+      "input": {
+        "url": "http://192.168.257/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://127.0.0.1./\"",
+      "input": {
+        "url": "http://127.0.0.1./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://127.000000000.1/\"",
+      "input": {
+        "url": "http://127.000000000.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://%31%32%37.0.0.1/\"",
+      "input": {
+        "url": "http://%31%32%37.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://08.8.8.8/\"",
+      "input": {
+        "url": "http://08.8.8.8/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://999.999.999.999/\"",
+      "input": {
+        "url": "http://999.999.999.999/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://1.2.3.4.5/\"",
+      "input": {
+        "url": "http://1.2.3.4.5/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://4294967296/\"",
+      "input": {
+        "url": "http://4294967296/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0x100000000/\"",
+      "input": {
+        "url": "http://0x100000000/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://0xgg.0.0.1/\"",
+      "input": {
+        "url": "http://0xgg.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost./\"",
+      "input": {
+        "url": "http://localhost./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://printer.local./\"",
+      "input": {
+        "url": "http://printer.local./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost%2e/\"",
+      "input": {
+        "url": "http://localhost%2e/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://100.64.0.1/\"",
+      "input": {
+        "url": "http://100.64.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://198.18.0.1/\"",
+      "input": {
+        "url": "http://198.18.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[fe80::1]/\"",
+      "input": {
+        "url": "http://[fe80::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::]/\"",
+      "input": {
+        "url": "http://[::]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::ffff:127.0.0.1]/\"",
+      "input": {
+        "url": "http://[::ffff:127.0.0.1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::ffff:7f00:1]/\"",
+      "input": {
+        "url": "http://[::ffff:7f00:1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[64:ff9b::7f00:1]/\"",
+      "input": {
+        "url": "http://[64:ff9b::7f00:1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://evil.example@127.0.0.1/\"",
+      "input": {
+        "url": "http://evil.example@127.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"https://user:pass@localhost:8080/\"",
+      "input": {
+        "url": "https://user:pass@localhost:8080/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://user@[::1]/\"",
+      "input": {
+        "url": "http://user@[::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://a@b@127.0.0.1/\"",
+      "input": {
+        "url": "http://a@b@127.0.0.1/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http:\\\\\\\\127.0.0.1\\\\\"",
+      "input": {
+        "url": "http:\\\\127.0.0.1\\",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://%6c%6f%63%61%6c%68%6f%73%74/\"",
+      "input": {
+        "url": "http://%6c%6f%63%61%6c%68%6f%73%74/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost%40evil.example/\"",
+      "input": {
+        "url": "http://localhost%40evil.example/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "That is not a valid web address. Only http:// and https:// pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost:3000\" (allowPrivate)",
+      "input": {
+        "url": "http://localhost:3000",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://127.0.0.1:5173\" (allowPrivate)",
+      "input": {
+        "url": "http://127.0.0.1:5173",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[::1]:8080\" (allowPrivate)",
+      "input": {
+        "url": "http://[::1]:8080",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://10.0.0.5\" (allowPrivate)",
+      "input": {
+        "url": "http://10.0.0.5",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://0x7f.1/\" (allowPrivate)",
+      "input": {
+        "url": "http://0x7f.1/",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://localhost./\" (allowPrivate)",
+      "input": {
+        "url": "http://localhost./",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://169.254.169.254/latest/meta-data/\" (allowPrivate)",
+      "input": {
+        "url": "http://169.254.169.254/latest/meta-data/",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://printer.local\" (allowPrivate)",
+      "input": {
+        "url": "http://printer.local",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://localhost.example./\"",
+      "input": {
+        "url": "https://localhost.example./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://localhost../\"",
+      "input": {
+        "url": "http://localhost../",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[0:0::1]/\"",
+      "input": {
+        "url": "http://[0:0::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::2]/\"",
+      "input": {
+        "url": "http://[::2]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[febf::1]/\"",
+      "input": {
+        "url": "http://[febf::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[fe7f::1]/\"",
+      "input": {
+        "url": "http://[fe7f::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[fec0::1]/\"",
+      "input": {
+        "url": "http://[fec0::1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[::ffff:10.0.0.1]/\"",
+      "input": {
+        "url": "http://[::ffff:10.0.0.1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::ffff:100.127.255.255]/\"",
+      "input": {
+        "url": "http://[::ffff:100.127.255.255]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://[::ffff:100.128.0.1]/\"",
+      "input": {
+        "url": "http://[::ffff:100.128.0.1]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://[::ffff:169.254.169.254]/\"",
+      "input": {
+        "url": "http://[::ffff:169.254.169.254]/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"https://100.128.0.1\"",
+      "input": {
+        "url": "https://100.128.0.1",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://100.127.255.255\"",
+      "input": {
+        "url": "https://100.127.255.255",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"https://100.64.0.0\"",
+      "input": {
+        "url": "https://100.64.0.0",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost.localdomain/\"",
+      "input": {
+        "url": "http://localhost.localdomain/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://ip6-localhost:8080/\"",
+      "input": {
+        "url": "http://ip6-localhost:8080/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://ip6-loopback/api\"",
+      "input": {
+        "url": "http://ip6-loopback/api",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost.localdomain./\"",
+      "input": {
+        "url": "http://localhost.localdomain./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost.localdomain/\"",
+      "input": {
+        "url": "http://localhost.localdomain/",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"https://ip6-localhost.example.com/\"",
+      "input": {
+        "url": "https://ip6-localhost.example.com/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    },
+    {
+      "name": "\"http://localhost4:3000/\"",
+      "input": {
+        "url": "http://localhost4:3000/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost4.localdomain4./\"",
+      "input": {
+        "url": "http://localhost4.localdomain4./",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost6.localdomain6/\"",
+      "input": {
+        "url": "http://localhost6.localdomain6/",
+        "allowPrivate": false
+      },
+      "expected": {
+        "fetchable": false,
+        "refusal": "Refused: that address is on this machine or its local network, which is not reachable from here. Only public web pages can be read."
+      }
+    },
+    {
+      "name": "\"http://localhost6/\" (allowPrivate)",
+      "input": {
+        "url": "http://localhost6/",
+        "allowPrivate": true
+      },
+      "expected": {
+        "fetchable": true,
+        "refusal": null
+      }
+    }
+  ]
+}

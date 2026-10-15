@@ -1,0 +1,514 @@
+{
+  "area": "storage",
+  "description": "Damaged databases: a file that is not a database is set aside and replaced; a broken search index makes the database rebuild and rescue its chats and attachments. Rebuilt databases do not reindex search, which the expected results pin.",
+  "cases": [
+    {
+      "name": "a file that is not a database is set aside and replaced",
+      "input": {
+        "database": {
+          "garbage": "this is not a database at all"
+        },
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "fresh",
+                "title": "Chat fresh",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hello",
+                    "textContent": "hello"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "fresh",
+            "title": "Chat fresh",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hello",
+                "textContent": "hello"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a database with a broken search index is rebuilt and its chats rescued",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "keep",
+                "title": "Chat keep",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "important message",
+                    "textContent": "important message"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "sql",
+            "args": [
+              [
+                "DROP TABLE message_search_data"
+              ]
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "after",
+                "title": "Chat after",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "written after repair",
+                    "textContent": "written after repair"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "important"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        null,
+        [
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "important message",
+                "textContent": "important message"
+              }
+            ]
+          }
+        ],
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "after",
+            "title": "Chat after",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "written after repair",
+                "textContent": "written after repair"
+              }
+            ]
+          },
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "important message",
+                "textContent": "important message"
+              }
+            ]
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "name": "a rebuilt database keeps attachment content for the chats it rescues",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "keep",
+                "title": "Chat keep",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "look",
+                    "textContent": "look",
+                    "attachments": [
+                      {
+                        "name": "shot.png",
+                        "type": "image/png",
+                        "content": "data:image/png;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "sql",
+            "args": [
+              [
+                "DROP TABLE message_search_data"
+              ]
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        null,
+        [
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "look",
+                "textContent": "look",
+                "attachments": [
+                  {
+                    "name": "shot.png",
+                    "type": "image/png",
+                    "content": "data:image/png;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a damaged index that only quick_check reads sends the database to a rebuild",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "keep",
+                "title": "Chat keep",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "important message",
+                    "textContent": "important message"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "scribble",
+            "args": [
+              32768,
+              4096,
+              90
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "quarantined"
+          },
+          {
+            "call": "loadChatSummaries"
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "after",
+                "title": "Chat after",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "written after repair"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        null,
+        null,
+        1,
+        [
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 1
+          }
+        ],
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "after",
+            "title": "Chat after",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 1
+          },
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a healthy page scribbled over mid-file is set aside, and the rebuilt database takes writes",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "keep",
+                "title": "Chat keep",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "important message",
+                    "textContent": "important message"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "close"
+          },
+          {
+            "call": "scribble",
+            "args": [
+              4096,
+              3072,
+              90
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "quarantined"
+          },
+          {
+            "call": "loadChatSummaries"
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "after",
+                "title": "Chat after",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "written after repair"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        null,
+        null,
+        1,
+        [
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 1
+          }
+        ],
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "after",
+            "title": "Chat after",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "written after repair"
+              }
+            ]
+          },
+          {
+            "id": "keep",
+            "title": "Chat keep",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "important message",
+                "textContent": "important message"
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}

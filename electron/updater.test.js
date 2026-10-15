@@ -201,8 +201,17 @@ describe("checking for updates", () => {
     delete require.cache[updaterPath];
   });
 
-  const githubReturns = (list) =>
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => list }));
+  /** Serves GitHub's release list one page per `page=` query value; pages past the last are empty. */
+  const githubReturns = (...pages) => {
+    const fetchMock = vi.fn(async (url) => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      return { ok: true, json: async () => pages[page - 1] ?? [] };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+  const fullPage = (prefix) => Array.from({ length: 100 }, (_, index) => release(`${prefix}-${index}`));
+  const buildFeed = { provider: "generic", url: "https://github.com/Lucki74/draggy/releases/download/b-12" };
 
   it("reads latest.yml from the newest build's release", async () => {
     githubReturns([release("b-4"), release("b-12"), release("b-11")]);
@@ -217,14 +226,72 @@ describe("checking for updates", () => {
     });
   });
 
-  it("falls back to GitHub's own latest release when the list cannot be read", async () => {
+  it("never sets GitHub's own latest release as the feed when the list cannot be read", async () => {
+    const published = [];
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
+    updaterModule.configure({ automatic: false });
+
+    await updaterModule.check();
+
+    expect(fakeUpdater.feeds).toEqual([]);
+    expect(fakeUpdater.feeds.some((feed) => feed.provider === "github")).toBe(false);
+    expect(published.at(-1).status).toBe("error");
+  });
+
+  it("stays quiet when a silent check cannot read the list", async () => {
+    const published = [];
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
+    updaterModule.configure({ automatic: false });
+
+    await updaterModule.check({ silent: true });
+
+    expect(fakeUpdater.feeds).toEqual([]);
+    expect(published.some((state) => state.status === "error")).toBe(false);
+  });
+
+  it("finds a build that sits after 40 non-build releases on the same page", async () => {
+    const macos = Array.from({ length: 40 }, (_, index) => release(`macos-b-${index + 1}`));
+    const fetchMock = githubReturns([...macos, release("b-12")]);
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
     updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
-    expect(fakeUpdater.feeds.at(-1)).toEqual({ provider: "github", owner: "Lucki74", repo: "draggy" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fakeUpdater.feeds.at(-1)).toEqual(buildFeed);
+  });
+
+  it("reads the next page when the first is full of non-build releases", async () => {
+    const fetchMock = githubReturns(fullPage("other"), [release("b-12")]);
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
+    updaterModule.configure({ automatic: false });
+
+    await updaterModule.check();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fakeUpdater.feeds.at(-1)).toEqual(buildFeed);
+  });
+
+  it("gives up after five full pages without a build and reports the error when the user started the check", async () => {
+    const published = [];
+    const fetchMock = githubReturns(
+      fullPage("one"),
+      fullPage("two"),
+      fullPage("three"),
+      fullPage("four"),
+      fullPage("five"),
+      [release("b-12")],
+    );
+    updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
+    updaterModule.configure({ automatic: false });
+
+    await updaterModule.check();
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fakeUpdater.feeds).toEqual([]);
+    expect(published.at(-1).status).toBe("error");
   });
 
   it("uses DRAGGY_UPDATE_FEED without asking GitHub", async () => {

@@ -1,0 +1,1432 @@
+{
+  "area": "tools",
+  "description": "fsGuard.resolveWithin decisions. Input: tree (files, dirs, links; {base} is a fresh temp folder the runner creates), roots (folders), requested (path text), options ({mustExist, createParents}), protected (Draggy storage). Expected: {ok: true, path} or {ok: false, error}. Paths in expected use {base}. Each case is independent. A dangling link (a link whose target is missing) is refused when it is the requested path. A dangling link in the middle of a path is kept inside the folder, and the write it allows cannot create anything outside it.",
+  "cases": [
+    {
+      "name": "a relative path inside the folder is allowed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "notes.md"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/notes.md"
+      }
+    },
+    {
+      "name": "an absolute path inside the folder is allowed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "{base}/project/src/App.tsx"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/src/App.tsx"
+      }
+    },
+    {
+      "name": "a file not there yet is allowed in a folder that is",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "src/New.tsx"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/src/New.tsx"
+      }
+    },
+    {
+      "name": "a file that must exist and does not is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "missing.md",
+        "options": {
+          "mustExist": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "There is no missing.md."
+      }
+    },
+    {
+      "name": "a file that must exist and does is allowed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "notes.md",
+        "options": {
+          "mustExist": true
+        }
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/notes.md"
+      }
+    },
+    {
+      "name": "a new file in a missing folder is refused by default",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "nowhere/new.md"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That folder does not exist."
+      }
+    },
+    {
+      "name": "a relative path that walks up is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "../elsewhere/secrets.txt"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a walk up and back down is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "src/../../elsewhere/secrets.txt"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "an absolute path somewhere else is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "{base}/elsewhere/secrets.txt"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a sibling folder that starts the same way is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "{base}/project-backup/notes.md"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a null byte in the name is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "notes.md\u0000.png"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That file name is not usable."
+      }
+    },
+    {
+      "name": "a request with no name is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "   "
+      },
+      "expected": {
+        "ok": false,
+        "error": "No file was named."
+      }
+    },
+    {
+      "name": "no folder means every path is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [],
+        "requested": "notes.md"
+      },
+      "expected": {
+        "ok": false,
+        "error": "This conversation has no folder to work in. Open a project first."
+      }
+    },
+    {
+      "name": "a root folder that does not exist refuses the path",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/missing"
+        ],
+        "requested": "x.md"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That folder does not exist."
+      }
+    },
+    {
+      "name": "a link inside pointing out of the folder is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "escape.txt"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a linked folder pointing out is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "out/secrets.txt"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a link that stays inside is followed to its target",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "alias.md"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/notes.md"
+      }
+    },
+    {
+      "name": "a link to a folder inside is followed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "inner/App.tsx"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/src/App.tsx"
+      }
+    },
+    {
+      "name": "a credential folder inside the project is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": ".ssh/config"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That file holds credentials, so Draggy does not open it. Tell the user what you need and let them do it."
+      }
+    },
+    {
+      "name": "secret-shaped file names are refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": ".env"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That file holds credentials, so Draggy does not open it. Tell the user what you need and let them do it."
+      }
+    },
+    {
+      "name": "an ordinary dotfile is allowed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": ".gitignore"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/.gitignore"
+      }
+    },
+    {
+      "name": "a backslash in a directory name still splits the path for the credential check",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "x\\.ssh\\config"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That file holds credentials, so Draggy does not open it. Tell the user what you need and let them do it."
+      }
+    },
+    {
+      "name": "a backslash in a file name stays one name on Unix",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "src\\App.tsx"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/src\\App.tsx"
+      }
+    },
+    {
+      "name": "Draggy's own storage is refused inside a granted folder",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "appdata/draggy.db",
+        "protected": [
+          "{base}/project/appdata"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "error": "That is Draggy's own storage, which is not yours to edit."
+      }
+    },
+    {
+      "name": "the folder beside protected storage stays open",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "appdata-old/x.txt",
+        "protected": [
+          "{base}/project/appdata"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/appdata-old/x.txt"
+      }
+    },
+    {
+      "name": "a missing folder chain is refused unless the write creates it",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "a/b/c/new.md"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That folder does not exist."
+      }
+    },
+    {
+      "name": "a missing folder chain is allowed when the write creates it",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "a/b/c/new.md",
+        "options": {
+          "createParents": true
+        }
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/a/b/c/new.md"
+      }
+    },
+    {
+      "name": "a create that climbs out on the way is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "../elsewhere/a/b/new.md",
+        "options": {
+          "createParents": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a create under a linked folder pointing out is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "out/a/b/new.md",
+        "options": {
+          "createParents": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "relative paths resolve against the first folder",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project",
+          "{base}/second"
+        ],
+        "requested": "notes.md"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/notes.md"
+      }
+    },
+    {
+      "name": "a path in the second folder is allowed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project",
+          "{base}/second"
+        ],
+        "requested": "{base}/second/readme.md"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/second/readme.md"
+      }
+    },
+    {
+      "name": "a child named with two dots is refused as outside (TS quirk)",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "project/src/App.tsx": "export default 1;\n",
+            "project/.gitignore": "node_modules\n",
+            "project/.env": "API_KEY=fake\n",
+            "project/.ssh/config": "Host *\n",
+            "project/appdata/draggy.db": "not sqlite\n",
+            "project/appdata-old/x.txt": "old\n",
+            "project/..notes": "two dots\n",
+            "project-backup/notes.md": "other\n",
+            "elsewhere/secrets.txt": "do not read me\n",
+            "second/readme.md": "hi\n"
+          },
+          "dirs": [
+            "project/empty"
+          ],
+          "links": {
+            "project/escape.txt": "{base}/elsewhere/secrets.txt",
+            "project/out": "{base}/elsewhere",
+            "project/alias.md": "{base}/project/notes.md",
+            "project/inner": "{base}/project/src"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "..notes"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That path is outside the folder this conversation can reach."
+      }
+    },
+    {
+      "name": "a dangling link inside the folder is refused for a new file",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/dangling.txt": "{base}/outside/target.txt"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "dangling.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": false
+        },
+        "protected": []
+      },
+      "expected": {
+        "ok": false,
+        "error": "That is a link to a file that is not there, so Draggy will not create it."
+      }
+    },
+    {
+      "name": "a dangling link is refused when the request must exist",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/dangling.txt": "{base}/outside/target.txt"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "dangling.txt",
+        "options": {
+          "mustExist": true,
+          "createParents": false
+        },
+        "protected": []
+      },
+      "expected": {
+        "ok": false,
+        "error": "There is no dangling.txt."
+      }
+    },
+    {
+      "name": "a dangling folder link is refused without create parents",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/out": "{base}/outside"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "out/new.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": false
+        },
+        "protected": []
+      },
+      "expected": {
+        "ok": false,
+        "error": "That folder does not exist."
+      }
+    },
+    {
+      "name": "a dangling folder link under a create path is kept inside the folder",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/out": "{base}/outside"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "out/new.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": true
+        },
+        "protected": []
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/out/new.txt"
+      }
+    },
+    {
+      "name": "a dangling link pointing out into a folder that exists is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "elsewhere/secrets.txt": "do not read me\n"
+          },
+          "links": {
+            "project/leak.txt": "{base}/elsewhere/new-secret.txt"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "leak.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "That is a link to a file that is not there, so Draggy will not create it."
+      }
+    },
+    {
+      "name": "a dangling folder link into a folder that exists is kept inside the folder for a create path",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n",
+            "elsewhere/secrets.txt": "do not read me\n"
+          },
+          "links": {
+            "project/out2": "{base}/elsewhere/newdir"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "out2/new.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": true
+        }
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/out2/new.txt"
+      }
+    },
+    {
+      "name": "a dangling link to a file inside the folder is refused",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/later.txt": "{base}/project/real.txt"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "later.txt",
+        "options": {
+          "mustExist": false,
+          "createParents": false
+        },
+        "protected": []
+      },
+      "expected": {
+        "ok": false,
+        "error": "That is a link to a file that is not there, so Draggy will not create it."
+      }
+    },
+    {
+      "name": "a path under a regular file resolves instead of throwing",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "# notes\n"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "notes.md/child"
+      },
+      "expected": {
+        "ok": true,
+        "path": "{base}/project/notes.md/child"
+      }
+    },
+    {
+      "name": "a path under a link loop is refused as a missing folder",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project"
+          ],
+          "links": {
+            "project/loop": "{base}/project/loop"
+          }
+        },
+        "roots": [
+          "{base}/project"
+        ],
+        "requested": "loop/x"
+      },
+      "expected": {
+        "ok": false,
+        "error": "That folder does not exist."
+      }
+    }
+  ]
+}

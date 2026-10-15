@@ -1,0 +1,69 @@
+{
+  "area": "web",
+  "description": "unwrapRedirect: DuckDuckGo redirector links become their uddg target when that target is http(s).",
+  "cases": [
+    {
+      "name": "uddg is unwrapped",
+      "input": {
+        "url": "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.cdc.gov%2Flightning%2F&rut=abc"
+      },
+      "expected": "https://www.cdc.gov/lightning/"
+    },
+    {
+      "name": "an ordinary url is left alone",
+      "input": {
+        "url": "https://example.com/a?b=c"
+      },
+      "expected": "https://example.com/a?b=c"
+    },
+    {
+      "name": "a non-http uddg target is not followed",
+      "input": {
+        "url": "https://duckduckgo.com/l/?uddg=javascript%3Aalert(1)"
+      },
+      "expected": "https://duckduckgo.com/l/?uddg=javascript%3Aalert(1)"
+    },
+    {
+      "name": "a uddg on another host is ignored",
+      "input": {
+        "url": "https://evil.example/l/?uddg=https%3A%2F%2Fx.example%2F"
+      },
+      "expected": "https://evil.example/l/?uddg=https%3A%2F%2Fx.example%2F"
+    },
+    {
+      "name": "a subdomain of duckduckgo is matched",
+      "input": {
+        "url": "https://html.duckduckgo.com/l/?uddg=http%3A%2F%2Fx.example%2F"
+      },
+      "expected": "http://x.example/"
+    },
+    {
+      "name": "the host match ignores case",
+      "input": {
+        "url": "https://DUCKDUCKGO.COM/l/?uddg=https%3A%2F%2Fx.example%2F"
+      },
+      "expected": "https://x.example/"
+    },
+    {
+      "name": "a duckduckgo url without uddg is left alone",
+      "input": {
+        "url": "https://duckduckgo.com/?q=x"
+      },
+      "expected": "https://duckduckgo.com/?q=x"
+    },
+    {
+      "name": "plus in the target decodes to a space",
+      "input": {
+        "url": "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fx.example%2Fa+b"
+      },
+      "expected": "https://x.example/a b"
+    },
+    {
+      "name": "text that is not a url is returned unchanged",
+      "input": {
+        "url": "not a url"
+      },
+      "expected": "not a url"
+    }
+  ]
+}

@@ -1,0 +1,1140 @@
+{
+  "area": "providers",
+  "description": "Upstream stream into neutral events (adapters/*.cjs translateStream). The input chunks are read as the reference reads them, so a case can split a line or a UTF-8 character across reads. Each event is what the reference handed to its writer; an error ends the list.",
+  "cases": [
+    {
+      "name": "OpenAI: text and reasoning, then the upstream counts",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think \"},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}]}\n\n",
+          "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":2}}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "think "
+        },
+        {
+          "type": "text_delta",
+          "text": "Hel"
+        },
+        {
+          "type": "text_delta",
+          "text": "lo"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 9,
+            "output_tokens": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: parallel tool calls arrive whole, each once",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"id\":\"b\",\"type\":\"function\",\"function\":{\"name\":\"list_dir\",\"arguments\":\"{}\"}}]},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"x\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "id": "a",
+          "name": "read_file",
+          "arguments": "{\"path\":"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 1,
+          "id": "b",
+          "name": "list_dir",
+          "arguments": "{}"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "arguments": "\"x\"}"
+        },
+        {
+          "type": "finish",
+          "reason": "tool_calls",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a line split across reads",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"con",
+          "tent\":\"A\"},\"finish_reason\":null}]}\n",
+          "\ndata: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "A"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a character split across reads",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          [
+            100,
+            97,
+            116,
+            97,
+            58,
+            32,
+            123,
+            34,
+            99,
+            104,
+            111,
+            105,
+            99,
+            101,
+            115,
+            34,
+            58,
+            91,
+            123,
+            34,
+            105,
+            110,
+            100,
+            101,
+            120,
+            34,
+            58,
+            48,
+            44,
+            34,
+            100,
+            101,
+            108,
+            116,
+            97,
+            34,
+            58,
+            123,
+            34,
+            99,
+            111,
+            110,
+            116,
+            101,
+            110,
+            116,
+            34,
+            58,
+            34,
+            226
+          ],
+          [
+            130,
+            172,
+            117,
+            114,
+            111,
+            34,
+            125,
+            44,
+            34,
+            102,
+            105,
+            110,
+            105,
+            115,
+            104,
+            95,
+            114,
+            101,
+            97,
+            115,
+            111,
+            110,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            125,
+            93,
+            125,
+            10,
+            10,
+            100,
+            97,
+            116,
+            97,
+            58,
+            32,
+            91,
+            68,
+            79,
+            78,
+            69,
+            93,
+            10,
+            10
+          ]
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "€uro"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a length stop keeps its reason",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"r\"},\"finish_reason\":null}]}\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":\"length\"}]}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "r"
+        },
+        {
+          "type": "text_delta",
+          "text": "cut"
+        },
+        {
+          "type": "finish",
+          "reason": "length",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a hosted tool call ends the turn with an error",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"ws\",\"type\":\"web_search\",\"web_search\":{}}]},\"finish_reason\":null}]}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-unknown-error",
+            "status": 0,
+            "message": "The provider called its own tool (web_search), which Draggy never offers.",
+            "providerMessage": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a content filter gives its text, then a refusal",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"no\"},\"finish_reason\":\"content_filter\"}]}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "no"
+        },
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-refused",
+            "status": 200,
+            "message": "content_filter",
+            "providerMessage": "content_filter"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: an in-stream rate limit error",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {\"error\":{\"message\":\"Rate limit reached\",\"code\":429}}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-rate-limited",
+            "status": 429,
+            "message": "Rate limit reached",
+            "providerMessage": "Rate limit reached"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a malformed event is skipped",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: {bad\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n",
+          "data: [DONE]\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "ok"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: nothing after [DONE] in the same read",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: [DONE]\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"late\"},\"finish_reason\":null}]}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a read after [DONE] is still read",
+      "input": {
+        "protocol": "openai",
+        "chunks": [
+          "data: [DONE]\n\n",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"later\"},\"finish_reason\":\"stop\"}]}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "later"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: an empty stream finishes as a stop with no counts",
+      "input": {
+        "protocol": "openai",
+        "chunks": []
+      },
+      "expected": [
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: thinking, text and tool calls, with the signed thinking tagged for its instance",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"look \"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"in a\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"sig-1\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Reading.\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"path\\\":\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"a\\\"}\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":3,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_2\",\"name\":\"list_files\",\"input\":{}}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":3}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":7}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "look "
+        },
+        {
+          "type": "reasoning_delta",
+          "text": "in a"
+        },
+        {
+          "type": "text_delta",
+          "text": "Reading."
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "id": "toolu_1",
+          "name": "read_file",
+          "arguments": ""
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "arguments": "{\"path\":"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "arguments": "\"a\"}"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 1,
+          "id": "toolu_2",
+          "name": "list_files",
+          "arguments": ""
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 1,
+          "arguments": "{}"
+        },
+        {
+          "type": "provider_state",
+          "state": {
+            "instanceId": "anthropic",
+            "state": {
+              "blocks": [
+                {
+                  "type": "thinking",
+                  "thinking": "look in a",
+                  "signature": "sig-1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "finish",
+          "reason": "tool_calls",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 7
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: max_tokens is a length, and nothing signed means no provider state",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"cut\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "cut"
+        },
+        {
+          "type": "finish",
+          "reason": "length",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: a redacted thinking block is kept as signed",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"redacted_thinking\",\"data\":\"opaque\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hi\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "Hi"
+        },
+        {
+          "type": "provider_state",
+          "state": {
+            "instanceId": "anthropic",
+            "state": {
+              "blocks": [
+                {
+                  "type": "redacted_thinking",
+                  "data": "opaque"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: a call with no arguments streams as an empty object",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"t\",\"name\":\"list_files\",\"input\":{}}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "id": "t",
+          "name": "list_files",
+          "arguments": ""
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "arguments": "{}"
+        },
+        {
+          "type": "finish",
+          "reason": "tool_calls",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: no instance means the signed thinking is not tagged",
+      "input": {
+        "protocol": "anthropic",
+        "instanceId": null,
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"x\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"s\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "x"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: a server tool ends the turn with an error",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"server_tool_use\",\"id\":\"srv_1\",\"name\":\"web_search\",\"input\":{}}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-unknown-error",
+            "status": 0,
+            "message": "The provider called its own tool (server_tool_use), which Draggy never offers.",
+            "providerMessage": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: an overloaded error mid-stream is a 529",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"Overloaded\"}}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-unknown-error",
+            "status": 529,
+            "message": "Overloaded",
+            "providerMessage": "Overloaded"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: a refusal stop is a refused error",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"refusal\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-refused",
+            "status": 200,
+            "message": "refusal",
+            "providerMessage": "refusal"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anthropic: an event split across reads",
+      "input": {
+        "protocol": "anthropic",
+        "chunks": [
+          "event: message_start\ndata: {\"t",
+          "ype\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":10,\"cache_read_input_tokens\":90,\"output_tokens\":1}}}\n\n",
+          "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+          "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"é\"}}\n\n",
+          "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+          "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+          "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "é"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 100,
+            "output_tokens": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: thoughts, text and parallel calls, with the signatures tagged for its instance",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"look \",\"thought\":true},{\"text\":\"in a\",\"thought\":true}]}}]}\r\n\r\n",
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Looking.\"}]}}]}\r\n\r\n",
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"read_file\",\"args\":{\"path\":\"a\"}},\"thoughtSignature\":\"sig-call\"},{\"functionCall\":{\"name\":\"list_files\",\"args\":{}}}]},\"finishReason\":\"STOP\"}]}\r\n\r\n",
+          "data: {\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3}}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "look "
+        },
+        {
+          "type": "reasoning_delta",
+          "text": "in a"
+        },
+        {
+          "type": "text_delta",
+          "text": "Looking."
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "id": "call_0",
+          "name": "read_file",
+          "arguments": "{\"path\":\"a\"}"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 1,
+          "id": "call_1",
+          "name": "list_files",
+          "arguments": "{}"
+        },
+        {
+          "type": "provider_state",
+          "state": {
+            "instanceId": "gemini",
+            "state": {
+              "calls": [
+                "sig-call",
+                ""
+              ],
+              "text": ""
+            }
+          }
+        },
+        {
+          "type": "finish",
+          "reason": "tool_calls",
+          "usage": {
+            "prompt_tokens": 12,
+            "output_tokens": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: MAX_TOKENS is a length",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"cut\"}]},\"finishReason\":\"MAX_TOKENS\"}]}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "cut"
+        },
+        {
+          "type": "finish",
+          "reason": "length",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: a safety stop is a refused error",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"no\"}]},\"finishReason\":\"SAFETY\"}]}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "no"
+        },
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-refused",
+            "status": 200,
+            "message": "SAFETY",
+            "providerMessage": "SAFETY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: a blocked prompt is a refused error with its reason",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"promptFeedback\":{\"blockReason\":\"PROHIBITED_CONTENT\"}}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-refused",
+            "status": 200,
+            "message": "PROHIBITED_CONTENT",
+            "providerMessage": "PROHIBITED_CONTENT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: hosted code execution ends the turn with an error",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"1\"}}]}}]}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-unknown-error",
+            "status": 0,
+            "message": "The provider called its own tool (code_execution), which Draggy never offers.",
+            "providerMessage": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: an error object carries the code",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"error\":{\"code\":429,\"message\":\"Resource exhausted\"}}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-rate-limited",
+            "status": 429,
+            "message": "Resource exhausted",
+            "providerMessage": "Resource exhausted"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: a text signature is kept with no calls",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hi\",\"thoughtSignature\":\"sig-text\"}]},\"finishReason\":\"STOP\"}]}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "Hi"
+        },
+        {
+          "type": "provider_state",
+          "state": {
+            "instanceId": "gemini",
+            "state": {
+              "calls": [],
+              "text": "sig-text"
+            }
+          }
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gemini: a line split across reads, with CRLF endings",
+      "input": {
+        "protocol": "gemini",
+        "chunks": [
+          "data: {\"candidates\":[{\"co",
+          "ntent\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hel\"}]}}]}\r\n\r\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"lo\"}]},\"finishReason\":\"STOP\"}]}\r\n\r\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "Hel"
+        },
+        {
+          "type": "text_delta",
+          "text": "lo"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: text and thinking, then the counts",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{\"message\":{\"role\":\"assistant\",\"content\":\"\",\"thinking\":\"hmm\"},\"done\":false}\n",
+          "{\"message\":{\"role\":\"assistant\",\"content\":\"Hi\"},\"done\":false}\n",
+          "{\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\",\"prompt_eval_count\":7,\"eval_count\":3}\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "reasoning_delta",
+          "text": "hmm"
+        },
+        {
+          "type": "text_delta",
+          "text": "Hi"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 7,
+            "output_tokens": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: whole tool calls are numbered and finish as a tool call",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"function\":{\"name\":\"read_file\",\"arguments\":{\"path\":\"a\"}}},{\"function\":{\"name\":\"list_dir\",\"arguments\":{}}}]},\"done\":false}\n",
+          "{\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\"}\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "tool_call_delta",
+          "index": 0,
+          "id": "call_0",
+          "name": "read_file",
+          "arguments": "{\"path\":\"a\"}"
+        },
+        {
+          "type": "tool_call_delta",
+          "index": 1,
+          "id": "call_1",
+          "name": "list_dir",
+          "arguments": "{}"
+        },
+        {
+          "type": "finish",
+          "reason": "tool_calls",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: a length stop split across reads",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{\"message\"",
+          ":{\"content\":\"cut\"},\"done\":true,\"done_reason\":\"length\"}\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "cut"
+        },
+        {
+          "type": "finish",
+          "reason": "length",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: an error reported mid-stream names its kind",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{\"error\":\"model \\\"nope\\\" not found, try pulling it first\"}\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-model-not-found",
+            "status": 500,
+            "message": "model \"nope\" not found, try pulling it first",
+            "providerMessage": "model \"nope\" not found, try pulling it first"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: a last line with no newline is still read",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{\"message\":{\"content\":\"a\"},\"done\":false}\n{\"message\":{\"content\":\"b\"},\"done\":true,\"done_reason\":\"stop\"}"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "a"
+        },
+        {
+          "type": "text_delta",
+          "text": "b"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: blank lines are ignored",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "\n\n{\"message\":{\"content\":\"x\"},\"done\":true,\"done_reason\":\"stop\"}\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "text_delta",
+          "text": "x"
+        },
+        {
+          "type": "finish",
+          "reason": "stop",
+          "usage": {
+            "prompt_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama: a malformed line is an unknown error, as the reference throws",
+      "input": {
+        "protocol": "ollama",
+        "chunks": [
+          "{nope\n"
+        ]
+      },
+      "expected": [
+        {
+          "type": "error",
+          "error": {
+            "kind": "provider-unknown-error"
+          }
+        }
+      ]
+    }
+  ]
+}

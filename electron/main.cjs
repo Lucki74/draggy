@@ -1587,6 +1587,8 @@ async function scrapeInHiddenWindow({ url, userAgent, readyExpression, extract }
       contextIsolation: true,
     },
   });
+  // A hidden page never opens windows of its own, so a link cannot reach an address the URL check refused.
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
   try {
     await win.loadURL(url, {
@@ -1649,14 +1651,43 @@ ipc.handle("get-page-content", async (event, url) => {
       webgl: true,
     },
   });
+  // A hidden page never opens windows of its own, so a link cannot reach an address the URL check refused.
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
+  // Each hop is checked as it arrives, server redirects and navigations the page starts itself. Refusing one cancels it.
+  let refusedHop = null;
+  win.webContents.on("will-redirect", (hopEvent, hop) => {
+    if (urlPolicy.isFetchableUrl(hop)) return;
+    hopEvent.preventDefault();
+    refusedHop = hop;
+    log.warn("read-url", "redirect refused");
+  });
+  win.webContents.on("will-navigate", (hopEvent, hop) => {
+    if (urlPolicy.isFetchableUrl(hop)) return;
+    hopEvent.preventDefault();
+    refusedHop = hop;
+    log.warn("read-url", "navigation refused");
+  });
+  // A subframe's about: or blob: page has no address to check, so only web addresses are held to the policy.
+  win.webContents.on("will-frame-navigate", (details) => {
+    if (details.isMainFrame || !/^https?:/i.test(details.url)) return;
+    if (urlPolicy.isFetchableUrl(details.url)) return;
+    details.preventDefault();
+    refusedHop = details.url;
+    log.warn("read-url", "frame navigation refused");
+  });
 
   try {
-    await win.loadURL(url, {
-      userAgent: cleanUserAgent(win.webContents),
-      timeout: 30000,
-    });
+    await win
+      .loadURL(url, {
+        userAgent: cleanUserAgent(win.webContents),
+        timeout: 30000,
+      })
+      .catch((e) => {
+        if (!refusedHop) throw e;
+      });
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 6 && !refusedHop; i++) {
       const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
 
       // A challenge is not something to wait out. Saying so at once gives the
@@ -1680,6 +1711,11 @@ ipc.handle("get-page-content", async (event, url) => {
       }
 
       await sleep(2000);
+    }
+
+    if (refusedHop) {
+      win.destroy();
+      return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(refusedHop), url };
     }
 
     const result = await win.webContents.executeJavaScript(`
@@ -1726,6 +1762,9 @@ function getBrowserSession() {
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
+
+  // A hidden page never opens windows of its own, so a link cannot reach an address the URL check refused.
+  browserSession.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
   browserSession.on('closed', () => {
     browserSession = null;

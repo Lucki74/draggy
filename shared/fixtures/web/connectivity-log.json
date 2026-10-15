@@ -1,0 +1,400 @@
+{
+  "area": "web",
+  "description": "checkConnectivity over repeated checks, with the lines it logs. A check is online for 2xx and 3xx and offline for anything else, a request error or a timeout. The first check logs a warning when it is offline; after that only a change is logged, as 'went offline' or 'back online'. The CJS keeps its last answer for the whole process, so each case starts from a fresh module. Each step gives the answer and the net events of that check.",
+  "cases": [
+    {
+      "name": "an online first check logs nothing",
+      "input": {
+        "ops": [
+          {
+            "outcome": 200
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": true,
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "an offline first check logs one warning",
+      "input": {
+        "ops": [
+          {
+            "outcome": "error"
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a timed out first check logs the warning",
+      "input": {
+        "ops": [
+          {
+            "outcome": "timeout"
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a first check answered with 404 is offline and logs the warning",
+      "input": {
+        "ops": [
+          {
+            "outcome": 404
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "repeated offline checks log the warning only once",
+      "input": {
+        "ops": [
+          {
+            "outcome": "error"
+          },
+          {
+            "outcome": "error"
+          },
+          {
+            "outcome": 500
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": false,
+            "logs": []
+          },
+          {
+            "online": false,
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "going offline logs once, and staying offline logs nothing more",
+      "input": {
+        "ops": [
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": "error"
+          },
+          {
+            "outcome": "error"
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": true,
+            "logs": []
+          },
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "went offline",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": false,
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "coming back online after an offline first check logs once",
+      "input": {
+        "ops": [
+          {
+            "outcome": "error"
+          },
+          {
+            "outcome": 204
+          },
+          {
+            "outcome": 200
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": true,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "back online",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": true,
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a redirect answer counts as online and logs no change",
+      "input": {
+        "ops": [
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": 302
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": true,
+            "logs": []
+          },
+          {
+            "online": true,
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server error counts as offline and logs going offline",
+      "input": {
+        "ops": [
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": 500
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": true,
+            "logs": []
+          },
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "went offline",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a timeout after an online check logs going offline",
+      "input": {
+        "ops": [
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": "timeout"
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": true,
+            "logs": []
+          },
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "went offline",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a full cycle logs every change in order",
+      "input": {
+        "ops": [
+          {
+            "outcome": "error"
+          },
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": 200
+          },
+          {
+            "outcome": "timeout"
+          },
+          {
+            "outcome": 302
+          },
+          {
+            "outcome": "error"
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net",
+                "message": "offline at first check",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": true,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "back online",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": true,
+            "logs": []
+          },
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "went offline",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": true,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "back online",
+                "data": {}
+              }
+            ]
+          },
+          {
+            "online": false,
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net",
+                "message": "went offline",
+                "data": {}
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "area": "providers",
+  "description": "gemini/install.cjs constants and installDir() (fn installDir, constants).",
+  "cases": [
+    {
+      "name": "the install folder is under the pinned version",
+      "input": {
+        "fn": "installDir",
+        "appData": "/data/Draggy"
+      },
+      "expected": "/data/Draggy/gemini/cli/0.61.0"
+    },
+    {
+      "name": "the pinned version",
+      "input": {
+        "fn": "constants",
+        "name": "VERSION"
+      },
+      "expected": "0.61.0"
+    },
+    {
+      "name": "the expected size",
+      "input": {
+        "fn": "constants",
+        "name": "EXPECTED_BYTES"
+      },
+      "expected": 98294669
+    }
+  ]
+}

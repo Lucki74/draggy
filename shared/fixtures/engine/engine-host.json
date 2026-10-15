@@ -1,0 +1,189 @@
+{
+  "area": "engine",
+  "description": "Engine host, as ordered steps on two fake engines. `start` runs the launch with its outcome (success, failure with a detail, or throw with a message) and gives {success, kind} or {error}. `stop` stops both. `status` gives the reported engine, and `state` the active kind and how many times each engine was stopped.",
+  "cases": [
+    {
+      "name": "starting the other engine stops the first",
+      "input": {
+        "steps": [
+          {
+            "op": "start",
+            "kind": "llamacpp",
+            "outcome": "success"
+          },
+          {
+            "op": "start",
+            "kind": "colibri",
+            "outcome": "success"
+          },
+          {
+            "op": "status"
+          },
+          {
+            "op": "state"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "kind": null
+        },
+        {
+          "success": true,
+          "kind": null
+        },
+        {
+          "kind": "colibri",
+          "running": true,
+          "port": 1,
+          "model": "m"
+        },
+        {
+          "active": "colibri",
+          "stops": {
+            "llamacpp": 1,
+            "colibri": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "a failed start leaves nothing active",
+      "input": {
+        "steps": [
+          {
+            "op": "start",
+            "kind": "colibri",
+            "outcome": "failure",
+            "detail": "colibri-nomem"
+          },
+          {
+            "op": "state"
+          },
+          {
+            "op": "status"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": false,
+          "kind": "colibri-nomem"
+        },
+        {
+          "active": null,
+          "stops": {
+            "llamacpp": 1,
+            "colibri": 0
+          }
+        },
+        {
+          "kind": null,
+          "running": false,
+          "port": null,
+          "model": null
+        }
+      ]
+    },
+    {
+      "name": "a thrown start stays marked as the engine that was starting",
+      "input": {
+        "steps": [
+          {
+            "op": "start",
+            "kind": "llamacpp",
+            "outcome": "throw",
+            "message": "boom"
+          },
+          {
+            "op": "state"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "error": "boom"
+        },
+        {
+          "active": "llamacpp",
+          "stops": {
+            "llamacpp": 0,
+            "colibri": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "stop reaches both and an unknown engine is refused",
+      "input": {
+        "steps": [
+          {
+            "op": "stop"
+          },
+          {
+            "op": "state"
+          },
+          {
+            "op": "start",
+            "kind": "vllm",
+            "outcome": "success"
+          }
+        ]
+      },
+      "expected": [
+        null,
+        {
+          "active": null,
+          "stops": {
+            "llamacpp": 1,
+            "colibri": 1
+          }
+        },
+        {
+          "error": "Unknown engine: vllm"
+        }
+      ]
+    },
+    {
+      "name": "status reports a running llama.cpp engine",
+      "input": {
+        "steps": [
+          {
+            "op": "start",
+            "kind": "llamacpp",
+            "outcome": "success"
+          },
+          {
+            "op": "status"
+          },
+          {
+            "op": "stop"
+          },
+          {
+            "op": "status"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "kind": null
+        },
+        {
+          "kind": "llamacpp",
+          "running": true,
+          "port": 1,
+          "model": "m"
+        },
+        null,
+        {
+          "kind": null,
+          "running": false,
+          "port": null,
+          "model": null
+        }
+      ]
+    }
+  ]
+}

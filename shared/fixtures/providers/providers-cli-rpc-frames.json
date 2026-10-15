@@ -1,0 +1,187 @@
+{
+  "area": "providers",
+  "description": "rpc.cjs splitLines(): chunks of bytes in, whole lines and oversize reports out (fn frames).",
+  "cases": [
+    {
+      "name": "two lines in one chunk",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          "{\"a\":1}\n{\"b\":2}\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "{\"a\":1}",
+          "{\"b\":2}"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "a line split across chunks",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          "{\"meth",
+          "od\":\"x\"}\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "{\"method\":\"x\"}"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "empty lines are skipped",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          "\n\nabc\n\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "abc"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "trailing bytes without a newline are not emitted",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          "done\nhalf"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "done"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "an oversize line is dropped whole and the next line arrives",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          "{\"big\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}\n{\"small\":1}\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "{\"small\":1}"
+        ],
+        "oversize": [
+          90
+        ]
+      }
+    },
+    {
+      "name": "an oversize line in one chunk reports its size",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 10,
+        "chunks": [
+          "0123456789abcdef\nok\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "ok"
+        ],
+        "oversize": [
+          16
+        ]
+      }
+    },
+    {
+      "name": "a line of exactly the limit is kept",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 5,
+        "chunks": [
+          "12345\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "12345"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "a line one byte over the limit is dropped",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 5,
+        "chunks": [
+          "123456\nok\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "ok"
+        ],
+        "oversize": [
+          6
+        ]
+      }
+    },
+    {
+      "name": "a multi-byte character split across chunks",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 64,
+        "chunks": [
+          [
+            97,
+            195
+          ],
+          [
+            169,
+            10
+          ]
+        ]
+      },
+      "expected": {
+        "lines": [
+          "aé"
+        ],
+        "oversize": []
+      }
+    },
+    {
+      "name": "an oversize run over many chunks",
+      "input": {
+        "fn": "frames",
+        "maxLineBytes": 8,
+        "chunks": [
+          "aaaa",
+          "bbbb",
+          "cccc",
+          "dd\nafter\n"
+        ]
+      },
+      "expected": {
+        "lines": [
+          "after"
+        ],
+        "oversize": [
+          12
+        ]
+      }
+    }
+  ]
+}

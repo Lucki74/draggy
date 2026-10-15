@@ -1,0 +1,891 @@
+{
+  "area": "contextBreakdown",
+  "description": "Context breakdown: splitting a measured prompt into parts, the window view, compact thresholds, token-count parsing and formatting, and popover details. Pure functions in src/agent/contextBreakdown.ts. Token counts print as JavaScript does; parseTokenCount returns the string undefined for an invalid count.",
+  "cases": [
+    {
+      "name": "tokens round up by four characters",
+      "input": {
+        "op": "tokensOf",
+        "chars": 5
+      },
+      "expected": 2
+    },
+    {
+      "name": "a zero count is zero tokens",
+      "input": {
+        "op": "tokensOf",
+        "chars": 0
+      },
+      "expected": 0
+    },
+    {
+      "name": "a negative count is zero tokens",
+      "input": {
+        "op": "tokensOf",
+        "chars": -3
+      },
+      "expected": 0
+    },
+    {
+      "name": "the conversation takes whatever the fixed parts leave",
+      "input": {
+        "op": "measureBreakdown",
+        "parts": {
+          "systemChars": 4000,
+          "toolChars": 2000,
+          "memoryChars": 800,
+          "skillChars": 400,
+          "summaryChars": 0
+        },
+        "measured": 5000
+      },
+      "expected": {
+        "system": 1000,
+        "tools": 500,
+        "memory": 200,
+        "skills": 100,
+        "loadedSkills": 0,
+        "summary": 0,
+        "messages": 3200
+      }
+    },
+    {
+      "name": "loaded skills are kept apart from the list on offer",
+      "input": {
+        "op": "measureBreakdown",
+        "parts": {
+          "systemChars": 4000,
+          "toolChars": 2000,
+          "memoryChars": 800,
+          "skillChars": 400,
+          "summaryChars": 0,
+          "loadedSkillChars": 2400
+        },
+        "measured": 5600
+      },
+      "expected": {
+        "system": 1000,
+        "tools": 500,
+        "memory": 200,
+        "skills": 100,
+        "loadedSkills": 600,
+        "summary": 0,
+        "messages": 3200
+      }
+    },
+    {
+      "name": "scaled estimates still add up to the measured count",
+      "input": {
+        "op": "measureBreakdown",
+        "parts": {
+          "systemChars": 4000,
+          "toolChars": 2000,
+          "memoryChars": 800,
+          "skillChars": 400,
+          "summaryChars": 0
+        },
+        "measured": 900
+      },
+      "expected": {
+        "system": 500,
+        "tools": 250,
+        "memory": 100,
+        "skills": 50,
+        "loadedSkills": 0,
+        "summary": 0,
+        "messages": 0
+      }
+    },
+    {
+      "name": "an unmeasured prompt is estimated from the characters",
+      "input": {
+        "op": "measureBreakdown",
+        "parts": {
+          "systemChars": 4000,
+          "toolChars": 2000,
+          "memoryChars": 800,
+          "skillChars": 400,
+          "summaryChars": 0
+        },
+        "measured": 0,
+        "conversationChars": 4000
+      },
+      "expected": {
+        "system": 1000,
+        "tools": 500,
+        "memory": 200,
+        "skills": 100,
+        "loadedSkills": 0,
+        "summary": 0,
+        "messages": 1000
+      }
+    },
+    {
+      "name": "a fixed part larger than the measured total is scaled down",
+      "input": {
+        "op": "measureBreakdown",
+        "parts": {
+          "systemChars": 40000,
+          "toolChars": 0,
+          "memoryChars": 0,
+          "skillChars": 0,
+          "summaryChars": 4
+        },
+        "measured": 100
+      },
+      "expected": {
+        "system": 99,
+        "tools": 0,
+        "memory": 0,
+        "skills": 0,
+        "loadedSkills": 0,
+        "summary": 0,
+        "messages": 1
+      }
+    },
+    {
+      "name": "a window with a measured prompt, a draft and free space",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": {
+            "messages": 3200,
+            "system": 1000,
+            "tools": 500,
+            "memory": 200,
+            "skills": 100,
+            "loadedSkills": 0,
+            "summary": 0
+          },
+          "draftTokens": 100,
+          "exact": true,
+          "windowTokens": 100000,
+          "limitTokens": null
+        }
+      },
+      "expected": {
+        "measured": true,
+        "exact": true,
+        "usedTokens": 5000,
+        "windowTokens": 100000,
+        "percent": 5,
+        "rows": [
+          {
+            "id": "messages",
+            "tokens": 3100,
+            "percent": 3.1
+          },
+          {
+            "id": "system",
+            "tokens": 1000,
+            "percent": 1
+          },
+          {
+            "id": "tools",
+            "tokens": 500,
+            "percent": 0.5
+          },
+          {
+            "id": "skills",
+            "tokens": 100,
+            "percent": 0.1
+          },
+          {
+            "id": "memory",
+            "tokens": 200,
+            "percent": 0.2
+          },
+          {
+            "id": "draft",
+            "tokens": 100,
+            "percent": 0.1
+          },
+          {
+            "id": "free",
+            "tokens": 95000,
+            "percent": 95
+          }
+        ],
+        "compactAtTokens": 60000,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "an overfull window never reports negative free space",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": {
+            "messages": 200000,
+            "system": 0,
+            "tools": 0,
+            "memory": 0,
+            "skills": 0,
+            "loadedSkills": 0,
+            "summary": 0
+          },
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 100000,
+          "limitTokens": null
+        }
+      },
+      "expected": {
+        "measured": true,
+        "exact": true,
+        "usedTokens": 200000,
+        "windowTokens": 100000,
+        "percent": 200,
+        "rows": [
+          {
+            "id": "messages",
+            "tokens": 200000,
+            "percent": 200
+          },
+          {
+            "id": "free",
+            "tokens": 0,
+            "percent": 0
+          }
+        ],
+        "compactAtTokens": 60000,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "an unmeasured window shows only free space",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": null,
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 8192,
+          "limitTokens": null
+        }
+      },
+      "expected": {
+        "measured": false,
+        "exact": true,
+        "usedTokens": 0,
+        "windowTokens": 8192,
+        "percent": 0,
+        "rows": [
+          {
+            "id": "free",
+            "tokens": 8192,
+            "percent": 100
+          }
+        ],
+        "compactAtTokens": 4915,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "a draft larger than the conversation is clamped to it",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": {
+            "messages": 50,
+            "system": 0,
+            "tools": 0,
+            "memory": 0,
+            "skills": 0,
+            "loadedSkills": 0,
+            "summary": 0
+          },
+          "draftTokens": 80,
+          "exact": false,
+          "windowTokens": 1000,
+          "limitTokens": null
+        }
+      },
+      "expected": {
+        "measured": true,
+        "exact": false,
+        "usedTokens": 50,
+        "windowTokens": 1000,
+        "percent": 5,
+        "rows": [
+          {
+            "id": "draft",
+            "tokens": 50,
+            "percent": 5
+          },
+          {
+            "id": "free",
+            "tokens": 950,
+            "percent": 95
+          }
+        ],
+        "compactAtTokens": 600,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "the view reports a user limit and its source",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": null,
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 128000,
+          "limitTokens": 20000
+        }
+      },
+      "expected": {
+        "measured": false,
+        "exact": true,
+        "usedTokens": 0,
+        "windowTokens": 128000,
+        "percent": 0,
+        "rows": [
+          {
+            "id": "free",
+            "tokens": 128000,
+            "percent": 100
+          }
+        ],
+        "compactAtTokens": 20000,
+        "compactSource": "limit",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "the view does not follow a short chat's small window",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": {
+            "messages": 135,
+            "system": 1500,
+            "tools": 692,
+            "memory": 0,
+            "skills": 0,
+            "loadedSkills": 0,
+            "summary": 0
+          },
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 203000,
+          "limitTokens": null
+        }
+      },
+      "expected": {
+        "measured": true,
+        "exact": true,
+        "usedTokens": 2327,
+        "windowTokens": 203000,
+        "percent": 1.1463054187192119,
+        "rows": [
+          {
+            "id": "messages",
+            "tokens": 135,
+            "percent": 0.0665024630541872
+          },
+          {
+            "id": "system",
+            "tokens": 1500,
+            "percent": 0.7389162561576355
+          },
+          {
+            "id": "tools",
+            "tokens": 692,
+            "percent": 0.3408866995073892
+          },
+          {
+            "id": "free",
+            "tokens": 200673,
+            "percent": 98.85369458128079
+          }
+        ],
+        "compactAtTokens": 121800,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "the view carries counts and loaded skills when given",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": null,
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 8192,
+          "limitTokens": null,
+          "details": {
+            "toolCount": 4,
+            "skillCount": 2,
+            "loadedSkills": [
+              {
+                "id": "pdf",
+                "name": "PDF",
+                "tokens": 120
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "measured": false,
+        "exact": true,
+        "usedTokens": 0,
+        "windowTokens": 8192,
+        "percent": 0,
+        "rows": [
+          {
+            "id": "free",
+            "tokens": 8192,
+            "percent": 100
+          }
+        ],
+        "compactAtTokens": 4915,
+        "compactSource": "auto",
+        "details": {
+          "toolCount": 4,
+          "skillCount": 2,
+          "loadedSkills": [
+            {
+              "id": "pdf",
+              "name": "PDF",
+              "tokens": 120
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a paid window folds at the cap",
+      "input": {
+        "op": "describeContextWindow",
+        "input": {
+          "breakdown": null,
+          "draftTokens": 0,
+          "exact": true,
+          "windowTokens": 400000,
+          "limitTokens": null,
+          "paid": true
+        }
+      },
+      "expected": {
+        "measured": false,
+        "exact": true,
+        "usedTokens": 0,
+        "windowTokens": 400000,
+        "percent": 0,
+        "rows": [
+          {
+            "id": "free",
+            "tokens": 400000,
+            "percent": 100
+          }
+        ],
+        "compactAtTokens": 64000,
+        "compactSource": "paid",
+        "details": {
+          "toolCount": null,
+          "skillCount": null,
+          "loadedSkills": []
+        }
+      }
+    },
+    {
+      "name": "threshold is a share of the window when left to Draggy",
+      "input": {
+        "op": "compactThreshold",
+        "window": 128000,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 76800,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "threshold is the user's limit when set",
+      "input": {
+        "op": "compactThreshold",
+        "window": 128000,
+        "limit": 50000
+      },
+      "expected": {
+        "tokens": 50000,
+        "source": "limit"
+      }
+    },
+    {
+      "name": "a paid threshold is capped unless the user set a limit",
+      "input": {
+        "op": "compactThreshold",
+        "window": 400000,
+        "limit": null,
+        "paid": true
+      },
+      "expected": {
+        "tokens": 64000,
+        "source": "paid"
+      }
+    },
+    {
+      "name": "a paid window under the cap uses its share",
+      "input": {
+        "op": "compactThreshold",
+        "window": 32000,
+        "limit": null,
+        "paid": true
+      },
+      "expected": {
+        "tokens": 19200,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a paid window with a limit uses the limit",
+      "input": {
+        "op": "compactThreshold",
+        "window": 400000,
+        "limit": 200000,
+        "paid": true
+      },
+      "expected": {
+        "tokens": 200000,
+        "source": "limit"
+      }
+    },
+    {
+      "name": "an unpaid large window is not capped",
+      "input": {
+        "op": "compactThreshold",
+        "window": 400000,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 240000,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a limit above the reply room is capped",
+      "input": {
+        "op": "compactThreshold",
+        "window": 32000,
+        "limit": 1000000
+      },
+      "expected": {
+        "tokens": 28800,
+        "source": "limit"
+      }
+    },
+    {
+      "name": "a zero limit means automatic",
+      "input": {
+        "op": "compactThreshold",
+        "window": 128000,
+        "limit": 0
+      },
+      "expected": {
+        "tokens": 76800,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "max limit leaves a tenth for the reply",
+      "input": {
+        "op": "maxLimitFor",
+        "window": 32000
+      },
+      "expected": 28800
+    },
+    {
+      "name": "parses plain numbers",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "20000"
+      },
+      "expected": 20000
+    },
+    {
+      "name": "parses k shorthand case-insensitively",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "1.5K"
+      },
+      "expected": 1500
+    },
+    {
+      "name": "parses m shorthand",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "2m"
+      },
+      "expected": 2000000
+    },
+    {
+      "name": "parses thousands separators",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "32,000"
+      },
+      "expected": 32000
+    },
+    {
+      "name": "parses a count with a tokens suffix",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "8k tokens"
+      },
+      "expected": 8000
+    },
+    {
+      "name": "parses underscores and inner spaces",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": " 1_0 k "
+      },
+      "expected": 10000
+    },
+    {
+      "name": "reads auto as no limit",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "auto"
+      },
+      "expected": null
+    },
+    {
+      "name": "reads off as no limit regardless of case",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "OFF"
+      },
+      "expected": null
+    },
+    {
+      "name": "reads default as no limit",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "default"
+      },
+      "expected": null
+    },
+    {
+      "name": "refuses an empty string",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": ""
+      },
+      "expected": "undefined"
+    },
+    {
+      "name": "refuses a word",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "lots"
+      },
+      "expected": "undefined"
+    },
+    {
+      "name": "refuses a negative count",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "-5"
+      },
+      "expected": "undefined"
+    },
+    {
+      "name": "refuses zero",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "0"
+      },
+      "expected": "undefined"
+    },
+    {
+      "name": "refuses scientific notation",
+      "input": {
+        "op": "parseTokenCount",
+        "raw": "1e3"
+      },
+      "expected": "undefined"
+    },
+    {
+      "name": "keeps small counts exact",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 950
+      },
+      "expected": "950"
+    },
+    {
+      "name": "shows thousands with one decimal",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 27600
+      },
+      "expected": "27.6k"
+    },
+    {
+      "name": "drops a zero decimal",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 20000
+      },
+      "expected": "20k"
+    },
+    {
+      "name": "shows large thousands rounded",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 203000
+      },
+      "expected": "203k"
+    },
+    {
+      "name": "shows millions",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 1000000
+      },
+      "expected": "1M"
+    },
+    {
+      "name": "rounds a tie at one decimal up as JavaScript does",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 1250000
+      },
+      "expected": "1.3M"
+    },
+    {
+      "name": "rounds a binary-inexact tenth down as JavaScript does",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 27650
+      },
+      "expected": "27.6k"
+    },
+    {
+      "name": "rounds into the next unit",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 999.6
+      },
+      "expected": "1k"
+    },
+    {
+      "name": "rounds a half-thousand up",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": 99999.6
+      },
+      "expected": "100k"
+    },
+    {
+      "name": "a negative count shows zero",
+      "input": {
+        "op": "formatTokenCount",
+        "tokens": -5
+      },
+      "expected": "0"
+    },
+    {
+      "name": "details take counts and sizes from the parts",
+      "input": {
+        "op": "contextDetails",
+        "parts": {
+          "systemChars": 0,
+          "toolChars": 0,
+          "memoryChars": 0,
+          "skillChars": 0,
+          "summaryChars": 0,
+          "toolCount": 3,
+          "skillCount": 2,
+          "loadedSkills": [
+            {
+              "id": "pdf",
+              "name": "PDF",
+              "chars": 480
+            }
+          ]
+        },
+        "loaded": []
+      },
+      "expected": {
+        "toolCount": 3,
+        "skillCount": 2,
+        "loadedSkills": [
+          {
+            "id": "pdf",
+            "name": "PDF",
+            "tokens": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "details without parts list loaded skills with no size",
+      "input": {
+        "op": "contextDetails",
+        "parts": null,
+        "loaded": [
+          {
+            "id": "pdf",
+            "name": "PDF"
+          }
+        ]
+      },
+      "expected": {
+        "toolCount": null,
+        "skillCount": null,
+        "loadedSkills": [
+          {
+            "id": "pdf",
+            "name": "PDF",
+            "tokens": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "the paid cap and minimum limit",
+      "input": {
+        "op": "constants"
+      },
+      "expected": {
+        "PAID_COMPACT_CAP": 64000,
+        "MIN_COMPACT_LIMIT": 1000
+      }
+    }
+  ]
+}

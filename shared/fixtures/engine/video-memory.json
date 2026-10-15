@@ -1,0 +1,106 @@
+{
+  "area": "engine",
+  "description": "Graphics memory and driver text. `largestQword` takes the biggest REG_QWORD in `reg query` output, in bytes. `nvidiaInfo` reads the first GPU's compute capability and driver from nvidia-smi output, or null.",
+  "cases": [
+    {
+      "name": "one REG_QWORD in bytes",
+      "input": {
+        "op": "largestQword",
+        "text": "    HardwareInformation.qwMemorySize    REG_QWORD    0x200000000\n"
+      },
+      "expected": 8589934592
+    },
+    {
+      "name": "two adapters, the largest wins",
+      "input": {
+        "op": "largestQword",
+        "text": "    qwMemorySize    REG_QWORD    0x100000000\n    qwMemorySize    REG_QWORD    0x200000000\n"
+      },
+      "expected": 8589934592
+    },
+    {
+      "name": "upper-case hex digits",
+      "input": {
+        "op": "largestQword",
+        "text": "    qwMemorySize    REG_QWORD    0xFFFFFFFF\n"
+      },
+      "expected": 4294967295
+    },
+    {
+      "name": "no REG_QWORD gives zero",
+      "input": {
+        "op": "largestQword",
+        "text": "ERROR: not found"
+      },
+      "expected": 0
+    },
+    {
+      "name": "empty text gives zero",
+      "input": {
+        "op": "largestQword",
+        "text": ""
+      },
+      "expected": 0
+    },
+    {
+      "name": "compute capability and driver",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": "8.9, 580.12\n"
+      },
+      "expected": {
+        "computeCapability": 8.9,
+        "driverVersion": "580.12",
+        "driverMajor": 580
+      }
+    },
+    {
+      "name": "two-digit capability and dotted driver",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": "12.0, 570.86.16\n"
+      },
+      "expected": {
+        "computeCapability": 12,
+        "driverVersion": "570.86.16",
+        "driverMajor": 570
+      }
+    },
+    {
+      "name": "first GPU of several",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": "10.0, 580.00\n7.5, 535.00\n"
+      },
+      "expected": {
+        "computeCapability": 10,
+        "driverVersion": "580.00",
+        "driverMajor": 580
+      }
+    },
+    {
+      "name": "driver text missing",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": "7.5, \n"
+      },
+      "expected": null
+    },
+    {
+      "name": "not nvidia-smi output",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": "not a gpu"
+      },
+      "expected": null
+    },
+    {
+      "name": "empty output",
+      "input": {
+        "op": "nvidiaInfo",
+        "text": ""
+      },
+      "expected": null
+    }
+  ]
+}

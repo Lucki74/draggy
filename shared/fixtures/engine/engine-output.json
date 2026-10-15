@@ -1,0 +1,88 @@
+{
+  "area": "engine",
+  "description": "One line of llama-server output that the app reports on. `line` and `moe` (whether the model is a mixture of experts) give the event {kind, ...} or null. The expected kinds are lowOffload (layers, total), promptEvaluated (ms, tokens) and promptCacheReused (how, similarity, kept).",
+  "cases": [
+    {
+      "name": "slot line reports the kept share of the prompt",
+      "input": {
+        "line": "slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.778 (> 0.100 thold), f_keep = 0.636",
+        "moe": false
+      },
+      "expected": {
+        "kind": "promptCacheReused",
+        "how": "LCP similarity",
+        "similarity": 0.778,
+        "kept": 0.636
+      }
+    },
+    {
+      "name": "LRU slot line",
+      "input": {
+        "line": "selected slot by LRU, f_sim_best = 0.000 (> 0.100 thold), f_keep = 0.000",
+        "moe": false
+      },
+      "expected": {
+        "kind": "promptCacheReused",
+        "how": "LRU",
+        "similarity": 0,
+        "kept": 0
+      }
+    },
+    {
+      "name": "partial GPU offload warns",
+      "input": {
+        "line": "load_tensors: offloaded 30/33 layers to GPU",
+        "moe": false
+      },
+      "expected": {
+        "kind": "lowOffload",
+        "layers": 30,
+        "total": 33
+      }
+    },
+    {
+      "name": "full GPU offload is quiet",
+      "input": {
+        "line": "load_tensors: offloaded 33/33 layers to GPU",
+        "moe": false
+      },
+      "expected": null
+    },
+    {
+      "name": "partial offload of a mixture of experts is quiet",
+      "input": {
+        "line": "load_tensors: offloaded 30/33 layers to GPU",
+        "moe": true
+      },
+      "expected": null
+    },
+    {
+      "name": "prompt evaluation time",
+      "input": {
+        "line": "prompt eval time =  123.4 ms / 56 tokens",
+        "moe": false
+      },
+      "expected": {
+        "kind": "promptEvaluated",
+        "ms": 123.4,
+        "tokens": 56
+      }
+    },
+    {
+      "name": "generation time is not reported",
+      "input": {
+        "line": "eval time = 10 ms / 2 tokens",
+        "moe": false
+      },
+      "expected": null
+    },
+    {
+      "name": "unrelated line",
+      "input": {
+        "line": "srv  update_slots: all slots are idle",
+        "moe": false
+      },
+      "expected": null
+    }
+  ]
+}

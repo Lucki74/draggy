@@ -1,0 +1,1663 @@
+{
+  "area": "mcp",
+  "description": "Recorded JSON-RPC sessions over streamable HTTP, driven through a scripted fetch. Each start takes the next session; replies are taken in request order, and notifications get 202. Expected: one result per op, the wire (each POST and DELETE with the two API-key headers when sent), and the log lines. Transport-internal lines (http answered, session reset) are left out on both sides; the wire shows the session behavior. An object {\"repeat\": text, \"count\": n} stands for its text repeated n times, as in the stdio file.",
+  "cases": [
+    {
+      "name": "a remote server is reached over HTTP, listed, and sent a goodbye when stopped",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "0.6.3"
+                  }
+                },
+                "headers": {
+                  "mcp-session-id": "s-1"
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          },
+          {
+            "op": "list"
+          },
+          {
+            "op": "stop",
+            "id": "remote-docs"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "remote_docs__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          [
+            {
+              "id": "remote-docs",
+              "status": "ready",
+              "error": null,
+              "tools": [
+                {
+                  "name": "search_nodes",
+                  "qualifiedName": "remote_docs__search_nodes",
+                  "description": "Search the graph",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              ]
+            }
+          ],
+          {
+            "success": true
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          },
+          {
+            "http": "DELETE",
+            "headers": {},
+            "message": null
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.remote-docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "remote-docs",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "docs"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a catalogue server with an API key sends it in both headers",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "composio",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "composio",
+            "config": {
+              "env": {
+                "COMPOSIO_API_KEY": "ck_test_123"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "composio",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_test_123",
+              "x-api-key": "ck_test_123"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_test_123",
+              "x-api-key": "ck_test_123"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_test_123",
+              "x-api-key": "ck_test_123"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.composio",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "composio",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "composio"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a refusal with 401 asks for a sign-in when the server declares no key",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "status": 401,
+                "body": "unauthorized"
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "error",
+            "error": "That server wants you to sign in first.",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.remote-docs",
+            "msg": "could not reach server",
+            "data": {
+              "server": "remote-docs",
+              "transport": "http",
+              "status": 401,
+              "reason": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a catalogue server that refuses with 403 keeps the server's own message",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "status": 403,
+                "body": "forbidden"
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "composio",
+            "config": {
+              "env": {
+                "COMPOSIO_API_KEY": "ck_test_123"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "composio",
+            "status": "error",
+            "error": "The server answered 403: forbidden.",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_test_123",
+              "x-api-key": "ck_test_123"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.composio",
+            "msg": "could not reach server",
+            "data": {
+              "server": "composio",
+              "transport": "http",
+              "status": 403,
+              "reason": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a network failure is reported with its text",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "fail": "getaddrinfo ENOTFOUND tools.example"
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "error",
+            "error": "getaddrinfo ENOTFOUND tools.example",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.remote-docs",
+            "msg": "could not reach server",
+            "data": {
+              "server": "remote-docs",
+              "transport": "http",
+              "status": null,
+              "reason": "getaddrinfo ENOTFOUND tools.example"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty answer to initialize is reported as no answer",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "status": 202,
+                "body": ""
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "error",
+            "error": "The server gave no answer to initialize.",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.remote-docs",
+            "msg": "could not reach server",
+            "data": {
+              "server": "remote-docs",
+              "transport": "http",
+              "status": null,
+              "reason": "The server gave no answer to initialize."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an error answer to initialize is passed on as its message",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "error": {
+                  "message": "Unsupported protocol version"
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "error",
+            "error": "Unsupported protocol version",
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "warn",
+            "scope": "mcp.remote-docs",
+            "msg": "could not reach server",
+            "data": {
+              "server": "remote-docs",
+              "transport": "http",
+              "status": null,
+              "reason": "Unsupported protocol version"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "the log scope of an odd id is cleaned up",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "acme",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "Acme.Tools 2",
+            "config": {
+              "url": "https://mcp.example.test/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "Acme.Tools 2",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.acme-tools-2",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "Acme.Tools 2",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "acme"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a long id is cut to 32 characters in the log scope",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "long",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "config": {
+              "url": "https://mcp.example.test/mcp"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "long"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tool call over HTTP logs the hash of its arguments and never the arguments",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "acme",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "read"
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "hello from the tool"
+                    }
+                  ]
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "Acme.Tools 2",
+            "config": {
+              "url": "https://mcp.example.test/mcp"
+            }
+          },
+          {
+            "op": "call",
+            "server": "Acme.Tools 2",
+            "tool": "read",
+            "args": {
+              "path": "sk-argument-value-do-not-log"
+            },
+            "cid": "turn-7"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "Acme.Tools 2",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "read",
+                "qualifiedName": "Acme_Tools_2__read",
+                "description": "",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": true,
+            "text": "hello from the tool"
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "tools/call",
+              "params": {
+                "name": "read",
+                "arguments": {
+                  "path": "sk-argument-value-do-not-log"
+                }
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.acme-tools-2",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "Acme.Tools 2",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "acme"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.acme-tools-2",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-7",
+              "server": "Acme.Tools 2",
+              "transport": "http",
+              "toolName": "read",
+              "argHash": "d04b1f76"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.acme-tools-2",
+            "msg": "tool finished",
+            "data": {
+              "cid": "turn-7",
+              "server": "Acme.Tools 2",
+              "transport": "http",
+              "toolName": "read",
+              "resultChars": 19,
+              "isError": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that answers 500 to a tool call reports the status and its body",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": [
+                    {
+                      "name": "search_nodes",
+                      "description": "Search the graph",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "method": "tools/call",
+                "status": 500,
+                "body": "boom"
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          },
+          {
+            "op": "call",
+            "server": "remote-docs",
+            "tool": "search_nodes",
+            "args": {},
+            "cid": "turn-9"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "ready",
+            "error": null,
+            "tools": [
+              {
+                "name": "search_nodes",
+                "qualifiedName": "remote_docs__search_nodes",
+                "description": "Search the graph",
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ]
+          },
+          {
+            "success": false,
+            "error": "The server answered 500: boom."
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "tools/call",
+              "params": {
+                "name": "search_nodes",
+                "arguments": {}
+              }
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.remote-docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "remote-docs",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 1,
+              "serverName": "docs"
+            }
+          },
+          {
+            "level": "info",
+            "scope": "mcp.remote-docs",
+            "msg": "tool call",
+            "data": {
+              "cid": "turn-9",
+              "server": "remote-docs",
+              "transport": "http",
+              "toolName": "search_nodes",
+              "argHash": "44136fa3"
+            }
+          },
+          {
+            "level": "error",
+            "scope": "mcp.remote-docs",
+            "msg": "tool call threw",
+            "data": {
+              "cid": "turn-9",
+              "server": "remote-docs",
+              "transport": "http",
+              "toolName": "search_nodes",
+              "isError": true,
+              "reason": "The server answered 500: boom."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that gave no session header is stopped without a goodbye",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "0.6.3"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "remote-docs",
+            "config": {
+              "url": "https://tools.example/mcp"
+            }
+          },
+          {
+            "op": "stop",
+            "id": "remote-docs"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "remote-docs",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          },
+          {
+            "success": true
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.remote-docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "remote-docs",
+              "serverVersion": "0.6.3",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "docs"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "the COMPOSIO key goes out in both headers ahead of the other keys",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "1.0.0"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "docs",
+            "config": {
+              "url": "https://tools.example/mcp",
+              "env": {
+                "COMPOSIO_API_KEY": "ck_first",
+                "API_KEY": "ak_second",
+                "MCP_API_KEY": "mk_third"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "docs",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_first",
+              "x-api-key": "ck_first"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_first",
+              "x-api-key": "ck_first"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ck_first",
+              "x-api-key": "ck_first"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "docs",
+              "serverVersion": "1.0.0",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "docs"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty key is passed over for the next one that is set",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "1.0.0"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "docs",
+            "config": {
+              "url": "https://tools.example/mcp",
+              "env": {
+                "COMPOSIO_API_KEY": "",
+                "API_KEY": "ak_second"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "docs",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ak_second",
+              "x-api-key": "ak_second"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ak_second",
+              "x-api-key": "ak_second"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {
+              "x-consumer-api-key": "ak_second",
+              "x-api-key": "ak_second"
+            },
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "docs",
+              "serverVersion": "1.0.0",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "docs"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "no key header is sent when no key is entered",
+      "input": {
+        "sessions": [
+          {
+            "replies": [
+              {
+                "method": "initialize",
+                "result": {
+                  "protocolVersion": "2025-06-18",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "docs",
+                    "version": "1.0.0"
+                  }
+                }
+              },
+              {
+                "method": "tools/list",
+                "result": {
+                  "tools": []
+                }
+              }
+            ],
+            "stop_code": 0
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "docs",
+            "config": {
+              "url": "https://tools.example/mcp",
+              "env": {}
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "id": "docs",
+            "status": "ready",
+            "error": null,
+            "tools": []
+          }
+        ],
+        "wire": [
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "Draggy",
+                  "version": "2.0.0"
+                }
+              }
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          },
+          {
+            "http": "POST",
+            "headers": {},
+            "message": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "logs": [
+          {
+            "level": "info",
+            "scope": "mcp.docs",
+            "msg": "connected",
+            "data": {
+              "transport": "http",
+              "protocol": "2025-06-18",
+              "server": "docs",
+              "serverVersion": "1.0.0",
+              "capabilities": [
+                "tools"
+              ],
+              "tools": 0,
+              "serverName": "docs"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

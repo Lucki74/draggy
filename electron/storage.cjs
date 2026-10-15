@@ -6,6 +6,31 @@ const { log } = require("./logger.cjs");
 
 const SCHEMA_VERSION = 4;
 
+/** A database that refuses booleans as bound values. Some Node 24 releases bind them as 0 and 1 where others throw,
+ * so a message with `role: true` was stored on one and refused on the other. Refusing here makes it the same
+ * everywhere, and it is what the shared fixtures and the Rust port do. */
+class StrictDatabase extends DatabaseSync {
+  prepare(sql) {
+    const statement = super.prepare(sql);
+    for (const method of ["run", "get", "all", "iterate"]) {
+      const original = statement[method];
+      if (typeof original !== "function") continue;
+      statement[method] = function (...args) {
+        const values = args.flatMap((arg) =>
+          arg !== null && typeof arg === "object" && !ArrayBuffer.isView(arg)
+            ? Object.values(arg)
+            : [arg],
+        );
+        if (values.some((value) => typeof value === "boolean")) {
+          throw new TypeError("Provided value cannot be bound to SQLite parameter: booleans are not accepted");
+        }
+        return original.apply(this, args);
+      };
+    }
+    return statement;
+  }
+}
+
 /** The workspace chats belong to until moved. A real row, not null, so former global settings have
  * a home and nothing special-cases "no workspace". */
 const DEFAULT_WORKSPACE_ID = "default";
@@ -249,7 +274,7 @@ function rebuild(dbPath) {
 
   log.warn("storage", `quarantined the damaged database as ${path.basename(quarantine)}`);
 
-  db = new DatabaseSync(dbPath);
+  db = new StrictDatabase(dbPath);
   db.exec(SCHEMA);
 
   let rescued = 0;
@@ -282,7 +307,7 @@ function init(userDataPath) {
   let schemaBefore = null;
 
   try {
-    db = new DatabaseSync(dbPath);
+    db = new StrictDatabase(dbPath);
     db.exec(SCHEMA);
     schemaBefore = schemaVersion();
     migrate();

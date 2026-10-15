@@ -1,0 +1,106 @@
+{
+  "area": "engine",
+  "description": "Why llama-server stopped, from the lines it printed. `lines` is the engine's output tail; the expected value is the cause slug, or \"unknown\".",
+  "cases": [
+    {
+      "name": "CUDA error reads as out of VRAM",
+      "input": {
+        "lines": [
+          "ggml_cuda_init: failed",
+          "CUDA error: out of memory"
+        ]
+      },
+      "expected": "out-of-vram"
+    },
+    {
+      "name": "bad_alloc reads as out of RAM",
+      "input": {
+        "lines": [
+          "terminate called after throwing std::bad_alloc"
+        ]
+      },
+      "expected": "out-of-ram"
+    },
+    {
+      "name": "address in use reads as port in use",
+      "input": {
+        "lines": [
+          "couldn't bind HTTP server socket, address already in use"
+        ]
+      },
+      "expected": "port-in-use"
+    },
+    {
+      "name": "unknown architecture",
+      "input": {
+        "lines": [
+          "llama_model_load: error loading model architecture: unknown model architecture: 'foo'"
+        ]
+      },
+      "expected": "unsupported-architecture"
+    },
+    {
+      "name": "bad magic is a corrupt GGUF",
+      "input": {
+        "lines": [
+          "gguf_init_from_file: invalid magic characters"
+        ]
+      },
+      "expected": "corrupt-gguf"
+    },
+    {
+      "name": "missing shard",
+      "input": {
+        "lines": [
+          "failed to open GGUF file 'model-00002-of-00004.gguf'",
+          "split file not found"
+        ]
+      },
+      "expected": "missing-shard"
+    },
+    {
+      "name": "CUDA driver init failure",
+      "input": {
+        "lines": [
+          "CUDA driver version is insufficient for CUDA runtime version"
+        ]
+      },
+      "expected": "gpu-init"
+    },
+    {
+      "name": "Vulkan out of device memory",
+      "input": {
+        "lines": [
+          "ggml_vulkan: vk::Device::allocateMemory: ErrorOutOfDeviceMemory"
+        ]
+      },
+      "expected": "out-of-vram"
+    },
+    {
+      "name": "normal stop is unknown",
+      "input": {
+        "lines": [
+          "slot release: id  0 | task 0 | stop processing: n_tokens = 22, truncated = 0"
+        ]
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "earlier cause wins over a later one",
+      "input": {
+        "lines": [
+          "out of memory",
+          "invalid magic"
+        ]
+      },
+      "expected": "out-of-vram"
+    },
+    {
+      "name": "no lines is unknown",
+      "input": {
+        "lines": []
+      },
+      "expected": "unknown"
+    }
+  ]
+}

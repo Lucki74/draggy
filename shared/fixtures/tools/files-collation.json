@@ -1,0 +1,1638 @@
+{
+  "area": "tools",
+  "description": "The order a folder listing and a skill menu give two names: localeCompare(b, \"en\") reduced to its sign, so the order does not depend on the machine's language. Input: {a, b}. Expected: -1, 0 or 1 for a.localeCompare(b, \"en\"). Covers punctuation, symbols, currency, quotes, dashes, digits, letters, case, accents, expansions (æ, ß), stroke letters, ignorable controls, NEL, emoji, CJK, kana, Hangul, empty strings, and names equal after normalization. Nordic letters (å, ä, ö, æ, ø) sort with their base letters, not after z as Swedish or Danish order would. The Rust port compares with icu_collator at root with default options, which is the en order.",
+  "cases": [
+    {
+      "name": "\"école.md\" against \"zebra.md\"",
+      "input": {
+        "a": "école.md",
+        "b": "zebra.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Z\" against \"É^@\"",
+      "input": {
+        "a": "Z",
+        "b": "É^@"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"e\" against \"E\"",
+      "input": {
+        "a": "e",
+        "b": "E"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"E\" against \"é\"",
+      "input": {
+        "a": "E",
+        "b": "é"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"é\" against \"É\"",
+      "input": {
+        "a": "é",
+        "b": "É"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"é\" against \"è\"",
+      "input": {
+        "a": "é",
+        "b": "è"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"è\" against \"ĕ\"",
+      "input": {
+        "a": "è",
+        "b": "ĕ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ĕ\" against \"ê\"",
+      "input": {
+        "a": "ĕ",
+        "b": "ê"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ê\" against \"ě\"",
+      "input": {
+        "a": "ê",
+        "b": "ě"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ě\" against \"ë\"",
+      "input": {
+        "a": "ě",
+        "b": "ë"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ë\" against \"ė\"",
+      "input": {
+        "a": "ë",
+        "b": "ė"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ė\" against \"ę\"",
+      "input": {
+        "a": "ė",
+        "b": "ę"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ę\" against \"ē\"",
+      "input": {
+        "a": "ę",
+        "b": "ē"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ē\" against \"ẹ\"",
+      "input": {
+        "a": "ē",
+        "b": "ẹ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ẹ\" against \"ệ\"",
+      "input": {
+        "a": "ẹ",
+        "b": "ệ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a\" against \"á\"",
+      "input": {
+        "a": "a",
+        "b": "á"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"á\" against \"à\"",
+      "input": {
+        "a": "á",
+        "b": "à"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"à\" against \"ă\"",
+      "input": {
+        "a": "à",
+        "b": "ă"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ă\" against \"â\"",
+      "input": {
+        "a": "ă",
+        "b": "â"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"â\" against \"ǎ\"",
+      "input": {
+        "a": "â",
+        "b": "ǎ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ǎ\" against \"å\"",
+      "input": {
+        "a": "ǎ",
+        "b": "å"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"å\" against \"ä\"",
+      "input": {
+        "a": "å",
+        "b": "ä"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ä\" against \"ã\"",
+      "input": {
+        "a": "ä",
+        "b": "ã"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ã\" against \"ȧ\"",
+      "input": {
+        "a": "ã",
+        "b": "ȧ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ȧ\" against \"ą\"",
+      "input": {
+        "a": "ȧ",
+        "b": "ą"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ą\" against \"ā\"",
+      "input": {
+        "a": "ą",
+        "b": "ā"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ā\" against \"ạ\"",
+      "input": {
+        "a": "ā",
+        "b": "ạ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"c\" against \"ć\"",
+      "input": {
+        "a": "c",
+        "b": "ć"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ć\" against \"ĉ\"",
+      "input": {
+        "a": "ć",
+        "b": "ĉ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ĉ\" against \"č\"",
+      "input": {
+        "a": "ĉ",
+        "b": "č"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"č\" against \"ċ\"",
+      "input": {
+        "a": "č",
+        "b": "ċ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ċ\" against \"ç\"",
+      "input": {
+        "a": "ċ",
+        "b": "ç"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ç\" against \"d\"",
+      "input": {
+        "a": "ç",
+        "b": "d"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"cote\" against \"coté\"",
+      "input": {
+        "a": "cote",
+        "b": "coté"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"coté\" against \"côte\"",
+      "input": {
+        "a": "coté",
+        "b": "côte"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"côte\" against \"Côte\"",
+      "input": {
+        "a": "côte",
+        "b": "Côte"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Côte\" against \"côté\"",
+      "input": {
+        "a": "Côte",
+        "b": "côté"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"côté\" against \"cöte\"",
+      "input": {
+        "a": "côté",
+        "b": "cöte"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"cöte\" against \"coté2\"",
+      "input": {
+        "a": "cöte",
+        "b": "coté2"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"o\" against \"ó\"",
+      "input": {
+        "a": "o",
+        "b": "ó"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ó\" against \"ò\"",
+      "input": {
+        "a": "ó",
+        "b": "ò"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ò\" against \"ô\"",
+      "input": {
+        "a": "ò",
+        "b": "ô"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ô\" against \"ö\"",
+      "input": {
+        "a": "ô",
+        "b": "ö"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ö\" against \"ő\"",
+      "input": {
+        "a": "ö",
+        "b": "ő"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ő\" against \"õ\"",
+      "input": {
+        "a": "ő",
+        "b": "õ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"õ\" against \"ø\"",
+      "input": {
+        "a": "õ",
+        "b": "ø"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ø\" against \"ō\"",
+      "input": {
+        "a": "ø",
+        "b": "ō"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ō\" against \"p\"",
+      "input": {
+        "a": "ō",
+        "b": "p"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"d\" against \"ď\"",
+      "input": {
+        "a": "d",
+        "b": "ď"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ď\" against \"đ\"",
+      "input": {
+        "a": "ď",
+        "b": "đ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"đ\" against \"ð\"",
+      "input": {
+        "a": "đ",
+        "b": "ð"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ð\" against \"n\"",
+      "input": {
+        "a": "ð",
+        "b": "n"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"s\" against \"ś\"",
+      "input": {
+        "a": "s",
+        "b": "ś"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ś\" against \"š\"",
+      "input": {
+        "a": "ś",
+        "b": "š"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"š\" against \"ş\"",
+      "input": {
+        "a": "š",
+        "b": "ş"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ş\" against \"ș\"",
+      "input": {
+        "a": "ş",
+        "b": "ș"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ș\" against \"ss\"",
+      "input": {
+        "a": "ș",
+        "b": "ss"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ss\" against \"ß\"",
+      "input": {
+        "a": "ss",
+        "b": "ß"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ß\" against \"t\"",
+      "input": {
+        "a": "ß",
+        "b": "t"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"i\" against \"ı\"",
+      "input": {
+        "a": "i",
+        "b": "ı"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ı\" against \"l\"",
+      "input": {
+        "a": "ı",
+        "b": "l"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ī\" against \"ı\"",
+      "input": {
+        "a": "ī",
+        "b": "ı"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"æ\" against \"h\"",
+      "input": {
+        "a": "æ",
+        "b": "h"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ae\" against \"æ\"",
+      "input": {
+        "a": "ae",
+        "b": "æ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"œ\" against \"p\"",
+      "input": {
+        "a": "œ",
+        "b": "p"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"oe\" against \"œ\"",
+      "input": {
+        "a": "oe",
+        "b": "œ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"þ\" against \"z\"",
+      "input": {
+        "a": "þ",
+        "b": "z"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"z\" against \"þ\"",
+      "input": {
+        "a": "z",
+        "b": "þ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ŋ\" against \"o\"",
+      "input": {
+        "a": "ŋ",
+        "b": "o"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"n\" against \"ŋ\"",
+      "input": {
+        "a": "n",
+        "b": "ŋ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ħ\" against \"i\"",
+      "input": {
+        "a": "ħ",
+        "b": "i"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"h\" against \"ħ\"",
+      "input": {
+        "a": "h",
+        "b": "ħ"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ø\" against \"p\"",
+      "input": {
+        "a": "ø",
+        "b": "p"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Ø\" against \"o\"",
+      "input": {
+        "a": "Ø",
+        "b": "o"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a\" against \"A\"",
+      "input": {
+        "a": "a",
+        "b": "A"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"A\" against \"b\"",
+      "input": {
+        "a": "A",
+        "b": "b"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Ab\" against \"aB\"",
+      "input": {
+        "a": "Ab",
+        "b": "aB"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"AB\" against \"Ab\"",
+      "input": {
+        "a": "AB",
+        "b": "Ab"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"é\" against \"É\"",
+      "input": {
+        "a": "é",
+        "b": "É"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a b\" against \"a_b\"",
+      "input": {
+        "a": "a b",
+        "b": "a_b"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a_b\" against \"a-b\"",
+      "input": {
+        "a": "a_b",
+        "b": "a-b"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a-b\" against \"a.b\"",
+      "input": {
+        "a": "a-b",
+        "b": "a.b"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a.b\" against \"a^@\"",
+      "input": {
+        "a": "a.b",
+        "b": "a^@"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a^@\" against \"ab\"",
+      "input": {
+        "a": "a^@",
+        "b": "ab"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ab 1\" against \"ab1\"",
+      "input": {
+        "a": "ab 1",
+        "b": "ab1"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"10\" against \"9\"",
+      "input": {
+        "a": "10",
+        "b": "9"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"9\" against \"a\"",
+      "input": {
+        "a": "9",
+        "b": "a"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"\" against \"a\"",
+      "input": {
+        "a": "",
+        "b": "a"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a\" against \"\"",
+      "input": {
+        "a": "a",
+        "b": ""
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"\" against \"\"",
+      "input": {
+        "a": "",
+        "b": ""
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"a\\u0001b\" against \"ab\"",
+      "input": {
+        "a": "a\u0001b",
+        "b": "ab"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"ab\" against \"a­b\"",
+      "input": {
+        "a": "ab",
+        "b": "a­b"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"a​b\" against \"ab\"",
+      "input": {
+        "a": "a​b",
+        "b": "ab"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"a﻿b\" against \"ab\"",
+      "input": {
+        "a": "a﻿b",
+        "b": "ab"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"\" against \"a\"",
+      "input": {
+        "a": "",
+        "b": "a"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a\" against \"a\"",
+      "input": {
+        "a": "a",
+        "b": "a"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"\\t\" against \"\"",
+      "input": {
+        "a": "\t",
+        "b": ""
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"\" against \" \"",
+      "input": {
+        "a": "",
+        "b": " "
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"\" against \"\"",
+      "input": {
+        "a": "",
+        "b": ""
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"z\" against \"ж\"",
+      "input": {
+        "a": "z",
+        "b": "ж"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"я\" against \"z\"",
+      "input": {
+        "a": "я",
+        "b": "z"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ж\" against \"一\"",
+      "input": {
+        "a": "ж",
+        "b": "一"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"α\" against \"β\"",
+      "input": {
+        "a": "α",
+        "b": "β"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"café\" against \"café\"",
+      "input": {
+        "a": "café",
+        "b": "café"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"café\" against \"cafeb\"",
+      "input": {
+        "a": "café",
+        "b": "cafeb"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Zebra\" against \"apple\"",
+      "input": {
+        "a": "Zebra",
+        "b": "apple"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"apple\" against \"Apple\"",
+      "input": {
+        "a": "apple",
+        "b": "Apple"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"x1\" against \"x10\"",
+      "input": {
+        "a": "x1",
+        "b": "x10"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"x10\" against \"x2\"",
+      "input": {
+        "a": "x10",
+        "b": "x2"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"file (2)\" against \"file 2\"",
+      "input": {
+        "a": "file (2)",
+        "b": "file 2"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"€ euro.txt\" against \"apple.txt\"",
+      "input": {
+        "a": "€ euro.txt",
+        "b": "apple.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"£ pounds.txt\" against \"$ dollars.txt\"",
+      "input": {
+        "a": "£ pounds.txt",
+        "b": "$ dollars.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"¥ yen.txt\" against \"€ euro.txt\"",
+      "input": {
+        "a": "¥ yen.txt",
+        "b": "€ euro.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"$.txt\" against \"¢.txt\"",
+      "input": {
+        "a": "$.txt",
+        "b": "¢.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"© notice.md\" against \"a.md\"",
+      "input": {
+        "a": "© notice.md",
+        "b": "a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"™ mark.md\" against \"® mark.md\"",
+      "input": {
+        "a": "™ mark.md",
+        "b": "® mark.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"° degrees.txt\" against \"+ plus.txt\"",
+      "input": {
+        "a": "° degrees.txt",
+        "b": "+ plus.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"µ micro.txt\" against \"m.txt\"",
+      "input": {
+        "a": "µ micro.txt",
+        "b": "m.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"# hash.md\" against \"@ at.md\"",
+      "input": {
+        "a": "# hash.md",
+        "b": "@ at.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"~tilde.md\" against \"tilde.md\"",
+      "input": {
+        "a": "~tilde.md",
+        "b": "tilde.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"∑ sum.md\" against \"∞ inf.md\"",
+      "input": {
+        "a": "∑ sum.md",
+        "b": "∞ inf.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"→ arrow.md\" against \"a.md\"",
+      "input": {
+        "a": "→ arrow.md",
+        "b": "a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"★ star.md\" against \"a.md\"",
+      "input": {
+        "a": "★ star.md",
+        "b": "a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"❤ heart.md\" against \"a.md\"",
+      "input": {
+        "a": "❤ heart.md",
+        "b": "a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"100%.md\" against \"100 percent.md\"",
+      "input": {
+        "a": "100%.md",
+        "b": "100 percent.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"x&y.md\" against \"x y.md\"",
+      "input": {
+        "a": "x&y.md",
+        "b": "x y.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"“quoted”.txt\" against \"zeta.md\"",
+      "input": {
+        "a": "“quoted”.txt",
+        "b": "zeta.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"«guillemets».txt\" against \"a.txt\"",
+      "input": {
+        "a": "«guillemets».txt",
+        "b": "a.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"‘single’.txt\" against \"b.txt\"",
+      "input": {
+        "a": "‘single’.txt",
+        "b": "b.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"\"straight\".txt\" against \"straight.txt\"",
+      "input": {
+        "a": "\"straight\".txt",
+        "b": "straight.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"'apos'.txt\" against \"apos2.txt\"",
+      "input": {
+        "a": "'apos'.txt",
+        "b": "apos2.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Report – final.md\" against \"Report a.md\"",
+      "input": {
+        "a": "Report – final.md",
+        "b": "Report a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Report - final.md\" against \"Report a.md\"",
+      "input": {
+        "a": "Report - final.md",
+        "b": "Report a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a — em dash.md\" against \"a – en dash.md\"",
+      "input": {
+        "a": "a — em dash.md",
+        "b": "a – en dash.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a-b.md\" against \"a–b.md\"",
+      "input": {
+        "a": "a-b.md",
+        "b": "a–b.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a‐hyphen.md\" against \"a-hyphen.md\"",
+      "input": {
+        "a": "a‐hyphen.md",
+        "b": "a-hyphen.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a…ellipsis.md\" against \"a...dots.md\"",
+      "input": {
+        "a": "a…ellipsis.md",
+        "b": "a...dots.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a•bullet.md\" against \"a·middle.md\"",
+      "input": {
+        "a": "a•bullet.md",
+        "b": "a·middle.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a b.txt\" against \"a b.txt\"",
+      "input": {
+        "a": "a b.txt",
+        "b": "a b.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a b.txt\" against \"a b.txt\"",
+      "input": {
+        "a": "a b.txt",
+        "b": "a b.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"_private.md\" against \"public.md\"",
+      "input": {
+        "a": "_private.md",
+        "b": "public.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"file_2.txt\" against \"file-2.txt\"",
+      "input": {
+        "a": "file_2.txt",
+        "b": "file-2.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"my file.txt\" against \"my-file.txt\"",
+      "input": {
+        "a": "my file.txt",
+        "b": "my-file.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\".hidden\" against \"visible\"",
+      "input": {
+        "a": ".hidden",
+        "b": "visible"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Éclair.md\" against \"eclair.md\"",
+      "input": {
+        "a": "Éclair.md",
+        "b": "eclair.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Ångström.md\" against \"angstrom.md\"",
+      "input": {
+        "a": "Ångström.md",
+        "b": "angstrom.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ñandú.md\" against \"nandu.md\"",
+      "input": {
+        "a": "ñandú.md",
+        "b": "nandu.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"naïve.md\" against \"naive.md\"",
+      "input": {
+        "a": "naïve.md",
+        "b": "naive.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"résumé.pdf\" against \"resume.pdf\"",
+      "input": {
+        "a": "résumé.pdf",
+        "b": "resume.pdf"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Resume.pdf\" against \"resume.pdf\"",
+      "input": {
+        "a": "Resume.pdf",
+        "b": "resume.pdf"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"resume.pdf\" against \"RESUME.pdf\"",
+      "input": {
+        "a": "resume.pdf",
+        "b": "RESUME.pdf"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Ünïcödé.txt\" against \"unicode.txt\"",
+      "input": {
+        "a": "Ünïcödé.txt",
+        "b": "unicode.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"cafe.md\" against \"café.md\"",
+      "input": {
+        "a": "cafe.md",
+        "b": "café.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Cafe.md\" against \"café.md\"",
+      "input": {
+        "a": "Cafe.md",
+        "b": "café.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"café.md\" against \"Cafe.md\"",
+      "input": {
+        "a": "café.md",
+        "b": "Cafe.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Élan.md\" against \"elan.md\"",
+      "input": {
+        "a": "Élan.md",
+        "b": "elan.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"élan.md\" against \"Élan.md\"",
+      "input": {
+        "a": "élan.md",
+        "b": "Élan.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Notes.md\" against \"notes.md\"",
+      "input": {
+        "a": "Notes.md",
+        "b": "notes.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"NOTES.md\" against \"Notes.md\"",
+      "input": {
+        "a": "NOTES.md",
+        "b": "Notes.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"İstanbul.md\" against \"istanbul.md\"",
+      "input": {
+        "a": "İstanbul.md",
+        "b": "istanbul.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ıstanbul.md\" against \"istanbul.md\"",
+      "input": {
+        "a": "ıstanbul.md",
+        "b": "istanbul.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Ω.md\" against \"ω.md\"",
+      "input": {
+        "a": "Ω.md",
+        "b": "ω.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Ω ohm.md\" against \"ζ.md\"",
+      "input": {
+        "a": "Ω ohm.md",
+        "b": "ζ.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Привет.md\" against \"привет.md\"",
+      "input": {
+        "a": "Привет.md",
+        "b": "привет.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"é.md\" against \"é.md\"",
+      "input": {
+        "a": "é.md",
+        "b": "é.md"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"Å.md\" against \"Å.md\"",
+      "input": {
+        "a": "Å.md",
+        "b": "Å.md"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"ＡＢＣ.txt\" against \"abc.txt\"",
+      "input": {
+        "a": "ＡＢＣ.txt",
+        "b": "abc.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ﬁle.txt\" against \"file.txt\"",
+      "input": {
+        "a": "ﬁle.txt",
+        "b": "file.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"²nd.md\" against \"2nd.md\"",
+      "input": {
+        "a": "²nd.md",
+        "b": "2nd.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"½ half.md\" against \"1 half.md\"",
+      "input": {
+        "a": "½ half.md",
+        "b": "1 half.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Ⅻ roman.md\" against \"xii.md\"",
+      "input": {
+        "a": "Ⅻ roman.md",
+        "b": "xii.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"Straße.md\" against \"strasse.md\"",
+      "input": {
+        "a": "Straße.md",
+        "b": "strasse.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"file 10.txt\" against \"file 9.txt\"",
+      "input": {
+        "a": "file 10.txt",
+        "b": "file 9.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"٣.txt\" against \"3.txt\"",
+      "input": {
+        "a": "٣.txt",
+        "b": "3.txt"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"2.md\" against \"10.md\"",
+      "input": {
+        "a": "2.md",
+        "b": "10.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"中文.txt\" against \"日本.txt\"",
+      "input": {
+        "a": "中文.txt",
+        "b": "日本.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"一.txt\" against \"二.txt\"",
+      "input": {
+        "a": "一.txt",
+        "b": "二.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"漢字.md\" against \"漢.md\"",
+      "input": {
+        "a": "漢字.md",
+        "b": "漢.md"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"中.md\" against \"中文.md\"",
+      "input": {
+        "a": "中.md",
+        "b": "中文.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"あ.txt\" against \"ア.txt\"",
+      "input": {
+        "a": "あ.txt",
+        "b": "ア.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ア.txt\" against \"a.txt\"",
+      "input": {
+        "a": "ア.txt",
+        "b": "a.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ｱ.txt\" against \"ア.txt\"",
+      "input": {
+        "a": "ｱ.txt",
+        "b": "ア.txt"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"가.txt\" against \"あ.txt\"",
+      "input": {
+        "a": "가.txt",
+        "b": "あ.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"한글.txt\" against \"ひらがな.txt\"",
+      "input": {
+        "a": "한글.txt",
+        "b": "ひらがな.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"가.txt\" against \"힣.txt\"",
+      "input": {
+        "a": "가.txt",
+        "b": "힣.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ア.txt\" against \"中.txt\"",
+      "input": {
+        "a": "ア.txt",
+        "b": "中.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"😀.txt\" against \"😁.txt\"",
+      "input": {
+        "a": "😀.txt",
+        "b": "😁.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"😀.txt\" against \"a.txt\"",
+      "input": {
+        "a": "😀.txt",
+        "b": "a.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"🎉 party.md\" against \"a.md\"",
+      "input": {
+        "a": "🎉 party.md",
+        "b": "a.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"emoji 😀.txt\" against \"emoji a.txt\"",
+      "input": {
+        "a": "emoji 😀.txt",
+        "b": "emoji a.txt"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"🙂 smile.md\" against \"🙃 flip.md\"",
+      "input": {
+        "a": "🙂 smile.md",
+        "b": "🙃 flip.md"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"\" against \" \"",
+      "input": {
+        "a": "",
+        "b": " "
+      },
+      "expected": -1
+    },
+    {
+      "name": "\" \" against \"\t\"",
+      "input": {
+        "a": " ",
+        "b": "\t"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a \" against \"a\"",
+      "input": {
+        "a": "a ",
+        "b": "a"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"a.md\" against \"a.md \"",
+      "input": {
+        "a": "a.md",
+        "b": "a.md "
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"a\u0000b\" against \"ab\"",
+      "input": {
+        "a": "a\u0000b",
+        "b": "ab"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\" \" against \" \"",
+      "input": {
+        "a": " ",
+        "b": " "
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"é.md\" against \"é.md\"",
+      "input": {
+        "a": "é.md",
+        "b": "é.md"
+      },
+      "expected": 0
+    },
+    {
+      "name": "\"ﬁ\" against \"fi\"",
+      "input": {
+        "a": "ﬁ",
+        "b": "fi"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"Z\" against \"ä\" (en order, not Swedish)",
+      "input": {
+        "a": "Z",
+        "b": "ä"
+      },
+      "expected": 1
+    },
+    {
+      "name": "\"ä\" against \"Z\"",
+      "input": {
+        "a": "ä",
+        "b": "Z"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"å\" against \"z\"",
+      "input": {
+        "a": "å",
+        "b": "z"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"ö\" against \"p\"",
+      "input": {
+        "a": "ö",
+        "b": "p"
+      },
+      "expected": -1
+    },
+    {
+      "name": "\"æ\" against \"z\"",
+      "input": {
+        "a": "æ",
+        "b": "z"
+      },
+      "expected": -1
+    }
+  ]
+}

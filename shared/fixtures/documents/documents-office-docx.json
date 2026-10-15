@@ -1,0 +1,2266 @@
+{
+  "area": "documents",
+  "description": "writeDocx: markdown in, the structure of the generated .docx out (parts, body defaults, heading styles, paragraphs with runs). Compared by structure, not bytes.",
+  "cases": [
+    {
+      "name": "headings map to Heading1 to Heading6",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6\n####### seven hashes is text"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "H1",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H1",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "H2",
+            "style": "Heading2",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H2",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "H3",
+            "style": "Heading3",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H3",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "H4",
+            "style": "Heading4",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H4",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "H5",
+            "style": "Heading5",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H5",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "H6",
+            "style": "Heading6",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "H6",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "####### seven hashes is text",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "####### seven hashes is text",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "bold, italic and bold-italic runs",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "Some **bold** and *italic* and ***both*** text."
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Some bold and italic and both text.",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Some ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "bold",
+                "bold": true,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": " and ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "italic",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": " and ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "both",
+                "bold": true,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": " text.",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unclosed markers stay literal",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "a **b and *c"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "a *b and c",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "a *",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "b and ",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": "c",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested emphasis takes the first match",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "*a **b** c*"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "a b c",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "a ",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": "b",
+                "bold": false,
+                "italic": true,
+                "font": null
+              },
+              {
+                "text": " c",
+                "bold": false,
+                "italic": true,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "bullets and numbers use list numbering",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "- first\n* second\n\n1. one\n2. two"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "first",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "first",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "second",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "second",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "one",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "one",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "two",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "two",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a decimal number is not an ordered item",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "1.5 is a rate\n2. real item"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "1.5 is a rate",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "1.5 is a rate",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "real item",
+            "style": "ListParagraph",
+            "list": "decimal",
+            "border": false,
+            "runs": [
+              {
+                "text": "real item",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "rules become empty bordered paragraphs",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "above\n\n---\n\n***\n\nbelow"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "above",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "above",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": true,
+            "runs": []
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": true,
+            "runs": []
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "below",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "below",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "blank lines become empty paragraphs",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "one\n\n\ntwo"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "one",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "one",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "two",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "two",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "emoji get their own font run",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "⚠️ HIGH 🌊 café"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "⚠️ HIGH 🌊 café",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "⚠️",
+                "bold": false,
+                "italic": false,
+                "font": "Segoe UI Emoji"
+              },
+              {
+                "text": " HIGH ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "🌊",
+                "bold": false,
+                "italic": false,
+                "font": "Segoe UI Emoji"
+              },
+              {
+                "text": " café",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "flags and skin tones stay one emoji",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "🇫🇷 and 👍🏽 done"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "🇫🇷 and 👍🏽 done",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "🇫🇷",
+                "bold": false,
+                "italic": false,
+                "font": "Segoe UI Emoji"
+              },
+              {
+                "text": " and ",
+                "bold": false,
+                "italic": false,
+                "font": null
+              },
+              {
+                "text": "👍🏽",
+                "bold": false,
+                "italic": false,
+                "font": "Segoe UI Emoji"
+              },
+              {
+                "text": " done",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "XML special characters are escaped",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "a & b < c > d \"quoted\""
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "a & b < c > d \"quoted\"",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "a & b < c > d \"quoted\"",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "CRLF line endings split like LF",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "# Title\r\n\r\nBody line\r\n- item\r\n"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Title",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Title",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "Body line",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Body line",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "item",
+            "style": "ListParagraph",
+            "list": "bullet",
+            "border": false,
+            "runs": [
+              {
+                "text": "item",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty body is one empty paragraph",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          ""
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "surrounding spaces are trimmed per line",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "   # Spaced heading   \n   plain text   "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Spaced heading",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Spaced heading",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "plain text",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "plain text",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a heading marker with no text is body text",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "#\n# "
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "#",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "#",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "#",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "#",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "non-ASCII digits are not ordered items",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "١. arabic digit\n"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "١. arabic digit",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "١. arabic digit",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          },
+          {
+            "text": "",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a line separator stops a heading match",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "# Head tail"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "# Head tail",
+            "style": null,
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "# Head tail",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a no-break space counts as heading whitespace",
+      "input": {
+        "fn": "writeDocx",
+        "args": [
+          "# Nbsp heading"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "word/document.xml",
+          "word/styles.xml",
+          "word/numbering.xml",
+          "word/_rels/document.xml.rels"
+        ],
+        "body": {
+          "font": "Aptos",
+          "size": 22,
+          "color": "000000",
+          "after": 160,
+          "line": 276
+        },
+        "styles": {
+          "Title": {
+            "font": "Aptos Display",
+            "size": 56,
+            "bold": true,
+            "color": "000000",
+            "before": null,
+            "after": 240
+          },
+          "Heading1": {
+            "font": "Aptos Display",
+            "size": 40,
+            "bold": true,
+            "color": "000000",
+            "before": 320,
+            "after": 80
+          },
+          "Heading2": {
+            "font": "Aptos Display",
+            "size": 32,
+            "bold": true,
+            "color": "000000",
+            "before": 280,
+            "after": 80
+          },
+          "Heading3": {
+            "font": "Aptos Display",
+            "size": 28,
+            "bold": true,
+            "color": "000000",
+            "before": 240,
+            "after": 80
+          },
+          "Heading4": {
+            "font": "Aptos Display",
+            "size": 24,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading5": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          },
+          "Heading6": {
+            "font": "Aptos Display",
+            "size": 22,
+            "bold": true,
+            "color": "000000",
+            "before": 200,
+            "after": 80
+          }
+        },
+        "paragraphs": [
+          {
+            "text": "Nbsp heading",
+            "style": "Heading1",
+            "list": null,
+            "border": false,
+            "runs": [
+              {
+                "text": "Nbsp heading",
+                "bold": false,
+                "italic": false,
+                "font": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

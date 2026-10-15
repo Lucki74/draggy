@@ -1,0 +1,122 @@
+{
+  "area": "mcp",
+  "description": "expiryOf: when a token set stops being usable, a minute early. A lifetime that is missing, zero, negative or not finite means it does not expire.",
+  "cases": [
+    {
+      "name": "expires a little early, so a call is not made with a dead token",
+      "input": {
+        "tokens": {
+          "expires_in": 3600
+        },
+        "now": 1000000
+      },
+      "expected": 4540000
+    },
+    {
+      "name": "treats a token with no lifetime as one that does not expire",
+      "input": {
+        "tokens": {},
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "reads a lifetime sent as text",
+      "input": {
+        "tokens": {
+          "expires_in": "3600"
+        },
+        "now": 1000000
+      },
+      "expected": 4540000
+    },
+    {
+      "name": "treats a zero lifetime as none",
+      "input": {
+        "tokens": {
+          "expires_in": 0
+        },
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "treats a negative lifetime as none",
+      "input": {
+        "tokens": {
+          "expires_in": -5
+        },
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "treats a blank text lifetime as zero, so none",
+      "input": {
+        "tokens": {
+          "expires_in": ""
+        },
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "treats a lifetime that is not a number as none",
+      "input": {
+        "tokens": {
+          "expires_in": "soon"
+        },
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "treats an infinite lifetime as none",
+      "input": {
+        "tokens": {
+          "expires_in": "Infinity"
+        },
+        "now": 1000000
+      },
+      "expected": null
+    },
+    {
+      "name": "reads a true lifetime as one second",
+      "input": {
+        "tokens": {
+          "expires_in": true
+        },
+        "now": 1000000
+      },
+      "expected": 941000
+    },
+    {
+      "name": "keeps a fractional lifetime",
+      "input": {
+        "tokens": {
+          "expires_in": 1.5
+        },
+        "now": 1000000
+      },
+      "expected": 941500
+    },
+    {
+      "name": "reads a hexadecimal lifetime text as a number",
+      "input": {
+        "tokens": {
+          "expires_in": "0x10"
+        },
+        "now": 1000000
+      },
+      "expected": 956000
+    },
+    {
+      "name": "allows no token set at all",
+      "input": {
+        "tokens": null,
+        "now": 1000000
+      },
+      "expected": null
+    }
+  ]
+}

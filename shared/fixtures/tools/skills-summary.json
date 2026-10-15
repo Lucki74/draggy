@@ -1,0 +1,90 @@
+{
+  "area": "tools",
+  "description": "skills.summarize: a few words for the slash menu, from the first phrase of a description, cut at a word past 48 characters. Input: {description}. Expected: a string.",
+  "cases": [
+    {
+      "name": "takes the first phrase before a colon",
+      "input": {
+        "description": "Writes our invoices: numbered lines, tax and totals. Use when billing a client."
+      },
+      "expected": "Writes our invoices"
+    },
+    {
+      "name": "stops at the end of the first sentence",
+      "input": {
+        "description": "Reviews pull requests. Use when asked."
+      },
+      "expected": "Reviews pull requests"
+    },
+    {
+      "name": "cuts a long phrase at a word and says so",
+      "input": {
+        "description": "Turns every single spreadsheet export from the accounting system into a monthly board pack"
+      },
+      "expected": "Turns every single spreadsheet export from the…"
+    },
+    {
+      "name": "keeps a short phrase whole",
+      "input": {
+        "description": "Make slides."
+      },
+      "expected": "Make slides"
+    },
+    {
+      "name": "a break before a parenthesis ends the phrase",
+      "input": {
+        "description": "Builds decks (HTML or Markdown) from text"
+      },
+      "expected": "Builds decks"
+    },
+    {
+      "name": "a semicolon followed by a space ends the phrase",
+      "input": {
+        "description": "Searches the web; reads pages"
+      },
+      "expected": "Searches the web"
+    },
+    {
+      "name": "a colon with no space after it does not end the phrase",
+      "input": {
+        "description": "Version:2 notes here"
+      },
+      "expected": "Version:2 notes here"
+    },
+    {
+      "name": "an empty description gives an empty summary",
+      "input": {
+        "description": ""
+      },
+      "expected": ""
+    },
+    {
+      "name": "a cut with no late space keeps the first characters",
+      "input": {
+        "description": "Ab cdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 tail"
+      },
+      "expected": "Ab cdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST…"
+    },
+    {
+      "name": "a comma before the cut is removed",
+      "input": {
+        "description": "Alpha beta gamma delta epsilon zeta eta theta, iota kappa lambda mu nu xi omicron"
+      },
+      "expected": "Alpha beta gamma delta epsilon zeta eta theta…"
+    },
+    {
+      "name": "a cut counts UTF-16 units, so an emoji takes two",
+      "input": {
+        "description": "a😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀 tail"
+      },
+      "expected": "a😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀…"
+    },
+    {
+      "name": "a cut at a space counts the units before the space",
+      "input": {
+        "description": "😀😀😀😀😀😀😀😀😀😀😀😀 abcdefghijklmnopqrstuvwxyz"
+      },
+      "expected": "😀😀😀😀😀😀😀😀😀😀😀😀…"
+    }
+  ]
+}

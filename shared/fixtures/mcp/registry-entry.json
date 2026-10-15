@@ -1,0 +1,105 @@
+{
+  "area": "mcp",
+  "description": "toEntry: one registry server as an entry. An npm package takes its variables; a remote takes its address; anything else is dropped.",
+  "cases": [
+    {
+      "name": "reads an npm package",
+      "input": {
+        "server": {
+          "name": "io.github.someone/weather",
+          "description": "Weather for anywhere.",
+          "repository": {
+            "url": "https://github.com/someone/weather"
+          },
+          "packages": [
+            {
+              "registry_name": "npm",
+              "name": "@someone/weather-mcp"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "id": "weather",
+        "name": "io.github.someone/weather",
+        "description": "Weather for anywhere.",
+        "source": "registry",
+        "docs": "https://github.com/someone/weather",
+        "package": "@someone/weather-mcp",
+        "args": [],
+        "env": []
+      }
+    },
+    {
+      "name": "reads a remote",
+      "input": {
+        "server": {
+          "name": "com.example/tickets",
+          "description": "Our ticket system.",
+          "remotes": [
+            {
+              "type": "streamable-http",
+              "url": "https://tickets.example/mcp"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "id": "tickets",
+        "name": "com.example/tickets",
+        "description": "Our ticket system.",
+        "source": "registry",
+        "docs": "",
+        "url": "https://tickets.example/mcp",
+        "transport": "http",
+        "remote": true
+      }
+    },
+    {
+      "name": "drops a server with neither a package nor a remote",
+      "input": {
+        "server": {
+          "name": "com.example/python-only",
+          "description": "Needs uvx, which Draggy does not have.",
+          "packages": [
+            {
+              "registry_name": "pypi",
+              "name": "python-thing"
+            }
+          ]
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "drops a null server",
+      "input": {
+        "server": null
+      },
+      "expected": null
+    },
+    {
+      "name": "names a server with no name as server",
+      "input": {
+        "server": {
+          "description": "Nameless.",
+          "packages": [
+            {
+              "registry_name": "npm",
+              "name": "nameless-mcp"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "id": "server",
+        "description": "Nameless.",
+        "source": "registry",
+        "docs": "",
+        "package": "nameless-mcp",
+        "args": [],
+        "env": []
+      }
+    }
+  ]
+}

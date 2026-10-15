@@ -1,0 +1,80 @@
+{
+  "area": "web",
+  "description": "Brave Search API JSON: response body to normalised results, with the status check and the error messages the port reports. A byte order mark before the JSON is dropped, as response.json() drops it.",
+  "cases": [
+    {
+      "name": "Brave API answers from web.results and drops bad entries",
+      "input": {
+        "provider": "brave",
+        "query": "hello",
+        "body": "{\"web\":{\"results\":[{\"title\":\"API one\",\"url\":\"https://api.example/one\",\"description\":\"Desc one\"},{\"title\":\"API dup\",\"url\":\"https://api.example/one\",\"description\":\"dup\"},{\"title\":\"\",\"url\":\"https://api.example/empty\"},{\"title\":\"Bad scheme\",\"url\":\"javascript:alert(1)\"},{\"title\":\"Two\",\"url\":\"https://api.example/two\",\"description\":\"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}]}}"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "API one",
+            "url": "https://api.example/one",
+            "snippet": "Desc one"
+          },
+          {
+            "title": "Two",
+            "url": "https://api.example/two",
+            "snippet": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Brave API with no web section gives none",
+      "input": {
+        "provider": "brave",
+        "query": "hello",
+        "body": "{\"query\":{}}"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "Brave API results that are not a list are an invalid body",
+      "input": {
+        "provider": "brave",
+        "query": "hello",
+        "body": "{\"web\":{\"results\":\"nope\"}}"
+      },
+      "expected": {
+        "error": "invalid body"
+      }
+    },
+    {
+      "name": "Brave API forbidden is reported with its status",
+      "input": {
+        "provider": "brave",
+        "query": "hello",
+        "body": "{}",
+        "status": 403
+      },
+      "expected": {
+        "error": "Brave returned 403"
+      }
+    },
+    {
+      "name": "a byte order mark before the Brave JSON is dropped",
+      "input": {
+        "provider": "brave",
+        "query": "bom",
+        "status": 200,
+        "body": "﻿{\"web\":{\"results\":[{\"title\":\"Bom\",\"url\":\"https://bom.example/b\",\"description\":\"d\"}]}}"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Bom",
+            "url": "https://bom.example/b",
+            "snippet": "d"
+          }
+        ]
+      }
+    }
+  ]
+}

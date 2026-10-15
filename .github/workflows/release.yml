@@ -109,6 +109,41 @@ jobs:
           path: out
           merge-multiple: true
 
+      # Linux installs read latest-linux.yml from the newest b-N release and error without it.
+      # Once builds stop making it, copy it forward from the final cross-platform release.
+      - name: Carry the frozen Linux update feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f out/latest-linux.yml ]; then
+            echo "latest-linux.yml is in this build; nothing to carry forward"
+            exit 0
+          fi
+
+          if ! ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/electron-crossplatform-final" \
+            --jq '"\(.object.sha) \(.object.type)"'); then
+            echo "::error::Could not read tag electron-crossplatform-final, so there is no frozen Linux feed to copy."
+            exit 1
+          fi
+          read -r commit kind <<< "$ref"
+          if [ "$kind" = tag ]; then
+            commit=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$commit" --jq .object.sha)
+          fi
+
+          if ! refs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/b-" \
+            --jq ".[] | select(.object.sha == \"$commit\") | .ref"); then
+            echo "::error::Could not list the b-N tags."
+            exit 1
+          fi
+          n=$(sed -n 's#^refs/tags/b-\([0-9]\+\)$#\1#p' <<< "$refs" | sort -n | tail -1)
+          if [ -z "$n" ]; then
+            echo "::error::No b-N tag points at electron-crossplatform-final ($commit), so there is no frozen Linux feed to copy."
+            exit 1
+          fi
+
+          gh release download "b-$n" --repo "$GITHUB_REPOSITORY" --pattern latest-linux.yml --dir out
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}

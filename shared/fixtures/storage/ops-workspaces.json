@@ -1,0 +1,1157 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over workspaces: the default workspace, adoption of chats with no workspace, edits that keep the creation day, project deletion, unreadable JSON columns read as empty, and grants. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "the first launch has one default workspace",
+      "input": {
+        "ops": [
+          {
+            "call": "listWorkspaces"
+          }
+        ]
+      },
+      "expected": [
+        [
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a chat with no workspace of its own goes into the default one",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "name": "keeps a chat in the workspace it was saved in",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Workspace w1",
+                "kind": "project",
+                "rootPath": "C:\\projects\\thing",
+                "permissionMode": "acceptEdits",
+                "settings": {},
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "workspaceId": "w1"
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": "C:\\projects\\thing",
+            "permissionMode": "acceptEdits",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "w1",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "reads back everything a workspace was given",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Workspace w1",
+                "kind": "project",
+                "rootPath": "C:\\projects\\thing",
+                "permissionMode": "acceptEdits",
+                "settings": {
+                  "webMode": "off",
+                  "codeExecution": true
+                },
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w1"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": "C:\\projects\\thing",
+            "permissionMode": "acceptEdits",
+            "settings": {
+              "webMode": "off",
+              "codeExecution": true
+            },
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "w1",
+          "name": "Workspace w1",
+          "kind": "project",
+          "rootPath": "C:\\projects\\thing",
+          "permissionMode": "acceptEdits",
+          "settings": {
+            "webMode": "off",
+            "codeExecution": true
+          },
+          "grants": [],
+          "createdAt": 500,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "edits a workspace in place, keeping the day it was made",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Workspace w1",
+                "kind": "project",
+                "settings": {},
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Renamed",
+                "kind": "project",
+                "settings": {}
+              }
+            ]
+          },
+          {
+            "call": "listWorkspaces"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Renamed",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        [
+          {
+            "id": "w1",
+            "name": "Renamed",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "deletes a removed project's chats rather than moving them into Chat",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Workspace w1",
+                "kind": "project",
+                "settings": {},
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "fix the build",
+                    "textContent": "fix the build"
+                  }
+                ],
+                "workspaceId": "w1"
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m2",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "deleteWorkspace",
+            "args": [
+              "w1"
+            ]
+          },
+          {
+            "call": "listWorkspaces"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "build"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true,
+          "deleted": 1
+        },
+        [
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        [
+          {
+            "id": "b",
+            "title": "Chat b",
+            "updatedAt": 2000,
+            "workspaceId": "default",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m2",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "name": "refuses to remove the default workspace",
+      "input": {
+        "ops": [
+          {
+            "call": "deleteWorkspace",
+            "args": [
+              "default"
+            ]
+          },
+          {
+            "call": "listWorkspaces"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": false,
+          "error": "The default workspace cannot be removed."
+        },
+        [
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "needs an id to save one",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "name": "nameless"
+              }
+            ]
+          },
+          {
+            "call": "listWorkspaces"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": false,
+          "error": "A workspace needs an id."
+        },
+        [
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "remembers the grants the user allowed, and where",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Thing",
+                "kind": "project",
+                "rootPath": "C:\\projects\\thing",
+                "permissionMode": "acceptEdits",
+                "settings": {},
+                "grants": [
+                  {
+                    "tool": "write_file",
+                    "target": "C:\\projects\\thing"
+                  }
+                ],
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w1"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Thing",
+            "kind": "project",
+            "rootPath": "C:\\projects\\thing",
+            "permissionMode": "acceptEdits",
+            "settings": {},
+            "grants": [
+              {
+                "tool": "write_file",
+                "target": "C:\\projects\\thing"
+              }
+            ],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "w1",
+          "name": "Thing",
+          "kind": "project",
+          "rootPath": "C:\\projects\\thing",
+          "permissionMode": "acceptEdits",
+          "settings": {},
+          "grants": [
+            {
+              "tool": "write_file",
+              "target": "C:\\projects\\thing"
+            }
+          ],
+          "createdAt": 500,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads unreadable grants and settings as none, and a missing permission as ask",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w2",
+                "name": "x",
+                "kind": "project",
+                "settings": {
+                  "webMode": "off"
+                },
+                "createdAt": 600
+              }
+            ]
+          },
+          {
+            "call": "sql",
+            "args": [
+              [
+                "UPDATE workspaces SET grants = 'not json', settings = '{broken', permission_mode = '' WHERE id = 'w2'"
+              ]
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w2"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w2",
+            "name": "x",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {
+              "webMode": "off"
+            },
+            "grants": [],
+            "createdAt": 600,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        null,
+        {
+          "id": "w2",
+          "name": "x",
+          "kind": "project",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": {},
+          "grants": [],
+          "createdAt": 600,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads a settings column that holds a non-object as none",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w2",
+                "name": "x",
+                "kind": "project",
+                "settings": {
+                  "webMode": "off"
+                },
+                "createdAt": 600
+              }
+            ]
+          },
+          {
+            "call": "sql",
+            "args": [
+              [
+                "UPDATE workspaces SET settings = '\"text\"' WHERE id = 'w2'"
+              ]
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w2"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w2",
+            "name": "x",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {
+              "webMode": "off"
+            },
+            "grants": [],
+            "createdAt": 600,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        null,
+        {
+          "id": "w2",
+          "name": "x",
+          "kind": "project",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": {},
+          "grants": [],
+          "createdAt": 600,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "an unknown kind is saved as a chat",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w3",
+                "name": "x",
+                "kind": "folder",
+                "createdAt": 700
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w3"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w3",
+            "name": "x",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 700,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "w3",
+          "name": "x",
+          "kind": "chat",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": {},
+          "grants": [],
+          "createdAt": 700,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "an empty root path is stored as none",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w4",
+                "name": "x",
+                "kind": "project",
+                "rootPath": "",
+                "createdAt": 800
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "w4"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w4",
+            "name": "x",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 800,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "w4",
+          "name": "x",
+          "kind": "project",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": {},
+          "grants": [],
+          "createdAt": 800,
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a chat stays in its workspace across a reopen",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "w1",
+                "name": "Workspace w1",
+                "kind": "project",
+                "settings": {},
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ],
+                "workspaceId": "w1"
+              }
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "listWorkspaces"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "success": true
+        },
+        null,
+        [
+          {
+            "id": "a",
+            "title": "Chat a",
+            "updatedAt": 1000,
+            "workspaceId": "w1",
+            "plan": null,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "textContent": "hi"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "id": "w1",
+            "name": "Workspace w1",
+            "kind": "project",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": 500,
+            "updatedAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "getWorkspace answers null for an id that does not exist",
+      "input": {
+        "ops": [
+          {
+            "call": "getWorkspace",
+            "args": [
+              "nope"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        null
+      ]
+    },
+    {
+      "name": "keeps a settings list as it was given",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "list",
+                "name": "List",
+                "settings": [
+                  1,
+                  "two"
+                ]
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "list"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "list",
+            "name": "List",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": [
+              1,
+              "two"
+            ],
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "list",
+          "name": "List",
+          "kind": "chat",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": [
+            1,
+            "two"
+          ],
+          "grants": [],
+          "createdAt": {
+            "$any": "now"
+          },
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads settings text as none",
+      "input": {
+        "ops": [
+          {
+            "call": "saveWorkspace",
+            "args": [
+              {
+                "id": "text",
+                "name": "Text",
+                "settings": "abc"
+              }
+            ]
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "text"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "workspace": {
+            "id": "text",
+            "name": "Text",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "ask",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "now"
+            },
+            "updatedAt": {
+              "$any": "now"
+            }
+          }
+        },
+        {
+          "id": "text",
+          "name": "Text",
+          "kind": "chat",
+          "rootPath": null,
+          "permissionMode": "ask",
+          "settings": {},
+          "grants": [],
+          "createdAt": {
+            "$any": "now"
+          },
+          "updatedAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    }
+  ]
+}

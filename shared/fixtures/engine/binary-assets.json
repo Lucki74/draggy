@@ -1,0 +1,679 @@
+{
+  "area": "engine",
+  "description": "Release asset choice per OS, architecture and GPU. `pick` gives {main, extra, variant} for the asset names listed (variant null when there is no main). `variantOf`, `buildNumber`, `whyPicked`, `recommended` and `validateUrl` cover the naming, tag and policy helpers.",
+  "cases": [
+    {
+      "name": "Windows x64 with CUDA 12 and its runtime",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-cuda-12.4-x64.zip",
+        "extra": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "variant": "cuda-12.4"
+      }
+    },
+    {
+      "name": "Windows x64 on a Blackwell card takes CUDA 13",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 16,
+        "nvidia": true,
+        "cuda13": true
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-cuda-13.4-x64.zip",
+        "extra": "cudart-llama-bin-win-cuda-13.4-x64.zip",
+        "variant": "cuda-13.4"
+      }
+    },
+    {
+      "name": "Windows CUDA 13 without its runtime falls back to 12",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 16,
+        "nvidia": true,
+        "cuda13": true
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-cuda-12.4-x64.zip",
+        "extra": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "variant": "cuda-12.4"
+      }
+    },
+    {
+      "name": "Windows with a GPU but no NVIDIA driver takes Vulkan",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-vulkan-x64.zip",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "Windows with no GPU memory takes the CPU build",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 0,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-cpu-x64.zip",
+        "extra": null,
+        "variant": "cpu"
+      }
+    },
+    {
+      "name": "Windows arm64 takes the CPU arm64 build",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "arm64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-cpu-arm64.zip",
+        "extra": null,
+        "variant": "cpu"
+      }
+    },
+    {
+      "name": "Linux x64 with CUDA 12 and its runtime",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        "extra": "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        "variant": "cuda-12.8"
+      }
+    },
+    {
+      "name": "Linux x64 on a Blackwell card takes CUDA 13",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 16,
+        "nvidia": true,
+        "cuda13": true
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+        "extra": "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+        "variant": "cuda-13.4"
+      }
+    },
+    {
+      "name": "Linux x64 with a GPU but no driver takes Vulkan",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "Linux x64 with no GPU memory takes the CPU build",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 0,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-x64.tar.gz",
+        "extra": null,
+        "variant": "cpu"
+      }
+    },
+    {
+      "name": "Linux arm64 with no GPU memory",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "arm64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 0,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": null,
+        "extra": null,
+        "variant": null
+      }
+    },
+    {
+      "name": "Linux arm64 never takes CUDA",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "arm64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "macOS arm64 takes Metal",
+      "input": {
+        "op": "pick",
+        "platform": "darwin",
+        "arch": "arm64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 16,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-macos-arm64.tar.gz",
+        "extra": null,
+        "variant": "metal"
+      }
+    },
+    {
+      "name": "macOS x64 has no matching archive",
+      "input": {
+        "op": "pick",
+        "platform": "darwin",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-cuda-12.4-x64.zip",
+          "llama-b1-bin-win-cuda-13.4-x64.zip",
+          "cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "cudart-llama-bin-win-cuda-13.4-x64.zip",
+          "llama-b1-bin-win-cpu-arm64.zip",
+          "llama-b1-bin-macos-arm64.tar.gz",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-12.8-x64.tar.gz",
+          "cudart-llama-b1-bin-ubuntu-cuda-13.4-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-arm64.tar.gz"
+        ],
+        "vramGB": 16,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": null,
+        "extra": null,
+        "variant": null
+      }
+    },
+    {
+      "name": "no assets gives no variant",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [],
+        "vramGB": 0,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": null,
+        "extra": null,
+        "variant": null
+      }
+    },
+    {
+      "name": "variant of a Windows Vulkan archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-win-vulkan-x64.zip"
+      },
+      "expected": "vulkan"
+    },
+    {
+      "name": "variant of an Ubuntu CPU archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-ubuntu-x64.tar.gz"
+      },
+      "expected": "cpu"
+    },
+    {
+      "name": "variant of a macOS archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-macos-arm64.tar.gz"
+      },
+      "expected": "metal"
+    },
+    {
+      "name": "variant of an Ubuntu CUDA archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-ubuntu-cuda-12.8-x64.tar.gz"
+      },
+      "expected": "cuda-12.8"
+    },
+    {
+      "name": "variant of a Windows CUDA archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-win-cuda-13.4-x64.zip"
+      },
+      "expected": "cuda-13.4"
+    },
+    {
+      "name": "variant of an unknown name is cpu",
+      "input": {
+        "op": "variantOf",
+        "name": "readme.txt"
+      },
+      "expected": "cpu"
+    },
+    {
+      "name": "build number of a tag",
+      "input": {
+        "op": "buildNumber",
+        "tag": "b11146"
+      },
+      "expected": 11146
+    },
+    {
+      "name": "build number of a semver tag is zero",
+      "input": {
+        "op": "buildNumber",
+        "tag": "v0.5.0"
+      },
+      "expected": 0
+    },
+    {
+      "name": "build number needs the b prefix",
+      "input": {
+        "op": "buildNumber",
+        "tag": "11146"
+      },
+      "expected": 0
+    },
+    {
+      "name": "reason for a CPU build",
+      "input": {
+        "op": "whyPicked",
+        "vramGB": 0,
+        "nvidia": false,
+        "cuda13": false,
+        "variant": "cpu"
+      },
+      "expected": "no gpu memory found, so the cpu build"
+    },
+    {
+      "name": "reason for a Blackwell CUDA 13 build",
+      "input": {
+        "op": "whyPicked",
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": true,
+        "variant": "cuda-13.1"
+      },
+      "expected": "nvidia gpu with a driver new enough for cuda 13"
+    },
+    {
+      "name": "reason for a CUDA 12 build",
+      "input": {
+        "op": "whyPicked",
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false,
+        "variant": "cuda-12.4"
+      },
+      "expected": "nvidia gpu with cuda 12"
+    },
+    {
+      "name": "reason for Vulkan on an AMD card",
+      "input": {
+        "op": "whyPicked",
+        "vramGB": 8,
+        "nvidia": false,
+        "cuda13": false,
+        "variant": "vulkan"
+      },
+      "expected": "gpu without an nvidia driver, so vulkan"
+    },
+    {
+      "name": "reason for Vulkan on NVIDIA without a runtime",
+      "input": {
+        "op": "whyPicked",
+        "vramGB": 8,
+        "nvidia": true,
+        "cuda13": false,
+        "variant": "vulkan"
+      },
+      "expected": "nvidia gpu, but no matching cuda runtime in the release"
+    },
+    {
+      "name": "first asset on Windows with a GPU",
+      "input": {
+        "op": "recommended",
+        "platform": "win32",
+        "vramGB": 8
+      },
+      "expected": "llama-server-cuda-x64"
+    },
+    {
+      "name": "first asset on Windows without a GPU",
+      "input": {
+        "op": "recommended",
+        "platform": "win32",
+        "vramGB": 0
+      },
+      "expected": "llama-server-vulkan-x64"
+    },
+    {
+      "name": "first asset on macOS",
+      "input": {
+        "op": "recommended",
+        "platform": "darwin",
+        "vramGB": 16
+      },
+      "expected": "llama-server-metal-arm64"
+    },
+    {
+      "name": "first asset on Linux",
+      "input": {
+        "op": "recommended",
+        "platform": "linux",
+        "vramGB": 8
+      },
+      "expected": "llama-server-vulkan-x64"
+    },
+    {
+      "name": "GitHub download is allowed",
+      "input": {
+        "op": "validateUrl",
+        "url": "https://github.com/ggerganov/llama.cpp/releases"
+      },
+      "expected": true
+    },
+    {
+      "name": "plain http is refused",
+      "input": {
+        "op": "validateUrl",
+        "url": "http://localhost:8080/llama-server"
+      },
+      "expected": false
+    },
+    {
+      "name": "file scheme is refused",
+      "input": {
+        "op": "validateUrl",
+        "url": "file:///C:/bin/llama-server.exe"
+      },
+      "expected": false
+    },
+    {
+      "name": "private address is refused",
+      "input": {
+        "op": "validateUrl",
+        "url": "https://192.168.1.10/llama-server.zip"
+      },
+      "expected": false
+    }
+  ]
+}

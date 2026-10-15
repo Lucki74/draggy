@@ -1,0 +1,851 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over per-turn statistics read the way recordMetric reads them: list-valued ids, numbers beyond the integer range, the tools map and its JavaScript key rules, first-token times, refusals of non-object and model-less turns, and a stored tools column that is not an object. Each case starts from an empty database. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "a workspace or chat id that is a list is stored as empty text, not as none",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "workspaceId": [],
+                "chatId": [
+                  ""
+                ]
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1000,
+            "workspaceId": "",
+            "chatId": "",
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "huge numbers are stored as they are, not clamped to the integer range",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1e+300,
+                "promptTokens": 1e+300,
+                "responseTokens": 1e+300,
+                "responseMs": 1e+300,
+                "loops": 1e+300
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1e+300,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 1e+300,
+            "responseTokens": 1e+300,
+            "responseMs": 1e+300,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1e+300,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a tool named __proto__ is dropped, as a plain object drops it",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "tools": {
+                  "__proto__": 2,
+                  "read": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "read": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "only the first fifty tools in key order are kept, and a long name is cut to 120",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "tools": {
+                  "t00": 1,
+                  "t01": 1,
+                  "t02": 1,
+                  "t03": 1,
+                  "t04": 1,
+                  "t05": 1,
+                  "t06": 1,
+                  "t07": 1,
+                  "t08": 1,
+                  "t09": 1,
+                  "t10": 1,
+                  "t11": 1,
+                  "t12": 1,
+                  "t13": 1,
+                  "t14": 1,
+                  "t15": 1,
+                  "t16": 1,
+                  "t17": 1,
+                  "t18": 1,
+                  "t19": 1,
+                  "t20": 1,
+                  "t21": 1,
+                  "t22": 1,
+                  "t23": 1,
+                  "t24": 1,
+                  "t25": 1,
+                  "t26": 1,
+                  "t27": 1,
+                  "t28": 1,
+                  "t29": 1,
+                  "t30": 1,
+                  "t31": 1,
+                  "t32": 1,
+                  "t33": 1,
+                  "t34": 1,
+                  "t35": 1,
+                  "t36": 1,
+                  "t37": 1,
+                  "t38": 1,
+                  "t39": 1,
+                  "t40": 1,
+                  "t41": 1,
+                  "t42": 1,
+                  "t43": 1,
+                  "t44": 1,
+                  "t45": 1,
+                  "t46": 1,
+                  "t47": 1,
+                  "t48": 1,
+                  "t49": 1,
+                  "t50": 1,
+                  "t51": 1,
+                  "t52": 1,
+                  "t53": 1,
+                  "t54": 1,
+                  "t55": 1,
+                  "t56": 1,
+                  "t57": 1,
+                  "t58": 1,
+                  "t59": 1
+                }
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 2000,
+                "tools": {
+                  "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn": 2
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 2000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn": 2
+            }
+          },
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "t00": 1,
+              "t01": 1,
+              "t02": 1,
+              "t03": 1,
+              "t04": 1,
+              "t05": 1,
+              "t06": 1,
+              "t07": 1,
+              "t08": 1,
+              "t09": 1,
+              "t10": 1,
+              "t11": 1,
+              "t12": 1,
+              "t13": 1,
+              "t14": 1,
+              "t15": 1,
+              "t16": 1,
+              "t17": 1,
+              "t18": 1,
+              "t19": 1,
+              "t20": 1,
+              "t21": 1,
+              "t22": 1,
+              "t23": 1,
+              "t24": 1,
+              "t25": 1,
+              "t26": 1,
+              "t27": 1,
+              "t28": 1,
+              "t29": 1,
+              "t30": 1,
+              "t31": 1,
+              "t32": 1,
+              "t33": 1,
+              "t34": 1,
+              "t35": 1,
+              "t36": 1,
+              "t37": 1,
+              "t38": 1,
+              "t39": 1,
+              "t40": 1,
+              "t41": 1,
+              "t42": 1,
+              "t43": 1,
+              "t44": 1,
+              "t45": 1,
+              "t46": 1,
+              "t47": 1,
+              "t48": 1,
+              "t49": 1
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a tool count that is not positive is dropped, and a fraction rounds down",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "tools": {
+                  "a": 0,
+                  "b": -1,
+                  "c": 2.9,
+                  "d": "3",
+                  "e": null,
+                  "f": "x",
+                  "g": [
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "c": 2,
+              "d": 3,
+              "g": 4
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "tools given as a list count their indexes",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "tools": [
+                  3,
+                  0,
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {
+              "0": 3,
+              "2": 2
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a first token time of null is zero, and a missing or negative one is none",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "firstTokenMs": null
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 3000,
+                "firstTokenMs": -1
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 3000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 2000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": 0,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a turn with no model, or one that is not an object, is refused",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": ""
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "recordedAt": 1
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              null
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              5
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              []
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              "model"
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": false
+        },
+        {
+          "success": false
+        },
+        {
+          "success": false
+        },
+        {
+          "success": false
+        },
+        {
+          "success": false
+        },
+        {
+          "success": false
+        },
+        []
+      ]
+    },
+    {
+      "name": "a stored tools column that is not an object reads back as it was stored",
+      "input": {
+        "ops": [
+          {
+            "call": "sql",
+            "args": [
+              [
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (1000, 'm', '[1]')",
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (2000, 'm', 'null')",
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (3000, 'm', '5')",
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (4000, 'm', '\"x\"')",
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (5000, 'm', '')",
+                "INSERT INTO metrics (recorded_at, model, tools) VALUES (6000, 'm', 'not json')"
+              ]
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        null,
+        [
+          {
+            "recordedAt": 6000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 5000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 4000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": "x"
+          },
+          {
+            "recordedAt": 3000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": 5
+          },
+          {
+            "recordedAt": 2000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": null
+          },
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": [
+              1
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a recorded time of zero means now, and a loop count below one is one",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 0,
+                "loops": 0
+              }
+            ]
+          },
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "loops": 2.7
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": {
+              "$any": "now"
+            },
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          },
+          {
+            "recordedAt": 1000,
+            "workspaceId": null,
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 2,
+            "tools": {}
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a workspace id that is a number is stored as text, and a zero chat id as none",
+      "input": {
+        "ops": [
+          {
+            "call": "recordMetric",
+            "args": [
+              {
+                "model": "m",
+                "recordedAt": 1000,
+                "workspaceId": 5,
+                "chatId": 0
+              }
+            ]
+          },
+          {
+            "call": "listMetrics",
+            "args": [
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "recordedAt": 1000,
+            "workspaceId": "5",
+            "chatId": null,
+            "model": "m",
+            "promptTokens": 0,
+            "responseTokens": 0,
+            "responseMs": 0,
+            "firstTokenMs": null,
+            "loadMs": 0,
+            "taskMs": 0,
+            "loops": 1,
+            "tools": {}
+          }
+        ]
+      ]
+    }
+  ]
+}

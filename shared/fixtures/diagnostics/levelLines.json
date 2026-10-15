@@ -1,0 +1,158 @@
+{
+  "area": "diagnostics",
+  "description": "setLevel as it changes what the files take. Format runner: app, debug and events lines after the boot line. The `level changed` line carries the level, scopes, keep and until.",
+  "cases": [
+    {
+      "name": "a level change is logged with keep false and until null",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "debug"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "a timed change logs when it ends",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "durationMs": 60000
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225660123}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225660123}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225660123}}"
+        ]
+      }
+    },
+    {
+      "name": "scopes replace the raised list and are capped at 50 entries and 80 units",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": "s0,s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29,s30,s31,s32,s33,s34,s35,s36,s37,s38,s39,s40,s41,s42,s43,s44,s45,s46,s47,s48,s49,s50,s51,s52,s53,s54,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[\"s0\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"s8\",\"s9\",\"s10\",\"s11\",\"s12\",\"s13\",\"s14\",\"s15\",\"s16\",\"s17\",\"s18\",\"s19\",\"s20\",\"s21\",\"s22\",\"s23\",\"s24\",\"s25\",\"s26\",\"s27\",\"s28\",\"s29\",\"s30\",\"s31\",\"s32\",\"s33\",\"s34\",\"s35\",\"s36\",\"s37\",\"s38\",\"s39\",\"s40\",\"s41\",\"s42\",\"s43\",\"s44\",\"s45\",\"s46\",\"s47\",\"s48\",\"s49\"],\"keep\":false,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[\"s0\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"s8\",\"s9\",\"s10\",\"s11\",\"s12\",\"s13\",\"s14\",\"s15\",\"s16\",\"s17\",\"s18\",\"s19\",\"s20\",\"s21\",\"s22\",\"s23\",\"s24\",\"s25\",\"s26\",\"s27\",\"s28\",\"s29\",\"s30\",\"s31\",\"s32\",\"s33\",\"s34\",\"s35\",\"s36\",\"s37\",\"s38\",\"s39\",\"s40\",\"s41\",\"s42\",\"s43\",\"s44\",\"s45\",\"s46\",\"s47\",\"s48\",\"s49\"],\"keep\":false,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"INFO\",\"scopes\":[\"s0\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"s8\",\"s9\",\"s10\",\"s11\",\"s12\",\"s13\",\"s14\",\"s15\",\"s16\",\"s17\",\"s18\",\"s19\",\"s20\",\"s21\",\"s22\",\"s23\",\"s24\",\"s25\",\"s26\",\"s27\",\"s28\",\"s29\",\"s30\",\"s31\",\"s32\",\"s33\",\"s34\",\"s35\",\"s36\",\"s37\",\"s38\",\"s39\",\"s40\",\"s41\",\"s42\",\"s43\",\"s44\",\"s45\",\"s46\",\"s47\",\"s48\",\"s49\"],\"keep\":false,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "setLevel without scopes keeps the raised list",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "scopes": "ipc"
+          },
+          {
+            "op": "setLevel",
+            "level": "ERROR"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[\"ipc\"],\"keep\":false,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[\"ipc\"],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"ERROR\",\"scopes\":[\"ipc\"],\"keep\":false,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"INFO\",\"scopes\":[\"ipc\"],\"keep\":false,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"ERROR\",\"scopes\":[\"ipc\"],\"keep\":false,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "an unknown level name returns to the environment level",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "APP_LOG_LEVEL": "WARN"
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "probe"
+          },
+          {
+            "op": "setLevel",
+            "level": "DEBUG"
+          },
+          {
+            "op": "setLevel",
+            "level": "loud"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] probe",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [logger] level changed {\"level\":\"WARN\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"probe\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"WARN\",\"scopes\":[],\"keep\":false,\"until\":null}}"
+        ]
+      }
+    }
+  ]
+}

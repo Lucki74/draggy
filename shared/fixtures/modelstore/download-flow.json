@@ -1,0 +1,1635 @@
+{
+  "area": "modelstore",
+  "description": "Ordered operations on one scratch models folder with a scripted https server: each op's result, the files left behind and each request's URL and Range. A start op begins a download without awaiting it; an await op settles it.",
+  "cases": [
+    {
+      "name": "a whole file lands under its name and no partial is left",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a filename without the gguf suffix gets it",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "filename": "model"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "keepExtension keeps the name an image model had",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "3"
+            },
+            "body": [
+              {
+                "data": "abc"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "filename": "model.safetensors",
+              "keepExtension": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.safetensors"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.safetensors",
+            "content": "abc"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a failed replacement keeps the installed model and the bytes it got",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          }
+        ],
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              },
+              {
+                "fail": "connection reset"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retries": 0,
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The connection closed before the download finished"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          },
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a finished download replaces the installed model",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          }
+        ],
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a partial from an earlier run is continued from its length",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5",
+              "content-range": "bytes 5-9/10"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a partial older than seven days is started over",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "old",
+            "ageMs": 691200000
+          }
+        ],
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a server that ignores Range sends the whole file",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a range the server refuses starts the file over",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 416,
+            "headers": {},
+            "body": []
+          },
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          },
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a relative redirect is followed and its target is where the file comes from",
+      "input": {
+        "replies": [
+          {
+            "status": 302,
+            "headers": {
+              "location": "/cdn/model.gguf"
+            },
+            "body": []
+          },
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/cdn/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a redirect into a private network is refused",
+      "input": {
+        "replies": [
+          {
+            "status": 302,
+            "headers": {
+              "location": "http://10.0.0.5/model.gguf"
+            },
+            "body": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Redirect URL refused by security policy"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "too many redirects stop the download after the limit",
+      "input": {
+        "replies": [
+          {
+            "status": 302,
+            "headers": {
+              "location": "/a"
+            },
+            "body": []
+          },
+          {
+            "status": 302,
+            "headers": {
+              "location": "/b"
+            },
+            "body": []
+          },
+          {
+            "status": 302,
+            "headers": {
+              "location": "/c"
+            },
+            "body": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "maxRedirects": 2
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Too many redirects"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/a",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/b",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty location is no redirect, so the status is the answer",
+      "input": {
+        "replies": [
+          {
+            "status": 302,
+            "headers": {
+              "location": ""
+            },
+            "body": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Server returned HTTP 302"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a refused status fails at once without a retry",
+      "input": {
+        "replies": [
+          {
+            "status": 404,
+            "headers": {},
+            "body": []
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Server returned HTTP 404"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a request that fails before any answer is retried from the start",
+      "input": {
+        "replies": [
+          {
+            "error": "socket hang up"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a dropped connection is resumed from the bytes kept",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              },
+              {
+                "fail": "connection reset"
+              }
+            ]
+          },
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5",
+              "content-range": "bytes 5-9/10"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a stalled connection is resumed from the bytes kept",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              },
+              {
+                "stall": true
+              }
+            ]
+          },
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5",
+              "content-range": "bytes 5-9/10"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "stallMs": 30,
+              "retryDelayMs": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a stall with no tries left reports the stall and keeps the partial",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              },
+              {
+                "stall": true
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "stallMs": 30,
+              "retries": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The download stalled: no data for 0 seconds"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a connection closed early with no tries left keeps the partial",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              },
+              {
+                "fail": "connection reset"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retries": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The connection closed before the download finished"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a short body with no tries left reports the bytes received",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "01234"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retries": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Received 5 of 10 bytes"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "more bytes than promised are not this file",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "4"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The file is larger than the server said"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a body with no length is taken as the whole file",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a 206 without a content-range total falls back to the length",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a content-range total is read after the slash wherever the bytes figures sit",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5",
+              "content-range": "foo bytes 5-9/99"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retries": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "Received 10 of 99 bytes"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf.download",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a content-range with no space after bytes gives no total",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf.download",
+            "content": "01234"
+          }
+        ],
+        "replies": [
+          {
+            "status": 206,
+            "headers": {
+              "content-length": "5",
+              "content-range": "bytes5-9/99"
+            },
+            "body": [
+              {
+                "data": "56789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=5-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a refused URL never reaches the network",
+      "input": {
+        "replies": [],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "http://192.168.1.1/model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "URL refused by outbound security policy"
+          }
+        ],
+        "files": [],
+        "requests": []
+      }
+    },
+    {
+      "name": "a second download of a file already running joins it and gets its outcome",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "a",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "start",
+            "id": "b",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "await",
+            "id": "a"
+          },
+          {
+            "op": "await",
+            "id": "b"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "started": "a"
+          },
+          {
+            "started": "b"
+          },
+          {
+            "success": true,
+            "filename": "model.gguf"
+          },
+          {
+            "success": true,
+            "filename": "model.gguf"
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a cancel while the connection is still opening removes the partial and the model it replaces",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          },
+          {
+            "name": "model.gguf.download",
+            "content": "part"
+          }
+        ],
+        "replies": [
+          {
+            "hang": true
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "a",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "cancel",
+            "args": {
+              "filename": "model.gguf"
+            }
+          },
+          {
+            "op": "await",
+            "id": "a"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "started": "a"
+          },
+          {
+            "success": true
+          },
+          {
+            "cancelled": true
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": "bytes=4-"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a cancel that finds nothing running keeps an installed model and clears the partial",
+      "input": {
+        "seed": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          },
+          {
+            "name": "model.gguf.download",
+            "content": "part"
+          }
+        ],
+        "replies": [],
+        "ops": [
+          {
+            "op": "cancel",
+            "args": {
+              "filename": "model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "installed"
+          }
+        ],
+        "requests": []
+      }
+    },
+    {
+      "name": "a finished download is not undone by a cancel that follows",
+      "input": {
+        "replies": [
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "cancel",
+            "args": {
+              "filename": "model.gguf"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "filename": "model.gguf"
+          },
+          {
+            "success": true
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a download can start again after a cancel",
+      "input": {
+        "replies": [
+          {
+            "hang": true
+          },
+          {
+            "status": 200,
+            "headers": {
+              "content-length": "10"
+            },
+            "body": [
+              {
+                "data": "0123456789"
+              }
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "start",
+            "id": "a",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "cancel",
+            "args": {
+              "filename": "model.gguf"
+            }
+          },
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf"
+            }
+          },
+          {
+            "op": "await",
+            "id": "a"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "started": "a"
+          },
+          {
+            "success": true
+          },
+          {
+            "success": true,
+            "filename": "model.gguf"
+          },
+          {
+            "cancelled": true
+          }
+        ],
+        "files": [
+          {
+            "name": "model.gguf",
+            "content": "0123456789"
+          }
+        ],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          },
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a download that fails before any answer leaves no file",
+      "input": {
+        "replies": [
+          {
+            "error": "socket hang up"
+          }
+        ],
+        "ops": [
+          {
+            "op": "download",
+            "args": {
+              "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+              "retries": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "socket hang up"
+          }
+        ],
+        "files": [],
+        "requests": [
+          {
+            "url": "https://huggingface.co/acme/Model-GGUF/resolve/main/model.gguf",
+            "range": null
+          }
+        ]
+      }
+    }
+  ]
+}

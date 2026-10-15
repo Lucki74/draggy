@@ -1,0 +1,543 @@
+{
+  "area": "documents",
+  "description": "writePptx: markdown in, the structure of the generated .pptx out (parts, slides with text boxes, geometry and first run style). Compared by structure, not bytes.",
+  "cases": [
+    {
+      "name": "a slide starts at each heading",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "# One\nbody a\n\n# Two\nbody b"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "One"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "body a"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Two"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "body b"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a rule starts a slide without a heading",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "first slide\n\n---\n\nsecond slide"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.5,
+                  9,
+                  4.6
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "first slide"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.5,
+                  9,
+                  4.6
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "second slide"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "markdown bullets become bullet characters",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "# T\n- alpha\n* beta\n1. kept"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "T"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "• alpha",
+                  "• beta",
+                  "1. kept"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a long slide overflows onto a continuation",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "# Long\nline 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/slide2.xml",
+          "ppt/slides/slide3.xml",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/_rels/slide2.xml.rels",
+          "ppt/slides/_rels/slide3.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Long"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "line 0",
+                  "line 1",
+                  "line 2",
+                  "line 3",
+                  "line 4",
+                  "line 5",
+                  "line 6",
+                  "line 7",
+                  "line 8",
+                  "line 9",
+                  "line 10",
+                  "line 11"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Long (cont.)"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "line 12",
+                  "line 13",
+                  "line 14",
+                  "line 15",
+                  "line 16",
+                  "line 17",
+                  "line 18",
+                  "line 19",
+                  "line 20",
+                  "line 21",
+                  "line 22",
+                  "line 23"
+                ]
+              }
+            ]
+          },
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Long (cont.) (cont.)"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "line 24",
+                  "line 25",
+                  "line 26",
+                  "line 27",
+                  "line 28",
+                  "line 29"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty input writes one empty slide",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          ""
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.5,
+                  9,
+                  4.6
+                ],
+                "anchor": "t",
+                "size": null,
+                "bold": false,
+                "font": null,
+                "color": null,
+                "text": [
+                  ""
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "whitespace-only input keeps one box",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "\n\n   \n"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.5,
+                  9,
+                  4.6
+                ],
+                "anchor": "t",
+                "size": null,
+                "bold": false,
+                "font": null,
+                "color": null,
+                "text": [
+                  ""
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "heading text is escaped",
+      "input": {
+        "fn": "writePptx",
+        "args": [
+          "# Q&A <draft>\nline & more"
+        ]
+      },
+      "expected": {
+        "parts": [
+          "[Content_Types].xml",
+          "_rels/.rels",
+          "ppt/presentation.xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/theme/theme1.xml",
+          "ppt/slideMasters/slideMaster1.xml",
+          "ppt/slideLayouts/slideLayout1.xml",
+          "ppt/slides/slide1.xml",
+          "ppt/slides/_rels/slide1.xml.rels"
+        ],
+        "slides": [
+          {
+            "shapes": [
+              {
+                "box": [
+                  0.5,
+                  0.4,
+                  9,
+                  0.8
+                ],
+                "anchor": "t",
+                "size": 28,
+                "bold": true,
+                "font": "Aptos Display",
+                "color": "000000",
+                "text": [
+                  "Q&A <draft>"
+                ]
+              },
+              {
+                "box": [
+                  0.5,
+                  1.4,
+                  9,
+                  3.7
+                ],
+                "anchor": "t",
+                "size": 16,
+                "bold": false,
+                "font": "Aptos",
+                "color": "000000",
+                "text": [
+                  "line & more"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

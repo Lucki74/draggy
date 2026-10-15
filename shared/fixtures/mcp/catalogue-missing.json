@@ -1,0 +1,249 @@
+{
+  "area": "mcp",
+  "description": "missingRequirements: the labels still to fill in before a server can start, for credentials and list or text arguments.",
+  "cases": [
+    {
+      "name": "needs nothing for a server that needs nothing",
+      "input": {
+        "entry": "memory",
+        "config": {}
+      },
+      "expected": []
+    },
+    {
+      "name": "names the credential that has not been entered",
+      "input": {
+        "entry": "github",
+        "config": {}
+      },
+      "expected": [
+        "GitHub personal access token"
+      ]
+    },
+    {
+      "name": "is satisfied once the credential is there",
+      "input": {
+        "entry": "github",
+        "config": {
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_x"
+          }
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "treats whitespace as not entered",
+      "input": {
+        "entry": "github",
+        "config": {
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "   "
+          }
+        }
+      },
+      "expected": [
+        "GitHub personal access token"
+      ]
+    },
+    {
+      "name": "names a required argument by its label",
+      "input": {
+        "entry": "postgres",
+        "config": {}
+      },
+      "expected": [
+        "Connection string"
+      ]
+    },
+    {
+      "name": "counts a number as entered",
+      "input": {
+        "entry": "postgres",
+        "config": {
+          "arguments": {
+            "connection": 5
+          }
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "wants at least one folder for a list argument",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {}
+      },
+      "expected": [
+        "roots"
+      ]
+    },
+    {
+      "name": "wants a non-empty list, not an empty one",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": []
+          }
+        }
+      },
+      "expected": [
+        "roots"
+      ]
+    },
+    {
+      "name": "accepts a list with a folder in it",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              "C:/work"
+            ]
+          }
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "does not count blank or falsy list items",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              "",
+              0,
+              null
+            ]
+          }
+        }
+      },
+      "expected": [
+        "roots"
+      ]
+    },
+    {
+      "name": "wants a list, not a single folder, for a list argument",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": "C:/work"
+          }
+        }
+      },
+      "expected": [
+        "roots"
+      ]
+    },
+    {
+      "name": "says so for a server that does not exist",
+      "input": {
+        "entry": null,
+        "config": {}
+      },
+      "expected": [
+        "unknown server"
+      ]
+    },
+    {
+      "name": "names a required credential by its key when it has no label",
+      "input": {
+        "entry": {
+          "id": "x",
+          "env": [
+            {
+              "key": "TOKEN_X",
+              "required": true
+            }
+          ]
+        },
+        "config": {}
+      },
+      "expected": [
+        "TOKEN_X"
+      ]
+    },
+    {
+      "name": "names a required credential by its label",
+      "input": {
+        "entry": {
+          "id": "x",
+          "env": [
+            {
+              "key": "API_KEY",
+              "label": "API key",
+              "required": true,
+              "secret": true
+            }
+          ]
+        },
+        "config": {}
+      },
+      "expected": [
+        "API key"
+      ]
+    },
+    {
+      "name": "needs nothing for a server found in the registry",
+      "input": {
+        "entry": {
+          "id": "custom-weather",
+          "package": "@someone/weather-mcp",
+          "args": [],
+          "arguments": [],
+          "env": []
+        },
+        "config": {}
+      },
+      "expected": []
+    }
+  ]
+}

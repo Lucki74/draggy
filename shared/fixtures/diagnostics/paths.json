@@ -1,0 +1,103 @@
+{
+  "area": "diagnostics",
+  "description": "scrubPaths from electron/logScrub.cjs: the home directory becomes ~ in forward, backslash and JSON-escaped forms, and the bare user name becomes <user> on ASCII word boundaries. Input is { text, home, user }; expected is the scrubbed text.",
+  "cases": [
+    {
+      "name": "a windows home with backslashes becomes ~",
+      "input": {
+        "text": "C:\\Users\\jdoe\\AppData\\x",
+        "home": "C:\\Users\\jdoe",
+        "user": "jdoe"
+      },
+      "expected": "~\\AppData\\x"
+    },
+    {
+      "name": "forward slashes match a windows home",
+      "input": {
+        "text": "C:/Users/jdoe/Documents",
+        "home": "C:\\Users\\jdoe"
+      },
+      "expected": "~/Documents"
+    },
+    {
+      "name": "JSON-escaped backslashes match a windows home",
+      "input": {
+        "text": "{\"path\":\"C:\\\\Users\\\\jdoe\\\\x.txt\"}",
+        "home": "C:\\Users\\jdoe"
+      },
+      "expected": "{\"path\":\"~\\\\x.txt\"}"
+    },
+    {
+      "name": "a posix home matches case-insensitively",
+      "input": {
+        "text": "/Home/Alice/notes",
+        "home": "/home/alice"
+      },
+      "expected": "~/notes"
+    },
+    {
+      "name": "the user name is replaced on word boundaries only",
+      "input": {
+        "text": "owner jdoe wrote jdoeson-notes",
+        "user": "jdoe"
+      },
+      "expected": "owner <user> wrote jdoeson-notes"
+    },
+    {
+      "name": "a user name under three characters is kept",
+      "input": {
+        "text": "me and my",
+        "user": "me"
+      },
+      "expected": "me and my"
+    },
+    {
+      "name": "the user name is replaced case-insensitively",
+      "input": {
+        "text": "JDoe and jdoe",
+        "user": "jdoe"
+      },
+      "expected": "<user> and <user>"
+    },
+    {
+      "name": "an underscore or digit beside the user name keeps it",
+      "input": {
+        "text": "jdoe_1 x1jdoe jdoe.",
+        "user": "jdoe"
+      },
+      "expected": "jdoe_1 x1jdoe <user>."
+    },
+    {
+      "name": "no options leave the text alone",
+      "input": {
+        "text": "/home/alice"
+      },
+      "expected": "/home/alice"
+    },
+    {
+      "name": "regex characters in the home are literal",
+      "input": {
+        "text": "/srv/a.b+c/x /srv/aXb+c/x",
+        "home": "/srv/a.b+c"
+      },
+      "expected": "~/x /srv/aXb+c/x"
+    },
+    {
+      "name": "the home is replaced before the user name",
+      "input": {
+        "text": "/home/alice/notes alice",
+        "home": "/home/alice",
+        "user": "alice"
+      },
+      "expected": "~/notes <user>"
+    },
+    {
+      "name": "a user name after a tilde is a word boundary",
+      "input": {
+        "text": "/home/alice",
+        "user": "alice"
+      },
+      "expected": "/home/<user>"
+    }
+  ]
+}

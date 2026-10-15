@@ -1,0 +1,272 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over the key-value table, the statistics summary and garbage collection on a clean database. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "stores and reads a value",
+      "input": {
+        "ops": [
+          {
+            "call": "setValue",
+            "args": [
+              "theme",
+              "dark"
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "theme"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        "dark"
+      ]
+    },
+    {
+      "name": "returns null for a key that was never set",
+      "input": {
+        "ops": [
+          {
+            "call": "getValue",
+            "args": [
+              "nope"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        null
+      ]
+    },
+    {
+      "name": "overwrites on a second write",
+      "input": {
+        "ops": [
+          {
+            "call": "setValue",
+            "args": [
+              "k",
+              "one"
+            ]
+          },
+          {
+            "call": "setValue",
+            "args": [
+              "k",
+              "two"
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "k"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        "two"
+      ]
+    },
+    {
+      "name": "stores an empty string as a value, not as a missing key",
+      "input": {
+        "ops": [
+          {
+            "call": "setValue",
+            "args": [
+              "k2",
+              ""
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "k2"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        ""
+      ]
+    },
+    {
+      "name": "stores a number as its text",
+      "input": {
+        "ops": [
+          {
+            "call": "setValue",
+            "args": [
+              "count",
+              7
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "count"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        "7"
+      ]
+    },
+    {
+      "name": "a setting survives a reopen",
+      "input": {
+        "ops": [
+          {
+            "call": "setValue",
+            "args": [
+              "draggy_settings",
+              "{\"theme\":\"dark\",\"fontSize\":14}"
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "draggy_settings"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        null,
+        "{\"theme\":\"dark\",\"fontSize\":14}"
+      ]
+    },
+    {
+      "name": "stats count chats, messages and attachment blobs",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "a",
+                "title": "Chat a",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "one",
+                    "textContent": "one",
+                    "attachments": [
+                      {
+                        "name": "shot.png",
+                        "type": "image/png",
+                        "content": "data:image/png;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "m2",
+                    "role": "assistant",
+                    "content": "two",
+                    "textContent": "two"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "b",
+                "title": "Chat b",
+                "updatedAt": 2000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m3",
+                    "role": "user",
+                    "content": "three",
+                    "textContent": "three"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "stats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true
+        },
+        {
+          "chats": 2,
+          "messages": 3,
+          "attachments": 1,
+          "attachmentBytes": 4022
+        }
+      ]
+    },
+    {
+      "name": "stats of a fresh database are all zero",
+      "input": {
+        "ops": [
+          {
+            "call": "stats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "chats": 0,
+          "messages": 0,
+          "attachments": 0,
+          "attachmentBytes": 0
+        }
+      ]
+    },
+    {
+      "name": "collectGarbage on a clean database removes nothing",
+      "input": {
+        "ops": [
+          {
+            "call": "collectGarbage"
+          }
+        ]
+      },
+      "expected": [
+        0
+      ]
+    }
+  ]
+}

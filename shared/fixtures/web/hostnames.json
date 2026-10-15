@@ -1,0 +1,601 @@
+{
+  "area": "web",
+  "description": "isPrivateHostname on hostnames as the URL parser leaves them (IPv6 in brackets) and as typed directly. The /etc/hosts loopback names localhost.localdomain, localhost4, localhost4.localdomain4, localhost6, localhost6.localdomain6, ip6-localhost and ip6-loopback count as this machine. One trailing dot is dropped first, and IPv6 is read in the URL parser's spelling, so every spelling of one address gives the same answer.",
+  "cases": [
+    {
+      "name": "hostname \"localhost\"",
+      "input": {
+        "hostname": "localhost"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"LOCALHOST\"",
+      "input": {
+        "hostname": "LOCALHOST"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"127.0.0.1\"",
+      "input": {
+        "hostname": "127.0.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"127.1.2.3\"",
+      "input": {
+        "hostname": "127.1.2.3"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0.0.0.0\"",
+      "input": {
+        "hostname": "0.0.0.0"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0.1.2.3\"",
+      "input": {
+        "hostname": "0.1.2.3"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"[::1]\"",
+      "input": {
+        "hostname": "[::1]"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::1\"",
+      "input": {
+        "hostname": "::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0:0:0:0:0:0:0:1\"",
+      "input": {
+        "hostname": "0:0:0:0:0:0:0:1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"fd00:1234::1\"",
+      "input": {
+        "hostname": "fd00:1234::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"fc00::1\"",
+      "input": {
+        "hostname": "fc00::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"FD00::1\"",
+      "input": {
+        "hostname": "FD00::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"example.com\"",
+      "input": {
+        "hostname": "example.com"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"8.8.8.8\"",
+      "input": {
+        "hostname": "8.8.8.8"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"2606:4700::1111\"",
+      "input": {
+        "hostname": "2606:4700::1111"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"999.999.999.999\"",
+      "input": {
+        "hostname": "999.999.999.999"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"256.1.1.1\"",
+      "input": {
+        "hostname": "256.1.1.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"10.0.0.1\"",
+      "input": {
+        "hostname": "10.0.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"10.0.0.01\"",
+      "input": {
+        "hostname": "10.0.0.01"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"10.0.0.1000\"",
+      "input": {
+        "hostname": "10.0.0.1000"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"10.0.0\"",
+      "input": {
+        "hostname": "10.0.0"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"1.2.3\"",
+      "input": {
+        "hostname": "1.2.3"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"172.16.0.0\"",
+      "input": {
+        "hostname": "172.16.0.0"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"172.31.255.255\"",
+      "input": {
+        "hostname": "172.31.255.255"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"172.32.0.1\"",
+      "input": {
+        "hostname": "172.32.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"172.15.0.1\"",
+      "input": {
+        "hostname": "172.15.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"192.168.0.1\"",
+      "input": {
+        "hostname": "192.168.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"192.169.0.1\"",
+      "input": {
+        "hostname": "192.169.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"169.254.169.254\"",
+      "input": {
+        "hostname": "169.254.169.254"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"169.253.0.1\"",
+      "input": {
+        "hostname": "169.253.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"printer.local\"",
+      "input": {
+        "hostname": "printer.local"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"printer.local.\"",
+      "input": {
+        "hostname": "printer.local."
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"x.localhost\"",
+      "input": {
+        "hostname": "x.localhost"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhostings.com\"",
+      "input": {
+        "hostname": "localhostings.com"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"\"",
+      "input": {
+        "hostname": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"0127.0.0.1\"",
+      "input": {
+        "hostname": "0127.0.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"fe80::1\"",
+      "input": {
+        "hostname": "fe80::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"100.64.0.1\"",
+      "input": {
+        "hostname": "100.64.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::ffff:127.0.0.1\"",
+      "input": {
+        "hostname": "::ffff:127.0.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::\"",
+      "input": {
+        "hostname": "::"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost.\"",
+      "input": {
+        "hostname": "localhost."
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"127.0.0.1.\"",
+      "input": {
+        "hostname": "127.0.0.1."
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost..\"",
+      "input": {
+        "hostname": "localhost.."
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"example.com.\"",
+      "input": {
+        "hostname": "example.com."
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"0:0:0:0:0:0:0:0\"",
+      "input": {
+        "hostname": "0:0:0:0:0:0:0:0"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0::1\"",
+      "input": {
+        "hostname": "0::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0000:0000:0000:0000:0000:0000:0000:0001\"",
+      "input": {
+        "hostname": "0000:0000:0000:0000:0000:0000:0000:0001"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::0:1\"",
+      "input": {
+        "hostname": "::0:1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::2\"",
+      "input": {
+        "hostname": "::2"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"FE80::1\"",
+      "input": {
+        "hostname": "FE80::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"fe80::1\"",
+      "input": {
+        "hostname": "fe80::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"febf::1\"",
+      "input": {
+        "hostname": "febf::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"fe7f::1\"",
+      "input": {
+        "hostname": "fe7f::1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"fec0::1\"",
+      "input": {
+        "hostname": "fec0::1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"fbff::1\"",
+      "input": {
+        "hostname": "fbff::1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"fdff::1\"",
+      "input": {
+        "hostname": "fdff::1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"fe00::1\"",
+      "input": {
+        "hostname": "fe00::1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"[fe80::1]\"",
+      "input": {
+        "hostname": "[fe80::1]"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"[::]\"",
+      "input": {
+        "hostname": "[::]"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::FFFF:127.0.0.1\"",
+      "input": {
+        "hostname": "::FFFF:127.0.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::ffff:7f00:1\"",
+      "input": {
+        "hostname": "::ffff:7f00:1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"0:0:0:0:0:ffff:7f00:1\"",
+      "input": {
+        "hostname": "0:0:0:0:0:ffff:7f00:1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::ffff:10.0.0.1\"",
+      "input": {
+        "hostname": "::ffff:10.0.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::ffff:100.64.0.1\"",
+      "input": {
+        "hostname": "::ffff:100.64.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"::ffff:100.128.0.1\"",
+      "input": {
+        "hostname": "::ffff:100.128.0.1"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"::ffff:8.8.8.8\"",
+      "input": {
+        "hostname": "::ffff:8.8.8.8"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"::ffff:169.254.169.254\"",
+      "input": {
+        "hostname": "::ffff:169.254.169.254"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"100.64.0.0\"",
+      "input": {
+        "hostname": "100.64.0.0"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"100.127.255.255\"",
+      "input": {
+        "hostname": "100.127.255.255"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"100.128.0.0\"",
+      "input": {
+        "hostname": "100.128.0.0"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"100.64.0.1\"",
+      "input": {
+        "hostname": "100.64.0.1"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"100.63.255.255\"",
+      "input": {
+        "hostname": "100.63.255.255"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"localhost.localdomain\"",
+      "input": {
+        "hostname": "localhost.localdomain"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"LOCALHOST.LOCALDOMAIN\"",
+      "input": {
+        "hostname": "LOCALHOST.LOCALDOMAIN"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost.localdomain.\"",
+      "input": {
+        "hostname": "localhost.localdomain."
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"ip6-localhost\"",
+      "input": {
+        "hostname": "ip6-localhost"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"ip6-loopback\"",
+      "input": {
+        "hostname": "ip6-loopback"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"ip6-localhost.example.com\"",
+      "input": {
+        "hostname": "ip6-localhost.example.com"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"localhost.localdomain.example.com\"",
+      "input": {
+        "hostname": "localhost.localdomain.example.com"
+      },
+      "expected": false
+    },
+    {
+      "name": "hostname \"localhost4\"",
+      "input": {
+        "hostname": "localhost4"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"LOCALHOST4.LOCALDOMAIN4\"",
+      "input": {
+        "hostname": "LOCALHOST4.LOCALDOMAIN4"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost4.localdomain4.\"",
+      "input": {
+        "hostname": "localhost4.localdomain4."
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost6\"",
+      "input": {
+        "hostname": "localhost6"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost6.localdomain6\"",
+      "input": {
+        "hostname": "localhost6.localdomain6"
+      },
+      "expected": true
+    },
+    {
+      "name": "hostname \"localhost4.example.com\"",
+      "input": {
+        "hostname": "localhost4.example.com"
+      },
+      "expected": false
+    }
+  ]
+}

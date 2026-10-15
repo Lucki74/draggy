@@ -1,0 +1,280 @@
+{
+  "area": "documents",
+  "description": "officeStyle.cjs: the unit helpers pt and twips (JavaScript Math.round, which rounds halves up), the typeface and colour constants, the docx style and numbering templates, and the table border. Heading templates are checked through DOCX_STYLES.",
+  "cases": [
+    {
+      "name": "pt is half points",
+      "input": {
+        "fn": "pt",
+        "args": [
+          9.5
+        ]
+      },
+      "expected": 19
+    },
+    {
+      "name": "pt of a whole size",
+      "input": {
+        "fn": "pt",
+        "args": [
+          11
+        ]
+      },
+      "expected": 22
+    },
+    {
+      "name": "pt of zero",
+      "input": {
+        "fn": "pt",
+        "args": [
+          0
+        ]
+      },
+      "expected": 0
+    },
+    {
+      "name": "twips of spacing",
+      "input": {
+        "fn": "twips",
+        "args": [
+          8
+        ]
+      },
+      "expected": 160
+    },
+    {
+      "name": "twips of a fraction",
+      "input": {
+        "fn": "twips",
+        "args": [
+          1.25
+        ]
+      },
+      "expected": 25
+    },
+    {
+      "name": "twips rounds a negative half toward plus infinity",
+      "input": {
+        "fn": "twips",
+        "args": [
+          -0.125
+        ]
+      },
+      "expected": -2
+    },
+    {
+      "name": "twips rounds a positive half up",
+      "input": {
+        "fn": "twips",
+        "args": [
+          0.025
+        ]
+      },
+      "expected": 1
+    },
+    {
+      "name": "constants",
+      "input": {
+        "fn": "constants",
+        "args": []
+      },
+      "expected": {
+        "BODY_FONT": "Aptos",
+        "HEADING_FONT": "Aptos Display",
+        "SHEET_FONT": "Aptos Narrow",
+        "MONO_FONT": "Cascadia Mono",
+        "HEADING_COLOR": "000000"
+      }
+    },
+    {
+      "name": "docx styles",
+      "input": {
+        "fn": "DOCX_STYLES",
+        "args": []
+      },
+      "expected": {
+        "default": {
+          "document": {
+            "run": {
+              "font": "Aptos",
+              "size": 22,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "line": 276,
+                "after": 160
+              }
+            }
+          },
+          "title": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 56,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "after": 240
+              }
+            }
+          },
+          "heading1": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 40,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 320,
+                "after": 80
+              }
+            }
+          },
+          "heading2": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 32,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 280,
+                "after": 80
+              }
+            }
+          },
+          "heading3": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 28,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 240,
+                "after": 80
+              }
+            }
+          },
+          "heading4": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 24,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 200,
+                "after": 80
+              }
+            }
+          },
+          "heading5": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 22,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 200,
+                "after": 80
+              }
+            }
+          },
+          "heading6": {
+            "run": {
+              "font": "Aptos Display",
+              "size": 22,
+              "bold": true,
+              "color": "000000"
+            },
+            "paragraph": {
+              "spacing": {
+                "before": 200,
+                "after": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "docx numbering",
+      "input": {
+        "fn": "DOCX_NUMBERING",
+        "args": []
+      },
+      "expected": {
+        "config": [
+          {
+            "reference": "numList",
+            "levels": [
+              {
+                "level": 0,
+                "format": "decimal",
+                "text": "%1.",
+                "alignment": "start",
+                "style": {
+                  "paragraph": {
+                    "indent": {
+                      "left": 720,
+                      "hanging": 360
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "table borders",
+      "input": {
+        "fn": "tableBorders",
+        "args": []
+      },
+      "expected": {
+        "top": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        },
+        "bottom": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        },
+        "left": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        },
+        "right": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        },
+        "insideHorizontal": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        },
+        "insideVertical": {
+          "style": "single",
+          "size": 4,
+          "color": "D0D0D8"
+        }
+      }
+    }
+  ]
+}

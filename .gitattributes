@@ -6,3 +6,4 @@
 *.mp3 binary
 *.woff2 binary
 *.onnx binary
+*.db binary

@@ -1,0 +1,53 @@
+{
+  "area": "engine",
+  "description": "One line of llama-server output parsed for draft acceptance (draftStats parseAcceptance). `expected` is {rate, accepted, generated} or null.",
+  "cases": [
+    {
+      "name": "a reply's acceptance is its accepted share of what was generated",
+      "input": {
+        "line": "draft acceptance rate = 0.62857 (   44 accepted /    70 generated)"
+      },
+      "expected": {
+        "rate": 0.6285714285714286,
+        "accepted": 44,
+        "generated": 70
+      }
+    },
+    {
+      "name": "the report is read whatever the case",
+      "input": {
+        "line": "Draft Acceptance Rate = 0.5 ( 1 Accepted / 2 Generated)"
+      },
+      "expected": {
+        "rate": 0.5,
+        "accepted": 1,
+        "generated": 2
+      }
+    },
+    {
+      "name": "spaces around the separator do not matter",
+      "input": {
+        "line": "draft acceptance rate=1 (3 accepted/3 generated)"
+      },
+      "expected": {
+        "rate": 1,
+        "accepted": 3,
+        "generated": 3
+      }
+    },
+    {
+      "name": "a reply with nothing generated carries no rate",
+      "input": {
+        "line": "draft acceptance rate = 0.00000 (    0 accepted /    0 generated)"
+      },
+      "expected": null
+    },
+    {
+      "name": "an unrelated line carries no rate",
+      "input": {
+        "line": "prompt eval time =  123.4 ms / 56 tokens"
+      },
+      "expected": null
+    }
+  ]
+}

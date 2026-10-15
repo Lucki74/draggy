@@ -1,0 +1,290 @@
+{
+  "area": "tools",
+  "description": "shellInvocation on macOS and Linux: the command as argv for the program that runs it. Input: command, shell (null for the default), env (SHELL), existing (files that exist), installed (name -> path on PATH). Expected: {shell, file, args}, or {error} when the shell is missing or only exists on Windows. The Windows Git Bash and PowerShell lookups stay in Electron.",
+  "cases": [
+    {
+      "name": "the login shell from SHELL runs as a login shell",
+      "input": {
+        "command": "npm test",
+        "shell": null,
+        "env": {
+          "SHELL": "/bin/zsh"
+        },
+        "existing": [
+          "/bin/zsh"
+        ],
+        "installed": {
+          "bash": "/usr/bin/bash"
+        }
+      },
+      "expected": {
+        "shell": "zsh",
+        "file": "/bin/zsh",
+        "args": [
+          "-lc",
+          "npm test"
+        ]
+      }
+    },
+    {
+      "name": "a SHELL that does not exist falls back to bash on PATH",
+      "input": {
+        "command": "npm test",
+        "shell": null,
+        "env": {
+          "SHELL": "/opt/missing/fish"
+        },
+        "installed": {
+          "bash": "/usr/bin/bash"
+        }
+      },
+      "expected": {
+        "shell": "bash",
+        "file": "/usr/bin/bash",
+        "args": [
+          "-lc",
+          "npm test"
+        ]
+      }
+    },
+    {
+      "name": "with no SHELL and no bash, the default is /bin/sh",
+      "input": {
+        "command": "ls",
+        "shell": null,
+        "env": {}
+      },
+      "expected": {
+        "shell": "sh",
+        "file": "/bin/sh",
+        "args": [
+          "-lc",
+          "ls"
+        ]
+      }
+    },
+    {
+      "name": "an empty SHELL counts as unset",
+      "input": {
+        "command": "ls",
+        "shell": null,
+        "env": {
+          "SHELL": ""
+        },
+        "installed": {
+          "bash": "/usr/bin/bash"
+        }
+      },
+      "expected": {
+        "shell": "bash",
+        "file": "/usr/bin/bash",
+        "args": [
+          "-lc",
+          "ls"
+        ]
+      }
+    },
+    {
+      "name": "bash gets the command after -c",
+      "input": {
+        "command": "ls -la",
+        "shell": "bash",
+        "installed": {
+          "bash": "/usr/bin/bash"
+        }
+      },
+      "expected": {
+        "shell": "bash",
+        "file": "/usr/bin/bash",
+        "args": [
+          "-c",
+          "ls -la"
+        ]
+      }
+    },
+    {
+      "name": "sh gets the command after -c",
+      "input": {
+        "command": "ls",
+        "shell": "sh",
+        "installed": {
+          "sh": "/bin/sh"
+        }
+      },
+      "expected": {
+        "shell": "sh",
+        "file": "/bin/sh",
+        "args": [
+          "-c",
+          "ls"
+        ]
+      }
+    },
+    {
+      "name": "a requested shell beats SHELL",
+      "input": {
+        "command": "ls",
+        "shell": "sh",
+        "env": {
+          "SHELL": "/bin/zsh"
+        },
+        "existing": [
+          "/bin/zsh"
+        ],
+        "installed": {
+          "sh": "/bin/sh"
+        }
+      },
+      "expected": {
+        "shell": "sh",
+        "file": "/bin/sh",
+        "args": [
+          "-c",
+          "ls"
+        ]
+      }
+    },
+    {
+      "name": "bash that is not installed is an error",
+      "input": {
+        "command": "ls",
+        "shell": "bash",
+        "installed": {
+          "sh": "/bin/sh"
+        }
+      },
+      "expected": {
+        "error": "bash is not installed on this computer."
+      }
+    },
+    {
+      "name": "pwsh on PATH runs with the UTF-8 output prefix",
+      "input": {
+        "command": "git status",
+        "shell": "pwsh",
+        "installed": {
+          "pwsh": "/usr/bin/pwsh"
+        }
+      },
+      "expected": {
+        "shell": "pwsh",
+        "file": "/usr/bin/pwsh",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; git status"
+        ]
+      }
+    },
+    {
+      "name": "pwsh that is not installed is an error",
+      "input": {
+        "command": "git status",
+        "shell": "pwsh",
+        "installed": {}
+      },
+      "expected": {
+        "error": "pwsh is not installed on this computer."
+      }
+    },
+    {
+      "name": "powershell that is not installed is an error",
+      "input": {
+        "command": "dir",
+        "shell": "powershell",
+        "installed": {}
+      },
+      "expected": {
+        "error": "powershell is not installed on this computer."
+      }
+    },
+    {
+      "name": "cmd is only available on Windows",
+      "input": {
+        "command": "dir",
+        "shell": "cmd",
+        "installed": {}
+      },
+      "expected": {
+        "error": "cmd is only available on Windows."
+      }
+    },
+    {
+      "name": "an unknown shell name means the default",
+      "input": {
+        "command": "npm test",
+        "shell": "fish",
+        "env": {
+          "SHELL": "/bin/zsh"
+        },
+        "existing": [
+          "/bin/zsh"
+        ]
+      },
+      "expected": {
+        "shell": "zsh",
+        "file": "/bin/zsh",
+        "args": [
+          "-lc",
+          "npm test"
+        ]
+      }
+    },
+    {
+      "name": "an unknown shell name with no SHELL uses bash",
+      "input": {
+        "command": "ls",
+        "shell": "fish",
+        "installed": {
+          "bash": "/usr/bin/bash"
+        }
+      },
+      "expected": {
+        "shell": "bash",
+        "file": "/usr/bin/bash",
+        "args": [
+          "-lc",
+          "ls"
+        ]
+      }
+    },
+    {
+      "name": "shell metacharacters stay inside the one argument",
+      "input": {
+        "command": "echo 'a b' && ls; rm -rf x",
+        "shell": "sh",
+        "installed": {
+          "sh": "/bin/sh"
+        }
+      },
+      "expected": {
+        "shell": "sh",
+        "file": "/bin/sh",
+        "args": [
+          "-c",
+          "echo 'a b' && ls; rm -rf x"
+        ]
+      }
+    },
+    {
+      "name": "an empty command is passed through unchanged",
+      "input": {
+        "command": "",
+        "shell": "sh",
+        "installed": {
+          "sh": "/bin/sh"
+        }
+      },
+      "expected": {
+        "shell": "sh",
+        "file": "/bin/sh",
+        "args": [
+          "-c",
+          ""
+        ]
+      }
+    }
+  ]
+}

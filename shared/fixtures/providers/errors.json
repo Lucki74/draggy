@@ -1,0 +1,369 @@
+{
+  "area": "providers",
+  "description": "Naming a provider's failure (electron/providers/errors.cjs): the kind from status and words, the provider's own message, Retry-After in seconds or as a date, and which failures are worth retrying. The retry_after op pins the clock the date form is measured from.",
+  "cases": [
+    {
+      "name": "a bad key is invalid-key",
+      "input": {
+        "op": "response",
+        "status": 401,
+        "body": "{\"error\":{\"message\":\"Incorrect API key provided\"}}"
+      },
+      "expected": {
+        "kind": "provider-invalid-key",
+        "status": 401,
+        "message": "Incorrect API key provided",
+        "providerMessage": "Incorrect API key provided"
+      }
+    },
+    {
+      "name": "an exhausted quota is no-credit, not rate-limited",
+      "input": {
+        "op": "response",
+        "status": 429,
+        "body": "{\"error\":{\"message\":\"You exceeded your current quota\",\"code\":\"insufficient_quota\"}}"
+      },
+      "expected": {
+        "kind": "provider-no-credit",
+        "status": 429,
+        "message": "You exceeded your current quota",
+        "providerMessage": "You exceeded your current quota"
+      }
+    },
+    {
+      "name": "a rate limit is rate-limited",
+      "input": {
+        "op": "response",
+        "status": 429,
+        "body": "{\"error\":{\"message\":\"Rate limit reached\"}}"
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 429,
+        "message": "Rate limit reached",
+        "providerMessage": "Rate limit reached"
+      }
+    },
+    {
+      "name": "a missing model is model-not-found",
+      "input": {
+        "op": "response",
+        "status": 404,
+        "body": "{\"error\":{\"message\":\"The model `gpt-x` does not exist\"}}"
+      },
+      "expected": {
+        "kind": "provider-model-not-found",
+        "status": 404,
+        "message": "The model `gpt-x` does not exist",
+        "providerMessage": "The model `gpt-x` does not exist"
+      }
+    },
+    {
+      "name": "Ollama's 500 for a missing model is model-not-found",
+      "input": {
+        "op": "response",
+        "status": 500,
+        "body": "{\"error\":\"model \\\"qwen3:8b\\\" not found, try pulling it first\"}"
+      },
+      "expected": {
+        "kind": "provider-model-not-found",
+        "status": 500,
+        "message": "model \"qwen3:8b\" not found, try pulling it first",
+        "providerMessage": "model \"qwen3:8b\" not found, try pulling it first"
+      }
+    },
+    {
+      "name": "a context overflow is context-too-long",
+      "input": {
+        "op": "response",
+        "status": 400,
+        "body": "{\"error\":{\"message\":\"This model's maximum context length is 8192 tokens\"}}"
+      },
+      "expected": {
+        "kind": "provider-context-too-long",
+        "status": 400,
+        "message": "This model's maximum context length is 8192 tokens",
+        "providerMessage": "This model's maximum context length is 8192 tokens"
+      }
+    },
+    {
+      "name": "a region block is region-unavailable",
+      "input": {
+        "op": "response",
+        "status": 403,
+        "body": "{\"error\":{\"message\":\"Country, region, or territory not supported\"}}"
+      },
+      "expected": {
+        "kind": "provider-region-unavailable",
+        "status": 403,
+        "message": "Country, region, or territory not supported",
+        "providerMessage": "Country, region, or territory not supported"
+      }
+    },
+    {
+      "name": "a content filter is refused",
+      "input": {
+        "op": "response",
+        "status": 400,
+        "body": "{\"error\":{\"message\":\"flagged by content filter\"}}"
+      },
+      "expected": {
+        "kind": "provider-refused",
+        "status": 400,
+        "message": "flagged by content filter",
+        "providerMessage": "flagged by content filter"
+      }
+    },
+    {
+      "name": "a plain-text body is unknown and keeps its words",
+      "input": {
+        "op": "response",
+        "status": 500,
+        "body": "upstream exploded"
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 500,
+        "message": "upstream exploded",
+        "providerMessage": "upstream exploded"
+      }
+    },
+    {
+      "name": "an empty body names the status",
+      "input": {
+        "op": "response",
+        "status": 502,
+        "body": ""
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 502,
+        "message": "HTTP 502",
+        "providerMessage": ""
+      }
+    },
+    {
+      "name": "an object body (no JSON parse) reads its message",
+      "input": {
+        "op": "response",
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "bad request",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 400,
+        "message": "bad request",
+        "providerMessage": "bad request"
+      }
+    },
+    {
+      "name": "a string error field is the message",
+      "input": {
+        "op": "response",
+        "status": 500,
+        "body": {
+          "error": "overloaded for now"
+        }
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 500,
+        "message": "overloaded for now",
+        "providerMessage": "overloaded for now"
+      }
+    },
+    {
+      "name": "Retry-After in seconds is kept",
+      "input": {
+        "op": "response",
+        "status": 429,
+        "body": "{\"error\":{\"message\":\"Rate limit reached\"}}",
+        "headers": {
+          "retry-after": "7"
+        }
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 429,
+        "message": "Rate limit reached",
+        "providerMessage": "Rate limit reached",
+        "retryAfter": 7
+      }
+    },
+    {
+      "name": "a fractional Retry-After is kept as given",
+      "input": {
+        "op": "response",
+        "status": 429,
+        "body": "",
+        "headers": {
+          "retry-after": "2.5"
+        }
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 429,
+        "message": "HTTP 429",
+        "providerMessage": "",
+        "retryAfter": 2.5
+      }
+    },
+    {
+      "name": "a refused connection is unreachable with the cause's words",
+      "input": {
+        "op": "network",
+        "message": "fetch failed",
+        "cause": {
+          "message": "ECONNREFUSED"
+        }
+      },
+      "expected": {
+        "kind": "provider-unreachable",
+        "status": 0,
+        "message": "ECONNREFUSED",
+        "providerMessage": "ECONNREFUSED"
+      }
+    },
+    {
+      "name": "a failure with no cause keeps its own message",
+      "input": {
+        "op": "network",
+        "message": "socket hang up"
+      },
+      "expected": {
+        "kind": "provider-unreachable",
+        "status": 0,
+        "message": "socket hang up",
+        "providerMessage": "socket hang up"
+      }
+    },
+    {
+      "name": "a failure with no message at all says network error",
+      "input": {
+        "op": "network",
+        "message": ""
+      },
+      "expected": {
+        "kind": "provider-unreachable",
+        "status": 0,
+        "message": "network error",
+        "providerMessage": "network error"
+      }
+    },
+    {
+      "name": "overloaded and rate limited are worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-rate-limited",
+          "status": 429
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "a 503 is worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-unknown-error",
+          "status": 503
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "a 529 overload is worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-unknown-error",
+          "status": 529
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "an exhausted quota is not worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-no-credit",
+          "status": 429
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a bad request is not worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-unknown-error",
+          "status": 400
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a network failure is not worth trying again",
+      "input": {
+        "op": "retryable",
+        "failure": {
+          "kind": "provider-unreachable",
+          "status": 0
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "Retry-After as seconds",
+      "input": {
+        "op": "retry_after",
+        "value": "3",
+        "now": 1000000000000
+      },
+      "expected": 3
+    },
+    {
+      "name": "Retry-After as an HTTP date five seconds ahead",
+      "input": {
+        "op": "retry_after",
+        "value": "Sun, 09 Sep 2001 01:46:45 GMT",
+        "now": 1000000000000
+      },
+      "expected": 5
+    },
+    {
+      "name": "a Retry-After date in the past is zero",
+      "input": {
+        "op": "retry_after",
+        "value": "Sun, 09 Sep 2001 01:46:45 GMT",
+        "now": 1000000060000
+      },
+      "expected": 0
+    },
+    {
+      "name": "an absent Retry-After is undefined",
+      "input": {
+        "op": "retry_after",
+        "now": 1000000000000
+      },
+      "expected": null
+    },
+    {
+      "name": "a Retry-After that is neither is undefined",
+      "input": {
+        "op": "retry_after",
+        "value": "soon",
+        "now": 1000000000000
+      },
+      "expected": null
+    }
+  ]
+}

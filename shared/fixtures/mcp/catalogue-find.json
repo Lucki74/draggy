@@ -1,0 +1,123 @@
+{
+  "area": "mcp",
+  "description": "findEntry: a server by its exact id, with its docs link, or null for anything else.",
+  "cases": [
+    {
+      "name": "finds a server by id",
+      "input": {
+        "id": "github"
+      },
+      "expected": {
+        "id": "github",
+        "name": "GitHub",
+        "description": "Search repositories, read issues and pull requests, create branches and commits.",
+        "package": "@modelcontextprotocol/server-github",
+        "site": "https://github.com",
+        "args": [],
+        "env": [
+          {
+            "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "label": "GitHub personal access token",
+            "secret": true,
+            "required": true
+          }
+        ],
+        "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
+      }
+    },
+    {
+      "name": "finds a server with a caution and a website",
+      "input": {
+        "id": "stripe"
+      },
+      "expected": {
+        "id": "stripe",
+        "name": "Stripe",
+        "description": "Look up customers, payments, subscriptions and invoices.",
+        "package": "@stripe/mcp",
+        "site": "https://stripe.com",
+        "args": [
+          "--tools=all"
+        ],
+        "env": [
+          {
+            "key": "STRIPE_SECRET_KEY",
+            "label": "Stripe secret key",
+            "secret": true,
+            "required": true
+          }
+        ],
+        "caution": "A live key can move real money. Use a restricted or test key.",
+        "docs": "https://www.npmjs.com/package/@stripe/mcp"
+      }
+    },
+    {
+      "name": "finds a server that is a URL rather than a program",
+      "input": {
+        "id": "composio"
+      },
+      "expected": {
+        "id": "composio",
+        "name": "Composio",
+        "description": "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
+        "transport": "http",
+        "url": "https://connect.composio.dev/mcp",
+        "package": "composio-mcp",
+        "site": "https://composio.dev",
+        "args": [],
+        "env": [
+          {
+            "key": "COMPOSIO_API_KEY",
+            "label": "Composio API key",
+            "secret": true,
+            "required": true
+          }
+        ],
+        "docs": "https://www.npmjs.com/package/composio-mcp"
+      }
+    },
+    {
+      "name": "finds a server with no website",
+      "input": {
+        "id": "memory"
+      },
+      "expected": {
+        "id": "memory",
+        "name": "Memory",
+        "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
+        "package": "@modelcontextprotocol/server-memory",
+        "args": [],
+        "env": [],
+        "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
+      }
+    },
+    {
+      "name": "finds nothing for an unknown id",
+      "input": {
+        "id": "nope"
+      },
+      "expected": null
+    },
+    {
+      "name": "matches the id exactly, not the case",
+      "input": {
+        "id": "GitHub"
+      },
+      "expected": null
+    },
+    {
+      "name": "matches the id exactly, not a part of it",
+      "input": {
+        "id": "git"
+      },
+      "expected": null
+    },
+    {
+      "name": "finds nothing for a built-in provider",
+      "input": {
+        "id": "brave"
+      },
+      "expected": null
+    }
+  ]
+}

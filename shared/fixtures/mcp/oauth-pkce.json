@@ -1,0 +1,46 @@
+{
+  "area": "mcp",
+  "description": "pkce: the verifier is 32 random bytes in base64url, and the challenge is its SHA-256 in base64url with no padding. The random bytes are fixed here.",
+  "cases": [
+    {
+      "name": "matches the RFC 7636 example",
+      "input": {
+        "randomBytes": "7418dfb49799e0254ffa607dd8adbbba16d4254d69d6bff05b58055853848d79"
+      },
+      "expected": {
+        "verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        "challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+      }
+    },
+    {
+      "name": "uses the random bytes as the verifier, unpadded",
+      "input": {
+        "randomBytes": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "verifier": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "challenge": "DwBzhbb51LfusnSGBa_hqYSgo7-j8BTQnip4TOnlzRo"
+      }
+    },
+    {
+      "name": "uses url-safe letters where base64 would use plus and slash",
+      "input": {
+        "randomBytes": "fbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbefbef"
+      },
+      "expected": {
+        "verifier": "------------------------------------------8",
+        "challenge": "S3-a0mVajRqUF4Rrg359JoGsnhjSkLw1AjD_YV5WUHc"
+      }
+    },
+    {
+      "name": "makes a different verifier for different bytes",
+      "input": {
+        "randomBytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "verifier": "__________________________________________8",
+        "challenge": "Il9-dTKd1FqjVJddc5hzGTCTk686TGczvBNgGk8bh5Y"
+      }
+    }
+  ]
+}

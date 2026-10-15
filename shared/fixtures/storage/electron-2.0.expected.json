@@ -1,0 +1,257 @@
+{
+  "area": "storage",
+  "description": "Read by the reference and by Rust: a database written by the current Electron storage (electron-2.0.db). Each case copies the file, so the committed database is never changed by a read.",
+  "cases": [
+    {
+      "name": "2.0 chats come back with their workspace, plan and summary",
+      "input": {
+        "database": {
+          "file": "electron-2.0.db"
+        },
+        "ops": [
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "loadChatSummaries"
+          }
+        ]
+      },
+      "expected": [
+        [
+          {
+            "id": "chat-a",
+            "title": "Plan the release",
+            "updatedAt": 3000,
+            "workspaceId": "default",
+            "plan": [
+              {
+                "id": "p1",
+                "text": "Tag the build",
+                "status": "doing"
+              }
+            ],
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 1,
+              "summary": "Release is on Friday.",
+              "updatedAt": 2500
+            },
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "look at this",
+                "attachments": [
+                  {
+                    "name": "shot.png",
+                    "type": "image/png",
+                    "content": "data:image/png;base64,AAAA"
+                  }
+                ]
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "Looks fine.",
+                "textContent": "Looks fine.",
+                "metrics": {
+                  "responseTokens": 42
+                }
+              }
+            ]
+          },
+          {
+            "id": "chat-b",
+            "title": "Old notes",
+            "updatedAt": 2000,
+            "workspaceId": "project",
+            "plan": null,
+            "isOutOfContext": true,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "notes on the parser"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "id": "chat-a",
+            "title": "Plan the release",
+            "updatedAt": 3000,
+            "workspaceId": "default",
+            "isOutOfContext": false,
+            "messageCount": 2
+          },
+          {
+            "id": "chat-b",
+            "title": "Old notes",
+            "updatedAt": 2000,
+            "workspaceId": "project",
+            "isOutOfContext": true,
+            "messageCount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "name": "2.0 workspaces, statistics and checkpoints read back",
+      "input": {
+        "database": {
+          "file": "electron-2.0.db"
+        },
+        "ops": [
+          {
+            "call": "listWorkspaces"
+          },
+          {
+            "call": "getWorkspace",
+            "args": [
+              "project"
+            ]
+          },
+          {
+            "call": "listMetrics"
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        [
+          {
+            "id": "project",
+            "name": "Thing",
+            "kind": "project",
+            "rootPath": "/work/thing",
+            "permissionMode": "acceptEdits",
+            "settings": {
+              "webMode": "off"
+            },
+            "grants": [
+              {
+                "tool": "write_file",
+                "target": "/work/thing"
+              }
+            ],
+            "createdAt": 1000,
+            "updatedAt": {
+              "$any": "number"
+            }
+          },
+          {
+            "id": "default",
+            "name": "",
+            "kind": "chat",
+            "rootPath": null,
+            "permissionMode": "auto",
+            "settings": {},
+            "grants": [],
+            "createdAt": {
+              "$any": "number"
+            },
+            "updatedAt": {
+              "$any": "number"
+            }
+          }
+        ],
+        {
+          "id": "project",
+          "name": "Thing",
+          "kind": "project",
+          "rootPath": "/work/thing",
+          "permissionMode": "acceptEdits",
+          "settings": {
+            "webMode": "off"
+          },
+          "grants": [
+            {
+              "tool": "write_file",
+              "target": "/work/thing"
+            }
+          ],
+          "createdAt": 1000,
+          "updatedAt": {
+            "$any": "number"
+          }
+        },
+        [
+          {
+            "recordedAt": 4000,
+            "workspaceId": "project",
+            "chatId": "chat-b",
+            "model": "qwen3:8b",
+            "promptTokens": 120,
+            "responseTokens": 30,
+            "responseMs": 900,
+            "firstTokenMs": 210,
+            "loadMs": 0,
+            "taskMs": 1200,
+            "loops": 1,
+            "tools": {
+              "read_file": 1
+            }
+          }
+        ],
+        [
+          {
+            "id": 1,
+            "workspaceId": "project",
+            "chatId": "chat-b",
+            "path": "/work/thing/notes.md",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": "ab5aa97074c454a0632057e704220d9a6678fbf773a0a5806fc09b8173b07309",
+            "createdAt": 4500
+          }
+        ]
+      ]
+    },
+    {
+      "name": "2.0 settings, onboarding record and totals read back",
+      "input": {
+        "database": {
+          "file": "electron-2.0.db"
+        },
+        "ops": [
+          {
+            "call": "getValue",
+            "args": [
+              "draggy_settings"
+            ]
+          },
+          {
+            "call": "getValue",
+            "args": [
+              "onboarding"
+            ]
+          },
+          {
+            "call": "stats"
+          }
+        ]
+      },
+      "expected": [
+        "{\"theme\":\"dark\"}",
+        "{\"version\":1,\"status\":\"done\",\"path\":\"local\",\"completedAt\":\"2026-01-02T03:04:05.000Z\"}",
+        {
+          "chats": 2,
+          "messages": 3,
+          "attachments": 1,
+          "attachmentBytes": 26
+        }
+      ]
+    }
+  ]
+}

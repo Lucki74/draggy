@@ -1,0 +1,4960 @@
+{
+  "area": "tools",
+  "description": "The file tools (fileOps.create) as an ordered operation list. Stateful: each case runs its ops in order against a fresh project folder {base}/project and an in-memory checkpoint store; workspace w1 has that folder, any other has none. Ops: list, read, search, locate, write, edit, move, remove take workspace and path fields; revert takes undo (the index of an earlier op whose checkpoint it undoes) or id. Expected: {results: one normalized result per op, state: every file under the project as relative path to text}. Search hits are compared sorted by path and line. Size and count cases use generated trees: sized (zero bytes of a length), long (text from head, fill and tail), numbered (empty files by index); the 20 MB, 500-entry, 4000-file, 512 KB, 300-unit and 2 MB limits are all covered.",
+  "cases": [
+    {
+      "name": "a listing puts folders first, then names ignoring case",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "list",
+            "path": "."
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "entries": [
+              {
+                "name": "node_modules",
+                "isDirectory": true,
+                "size": 4096
+              },
+              {
+                "name": "src",
+                "isDirectory": true,
+                "size": 4096
+              },
+              {
+                "name": ".env",
+                "isDirectory": false,
+                "size": 16
+              },
+              {
+                "name": "alpha.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "Beta.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "clip.mp3",
+                "isDirectory": false,
+                "size": 3
+              },
+              {
+                "name": "favicon.ico",
+                "isDirectory": false,
+                "size": 6
+              },
+              {
+                "name": "icon.svg",
+                "isDirectory": false,
+                "size": 61
+              },
+              {
+                "name": "notes.md",
+                "isDirectory": false,
+                "size": 23
+              },
+              {
+                "name": "twice.md",
+                "isDirectory": false,
+                "size": 10
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a listing of a folder shows the files inside it",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "list",
+            "path": "src"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "entries": [
+              {
+                "name": "App.tsx",
+                "isDirectory": false,
+                "size": 18
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a text file is read whole",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "notes.md"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "kind": "text",
+            "mime": null,
+            "dataUrl": null,
+            "text": "first line\nsecond line\n",
+            "bytes": 23
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "an image is read as a data URL with its mime type",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "favicon.ico"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "kind": "image",
+            "mime": "image/x-icon",
+            "dataUrl": "data:image/x-icon;base64,AAABAAEA",
+            "text": "",
+            "bytes": 6
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "an SVG is read as its data URL and as its text",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "icon.svg"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "kind": "image",
+            "mime": "image/svg+xml",
+            "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgcj0iNSIvPjwvc3ZnPg==",
+            "text": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "bytes": 61
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "audio is read as media",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "clip.mp3"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "kind": "media",
+            "mime": "audio/mpeg",
+            "dataUrl": "data:audio/mpeg;base64,AQID",
+            "text": "",
+            "bytes": 3
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a write makes its folders and records a checkpoint",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "docs/deep/notes.md",
+            "contents": "hi\n",
+            "chat": "c1"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/docs/deep/notes.md",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "docs/deep/notes.md": "hi\n",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "an edit replaces the one occurrence and undo puts it back",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "edit",
+            "path": "notes.md",
+            "find": "second",
+            "replace": "third",
+            "chat": "c1"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "checkpointId": 1,
+            "replaced": 1,
+            "before": "first line\nsecond line\n",
+            "after": "first line\nthird line\n",
+            "bytes": 22
+          },
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "from": null,
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "an edit that finds nothing changes nothing",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "edit",
+            "path": "notes.md",
+            "find": "nowhere",
+            "replace": "x"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "That text is not in the file. Read it again and copy the lines exactly, whitespace included."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "an edit that finds two occurrences is refused until the count is given",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "edit",
+            "path": "twice.md",
+            "find": "same",
+            "replace": "other"
+          },
+          {
+            "call": "edit",
+            "path": "twice.md",
+            "find": "same",
+            "replace": "other",
+            "expected": 2
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "That text appears 2 times, not 1. Include more of the surrounding lines so it matches once, or say how many to replace."
+          },
+          {
+            "success": true,
+            "path": "{base}/project/twice.md",
+            "checkpointId": 1,
+            "replaced": 2,
+            "before": "same\nsame\n",
+            "after": "other\nother\n",
+            "bytes": 12
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "other\nother\n"
+        }
+      }
+    },
+    {
+      "name": "a delete goes to the bin and undo brings the file back",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "remove",
+            "path": "notes.md"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "checkpointId": 1
+          },
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "from": null,
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a folder cannot be deleted",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "remove",
+            "path": "src"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "Draggy does not delete folders. Name the files instead."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a move renames the file and undo moves it back",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "move",
+            "from": "notes.md",
+            "to": "docs/notes.md"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/docs/notes.md",
+            "from": "{base}/project/notes.md",
+            "checkpointId": 1
+          },
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "from": "{base}/project/docs/notes.md",
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a move onto an existing file is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "move",
+            "from": "notes.md",
+            "to": "src/App.tsx"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "Something is already there."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "undo of a created file takes it away again",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "new.txt",
+            "contents": "hello\n"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/new.txt",
+            "created": true,
+            "bytes": 6,
+            "checkpointId": 1
+          },
+          {
+            "success": true,
+            "path": "{base}/project/new.txt",
+            "from": null,
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "undo of an edit to a file created by the same run restores the earlier text",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "new.txt",
+            "contents": "one\n"
+          },
+          {
+            "call": "write",
+            "path": "new.txt",
+            "contents": "two\n"
+          },
+          {
+            "call": "revert",
+            "undo": 1
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/new.txt",
+            "created": true,
+            "bytes": 4,
+            "checkpointId": 1
+          },
+          {
+            "success": true,
+            "path": "{base}/project/new.txt",
+            "created": false,
+            "bytes": 4,
+            "checkpointId": 2
+          },
+          {
+            "success": true,
+            "path": "{base}/project/new.txt",
+            "from": null,
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "new.txt": "one\n",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a workspace with no folder refuses every operation",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "read",
+            "workspace": "other",
+            "path": "notes.md"
+          },
+          {
+            "call": "list",
+            "workspace": "other",
+            "path": "."
+          },
+          {
+            "call": "write",
+            "workspace": "other",
+            "path": "x.md",
+            "contents": "x"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "This conversation has no folder to work in. Open a project first."
+          },
+          {
+            "success": false,
+            "error": "This conversation has no folder to work in. Open a project first."
+          },
+          {
+            "success": false,
+            "error": "This conversation has no folder to work in. Open a project first."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "search finds text with its line, skipping credentials and generated folders",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "search",
+            "text": "answer"
+          },
+          {
+            "call": "search",
+            "text": "hunter2"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/src/App.tsx",
+                "name": "App.tsx",
+                "line": 1,
+                "text": "const answer = 1;"
+              }
+            ],
+            "truncated": false
+          },
+          {
+            "success": true,
+            "hits": [],
+            "truncated": false
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "search by name matches part of the file name",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": ".tsx"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/src/App.tsx",
+                "name": "App.tsx"
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "search needs a name or some text",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "search"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "Give a file name or some text to look for."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "undo of a change that was never recorded is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "revert",
+            "id": 99
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "There is no such change to undo."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a data URL is written as the bytes it carries",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "upload.txt",
+            "contents": "data:text/plain;base64,aGkK"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/upload.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n",
+          "upload.txt": "hi\n"
+        }
+      }
+    },
+    {
+      "name": "locate gives the full path of a file inside and refuses one outside",
+      "input": {
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n",
+            "project/src/App.tsx": "const answer = 1;\n",
+            "project/Beta.md": "b\n",
+            "project/alpha.md": "a\n",
+            "project/twice.md": "same\nsame\n",
+            "project/.env": "API_KEY=hunter2\n",
+            "project/node_modules/thing/index.js": "const answer = 2;\n",
+            "project/icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "project/clip.mp3": ""
+          },
+          "bytes": {
+            "project/favicon.ico": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "project/clip.mp3": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dirs": []
+        },
+        "ops": [
+          {
+            "call": "locate",
+            "path": "notes.md"
+          },
+          {
+            "call": "locate",
+            "path": "../outside.txt"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/notes.md"
+          },
+          {
+            "success": false,
+            "error": "There is no outside.txt."
+          }
+        ],
+        "state": {
+          ".env": "API_KEY=hunter2\n",
+          "Beta.md": "b\n",
+          "alpha.md": "a\n",
+          "clip.mp3": "\u0001\u0002\u0003",
+          "favicon.ico": "\u0000\u0000\u0001\u0000\u0001\u0000",
+          "icon.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+          "node_modules/thing/index.js": "const answer = 2;\n",
+          "notes.md": "first line\nsecond line\n",
+          "src/App.tsx": "const answer = 1;\n",
+          "twice.md": "same\nsame\n"
+        }
+      }
+    },
+    {
+      "name": "a data URL without padding is written as the bytes it decodes to",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,QUI"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 2,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "AB"
+        }
+      }
+    },
+    {
+      "name": "a data URL skips spaces and stops at the first equals sign",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,QU JD=QUJD"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "ABC"
+        }
+      }
+    },
+    {
+      "name": "a data URL skips a character outside the alphabet",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,QU@JRA=="
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "ABQ"
+        }
+      }
+    },
+    {
+      "name": "a data URL with one leftover character writes the whole groups",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,QUJDR"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "ABC"
+        }
+      }
+    },
+    {
+      "name": "a data URL in the URL-safe alphabet is written as its bytes",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:application/octet-stream;base64,-_-_"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "���"
+        }
+      }
+    },
+    {
+      "name": "a data URL with a non-Latin character takes its low byte",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,QUŁJD"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 3,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "A@\t"
+        }
+      }
+    },
+    {
+      "name": "a data URL with nothing after the comma is written as plain text",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 23,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": "data:text/plain;base64,"
+        }
+      }
+    },
+    {
+      "name": "a data URL of only equals signs writes an empty file",
+      "input": {
+        "tree": {},
+        "ops": [
+          {
+            "call": "write",
+            "path": "b.txt",
+            "contents": "data:text/plain;base64,==="
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/b.txt",
+            "created": true,
+            "bytes": 0,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "b.txt": ""
+        }
+      }
+    },
+    {
+      "name": "an image over 20 MB is refused",
+      "input": {
+        "tree": {
+          "sized": {
+            "project/huge.png": 20971521
+          }
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "huge.png"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "That image is 20 MB, over the 20 MB limit."
+          }
+        ],
+        "state": {
+          "huge.png": "20971521 bytes"
+        }
+      }
+    },
+    {
+      "name": "a listing of more than 500 entries shows 500 and says so",
+      "input": {
+        "tree": {
+          "numbered": {
+            "project/many": {
+              "count": 501,
+              "stem": "f"
+            }
+          }
+        },
+        "ops": [
+          {
+            "call": "list",
+            "path": "many"
+          }
+        ],
+        "state": false
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "entries": [
+              {
+                "name": "f0000.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0001.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0002.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0003.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0004.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0005.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0006.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0007.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0008.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0009.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0010.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0011.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0012.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0013.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0014.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0015.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0016.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0017.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0018.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0019.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0020.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0021.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0022.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0023.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0024.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0025.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0026.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0027.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0028.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0029.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0030.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0031.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0032.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0033.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0034.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0035.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0036.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0037.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0038.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0039.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0040.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0041.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0042.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0043.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0044.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0045.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0046.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0047.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0048.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0049.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0050.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0051.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0052.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0053.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0054.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0055.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0056.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0057.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0058.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0059.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0060.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0061.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0062.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0063.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0064.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0065.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0066.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0067.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0068.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0069.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0070.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0071.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0072.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0073.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0074.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0075.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0076.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0077.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0078.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0079.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0080.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0081.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0082.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0083.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0084.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0085.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0086.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0087.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0088.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0089.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0090.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0091.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0092.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0093.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0094.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0095.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0096.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0097.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0098.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0099.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0100.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0101.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0102.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0103.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0104.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0105.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0106.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0107.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0108.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0109.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0110.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0111.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0112.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0113.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0114.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0115.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0116.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0117.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0118.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0119.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0120.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0121.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0122.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0123.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0124.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0125.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0126.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0127.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0128.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0129.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0130.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0131.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0132.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0133.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0134.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0135.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0136.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0137.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0138.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0139.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0140.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0141.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0142.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0143.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0144.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0145.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0146.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0147.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0148.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0149.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0150.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0151.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0152.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0153.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0154.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0155.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0156.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0157.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0158.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0159.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0160.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0161.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0162.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0163.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0164.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0165.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0166.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0167.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0168.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0169.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0170.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0171.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0172.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0173.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0174.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0175.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0176.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0177.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0178.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0179.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0180.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0181.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0182.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0183.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0184.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0185.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0186.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0187.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0188.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0189.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0190.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0191.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0192.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0193.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0194.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0195.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0196.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0197.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0198.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0199.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0200.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0201.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0202.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0203.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0204.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0205.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0206.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0207.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0208.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0209.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0210.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0211.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0212.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0213.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0214.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0215.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0216.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0217.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0218.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0219.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0220.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0221.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0222.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0223.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0224.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0225.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0226.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0227.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0228.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0229.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0230.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0231.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0232.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0233.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0234.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0235.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0236.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0237.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0238.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0239.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0240.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0241.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0242.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0243.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0244.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0245.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0246.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0247.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0248.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0249.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0250.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0251.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0252.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0253.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0254.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0255.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0256.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0257.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0258.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0259.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0260.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0261.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0262.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0263.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0264.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0265.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0266.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0267.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0268.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0269.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0270.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0271.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0272.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0273.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0274.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0275.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0276.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0277.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0278.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0279.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0280.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0281.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0282.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0283.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0284.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0285.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0286.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0287.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0288.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0289.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0290.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0291.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0292.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0293.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0294.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0295.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0296.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0297.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0298.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0299.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0300.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0301.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0302.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0303.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0304.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0305.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0306.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0307.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0308.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0309.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0310.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0311.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0312.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0313.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0314.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0315.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0316.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0317.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0318.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0319.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0320.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0321.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0322.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0323.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0324.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0325.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0326.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0327.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0328.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0329.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0330.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0331.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0332.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0333.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0334.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0335.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0336.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0337.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0338.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0339.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0340.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0341.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0342.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0343.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0344.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0345.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0346.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0347.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0348.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0349.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0350.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0351.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0352.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0353.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0354.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0355.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0356.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0357.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0358.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0359.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0360.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0361.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0362.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0363.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0364.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0365.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0366.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0367.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0368.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0369.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0370.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0371.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0372.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0373.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0374.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0375.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0376.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0377.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0378.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0379.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0380.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0381.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0382.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0383.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0384.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0385.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0386.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0387.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0388.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0389.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0390.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0391.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0392.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0393.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0394.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0395.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0396.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0397.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0398.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0399.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0400.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0401.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0402.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0403.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0404.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0405.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0406.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0407.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0408.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0409.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0410.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0411.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0412.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0413.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0414.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0415.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0416.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0417.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0418.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0419.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0420.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0421.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0422.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0423.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0424.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0425.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0426.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0427.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0428.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0429.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0430.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0431.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0432.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0433.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0434.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0435.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0436.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0437.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0438.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0439.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0440.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0441.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0442.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0443.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0444.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0445.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0446.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0447.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0448.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0449.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0450.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0451.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0452.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0453.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0454.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0455.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0456.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0457.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0458.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0459.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0460.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0461.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0462.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0463.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0464.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0465.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0466.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0467.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0468.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0469.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0470.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0471.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0472.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0473.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0474.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0475.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0476.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0477.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0478.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0479.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0480.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0481.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0482.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0483.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0484.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0485.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0486.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0487.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0488.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0489.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0490.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0491.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0492.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0493.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0494.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0495.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0496.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0497.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0498.txt",
+                "isDirectory": false,
+                "size": 0
+              },
+              {
+                "name": "f0499.txt",
+                "isDirectory": false,
+                "size": 0
+              }
+            ],
+            "truncated": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "a search walks at most 4000 files and says so",
+      "input": {
+        "tree": {
+          "numbered": {
+            "project/many": {
+              "count": 4001,
+              "stem": "n"
+            }
+          },
+          "files": {
+            "project/many/zz.txt": "needle here\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": "",
+            "text": "needle"
+          }
+        ],
+        "state": false
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [],
+            "truncated": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "a search skips text over 512 KB and reads text exactly at the limit",
+      "input": {
+        "tree": {
+          "long": {
+            "project/at-limit.txt": {
+              "head": "needle ",
+              "fill": "a",
+              "count": 524281,
+              "tail": ""
+            },
+            "project/over-limit.txt": {
+              "head": "needle ",
+              "fill": "a",
+              "count": 524282,
+              "tail": ""
+            }
+          }
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": "",
+            "text": "needle"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/at-limit.txt",
+                "name": "at-limit.txt",
+                "line": 1,
+                "text": "needle aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          "at-limit.txt": "524288 bytes",
+          "over-limit.txt": "524289 bytes"
+        }
+      }
+    },
+    {
+      "name": "a search hit keeps its line to 300 characters",
+      "input": {
+        "tree": {
+          "files": {
+            "project/long-line.txt": "needle xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": "",
+            "text": "needle"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/long-line.txt",
+                "name": "long-line.txt",
+                "line": 1,
+                "text": "needle xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          "long-line.txt": "needle xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        }
+      }
+    },
+    {
+      "name": "a search hit keeps 300 UTF-16 units of an emoji line",
+      "input": {
+        "tree": {
+          "files": {
+            "project/emoji-line.txt": "needle😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": "",
+            "text": "needle"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/emoji-line.txt",
+                "name": "emoji-line.txt",
+                "line": 1,
+                "text": "needle😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          "emoji-line.txt": "needle😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\n"
+        }
+      }
+    },
+    {
+      "name": "a text file over 2 MB is refused",
+      "input": {
+        "tree": {
+          "long": {
+            "project/huge.txt": {
+              "head": "",
+              "fill": "a",
+              "count": 2097153,
+              "tail": ""
+            }
+          }
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "huge.txt"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "That file is 2048 KB, over the 2048 KB a single read allows. Ask for part of it instead."
+          }
+        ],
+        "state": {
+          "huge.txt": "2097153 bytes"
+        }
+      }
+    },
+    {
+      "name": "a listing sorts accented names with their base letter",
+      "input": {
+        "tree": {
+          "files": {
+            "project/zebra.md": "z\n",
+            "project/école.md": "e\n",
+            "project/Éclair.md": "c\n",
+            "project/apple.md": "a\n",
+            "project/eclat.md": "t\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "list",
+            "path": "."
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "entries": [
+              {
+                "name": "apple.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "Éclair.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "eclat.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "école.md",
+                "isDirectory": false,
+                "size": 2
+              },
+              {
+                "name": "zebra.md",
+                "isDirectory": false,
+                "size": 2
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          "apple.md": "a\n",
+          "eclat.md": "t\n",
+          "zebra.md": "z\n",
+          "Éclair.md": "c\n",
+          "école.md": "e\n"
+        }
+      }
+    },
+    {
+      "name": "a write is logged with its relative path, bytes and a checkpoint",
+      "input": {
+        "logs": true,
+        "tree": {
+          "files": {
+            "project/src/App.tsx": "const answer = 1;\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "src/new.ts",
+            "contents": "const x = 1;\n"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/src/new.ts",
+            "created": true,
+            "bytes": 13,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "src/App.tsx": "const answer = 1;\n",
+          "src/new.ts": "const x = 1;\n"
+        },
+        "logs": [
+          {
+            "level": "info",
+            "message": "checkpoint created",
+            "data": {
+              "files": 1,
+              "bytes": 13
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "write",
+              "path": "src/new.ts",
+              "bytes": 13,
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an edit is logged with its bytes and a checkpoint",
+      "input": {
+        "logs": true,
+        "tree": {
+          "files": {
+            "project/notes.md": "first line\nsecond line\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "edit",
+            "path": "notes.md",
+            "find": "first",
+            "replace": "FIRST",
+            "expected": 1
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/notes.md",
+            "checkpointId": 1,
+            "replaced": 1,
+            "before": "first line\nsecond line\n",
+            "after": "FIRST line\nsecond line\n",
+            "bytes": 23
+          }
+        ],
+        "state": {
+          "notes.md": "FIRST line\nsecond line\n"
+        },
+        "logs": [
+          {
+            "level": "info",
+            "message": "checkpoint created",
+            "data": {
+              "files": 1,
+              "bytes": 23
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "edit",
+              "path": "notes.md",
+              "bytes": 23,
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a refused read is logged by its relative path, not its basename",
+      "input": {
+        "logs": true,
+        "tree": {
+          "dirs": [
+            "project/src"
+          ]
+        },
+        "ops": [
+          {
+            "call": "read",
+            "path": "src/missing.ts"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "error": "There is no missing.ts."
+          }
+        ],
+        "state": {},
+        "logs": [
+          {
+            "level": "warn",
+            "message": "file op refused",
+            "data": {
+              "op": "read",
+              "path": "src/missing.ts",
+              "outcome": "refused"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a search is logged with its hit count and no path",
+      "input": {
+        "logs": true,
+        "tree": {
+          "files": {
+            "project/notes.md": "needle here\n"
+          }
+        },
+        "ops": [
+          {
+            "call": "search",
+            "name": "",
+            "text": "needle"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "hits": [
+              {
+                "path": "{base}/project/notes.md",
+                "name": "notes.md",
+                "line": 1,
+                "text": "needle here"
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {
+          "notes.md": "needle here\n"
+        },
+        "logs": [
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "search",
+              "hits": 1,
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an undo is logged as a restore with its file count",
+      "input": {
+        "logs": true,
+        "tree": {
+          "dirs": [
+            "project/src"
+          ]
+        },
+        "ops": [
+          {
+            "call": "write",
+            "path": "src/new.ts",
+            "contents": "hello"
+          },
+          {
+            "call": "revert",
+            "undo": 0
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "path": "{base}/project/src/new.ts",
+            "created": true,
+            "bytes": 5,
+            "checkpointId": 1
+          },
+          {
+            "success": true,
+            "path": "{base}/project/src/new.ts",
+            "from": null,
+            "workspaceId": "w1"
+          }
+        ],
+        "state": {},
+        "logs": [
+          {
+            "level": "info",
+            "message": "checkpoint created",
+            "data": {
+              "files": 1,
+              "bytes": 5
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "write",
+              "path": "src/new.ts",
+              "bytes": 5,
+              "outcome": "ok"
+            }
+          },
+          {
+            "level": "info",
+            "message": "checkpoint restored",
+            "data": {
+              "files": 1
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "revert",
+              "path": "src/new.ts",
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a folder listing is logged with the folder path",
+      "input": {
+        "logs": true,
+        "tree": {
+          "dirs": [
+            "project/src/deep"
+          ]
+        },
+        "ops": [
+          {
+            "call": "list",
+            "path": "src"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": true,
+            "entries": [
+              {
+                "name": "deep",
+                "isDirectory": true,
+                "size": 4096
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "state": {},
+        "logs": [
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "list",
+              "path": "src",
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

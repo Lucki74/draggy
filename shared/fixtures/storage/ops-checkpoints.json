@@ -1,0 +1,703 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over file checkpoints: ordering, limits, defaults for empty fields, drops, blob hashes, and survival across chat deletes and reopens. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "records a file change and returns its id",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "chatId": "c1",
+                "path": "/work/notes.md",
+                "action": "write",
+                "beforeHash": "aaa",
+                "afterHash": "bbb",
+                "createdAt": 1000
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "id": 1,
+          "workspaceId": "project",
+          "chatId": "c1",
+          "path": "/work/notes.md",
+          "action": "write",
+          "detail": null,
+          "beforeHash": "aaa",
+          "afterHash": "bbb",
+          "createdAt": 1000
+        }
+      ]
+    },
+    {
+      "name": "lists newest first, and by id when two share a time",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/b",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/c",
+                "createdAt": 3000
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/c",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 3000
+          },
+          {
+            "id": 2,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/b",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2000
+          },
+          {
+            "id": 1,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/a",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2000
+          }
+        ]
+      ]
+    },
+    {
+      "name": "lists at most the number asked for",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/b",
+                "createdAt": 2100
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/c",
+                "createdAt": 2200
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project",
+              2
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/c",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2200
+          },
+          {
+            "id": 2,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/b",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2100
+          }
+        ]
+      ]
+    },
+    {
+      "name": "treats a zero limit as the default of one hundred",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/b",
+                "createdAt": 2100
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project",
+              0
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        [
+          {
+            "id": 2,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/b",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2100
+          },
+          {
+            "id": 1,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/a",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2000
+          }
+        ]
+      ]
+    },
+    {
+      "name": "fills in defaults for a minimal entry",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "path": "/work/a.txt",
+                "createdAt": 500
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "id": 1,
+          "workspaceId": "default",
+          "chatId": null,
+          "path": "/work/a.txt",
+          "action": "write",
+          "detail": null,
+          "beforeHash": null,
+          "afterHash": null,
+          "createdAt": 500
+        }
+      ]
+    },
+    {
+      "name": "empty strings read back as none",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "chatId": "",
+                "path": "/x",
+                "action": "",
+                "detail": "",
+                "createdAt": 600
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "id": 1,
+          "workspaceId": "project",
+          "chatId": null,
+          "path": "/x",
+          "action": "write",
+          "detail": null,
+          "beforeHash": null,
+          "afterHash": null,
+          "createdAt": 600
+        }
+      ]
+    },
+    {
+      "name": "a missing checkpoint reads as null",
+      "input": {
+        "ops": [
+          {
+            "call": "getCheckpoint",
+            "args": [
+              999
+            ]
+          }
+        ]
+      },
+      "expected": [
+        null
+      ]
+    },
+    {
+      "name": "drops one checkpoint",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/b",
+                "createdAt": 2100
+              }
+            ]
+          },
+          {
+            "call": "dropCheckpoint",
+            "args": [
+              1
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": 2,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/b",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2100
+          }
+        ]
+      ]
+    },
+    {
+      "name": "lists every blob hash a checkpoint still points at, once",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/a",
+                "beforeHash": "h1",
+                "afterHash": "h2",
+                "createdAt": 1
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/b",
+                "beforeHash": "h1",
+                "afterHash": null,
+                "createdAt": 2
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/c",
+                "beforeHash": null,
+                "afterHash": "h3",
+                "createdAt": 3
+              }
+            ]
+          },
+          {
+            "call": "checkpointHashes"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          "h1",
+          "h2",
+          "h3"
+        ]
+      ]
+    },
+    {
+      "name": "checkpoints survive a reopen",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "reopen"
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        null,
+        [
+          {
+            "id": 1,
+            "workspaceId": "project",
+            "chatId": null,
+            "path": "/work/a",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2000
+          }
+        ]
+      ]
+    },
+    {
+      "name": "checkpoints stay when the chat they came from is deleted",
+      "input": {
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "c1",
+                "title": "Chat c1",
+                "updatedAt": 1000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "m1",
+                    "role": "user",
+                    "content": "hi",
+                    "textContent": "hi"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "chatId": "c1",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "c1"
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "project"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": 1,
+            "workspaceId": "project",
+            "chatId": "c1",
+            "path": "/work/a",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2000
+          }
+        ]
+      ]
+    },
+    {
+      "name": "lists only the workspace asked for",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "project",
+                "path": "/work/a",
+                "createdAt": 2000
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "other",
+                "path": "/elsewhere/b",
+                "createdAt": 2100
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "other"
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "nobody"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        [
+          {
+            "id": 2,
+            "workspaceId": "other",
+            "chatId": null,
+            "path": "/elsewhere/b",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 2100
+          }
+        ],
+        []
+      ]
+    }
+  ]
+}

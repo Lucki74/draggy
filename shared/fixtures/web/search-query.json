@@ -1,0 +1,203 @@
+{
+  "area": "web",
+  "description": "The request each provider sends: the URL and headers built from the query and settings. Scrapers send only a desktop User-Agent, APIs send their own headers. The API key goes in a header. timeoutMs is the API timeout (AbortSignal.timeout); scrapers have none here, since their page timeout is the shell's loadURL.",
+  "cases": [
+    {
+      "name": "duckduckgo plain query",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "hello"
+      },
+      "expected": {
+        "url": "https://html.duckduckgo.com/html/?q=hello",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "duckduckgo encodes spaces, ampersands and slashes",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "a & b/c?d"
+      },
+      "expected": {
+        "url": "https://html.duckduckgo.com/html/?q=a%20%26%20b%2Fc%3Fd",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "startpage uses the query parameter name",
+      "input": {
+        "provider": "startpage",
+        "query": "weather in Paris"
+      },
+      "expected": {
+        "url": "https://www.startpage.com/sp/search?query=weather%20in%20Paris",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "duckduckgo-lite",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "query": "rust lang"
+      },
+      "expected": {
+        "url": "https://lite.duckduckgo.com/lite/?q=rust%20lang",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "brave-html",
+      "input": {
+        "provider": "brave-html",
+        "query": "cafe au lait"
+      },
+      "expected": {
+        "url": "https://search.brave.com/search?q=cafe%20au%20lait",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "unicode is percent-encoded as UTF-8",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "café ☕"
+      },
+      "expected": {
+        "url": "https://html.duckduckgo.com/html/?q=caf%C3%A9%20%E2%98%95",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "reserved characters that encodeURIComponent keeps",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "a-b_c.d!e~f*g'h(i)"
+      },
+      "expected": {
+        "url": "https://html.duckduckgo.com/html/?q=a-b_c.d!e~f*g'h(i)",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "a provider encodes its query as given, spaces included",
+      "input": {
+        "provider": "startpage",
+        "query": "  padded  "
+      },
+      "expected": {
+        "url": "https://www.startpage.com/sp/search?query=%20%20padded%20%20",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "plus signs are encoded, not read as spaces",
+      "input": {
+        "provider": "duckduckgo",
+        "query": "x+y=z"
+      },
+      "expected": {
+        "url": "https://html.duckduckgo.com/html/?q=x%2By%3Dz",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    {
+      "name": "SearXNG strips trailing slashes from its base",
+      "input": {
+        "provider": "searxng",
+        "query": "news",
+        "searxngUrl": "http://searx.test:8080///"
+      },
+      "expected": {
+        "url": "http://searx.test:8080/search?q=news&format=json&safesearch=0",
+        "headers": {
+          "Accept": "application/json",
+          "User-Agent": "Draggy"
+        },
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "name": "SearXNG asks for JSON with safesearch off",
+      "input": {
+        "provider": "searxng",
+        "query": "news",
+        "searxngUrl": "https://s.example/searx"
+      },
+      "expected": {
+        "url": "https://s.example/searx/search?q=news&format=json&safesearch=0",
+        "headers": {
+          "Accept": "application/json",
+          "User-Agent": "Draggy"
+        },
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "name": "Brave API sends the key and a result count",
+      "input": {
+        "provider": "brave",
+        "query": "rust",
+        "braveApiKey": "BSA-k"
+      },
+      "expected": {
+        "url": "https://api.search.brave.com/res/v1/web/search?q=rust&count=10",
+        "headers": {
+          "Accept": "application/json",
+          "X-Subscription-Token": "BSA-k"
+        },
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "name": "Brave API key is a header, not in the URL",
+      "input": {
+        "provider": "brave",
+        "query": "x",
+        "braveApiKey": "BSA-secret"
+      },
+      "expected": {
+        "url": "https://api.search.brave.com/res/v1/web/search?q=x&count=10",
+        "headers": {
+          "Accept": "application/json",
+          "X-Subscription-Token": "BSA-secret"
+        },
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "name": "SearXNG keeps a path prefix in its address",
+      "input": {
+        "provider": "searxng",
+        "query": "rust",
+        "searxngUrl": "http://searx.test:8080/prefix/"
+      },
+      "expected": {
+        "url": "http://searx.test:8080/prefix/search?q=rust&format=json&safesearch=0",
+        "headers": {
+          "Accept": "application/json",
+          "User-Agent": "Draggy"
+        },
+        "timeoutMs": 15000
+      }
+    }
+  ]
+}

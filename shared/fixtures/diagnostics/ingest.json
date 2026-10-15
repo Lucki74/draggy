@@ -1,0 +1,787 @@
+{
+  "area": "diagnostics",
+  "description": "Renderer log entries as written after the boot line. Covers context prefixing, correlation ids, level names, clamps, error objects, the message and data fallbacks, and an entries field that is null.",
+  "cases": [
+    {
+      "name": "an entry is filed under renderer with its context",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "opened",
+              "data": {
+                "tab": 1
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] opened {\"tab\":1}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] opened {\"tab\":1}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"opened\",\"data\":{\"tab\":1}}"
+        ]
+      }
+    },
+    {
+      "name": "a context already carrying renderer is not doubled",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "renderer.editor",
+              "message": "a"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "renderer",
+              "message": "b"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "renderer.",
+              "message": "c"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.editor] a",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] b",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.app] c"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.editor] a",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] b",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.app] c"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.editor\",\"msg\":\"a\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"b\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"c\"}"
+        ]
+      }
+    },
+    {
+      "name": "a missing or non-string context lands under renderer.app",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "message": "no context"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": 42,
+              "message": "number context"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.app] no context",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] number context"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.app] no context",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] number context"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"no context\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"number context\"}"
+        ]
+      }
+    },
+    {
+      "name": "an unknown level name is written as INFO",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "loud",
+              "message": "word"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": 5,
+              "message": "number"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "message": "no level"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.app] word",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] number",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.app] no level"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.app] word",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.app] number",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.app] no level"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"word\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"number\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.app\",\"msg\":\"no level\"}"
+        ]
+      }
+    },
+    {
+      "name": "lower-case level names are accepted",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "warn",
+              "context": "chat",
+              "message": "careful"
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "error",
+              "context": "chat",
+              "message": "broke"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [renderer.chat] careful",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [renderer.chat] broke"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [renderer.chat] careful",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [renderer.chat] broke"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"careful\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"broke\"}"
+        ]
+      }
+    },
+    {
+      "name": "a correlation id from the entry tags the line",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "turn",
+              "correlationId": "turn-9",
+              "data": {
+                "model": "m"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-9] [renderer.chat] turn {\"model\":\"m\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [turn-9] [renderer.chat] turn {\"model\":\"m\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"turn\",\"cid\":\"turn-9\",\"data\":{\"model\":\"m\"}}"
+        ]
+      }
+    },
+    {
+      "name": "an empty correlation id counts as none",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "x",
+              "correlationId": ""
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] x"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] x"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"x\"}"
+        ]
+      }
+    },
+    {
+      "name": "a cid in the data is used when the entry sends no correlation id",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "turn",
+              "data": {
+                "cid": "t2"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [t2] [renderer.chat] turn {\"cid\":\"t2\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [t2] [renderer.chat] turn {\"cid\":\"t2\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"turn\",\"cid\":\"t2\",\"data\":{\"cid\":\"t2\"}}"
+        ]
+      }
+    },
+    {
+      "name": "the message is stringified when it is not a string",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "context": "chat",
+              "message": 12
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "context": "chat",
+              "message": true
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "context": "chat",
+              "message": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "context": "chat",
+              "message": {
+                "x": 1
+              }
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "context": "chat"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] 12",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.chat] true",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.chat] a,b",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.5 [system] [renderer.chat] [object Object]",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.6 [system] [renderer.chat] "
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] 12",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [renderer.chat] true",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [renderer.chat] a,b",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.5 [system] [renderer.chat] [object Object]",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.6 [system] [renderer.chat] "
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"12\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"true\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"a,b\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":5,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"[object Object]\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":6,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"\"}"
+        ]
+      }
+    },
+    {
+      "name": "a long message is clamped to 2000 units",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\"}"
+        ]
+      }
+    },
+    {
+      "name": "a secret-shaped message is scrubbed",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "key sk-ant-api03-ABCDEFGHIJKL used"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] key [secret:anthropic-key] used"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] key [secret:anthropic-key] used"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"key [secret:anthropic-key] used\"}"
+        ]
+      }
+    },
+    {
+      "name": "renderer data is sanitized like main-process data",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "send",
+              "data": {
+                "prompt": "hello there",
+                "apiKey": "sk-live-1",
+                "n": 2
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] send {\"prompt\":\"[11 chars, sha256:12998c01]\",\"apiKey\":\"[secret:apiKey]\",\"n\":2}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] send {\"prompt\":\"[11 chars, sha256:12998c01]\",\"apiKey\":\"[secret:apiKey]\",\"n\":2}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"send\",\"data\":{\"prompt\":\"[11 chars, sha256:12998c01]\",\"apiKey\":\"[secret:apiKey]\",\"n\":2}}"
+        ]
+      }
+    },
+    {
+      "name": "a payload stands in for missing data",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "p",
+              "payload": {
+                "n": 2
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] p {\"n\":2}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] p {\"n\":2}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"p\",\"data\":{\"n\":2}}"
+        ]
+      }
+    },
+    {
+      "name": "null data is written as null",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "n",
+              "data": null
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] n"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] n"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"n\",\"data\":null}"
+        ]
+      }
+    },
+    {
+      "name": "an error object keeps its name and stack; app.log keeps only the frames",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "error",
+              "context": "chat",
+              "message": "render failed",
+              "error": {
+                "name": "TypeError",
+                "message": "x is undefined",
+                "stack": "TypeError: x is undefined\n    at render (chat.js:10:5)\n    at run (chat.js:3:1)"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] render failed",
+          "TypeError: x is undefined",
+          "    at render (chat.js:10:5)",
+          "    at run (chat.js:3:1)"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] render failed",
+          "TypeError: x is undefined",
+          "    at render (chat.js:10:5)",
+          "    at run (chat.js:3:1)"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"render failed\",\"err\":{\"name\":\"TypeError\",\"message\":\"x is undefined\",\"stack\":\"TypeError: x is undefined\\n    at render (chat.js:10:5)\\n    at run (chat.js:3:1)\"}}"
+        ]
+      }
+    },
+    {
+      "name": "an error without a name or stack gets name and message",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "error",
+              "context": "chat",
+              "message": "bad",
+              "error": {
+                "message": "boom"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] bad",
+          "Error: boom",
+          ""
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] bad",
+          "Error: boom"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"bad\",\"err\":{\"name\":\"Error\",\"message\":\"boom\",\"stack\":\"Error: boom\"}}"
+        ]
+      }
+    },
+    {
+      "name": "an error that is not an object is ignored",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "error",
+              "context": "chat",
+              "message": "plain",
+              "error": 5
+            }
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "error",
+              "context": "chat",
+              "message": "nothing",
+              "error": null
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] plain",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [renderer.chat] nothing"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [renderer.chat] plain",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [renderer.chat] nothing"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"plain\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"nothing\"}"
+        ]
+      }
+    },
+    {
+      "name": "an entry that is not an object is dropped and reported",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": "hello"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [logger] renderer entries dropped {\"count\":1}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [logger] renderer entries dropped {\"count\":1}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"renderer entries dropped\",\"data\":{\"count\":1}}"
+        ]
+      }
+    },
+    {
+      "name": "an empty batch writes nothing",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entries": []
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a batch of entries writes each in order",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entries": [
+              {
+                "level": "info",
+                "context": "a",
+                "message": "one"
+              },
+              {
+                "level": "warn",
+                "context": "b",
+                "message": "two"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.a] one",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [renderer.b] two"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.a] one",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [renderer.b] two"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.a\",\"msg\":\"one\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.b\",\"msg\":\"two\"}"
+        ]
+      }
+    },
+    {
+      "name": "a null entries field falls back to the entry",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entries": null,
+            "entry": {
+              "level": "WARN",
+              "context": "chat",
+              "message": "fallback"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [renderer.chat] fallback"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [renderer.chat] fallback"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"fallback\"}"
+        ]
+      }
+    }
+  ]
+}

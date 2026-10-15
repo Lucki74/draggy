@@ -1,0 +1,122 @@
+{
+  "area": "providers",
+  "description": "adapters/claude.cjs turnFailure(): the runtime's words named by kind, with the reset time when one is given (fn turnFailure).",
+  "cases": [
+    {
+      "name": "a usage limit with a reset epoch in the text",
+      "input": {
+        "fn": "turnFailure",
+        "text": "Usage limit reached|1767225600",
+        "limit": null
+      },
+      "expected": {
+        "kind": "account-limit-reached",
+        "status": 0,
+        "message": "Usage limit reached|1767225600",
+        "providerMessage": "Usage limit reached|1767225600",
+        "resetsAt": 1767225600
+      }
+    },
+    {
+      "name": "a limit with no epoch takes the reset the runtime sent earlier",
+      "input": {
+        "fn": "turnFailure",
+        "text": "You've hit your limit",
+        "limit": {
+          "resetsAt": 123
+        }
+      },
+      "expected": {
+        "kind": "account-limit-reached",
+        "status": 0,
+        "message": "You've hit your limit",
+        "providerMessage": "You've hit your limit",
+        "resetsAt": 123
+      }
+    },
+    {
+      "name": "a rate limit word",
+      "input": {
+        "fn": "turnFailure",
+        "text": "rate limit exceeded",
+        "limit": null
+      },
+      "expected": {
+        "kind": "account-limit-reached",
+        "status": 0,
+        "message": "rate limit exceeded",
+        "providerMessage": "rate limit exceeded"
+      }
+    },
+    {
+      "name": "a sign-out",
+      "input": {
+        "fn": "turnFailure",
+        "text": "Please run /login",
+        "limit": null
+      },
+      "expected": {
+        "kind": "account-signed-out",
+        "status": 0,
+        "message": "Please run /login",
+        "providerMessage": "Please run /login"
+      }
+    },
+    {
+      "name": "an invalid key",
+      "input": {
+        "fn": "turnFailure",
+        "text": "Invalid API key",
+        "limit": null
+      },
+      "expected": {
+        "kind": "account-signed-out",
+        "status": 0,
+        "message": "Invalid API key",
+        "providerMessage": "Invalid API key"
+      }
+    },
+    {
+      "name": "overloaded is a rate limit",
+      "input": {
+        "fn": "turnFailure",
+        "text": "API Error 529 overloaded",
+        "limit": null
+      },
+      "expected": {
+        "kind": "provider-rate-limited",
+        "status": 0,
+        "message": "API Error 529 overloaded",
+        "providerMessage": "API Error 529 overloaded"
+      }
+    },
+    {
+      "name": "anything else is unknown",
+      "input": {
+        "fn": "turnFailure",
+        "text": "boom",
+        "limit": null
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 0,
+        "message": "boom",
+        "providerMessage": "boom"
+      }
+    },
+    {
+      "name": "an empty text says the turn failed",
+      "input": {
+        "fn": "turnFailure",
+        "text": "   ",
+        "limit": null
+      },
+      "expected": {
+        "kind": "provider-unknown-error",
+        "status": 0,
+        "message": "The turn failed.",
+        "providerMessage": "The turn failed."
+      }
+    }
+  ]
+}

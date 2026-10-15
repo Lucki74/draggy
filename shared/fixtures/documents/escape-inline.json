@@ -1,0 +1,336 @@
+{
+  "area": "documents",
+  "description": "escapeHtml and inlineHtml. inlineHtml takes one string arg; code spans are protected with NUL sentinels, emphasis and links follow the regex order in markdownHtml.cjs.",
+  "cases": [
+    {
+      "name": "escapes the five markup characters",
+      "input": {
+        "fn": "escapeHtml",
+        "args": [
+          "<script>&\"'"
+        ]
+      },
+      "expected": "&lt;script&gt;&amp;&quot;&#39;"
+    },
+    {
+      "name": "leaves ordinary text alone",
+      "input": {
+        "fn": "escapeHtml",
+        "args": [
+          "plain words"
+        ]
+      },
+      "expected": "plain words"
+    },
+    {
+      "name": "null becomes empty",
+      "input": {
+        "fn": "escapeHtml",
+        "args": [
+          null
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "bold",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "**b**"
+        ]
+      },
+      "expected": "<strong>b</strong>"
+    },
+    {
+      "name": "italic",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "*i*"
+        ]
+      },
+      "expected": "<em>i</em>"
+    },
+    {
+      "name": "bold and italic together",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "***x***"
+        ]
+      },
+      "expected": "<strong><em>x</em></strong>"
+    },
+    {
+      "name": "strikethrough",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "~~gone~~"
+        ]
+      },
+      "expected": "<del>gone</del>"
+    },
+    {
+      "name": "code span",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "run `npm test` now"
+        ]
+      },
+      "expected": "run <code>npm test</code> now"
+    },
+    {
+      "name": "markup inside a code span stays literal",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "`**not bold**`"
+        ]
+      },
+      "expected": "<code>**not bold**</code>"
+    },
+    {
+      "name": "a number is not mistaken for a code span",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "I have 3 apples"
+        ]
+      },
+      "expected": "I have 3 apples"
+    },
+    {
+      "name": "numbers between code spans",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "`a` and 0 and `b`"
+        ]
+      },
+      "expected": "<code>a</code> and 0 and <code>b</code>"
+    },
+    {
+      "name": "html the model wrote is escaped",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "<img src=x onerror=alert(1)>"
+        ]
+      },
+      "expected": "&lt;img src=x onerror=alert(1)&gt;"
+    },
+    {
+      "name": "html tags are escaped not kept",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "<b>hi</b>"
+        ]
+      },
+      "expected": "&lt;b&gt;hi&lt;/b&gt;"
+    },
+    {
+      "name": "https link",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[site](https://example.com)"
+        ]
+      },
+      "expected": "<a href=\"https://example.com\">site</a>"
+    },
+    {
+      "name": "javascript scheme keeps only the label",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[click](javascript:alert)"
+        ]
+      },
+      "expected": "click"
+    },
+    {
+      "name": "file scheme keeps only the label",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[file](file:///etc/passwd)"
+        ]
+      },
+      "expected": "file"
+    },
+    {
+      "name": "data scheme never becomes a link",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[x](data:text/html,<script>)"
+        ]
+      },
+      "expected": "x"
+    },
+    {
+      "name": "link stops at the first closing bracket",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[a](https://e.com/x(1))"
+        ]
+      },
+      "expected": "<a href=\"https://e.com/x(1\">a</a>)"
+    },
+    {
+      "name": "scheme match ignores case",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[caps](HTTPS://a.b)"
+        ]
+      },
+      "expected": "<a href=\"HTTPS://a.b\">caps</a>"
+    },
+    {
+      "name": "empty href is not a link",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[empty]()"
+        ]
+      },
+      "expected": "[empty]()"
+    },
+    {
+      "name": "whitespace in href is not a link",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[label](  https://x.y )"
+        ]
+      },
+      "expected": "[label](  https://x.y )"
+    },
+    {
+      "name": "ampersand in href is escaped",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[q](https://a.com/?q=1&r=2)"
+        ]
+      },
+      "expected": "<a href=\"https://a.com/?q=1&amp;r=2\">q</a>"
+    },
+    {
+      "name": "quote in href is escaped",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "[q](https://a.com/\"x)"
+        ]
+      },
+      "expected": "<a href=\"https://a.com/&quot;x\">q</a>"
+    },
+    {
+      "name": "stars inside a code span",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "a `code with *stars*` b *em* c"
+        ]
+      },
+      "expected": "a <code>code with *stars*</code> b <em>em</em> c"
+    },
+    {
+      "name": "italic inside bold",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "**bold *nested* text**"
+        ]
+      },
+      "expected": "**bold <em>nested</em> text**"
+    },
+    {
+      "name": "a lone star pair with spaces becomes italic",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "2 * 3 * 4"
+        ]
+      },
+      "expected": "2 <em> 3 </em> 4"
+    },
+    {
+      "name": "mixed triple star across a bold",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "***a** b*"
+        ]
+      },
+      "expected": "<em><strong>a</strong> b</em>"
+    },
+    {
+      "name": "two strikethroughs",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "~~a~~ and ~~b~~"
+        ]
+      },
+      "expected": "<del>a</del> and <del>b</del>"
+    },
+    {
+      "name": "two code spans back to back",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "`a``b`"
+        ]
+      },
+      "expected": "<code>a</code><code>b</code>"
+    },
+    {
+      "name": "text with no markup",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "nothing to see here"
+        ]
+      },
+      "expected": "nothing to see here"
+    },
+    {
+      "name": "empty string",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          ""
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "a NUL sentinel typed by the model is read back as a code span index",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "x \u00007\u0000 y"
+        ]
+      },
+      "expected": "x undefined y"
+    },
+    {
+      "name": "a NUL sentinel with a valid index is read back as that code span",
+      "input": {
+        "fn": "inlineHtml",
+        "args": [
+          "`first` x \u00000\u0000"
+        ]
+      },
+      "expected": "<code>first</code> x <code>first</code>"
+    }
+  ]
+}

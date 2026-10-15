@@ -1,0 +1,75 @@
+{
+  "area": "tools",
+  "description": "The file tools' log lines when an operation throws. A thrown error is recorded as {success: false, thrown: true}; the lines are the files target's INFO, WARN and ERROR events, and the error itself is not recorded. Input: {tree, logs, ops}. Expected: {results, state, logs}.",
+  "cases": [
+    {
+      "name": "a write that throws is logged as an error with its path, and the next operation still runs",
+      "input": {
+        "tree": {
+          "dirs": [
+            "project/docs"
+          ]
+        },
+        "logs": true,
+        "ops": [
+          {
+            "call": "write",
+            "path": "docs",
+            "contents": "x"
+          },
+          {
+            "call": "write",
+            "path": "note.txt",
+            "contents": "hi"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "success": false,
+            "thrown": true
+          },
+          {
+            "success": true,
+            "path": "{base}/project/note.txt",
+            "created": true,
+            "bytes": 2,
+            "checkpointId": 1
+          }
+        ],
+        "state": {
+          "note.txt": "hi"
+        },
+        "logs": [
+          {
+            "level": "error",
+            "message": "file op failed",
+            "data": {
+              "op": "write",
+              "path": "docs"
+            }
+          },
+          {
+            "level": "info",
+            "message": "checkpoint created",
+            "data": {
+              "files": 1,
+              "bytes": 2
+            }
+          },
+          {
+            "level": "info",
+            "message": "file op done",
+            "data": {
+              "op": "write",
+              "path": "note.txt",
+              "bytes": 2,
+              "outcome": "ok"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

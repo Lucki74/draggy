@@ -1,0 +1,379 @@
+{
+  "area": "mcp",
+  "description": "discover: where to sign in. Asks the server's protected-resource document, then the authorisation server's metadata, then the OpenID document, then guesses the usual endpoints. Each request is recorded in order.",
+  "cases": [
+    {
+      "name": "asks the server which authorisation server it trusts",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "authorization_servers": [
+                "https://auth.example/auth"
+              ]
+            }
+          },
+          "https://auth.example/auth/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "authorization_endpoint": "https://auth.example/auth/authorize",
+              "token_endpoint": "https://auth.example/auth/token",
+              "registration_endpoint": "https://auth.example/auth/register"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://auth.example/auth/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://auth.example/auth",
+          "authorization_endpoint": "https://auth.example/auth/authorize",
+          "token_endpoint": "https://auth.example/auth/token",
+          "registration_endpoint": "https://auth.example/auth/register",
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "falls back to the server's own well-known path",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "token_endpoint": "https://tools.example/token"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "reads an OpenID document when that is all there is",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/openid-configuration": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "authorization_endpoint": "https://tools.example/oidc/authorize",
+              "token_endpoint": "https://tools.example/oidc/token"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server",
+          "https://tools.example/.well-known/openid-configuration"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/oidc/authorize",
+          "token_endpoint": "https://tools.example/oidc/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "guesses the usual endpoints when the server says nothing",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {}
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server",
+          "https://tools.example/.well-known/openid-configuration"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": false
+        }
+      }
+    },
+    {
+      "name": "drops one trailing slash from the authorisation server",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "authorization_servers": [
+                "https://auth.example/auth/"
+              ]
+            }
+          },
+          "https://auth.example/auth/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "token_endpoint": "https://auth.example/auth/token"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://auth.example/auth/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://auth.example/auth/",
+          "authorization_endpoint": "https://auth.example/auth//authorize",
+          "token_endpoint": "https://auth.example/auth/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "uses the server's origin when the first authorisation server is blank",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "authorization_servers": [
+                ""
+              ]
+            }
+          },
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "token_endpoint": "https://tools.example/t"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/t",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "keeps the scopes the resource document lists when the metadata has none",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "scopes_supported": [
+                "mcp:read"
+              ]
+            }
+          },
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "token_endpoint": "https://tools.example/t"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/t",
+          "registration_endpoint": null,
+          "scopes_supported": [
+            "mcp:read"
+          ],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "prefers the scopes the metadata lists",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "scopes_supported": [
+                "mcp:read"
+              ]
+            }
+          },
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "scopes_supported": [
+                "mcp:write"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": null,
+          "scopes_supported": [
+            "mcp:write"
+          ],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "offers registration when the metadata names an endpoint for it",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "registration_endpoint": "https://tools.example/register"
+            }
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": "https://tools.example/register",
+          "scopes_supported": [],
+          "discovered": true
+        }
+      }
+    },
+    {
+      "name": "treats a failing resource document as absent",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-protected-resource": {
+            "fail": "offline"
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server",
+          "https://tools.example/.well-known/openid-configuration"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": false
+        }
+      }
+    },
+    {
+      "name": "treats a metadata document that is not JSON as absent",
+      "input": {
+        "server": "https://tools.example/mcp",
+        "routes": {
+          "https://tools.example/.well-known/oauth-authorization-server": {
+            "status": 200,
+            "body": "<html>"
+          }
+        }
+      },
+      "expected": {
+        "requests": [
+          "https://tools.example/.well-known/oauth-protected-resource",
+          "https://tools.example/.well-known/oauth-authorization-server",
+          "https://tools.example/.well-known/openid-configuration"
+        ],
+        "metadata": {
+          "issuer": "https://tools.example",
+          "authorization_endpoint": "https://tools.example/authorize",
+          "token_endpoint": "https://tools.example/token",
+          "registration_endpoint": null,
+          "scopes_supported": [],
+          "discovered": false
+        }
+      }
+    },
+    {
+      "name": "refuses a server address that is not one",
+      "input": {
+        "server": "not a url",
+        "routes": {}
+      },
+      "expected": {
+        "requests": [],
+        "error": "Invalid URL"
+      }
+    }
+  ]
+}

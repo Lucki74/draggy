@@ -1,0 +1,308 @@
+{
+  "area": "mcp",
+  "description": "commandFor: the arguments a server starts with (its own, then the user's) and the environment it gets. Never npx or the package name.",
+  "cases": [
+    {
+      "name": "passes only the server's own arguments",
+      "input": {
+        "entry": "memory",
+        "config": {}
+      },
+      "expected": {
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "name": "keeps the fixed arguments an entry declares",
+      "input": {
+        "entry": "figma",
+        "config": {
+          "env": {
+            "FIGMA_API_KEY": "fake-key"
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "--stdio"
+        ],
+        "env": {
+          "FIGMA_API_KEY": "fake-key"
+        }
+      }
+    },
+    {
+      "name": "keeps a fixed flag that takes a value",
+      "input": {
+        "entry": "stripe",
+        "config": {}
+      },
+      "expected": {
+        "args": [
+          "--tools=all"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "appends every folder of a list argument",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              "C:/one",
+              "C:/two"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "C:/one",
+          "C:/two"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "skips a blank entry in a list",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              "C:/one",
+              "",
+              "  "
+            ]
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "C:/one"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "keeps the spaces around a folder it passes on",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              "  C:/x "
+            ]
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "  C:/x "
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "passes text inside a list item as text",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": [
+              5,
+              "x"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "5",
+          "x"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "treats a list given as plain text as no folders",
+      "input": {
+        "entry": {
+          "id": "test-roots",
+          "arguments": [
+            {
+              "key": "roots",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "roots": "C:/x"
+          }
+        }
+      },
+      "expected": {
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "name": "passes a single argument as typed",
+      "input": {
+        "entry": "postgres",
+        "config": {
+          "arguments": {
+            "connection": "postgresql://x"
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "postgresql://x"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "skips a single argument left blank",
+      "input": {
+        "entry": "postgres",
+        "config": {
+          "arguments": {
+            "connection": "  "
+          }
+        }
+      },
+      "expected": {
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "name": "passes a number argument as text",
+      "input": {
+        "entry": {
+          "id": "port-server",
+          "arguments": [
+            {
+              "key": "port"
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "port": 8080
+          }
+        }
+      },
+      "expected": {
+        "args": [
+          "8080"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "name": "passes a zero argument as nothing",
+      "input": {
+        "entry": {
+          "id": "port-server",
+          "arguments": [
+            {
+              "key": "port"
+            }
+          ]
+        },
+        "config": {
+          "arguments": {
+            "port": 0
+          }
+        }
+      },
+      "expected": {
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "name": "passes the credentials through as environment",
+      "input": {
+        "entry": "github",
+        "config": {
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_secret"
+          }
+        }
+      },
+      "expected": {
+        "args": [],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_secret"
+        }
+      }
+    },
+    {
+      "name": "starts with no arguments when the entry declares none",
+      "input": {
+        "entry": {
+          "id": "bare",
+          "package": "bare-mcp"
+        },
+        "config": {}
+      },
+      "expected": {
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "name": "has no command for a server that does not exist",
+      "input": {
+        "entry": null,
+        "config": {}
+      },
+      "expected": null
+    }
+  ]
+}

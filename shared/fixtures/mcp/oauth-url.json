@@ -1,0 +1,101 @@
+{
+  "area": "mcp",
+  "description": "authorizeUrl: the address the user is sent to. Carries the PKCE challenge, the state, and the server the token is for; scope and resource only when given.",
+  "cases": [
+    {
+      "name": "carries the challenge, the state and the server it is for",
+      "input": {
+        "endpoint": "https://auth.example/authorize",
+        "clientId": "client-123",
+        "redirectUri": "http://127.0.0.1:41234/callback",
+        "challenge": "the-challenge",
+        "state": "the-state",
+        "scope": "mcp:read",
+        "resource": "https://tools.example/mcp"
+      },
+      "expected": "https://auth.example/authorize?response_type=code&client_id=client-123&redirect_uri=http%3A%2F%2F127.0.0.1%3A41234%2Fcallback&code_challenge=the-challenge&code_challenge_method=S256&state=the-state&scope=mcp%3Aread&resource=https%3A%2F%2Ftools.example%2Fmcp"
+    },
+    {
+      "name": "leaves out the scope when none is asked",
+      "input": {
+        "endpoint": "https://auth.example/authorize",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "st",
+        "scope": null,
+        "resource": null
+      },
+      "expected": "https://auth.example/authorize?response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback&code_challenge=ch&code_challenge_method=S256&state=st"
+    },
+    {
+      "name": "leaves out a blank scope",
+      "input": {
+        "endpoint": "https://auth.example/authorize",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "st",
+        "scope": ""
+      },
+      "expected": "https://auth.example/authorize?response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback&code_challenge=ch&code_challenge_method=S256&state=st"
+    },
+    {
+      "name": "keeps the query the endpoint already has",
+      "input": {
+        "endpoint": "https://auth.example/authorize?tenant=abc",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "st"
+      },
+      "expected": "https://auth.example/authorize?tenant=abc&response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback&code_challenge=ch&code_challenge_method=S256&state=st"
+    },
+    {
+      "name": "replaces a parameter the endpoint already sets, and drops the repeats",
+      "input": {
+        "endpoint": "https://auth.example/authorize?state=old&x=1&state=older",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "new"
+      },
+      "expected": "https://auth.example/authorize?state=new&x=1&response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback&code_challenge=ch&code_challenge_method=S256"
+    },
+    {
+      "name": "encodes a redirect with a query, spaces and non-ASCII",
+      "input": {
+        "endpoint": "https://auth.example/authorize",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback?x=a b&y=ü",
+        "challenge": "ch",
+        "state": "st"
+      },
+      "expected": "https://auth.example/authorize?response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback%3Fx%3Da+b%26y%3D%C3%BC&code_challenge=ch&code_challenge_method=S256&state=st"
+    },
+    {
+      "name": "keeps a fragment after the query",
+      "input": {
+        "endpoint": "https://auth.example/authorize#top",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "st"
+      },
+      "expected": "https://auth.example/authorize?response_type=code&client_id=c&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fcallback&code_challenge=ch&code_challenge_method=S256&state=st#top"
+    },
+    {
+      "name": "refuses an endpoint that is not an address",
+      "input": {
+        "endpoint": "not a url",
+        "clientId": "c",
+        "redirectUri": "http://127.0.0.1:1/callback",
+        "challenge": "ch",
+        "state": "st"
+      },
+      "expected": {
+        "error": "Invalid URL"
+      }
+    }
+  ]
+}

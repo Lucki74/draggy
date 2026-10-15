@@ -1,0 +1,101 @@
+{
+  "area": "web",
+  "description": "Startpage page: heading then description for the title and snippet, relative links resolved against the search URL. Input body is the canned HTML.",
+  "cases": [
+    {
+      "name": "reads absolute and relative links, heading then snippet",
+      "input": {
+        "provider": "startpage",
+        "query": "hello",
+        "body": "<!DOCTYPE html><html><body>\n<div class=\"w-gl__result\">\n  <a class=\"w-gl__result-title\" href=\"https://www.example.net/a\"><h3>Example <i>A</i></h3></a>\n  <p class=\"w-gl__description\">Description A</p>\n</div>\n<div class=\"result\">\n  <h2><a href=\"/relative/path\">Relative</a></h2>\n  <p>Snippet B</p>\n</div>\n<div class=\"result\"><a href=\"ftp://no.example/\">FTP</a></div>\n<div class=\"result\"><a href=\"https://relative-check.example/\">   </a></div>\n</body></html>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Example A",
+            "url": "https://www.example.net/a",
+            "snippet": "Description A"
+          },
+          {
+            "title": "Relative",
+            "url": "https://www.startpage.com/relative/path",
+            "snippet": "Snippet B"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a page with no results gives none",
+      "input": {
+        "provider": "startpage",
+        "query": "hello",
+        "body": "<html><body><p>No results</p></body></html>"
+      },
+      "expected": {
+        "results": []
+      }
+    },
+    {
+      "name": "a description is the snippet, the heading the title",
+      "input": {
+        "provider": "startpage",
+        "query": "desc",
+        "body": "<div class=\"result\"><h2><a href=\"https://sp.example/a\">Alpha</a></h2><div class=\"description\">Desc A</div></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Alpha",
+            "url": "https://sp.example/a",
+            "snippet": "Desc A"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a result without a heading takes its link text as the title",
+      "input": {
+        "provider": "startpage",
+        "query": "bravo",
+        "body": "<div class=\"result\"><a href=\"https://sp.example/b\">Bravo link</a></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Bravo link",
+            "url": "https://sp.example/b",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "the first http link supplies the url and the heading the title",
+      "input": {
+        "provider": "startpage",
+        "query": "first",
+        "body": "<div class=\"result\"><a href=\"https://first.example/\">First</a><h2><a href=\"https://second.example/\">Second</a></h2></div>"
+      },
+      "expected": {
+        "results": [
+          {
+            "title": "Second",
+            "url": "https://first.example/",
+            "snippet": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a result whose first link is not http is dropped",
+      "input": {
+        "provider": "startpage",
+        "query": "mail",
+        "body": "<div class=\"result\"><h2><a href=\"mailto:x@example.test\">Mail</a></h2><p>Dropped.</p></div>"
+      },
+      "expected": {
+        "results": []
+      }
+    }
+  ]
+}

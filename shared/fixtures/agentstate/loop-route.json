@@ -1,0 +1,274 @@
+{
+  "area": "agentLoop",
+  "description": "Model routing (src/ai/providers.ts): whether a model is a provider's, which instance it is, and which provider state and references each wire message keeps. Messages carry the wire fields only.",
+  "cases": [
+    {
+      "name": "a provider's model is remote",
+      "input": {
+        "op": "isRemote",
+        "model": "@anthropic/claude-x"
+      },
+      "expected": true
+    },
+    {
+      "name": "the built-in model is not remote",
+      "input": {
+        "op": "isRemote",
+        "model": "qwen3:30b"
+      },
+      "expected": false
+    },
+    {
+      "name": "a provider's model belongs to its instance",
+      "input": {
+        "op": "providerOf",
+        "model": "@openai/gpt-x"
+      },
+      "expected": "openai"
+    },
+    {
+      "name": "the built-in model belongs to no provider",
+      "input": {
+        "op": "providerOf",
+        "model": "qwen3:30b"
+      },
+      "expected": null
+    },
+    {
+      "name": "a provider keeps its own state and drops another's",
+      "input": {
+        "op": "scopeToTarget",
+        "model": "@anthropic/claude-x",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "a",
+            "provider_state": {
+              "instanceId": "anthropic",
+              "state": {
+                "signature": "s"
+              }
+            }
+          },
+          {
+            "role": "assistant",
+            "content": "b",
+            "provider_state": {
+              "instanceId": "openai",
+              "state": {}
+            }
+          },
+          {
+            "role": "user",
+            "content": "c",
+            "draggy_ref": {
+              "id": "u1",
+              "hash": "h1"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "role": "assistant",
+          "content": "a",
+          "provider_state": {
+            "instanceId": "anthropic",
+            "state": {
+              "signature": "s"
+            }
+          }
+        },
+        {
+          "role": "assistant",
+          "content": "b"
+        },
+        {
+          "role": "user",
+          "content": "c",
+          "draggy_ref": {
+            "id": "u1",
+            "hash": "h1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the built-in engine drops references and keeps no state",
+      "input": {
+        "op": "scopeToTarget",
+        "model": "qwen3:30b",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "a",
+            "provider_state": {
+              "instanceId": "anthropic",
+              "state": {}
+            }
+          },
+          {
+            "role": "user",
+            "content": "c",
+            "draggy_ref": {
+              "id": "u1",
+              "hash": "h1"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "role": "assistant",
+          "content": "a"
+        },
+        {
+          "role": "user",
+          "content": "c"
+        }
+      ]
+    },
+    {
+      "name": "an @ with no slash names the whole rest as the instance",
+      "input": {
+        "op": "providerOf",
+        "model": "@instance"
+      },
+      "expected": "instance"
+    },
+    {
+      "name": "a bare @ is a remote model with an empty instance",
+      "input": {
+        "op": "providerOf",
+        "model": "@"
+      },
+      "expected": ""
+    },
+    {
+      "name": "a bare @ is remote",
+      "input": {
+        "op": "isRemote",
+        "model": "@"
+      },
+      "expected": true
+    },
+    {
+      "name": "an @ with an empty instance still belongs to that instance",
+      "input": {
+        "op": "providerOf",
+        "model": "@/model"
+      },
+      "expected": ""
+    },
+    {
+      "name": "a model id with extra slashes keeps the first as the instance",
+      "input": {
+        "op": "providerOf",
+        "model": "@a/b/c:d"
+      },
+      "expected": "a"
+    },
+    {
+      "name": "an empty model name is the built-in engine",
+      "input": {
+        "op": "isRemote",
+        "model": ""
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty model name has no provider",
+      "input": {
+        "op": "providerOf",
+        "model": ""
+      },
+      "expected": null
+    },
+    {
+      "name": "a gguf prefix is the built-in engine with no provider",
+      "input": {
+        "op": "providerOf",
+        "model": "gguf:x"
+      },
+      "expected": null
+    },
+    {
+      "name": "scoping a built-in target drops the reference and the foreign state",
+      "input": {
+        "op": "scopeToTarget",
+        "model": "",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "a",
+            "provider_state": {
+              "instanceId": "p",
+              "state": 1
+            },
+            "draggy_ref": {
+              "id": "m1",
+              "hash": "h"
+            }
+          },
+          {
+            "role": "user",
+            "content": "b",
+            "draggy_ref": {
+              "id": "m2",
+              "hash": "h2"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "role": "assistant",
+          "content": "a"
+        },
+        {
+          "role": "user",
+          "content": "b"
+        }
+      ]
+    },
+    {
+      "name": "scoping keeps the state of the instance it names",
+      "input": {
+        "op": "scopeToTarget",
+        "model": "@/x",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "a",
+            "provider_state": {
+              "instanceId": "",
+              "state": 2
+            }
+          },
+          {
+            "role": "assistant",
+            "content": "b",
+            "provider_state": {
+              "instanceId": "p",
+              "state": 3
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "role": "assistant",
+          "content": "a",
+          "provider_state": {
+            "instanceId": "",
+            "state": 2
+          }
+        },
+        {
+          "role": "assistant",
+          "content": "b"
+        }
+      ]
+    }
+  ]
+}

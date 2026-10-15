@@ -1,0 +1,703 @@
+{
+  "area": "providers",
+  "description": "The signed provider catalog (remoteCatalog.cjs): what a signed providers.json may change in the bundled entries and add as API-key providers, the address a remote-only provider keeps while in use, and the Ed25519 check. The fetch and storage paths are stateful and are covered by tests/stateful.rs.",
+  "cases": [
+    {
+      "name": "a signed file tunes models, capabilities and quirks of a shipped provider",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "openai",
+              "defaultModels": [
+                "gpt-9"
+              ],
+              "quirks": {
+                "developerRole": true
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ids": [
+          "openai",
+          "anthropic",
+          "gemini",
+          "xai",
+          "deepseek",
+          "mistral",
+          "groq",
+          "cerebras",
+          "together",
+          "fireworks",
+          "openrouter",
+          "huggingface",
+          "qwen",
+          "moonshot",
+          "zai",
+          "minimax",
+          "cohere",
+          "nvidia",
+          "custom",
+          "chatgpt",
+          "claude",
+          "google",
+          "ollama",
+          "lmstudio",
+          "llamacpp",
+          "vllm",
+          "sglang",
+          "jan",
+          "localai",
+          "koboldcpp",
+          "textgen",
+          "gpt4all",
+          "llamafile",
+          "mlx",
+          "colibri",
+          "lemonade"
+        ],
+        "entries": [
+          {
+            "id": "openai",
+            "name": "OpenAI",
+            "kind": "cloud",
+            "protocol": "openai",
+            "baseUrl": "https://api.openai.com/v1",
+            "keyUrl": "https://platform.openai.com/api-keys",
+            "auth": "bearer",
+            "capabilityPatterns": [
+              {
+                "match": "^(o\\d|gpt-5|gpt-6)",
+                "capabilities": [
+                  "tools",
+                  "vision",
+                  "thinking"
+                ]
+              },
+              {
+                "match": "^gpt-4(o|\\.1)",
+                "capabilities": [
+                  "tools",
+                  "vision"
+                ]
+              },
+              {
+                "match": "^gpt-",
+                "capabilities": [
+                  "tools"
+                ]
+              }
+            ],
+            "defaultModels": [
+              "gpt-9"
+            ],
+            "quirks": {
+              "developerRole": true
+            },
+            "vendor": "openai"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a signed file adds an API-key provider, marked as coming from the file",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ids": [
+          "openai",
+          "anthropic",
+          "gemini",
+          "xai",
+          "deepseek",
+          "mistral",
+          "groq",
+          "cerebras",
+          "together",
+          "fireworks",
+          "openrouter",
+          "huggingface",
+          "qwen",
+          "moonshot",
+          "zai",
+          "minimax",
+          "cohere",
+          "nvidia",
+          "custom",
+          "chatgpt",
+          "claude",
+          "google",
+          "ollama",
+          "lmstudio",
+          "llamacpp",
+          "vllm",
+          "sglang",
+          "jan",
+          "localai",
+          "koboldcpp",
+          "textgen",
+          "gpt4all",
+          "llamafile",
+          "mlx",
+          "colibri",
+          "lemonade",
+          "newcloud"
+        ],
+        "entries": [
+          {
+            "id": "newcloud",
+            "name": "New Cloud",
+            "kind": "cloud",
+            "protocol": "openai",
+            "baseUrl": "https://api.newcloud.example/v1",
+            "keyUrl": "https://newcloud.example/keys",
+            "auth": "bearer",
+            "defaultModels": [
+              "nc-1"
+            ],
+            "capabilityPatterns": [],
+            "quirks": {},
+            "remote": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "a file that redirects a shipped provider is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "openai",
+              "baseUrl": "https://evil.example/v1"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: openai changes baseUrl"
+      }
+    },
+    {
+      "name": "a file that changes a shipped provider's auth is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "anthropic",
+              "auth": "bearer"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: anthropic changes auth"
+      }
+    },
+    {
+      "name": "a file that touches an account is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "chatgpt",
+              "defaultModels": [
+                "x"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: chatgpt is an account"
+      }
+    },
+    {
+      "name": "a file that adds an account is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "account",
+              "protocol": "openai",
+              "baseUrl": "",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "account",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud is not an API-key provider"
+      }
+    },
+    {
+      "name": "a file that adds a runtime protocol is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "claude",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud is not an API-key provider"
+      }
+    },
+    {
+      "name": "a file that adds a local server is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "local",
+              "protocol": "openai",
+              "baseUrl": "http://127.0.0.1:9/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "none",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud is not an API-key provider"
+      }
+    },
+    {
+      "name": "a file that adds a plain-http cloud provider is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "http://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud: cloud baseUrl is not https"
+      }
+    },
+    {
+      "name": "a file that adds a key in the URL is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1?key=1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud: baseUrl carries a query or credentials"
+      }
+    },
+    {
+      "name": "a file that is not version 1 is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 2,
+          "providers": []
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: not version 1"
+      }
+    },
+    {
+      "name": "an entry with no id is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "name": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: an entry has no id"
+      }
+    },
+    {
+      "name": "an id that appears twice is rejected",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            },
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud appears twice"
+      }
+    },
+    {
+      "name": "a remote-only provider in use keeps the address it was confirmed at",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://elsewhere.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        },
+        "inUse": [
+          "newcloud"
+        ],
+        "previous": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "providers.json rejected: newcloud is in use and changes its address"
+      }
+    },
+    {
+      "name": "a provider in use that a later file drops is kept from the earlier one",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": []
+        },
+        "inUse": [
+          "newcloud"
+        ],
+        "previous": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "newcloud",
+              "name": "New Cloud",
+              "kind": "cloud",
+              "protocol": "openai",
+              "baseUrl": "https://api.newcloud.example/v1",
+              "keyUrl": "https://newcloud.example/keys",
+              "auth": "bearer",
+              "defaultModels": [
+                "nc-1"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ids": [
+          "openai",
+          "anthropic",
+          "gemini",
+          "xai",
+          "deepseek",
+          "mistral",
+          "groq",
+          "cerebras",
+          "together",
+          "fireworks",
+          "openrouter",
+          "huggingface",
+          "qwen",
+          "moonshot",
+          "zai",
+          "minimax",
+          "cohere",
+          "nvidia",
+          "custom",
+          "chatgpt",
+          "claude",
+          "google",
+          "ollama",
+          "lmstudio",
+          "llamacpp",
+          "vllm",
+          "sglang",
+          "jan",
+          "localai",
+          "koboldcpp",
+          "textgen",
+          "gpt4all",
+          "llamafile",
+          "mlx",
+          "colibri",
+          "lemonade",
+          "newcloud"
+        ],
+        "entries": [
+          {
+            "id": "newcloud",
+            "name": "New Cloud",
+            "kind": "cloud",
+            "protocol": "openai",
+            "baseUrl": "https://api.newcloud.example/v1",
+            "keyUrl": "https://newcloud.example/keys",
+            "auth": "bearer",
+            "defaultModels": [
+              "nc-1"
+            ],
+            "remote": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "a tuned provider keeps its shipped address",
+      "input": {
+        "op": "merge",
+        "file": {
+          "version": 1,
+          "providers": [
+            {
+              "id": "ollama",
+              "defaultModels": [
+                "llama9"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ids": [
+          "openai",
+          "anthropic",
+          "gemini",
+          "xai",
+          "deepseek",
+          "mistral",
+          "groq",
+          "cerebras",
+          "together",
+          "fireworks",
+          "openrouter",
+          "huggingface",
+          "qwen",
+          "moonshot",
+          "zai",
+          "minimax",
+          "cohere",
+          "nvidia",
+          "custom",
+          "chatgpt",
+          "claude",
+          "google",
+          "ollama",
+          "lmstudio",
+          "llamacpp",
+          "vllm",
+          "sglang",
+          "jan",
+          "localai",
+          "koboldcpp",
+          "textgen",
+          "gpt4all",
+          "llamafile",
+          "mlx",
+          "colibri",
+          "lemonade"
+        ],
+        "entries": [
+          {
+            "id": "ollama",
+            "name": "Ollama",
+            "kind": "local",
+            "protocol": "ollama",
+            "baseUrl": "http://127.0.0.1:11434",
+            "auth": "none",
+            "discovery": {
+              "port": 11434,
+              "probe": "/api/version"
+            },
+            "capabilityPatterns": [],
+            "defaultModels": [
+              "llama9"
+            ],
+            "quirks": {
+              "templateKwargs": true,
+              "reasoningContent": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "verify: a good signature verifies",
+      "input": {
+        "op": "verify",
+        "body": "{\"v\":1}",
+        "signature": "Fdj8Mmdrd0IhxSUHKVYc+ze2o2AWS4EuM8NrxIxFbYUIc/LEKt8W2tVbSE910eSQ2K77733PWkDgb+NWVUqxBA==",
+        "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=\n-----END PUBLIC KEY-----\n"
+      },
+      "expected": true
+    },
+    {
+      "name": "verify: a signature from another key does not verify",
+      "input": {
+        "op": "verify",
+        "body": "{\"v\":1}",
+        "signature": "Cilr4ehKlPavH4dnPHSw+j5GVWSbPk3RrpPp86IPmABGl9akrZKLho1dTM0zip3nqh0kBKXSbXlNyfDpzTx9Dw==",
+        "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=\n-----END PUBLIC KEY-----\n"
+      },
+      "expected": false
+    },
+    {
+      "name": "verify: a tampered body does not verify",
+      "input": {
+        "op": "verify",
+        "body": "{\"v\":2}",
+        "signature": "Fdj8Mmdrd0IhxSUHKVYc+ze2o2AWS4EuM8NrxIxFbYUIc/LEKt8W2tVbSE910eSQ2K77733PWkDgb+NWVUqxBA==",
+        "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=\n-----END PUBLIC KEY-----\n"
+      },
+      "expected": false
+    },
+    {
+      "name": "verify: a signature that is not base64 does not verify",
+      "input": {
+        "op": "verify",
+        "body": "{\"v\":1}",
+        "signature": "not base64 at all",
+        "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=\n-----END PUBLIC KEY-----\n"
+      },
+      "expected": false
+    },
+    {
+      "name": "verify: the shipped key rejects a file signed by another key",
+      "input": {
+        "op": "verify",
+        "body": "{\"v\":1}",
+        "signature": "Fdj8Mmdrd0IhxSUHKVYc+ze2o2AWS4EuM8NrxIxFbYUIc/LEKt8W2tVbSE910eSQ2K77733PWkDgb+NWVUqxBA==",
+        "publicKey": "builtin"
+      },
+      "expected": false
+    }
+  ]
+}

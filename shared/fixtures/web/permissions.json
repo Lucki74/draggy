@@ -1,0 +1,132 @@
+{
+  "area": "web",
+  "description": "permissionGranted from electron/urlPolicy.cjs. Input is the permission name and the two origin flags. The app window may use the microphone (media), and may write the sanitized clipboard only from its own pages, never from a widget frame. Everything else is refused, clipboard reads included, and so is anything from outside the app window.",
+  "cases": [
+    {
+      "name": "media from an app page is granted",
+      "input": {
+        "permission": "media",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": true
+    },
+    {
+      "name": "media from the app window outside its page is granted",
+      "input": {
+        "permission": "media",
+        "fromAppWindow": true,
+        "fromAppPage": false
+      },
+      "expected": true
+    },
+    {
+      "name": "media from another window is refused",
+      "input": {
+        "permission": "media",
+        "fromAppWindow": false,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "a clipboard write from an app page is granted",
+      "input": {
+        "permission": "clipboard-sanitized-write",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": true
+    },
+    {
+      "name": "a clipboard write from a widget frame is refused",
+      "input": {
+        "permission": "clipboard-sanitized-write",
+        "fromAppWindow": true,
+        "fromAppPage": false
+      },
+      "expected": false
+    },
+    {
+      "name": "a clipboard write from an app page of another window is refused",
+      "input": {
+        "permission": "clipboard-sanitized-write",
+        "fromAppWindow": false,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "a clipboard read is refused",
+      "input": {
+        "permission": "clipboard-read",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "geolocation is refused",
+      "input": {
+        "permission": "geolocation",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "notifications are refused",
+      "input": {
+        "permission": "notifications",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "openExternal is refused",
+      "input": {
+        "permission": "openExternal",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "a camera request is refused even from an app page",
+      "input": {
+        "permission": "camera",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty permission name is refused",
+      "input": {
+        "permission": "",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "permission names are matched exactly, so upper case is refused",
+      "input": {
+        "permission": "MEDIA",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    },
+    {
+      "name": "a padded permission name is not trimmed",
+      "input": {
+        "permission": " media",
+        "fromAppWindow": true,
+        "fromAppPage": true
+      },
+      "expected": false
+    }
+  ]
+}

@@ -1,0 +1,344 @@
+{
+  "area": "providers",
+  "description": "adapters/codex.cjs seeding and input items, and effort (fn toItems, toInput, effortOf, resetsAtOf).",
+  "cases": [
+    {
+      "name": "a user message with an image",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "see"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,QUJD"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "see"
+            },
+            {
+              "type": "input_image",
+              "image_url": "data:image/png;base64,QUJD"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an empty user message seeds nothing",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "user",
+          "content": ""
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "a tool result is a function output",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "tool",
+          "content": "ok",
+          "tool_call_id": "c1"
+        }
+      },
+      "expected": [
+        {
+          "type": "function_call_output",
+          "call_id": "c1",
+          "output": "ok"
+        }
+      ]
+    },
+    {
+      "name": "an assistant turn with a call, object arguments",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "assistant",
+          "content": "I will read",
+          "tool_calls": [
+            {
+              "id": "c1",
+              "function": {
+                "name": "read",
+                "arguments": {
+                  "path": "a"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "I will read"
+            }
+          ]
+        },
+        {
+          "type": "function_call",
+          "call_id": "c1",
+          "name": "read",
+          "arguments": "{\"path\":\"a\"}"
+        }
+      ]
+    },
+    {
+      "name": "a whitespace-only assistant text is not seeded",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "assistant",
+          "content": "  ",
+          "tool_calls": [
+            {
+              "id": "c2",
+              "function": {
+                "name": "f",
+                "arguments": "{}"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "function_call",
+          "call_id": "c2",
+          "name": "f",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "name": "a system message seeds nothing",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "system",
+          "content": "prompt"
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "no input is no items",
+      "input": {
+        "fn": "toInput",
+        "message": null
+      },
+      "expected": []
+    },
+    {
+      "name": "input text and image",
+      "input": {
+        "fn": "toInput",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hi"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "https://x/i.png"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "text",
+          "text": "hi",
+          "text_elements": []
+        },
+        {
+          "type": "image",
+          "url": "https://x/i.png"
+        }
+      ]
+    },
+    {
+      "name": "input with only an image",
+      "input": {
+        "fn": "toInput",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "https://x/j.png"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "image",
+          "url": "https://x/j.png"
+        }
+      ]
+    },
+    {
+      "name": "effort: unset gives nothing",
+      "input": {
+        "fn": "effortOf",
+        "body": {}
+      },
+      "expected": {}
+    },
+    {
+      "name": "effort: thinking on with a level and an auto summary",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": true,
+          "thinking_level": "high"
+        }
+      },
+      "expected": {
+        "effort": "high",
+        "summary": "auto"
+      }
+    },
+    {
+      "name": "effort: thinking on with no level is medium",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": true
+        }
+      },
+      "expected": {
+        "effort": "medium",
+        "summary": "auto"
+      }
+    },
+    {
+      "name": "effort: thinking off asks for the least",
+      "input": {
+        "fn": "effortOf",
+        "body": {
+          "think": false
+        }
+      },
+      "expected": {
+        "effort": "low",
+        "summary": "none"
+      }
+    },
+    {
+      "name": "reset: a spent window's reset is taken",
+      "input": {
+        "fn": "resetsAtOf",
+        "limits": {
+          "primary": {
+            "resetsAt": 100,
+            "usedPercent": 100
+          },
+          "secondary": {
+            "resetsAt": 200,
+            "usedPercent": 50
+          }
+        }
+      },
+      "expected": 100
+    },
+    {
+      "name": "reset: the latest of the windows when none is spent",
+      "input": {
+        "fn": "resetsAtOf",
+        "limits": {
+          "primary": {
+            "resetsAt": 100,
+            "usedPercent": 10
+          },
+          "secondary": {
+            "resetsAt": 200,
+            "usedPercent": 50
+          }
+        }
+      },
+      "expected": 200
+    },
+    {
+      "name": "reset: none when no window gives one",
+      "input": {
+        "fn": "resetsAtOf",
+        "limits": {
+          "primary": {
+            "usedPercent": 10
+          }
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "reset: none without limits",
+      "input": {
+        "fn": "resetsAtOf",
+        "limits": null
+      },
+      "expected": null
+    },
+    {
+      "name": "a call's arguments keep the order they were written in",
+      "input": {
+        "fn": "toItems",
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "c1",
+              "function": {
+                "name": "read",
+                "arguments": {
+                  "path": "a",
+                  "mode": "r"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "type": "function_call",
+          "call_id": "c1",
+          "name": "read",
+          "arguments": "{\"path\":\"a\",\"mode\":\"r\"}"
+        }
+      ]
+    }
+  ]
+}

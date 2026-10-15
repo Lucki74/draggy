@@ -1,0 +1,218 @@
+{
+  "area": "liveTurn",
+  "description": "Live turn store: an ordered list of set calls for each chat, then the value each queried chat reads back. Module-wide store in src/agent/liveTurn.ts; the driver clears the chats a case names first.",
+  "cases": [
+    {
+      "name": "a live turn reads back for its chat",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 12,
+              "tokensPerSecond": 40,
+              "contextTokens": 900,
+              "contextExact": false,
+              "contextWindow": 8192
+            }
+          }
+        ],
+        "query": [
+          "a"
+        ]
+      },
+      "expected": {
+        "a": {
+          "responseTokens": 12,
+          "tokensPerSecond": 40,
+          "contextTokens": 900,
+          "contextExact": false,
+          "contextWindow": 8192
+        }
+      }
+    },
+    {
+      "name": "a chat with no live turn reads null",
+      "input": {
+        "ops": [],
+        "query": [
+          "nobody"
+        ]
+      },
+      "expected": {
+        "nobody": null
+      }
+    },
+    {
+      "name": "clearing a live turn removes it",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 1,
+              "tokensPerSecond": 1,
+              "contextTokens": 1,
+              "contextExact": true,
+              "contextWindow": 2
+            }
+          },
+          {
+            "chatId": "a",
+            "live": null
+          }
+        ],
+        "query": [
+          "a"
+        ]
+      },
+      "expected": {
+        "a": null
+      }
+    },
+    {
+      "name": "clearing a chat that never had one changes nothing",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": null
+          }
+        ],
+        "query": [
+          "a"
+        ]
+      },
+      "expected": {
+        "a": null
+      }
+    },
+    {
+      "name": "a later live turn replaces an earlier one",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 1,
+              "tokensPerSecond": 1,
+              "contextTokens": 1,
+              "contextExact": true,
+              "contextWindow": 2
+            }
+          },
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 9,
+              "tokensPerSecond": 3.5,
+              "contextTokens": 7,
+              "contextExact": false,
+              "contextWindow": 16
+            }
+          }
+        ],
+        "query": [
+          "a"
+        ]
+      },
+      "expected": {
+        "a": {
+          "responseTokens": 9,
+          "tokensPerSecond": 3.5,
+          "contextTokens": 7,
+          "contextExact": false,
+          "contextWindow": 16
+        }
+      }
+    },
+    {
+      "name": "chats keep their own live turns",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 1,
+              "tokensPerSecond": 1,
+              "contextTokens": 1,
+              "contextExact": true,
+              "contextWindow": 2
+            }
+          },
+          {
+            "chatId": "b",
+            "live": {
+              "responseTokens": 2,
+              "tokensPerSecond": 2,
+              "contextTokens": 2,
+              "contextExact": true,
+              "contextWindow": 4
+            }
+          },
+          {
+            "chatId": "a",
+            "live": null
+          }
+        ],
+        "query": [
+          "a",
+          "b"
+        ]
+      },
+      "expected": {
+        "a": null,
+        "b": {
+          "responseTokens": 2,
+          "tokensPerSecond": 2,
+          "contextTokens": 2,
+          "contextExact": true,
+          "contextWindow": 4
+        }
+      }
+    },
+    {
+      "name": "a live turn carries the prompt parts",
+      "input": {
+        "ops": [
+          {
+            "chatId": "a",
+            "live": {
+              "responseTokens": 0,
+              "tokensPerSecond": 0,
+              "contextTokens": 600,
+              "contextExact": true,
+              "contextWindow": 4096,
+              "parts": {
+                "systemChars": 400,
+                "toolChars": 0,
+                "memoryChars": 0,
+                "skillChars": 0,
+                "summaryChars": 0
+              }
+            }
+          }
+        ],
+        "query": [
+          "a"
+        ]
+      },
+      "expected": {
+        "a": {
+          "responseTokens": 0,
+          "tokensPerSecond": 0,
+          "contextTokens": 600,
+          "contextExact": true,
+          "contextWindow": 4096,
+          "parts": {
+            "systemChars": 400,
+            "toolChars": 0,
+            "memoryChars": 0,
+            "skillChars": 0,
+            "summaryChars": 0
+          }
+        }
+      }
+    }
+  ]
+}

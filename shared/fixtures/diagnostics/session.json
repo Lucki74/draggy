@@ -1,0 +1,1535 @@
+{
+  "area": "diagnostics",
+  "description": "Lifecycle: the previous run's marker (including numeric, null and missing ids), the state after the ops, the marker and level file as written, and every line with the boot line left out. Covers the session summary, noteStat kinds and values, errorsByScope order, timed and kept levels, and .env.local.",
+  "cases": [
+    {
+      "name": "a first run writes an unclean marker and no warning",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": []
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a marker left unclean names the previous session as crashed",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "session.json": {
+            "id": "0f0f0f0f",
+            "startedAt": "2025-12-31T23:00:00.000Z",
+            "pid": 99,
+            "clean": false
+          }
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": true,
+          "session": "0f0f0f0f",
+          "startedAt": "2025-12-31T23:00:00.000Z"
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session 0f0f0f0f ended without session-end (crash or kill), started 2025-12-31T23:00:00.000Z {\"previousSession\":\"0f0f0f0f\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session 0f0f0f0f ended without session-end (crash or kill), started 2025-12-31T23:00:00.000Z {\"previousSession\":\"0f0f0f0f\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"boot\",\"msg\":\"previous session 0f0f0f0f ended without session-end (crash or kill), started 2025-12-31T23:00:00.000Z\",\"data\":{\"previousSession\":\"0f0f0f0f\"}}"
+        ]
+      }
+    },
+    {
+      "name": "a previous run that ended cleanly is not reported",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "session.json": {
+            "id": "0f0f0f0f",
+            "startedAt": "2025-12-31T23:00:00.000Z",
+            "pid": 99,
+            "clean": true
+          }
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": "0f0f0f0f",
+          "startedAt": "2025-12-31T23:00:00.000Z"
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "an unreadable marker counts as no previous run",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "session.json": "{not json"
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "endSession writes the summary and a clean marker",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "noteSlow",
+            "channel": "search-web",
+            "durMs": 3000
+          },
+          {
+            "op": "noteSlow",
+            "channel": "run-code",
+            "durMs": 90000
+          },
+          {
+            "op": "noteSlow",
+            "channel": "search-web",
+            "durMs": 2500
+          },
+          {
+            "op": "noteSlow",
+            "channel": "check-internet",
+            "durMs": 1200
+          },
+          {
+            "op": "noteStat",
+            "kind": "turn",
+            "value": 2
+          },
+          {
+            "op": "noteStat",
+            "kind": "engineCrash"
+          },
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 512
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "turn summary"
+            }
+          },
+          {
+            "op": "info",
+            "scope": "agent",
+            "message": "plain"
+          },
+          {
+            "op": "fail",
+            "scope": "agent",
+            "message": "step failed",
+            "error": {
+              "name": "Error",
+              "message": "bad"
+            }
+          },
+          {
+            "op": "advance",
+            "ms": 5000
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] turn summary",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [agent] plain",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.4 [system] [agent] step failed",
+          "Error: bad",
+          "",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.5 [system] [lifecycle] session summary {\"turns\":3,\"errorsByScope\":{\"agent\":1},\"slowestIpc\":[{\"channel\":\"run-code\",\"ms\":90000},{\"channel\":\"search-web\",\"ms\":3000},{\"channel\":\"check-internet\",\"ms\":1200}],\"peakMemoryMB\":512,\"engineCrashes\":1}",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.6 [system] [session-end] uptime 5 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [renderer.chat] turn summary",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [agent] plain",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.4 [system] [agent] step failed",
+          "Error: bad",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.5 [system] [lifecycle] session summary {\"turns\":3,\"errorsByScope\":{\"agent\":1},\"slowestIpc\":[{\"channel\":\"run-code\",\"ms\":90000},{\"channel\":\"search-web\",\"ms\":3000},{\"channel\":\"check-internet\",\"ms\":1200}],\"peakMemoryMB\":512,\"engineCrashes\":1}",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.6 [system] [session-end] uptime 5 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"renderer\",\"pid\":4242,\"scope\":\"renderer.chat\",\"msg\":\"turn summary\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"agent\",\"msg\":\"plain\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"agent\",\"msg\":\"step failed\",\"err\":{\"name\":\"Error\",\"message\":\"bad\"}}",
+          "{\"ts\":\"2026-01-01T00:00:05.123Z\",\"seq\":5,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":3,\"errorsByScope\":{\"agent\":1},\"slowestIpc\":[{\"channel\":\"run-code\",\"ms\":90000},{\"channel\":\"search-web\",\"ms\":3000},{\"channel\":\"check-internet\",\"ms\":1200}],\"peakMemoryMB\":512,\"engineCrashes\":1}}",
+          "{\"ts\":\"2026-01-01T00:00:05.123Z\",\"seq\":6,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 5 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "endSession unclean says dirty",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "endSession",
+            "clean": false
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s dirty"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s dirty"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s dirty\"}"
+        ]
+      }
+    },
+    {
+      "name": "the summary lists the five slowest channels, highest first",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "noteSlow",
+            "channel": "a",
+            "durMs": 10
+          },
+          {
+            "op": "noteSlow",
+            "channel": "b",
+            "durMs": 70
+          },
+          {
+            "op": "noteSlow",
+            "channel": "c",
+            "durMs": 30
+          },
+          {
+            "op": "noteSlow",
+            "channel": "d",
+            "durMs": 50
+          },
+          {
+            "op": "noteSlow",
+            "channel": "e",
+            "durMs": 20
+          },
+          {
+            "op": "noteSlow",
+            "channel": "f",
+            "durMs": 90
+          },
+          {
+            "op": "noteSlow",
+            "channel": "g",
+            "durMs": 40
+          },
+          {
+            "op": "noteSlow",
+            "channel": "b",
+            "durMs": 5
+          },
+          {
+            "op": "noteSlow",
+            "channel": "h",
+            "durMs": "99"
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[{\"channel\":\"f\",\"ms\":90},{\"channel\":\"b\",\"ms\":70},{\"channel\":\"d\",\"ms\":50},{\"channel\":\"g\",\"ms\":40},{\"channel\":\"c\",\"ms\":30}],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[{\"channel\":\"f\",\"ms\":90},{\"channel\":\"b\",\"ms\":70},{\"channel\":\"d\",\"ms\":50},{\"channel\":\"g\",\"ms\":40},{\"channel\":\"c\",\"ms\":30}],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[{\"channel\":\"f\",\"ms\":90},{\"channel\":\"b\",\"ms\":70},{\"channel\":\"d\",\"ms\":50},{\"channel\":\"g\",\"ms\":40},{\"channel\":\"c\",\"ms\":30}],\"peakMemoryMB\":0,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "peak memory keeps the largest value",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 300
+          },
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 120
+          },
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 450
+          },
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 200
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":450,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":450,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":450,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "a keep level file restores the level and scopes at boot",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "level.json": {
+            "level": "DEBUG",
+            "scopes": [
+              "ipc"
+            ],
+            "keep": true
+          }
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "DEBUG",
+          "scopes": [
+            "ipc"
+          ],
+          "keep": true,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": "{\"level\":\"DEBUG\",\"scopes\":[\"ipc\"],\"keep\":true}",
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a level file without keep is removed at boot",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "level.json": {
+            "level": "DEBUG",
+            "scopes": [
+              "ipc"
+            ],
+            "keep": false
+          }
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a level file that is not valid JSON is left alone",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "level.json": "nope"
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": "nope",
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "keep without a level keeps the environment level",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "files": {
+          "level.json": {
+            "keep": true,
+            "scopes": "ipc"
+          }
+        }
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "ipc"
+          ],
+          "keep": true,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": "{\"keep\":true,\"scopes\":\"ipc\"}",
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "DRAGGY_DEBUG from the environment raises every listed scope",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "DRAGGY_DEBUG": "ipc, mcp.github,, "
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "ipc.files",
+            "message": "listed"
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "ipc",
+            "mcp.github"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.files] listed"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.files] listed"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.files\",\"msg\":\"listed\"}"
+        ]
+      }
+    },
+    {
+      "name": "in development .env.local stands in for DRAGGY_DEBUG",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG=mcp.github\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "mcp.github"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "the environment wins over .env.local in development",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "DRAGGY_DEBUG": "alpha"
+        },
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG=beta\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "alpha"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "an empty DRAGGY_DEBUG falls through to .env.local in development",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "DRAGGY_DEBUG": ""
+        },
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG=beta\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "beta"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a packaged build ignores .env.local",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": true,
+        "envLocal": "DRAGGY_DEBUG=beta\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a CRLF .env.local value has no carriage return",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG=beta\r\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "beta"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "the first matching .env.local line wins",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": false,
+        "envLocal": "OTHER=1\nDRAGGY_DEBUG=beta\nDRAGGY_DEBUG=gamma\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "beta"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "spaces around the equals sign in .env.local are not read",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG = beta\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a scope ending in s loses its last letter in .env.local (TS quirk)",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [],
+        "packaged": false,
+        "envLocal": "DRAGGY_DEBUG=providers\n"
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [
+            "provider"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [],
+        "events": []
+      }
+    },
+    {
+      "name": "a timed level reverts to INFO when its time is up",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "durationMs": 5000
+          },
+          {
+            "op": "debug",
+            "scope": "ipc",
+            "message": "still verbose"
+          },
+          {
+            "op": "advance",
+            "ms": 4999
+          },
+          {
+            "op": "info",
+            "scope": "ipc",
+            "message": "before the end"
+          },
+          {
+            "op": "advance",
+            "ms": 1
+          },
+          {
+            "op": "info",
+            "scope": "ipc",
+            "message": "after the end"
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}",
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.3 [system] [ipc] still verbose",
+          "2026-01-01T00:00:05.122Z INFO a1b2c3d4.4 [system] [ipc] before the end",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.5 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.6 [system] [logger] verbose logging ended",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.7 [system] [ipc] after the end"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}",
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.3 [system] [ipc] still verbose",
+          "2026-01-01T00:00:05.122Z INFO a1b2c3d4.4 [system] [ipc] before the end",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.5 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.6 [system] [logger] verbose logging ended",
+          "2026-01-01T00:00:05.123Z INFO a1b2c3d4.7 [system] [ipc] after the end"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc\",\"msg\":\"still verbose\"}",
+          "{\"ts\":\"2026-01-01T00:00:05.122Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc\",\"msg\":\"before the end\"}",
+          "{\"ts\":\"2026-01-01T00:00:05.123Z\",\"seq\":5,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:05.123Z\",\"seq\":6,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"verbose logging ended\"}",
+          "{\"ts\":\"2026-01-01T00:00:05.123Z\",\"seq\":7,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc\",\"msg\":\"after the end\"}"
+        ]
+      }
+    },
+    {
+      "name": "a timed level is capped at 24 hours",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "durationMs": 10000000000
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "DEBUG",
+          "scopes": [],
+          "keep": false,
+          "until": 1767312000123
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767312000123}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767312000123}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767312000123}}"
+        ]
+      }
+    },
+    {
+      "name": "a new setLevel cancels the pending revert",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "durationMs": 5000
+          },
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "scopes": "x"
+          },
+          {
+            "op": "advance",
+            "ms": 6000
+          },
+          {
+            "op": "info",
+            "scope": "ipc",
+            "message": "still on"
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "DEBUG",
+          "scopes": [
+            "x"
+          ],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[\"x\"],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:06.123Z INFO a1b2c3d4.4 [system] [ipc] still on"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[\"x\"],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:06.123Z INFO a1b2c3d4.4 [system] [ipc] still on"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":false,\"until\":1767225605123}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[\"x\"],\"keep\":false,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:06.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc\",\"msg\":\"still on\"}"
+        ]
+      }
+    },
+    {
+      "name": "keep writes level.json while verbose logging is on",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "scopes": "ipc",
+            "keep": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "DEBUG",
+          "scopes": [
+            "ipc"
+          ],
+          "keep": true,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": "{\"level\":\"DEBUG\",\"scopes\":[\"ipc\"],\"keep\":true}",
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[\"ipc\"],\"keep\":true,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[\"ipc\"],\"keep\":true,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[\"ipc\"],\"keep\":true,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "keep without verbose logging writes no level.json",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "WARN",
+            "keep": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "WARN",
+          "scopes": [],
+          "keep": true,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"WARN\",\"scopes\":[],\"keep\":true,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"WARN\",\"scopes\":[],\"keep\":true,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "dropping keep removes level.json",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "keep": true
+          },
+          {
+            "op": "setLevel",
+            "level": "INFO",
+            "keep": false
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":null}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":null}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "a timed keep level reverts and removes level.json",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "setLevel",
+            "level": "DEBUG",
+            "durationMs": 1000,
+            "keep": true
+          },
+          {
+            "op": "advance",
+            "ms": 1000
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":1767225601123}",
+          "2026-01-01T00:00:01.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:01.123Z INFO a1b2c3d4.4 [system] [logger] verbose logging ended"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [logger] level changed {\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":1767225601123}",
+          "2026-01-01T00:00:01.123Z INFO a1b2c3d4.3 [system] [logger] level changed {\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}",
+          "2026-01-01T00:00:01.123Z INFO a1b2c3d4.4 [system] [logger] verbose logging ended"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"DEBUG\",\"scopes\":[],\"keep\":true,\"until\":1767225601123}}",
+          "{\"ts\":\"2026-01-01T00:00:01.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"level changed\",\"data\":{\"level\":\"INFO\",\"scopes\":[],\"keep\":false,\"until\":null}}",
+          "{\"ts\":\"2026-01-01T00:00:01.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"logger\",\"msg\":\"verbose logging ended\"}"
+        ]
+      }
+    },
+    {
+      "name": "error scopes with integer-like names print first in the summary",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "error",
+            "scope": "b",
+            "message": "x"
+          },
+          {
+            "op": "error",
+            "scope": "2",
+            "message": "y"
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [b] x",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [2] y",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{\"2\":1,\"b\":1},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.5 [system] [session-end] uptime 0 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.2 [system] [b] x",
+          "2026-01-01T00:00:00.123Z ERROR a1b2c3d4.3 [system] [2] y",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{\"2\":1,\"b\":1},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.5 [system] [session-end] uptime 0 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"b\",\"msg\":\"x\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"ERROR\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"2\",\"msg\":\"y\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":0,\"errorsByScope\":{\"2\":1,\"b\":1},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":5,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "a null noteStat value adds nothing and a missing one adds one",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "noteStat",
+            "kind": "turn",
+            "value": null
+          },
+          {
+            "op": "noteStat",
+            "kind": "turn"
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":1,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":1,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":1,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":0,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "a noteStat kind the writer does not know is ignored",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "noteStat",
+            "kind": "bogus",
+            "value": 5
+          },
+          {
+            "op": "noteStat",
+            "kind": "peakMB",
+            "value": 3
+          },
+          {
+            "op": "endSession",
+            "clean": true
+          }
+        ]
+      },
+      "expected": {
+        "previous": {
+          "crashed": false,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":true}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":3,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [lifecycle] session summary {\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":3,\"engineCrashes\":0}",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [session-end] uptime 0 s clean"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"lifecycle\",\"msg\":\"session summary\",\"data\":{\"turns\":0,\"errorsByScope\":{},\"slowestIpc\":[],\"peakMemoryMB\":3,\"engineCrashes\":0}}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"session-end\",\"msg\":\"uptime 0 s clean\"}"
+        ]
+      }
+    },
+    {
+      "name": "a previous marker with a numeric id keeps the number",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "files": {
+          "session.json": {
+            "id": 7,
+            "startedAt": 12,
+            "pid": 1,
+            "clean": false
+          }
+        },
+        "ops": []
+      },
+      "expected": {
+        "previous": {
+          "crashed": true,
+          "session": 7,
+          "startedAt": 12
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session 7 ended without session-end (crash or kill), started 12 {\"previousSession\":7}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session 7 ended without session-end (crash or kill), started 12 {\"previousSession\":7}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"boot\",\"msg\":\"previous session 7 ended without session-end (crash or kill), started 12\",\"data\":{\"previousSession\":7}}"
+        ]
+      }
+    },
+    {
+      "name": "a previous marker with a null id reports null",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "files": {
+          "session.json": {
+            "id": null,
+            "startedAt": null,
+            "clean": false
+          }
+        },
+        "ops": []
+      },
+      "expected": {
+        "previous": {
+          "crashed": true,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session null ended without session-end (crash or kill), started null {\"previousSession\":null}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session null ended without session-end (crash or kill), started null {\"previousSession\":null}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"boot\",\"msg\":\"previous session null ended without session-end (crash or kill), started null\",\"data\":{\"previousSession\":null}}"
+        ]
+      }
+    },
+    {
+      "name": "a previous marker with no id reports undefined",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "files": {
+          "session.json": {
+            "clean": false
+          }
+        },
+        "ops": []
+      },
+      "expected": {
+        "previous": {
+          "crashed": true,
+          "session": null,
+          "startedAt": null
+        },
+        "state": {
+          "level": "INFO",
+          "scopes": [],
+          "keep": false,
+          "until": null
+        },
+        "marker": "{\"id\":\"a1b2c3d4\",\"startedAt\":\"2026-01-01T00:00:00.123Z\",\"pid\":4242,\"clean\":false}",
+        "level": null,
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session undefined ended without session-end (crash or kill), started undefined {}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [boot] previous session undefined ended without session-end (crash or kill), started undefined {}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"boot\",\"msg\":\"previous session undefined ended without session-end (crash or kill), started undefined\",\"data\":{}}"
+        ]
+      }
+    }
+  ]
+}

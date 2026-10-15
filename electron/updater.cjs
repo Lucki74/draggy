@@ -67,31 +67,47 @@ function pickBuildTag(releases) {
   return best;
 }
 
+/** Releases are listed newest first and non-build releases share the list, so a build can sit past
+ * the first page. Five pages of 100 cover a long run of them. */
+const MAX_RELEASE_PAGES = 5;
+
 async function latestBuildTag() {
-  const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=30`, {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "Draggy-updater" },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
-  return pickBuildTag(await response.json());
+  for (let page = 1; page <= MAX_RELEASE_PAGES; page += 1) {
+    const response = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=100&page=${page}`,
+      {
+        headers: { Accept: "application/vnd.github+json", "User-Agent": "Draggy-updater" },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
+    const releases = await response.json();
+    const tag = pickBuildTag(releases);
+    if (tag) return tag;
+    if (!Array.isArray(releases) || releases.length < 100) break;
+  }
+  return null;
 }
 
 /** The feed to read `latest.yml` from. DRAGGY_UPDATE_FEED points at a local server for testing an
- * update end to end; otherwise the newest build tag, falling back to GitHub's own latest release. */
+ * update end to end; otherwise the newest build tag, never GitHub's own "latest": it may be native. */
 async function resolveFeed() {
   const override = process.env.DRAGGY_UPDATE_FEED;
   if (override) return { feed: { provider: "generic", url: override }, tag: null };
 
-  let tag = null;
+  let tag;
   try {
     tag = await latestBuildTag();
   } catch (error) {
-    log.warn("updater", "release list unavailable, using github latest", { reason: error.message });
+    log.warn("updater", "release list unavailable", { reason: error.message });
+    throw error;
+  }
+  if (!tag) {
+    log.warn("updater", "no build release in release list", { reason: "no b-N tag found" });
+    throw new Error("No Draggy build was found in the release list.");
   }
   return {
-    feed: tag
-      ? { provider: "generic", url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${tag}` }
-      : { provider: "github", owner: REPO_OWNER, repo: REPO_NAME },
+    feed: { provider: "generic", url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${tag}` },
     tag,
   };
 }

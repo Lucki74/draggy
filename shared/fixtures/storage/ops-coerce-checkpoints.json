@@ -1,0 +1,889 @@
+{
+  "area": "storage",
+  "description": "Ordered operation lists over checkpoints read the way addCheckpoint and listCheckpoints read their arguments: falsy and wrong-typed fields, hashes bound as the reference binds them, a null or non-object entry, and ids and limits given as text. Each case starts from an empty database. Same op and expected rules as ops-chats.json.",
+  "cases": [
+    {
+      "name": "a checkpoint with null fields takes the default for each",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": null,
+                "chatId": null,
+                "path": null,
+                "action": null,
+                "detail": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "createdAt": null
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        [
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a falsy workspace id is the default, and a numeric action is text",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": 0,
+                "path": "/a",
+                "action": 3
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        [
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/a",
+            "action": "3",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a numeric hash is stored as the text of a real number",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/a",
+                "beforeHash": 5,
+                "afterHash": 1.5
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          },
+          {
+            "call": "query",
+            "args": [
+              "SELECT before_hash, typeof(before_hash), after_hash FROM checkpoints"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "id": 1,
+          "workspaceId": "default",
+          "chatId": null,
+          "path": "/a",
+          "action": "write",
+          "detail": null,
+          "beforeHash": "5.0",
+          "afterHash": "1.5",
+          "createdAt": {
+            "$any": "now"
+          }
+        },
+        [
+          [
+            "5.0",
+            "text",
+            "1.5"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "a hash that cannot be stored refuses the record",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/a",
+                "beforeHash": true
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/a",
+                "afterHash": {}
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "threw": true
+        },
+        {
+          "threw": true
+        },
+        []
+      ]
+    },
+    {
+      "name": "an entry that is null is refused, while any other non-object records a default checkpoint",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              null
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              5
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              "abc"
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "threw": true
+        },
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        [
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a number given as text reads as that number for the id and the limit",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/1"
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/2"
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/3"
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default",
+              "1"
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              "2"
+            ]
+          },
+          {
+            "call": "dropCheckpoint",
+            "args": [
+              "1"
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        {
+          "id": 2,
+          "workspaceId": "default",
+          "chatId": null,
+          "path": "/2",
+          "action": "write",
+          "detail": null,
+          "beforeHash": null,
+          "afterHash": null,
+          "createdAt": {
+            "$any": "now"
+          }
+        },
+        {
+          "success": true
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a missing, zero or blank limit lists the default number of checkpoints",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/1"
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/2"
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/3"
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default",
+              0
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default",
+              null
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default",
+              "x"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "an id that is not a whole number matches no checkpoint",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/1"
+              }
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1.5
+            ]
+          },
+          {
+            "call": "dropCheckpoint",
+            "args": [
+              1.5
+            ]
+          },
+          {
+            "call": "getCheckpoint",
+            "args": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        null,
+        {
+          "success": true
+        },
+        {
+          "id": 1,
+          "workspaceId": "default",
+          "chatId": null,
+          "path": "/1",
+          "action": "write",
+          "detail": null,
+          "beforeHash": null,
+          "afterHash": null,
+          "createdAt": {
+            "$any": "now"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a chat id of zero, and an empty or zero detail, are stored as none",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/1",
+                "chatId": 0,
+                "detail": ""
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/2",
+                "chatId": "c",
+                "detail": 0
+              }
+            ]
+          },
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/3",
+                "detail": 7
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        {
+          "success": true,
+          "id": 2
+        },
+        {
+          "success": true,
+          "id": 3
+        },
+        [
+          {
+            "id": 3,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/3",
+            "action": "write",
+            "detail": "7",
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 2,
+            "workspaceId": "default",
+            "chatId": "c",
+            "path": "/2",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          },
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "a workspace id that is a list is stored as its empty text, not as the default",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": [],
+                "path": "/list"
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              ""
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        [
+          {
+            "id": 1,
+            "workspaceId": "",
+            "chatId": null,
+            "path": "/list",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": {
+              "$any": "now"
+            }
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "name": "a fractional creation time is kept",
+      "input": {
+        "ops": [
+          {
+            "call": "addCheckpoint",
+            "args": [
+              {
+                "workspaceId": "default",
+                "path": "/1",
+                "createdAt": 1.5
+              }
+            ]
+          },
+          {
+            "call": "listCheckpoints",
+            "args": [
+              "default"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true,
+          "id": 1
+        },
+        [
+          {
+            "id": 1,
+            "workspaceId": "default",
+            "chatId": null,
+            "path": "/1",
+            "action": "write",
+            "detail": null,
+            "beforeHash": null,
+            "afterHash": null,
+            "createdAt": 1.5
+          }
+        ]
+      ]
+    }
+  ]
+}

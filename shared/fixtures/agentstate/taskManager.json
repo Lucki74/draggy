@@ -1,0 +1,2760 @@
+{
+  "area": "taskManager",
+  "description": "Task manager: an op list driven against one manager (send, regenerate, edit, switch, continue, finish, fail, ask, answer, grant, seen, stop, stopAll), then the final state: sessions projected to what a person sees, running chats in start order, granted permissions, approval answers ('pending' while unanswered), recorded metrics, and the messages each turn was sent. The agent loop is stubbed; finish and fail resolve the earliest unsettled turn for a chat.",
+  "cases": [
+    {
+      "name": "the first message starts a conversation and a turn",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a new conversation starts in the workspace that is open",
+      "input": {
+        "model": "qwen3:8b",
+        "workspaceId": "project-7",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "project-7",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "two conversations generate at the same time",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "first"
+          },
+          {
+            "op": "send",
+            "chatId": "chat-2",
+            "content": "second"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "first",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          },
+          {
+            "id": "chat-2",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "second",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1",
+          "chat-2"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a turn finishes for a conversation no longer on screen",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "first"
+          },
+          {
+            "op": "send",
+            "chatId": "chat-2",
+            "content": "second"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "textContent": "done"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "first",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "done",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          },
+          {
+            "id": "chat-2",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "second",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-2"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "stopping one conversation spares the other",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "first"
+          },
+          {
+            "op": "send",
+            "chatId": "chat-2",
+            "content": "second"
+          },
+          {
+            "op": "stop",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "first",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          },
+          {
+            "id": "chat-2",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "second",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-2"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a stopped turn that lands afterwards writes nothing",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "first"
+          },
+          {
+            "op": "stop",
+            "chatId": "chat-1"
+          },
+          {
+            "op": "fail",
+            "chatId": "chat-1",
+            "abort": true
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "first",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "stopping everything stops every turn",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "first"
+          },
+          {
+            "op": "send",
+            "chatId": "chat-2",
+            "content": "second"
+          },
+          {
+            "op": "stopAll"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "first",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          },
+          {
+            "id": "chat-2",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "second",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a turn hands over the conversation as it stands",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "earlier"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "later"
+          },
+          {
+            "op": "seen",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "earlier",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "user",
+                "content": "later",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": [
+          {
+            "chatId": "chat-1",
+            "contents": [
+              "earlier",
+              "later"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "regenerating keeps the old reply as a version",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "question"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "first answer"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "question",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "first answer",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "regenerating a reply that ends with a question leaves the question alone",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "question"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "question",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "regenerating an unknown conversation does nothing",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "missing"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "regenerating keeps the old reply's provider state in its version",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "question"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "first answer",
+                "provider_state": {
+                  "instanceId": "anthropic",
+                  "state": {
+                    "signature": "s"
+                  }
+                }
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "question",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "first answer",
+                    "steps": null,
+                    "providerState": {
+                      "instanceId": "anthropic",
+                      "state": {
+                        "signature": "s"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "regenerating drops a fold that the new reply would rewrite",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "a"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "b"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 4,
+              "summary": "notes",
+              "updatedAt": 0
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "a",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "b",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "regenerating keeps a fold that still describes the conversation",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "a"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "b"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 1,
+              "summary": "notes",
+              "updatedAt": 0
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "regenerate",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": {
+              "throughIndex": 1,
+              "summary": "notes"
+            },
+            "messages": [
+              {
+                "role": "user",
+                "content": "a",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "b",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "editing a message keeps its old text as a version and drops what followed",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q1"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "a1"
+              },
+              {
+                "id": "m3",
+                "role": "user",
+                "content": "q2"
+              },
+              {
+                "id": "m4",
+                "role": "assistant",
+                "content": "a2"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "editMessage",
+            "chatId": "chat-1",
+            "index": 2,
+            "content": "q2 edited"
+          },
+          {
+            "op": "seen",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "q1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "a1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "user",
+                "content": "q2 edited",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "q2",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": [
+          {
+            "chatId": "chat-1",
+            "contents": [
+              "q1",
+              "a1",
+              "q2 edited"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "editing an assistant message does nothing",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q1"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "a1"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "editMessage",
+            "chatId": "chat-1",
+            "index": 1,
+            "content": "nope"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "q1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "a1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "editing inside the folded range drops the fold",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q1"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "a1"
+              },
+              {
+                "id": "m3",
+                "role": "user",
+                "content": "q2"
+              },
+              {
+                "id": "m4",
+                "role": "assistant",
+                "content": "a2"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 2,
+              "summary": "notes",
+              "updatedAt": 0
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "editMessage",
+            "chatId": "chat-1",
+            "index": 0,
+            "content": "q1 edited"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "q1 edited",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "q1",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "editing after the folded range keeps the fold",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q1"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "a1"
+              },
+              {
+                "id": "m3",
+                "role": "user",
+                "content": "q2"
+              },
+              {
+                "id": "m4",
+                "role": "assistant",
+                "content": "a2"
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 2,
+              "summary": "notes",
+              "updatedAt": 0
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "editMessage",
+            "chatId": "chat-1",
+            "index": 2,
+            "content": "q2 edited"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": {
+              "throughIndex": 2,
+              "summary": "notes"
+            },
+            "messages": [
+              {
+                "role": "user",
+                "content": "q1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "a1",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "user",
+                "content": "q2 edited",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 1,
+                "versions": [
+                  {
+                    "content": "q2",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "switching versions moves the current version",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "second",
+                "versions": [
+                  {
+                    "content": "first"
+                  }
+                ],
+                "currentVersionIndex": 1
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "switchVersion",
+            "chatId": "chat-1",
+            "index": 1,
+            "version": 0
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "q",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "second",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": 0,
+                "versions": [
+                  {
+                    "content": "first",
+                    "steps": null,
+                    "providerState": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "continuing carries on from the reply as it stands",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "q"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "part",
+                "textContent": "part",
+                "steps": [
+                  {
+                    "id": "s",
+                    "type": "reading",
+                    "content": "Reading **x**",
+                    "isComplete": true
+                  }
+                ]
+              }
+            ],
+            "updatedAt": 0,
+            "isGenerating": false,
+            "isOutOfContext": true
+          }
+        ],
+        "ops": [
+          {
+            "op": "continue",
+            "chatId": "chat-1"
+          },
+          {
+            "op": "seen",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "q",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "part",
+                "failed": false,
+                "textContent": "part",
+                "steps": [
+                  "reading"
+                ],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": [
+          {
+            "chatId": "chat-1",
+            "contents": [
+              "q",
+              "part"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a finished turn writes its reply onto the message",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "textContent": "done",
+              "steps": [
+                {
+                  "id": "s",
+                  "type": "text",
+                  "content": "done",
+                  "isComplete": true
+                }
+              ],
+              "providerState": {
+                "instanceId": "anthropic",
+                "state": {
+                  "signature": "s"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "done",
+                "steps": [
+                  "text"
+                ],
+                "providerState": {
+                  "instanceId": "anthropic",
+                  "state": {
+                    "signature": "s"
+                  }
+                },
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a finished turn records out-of-context from the result",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "textContent": "",
+              "outOfContext": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": true,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "provider state is not stored for a turn the user stopped",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "aborted": true,
+              "exhausted": true,
+              "textContent": "cut",
+              "providerState": {
+                "instanceId": "anthropic",
+                "state": {
+                  "signature": "s"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "cut",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a stopped turn that did not run out of room writes nothing",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "aborted": true,
+              "textContent": "partial",
+              "steps": [
+                {
+                  "id": "s",
+                  "type": "text",
+                  "content": "partial",
+                  "isComplete": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a failed turn replaces the placeholder with the error",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "fail",
+            "chatId": "chat-1",
+            "message": "boom"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "boom",
+                "failed": true,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a failed turn with no message says so",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "fail",
+            "chatId": "chat-1",
+            "message": ""
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "Error generating response.",
+                "failed": true,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a finished turn is recorded for the statistics page",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "a",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "a",
+            "result": {
+              "loops": 3,
+              "aborted": false,
+              "toolCalls": {
+                "read_file": 2,
+                "git_status": 1
+              },
+              "metrics": {
+                "model": "qwen3:8b",
+                "promptTokens": 2000,
+                "responseTokens": 400,
+                "responseMs": 8000,
+                "promptMs": 100,
+                "loadMs": 0,
+                "timeToFirstTokenMs": 300,
+                "contextWindow": 16384,
+                "gpuPercent": 100
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "a",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [
+          {
+            "chatId": "a",
+            "model": "qwen3:8b",
+            "promptTokens": 2000,
+            "responseTokens": 400,
+            "responseMs": 8000,
+            "firstTokenMs": 300,
+            "loadMs": 0,
+            "loops": 3,
+            "tools": {
+              "read_file": 2,
+              "git_status": 1
+            }
+          }
+        ],
+        "seen": []
+      }
+    },
+    {
+      "name": "a turn the user stopped is not recorded",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "a",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "a",
+            "result": {
+              "loops": 3,
+              "aborted": true,
+              "toolCalls": {},
+              "metrics": {
+                "model": "qwen3:8b",
+                "promptTokens": 2000,
+                "responseTokens": 400,
+                "responseMs": 8000,
+                "promptMs": 100,
+                "loadMs": 0,
+                "timeToFirstTokenMs": 300,
+                "contextWindow": 16384,
+                "gpuPercent": 100
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "a",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a turn with no measurement is not recorded",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "a",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "a",
+            "result": {
+              "loops": 1,
+              "aborted": false,
+              "toolCalls": {},
+              "metrics": null
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "a",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a finished turn keeps its provider state on the reply",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          },
+          {
+            "op": "finish",
+            "chatId": "chat-1",
+            "result": {
+              "providerState": {
+                "instanceId": "anthropic",
+                "state": {
+                  "signature": "s"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": "",
+                "steps": [],
+                "providerState": {
+                  "instanceId": "anthropic",
+                  "state": {
+                    "signature": "s"
+                  }
+                },
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "an answered approval resumes the turn with the answer",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "write it"
+          },
+          {
+            "op": "ask",
+            "chatId": "chat-1",
+            "approvalId": "approval-chat-1"
+          },
+          {
+            "op": "answer",
+            "approvalId": "approval-chat-1",
+            "answer": "once"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "write it",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [],
+        "answers": {
+          "approval-chat-1": "once"
+        },
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "an approval is refused when its conversation stops",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "write it"
+          },
+          {
+            "op": "ask",
+            "chatId": "chat-1",
+            "approvalId": "approval-chat-1"
+          },
+          {
+            "op": "stop",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "write it",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {
+          "approval-chat-1": "no"
+        },
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "every approval is refused when everything stops",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "write it"
+          },
+          {
+            "op": "ask",
+            "chatId": "chat-1",
+            "approvalId": "approval-chat-1"
+          },
+          {
+            "op": "send",
+            "chatId": "chat-2",
+            "content": "write it too"
+          },
+          {
+            "op": "ask",
+            "chatId": "chat-2",
+            "approvalId": "approval-chat-2"
+          },
+          {
+            "op": "stopAll"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "write it",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          },
+          {
+            "id": "chat-2",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "write it too",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {
+          "approval-chat-1": "no",
+          "approval-chat-2": "no"
+        },
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "an answer to a question nobody asked is ignored",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "answer",
+            "approvalId": "not-a-real-id",
+            "answer": "once"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "a lasting permission goes to the host",
+      "input": {
+        "model": "qwen3:8b",
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "write it"
+          },
+          {
+            "op": "grant",
+            "chatId": "chat-1",
+            "grant": {
+              "tool": "write_file",
+              "target": "C:\\projects"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": true,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": [
+              {
+                "role": "user",
+                "content": "write it",
+                "failed": false,
+                "textContent": null,
+                "steps": null,
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "failed": false,
+                "textContent": null,
+                "steps": [],
+                "providerState": null,
+                "fold": null,
+                "currentVersionIndex": null,
+                "versions": []
+              }
+            ]
+          }
+        ],
+        "running": [
+          "chat-1"
+        ],
+        "granted": [
+          {
+            "tool": "write_file",
+            "target": "C:\\projects"
+          }
+        ],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "stopping a conversation that is not running changes nothing",
+      "input": {
+        "model": "qwen3:8b",
+        "sessions": [
+          {
+            "id": "chat-1",
+            "title": "chat-1",
+            "messages": [],
+            "updatedAt": 0,
+            "isGenerating": false
+          }
+        ],
+        "ops": [
+          {
+            "op": "stop",
+            "chatId": "chat-1"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": null,
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": []
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    },
+    {
+      "name": "with no model nothing starts, and the session is still created",
+      "input": {
+        "model": null,
+        "ops": [
+          {
+            "op": "send",
+            "chatId": "chat-1",
+            "content": "hello"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "id": "chat-1",
+            "workspaceId": "default",
+            "isGenerating": false,
+            "isOutOfContext": false,
+            "compaction": null,
+            "messages": []
+          }
+        ],
+        "running": [],
+        "granted": [],
+        "answers": {},
+        "recorded": [],
+        "seen": []
+      }
+    }
+  ]
+}

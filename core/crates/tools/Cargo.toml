@@ -1,0 +1,29 @@
+[package]
+name = "draggy-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+unicode-normalization = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "sync", "fs"] }
+icu_collator = { version = "2", features = ["compiled_data"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30", features = ["signal", "process"] }
+
+[dev-dependencies]
+draggy-testkit = { path = "../testkit" }
+tempfile = "3"

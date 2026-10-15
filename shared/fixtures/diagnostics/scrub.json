@@ -1,0 +1,141 @@
+{
+  "area": "diagnostics",
+  "description": "scrubSecrets from electron/logScrub.cjs, one string per case. Stateless: no keystore values are registered. Covers each secret shape, the ASCII word boundary and the rule that text under six units is returned as it is.",
+  "cases": [
+    {
+      "name": "short text passes through",
+      "input": "a=1&b",
+      "expected": "a=1&b"
+    },
+    {
+      "name": "ordinary prose is unchanged",
+      "input": "The merger closes on the ninth of March.",
+      "expected": "The merger closes on the ninth of March."
+    },
+    {
+      "name": "anthropic key is replaced",
+      "input": "key sk-ant-api03-ABCDEFGH1234 end",
+      "expected": "key [secret:anthropic-key] end"
+    },
+    {
+      "name": "sk key is replaced",
+      "input": "sk-proj0123456789abcdefghij",
+      "expected": "[secret:sk-key]"
+    },
+    {
+      "name": "google key is replaced",
+      "input": "AIzaSyD1234567890abcdefghijklmnopqrs",
+      "expected": "[secret:google-key]"
+    },
+    {
+      "name": "github token is replaced",
+      "input": "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+      "expected": "[secret:github-token]"
+    },
+    {
+      "name": "github fine-grained token is replaced",
+      "input": "github_pat_11ABCDEFGHIJKLMNOPQRSTUV",
+      "expected": "[secret:github-token]"
+    },
+    {
+      "name": "hugging face token is replaced",
+      "input": "hf_abcdefghijklmnopqrstuvwxyz0123",
+      "expected": "[secret:hf-token]"
+    },
+    {
+      "name": "slack token is replaced",
+      "input": "xoxb-1234567890-ABCDEFGHIJ",
+      "expected": "[secret:slack-token]"
+    },
+    {
+      "name": "jwt is replaced",
+      "input": "eyJhbGciOi.eyJzdWIiOi.SflKxwRJSM",
+      "expected": "[secret:jwt]"
+    },
+    {
+      "name": "bearer token keeps the word Bearer",
+      "input": "Bearer abcdefghijklmnop",
+      "expected": "Bearer [secret:bearer]"
+    },
+    {
+      "name": "short bearer value is kept",
+      "input": "Bearer abc1234",
+      "expected": "Bearer abc1234"
+    },
+    {
+      "name": "authorization keeps its name",
+      "input": "Authorization: Basic dXNlcjpwYXNz",
+      "expected": "Authorization: [secret:authorization]"
+    },
+    {
+      "name": "quoted authorization in json keeps the quotes",
+      "input": "{\"Authorization\": \"Bearer abcdefghijklmnop\"}",
+      "expected": "{\"Authorization\": \"[secret:authorization]\"}"
+    },
+    {
+      "name": "access token in a query string",
+      "input": "GET /v1/models?access_token=abc123def456&limit=5",
+      "expected": "GET /v1/models?access_token=[secret:query]&limit=5"
+    },
+    {
+      "name": "oauth code in a callback url",
+      "input": "http://127.0.0.1:8123/callback?code=4%2F0AbCdEf&state=xyz",
+      "expected": "http://127.0.0.1:8123/callback?code=[secret:query]&state=xyz"
+    },
+    {
+      "name": "signed url parameters are replaced",
+      "input": "https://bucket.test/a.bin?X-Amz-Signature=deadbeef12&X-Amz-Date=20260101",
+      "expected": "https://bucket.test/a.bin?X-Amz-Signature=[secret:query]&X-Amz-Date=[secret:query]"
+    },
+    {
+      "name": "api key query name is case-insensitive",
+      "input": "/cb?API_KEY=zzzz1234",
+      "expected": "/cb?API_KEY=[secret:query]"
+    },
+    {
+      "name": "a key inside a word is not matched",
+      "input": "risksk-abcdefghijklmnopqrstu",
+      "expected": "risksk-abcdefghijklmnopqrstu"
+    },
+    {
+      "name": "a key after a non-ASCII letter is matched",
+      "input": "é sk-abcdefghijklmnopqrstu",
+      "expected": "é [secret:sk-key]"
+    },
+    {
+      "name": "a key after an emoji is matched",
+      "input": "😀 sk-abcdefghijklmnopqrstu",
+      "expected": "😀 [secret:sk-key]"
+    },
+    {
+      "name": "several secrets on one line",
+      "input": "sk-ant-api03-AAAAAAAA and ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+      "expected": "[secret:anthropic-key] and [secret:github-token]"
+    },
+    {
+      "name": "a bearer token after a byte order mark is scrubbed",
+      "input": "Bearer﻿abcdefgh12345678",
+      "expected": "Bearer [secret:bearer]"
+    },
+    {
+      "name": "a next-line character is not a space",
+      "input": "Bearerabcdefgh12345678",
+      "expected": "Bearerabcdefgh12345678"
+    },
+    {
+      "name": "an ideographic space separates a bearer token",
+      "input": "Bearer　abcdefgh12345678",
+      "expected": "Bearer [secret:bearer]"
+    },
+    {
+      "name": "a line separator is a space before a bearer token",
+      "input": "Bearer abcdefgh12345678",
+      "expected": "Bearer [secret:bearer]"
+    },
+    {
+      "name": "a tab before the colon of an authorization header",
+      "input": "authorization\t: Bearer abcdefghijkl",
+      "expected": "authorization\t: [secret:authorization]"
+    }
+  ]
+}

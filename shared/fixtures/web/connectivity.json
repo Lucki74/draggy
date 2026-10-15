@@ -1,0 +1,142 @@
+{
+  "area": "web",
+  "description": "checkConnectivity against a fake Hugging Face HEAD request: online is true for 2xx and 3xx only. calls lists each request with its method, whether it followed redirects (node:https never does, so always false) and its timeout in ms.",
+  "cases": [
+    {
+      "name": "200 is online",
+      "input": {
+        "outcome": 200
+      },
+      "expected": {
+        "online": true,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "204 is online",
+      "input": {
+        "outcome": 204
+      },
+      "expected": {
+        "online": true,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "301 is online, redirects are not followed",
+      "input": {
+        "outcome": 301
+      },
+      "expected": {
+        "online": true,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "399 is online",
+      "input": {
+        "outcome": 399
+      },
+      "expected": {
+        "online": true,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "404 is offline",
+      "input": {
+        "outcome": 404
+      },
+      "expected": {
+        "online": false,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "500 is offline",
+      "input": {
+        "outcome": 500
+      },
+      "expected": {
+        "online": false,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "a request error is offline",
+      "input": {
+        "outcome": "error"
+      },
+      "expected": {
+        "online": false,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    },
+    {
+      "name": "a timeout is offline",
+      "input": {
+        "outcome": "timeout"
+      },
+      "expected": {
+        "online": false,
+        "calls": [
+          {
+            "url": "https://huggingface.co/api/models?limit=1",
+            "method": "HEAD",
+            "followRedirects": false,
+            "timeoutMs": 3000
+          }
+        ]
+      }
+    }
+  ]
+}

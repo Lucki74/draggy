@@ -1,0 +1,403 @@
+{
+  "area": "diagnostics",
+  "description": "Renderer ingestion caps. Ops run on a fixed clock. Expected: `rendered` is how many renderer.* lines reached events.jsonl, `dropped` is the count each `renderer entries dropped` warning reported. Batches cap at 200 entries; a second's window admits 1000 valid entries, and invalid entries do not use the window.",
+  "cases": [
+    {
+      "name": "a batch over 200 keeps 200 and reports the rest",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "tick"
+            },
+            "repeat": 250
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 200,
+        "dropped": [
+          50
+        ]
+      }
+    },
+    {
+      "name": "the second's window admits 1000 entries, then drops",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 1000,
+        "dropped": [
+          200
+        ]
+      }
+    },
+    {
+      "name": "the window reopens one second later",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "advance",
+            "ms": 1000
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 50
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 1050,
+        "dropped": [
+          200
+        ]
+      }
+    },
+    {
+      "name": "the window stays shut at 999 ms",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 200
+          },
+          {
+            "op": "advance",
+            "ms": 999
+          },
+          {
+            "op": "ingest",
+            "entry": {
+              "level": "info",
+              "context": "chat",
+              "message": "t"
+            },
+            "repeat": 10
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 1000,
+        "dropped": [
+          10
+        ]
+      }
+    },
+    {
+      "name": "invalid entries do not use up the second's window",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entry": "bad",
+            "repeat": 200
+          },
+          {
+            "op": "ingest",
+            "entries": [
+              {
+                "level": "info",
+                "context": "a",
+                "message": "1"
+              },
+              {
+                "level": "info",
+                "context": "a",
+                "message": "2"
+              },
+              {
+                "level": "info",
+                "context": "a",
+                "message": "3"
+              },
+              {
+                "level": "info",
+                "context": "a",
+                "message": "4"
+              },
+              {
+                "level": "info",
+                "context": "a",
+                "message": "5"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 5,
+        "dropped": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ]
+      }
+    },
+    {
+      "name": "invalid entries inside a batch are counted as dropped",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "ingest",
+            "entries": [
+              "bad",
+              1,
+              null,
+              {
+                "level": "info",
+                "context": "a",
+                "message": "ok"
+              },
+              {
+                "level": "info",
+                "context": "a",
+                "message": "ok"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "rendered": 2,
+        "dropped": [
+          3
+        ]
+      }
+    }
+  ]
+}

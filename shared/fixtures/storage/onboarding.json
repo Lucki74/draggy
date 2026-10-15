@@ -1,0 +1,799 @@
+{
+  "area": "storage",
+  "description": "Pure onboarding decisions from electron/onboarding.cjs: whether a launch shows setup, adopts an existing install, or is done; reading the stored record; and writing records. Each case has fn and args; expected is the function's return value, or {error} when it throws.",
+  "cases": [
+    {
+      "name": "a fresh install shows setup",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": false,
+            "modelCount": 0,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "show"
+    },
+    {
+      "name": "a forced launch shows setup even when it was done",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": {
+              "version": 1,
+              "status": "done",
+              "path": "local",
+              "completedAt": "2026-01-02T03:04:05.000Z"
+            },
+            "hasSettings": true,
+            "modelCount": 2,
+            "chatCount": 2,
+            "forced": true
+          }
+        ]
+      },
+      "expected": "show"
+    },
+    {
+      "name": "an in-progress record resumes the setup",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": {
+              "version": 1,
+              "status": "in-progress",
+              "startedAt": "2026-10-01T00:00:00.000Z"
+            },
+            "hasSettings": true,
+            "modelCount": 3,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "show"
+    },
+    {
+      "name": "a done record is done and shows nothing",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": {
+              "version": 1,
+              "status": "done",
+              "path": "provider",
+              "completedAt": "2026-01-02T03:04:05.000Z"
+            },
+            "hasSettings": false,
+            "modelCount": 0,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "done"
+    },
+    {
+      "name": "an existing install with saved settings is adopted",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": true,
+            "modelCount": 0,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "adopt"
+    },
+    {
+      "name": "an existing install with a local model is adopted",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": false,
+            "modelCount": 1,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "adopt"
+    },
+    {
+      "name": "an existing install with chats is adopted",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": false,
+            "modelCount": 0,
+            "chatCount": 4,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "adopt"
+    },
+    {
+      "name": "a record that cannot be read still adopts an install with chats",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": false,
+            "modelCount": 0,
+            "chatCount": 1,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "adopt"
+    },
+    {
+      "name": "a done record with settings and models is still done",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": {
+              "version": 1,
+              "status": "done",
+              "path": "both",
+              "completedAt": "2026-01-02T03:04:05.000Z"
+            },
+            "hasSettings": true,
+            "modelCount": 5,
+            "chatCount": 9,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "done"
+    },
+    {
+      "name": "a valid done record reads back",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1,\"status\":\"done\",\"path\":\"local\",\"completedAt\":\"2026-01-02T03:04:05.000Z\"}"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "done",
+        "path": "local",
+        "completedAt": "2026-01-02T03:04:05.000Z"
+      }
+    },
+    {
+      "name": "an in-progress record reads back",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1,\"status\":\"in-progress\",\"startedAt\":\"2026-10-01T00:00:00.000Z\"}"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "in-progress",
+        "startedAt": "2026-10-01T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "a damaged record reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{not json"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "an empty record reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          ""
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a missing record reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          null
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a record that is not an object reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "[1,2]"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a record with an unknown status reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1,\"status\":\"maybe\"}"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a record with no version reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"status\":\"done\",\"path\":\"local\"}"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "starting the setup writes an in-progress record",
+      "input": {
+        "fn": "recordOnStart",
+        "args": [
+          null,
+          "2026-10-12T09:00:00.000Z"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "in-progress",
+        "startedAt": "2026-10-12T09:00:00.000Z"
+      }
+    },
+    {
+      "name": "resuming keeps the start already recorded",
+      "input": {
+        "fn": "recordOnStart",
+        "args": [
+          {
+            "version": 1,
+            "status": "in-progress",
+            "startedAt": "2026-10-01T00:00:00.000Z"
+          },
+          "2026-10-12T09:00:00.000Z"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "starting again after a finished setup writes a fresh record",
+      "input": {
+        "fn": "recordOnStart",
+        "args": [
+          {
+            "version": 1,
+            "status": "done",
+            "path": "local",
+            "completedAt": "2026-01-02T03:04:05.000Z"
+          },
+          "2026-10-12T09:00:00.000Z"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "in-progress",
+        "startedAt": "2026-10-12T09:00:00.000Z"
+      }
+    },
+    {
+      "name": "a finished setup records its path and time",
+      "input": {
+        "fn": "doneRecord",
+        "args": [
+          "local",
+          "2026-10-12T09:30:00.000Z"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "done",
+        "path": "local",
+        "completedAt": "2026-10-12T09:30:00.000Z"
+      }
+    },
+    {
+      "name": "an adopted install keeps the day it started",
+      "input": {
+        "fn": "doneRecord",
+        "args": [
+          "adopted",
+          "2026-10-12T09:30:00.000Z",
+          "2026-10-11T08:00:00.000Z"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "done",
+        "path": "adopted",
+        "completedAt": "2026-10-12T09:30:00.000Z",
+        "startedAt": "2026-10-11T08:00:00.000Z"
+      }
+    },
+    {
+      "name": "a setup path that is not known is refused",
+      "input": {
+        "fn": "doneRecord",
+        "args": [
+          "nope",
+          "2026-10-12T09:30:00.000Z"
+        ]
+      },
+      "expected": {
+        "error": "not a setup path: nope"
+      }
+    },
+    {
+      "name": "an in-progress record has a start time only",
+      "input": {
+        "fn": "inProgressRecord",
+        "args": [
+          "2026-10-12T09:00:00.000Z"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "in-progress",
+        "startedAt": "2026-10-12T09:00:00.000Z"
+      }
+    },
+    {
+      "name": "a fresh install reads as fresh",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a failed settings read counts as prior use",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": {
+              "throws": "unreadable"
+            },
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": true,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a failed model count counts as one",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": {
+              "throws": "unreadable"
+            },
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 1,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a failed chat count counts as one",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": {
+              "throws": "unreadable"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 1,
+        "forced": false
+      }
+    },
+    {
+      "name": "a closed database, whose stats are none, counts as one chat",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": null
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 1,
+        "forced": false
+      }
+    },
+    {
+      "name": "a count that is text rather than a number counts as one",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": "3",
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 1,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a failed record read counts as no record, and the chat count is kept",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": {
+              "throws": "unreadable"
+            },
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 5
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 5,
+        "forced": false
+      }
+    },
+    {
+      "name": "a saved record is passed through with every field it has",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": "{\"version\":1,\"status\":\"done\",\"path\":\"local\",\"completedAt\":\"2026-10-12T09:00:00.000Z\",\"startedAt\":\"2026-10-12T08:59:00.000Z\",\"extra\":{\"x\":1}}",
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": {
+          "version": 1,
+          "status": "done",
+          "path": "local",
+          "completedAt": "2026-10-12T09:00:00.000Z",
+          "startedAt": "2026-10-12T08:59:00.000Z",
+          "extra": {
+            "x": 1
+          }
+        },
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a record with a fractional version is kept",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": "{\"version\":1.5,\"status\":\"in-progress\"}",
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": {
+          "version": 1.5,
+          "status": "in-progress"
+        },
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a record whose path is not text is kept",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": "{\"version\":1,\"status\":\"done\",\"path\":5}",
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": {
+          "version": 1,
+          "status": "done",
+          "path": 5
+        },
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a damaged record reads as none",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": "{",
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a record without a numeric version reads as none",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": "{\"status\":\"done\",\"version\":\"1\"}",
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "saved settings text counts as settings, even when it is not an object",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": "not json",
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": true,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "empty settings text is no settings",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": "",
+            "countModels": 0,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "the forced switch passes through",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": 0,
+            "countChats": 0,
+            "forced": true
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 0,
+        "chatCount": 0,
+        "forced": true
+      }
+    },
+    {
+      "name": "models found and no chats adopt the install",
+      "input": {
+        "fn": "collectInputs",
+        "args": [
+          {
+            "readRaw": null,
+            "readSettings": null,
+            "countModels": 2,
+            "countChats": 0
+          }
+        ]
+      },
+      "expected": {
+        "record": null,
+        "hasSettings": false,
+        "modelCount": 2,
+        "chatCount": 0,
+        "forced": false
+      }
+    },
+    {
+      "name": "a record with a fractional version reads back",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1.5,\"status\":\"done\"}"
+        ]
+      },
+      "expected": {
+        "version": 1.5,
+        "status": "done"
+      }
+    },
+    {
+      "name": "a record with a text path and a number startedAt reads back",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1,\"status\":\"done\",\"path\":5,\"startedAt\":7}"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "done",
+        "path": 5,
+        "startedAt": 7
+      }
+    },
+    {
+      "name": "a record with a text version reads as none",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":\"1\",\"status\":\"done\"}"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a record with a null completion time reads back",
+      "input": {
+        "fn": "readRecord",
+        "args": [
+          "{\"version\":1,\"status\":\"done\",\"completedAt\":null}"
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "status": "done",
+        "completedAt": null
+      }
+    },
+    {
+      "name": "a fractional model count still adopts the install",
+      "input": {
+        "fn": "planOnboarding",
+        "args": [
+          {
+            "record": null,
+            "hasSettings": false,
+            "modelCount": 0.5,
+            "chatCount": 0,
+            "forced": false
+          }
+        ]
+      },
+      "expected": "adopt"
+    }
+  ]
+}

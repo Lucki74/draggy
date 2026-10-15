@@ -1,0 +1,72 @@
+{
+  "area": "mcp",
+  "description": "isExpired: a stored expiry in the past is stale, a missing or text expiry is not something to act on.",
+  "cases": [
+    {
+      "name": "knows a stale one when it sees it",
+      "input": {
+        "stored": {
+          "expiresAt": 500
+        },
+        "now": 1000
+      },
+      "expected": true
+    },
+    {
+      "name": "keeps a live one",
+      "input": {
+        "stored": {
+          "expiresAt": 5000
+        },
+        "now": 1000
+      },
+      "expected": false
+    },
+    {
+      "name": "treats a token exactly at its expiry as stale",
+      "input": {
+        "stored": {
+          "expiresAt": 1000
+        },
+        "now": 1000
+      },
+      "expected": true
+    },
+    {
+      "name": "treats a token with no expiry as live",
+      "input": {
+        "stored": {
+          "expiresAt": null
+        },
+        "now": 1000
+      },
+      "expected": false
+    },
+    {
+      "name": "treats a record with no expiry field as live",
+      "input": {
+        "stored": {},
+        "now": 1000
+      },
+      "expected": false
+    },
+    {
+      "name": "treats a text expiry as live",
+      "input": {
+        "stored": {
+          "expiresAt": "500"
+        },
+        "now": 1000
+      },
+      "expected": false
+    },
+    {
+      "name": "treats a missing record as live",
+      "input": {
+        "stored": null,
+        "now": 1000
+      },
+      "expected": false
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "area": "tools",
+  "description": "fsGuard.isReadable for paths found by a folder walk: Draggy's own storage and credential names are not readable. Pure path logic, no files. Input: {path, protected}. Expected: a boolean.",
+  "cases": [
+    {
+      "name": "an ordinary file in the folder is readable",
+      "input": {
+        "path": "{base}/project/notes.md",
+        "protected": []
+      },
+      "expected": true
+    },
+    {
+      "name": "a file under Draggy's storage is not",
+      "input": {
+        "path": "{base}/project/appdata/draggy.log",
+        "protected": [
+          "{base}/project/appdata"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "a folder named like protected storage but not inside it is readable",
+      "input": {
+        "path": "{base}/project/appdata-old/x.txt",
+        "protected": [
+          "{base}/project/appdata"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a credential folder is not readable",
+      "input": {
+        "path": "{base}/project/.ssh/config",
+        "protected": []
+      },
+      "expected": false
+    },
+    {
+      "name": "a walk that lands in protected storage is not readable",
+      "input": {
+        "path": "{base}/project/src/../appdata/draggy.log",
+        "protected": [
+          "{base}/project/appdata"
+        ]
+      },
+      "expected": false
+    }
+  ]
+}

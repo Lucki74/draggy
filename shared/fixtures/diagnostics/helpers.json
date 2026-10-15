@@ -1,0 +1,799 @@
+{
+  "area": "diagnostics",
+  "description": "The writer's helpers: once (first time a key is seen), limited (first call logs, repeats in the window are counted and summed when the window closes), swallowed and readTail. Format lines after the boot line. Expected `tail` is readTail's text, or with `summary` its length and both ends, or null when the case reads none. Advance ops fire the window timers.",
+  "cases": [
+    {
+      "name": "once logs the first time a key is seen",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "once",
+            "key": "k1",
+            "scope": "providers",
+            "message": "fallback in use",
+            "data": {
+              "model": "m"
+            }
+          },
+          {
+            "op": "once",
+            "key": "k1",
+            "scope": "providers",
+            "message": "fallback in use",
+            "data": {
+              "model": "m"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [providers] fallback in use {\"model\":\"m\"}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [providers] fallback in use {\"model\":\"m\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"providers\",\"msg\":\"fallback in use\",\"data\":{\"model\":\"m\"}}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "once keys are independent",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "once",
+            "key": "k1",
+            "scope": "p",
+            "message": "one"
+          },
+          {
+            "op": "once",
+            "key": "k2",
+            "scope": "p",
+            "message": "two"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [p] one",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [p] two"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.2 [system] [p] one",
+          "2026-01-01T00:00:00.123Z WARN a1b2c3d4.3 [system] [p] two"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"p\",\"msg\":\"one\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"WARN\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"p\",\"msg\":\"two\"}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "once takes the level",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "once",
+            "key": "k",
+            "scope": "p",
+            "message": "quiet",
+            "level": "INFO"
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [p] quiet"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [p] quiet"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"p\",\"msg\":\"quiet\"}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "limited logs the first call and the window's repeats once it closes",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "limited",
+            "key": "poll",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "poll",
+            "data": {
+              "n": 1
+            },
+            "windowMs": 10000
+          },
+          {
+            "op": "limited",
+            "key": "poll",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "poll",
+            "data": {
+              "n": 1
+            },
+            "windowMs": 10000
+          },
+          {
+            "op": "limited",
+            "key": "poll",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "poll",
+            "data": {
+              "n": 1
+            },
+            "windowMs": 10000
+          },
+          {
+            "op": "advance",
+            "ms": 10000
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] poll {\"n\":1}",
+          "2026-01-01T00:00:10.123Z INFO a1b2c3d4.3 [system] [ipc.poll] poll repeated 2 times in 10 s {\"n\":1}"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] poll {\"n\":1}",
+          "2026-01-01T00:00:10.123Z INFO a1b2c3d4.3 [system] [ipc.poll] poll repeated 2 times in 10 s {\"n\":1}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"poll\",\"data\":{\"n\":1}}",
+          "{\"ts\":\"2026-01-01T00:00:10.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"poll repeated 2 times in 10 s\",\"data\":{\"n\":1}}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "limited with no repeats writes nothing when the window closes",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "limited",
+            "key": "solo",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "once only"
+          },
+          {
+            "op": "advance",
+            "ms": 10000
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] once only"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] once only"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"once only\"}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "limited reopens after its window closes",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "limited",
+            "key": "again",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "again"
+          },
+          {
+            "op": "advance",
+            "ms": 10000
+          },
+          {
+            "op": "limited",
+            "key": "again",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "again"
+          },
+          {
+            "op": "limited",
+            "key": "again",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "again"
+          },
+          {
+            "op": "advance",
+            "ms": 10000
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] again",
+          "2026-01-01T00:00:10.123Z INFO a1b2c3d4.3 [system] [ipc.poll] again",
+          "2026-01-01T00:00:20.123Z INFO a1b2c3d4.4 [system] [ipc.poll] again repeated 1 times in 10 s"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] again",
+          "2026-01-01T00:00:10.123Z INFO a1b2c3d4.3 [system] [ipc.poll] again",
+          "2026-01-01T00:00:20.123Z INFO a1b2c3d4.4 [system] [ipc.poll] again repeated 1 times in 10 s"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"again\"}",
+          "{\"ts\":\"2026-01-01T00:00:10.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"again\"}",
+          "{\"ts\":\"2026-01-01T00:00:20.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"again repeated 1 times in 10 s\"}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "limited waits for the full window",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "limited",
+            "key": "slow",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "slow"
+          },
+          {
+            "op": "limited",
+            "key": "slow",
+            "level": "INFO",
+            "scope": "ipc.poll",
+            "message": "slow"
+          },
+          {
+            "op": "advance",
+            "ms": 9999
+          }
+        ]
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] slow"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [ipc.poll] slow"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"ipc.poll\",\"msg\":\"slow\"}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "swallowed logs its reason and the error code",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "swallowed",
+            "scope": "web",
+            "why": "parse",
+            "error": {
+              "name": "SyntaxError",
+              "message": "bad json",
+              "code": "E42"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [web] swallowed: parse {\"error\":\"bad json\",\"code\":\"E42\"}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"web\",\"msg\":\"swallowed: parse\",\"data\":{\"error\":\"bad json\",\"code\":\"E42\"}}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "swallow without an error logs an empty payload",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "swallow",
+            "scope": "web",
+            "why": "gone"
+          }
+        ]
+      },
+      "expected": {
+        "app": [],
+        "debug": [
+          "2026-01-01T00:00:00.123Z DEBUG a1b2c3d4.2 [system] [web] swallowed: gone {}"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"DEBUG\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"web\",\"msg\":\"swallowed: gone\",\"data\":{}}"
+        ],
+        "tail": null
+      }
+    },
+    {
+      "name": "readTail returns the last bytes of app.log",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "one"
+          },
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "two"
+          },
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "three"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": 40
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [app] two",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [app] three"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [app] two",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.4 [system] [app] three"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"one\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"two\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":4,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"three\"}"
+        ],
+        "tail": "3Z INFO a1b2c3d4.4 [system] [app] three\n"
+      }
+    },
+    {
+      "name": "readTail of zero bytes is empty",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "one"
+          }
+        ],
+        "tail": {
+          "file": "debug",
+          "bytes": 0
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"one\"}"
+        ],
+        "tail": ""
+      }
+    },
+    {
+      "name": "readTail with a negative count reads nothing",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "one"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": -5
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"one\"}"
+        ],
+        "tail": ""
+      }
+    },
+    {
+      "name": "readTail names an unknown file as app.log",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "one"
+          },
+          {
+            "op": "info",
+            "scope": "app",
+            "message": "two"
+          }
+        ],
+        "tail": {
+          "file": "nope",
+          "bytes": 30
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [app] two"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [app] one",
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.3 [system] [app] two"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"one\"}",
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":3,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"app\",\"msg\":\"two\"}"
+        ],
+        "tail": "a1b2c3d4.3 [system] [app] two\n"
+      }
+    },
+    {
+      "name": "readTail with no count returns the last 64 KiB",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "fill": {
+          "file": "app.log",
+          "bytes": 70000
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "summary": true
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": {
+          "length": 65536,
+          "start": "aaaaaaaaaa",
+          "end": "d4.2 [system] [tail] one line\n"
+        }
+      }
+    },
+    {
+      "name": "readTail with a count that is not a number returns the last 64 KiB",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "fill": {
+          "file": "app.log",
+          "bytes": 70000
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": "nope",
+          "summary": true
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": {
+          "length": 65536,
+          "start": "aaaaaaaaaa",
+          "end": "d4.2 [system] [tail] one line\n"
+        }
+      }
+    },
+    {
+      "name": "readTail clamps the count to 2 MiB",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "fill": {
+          "file": "app.log",
+          "bytes": 2100000
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": 9007199254740991,
+          "summary": true
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": {
+          "length": 2097152,
+          "start": "aaaaaaaaaa",
+          "end": "d4.2 [system] [tail] one line\n"
+        }
+      }
+    },
+    {
+      "name": "readTail floors a fractional count",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": 12.9
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": "l] one line\n"
+      }
+    },
+    {
+      "name": "readTail with a null count reads nothing",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "app",
+          "bytes": null
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": ""
+      }
+    },
+    {
+      "name": "readTail of the debug log returns its end",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "debug",
+          "bytes": 30
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": "d4.2 [system] [tail] one line\n"
+      }
+    },
+    {
+      "name": "readTail of the events log returns its end",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {},
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "events",
+          "bytes": 40
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "events": [
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}"
+        ],
+        "tail": "\":4242,\"scope\":\"tail\",\"msg\":\"one line\"}\n"
+      }
+    },
+    {
+      "name": "readTail of a debug log that was never written is empty",
+      "input": {
+        "clock": 1767225600123,
+        "session": "a1b2c3d4",
+        "pid": 4242,
+        "env": {
+          "DEBUG_LOG_LEVEL": "ERROR"
+        },
+        "ops": [
+          {
+            "op": "info",
+            "scope": "tail",
+            "message": "one line"
+          }
+        ],
+        "tail": {
+          "file": "debug"
+        }
+      },
+      "expected": {
+        "app": [
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [tail] one line"
+        ],
+        "debug": [],
+        "events": [],
+        "tail": ""
+      }
+    }
+  ]
+}

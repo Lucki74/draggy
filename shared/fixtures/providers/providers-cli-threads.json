@@ -1,0 +1,1033 @@
+{
+  "area": "providers",
+  "description": "account/threads.cjs createThreads(): ordered plan, stored, record, forget and clear calls, with what each returns (fn threads).",
+  "cases": [
+    {
+      "name": "seeds a new thread on the first turn",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "id": null,
+          "history": [],
+          "input": {
+            "role": "user",
+            "content": "u1",
+            "draggy_ref": {
+              "id": "u1",
+              "hash": "h-u1"
+            }
+          }
+        },
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "resumes with only the new input, though the wire's time note changed",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1 [10:00]",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1 [10:00]"
+                }
+              }
+            ]
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2 [10:05]",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2 [10:05]"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "dc8f47db52d74f0fa2c0be22692e2c29c6ed4c12fe84428c23cf9dcd105f0d8b"
+          }
+        },
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "u1",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h-u1"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2 [10:05]",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2 [10:05]"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "hands another provider's reply in between over as history",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                },
+                "provider_state": {
+                  "instanceId": "chatgpt",
+                  "state": {
+                    "threadId": "t1",
+                    "consumed": 1,
+                    "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+                  }
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r2",
+                "draggy_ref": {
+                  "id": "r2",
+                  "hash": "h-r2"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u3",
+                "draggy_ref": {
+                  "id": "u3",
+                  "hash": "h-u3"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        {
+          "id": "t1",
+          "history": [
+            {
+              "role": "user",
+              "content": "u2",
+              "draggy_ref": {
+                "id": "u2",
+                "hash": "h-u2"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r2",
+              "draggy_ref": {
+                "id": "r2",
+                "hash": "h-r2"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u3",
+            "draggy_ref": {
+              "id": "u3",
+              "hash": "h-u3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "starts over when an earlier message is edited",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "edited",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-edited"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "edited",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h-edited"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "starts over when the front is compacted away",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "summary"
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "summary"
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "starts over after a restart, since threads are ephemeral",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "forget",
+            "id": "t1"
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        null,
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "u1",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h-u1"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a cleared thread is gone",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "clear"
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        null,
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "u1",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h-u1"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ignores a state another instance wrote",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "plan",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                },
+                "provider_state": {
+                  "instanceId": "work",
+                  "state": {
+                    "threadId": "t1",
+                    "consumed": 1
+                  }
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        {
+          "id": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "u1",
+              "draggy_ref": {
+                "id": "u1",
+                "hash": "h-u1"
+              }
+            },
+            {
+              "role": "assistant",
+              "content": "r1",
+              "draggy_ref": {
+                "id": "r1",
+                "hash": "h-r1"
+              },
+              "provider_state": {
+                "instanceId": "work",
+                "state": {
+                  "threadId": "t1",
+                  "consumed": 1
+                }
+              }
+            }
+          ],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "uses the runtime's own name for its thread",
+      "input": {
+        "fn": "threads",
+        "instanceId": "claude",
+        "key": "sessionId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "s1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "stored",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                },
+                "provider_state": {
+                  "instanceId": "claude",
+                  "state": {
+                    "sessionId": "s1",
+                    "consumed": 1,
+                    "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+                  }
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "claude",
+          "state": {
+            "sessionId": "s1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        {
+          "state": {
+            "sessionId": "s1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          },
+          "history": [],
+          "input": {
+            "role": "user",
+            "content": "u2",
+            "draggy_ref": {
+              "id": "u2",
+              "hash": "h-u2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a stored state needs the reply it vouches for",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t1",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              }
+            ]
+          },
+          {
+            "op": "stored",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t1",
+            "consumed": 1,
+            "prefixHash": "b2fb02bae0517ab0654d7684aae0070f5aa5a55b511e41363ce534ca25500e1f"
+          }
+        },
+        null
+      ]
+    },
+    {
+      "name": "a record with two refs hashes both",
+      "input": {
+        "fn": "threads",
+        "instanceId": "chatgpt",
+        "key": "threadId",
+        "ops": [
+          {
+            "op": "record",
+            "id": "t9",
+            "messages": [
+              {
+                "role": "system",
+                "content": "prompt"
+              },
+              {
+                "role": "user",
+                "content": "u1",
+                "draggy_ref": {
+                  "id": "u1",
+                  "hash": "h-u1"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r1",
+                "draggy_ref": {
+                  "id": "r1",
+                  "hash": "h-r1"
+                }
+              },
+              {
+                "role": "user",
+                "content": "u2",
+                "draggy_ref": {
+                  "id": "u2",
+                  "hash": "h-u2"
+                }
+              },
+              {
+                "role": "assistant",
+                "content": "r2",
+                "draggy_ref": {
+                  "id": "r2",
+                  "hash": "h-r2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "instanceId": "chatgpt",
+          "state": {
+            "threadId": "t9",
+            "consumed": 4,
+            "prefixHash": "ee48ba87f10d9551f073ef23f60257c545368aeac58761b64bdf3a630da49222"
+          }
+        }
+      ]
+    }
+  ]
+}

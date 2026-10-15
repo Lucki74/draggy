@@ -1,0 +1,335 @@
+{
+  "area": "tools",
+  "description": "skills.readSkill with the file list of a skill: how deep and how many files are listed, links left out, and a named file read through a link. A file reached through a link is read only when its real path stays inside the skill and no part of it is a denied name. Input as skills-read.json. Expected as skills-read.json.",
+  "cases": [
+    {
+      "name": "a skill lists its files up to three folders deep and no deeper",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/s1/SKILL.md": "---\nname: s1\ndescription: Depth test.\n---\nBody.\n",
+            "userdata/skills/s1/top.md": "top\n",
+            "userdata/skills/s1/a/b/c/deep.txt": "deep\n",
+            "userdata/skills/s1/a/b/c/d/deeper.txt": "deeper\n",
+            "userdata/skills/s1/.hidden.txt": "hidden\n"
+          }
+        },
+        "project": false,
+        "id": "s1",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": null
+      },
+      "expected": {
+        "success": true,
+        "skill": {
+          "id": "s1",
+          "name": "s1",
+          "description": "Depth test.",
+          "summary": "Depth test",
+          "path": "{base}/userdata/skills/s1",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true,
+          "body": "Body.",
+          "files": [
+            "a/b/c/deep.txt",
+            "top.md"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a skill lists at most a hundred files",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/s1/SKILL.md": "---\nname: s1\ndescription: Cap test.\n---\nBody.\n"
+          },
+          "numbered": {
+            "userdata/skills/s1/many": {
+              "count": 120,
+              "stem": "f"
+            }
+          }
+        },
+        "project": false,
+        "id": "s1",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": null
+      },
+      "expected": {
+        "success": true,
+        "skill": {
+          "id": "s1",
+          "name": "s1",
+          "description": "Cap test.",
+          "summary": "Cap test",
+          "path": "{base}/userdata/skills/s1",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true,
+          "body": "Body.",
+          "files": [
+            "many/f0000.txt",
+            "many/f0001.txt",
+            "many/f0002.txt",
+            "many/f0003.txt",
+            "many/f0004.txt",
+            "many/f0005.txt",
+            "many/f0006.txt",
+            "many/f0007.txt",
+            "many/f0008.txt",
+            "many/f0009.txt",
+            "many/f0010.txt",
+            "many/f0011.txt",
+            "many/f0012.txt",
+            "many/f0013.txt",
+            "many/f0014.txt",
+            "many/f0015.txt",
+            "many/f0016.txt",
+            "many/f0017.txt",
+            "many/f0018.txt",
+            "many/f0019.txt",
+            "many/f0020.txt",
+            "many/f0021.txt",
+            "many/f0022.txt",
+            "many/f0023.txt",
+            "many/f0024.txt",
+            "many/f0025.txt",
+            "many/f0026.txt",
+            "many/f0027.txt",
+            "many/f0028.txt",
+            "many/f0029.txt",
+            "many/f0030.txt",
+            "many/f0031.txt",
+            "many/f0032.txt",
+            "many/f0033.txt",
+            "many/f0034.txt",
+            "many/f0035.txt",
+            "many/f0036.txt",
+            "many/f0037.txt",
+            "many/f0038.txt",
+            "many/f0039.txt",
+            "many/f0040.txt",
+            "many/f0041.txt",
+            "many/f0042.txt",
+            "many/f0043.txt",
+            "many/f0044.txt",
+            "many/f0045.txt",
+            "many/f0046.txt",
+            "many/f0047.txt",
+            "many/f0048.txt",
+            "many/f0049.txt",
+            "many/f0050.txt",
+            "many/f0051.txt",
+            "many/f0052.txt",
+            "many/f0053.txt",
+            "many/f0054.txt",
+            "many/f0055.txt",
+            "many/f0056.txt",
+            "many/f0057.txt",
+            "many/f0058.txt",
+            "many/f0059.txt",
+            "many/f0060.txt",
+            "many/f0061.txt",
+            "many/f0062.txt",
+            "many/f0063.txt",
+            "many/f0064.txt",
+            "many/f0065.txt",
+            "many/f0066.txt",
+            "many/f0067.txt",
+            "many/f0068.txt",
+            "many/f0069.txt",
+            "many/f0070.txt",
+            "many/f0071.txt",
+            "many/f0072.txt",
+            "many/f0073.txt",
+            "many/f0074.txt",
+            "many/f0075.txt",
+            "many/f0076.txt",
+            "many/f0077.txt",
+            "many/f0078.txt",
+            "many/f0079.txt",
+            "many/f0080.txt",
+            "many/f0081.txt",
+            "many/f0082.txt",
+            "many/f0083.txt",
+            "many/f0084.txt",
+            "many/f0085.txt",
+            "many/f0086.txt",
+            "many/f0087.txt",
+            "many/f0088.txt",
+            "many/f0089.txt",
+            "many/f0090.txt",
+            "many/f0091.txt",
+            "many/f0092.txt",
+            "many/f0093.txt",
+            "many/f0094.txt",
+            "many/f0095.txt",
+            "many/f0096.txt",
+            "many/f0097.txt",
+            "many/f0098.txt",
+            "many/f0099.txt"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a link inside a skill is not listed as one of its files",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/s1/SKILL.md": "---\nname: s1\ndescription: Link test.\n---\nBody.\n",
+            "outside/secret.txt": "secret\n"
+          },
+          "links": {
+            "userdata/skills/s1/link.txt": "{base}/outside/secret.txt"
+          }
+        },
+        "project": false,
+        "id": "s1",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": null
+      },
+      "expected": {
+        "success": true,
+        "skill": {
+          "id": "s1",
+          "name": "s1",
+          "description": "Link test.",
+          "summary": "Link test",
+          "path": "{base}/userdata/skills/s1",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true,
+          "body": "Body.",
+          "files": []
+        }
+      }
+    },
+    {
+      "name": "a file named through a link inside the skill that points outside it is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/evil/SKILL.md": "---\nname: evil\ndescription: Escape test.\n---\nBody.\n",
+            "outside/secret.txt": "outside text\n"
+          },
+          "links": {
+            "project/.draggy/skills/evil/notes.txt": "{base}/outside/secret.txt"
+          }
+        },
+        "project": true,
+        "id": "evil",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": "notes.txt"
+      },
+      "expected": {
+        "success": false,
+        "error": "\"notes.txt\" is not a file in the evil skill."
+      }
+    },
+    {
+      "name": "a link inside the skill to a credentials-named file is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/s2/SKILL.md": "---\nname: s2\ndescription: Link test.\n---\nBody.\n",
+            "project/.draggy/skills/s2/credentials": "token=fake\n"
+          },
+          "links": {
+            "project/.draggy/skills/s2/creds.txt": "{base}/project/.draggy/skills/s2/credentials"
+          }
+        },
+        "project": true,
+        "id": "s2",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": "creds.txt"
+      },
+      "expected": {
+        "success": false,
+        "error": "\"creds.txt\" holds credentials, so Draggy does not open it."
+      }
+    },
+    {
+      "name": "a file reached through a linked folder that points outside the skill is refused",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/s4/SKILL.md": "---\nname: s4\ndescription: Link test.\n---\nBody.\n",
+            "outside/secret.txt": "outside text\n"
+          },
+          "links": {
+            "project/.draggy/skills/s4/out": "{base}/outside"
+          }
+        },
+        "project": true,
+        "id": "s4",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": "out/secret.txt"
+      },
+      "expected": {
+        "success": false,
+        "error": "\"out/secret.txt\" is not a file in the s4 skill."
+      }
+    },
+    {
+      "name": "a link inside the skill that stays inside is still read",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/s3/SKILL.md": "---\nname: s3\ndescription: Link test.\n---\nBody.\n",
+            "project/.draggy/skills/s3/docs/guide.md": "# Guide\n"
+          },
+          "links": {
+            "project/.draggy/skills/s3/alias.md": "{base}/project/.draggy/skills/s3/docs/guide.md"
+          }
+        },
+        "project": true,
+        "id": "s3",
+        "overrides": {},
+        "enabledOnly": false,
+        "file": "alias.md"
+      },
+      "expected": {
+        "success": true,
+        "skill": {
+          "id": "s3",
+          "name": "s3",
+          "description": "Link test.",
+          "summary": "Link test",
+          "path": "{base}/project/.draggy/skills/s3",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true,
+          "body": "",
+          "files": [
+            "docs/guide.md"
+          ]
+        },
+        "file": {
+          "name": "alias.md",
+          "content": "# Guide\n"
+        }
+      }
+    }
+  ]
+}

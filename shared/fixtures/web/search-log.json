@@ -1,0 +1,548 @@
+{
+  "area": "web",
+  "description": "The net.search events a search logs, per step of an ordered op list. An answer logs 'search answered' with the provider, result count and time taken; an empty page logs 'search empty'; a failure logs 'provider failed' with its message, the query cut out and the rest cut at 120 units. Steps share one cache and pacing history on a virtual clock, so durations include the wait for a provider's gap. A cache hit logs nothing, and no logged text holds the query. Each step gives the status, the provider, whether it came from the cache, the providers called and its events.",
+  "cases": [
+    {
+      "name": "an answer logs the provider, its result count and the time taken",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "body": "{\"results\":[{\"title\":\"A\",\"url\":\"https://a.example/\",\"content\":\"one\"},{\"title\":\"B\",\"url\":\"https://b.example/\",\"content\":\"two\"}]}"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "searxng",
+            "cached": false,
+            "called": [
+              "searxng"
+            ],
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "searxng",
+                  "results": 2,
+                  "durationMs": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a failing provider logs its error with the query cut out, then the next provider answers",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "error": "GET https://searx.test:8080/search?q=rare+zq9417&format=json failed for rare zq9417"
+              },
+              "duckduckgo": {
+                "body": "<div class=\"result\"><a class=\"result__a\" href=\"https://x.example/one\">One</a><div class=\"result__snippet\">first</div></div>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "duckduckgo",
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "searxng",
+                  "durationMs": 0,
+                  "error": "GET https://searx.test:8080/search?q=[query]&format=json failed for [query]"
+                }
+              },
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "duckduckgo",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty answer logs search empty and moves on",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "body": "{\"results\":[]}"
+              },
+              "duckduckgo": {
+                "body": "<div class=\"result\"><a class=\"result__a\" href=\"https://x.example/one\">One</a><div class=\"result__snippet\">first</div></div>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "duckduckgo",
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search empty",
+                "data": {
+                  "provider": "searxng",
+                  "results": 0,
+                  "durationMs": 0
+                }
+              },
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "duckduckgo",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a long failure message is cut at 120 units",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "error": "upstream said the request was refused by the gateway, which keeps the long reason text going well past the limit of one hundred and twenty units"
+              },
+              "duckduckgo": {
+                "body": "<div class=\"result\"><a class=\"result__a\" href=\"https://x.example/one\">One</a><div class=\"result__snippet\">first</div></div>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "duckduckgo",
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "searxng",
+                  "durationMs": 0,
+                  "error": "upstream said the request was refused by the gateway, which keeps the long reason text going well past the limit of one "
+                }
+              },
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "duckduckgo",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a status failure logs the status the provider returned",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "status": 500,
+                "body": "oops"
+              },
+              "duckduckgo": {
+                "body": "<div class=\"result\"><a class=\"result__a\" href=\"https://x.example/one\">One</a><div class=\"result__snippet\">first</div></div>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "duckduckgo",
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "searxng",
+                  "durationMs": 0,
+                  "error": "SearXNG returned 500"
+                }
+              },
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "duckduckgo",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a repeated question is answered from memory and logs nothing",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "body": "{\"results\":[{\"title\":\"A\",\"url\":\"https://a.example/\",\"content\":\"one\"}]}"
+              }
+            }
+          },
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {}
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "searxng",
+            "cached": false,
+            "called": [
+              "searxng"
+            ],
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "searxng",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          },
+          {
+            "status": "ok",
+            "provider": "searxng",
+            "cached": true,
+            "called": [],
+            "logs": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "an outage logs one failure from every provider and no empty event",
+      "input": {
+        "ops": [
+          {
+            "query": "rare zq9417",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "error": "offline"
+              },
+              "duckduckgo": {
+                "error": "offline"
+              },
+              "startpage": {
+                "error": "offline"
+              },
+              "duckduckgo-lite": {
+                "error": "offline"
+              },
+              "brave-html": {
+                "error": "offline"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "unavailable",
+            "provider": null,
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "logs": [
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "searxng",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              },
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "duckduckgo",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              },
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "startpage",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              },
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "duckduckgo-lite",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              },
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "brave-html",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a provider held back by its gap logs the time it waited",
+      "input": {
+        "ops": [
+          {
+            "query": "first question",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "body": "{\"results\":[{\"title\":\"A\",\"url\":\"https://a.example/\",\"content\":\"one\"}]}"
+              }
+            }
+          },
+          {
+            "at": 1000100,
+            "query": "second question",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {
+              "searxng": {
+                "body": "{\"results\":[{\"title\":\"B\",\"url\":\"https://b.example/\",\"content\":\"two\"}]}"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "ok",
+            "provider": "searxng",
+            "cached": false,
+            "called": [
+              "searxng"
+            ],
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "searxng",
+                  "results": 1,
+                  "durationMs": 0
+                }
+              }
+            ]
+          },
+          {
+            "status": "ok",
+            "provider": "searxng",
+            "cached": false,
+            "called": [
+              "searxng"
+            ],
+            "logs": [
+              {
+                "level": "info",
+                "scope": "net.search",
+                "message": "search answered",
+                "data": {
+                  "provider": "searxng",
+                  "results": 1,
+                  "durationMs": 800
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "an empty query logs nothing and calls no provider",
+      "input": {
+        "ops": [
+          {
+            "query": "   ",
+            "config": {
+              "searchProvider": "auto",
+              "searxngUrl": "http://searx.test:8080",
+              "braveApiKey": ""
+            },
+            "responses": {}
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "status": "empty",
+            "provider": null,
+            "cached": false,
+            "called": [],
+            "logs": []
+          }
+        ]
+      }
+    }
+  ]
+}

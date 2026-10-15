@@ -1,0 +1,206 @@
+{
+  "area": "mcp",
+  "description": "Splitting a server's stdout into JSON-RPC messages across chunks. Expected: the messages delivered, in order. Lines that are not JSON, blank lines and partial lines are not delivered.",
+  "cases": [
+    {
+      "name": "reads one whole message",
+      "input": {
+        "chunks": [
+          "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+              "ok": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "reads several messages from one chunk",
+      "input": {
+        "chunks": [
+          "{\"id\":1}\n{\"id\":2}\n{\"id\":3}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1
+          },
+          {
+            "id": 2
+          },
+          {
+            "id": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "holds back a message split across two chunks",
+      "input": {
+        "chunks": [
+          "{\"id\":1,\"resu",
+          "lt\":\"done\"}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1,
+            "result": "done"
+          }
+        ]
+      }
+    },
+    {
+      "name": "waits for the newline before delivering anything",
+      "input": {
+        "chunks": [
+          "{\"id\":1}"
+        ]
+      },
+      "expected": {
+        "messages": []
+      }
+    },
+    {
+      "name": "ignores the plain logging a server writes to stdout",
+      "input": {
+        "chunks": [
+          "Server listening on stdio\n{\"id\":1}\nanother stray line\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "ignores blank lines",
+      "input": {
+        "chunks": [
+          "\n\n{\"id\":1}\n\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "carries on after a line of broken JSON",
+      "input": {
+        "chunks": [
+          "{\"id\":1,\"broken\":\n{\"id\":2}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "accepts CRLF line endings",
+      "input": {
+        "chunks": [
+          "{\"id\":1}\r\n{\"id\":2}\r\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1
+          },
+          {
+            "id": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "joins a message split across three chunks",
+      "input": {
+        "chunks": [
+          "{\"id\"",
+          ":7,\"res",
+          "ult\":1}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 7,
+            "result": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "delivers nothing when no line is complete",
+      "input": {
+        "chunks": [
+          "{\"id\":1}"
+        ]
+      },
+      "expected": {
+        "messages": []
+      }
+    },
+    {
+      "name": "delivers a JSON null line as a message",
+      "input": {
+        "chunks": [
+          "null\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "reads a line that starts with a byte-order mark",
+      "input": {
+        "chunks": [
+          "﻿{\"id\":1,\"result\":2}\n"
+        ]
+      },
+      "expected": {
+        "messages": [
+          {
+            "id": 1,
+            "result": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "a next-line character before a message leaves the line as junk",
+      "input": {
+        "chunks": [
+          "{\"id\":1,\"result\":2}\n"
+        ]
+      },
+      "expected": {
+        "messages": []
+      }
+    }
+  ]
+}

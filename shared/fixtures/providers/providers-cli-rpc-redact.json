@@ -1,0 +1,126 @@
+{
+  "area": "providers",
+  "description": "rpc.cjs redact(): every token-shaped run is replaced by [redacted] (fn redact, input text).",
+  "cases": [
+    {
+      "name": "a sign-in callback",
+      "input": {
+        "fn": "redact",
+        "text": "GET /auth/callback?code=ac_8Hq2kLmn0pQ&state=Zx81Kq0 HTTP/1.1"
+      },
+      "expected": "GET /auth/callback?code=[redacted]&state=[redacted] HTTP/1.1"
+    },
+    {
+      "name": "a JWT",
+      "input": {
+        "fn": "redact",
+        "text": "id token eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0In0.c2lnbmF0dXJlLXBhcnQ received"
+      },
+      "expected": "id token [redacted] received"
+    },
+    {
+      "name": "an OpenAI key",
+      "input": {
+        "fn": "redact",
+        "text": "key sk-proj-AbC123dEf456GhI789"
+      },
+      "expected": "key [redacted]"
+    },
+    {
+      "name": "an Anthropic OAuth token",
+      "input": {
+        "fn": "redact",
+        "text": "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-Qw3rTy8uIoP"
+      },
+      "expected": "CLAUDE_CODE_OAUTH_TOKEN=[redacted]"
+    },
+    {
+      "name": "a Google access token",
+      "input": {
+        "fn": "redact",
+        "text": "using ya29.a0AfB_byC9x-Q1"
+      },
+      "expected": "using [redacted]"
+    },
+    {
+      "name": "a bearer header",
+      "input": {
+        "fn": "redact",
+        "text": "Authorization: Bearer abc.def-ghi"
+      },
+      "expected": "Authorization: Bearer [redacted]"
+    },
+    {
+      "name": "a JSON auth payload",
+      "input": {
+        "fn": "redact",
+        "text": "{\"access_token\":\"opaque value\",\"refresh_token\":\"r1\",\"code\":\"12-34\"}"
+      },
+      "expected": "{\"access_token\":\"[redacted]\",\"refresh_token\":\"[redacted]\",\"code\":\"[redacted]\"}"
+    },
+    {
+      "name": "a long opaque run",
+      "input": {
+        "fn": "redact",
+        "text": "session 9fK2mQ7xL0pR4tV8wY1zA3cE5gH6jN2b ok"
+      },
+      "expected": "session [redacted] ok"
+    },
+    {
+      "name": "ordinary path stays",
+      "input": {
+        "fn": "redact",
+        "text": "codex_app_server: listening on stdio, model gpt-5.5, C:/Users/me/AppData/Roaming/Draggy/codex/a1"
+      },
+      "expected": "codex_app_server: listening on stdio, model gpt-5.5, C:/Users/me/AppData/Roaming/Draggy/codex/a1"
+    },
+    {
+      "name": "a short sk- word stays",
+      "input": {
+        "fn": "redact",
+        "text": "sk-short and pk-x are not keys"
+      },
+      "expected": "sk-short and pk-x are not keys"
+    },
+    {
+      "name": "a basic auth header",
+      "input": {
+        "fn": "redact",
+        "text": "Basic dXNlcjpwYXNz, then more"
+      },
+      "expected": "Basic [redacted], then more"
+    },
+    {
+      "name": "a state parameter in a URL",
+      "input": {
+        "fn": "redact",
+        "text": "open https://auth.openai.com/oauth?state=Zx81Kq0&x=1"
+      },
+      "expected": "open https://auth.openai.com/oauth?state=[redacted]&x=1"
+    },
+    {
+      "name": "a password field",
+      "input": {
+        "fn": "redact",
+        "text": "{\"password\": \"hunter2\", \"user\": \"me\"}"
+      },
+      "expected": "{\"password\": \"[redacted]\", \"user\": \"me\"}"
+    },
+    {
+      "name": "a rk key",
+      "input": {
+        "fn": "redact",
+        "text": "rk-live_0123456789ab"
+      },
+      "expected": "[redacted]"
+    },
+    {
+      "name": "a long path with digits stays",
+      "input": {
+        "fn": "redact",
+        "text": "/home/user/projects/abcdefghijklmnopqrstuvwxyz0123456789/file"
+      },
+      "expected": "[redacted]"
+    }
+  ]
+}

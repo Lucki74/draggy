@@ -1,0 +1,690 @@
+{
+  "area": "tools",
+  "description": "skills.listSkills over a tree of skill folders. Input: {tree, project (true to include the project's .draggy/skills), overrides (user switches)}. The library is {base}/library, the user's skills {base}/userdata/skills, the project {base}/project. Expected: the sorted list of skill objects, paths as {base}. Bodies are never listed.",
+  "cases": [
+    {
+      "name": "finds the user's own skills",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/invoices/SKILL.md": "---\nname: Invoices\ndescription: How we invoice.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "invoices",
+          "name": "Invoices",
+          "description": "How we invoice.",
+          "summary": "How we invoice",
+          "path": "{base}/userdata/skills/invoices",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "finds the ones that live in the project",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/release/SKILL.md": "---\nname: release\ndescription: The way we release.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": true,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "release",
+          "name": "release",
+          "description": "The way we release.",
+          "summary": "The way we release",
+          "path": "{base}/project/.draggy/skills/release",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a project skill wins over a user skill of the same id",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/release/SKILL.md": "---\nname: release\ndescription: The general way.\n---\n",
+            "project/.draggy/skills/release/SKILL.md": "---\nname: release\ndescription: The way we do it.\n---\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": true,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "release",
+          "name": "release",
+          "description": "The way we do it.",
+          "summary": "The way we do it",
+          "path": "{base}/project/.draggy/skills/release",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a broken skill is skipped and the rest are kept",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/good/SKILL.md": "---\nname: Good\ndescription: Works.\n---\n",
+            "userdata/skills/broken/SKILL.md": "no front matter here"
+          },
+          "dirs": [
+            "userdata/skills/empty"
+          ],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "good",
+          "name": "Good",
+          "description": "Works.",
+          "summary": "Works",
+          "path": "{base}/userdata/skills/good",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "the library catalogue sets shelf, side and default",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{\"categories\": [\"writing\", \"code\", \"documents\"], \"skills\": [{\"id\": \"proofreader\", \"category\": \"writing\", \"surface\": \"chat\", \"on\": true}, {\"id\": \"dockerfile\", \"category\": \"code\", \"surface\": \"code\", \"on\": false}, {\"id\": \"pptx\", \"category\": \"documents\", \"surface\": \"chat\", \"on\": true, \"summary\": \"Create a slide deck\"}]}",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n",
+            "library/dockerfile/SKILL.md": "---\nname: dockerfile\ndescription: Writes Dockerfiles.\n---\nBody.\n",
+            "library/pptx/SKILL.md": "---\nname: pptx\ndescription: Creates PowerPoint decks with create_file, using headings.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "dockerfile",
+          "name": "dockerfile",
+          "description": "Writes Dockerfiles.",
+          "summary": "Writes Dockerfiles",
+          "path": "{base}/library/dockerfile",
+          "source": "library",
+          "category": "code",
+          "surface": "code",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "pptx",
+          "name": "pptx",
+          "description": "Creates PowerPoint decks with create_file, using headings.",
+          "summary": "Create a slide deck",
+          "path": "{base}/library/pptx",
+          "source": "library",
+          "category": "documents",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "Checks prose for errors.",
+          "summary": "Checks prose for errors",
+          "path": "{base}/library/proofreader",
+          "source": "library",
+          "category": "writing",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "the user's switches win over the catalogue defaults",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{\"categories\": [\"writing\", \"code\", \"documents\"], \"skills\": [{\"id\": \"proofreader\", \"category\": \"writing\", \"surface\": \"chat\", \"on\": true}, {\"id\": \"dockerfile\", \"category\": \"code\", \"surface\": \"code\", \"on\": false}, {\"id\": \"pptx\", \"category\": \"documents\", \"surface\": \"chat\", \"on\": true, \"summary\": \"Create a slide deck\"}]}",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n",
+            "library/dockerfile/SKILL.md": "---\nname: dockerfile\ndescription: Writes Dockerfiles.\n---\nBody.\n",
+            "library/pptx/SKILL.md": "---\nname: pptx\ndescription: Creates PowerPoint decks with create_file, using headings.\n---\nBody.\n",
+            "userdata/skills/invoices/SKILL.md": "---\nname: Invoices\ndescription: How we invoice.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {
+          "proofreader": false,
+          "dockerfile": true,
+          "invoices": false
+        }
+      },
+      "expected": [
+        {
+          "id": "dockerfile",
+          "name": "dockerfile",
+          "description": "Writes Dockerfiles.",
+          "summary": "Writes Dockerfiles",
+          "path": "{base}/library/dockerfile",
+          "source": "library",
+          "category": "code",
+          "surface": "code",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "invoices",
+          "name": "Invoices",
+          "description": "How we invoice.",
+          "summary": "How we invoice",
+          "path": "{base}/userdata/skills/invoices",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "pptx",
+          "name": "pptx",
+          "description": "Creates PowerPoint decks with create_file, using headings.",
+          "summary": "Create a slide deck",
+          "path": "{base}/library/pptx",
+          "source": "library",
+          "category": "documents",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "Checks prose for errors.",
+          "summary": "Checks prose for errors",
+          "path": "{base}/library/proofreader",
+          "source": "library",
+          "category": "writing",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "name": "the catalogue's summary is preferred to one made from the description",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{\"categories\": [\"writing\", \"code\", \"documents\"], \"skills\": [{\"id\": \"proofreader\", \"category\": \"writing\", \"surface\": \"chat\", \"on\": true}, {\"id\": \"dockerfile\", \"category\": \"code\", \"surface\": \"code\", \"on\": false}, {\"id\": \"pptx\", \"category\": \"documents\", \"surface\": \"chat\", \"on\": true, \"summary\": \"Create a slide deck\"}]}",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n",
+            "library/dockerfile/SKILL.md": "---\nname: dockerfile\ndescription: Writes Dockerfiles.\n---\nBody.\n",
+            "library/pptx/SKILL.md": "---\nname: pptx\ndescription: Creates PowerPoint decks with create_file, using headings.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "dockerfile",
+          "name": "dockerfile",
+          "description": "Writes Dockerfiles.",
+          "summary": "Writes Dockerfiles",
+          "path": "{base}/library/dockerfile",
+          "source": "library",
+          "category": "code",
+          "surface": "code",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "pptx",
+          "name": "pptx",
+          "description": "Creates PowerPoint decks with create_file, using headings.",
+          "summary": "Create a slide deck",
+          "path": "{base}/library/pptx",
+          "source": "library",
+          "category": "documents",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "Checks prose for errors.",
+          "summary": "Checks prose for errors",
+          "path": "{base}/library/proofreader",
+          "source": "library",
+          "category": "writing",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a malformed catalogue leaves its folders listed with defaults",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{not json",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "Checks prose for errors.",
+          "summary": "Checks prose for errors",
+          "path": "{base}/library/proofreader",
+          "source": "library",
+          "category": null,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "name": "a null catalogue entry drops the whole catalogue",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{\"skills\": [null, {\"id\": \"proofreader\", \"on\": true}]}",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "Checks prose for errors.",
+          "summary": "Checks prose for errors",
+          "path": "{base}/library/proofreader",
+          "source": "library",
+          "category": null,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "name": "the user's own version replaces a shipped skill",
+      "input": {
+        "tree": {
+          "files": {
+            "library/library.json": "{\"categories\": [\"writing\", \"code\", \"documents\"], \"skills\": [{\"id\": \"proofreader\", \"category\": \"writing\", \"surface\": \"chat\", \"on\": true}, {\"id\": \"dockerfile\", \"category\": \"code\", \"surface\": \"code\", \"on\": false}, {\"id\": \"pptx\", \"category\": \"documents\", \"surface\": \"chat\", \"on\": true, \"summary\": \"Create a slide deck\"}]}",
+            "library/proofreader/SKILL.md": "---\nname: proofreader\ndescription: Checks prose for errors.\n---\nBody.\n",
+            "library/dockerfile/SKILL.md": "---\nname: dockerfile\ndescription: Writes Dockerfiles.\n---\nBody.\n",
+            "library/pptx/SKILL.md": "---\nname: pptx\ndescription: Creates PowerPoint decks with create_file, using headings.\n---\nBody.\n",
+            "userdata/skills/proofreader/SKILL.md": "---\nname: proofreader\ndescription: The way I like it.\n---\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "dockerfile",
+          "name": "dockerfile",
+          "description": "Writes Dockerfiles.",
+          "summary": "Writes Dockerfiles",
+          "path": "{base}/library/dockerfile",
+          "source": "library",
+          "category": "code",
+          "surface": "code",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "pptx",
+          "name": "pptx",
+          "description": "Creates PowerPoint decks with create_file, using headings.",
+          "summary": "Create a slide deck",
+          "path": "{base}/library/pptx",
+          "source": "library",
+          "category": "documents",
+          "surface": "chat",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "proofreader",
+          "name": "proofreader",
+          "description": "The way I like it.",
+          "summary": "The way I like it",
+          "path": "{base}/userdata/skills/proofreader",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "names are sorted without regard to case",
+      "input": {
+        "tree": {
+          "files": {
+            "userdata/skills/zeta/SKILL.md": "---\nname: zeta\ndescription: Last.\n---\n",
+            "userdata/skills/alpha/SKILL.md": "---\nname: Alpha\ndescription: First.\n---\n",
+            "userdata/skills/mid/SKILL.md": "---\nname: beta\ndescription: Second.\n---\n"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "alpha",
+          "name": "Alpha",
+          "description": "First.",
+          "summary": "First",
+          "path": "{base}/userdata/skills/alpha",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "mid",
+          "name": "beta",
+          "description": "Second.",
+          "summary": "Second",
+          "path": "{base}/userdata/skills/mid",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
+          "id": "zeta",
+          "name": "zeta",
+          "description": "Last.",
+          "summary": "Last",
+          "path": "{base}/userdata/skills/zeta",
+          "source": "user",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a catalogue category keeps the JSON value it holds",
+      "input": {
+        "tree": {
+          "files": {
+            "library/a/SKILL.md": "---\nname: A\ndescription: Desc a.\n---\nBody.\n",
+            "library/b/SKILL.md": "---\nname: B\ndescription: Desc b.\n---\nBody.\n",
+            "library/c/SKILL.md": "---\nname: C\ndescription: Desc c.\n---\nBody.\n",
+            "library/d/SKILL.md": "---\nname: D\ndescription: Desc d.\n---\nBody.\n",
+            "library/e/SKILL.md": "---\nname: E\ndescription: Desc e.\n---\nBody.\n",
+            "library/library.json": "{\"skills\":[{\"id\":\"a\",\"category\":5},{\"id\":\"b\",\"category\":false},{\"id\":\"c\",\"category\":{\"x\":1}},{\"id\":\"d\"},{\"id\":\"e\",\"category\":null}]}"
+          },
+          "dirs": [],
+          "bytes": {},
+          "links": {}
+        },
+        "project": false,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "a",
+          "name": "A",
+          "description": "Desc a.",
+          "summary": "Desc a",
+          "path": "{base}/library/a",
+          "source": "library",
+          "category": 5,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "b",
+          "name": "B",
+          "description": "Desc b.",
+          "summary": "Desc b",
+          "path": "{base}/library/b",
+          "source": "library",
+          "category": false,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "c",
+          "name": "C",
+          "description": "Desc c.",
+          "summary": "Desc c",
+          "path": "{base}/library/c",
+          "source": "library",
+          "category": {
+            "x": 1
+          },
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "d",
+          "name": "D",
+          "description": "Desc d.",
+          "summary": "Desc d",
+          "path": "{base}/library/d",
+          "source": "library",
+          "category": null,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        },
+        {
+          "id": "e",
+          "name": "E",
+          "description": "Desc e.",
+          "summary": "Desc e",
+          "path": "{base}/library/e",
+          "source": "library",
+          "category": null,
+          "surface": "both",
+          "defaultOn": false,
+          "modelInvocable": true,
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "name": "a SKILL.md link pointing outside the skill is not listed",
+      "input": {
+        "tree": {
+          "files": {
+            "outside/evil.md": "---\nname: Evil\ndescription: Outside text.\n---\nBody.\n",
+            "project/.draggy/skills/fine/SKILL.md": "---\nname: Fine\ndescription: Works.\n---\n"
+          },
+          "links": {
+            "project/.draggy/skills/linked/SKILL.md": "{base}/outside/evil.md"
+          }
+        },
+        "project": true,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "fine",
+          "name": "Fine",
+          "description": "Works.",
+          "summary": "Works",
+          "path": "{base}/project/.draggy/skills/fine",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a SKILL.md link that stays inside the skill is listed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/alias/docs/SKILL.md": "---\nname: Alias\ndescription: Inside.\n---\n"
+          },
+          "links": {
+            "project/.draggy/skills/alias/SKILL.md": "{base}/project/.draggy/skills/alias/docs/SKILL.md"
+          }
+        },
+        "project": true,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "alias",
+          "name": "Alias",
+          "description": "Inside.",
+          "summary": "Inside",
+          "path": "{base}/project/.draggy/skills/alias",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "a SKILL.md link to a credentials-named file is not listed",
+      "input": {
+        "tree": {
+          "files": {
+            "project/.draggy/skills/fine/SKILL.md": "---\nname: Fine\ndescription: Works.\n---\n",
+            "project/.draggy/skills/leaky-env/.env": "---\nname: Leak\ndescription: Secret text.\n---\nTOKEN=fake\n",
+            "project/.draggy/skills/leaky-npmrc/docs/.npmrc": "---\nname: Leak\ndescription: Secret text.\n---\nTOKEN=fake\n",
+            "project/.draggy/skills/leaky-folder/credentials.d/notes.md": "---\nname: Leak\ndescription: Secret text.\n---\nTOKEN=fake\n"
+          },
+          "links": {
+            "project/.draggy/skills/leaky-env/SKILL.md": "{base}/project/.draggy/skills/leaky-env/.env",
+            "project/.draggy/skills/leaky-npmrc/SKILL.md": "{base}/project/.draggy/skills/leaky-npmrc/docs/.npmrc",
+            "project/.draggy/skills/leaky-folder/SKILL.md": "{base}/project/.draggy/skills/leaky-folder/credentials.d/notes.md"
+          }
+        },
+        "project": true,
+        "overrides": {}
+      },
+      "expected": [
+        {
+          "id": "fine",
+          "name": "Fine",
+          "description": "Works.",
+          "summary": "Works",
+          "path": "{base}/project/.draggy/skills/fine",
+          "source": "project",
+          "category": null,
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

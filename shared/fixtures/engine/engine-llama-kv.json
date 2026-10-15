@@ -1,0 +1,386 @@
+{
+  "area": "engine",
+  "description": "How the KV cache type and the window are chosen for a model of a given size on a given card (determineKvCache). `expected` is {cacheType, effectiveContext}.",
+  "cases": [
+    {
+      "name": "defaults to q8_0 and the requested window when no VRAM is known",
+      "input": {
+        "modelBytes": 9663676416,
+        "contextSize": 16384,
+        "vramGB": 0,
+        "traits": {
+          "moe": false,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "defaults to q8_0 when the model file is missing",
+      "input": {
+        "modelBytes": null,
+        "contextSize": 16384,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "keeps q8_0 when the weights leave room for the cache",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 16384,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "drops to q4_0 when a 9 GB model leaves too little headroom",
+      "input": {
+        "modelBytes": 9717363507,
+        "contextSize": 16384,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q4_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "clamps a q4_0 window to what still fits, never below 4096",
+      "input": {
+        "modelBytes": 9717363507,
+        "contextSize": 16384,
+        "vramGB": 11,
+        "traits": {
+          "moe": false,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q4_0",
+        "effectiveContext": 4096
+      }
+    },
+    {
+      "name": "a mixture of experts keeps q8_0 and the full window",
+      "input": {
+        "modelBytes": 17179869184,
+        "contextSize": 32768,
+        "vramGB": 8,
+        "traits": {
+          "moe": true,
+          "trainedContext": null,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "rounds a small window up when the card has room",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 4096,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": 73728,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "never rounds past what the model was trained for",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 4096,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 8192,
+          "kvBytesQ8": 73728,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 8192
+      }
+    },
+    {
+      "name": "asking for more than the rounding still gets what was asked",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 65536,
+        "vramGB": 24,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": 73728,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 65536
+      }
+    },
+    {
+      "name": "does not round up when the cache already had to shrink",
+      "input": {
+        "modelBytes": 9717363507,
+        "contextSize": 16384,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q4_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "prices the cache from the model's attention shape: heavy",
+      "input": {
+        "modelBytes": 6442450944,
+        "contextSize": 4096,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": 307200,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 8192
+      }
+    },
+    {
+      "name": "prices the cache from the model's attention shape: light",
+      "input": {
+        "modelBytes": 6442450944,
+        "contextSize": 4096,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": 40960,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "a mixture of experts starts at 16K at least",
+      "input": {
+        "modelBytes": null,
+        "contextSize": 4096,
+        "vramGB": 8,
+        "traits": {
+          "moe": true,
+          "trainedContext": 262144,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 16384
+      }
+    },
+    {
+      "name": "a mixture of experts trained for less than 16K keeps its training window",
+      "input": {
+        "modelBytes": null,
+        "contextSize": 4096,
+        "vramGB": 8,
+        "traits": {
+          "moe": true,
+          "trainedContext": 8192,
+          "kvBytesQ8": null,
+          "exact": false,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 8192
+      }
+    },
+    {
+      "name": "a fixed window is never rounded up",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 4096,
+        "vramGB": 12,
+        "traits": {
+          "moe": false,
+          "trainedContext": 131072,
+          "kvBytesQ8": 73728,
+          "exact": true,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 4096
+      }
+    },
+    {
+      "name": "a fixed mixture of experts window is kept as asked",
+      "input": {
+        "modelBytes": 17179869184,
+        "contextSize": 4096,
+        "vramGB": 8,
+        "traits": {
+          "moe": true,
+          "trainedContext": 262144,
+          "kvBytesQ8": null,
+          "exact": true,
+          "runnerType": null
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 4096
+      }
+    },
+    {
+      "name": "Vulkan uses an f16 cache when it fits",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 8192,
+        "vramGB": 16,
+        "traits": {
+          "moe": false,
+          "trainedContext": 32768,
+          "kvBytesQ8": 65536,
+          "exact": false,
+          "runnerType": "vulkan"
+        }
+      },
+      "expected": {
+        "cacheType": "f16",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "Metal uses an f16 cache when it fits",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 8192,
+        "vramGB": 16,
+        "traits": {
+          "moe": false,
+          "trainedContext": 32768,
+          "kvBytesQ8": 65536,
+          "exact": false,
+          "runnerType": "metal"
+        }
+      },
+      "expected": {
+        "cacheType": "f16",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "CUDA keeps q8_0 where f16 would also fit",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 8192,
+        "vramGB": 16,
+        "traits": {
+          "moe": false,
+          "trainedContext": 32768,
+          "kvBytesQ8": 65536,
+          "exact": false,
+          "runnerType": "cuda"
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 32768
+      }
+    },
+    {
+      "name": "no f16 when the bigger cache does not fit",
+      "input": {
+        "modelBytes": 4294967296,
+        "contextSize": 8192,
+        "vramGB": 6,
+        "traits": {
+          "moe": false,
+          "trainedContext": 32768,
+          "kvBytesQ8": 65536,
+          "exact": false,
+          "runnerType": "vulkan"
+        }
+      },
+      "expected": {
+        "cacheType": "q8_0",
+        "effectiveContext": 8192
+      }
+    }
+  ]
+}

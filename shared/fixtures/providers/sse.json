@@ -1,0 +1,557 @@
+{
+  "area": "providers",
+  "description": "The SSE writer (electron/providers/sse.cjs): ops applied in order with a clock that moves 100 ms per read, and the frames it writes as parsed payloads. The completion op covers the non-streaming answer. The clock is read where the reference reads it, so the finish timings match.",
+  "cases": [
+    {
+      "name": "text, reasoning and a finish with counts",
+      "input": {
+        "ops": [
+          {
+            "op": "delta",
+            "reasoning": "hmm"
+          },
+          {
+            "op": "delta",
+            "content": "Hi"
+          },
+          {
+            "op": "finish",
+            "reason": "stop",
+            "usage": {
+              "promptTokens": 9,
+              "outputTokens": 2
+            }
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "hmm"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "Hi"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 2,
+            "total_tokens": 11
+          },
+          "timings": {
+            "prompt_n": 9,
+            "prompt_ms": 100,
+            "predicted_n": 2,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "tool call fragments pass through as the reader gets them",
+      "input": {
+        "ops": [
+          {
+            "op": "delta",
+            "toolCalls": [
+              {
+                "index": 0,
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "read_file",
+                  "arguments": "{\"path\":"
+                }
+              }
+            ]
+          },
+          {
+            "op": "delta",
+            "toolCalls": [
+              {
+                "index": 0,
+                "function": {
+                  "arguments": "\"a\"}"
+                }
+              }
+            ]
+          },
+          {
+            "op": "finish",
+            "reason": "tool_calls",
+            "usage": {
+              "promptTokens": 1,
+              "outputTokens": 1
+            }
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                      "name": "read_file",
+                      "arguments": "{\"path\":"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "\"a\"}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 2
+          },
+          "timings": {
+            "prompt_n": 1,
+            "prompt_ms": 100,
+            "predicted_n": 1,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "an empty delta writes nothing and does not start the first-token clock",
+      "input": {
+        "ops": [
+          {
+            "op": "delta",
+            "content": ""
+          },
+          {
+            "op": "delta",
+            "toolCalls": []
+          },
+          {
+            "op": "finish"
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "timings": {
+            "prompt_n": 0,
+            "prompt_ms": 100,
+            "predicted_n": 0,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "nothing is written after done",
+      "input": {
+        "ops": [
+          {
+            "op": "finish",
+            "reason": "stop"
+          },
+          {
+            "op": "done"
+          },
+          {
+            "op": "delta",
+            "content": "late"
+          },
+          {
+            "op": "error",
+            "error": {
+              "kind": "provider-unknown-error"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "timings": {
+            "prompt_n": 0,
+            "prompt_ms": 100,
+            "predicted_n": 0,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "a stop without done writes nothing more",
+      "input": {
+        "ops": [
+          {
+            "op": "delta",
+            "content": "cut"
+          },
+          {
+            "op": "stop",
+            "how": "abort"
+          },
+          {
+            "op": "delta",
+            "content": "late"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "cut"
+              },
+              "finish_reason": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gateway events pass through: retry, provider state and error",
+      "input": {
+        "ops": [
+          {
+            "op": "retry",
+            "attempt": 1,
+            "of": 2,
+            "retryAfterMs": 4000
+          },
+          {
+            "op": "providerState",
+            "state": {
+              "instanceId": "openai",
+              "state": {
+                "id": "r1"
+              }
+            }
+          },
+          {
+            "op": "error",
+            "error": {
+              "kind": "provider-rate-limited",
+              "status": 429,
+              "message": "slow down",
+              "providerMessage": "slow down"
+            }
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "draggy_retry": {
+            "attempt": 1,
+            "of": 2,
+            "retryAfterMs": 4000
+          }
+        },
+        {
+          "provider_state": {
+            "instanceId": "openai",
+            "state": {
+              "id": "r1"
+            }
+          }
+        },
+        {
+          "error": {
+            "kind": "provider-rate-limited",
+            "status": 429,
+            "message": "slow down",
+            "providerMessage": "slow down"
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "a finish with no reason is a stop and no usage is zero",
+      "input": {
+        "ops": [
+          {
+            "op": "finish"
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "timings": {
+            "prompt_n": 0,
+            "prompt_ms": 100,
+            "predicted_n": 0,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "a length finish keeps its reason",
+      "input": {
+        "ops": [
+          {
+            "op": "delta",
+            "content": "cut"
+          },
+          {
+            "op": "finish",
+            "reason": "length"
+          },
+          {
+            "op": "done"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "cut"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+          },
+          "timings": {
+            "prompt_n": 0,
+            "prompt_ms": 100,
+            "predicted_n": 0,
+            "predicted_ms": 100
+          }
+        },
+        "[DONE]",
+        {
+          "closed": true
+        }
+      ]
+    },
+    {
+      "name": "completion answers in llama-server's shape with usage totals",
+      "input": {
+        "op": "completion",
+        "args": {
+          "content": "ok",
+          "usage": {
+            "promptTokens": 3,
+            "outputTokens": 1
+          }
+        }
+      },
+      "expected": {
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ok"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3,
+          "completion_tokens": 1,
+          "total_tokens": 4
+        }
+      }
+    },
+    {
+      "name": "completion with a call and reasoning",
+      "input": {
+        "op": "completion",
+        "args": {
+          "content": "",
+          "reasoning": "r",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "type": "function",
+              "function": {
+                "name": "f",
+                "arguments": "{}"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "usage": {
+            "promptTokens": 2,
+            "outputTokens": 4
+          }
+        }
+      },
+      "expected": {
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "reasoning_content": "r",
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "f",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2,
+          "completion_tokens": 4,
+          "total_tokens": 6
+        }
+      }
+    }
+  ]
+}

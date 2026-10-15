@@ -1,0 +1,174 @@
+{
+  "area": "tools",
+  "description": "fsGuard.isDeniedName: names that are never opened, by folder name or file shape. A name is tested as given and as NFKC-folded, so a compatibility form such as the Kelvin sign folds to k. Folder names match case-insensitively with full Unicode lowercase; file names match ASCII letters only, as the /i patterns do. Input: {name}. Expected: a boolean.",
+  "cases": [
+    {
+      "name": ".SSH",
+      "input": {
+        "name": ".SSH"
+      },
+      "expected": true
+    },
+    {
+      "name": ".aws",
+      "input": {
+        "name": ".aws"
+      },
+      "expected": true
+    },
+    {
+      "name": "keychains",
+      "input": {
+        "name": "keychains"
+      },
+      "expected": true
+    },
+    {
+      "name": "credentials.d",
+      "input": {
+        "name": "credentials.d"
+      },
+      "expected": true
+    },
+    {
+      "name": ".env",
+      "input": {
+        "name": ".env"
+      },
+      "expected": true
+    },
+    {
+      "name": ".env.production",
+      "input": {
+        "name": ".env.production"
+      },
+      "expected": true
+    },
+    {
+      "name": ".envrc",
+      "input": {
+        "name": ".envrc"
+      },
+      "expected": false
+    },
+    {
+      "name": "id_rsa",
+      "input": {
+        "name": "id_rsa"
+      },
+      "expected": true
+    },
+    {
+      "name": "id_ed25519.pub",
+      "input": {
+        "name": "id_ed25519.pub"
+      },
+      "expected": true
+    },
+    {
+      "name": "identity.md",
+      "input": {
+        "name": "identity.md"
+      },
+      "expected": false
+    },
+    {
+      "name": "server.PEM",
+      "input": {
+        "name": "server.PEM"
+      },
+      "expected": true
+    },
+    {
+      "name": "cert.p12",
+      "input": {
+        "name": "cert.p12"
+      },
+      "expected": true
+    },
+    {
+      "name": "store.keystore",
+      "input": {
+        "name": "store.keystore"
+      },
+      "expected": true
+    },
+    {
+      "name": ".npmrc",
+      "input": {
+        "name": ".npmrc"
+      },
+      "expected": true
+    },
+    {
+      "name": ".netrc",
+      "input": {
+        "name": ".netrc"
+      },
+      "expected": true
+    },
+    {
+      "name": "credentials",
+      "input": {
+        "name": "credentials"
+      },
+      "expected": true
+    },
+    {
+      "name": "credentials.json",
+      "input": {
+        "name": "credentials.json"
+      },
+      "expected": false
+    },
+    {
+      "name": ".git-credentials",
+      "input": {
+        "name": ".git-credentials"
+      },
+      "expected": true
+    },
+    {
+      "name": "App.tsx",
+      "input": {
+        "name": "App.tsx"
+      },
+      "expected": false
+    },
+    {
+      "name": "notes.md",
+      "input": {
+        "name": "notes.md"
+      },
+      "expected": false
+    },
+    {
+      "name": ".gitignore",
+      "input": {
+        "name": ".gitignore"
+      },
+      "expected": false
+    },
+    {
+      "name": "a Kelvin sign in place of k is a denied file name once NFKC-folded",
+      "input": {
+        "name": ".Keystore"
+      },
+      "expected": true
+    },
+    {
+      "name": "a Kelvin sign inside a denied folder name still matches (folder names use full lowercase)",
+      "input": {
+        "name": ".Kube"
+      },
+      "expected": true
+    },
+    {
+      "name": "an upper-case ASCII keystore is denied",
+      "input": {
+        "name": ".KEYSTORE"
+      },
+      "expected": true
+    }
+  ]
+}

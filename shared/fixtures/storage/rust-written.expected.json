@@ -1,0 +1,248 @@
+{
+  "area": "storage",
+  "description": "Rollback proof: a database the Rust core wrote (rust-written.db) must still load in the last Electron release (1.2.7, electron/fixtures/v1.2.7/storage.cjs). Read and written by the legacy module only, so the cases are marked reader legacy and the Rust runner skips them.",
+  "cases": [
+    {
+      "name": "1.2.7 loads the chats the Rust core wrote",
+      "input": {
+        "reader": "legacy",
+        "database": {
+          "file": "rust-written.db"
+        },
+        "ops": [
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        [
+          {
+            "id": "release",
+            "title": "Plan the release",
+            "updatedAt": 3000,
+            "isOutOfContext": true,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 0,
+              "summary": "Release is on Friday.",
+              "updatedAt": 2500
+            },
+            "messages": [
+              {
+                "content": "when is the release?",
+                "textContent": "when is the release?",
+                "role": "user",
+                "id": "r1"
+              }
+            ]
+          },
+          {
+            "id": "from-2",
+            "title": "Written by 2.0",
+            "updatedAt": 2000,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "content": "hello from 2.0",
+                "role": "user",
+                "id": "m1",
+                "attachments": [
+                  {
+                    "name": "shot.png",
+                    "type": "image/png",
+                    "content": "data:image/png;base64,iVBORw0KGgo="
+                  }
+                ]
+              },
+              {
+                "content": "hi",
+                "textContent": "hi",
+                "metrics": {
+                  "responseTokens": 5,
+                  "tokensPerSecond": 12.5
+                },
+                "role": "assistant",
+                "id": "m2"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "1.2.7 saves, searches and deletes in a Rust-written database",
+      "input": {
+        "reader": "legacy",
+        "database": {
+          "file": "rust-written.db"
+        },
+        "ops": [
+          {
+            "call": "saveChat",
+            "args": [
+              {
+                "id": "from-1.2.7",
+                "title": "Chat from-1.2.7",
+                "updatedAt": 9000,
+                "isOutOfContext": false,
+                "messages": [
+                  {
+                    "id": "x1",
+                    "role": "user",
+                    "content": "back on the old version",
+                    "textContent": "back on the old version"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "call": "loadChats"
+          },
+          {
+            "call": "searchChats",
+            "args": [
+              "old version"
+            ]
+          },
+          {
+            "call": "deleteChat",
+            "args": [
+              "from-2"
+            ]
+          },
+          {
+            "call": "loadChats"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "from-1.2.7",
+            "title": "Chat from-1.2.7",
+            "updatedAt": 9000,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "x1",
+                "role": "user",
+                "content": "back on the old version",
+                "textContent": "back on the old version"
+              }
+            ]
+          },
+          {
+            "id": "release",
+            "title": "Plan the release",
+            "updatedAt": 3000,
+            "isOutOfContext": true,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 0,
+              "summary": "Release is on Friday.",
+              "updatedAt": 2500
+            },
+            "messages": [
+              {
+                "content": "when is the release?",
+                "textContent": "when is the release?",
+                "role": "user",
+                "id": "r1"
+              }
+            ]
+          },
+          {
+            "id": "from-2",
+            "title": "Written by 2.0",
+            "updatedAt": 2000,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "content": "hello from 2.0",
+                "role": "user",
+                "id": "m1",
+                "attachments": [
+                  {
+                    "name": "shot.png",
+                    "type": "image/png",
+                    "content": "data:image/png;base64,iVBORw0KGgo="
+                  }
+                ]
+              },
+              {
+                "content": "hi",
+                "textContent": "hi",
+                "metrics": {
+                  "responseTokens": 5,
+                  "tokensPerSecond": 12.5
+                },
+                "role": "assistant",
+                "id": "m2"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "chatId": "from-1.2.7",
+            "messageId": "x1",
+            "title": "Chat from-1.2.7",
+            "excerpt": "back on the [old version]\nback on the [old version]"
+          }
+        ],
+        {
+          "success": true
+        },
+        [
+          {
+            "id": "from-1.2.7",
+            "title": "Chat from-1.2.7",
+            "updatedAt": 9000,
+            "isOutOfContext": false,
+            "isGenerating": false,
+            "compaction": null,
+            "messages": [
+              {
+                "id": "x1",
+                "role": "user",
+                "content": "back on the old version",
+                "textContent": "back on the old version"
+              }
+            ]
+          },
+          {
+            "id": "release",
+            "title": "Plan the release",
+            "updatedAt": 3000,
+            "isOutOfContext": true,
+            "isGenerating": false,
+            "compaction": {
+              "throughIndex": 0,
+              "summary": "Release is on Friday.",
+              "updatedAt": 2500
+            },
+            "messages": [
+              {
+                "content": "when is the release?",
+                "textContent": "when is the release?",
+                "role": "user",
+                "id": "r1"
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3984 @@
+{
+  "area": "tools",
+  "description": "git.createGit(...).status with a scripted runner. Input: {responses, root}. responses maps a subcommand (--version, rev-parse, config, status) to {code, stdout | tokens, stderr, missing}; tokens are joined with NUL and each followed by NUL. An unlisted subcommand answers code 0 with empty output. Expected: {result, calls}, where result is the status answer and calls lists every git argv in order, space-joined, including the safety flags.",
+  "cases": [
+    {
+      "name": "a machine without git says so and runs nothing else",
+      "input": {
+        "responses": {
+          "--version": {
+            "code": -1,
+            "missing": true
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": false,
+          "isRepo": false
+        },
+        "calls": [
+          "--version"
+        ]
+      }
+    },
+    {
+      "name": "a folder that is not a repository says so",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "code": 128,
+            "stderr": "fatal: not a git repository"
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": false
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix"
+        ]
+      }
+    },
+    {
+      "name": "a driver name that could slip past the override refuses the repository",
+      "input": {
+        "responses": {
+          "config": {
+            "code": 0,
+            "stdout": "filter.a=b.clean\n"
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": false,
+          "available": true,
+          "isRepo": true,
+          "error": "This repository's configuration could run programs, so Draggy will not read it."
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$"
+        ]
+      }
+    },
+    {
+      "name": "a clean repository reports its branch and no files",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "stdout": "\n"
+          },
+          "status": {
+            "tokens": [
+              "# branch.head main",
+              "# branch.upstream origin/main",
+              "# branch.ab +0 -0"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": "main",
+          "detached": false,
+          "upstream": "origin/main",
+          "ahead": 0,
+          "behind": 0,
+          "files": [],
+          "truncated": false,
+          "counts": {
+            "modified": 0,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 0,
+            "untracked": 0,
+            "conflicted": 0
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "every filter driver the repository names is blanked on the status call",
+      "input": {
+        "responses": {
+          "config": {
+            "stdout": "filter.lfs.clean\nfilter.lfs.process\nfilter.evil.clean\n"
+          },
+          "status": {
+            "tokens": [
+              "# branch.head main",
+              "1 .M N... 100644 100644 100644 a b src/a.ts"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": "main",
+          "detached": false,
+          "upstream": null,
+          "ahead": 0,
+          "behind": 0,
+          "files": [
+            {
+              "path": "src/a.ts",
+              "kind": "modified",
+              "staged": false,
+              "unstaged": true
+            }
+          ],
+          "truncated": false,
+          "counts": {
+            "modified": 1,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 0,
+            "untracked": 0,
+            "conflicted": 0
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false -c filter.lfs.clean= -c filter.lfs.smudge= -c filter.lfs.process= -c filter.evil.clean= -c filter.evil.smudge= -c filter.evil.process= status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "a failed status reports git's first line",
+      "input": {
+        "responses": {
+          "status": {
+            "code": 128,
+            "stderr": "fatal: bad\nmore detail"
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": false,
+          "available": true,
+          "isRepo": true,
+          "error": "fatal: bad"
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "a rename shows both names",
+      "input": {
+        "responses": {
+          "status": {
+            "tokens": [
+              "# branch.head main",
+              "2 R. N... 100644 100644 100644 eee fff R100 docs/guide.md",
+              "guide.md"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": "main",
+          "detached": false,
+          "upstream": null,
+          "ahead": 0,
+          "behind": 0,
+          "files": [
+            {
+              "path": "docs/guide.md",
+              "from": "guide.md",
+              "kind": "renamed",
+              "staged": true,
+              "unstaged": false
+            }
+          ],
+          "truncated": false,
+          "counts": {
+            "modified": 0,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 1,
+            "untracked": 0,
+            "conflicted": 0
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "a project inside a repository sees only its own files",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "stdout": "app/\n"
+          },
+          "status": {
+            "tokens": [
+              "1 .M N... 100644 100644 100644 a b app/src/main.ts",
+              "? app/readme.md"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": null,
+          "detached": false,
+          "upstream": null,
+          "ahead": 0,
+          "behind": 0,
+          "files": [
+            {
+              "path": "src/main.ts",
+              "kind": "modified",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "readme.md",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            }
+          ],
+          "truncated": false,
+          "counts": {
+            "modified": 1,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 0,
+            "untracked": 1,
+            "conflicted": 0
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "untracked and conflicted files are counted by kind",
+      "input": {
+        "responses": {
+          "status": {
+            "tokens": [
+              "# branch.head main",
+              "? a.txt",
+              "u UU N... 100644 100644 100644 100644 a b c conflict.ts"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": "main",
+          "detached": false,
+          "upstream": null,
+          "ahead": 0,
+          "behind": 0,
+          "files": [
+            {
+              "path": "a.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "conflict.ts",
+              "kind": "conflicted",
+              "staged": true,
+              "unstaged": true
+            }
+          ],
+          "truncated": false,
+          "counts": {
+            "modified": 0,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 0,
+            "untracked": 1,
+            "conflicted": 1
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "a status listing stops at five hundred files and says so",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "stdout": "\n"
+          },
+          "status": {
+            "tokens": [
+              "? f0000.txt",
+              "? f0001.txt",
+              "? f0002.txt",
+              "? f0003.txt",
+              "? f0004.txt",
+              "? f0005.txt",
+              "? f0006.txt",
+              "? f0007.txt",
+              "? f0008.txt",
+              "? f0009.txt",
+              "? f0010.txt",
+              "? f0011.txt",
+              "? f0012.txt",
+              "? f0013.txt",
+              "? f0014.txt",
+              "? f0015.txt",
+              "? f0016.txt",
+              "? f0017.txt",
+              "? f0018.txt",
+              "? f0019.txt",
+              "? f0020.txt",
+              "? f0021.txt",
+              "? f0022.txt",
+              "? f0023.txt",
+              "? f0024.txt",
+              "? f0025.txt",
+              "? f0026.txt",
+              "? f0027.txt",
+              "? f0028.txt",
+              "? f0029.txt",
+              "? f0030.txt",
+              "? f0031.txt",
+              "? f0032.txt",
+              "? f0033.txt",
+              "? f0034.txt",
+              "? f0035.txt",
+              "? f0036.txt",
+              "? f0037.txt",
+              "? f0038.txt",
+              "? f0039.txt",
+              "? f0040.txt",
+              "? f0041.txt",
+              "? f0042.txt",
+              "? f0043.txt",
+              "? f0044.txt",
+              "? f0045.txt",
+              "? f0046.txt",
+              "? f0047.txt",
+              "? f0048.txt",
+              "? f0049.txt",
+              "? f0050.txt",
+              "? f0051.txt",
+              "? f0052.txt",
+              "? f0053.txt",
+              "? f0054.txt",
+              "? f0055.txt",
+              "? f0056.txt",
+              "? f0057.txt",
+              "? f0058.txt",
+              "? f0059.txt",
+              "? f0060.txt",
+              "? f0061.txt",
+              "? f0062.txt",
+              "? f0063.txt",
+              "? f0064.txt",
+              "? f0065.txt",
+              "? f0066.txt",
+              "? f0067.txt",
+              "? f0068.txt",
+              "? f0069.txt",
+              "? f0070.txt",
+              "? f0071.txt",
+              "? f0072.txt",
+              "? f0073.txt",
+              "? f0074.txt",
+              "? f0075.txt",
+              "? f0076.txt",
+              "? f0077.txt",
+              "? f0078.txt",
+              "? f0079.txt",
+              "? f0080.txt",
+              "? f0081.txt",
+              "? f0082.txt",
+              "? f0083.txt",
+              "? f0084.txt",
+              "? f0085.txt",
+              "? f0086.txt",
+              "? f0087.txt",
+              "? f0088.txt",
+              "? f0089.txt",
+              "? f0090.txt",
+              "? f0091.txt",
+              "? f0092.txt",
+              "? f0093.txt",
+              "? f0094.txt",
+              "? f0095.txt",
+              "? f0096.txt",
+              "? f0097.txt",
+              "? f0098.txt",
+              "? f0099.txt",
+              "? f0100.txt",
+              "? f0101.txt",
+              "? f0102.txt",
+              "? f0103.txt",
+              "? f0104.txt",
+              "? f0105.txt",
+              "? f0106.txt",
+              "? f0107.txt",
+              "? f0108.txt",
+              "? f0109.txt",
+              "? f0110.txt",
+              "? f0111.txt",
+              "? f0112.txt",
+              "? f0113.txt",
+              "? f0114.txt",
+              "? f0115.txt",
+              "? f0116.txt",
+              "? f0117.txt",
+              "? f0118.txt",
+              "? f0119.txt",
+              "? f0120.txt",
+              "? f0121.txt",
+              "? f0122.txt",
+              "? f0123.txt",
+              "? f0124.txt",
+              "? f0125.txt",
+              "? f0126.txt",
+              "? f0127.txt",
+              "? f0128.txt",
+              "? f0129.txt",
+              "? f0130.txt",
+              "? f0131.txt",
+              "? f0132.txt",
+              "? f0133.txt",
+              "? f0134.txt",
+              "? f0135.txt",
+              "? f0136.txt",
+              "? f0137.txt",
+              "? f0138.txt",
+              "? f0139.txt",
+              "? f0140.txt",
+              "? f0141.txt",
+              "? f0142.txt",
+              "? f0143.txt",
+              "? f0144.txt",
+              "? f0145.txt",
+              "? f0146.txt",
+              "? f0147.txt",
+              "? f0148.txt",
+              "? f0149.txt",
+              "? f0150.txt",
+              "? f0151.txt",
+              "? f0152.txt",
+              "? f0153.txt",
+              "? f0154.txt",
+              "? f0155.txt",
+              "? f0156.txt",
+              "? f0157.txt",
+              "? f0158.txt",
+              "? f0159.txt",
+              "? f0160.txt",
+              "? f0161.txt",
+              "? f0162.txt",
+              "? f0163.txt",
+              "? f0164.txt",
+              "? f0165.txt",
+              "? f0166.txt",
+              "? f0167.txt",
+              "? f0168.txt",
+              "? f0169.txt",
+              "? f0170.txt",
+              "? f0171.txt",
+              "? f0172.txt",
+              "? f0173.txt",
+              "? f0174.txt",
+              "? f0175.txt",
+              "? f0176.txt",
+              "? f0177.txt",
+              "? f0178.txt",
+              "? f0179.txt",
+              "? f0180.txt",
+              "? f0181.txt",
+              "? f0182.txt",
+              "? f0183.txt",
+              "? f0184.txt",
+              "? f0185.txt",
+              "? f0186.txt",
+              "? f0187.txt",
+              "? f0188.txt",
+              "? f0189.txt",
+              "? f0190.txt",
+              "? f0191.txt",
+              "? f0192.txt",
+              "? f0193.txt",
+              "? f0194.txt",
+              "? f0195.txt",
+              "? f0196.txt",
+              "? f0197.txt",
+              "? f0198.txt",
+              "? f0199.txt",
+              "? f0200.txt",
+              "? f0201.txt",
+              "? f0202.txt",
+              "? f0203.txt",
+              "? f0204.txt",
+              "? f0205.txt",
+              "? f0206.txt",
+              "? f0207.txt",
+              "? f0208.txt",
+              "? f0209.txt",
+              "? f0210.txt",
+              "? f0211.txt",
+              "? f0212.txt",
+              "? f0213.txt",
+              "? f0214.txt",
+              "? f0215.txt",
+              "? f0216.txt",
+              "? f0217.txt",
+              "? f0218.txt",
+              "? f0219.txt",
+              "? f0220.txt",
+              "? f0221.txt",
+              "? f0222.txt",
+              "? f0223.txt",
+              "? f0224.txt",
+              "? f0225.txt",
+              "? f0226.txt",
+              "? f0227.txt",
+              "? f0228.txt",
+              "? f0229.txt",
+              "? f0230.txt",
+              "? f0231.txt",
+              "? f0232.txt",
+              "? f0233.txt",
+              "? f0234.txt",
+              "? f0235.txt",
+              "? f0236.txt",
+              "? f0237.txt",
+              "? f0238.txt",
+              "? f0239.txt",
+              "? f0240.txt",
+              "? f0241.txt",
+              "? f0242.txt",
+              "? f0243.txt",
+              "? f0244.txt",
+              "? f0245.txt",
+              "? f0246.txt",
+              "? f0247.txt",
+              "? f0248.txt",
+              "? f0249.txt",
+              "? f0250.txt",
+              "? f0251.txt",
+              "? f0252.txt",
+              "? f0253.txt",
+              "? f0254.txt",
+              "? f0255.txt",
+              "? f0256.txt",
+              "? f0257.txt",
+              "? f0258.txt",
+              "? f0259.txt",
+              "? f0260.txt",
+              "? f0261.txt",
+              "? f0262.txt",
+              "? f0263.txt",
+              "? f0264.txt",
+              "? f0265.txt",
+              "? f0266.txt",
+              "? f0267.txt",
+              "? f0268.txt",
+              "? f0269.txt",
+              "? f0270.txt",
+              "? f0271.txt",
+              "? f0272.txt",
+              "? f0273.txt",
+              "? f0274.txt",
+              "? f0275.txt",
+              "? f0276.txt",
+              "? f0277.txt",
+              "? f0278.txt",
+              "? f0279.txt",
+              "? f0280.txt",
+              "? f0281.txt",
+              "? f0282.txt",
+              "? f0283.txt",
+              "? f0284.txt",
+              "? f0285.txt",
+              "? f0286.txt",
+              "? f0287.txt",
+              "? f0288.txt",
+              "? f0289.txt",
+              "? f0290.txt",
+              "? f0291.txt",
+              "? f0292.txt",
+              "? f0293.txt",
+              "? f0294.txt",
+              "? f0295.txt",
+              "? f0296.txt",
+              "? f0297.txt",
+              "? f0298.txt",
+              "? f0299.txt",
+              "? f0300.txt",
+              "? f0301.txt",
+              "? f0302.txt",
+              "? f0303.txt",
+              "? f0304.txt",
+              "? f0305.txt",
+              "? f0306.txt",
+              "? f0307.txt",
+              "? f0308.txt",
+              "? f0309.txt",
+              "? f0310.txt",
+              "? f0311.txt",
+              "? f0312.txt",
+              "? f0313.txt",
+              "? f0314.txt",
+              "? f0315.txt",
+              "? f0316.txt",
+              "? f0317.txt",
+              "? f0318.txt",
+              "? f0319.txt",
+              "? f0320.txt",
+              "? f0321.txt",
+              "? f0322.txt",
+              "? f0323.txt",
+              "? f0324.txt",
+              "? f0325.txt",
+              "? f0326.txt",
+              "? f0327.txt",
+              "? f0328.txt",
+              "? f0329.txt",
+              "? f0330.txt",
+              "? f0331.txt",
+              "? f0332.txt",
+              "? f0333.txt",
+              "? f0334.txt",
+              "? f0335.txt",
+              "? f0336.txt",
+              "? f0337.txt",
+              "? f0338.txt",
+              "? f0339.txt",
+              "? f0340.txt",
+              "? f0341.txt",
+              "? f0342.txt",
+              "? f0343.txt",
+              "? f0344.txt",
+              "? f0345.txt",
+              "? f0346.txt",
+              "? f0347.txt",
+              "? f0348.txt",
+              "? f0349.txt",
+              "? f0350.txt",
+              "? f0351.txt",
+              "? f0352.txt",
+              "? f0353.txt",
+              "? f0354.txt",
+              "? f0355.txt",
+              "? f0356.txt",
+              "? f0357.txt",
+              "? f0358.txt",
+              "? f0359.txt",
+              "? f0360.txt",
+              "? f0361.txt",
+              "? f0362.txt",
+              "? f0363.txt",
+              "? f0364.txt",
+              "? f0365.txt",
+              "? f0366.txt",
+              "? f0367.txt",
+              "? f0368.txt",
+              "? f0369.txt",
+              "? f0370.txt",
+              "? f0371.txt",
+              "? f0372.txt",
+              "? f0373.txt",
+              "? f0374.txt",
+              "? f0375.txt",
+              "? f0376.txt",
+              "? f0377.txt",
+              "? f0378.txt",
+              "? f0379.txt",
+              "? f0380.txt",
+              "? f0381.txt",
+              "? f0382.txt",
+              "? f0383.txt",
+              "? f0384.txt",
+              "? f0385.txt",
+              "? f0386.txt",
+              "? f0387.txt",
+              "? f0388.txt",
+              "? f0389.txt",
+              "? f0390.txt",
+              "? f0391.txt",
+              "? f0392.txt",
+              "? f0393.txt",
+              "? f0394.txt",
+              "? f0395.txt",
+              "? f0396.txt",
+              "? f0397.txt",
+              "? f0398.txt",
+              "? f0399.txt",
+              "? f0400.txt",
+              "? f0401.txt",
+              "? f0402.txt",
+              "? f0403.txt",
+              "? f0404.txt",
+              "? f0405.txt",
+              "? f0406.txt",
+              "? f0407.txt",
+              "? f0408.txt",
+              "? f0409.txt",
+              "? f0410.txt",
+              "? f0411.txt",
+              "? f0412.txt",
+              "? f0413.txt",
+              "? f0414.txt",
+              "? f0415.txt",
+              "? f0416.txt",
+              "? f0417.txt",
+              "? f0418.txt",
+              "? f0419.txt",
+              "? f0420.txt",
+              "? f0421.txt",
+              "? f0422.txt",
+              "? f0423.txt",
+              "? f0424.txt",
+              "? f0425.txt",
+              "? f0426.txt",
+              "? f0427.txt",
+              "? f0428.txt",
+              "? f0429.txt",
+              "? f0430.txt",
+              "? f0431.txt",
+              "? f0432.txt",
+              "? f0433.txt",
+              "? f0434.txt",
+              "? f0435.txt",
+              "? f0436.txt",
+              "? f0437.txt",
+              "? f0438.txt",
+              "? f0439.txt",
+              "? f0440.txt",
+              "? f0441.txt",
+              "? f0442.txt",
+              "? f0443.txt",
+              "? f0444.txt",
+              "? f0445.txt",
+              "? f0446.txt",
+              "? f0447.txt",
+              "? f0448.txt",
+              "? f0449.txt",
+              "? f0450.txt",
+              "? f0451.txt",
+              "? f0452.txt",
+              "? f0453.txt",
+              "? f0454.txt",
+              "? f0455.txt",
+              "? f0456.txt",
+              "? f0457.txt",
+              "? f0458.txt",
+              "? f0459.txt",
+              "? f0460.txt",
+              "? f0461.txt",
+              "? f0462.txt",
+              "? f0463.txt",
+              "? f0464.txt",
+              "? f0465.txt",
+              "? f0466.txt",
+              "? f0467.txt",
+              "? f0468.txt",
+              "? f0469.txt",
+              "? f0470.txt",
+              "? f0471.txt",
+              "? f0472.txt",
+              "? f0473.txt",
+              "? f0474.txt",
+              "? f0475.txt",
+              "? f0476.txt",
+              "? f0477.txt",
+              "? f0478.txt",
+              "? f0479.txt",
+              "? f0480.txt",
+              "? f0481.txt",
+              "? f0482.txt",
+              "? f0483.txt",
+              "? f0484.txt",
+              "? f0485.txt",
+              "? f0486.txt",
+              "? f0487.txt",
+              "? f0488.txt",
+              "? f0489.txt",
+              "? f0490.txt",
+              "? f0491.txt",
+              "? f0492.txt",
+              "? f0493.txt",
+              "? f0494.txt",
+              "? f0495.txt",
+              "? f0496.txt",
+              "? f0497.txt",
+              "? f0498.txt",
+              "? f0499.txt",
+              "? f0500.txt",
+              "? f0501.txt",
+              "? f0502.txt",
+              "? f0503.txt",
+              "? f0504.txt"
+            ]
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": true,
+          "available": true,
+          "isRepo": true,
+          "branch": null,
+          "detached": false,
+          "upstream": null,
+          "ahead": 0,
+          "behind": 0,
+          "files": [
+            {
+              "path": "f0000.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0001.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0002.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0003.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0004.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0005.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0006.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0007.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0008.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0009.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0010.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0011.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0012.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0013.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0014.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0015.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0016.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0017.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0018.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0019.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0020.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0021.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0022.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0023.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0024.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0025.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0026.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0027.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0028.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0029.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0030.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0031.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0032.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0033.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0034.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0035.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0036.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0037.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0038.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0039.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0040.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0041.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0042.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0043.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0044.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0045.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0046.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0047.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0048.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0049.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0050.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0051.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0052.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0053.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0054.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0055.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0056.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0057.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0058.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0059.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0060.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0061.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0062.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0063.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0064.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0065.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0066.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0067.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0068.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0069.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0070.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0071.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0072.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0073.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0074.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0075.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0076.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0077.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0078.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0079.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0080.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0081.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0082.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0083.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0084.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0085.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0086.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0087.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0088.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0089.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0090.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0091.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0092.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0093.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0094.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0095.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0096.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0097.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0098.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0099.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0100.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0101.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0102.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0103.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0104.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0105.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0106.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0107.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0108.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0109.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0110.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0111.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0112.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0113.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0114.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0115.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0116.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0117.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0118.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0119.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0120.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0121.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0122.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0123.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0124.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0125.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0126.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0127.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0128.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0129.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0130.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0131.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0132.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0133.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0134.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0135.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0136.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0137.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0138.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0139.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0140.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0141.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0142.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0143.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0144.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0145.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0146.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0147.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0148.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0149.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0150.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0151.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0152.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0153.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0154.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0155.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0156.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0157.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0158.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0159.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0160.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0161.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0162.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0163.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0164.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0165.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0166.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0167.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0168.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0169.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0170.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0171.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0172.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0173.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0174.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0175.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0176.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0177.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0178.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0179.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0180.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0181.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0182.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0183.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0184.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0185.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0186.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0187.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0188.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0189.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0190.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0191.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0192.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0193.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0194.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0195.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0196.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0197.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0198.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0199.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0200.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0201.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0202.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0203.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0204.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0205.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0206.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0207.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0208.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0209.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0210.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0211.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0212.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0213.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0214.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0215.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0216.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0217.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0218.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0219.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0220.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0221.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0222.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0223.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0224.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0225.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0226.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0227.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0228.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0229.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0230.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0231.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0232.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0233.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0234.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0235.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0236.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0237.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0238.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0239.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0240.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0241.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0242.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0243.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0244.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0245.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0246.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0247.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0248.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0249.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0250.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0251.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0252.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0253.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0254.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0255.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0256.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0257.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0258.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0259.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0260.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0261.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0262.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0263.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0264.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0265.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0266.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0267.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0268.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0269.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0270.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0271.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0272.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0273.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0274.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0275.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0276.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0277.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0278.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0279.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0280.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0281.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0282.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0283.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0284.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0285.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0286.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0287.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0288.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0289.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0290.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0291.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0292.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0293.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0294.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0295.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0296.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0297.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0298.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0299.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0300.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0301.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0302.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0303.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0304.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0305.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0306.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0307.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0308.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0309.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0310.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0311.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0312.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0313.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0314.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0315.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0316.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0317.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0318.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0319.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0320.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0321.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0322.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0323.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0324.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0325.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0326.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0327.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0328.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0329.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0330.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0331.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0332.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0333.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0334.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0335.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0336.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0337.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0338.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0339.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0340.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0341.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0342.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0343.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0344.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0345.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0346.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0347.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0348.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0349.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0350.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0351.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0352.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0353.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0354.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0355.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0356.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0357.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0358.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0359.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0360.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0361.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0362.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0363.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0364.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0365.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0366.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0367.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0368.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0369.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0370.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0371.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0372.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0373.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0374.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0375.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0376.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0377.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0378.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0379.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0380.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0381.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0382.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0383.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0384.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0385.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0386.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0387.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0388.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0389.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0390.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0391.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0392.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0393.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0394.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0395.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0396.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0397.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0398.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0399.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0400.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0401.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0402.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0403.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0404.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0405.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0406.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0407.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0408.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0409.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0410.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0411.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0412.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0413.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0414.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0415.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0416.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0417.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0418.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0419.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0420.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0421.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0422.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0423.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0424.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0425.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0426.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0427.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0428.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0429.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0430.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0431.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0432.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0433.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0434.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0435.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0436.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0437.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0438.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0439.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0440.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0441.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0442.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0443.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0444.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0445.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0446.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0447.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0448.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0449.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0450.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0451.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0452.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0453.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0454.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0455.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0456.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0457.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0458.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0459.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0460.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0461.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0462.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0463.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0464.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0465.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0466.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0467.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0468.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0469.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0470.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0471.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0472.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0473.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0474.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0475.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0476.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0477.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0478.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0479.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0480.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0481.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0482.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0483.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0484.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0485.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0486.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0487.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0488.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0489.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0490.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0491.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0492.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0493.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0494.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0495.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0496.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0497.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0498.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            },
+            {
+              "path": "f0499.txt",
+              "kind": "untracked",
+              "staged": false,
+              "unstaged": true
+            }
+          ],
+          "truncated": true,
+          "counts": {
+            "modified": 0,
+            "added": 0,
+            "deleted": 0,
+            "renamed": 0,
+            "untracked": 500,
+            "conflicted": 0
+          }
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    },
+    {
+      "name": "a failed status says the first line and logs the last three stderr lines as an error",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "stdout": "\n"
+          },
+          "status": {
+            "code": 128,
+            "stderr": "fatal: one\nfatal: two\nfatal: three\nfatal: four\n"
+          }
+        },
+        "root": "{base}/repo",
+        "logs": true
+      },
+      "expected": {
+        "result": {
+          "success": false,
+          "available": true,
+          "isRepo": true,
+          "error": "fatal: one"
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ],
+        "logs": [
+          {
+            "level": "error",
+            "message": "status failed",
+            "data": {
+              "subcommand": "status",
+              "code": 128,
+              "stderrTail": "fatal: two | fatal: three | fatal: four"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a lone carriage return does not end the first line of git's complaint",
+      "input": {
+        "responses": {
+          "rev-parse": {
+            "stdout": "\n"
+          },
+          "status": {
+            "code": 128,
+            "stderr": "fatal: a\rb"
+          }
+        },
+        "root": "{base}/repo"
+      },
+      "expected": {
+        "result": {
+          "success": false,
+          "available": true,
+          "isRepo": true,
+          "error": "fatal: a\rb"
+        },
+        "calls": [
+          "--version",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false rev-parse --show-prefix",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false config --name-only --get-regexp ^filter\\..*\\.(clean|smudge|process)$",
+          "--no-pager --literal-pathspecs -c core.fsmonitor=false -c core.quotepath=false -c color.ui=false status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=all -- ."
+        ]
+      }
+    }
+  ]
+}

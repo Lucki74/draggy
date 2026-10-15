@@ -1,0 +1,884 @@
+{
+  "area": "models",
+  "description": "Which draft pairs with a model. `familyDraftFor` and `skipReason` take a header object (missing keys read as null, false or 0) and, for skipReason, a size in bytes. `planDraft` takes files that the runner creates in a temp dir: `hex` is the leading bytes, `size` the length (extended with zeros); `model` names one of them. Expected is the plan {family, url, filename} or null. The download itself is not part of this area.",
+  "cases": [
+    {
+      "name": "llama 3 vocabulary pairs with the llama3 draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "llama",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 128256,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "llama3",
+        "vocab": "128256",
+        "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+      }
+    },
+    {
+      "name": "vocabulary exactly 128 apart still pairs",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "llama",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 128384,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "llama3",
+        "vocab": "128256",
+        "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+      }
+    },
+    {
+      "name": "vocabulary 129 apart does not pair",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "llama",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 128385,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "mistral is a llama architecture with another vocabulary",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "llama",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 131072,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "qwen2 pairs with the qwen2 draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen2",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 152064,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "qwen2",
+        "vocab": "151936",
+        "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        "file": "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+      }
+    },
+    {
+      "name": "qwen3moe pairs with the qwen3 draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen3moe",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 151936,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "qwen3",
+        "vocab": "151936",
+        "repo": "Qwen/Qwen3-0.6B-GGUF",
+        "file": "Qwen3-0.6B-Q8_0.gguf"
+      }
+    },
+    {
+      "name": "qwen3 mixture of experts shares the qwen3 draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen3",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 151936,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "qwen3",
+        "vocab": "151936",
+        "repo": "Qwen/Qwen3-0.6B-GGUF",
+        "file": "Qwen3-0.6B-Q8_0.gguf"
+      }
+    },
+    {
+      "name": "qwen35 pairs with qwen3.5 whatever its vocabulary",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen35",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 248320,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "qwen3.5",
+        "vocab": null,
+        "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+        "file": "Qwen3.5-0.8B-Q4_K_M.gguf"
+      }
+    },
+    {
+      "name": "qwen35moe pairs with qwen3.5 even with a tiny vocabulary",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen35moe",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 1,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "qwen3.5",
+        "vocab": null,
+        "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+        "file": "Qwen3.5-0.8B-Q4_K_M.gguf"
+      }
+    },
+    {
+      "name": "gemma3 pairs with the gemma3 draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "gemma3",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 262144,
+          "version": 3
+        }
+      },
+      "expected": {
+        "family": "gemma3",
+        "vocab": "262144",
+        "repo": "ggml-org/gemma-3-270m-it-GGUF",
+        "file": "gemma-3-270m-it-Q8_0.gguf"
+      }
+    },
+    {
+      "name": "phi3 has no family draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "phi3",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 100352,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "architecture that only starts like a family does not pair",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen3-moe",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 151936,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "qwen2 without a vocabulary size does not pair",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "qwen2",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "zero vocabulary does not pair with a vocabulary-checked family",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "llama",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 0,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "empty architecture does not pair",
+      "input": {
+        "op": "familyDraftFor",
+        "header": {
+          "architecture": "",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": 128256,
+          "version": 3
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "unreadable header has no family draft",
+      "input": {
+        "op": "familyDraftFor",
+        "header": null
+      },
+      "expected": null
+    },
+    {
+      "name": "MTP heads skip the draft",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": true,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 10737418240
+      },
+      "expected": "drafts from its own MTP heads"
+    },
+    {
+      "name": "mixture of experts skips the draft",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 128,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 21474836480
+      },
+      "expected": "mixture of experts"
+    },
+    {
+      "name": "one expert is not a mixture",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 1,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 5368709120
+      },
+      "expected": null
+    },
+    {
+      "name": "a small model skips the draft",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 1073741824
+      },
+      "expected": "too small to gain from a draft"
+    },
+    {
+      "name": "a model of 5 GiB gets a draft",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 5368709120
+      },
+      "expected": null
+    },
+    {
+      "name": "exactly 2.5 GiB is not too small",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 2684354560
+      },
+      "expected": null
+    },
+    {
+      "name": "one byte under 2.5 GiB is too small",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 0,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 2684354559
+      },
+      "expected": "too small to gain from a draft"
+    },
+    {
+      "name": "MTP is reported before experts",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 8,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": true,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 21474836480
+      },
+      "expected": "drafts from its own MTP heads"
+    },
+    {
+      "name": "experts are reported before size",
+      "input": {
+        "op": "skipReason",
+        "header": {
+          "architecture": "unknown",
+          "contextLength": null,
+          "blockCount": null,
+          "embeddingLength": null,
+          "fileType": null,
+          "name": null,
+          "expertCount": 8,
+          "expertUsedCount": 0,
+          "headCountKv": null,
+          "keyLength": null,
+          "valueLength": null,
+          "mtp": false,
+          "tokenizerModel": null,
+          "tokenizerPre": null,
+          "vocabSize": null,
+          "version": 3
+        },
+        "modelBytes": 1073741824
+      },
+      "expected": "mixture of experts"
+    },
+    {
+      "name": "unreadable header is reported before size",
+      "input": {
+        "op": "skipReason",
+        "header": null,
+        "modelBytes": 1073741824
+      },
+      "expected": "unreadable header"
+    },
+    {
+      "name": "family table",
+      "input": {
+        "op": "table"
+      },
+      "expected": [
+        {
+          "family": "qwen3",
+          "vocab": "151936",
+          "repo": "Qwen/Qwen3-0.6B-GGUF",
+          "file": "Qwen3-0.6B-Q8_0.gguf"
+        },
+        {
+          "family": "qwen3.5",
+          "vocab": null,
+          "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+          "file": "Qwen3.5-0.8B-Q4_K_M.gguf"
+        },
+        {
+          "family": "qwen2",
+          "vocab": "151936",
+          "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+          "file": "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        },
+        {
+          "family": "llama3",
+          "vocab": "128256",
+          "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+          "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+        },
+        {
+          "family": "gemma3",
+          "vocab": "262144",
+          "repo": "ggml-org/gemma-3-270m-it-GGUF",
+          "file": "gemma-3-270m-it-Q8_0.gguf"
+        }
+      ]
+    },
+    {
+      "name": "llama 8B model gets the llama3 draft beside it",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "Llama-3.1-8B-Q4_K_M.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d6111000000000000006c6c616d612e626c6f636b5f636f756e7404000000200000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000f5010000000000"
+          }
+        ],
+        "model": "Llama-3.1-8B-Q4_K_M.gguf"
+      },
+      "expected": {
+        "family": "llama3",
+        "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+        "filename": "Llama-3.1-8B-Q4_K_M-draft.gguf"
+      }
+    },
+    {
+      "name": "split model names the draft without its part counter",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "Llama-3.1-8B-00001-of-00002.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d6111000000000000006c6c616d612e626c6f636b5f636f756e7404000000200000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000f5010000000000"
+          }
+        ],
+        "model": "Llama-3.1-8B-00001-of-00002.gguf"
+      },
+      "expected": {
+        "family": "llama3",
+        "url": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+        "filename": "Llama-3.1-8B-draft.gguf"
+      }
+    },
+    {
+      "name": "model under 2.5 GiB gets no draft",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "small.gguf",
+            "size": 2147483648,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d6111000000000000006c6c616d612e626c6f636b5f636f756e7404000000200000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000f5010000000000"
+          }
+        ],
+        "model": "small.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "a model with a draft beside it gets no new plan",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "m.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d6111000000000000006c6c616d612e626c6f636b5f636f756e7404000000200000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000f5010000000000"
+          },
+          {
+            "name": "m-draft.gguf",
+            "size": 1
+          }
+        ],
+        "model": "m.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "a draft file is never planned for itself",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "m-draft.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d6111000000000000006c6c616d612e626c6f636b5f636f756e7404000000200000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000f5010000000000"
+          }
+        ],
+        "model": "m-draft.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "mixture of experts gets no draft",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "moe.gguf",
+            "size": 21474836480,
+            "hex": "474755460300000000000000000000000300000000000000140000000000000067656e6572616c2e6172636869746563747572650800000008000000000000007177656e336d6f6515000000000000007177656e336d6f652e6578706572745f636f756e7404000000080000001500000000000000746f6b656e697a65722e67676d6c2e746f6b656e7309000000080000008051020000000000"
+          }
+        ],
+        "model": "moe.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "MTP heads get no draft",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "mtp.gguf",
+            "size": 21474836480,
+            "hex": "474755460300000000000000000000000200000000000000140000000000000067656e6572616c2e617263686974656374757265080000000700000000000000676c6d346d6f651c00000000000000676c6d346d6f652e6e6578746e5f707265646963745f6c61796572730400000001000000"
+          }
+        ],
+        "model": "mtp.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "a file that is not GGUF gets no draft",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "junk.gguf",
+            "size": 5368709120
+          }
+        ],
+        "model": "junk.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "mistral vocabulary gets no family draft",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "mistral.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000200000000000000140000000000000067656e6572616c2e6172636869746563747572650800000005000000000000006c6c616d611500000000000000746f6b656e697a65722e67676d6c2e746f6b656e7309000000080000000000020000000000"
+          }
+        ],
+        "model": "mistral.gguf"
+      },
+      "expected": null
+    },
+    {
+      "name": "qwen3.5 plans its draft without a vocabulary check",
+      "input": {
+        "op": "planDraft",
+        "files": [
+          {
+            "name": "q35.gguf",
+            "size": 5368709120,
+            "hex": "474755460300000000000000000000000200000000000000140000000000000067656e6572616c2e6172636869746563747572650800000006000000000000007177656e33351500000000000000746f6b656e697a65722e67676d6c2e746f6b656e73090000000800000000ca030000000000"
+          }
+        ],
+        "model": "q35.gguf"
+      },
+      "expected": {
+        "family": "qwen3.5",
+        "url": "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf?download=true",
+        "filename": "q35-draft.gguf"
+      }
+    },
+    {
+      "name": "missing model file gets no draft",
+      "input": {
+        "op": "planDraft",
+        "files": [],
+        "model": "absent.gguf"
+      },
+      "expected": null
+    }
+  ]
+}

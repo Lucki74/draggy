@@ -1,0 +1,740 @@
+{
+  "area": "providers",
+  "description": "rpc.cjs createRpc(): an ordered list of calls, input and time steps, with the lines sent, the answers settled, and the logs (fn rpcSession). Settled entries number the calls from 1.",
+  "cases": [
+    {
+      "name": "matches answers to calls by id, whatever order they come back in",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "thread/start",
+            "params": {
+              "model": "a"
+            }
+          },
+          {
+            "op": "call",
+            "method": "model/list"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":2,\"result\":{\"data\":[]}}\n"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"result\":{\"thread\":{\"id\":\"t\"}}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "thread/start",
+            "params": {
+              "model": "a"
+            }
+          },
+          {
+            "id": 2,
+            "method": "model/list"
+          }
+        ],
+        "settled": [
+          {
+            "call": 2,
+            "value": {
+              "data": []
+            }
+          },
+          {
+            "call": 1,
+            "value": {
+              "thread": {
+                "id": "t"
+              }
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 2
+      }
+    },
+    {
+      "name": "adds the jsonrpc field only when the protocol wants it",
+      "input": {
+        "fn": "rpcSession",
+        "jsonrpc": true,
+        "ops": [
+          {
+            "op": "notify",
+            "method": "initialized"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "jsonrpc": "2.0",
+            "method": "initialized"
+          }
+        ],
+        "settled": [],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [
+          true
+        ],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "without the jsonrpc field, a notification is bare",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "notify",
+            "method": "initialized"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "method": "initialized"
+          }
+        ],
+        "settled": [],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [
+          true
+        ],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "turns an error answer into an error carrying the runtime's code and data",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "account/read"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"error\":{\"code\":-32000,\"message\":\"not signed in\",\"data\":{\"x\":1}}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "account/read"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": -32000,
+              "message": "not signed in",
+              "data": {
+                "x": 1
+              }
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "an error answer without a message says Request failed",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"error\":{\"code\":5}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": 5,
+              "message": "Request failed",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "hands notifications over, split across chunks and joined in one",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "input",
+            "text": "{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"he"
+          },
+          {
+            "op": "input",
+            "text": "llo\"}}\n{\"method\":\"turn/completed\",\"params\":{}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [],
+        "settled": [],
+        "notifications": [
+          [
+            "item/agentMessage/delta",
+            {
+              "delta": "hello"
+            }
+          ],
+          [
+            "turn/completed",
+            {}
+          ]
+        ],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 0
+      }
+    },
+    {
+      "name": "a request with no handler is refused with -32601",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "input",
+            "text": "{\"id\":7,\"method\":\"item/tool/call\"}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 7,
+            "error": {
+              "code": -32601,
+              "message": "item/tool/call is not handled"
+            }
+          }
+        ],
+        "settled": [],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "a request the caller handles is answered with its result or its error",
+      "input": {
+        "fn": "rpcSession",
+        "handlesRequests": true,
+        "ops": [
+          {
+            "op": "input",
+            "text": "{\"id\":\"a\",\"method\":\"ok\",\"params\":{}}\n"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":\"b\",\"method\":\"deny\",\"params\":{}}\n"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":\"c\",\"method\":\"other\",\"params\":{}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": "a",
+            "result": {
+              "ok": true
+            }
+          },
+          {
+            "id": "b",
+            "error": {
+              "code": -32001,
+              "message": "denied"
+            }
+          },
+          {
+            "id": "c",
+            "error": {
+              "code": -32603,
+              "message": "x"
+            }
+          }
+        ],
+        "settled": [],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 3
+      }
+    },
+    {
+      "name": "gives up on a call that gets no answer in time",
+      "input": {
+        "fn": "rpcSession",
+        "fakeTimers": true,
+        "timeoutMs": 1000,
+        "ops": [
+          {
+            "op": "call",
+            "method": "turn/start",
+            "params": {},
+            "timeoutMs": 50
+          },
+          {
+            "op": "advance",
+            "ms": 60
+          },
+          {
+            "op": "call",
+            "method": "later"
+          },
+          {
+            "op": "advance",
+            "ms": 1000
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "turn/start",
+            "params": {}
+          },
+          {
+            "id": 2,
+            "method": "later"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": "timeout",
+              "message": "turn/start got no answer in 50 ms",
+              "data": null
+            }
+          },
+          {
+            "call": 2,
+            "error": {
+              "code": "timeout",
+              "message": "later got no answer in 1000 ms",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 2
+      }
+    },
+    {
+      "name": "a late answer after its timeout is ignored",
+      "input": {
+        "fn": "rpcSession",
+        "fakeTimers": true,
+        "timeoutMs": 1000,
+        "ops": [
+          {
+            "op": "call",
+            "method": "slow",
+            "timeoutMs": 10
+          },
+          {
+            "op": "advance",
+            "ms": 20
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"result\":{}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "slow"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": "timeout",
+              "message": "slow got no answer in 10 ms",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "rejects every waiting call when the runtime goes away, and refuses new ones",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "call",
+            "method": "b"
+          },
+          {
+            "op": "end"
+          },
+          {
+            "op": "call",
+            "method": "c"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          },
+          {
+            "id": 2,
+            "method": "b"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": "closed",
+              "message": "The runtime closed its connection",
+              "data": null
+            }
+          },
+          {
+            "call": 2,
+            "error": {
+              "code": "closed",
+              "message": "The runtime closed its connection",
+              "data": null
+            }
+          },
+          {
+            "call": 3,
+            "error": {
+              "code": "closed",
+              "message": "The runtime closed its connection",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": true,
+        "results": [],
+        "rawWrites": 2
+      }
+    },
+    {
+      "name": "logs a line that is not JSON by its length only",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "input",
+            "text": "not json code=secret123\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [],
+        "settled": [],
+        "notifications": [],
+        "logs": [
+          "dropped a line that is not JSON (23 chars)"
+        ],
+        "closed": false,
+        "results": [],
+        "rawWrites": 0
+      }
+    },
+    {
+      "name": "logs a line over the limit with its byte count",
+      "input": {
+        "fn": "rpcSession",
+        "maxLineBytes": 64,
+        "ops": [
+          {
+            "op": "input",
+            "text": "{\"method\":\"big\",\"params\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "op": "input",
+            "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}\n{\"method\":\"small\"}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [],
+        "settled": [],
+        "notifications": [
+          [
+            "small",
+            null
+          ]
+        ],
+        "logs": [
+          "dropped a line of 66 bytes over the limit"
+        ],
+        "closed": false,
+        "results": [],
+        "rawWrites": 0
+      }
+    },
+    {
+      "name": "a call after a close is refused and sends nothing",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "end"
+          },
+          {
+            "op": "call",
+            "method": "x"
+          },
+          {
+            "op": "notify",
+            "method": "y"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": "closed",
+              "message": "The runtime closed its connection",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": true,
+        "results": [
+          false
+        ],
+        "rawWrites": 0
+      }
+    },
+    {
+      "name": "a null error field is no error, so the result settles",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"result\":{\"ok\":true},\"error\":null}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "value": {
+              "ok": true
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "an empty error string is no error, as the reference reads falsiness",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"result\":{\"ok\":true},\"error\":\"\"}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "value": {
+              "ok": true
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "a zero error is no error and its result settles",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"result\":7,\"error\":0}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "value": 7
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    },
+    {
+      "name": "a message that is not text is written as the reference writes it",
+      "input": {
+        "fn": "rpcSession",
+        "ops": [
+          {
+            "op": "call",
+            "method": "a"
+          },
+          {
+            "op": "input",
+            "text": "{\"id\":1,\"error\":{\"code\":-1,\"message\":5}}\n"
+          }
+        ]
+      },
+      "expected": {
+        "sent": [
+          {
+            "id": 1,
+            "method": "a"
+          }
+        ],
+        "settled": [
+          {
+            "call": 1,
+            "error": {
+              "code": -1,
+              "message": "5",
+              "data": null
+            }
+          }
+        ],
+        "notifications": [],
+        "logs": [],
+        "closed": false,
+        "results": [],
+        "rawWrites": 1
+      }
+    }
+  ]
+}

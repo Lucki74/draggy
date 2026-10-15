@@ -1,0 +1,1988 @@
+{
+  "area": "mcp",
+  "description": "createHttpTransport: one POST per message over a fake fetch. Records each request (method, url, headers, JSON body), the results of each op, and the session id. A 401 is retried once when a refresh is available, and the goodbye after a session is a DELETE with no token.",
+  "cases": [
+    {
+      "name": "carries a call through and hands back the result",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {
+                "tools": [
+                  {
+                    "name": "search"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {
+              "tools": [
+                {
+                  "name": "search"
+                }
+              ]
+            }
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends a call with no params without a params field",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list"
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "numbers the requests in order",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": 1
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "result": 2
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "result": 3
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "a",
+            "params": {}
+          },
+          {
+            "op": "send",
+            "method": "b",
+            "params": {}
+          },
+          {
+            "op": "send",
+            "method": "c",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": 1
+          },
+          {
+            "ok": 2
+          },
+          {
+            "ok": 3
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "a",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "b",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "c",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "turns an error answer into a thrown error",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "error": {
+                "code": -32601,
+                "message": "No such method"
+              }
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "nope",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "No such method"
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "nope",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reads a server error with no message as a generic one",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "error": {
+                "code": 1
+              }
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server reported an error."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "says so when the server answers with nothing at all",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": ""
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server gave no answer to tools/list."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "says so when the server answers with a JSON null",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": "null"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server gave no answer to tools/list."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "gives a null result when the answer has none",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reports what an unhappy server said",
+      "input": {
+        "responses": [
+          {
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "the database is on fire"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 500: the database is on fire."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reports an unhappy server with no body by its status",
+      "input": {
+        "responses": [
+          {
+            "status": 500
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 500."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "cuts a long error body to 200 characters",
+      "input": {
+        "responses": [
+          {
+            "status": 503,
+            "body": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 503: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reports a body that is not JSON",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": "<html>"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "invalid json"
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reads past the notifications in an event stream",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "text/event-stream"
+            },
+            "body": "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/call",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {
+              "ok": true
+            }
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/call",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "ignores the keep-alive lines in an event stream",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "text/event-stream"
+            },
+            "body": ": hi\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/call",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {
+              "ok": true
+            }
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/call",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "gives no answer when an event stream has no message for the call",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "text/event-stream"
+            },
+            "body": "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\n"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/call",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server gave no answer to tools/call."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/call",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "treats a 202 as no answer for a call",
+      "input": {
+        "responses": [
+          {
+            "status": 202
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server gave no answer to x."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "accepts a 202 for a notification",
+      "input": {
+        "responses": [
+          {
+            "status": 202
+          }
+        ],
+        "ops": [
+          {
+            "op": "notify",
+            "method": "notifications/initialized",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends a notification with no id",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": ""
+          }
+        ],
+        "ops": [
+          {
+            "op": "notify",
+            "method": "notifications/initialized"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "method": "notifications/initialized"
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "keeps the session id and sends it on every later request",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          },
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          },
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": "session-7"
+      }
+    },
+    {
+      "name": "recognises a session id sent under session-id",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Session-Id": "session-8"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": "session-8"
+      }
+    },
+    {
+      "name": "prefers mcp-session-id when both are sent",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-a",
+              "Session-Id": "session-b"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": "session-a"
+      }
+    },
+    {
+      "name": "ignores an empty session id",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "",
+              "Session-Id": "session-9"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": "session-9"
+      }
+    },
+    {
+      "name": "does not keep a session id from an error answer",
+      "input": {
+        "responses": [
+          {
+            "status": 500,
+            "headers": {
+              "Mcp-Session-Id": "session-x"
+            },
+            "body": "no"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 500: no."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "says goodbye when it is closed",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": ""
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          },
+          {
+            "op": "close"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          },
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          },
+          {
+            "method": "DELETE",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Mcp-Session-Id": "session-7",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": null
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends nothing on close without a session",
+      "input": {
+        "responses": [],
+        "ops": [
+          {
+            "op": "close"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": null
+          }
+        ],
+        "requests": [],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "forgets the session even when the goodbye is refused",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          },
+          {
+            "status": 405
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          },
+          {
+            "op": "close"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          },
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          },
+          {
+            "method": "DELETE",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Mcp-Session-Id": "session-7",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": null
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "forgets the session even when the goodbye cannot be sent",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          },
+          {
+            "fail": "offline"
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          },
+          {
+            "op": "close"
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          },
+          {
+            "ok": null
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          },
+          {
+            "method": "DELETE",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Mcp-Session-Id": "session-7",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": null
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends the token it is given",
+      "input": {
+        "token": "token-abc",
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer token-abc"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends no authorization without a token",
+      "input": {
+        "token": null,
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "sends custom headers when provided",
+      "input": {
+        "headers": {
+          "x-consumer-api-key": "ck-xyz"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "x-consumer-api-key": "ck-xyz"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "a custom header replaces a default one",
+      "input": {
+        "headers": {
+          "Accept": "text/plain"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "text/plain",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "the token replaces a custom authorization header",
+      "input": {
+        "token": "t1",
+        "headers": {
+          "Authorization": "Custom x"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer t1"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "the session id replaces a custom session header",
+      "input": {
+        "headers": {
+          "Mcp-Session-Id": "custom"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "headers": {
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {}
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "result": {}
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "initialize",
+            "params": {}
+          },
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {}
+          },
+          {
+            "ok": {}
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Mcp-Session-Id": "custom"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Mcp-Session-Id": "session-7"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": "session-7"
+      }
+    },
+    {
+      "name": "refreshes once when the token has expired, then carries on",
+      "input": {
+        "token": "stale",
+        "refreshTo": "fresh",
+        "responses": [
+          {
+            "status": 401,
+            "headers": {
+              "WWW-Authenticate": "Bearer"
+            }
+          },
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "result": {
+                "ok": true
+              }
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "ok": {
+              "ok": true
+            }
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer stale"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer fresh"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "gives up rather than looping when the refresh does not help",
+      "input": {
+        "token": "stale",
+        "refreshTo": "stale-again",
+        "responses": [
+          {
+            "status": 401
+          },
+          {
+            "status": 401
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 401."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer stale"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          },
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer stale-again"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "a 401 with no refresh available is an error",
+      "input": {
+        "token": "stale",
+        "responses": [
+          {
+            "status": 401
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "tools/list",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server answered 401."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18",
+              "Authorization": "Bearer stale"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "tools/list",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    },
+    {
+      "name": "reads a server error with an empty message as a generic one",
+      "input": {
+        "responses": [
+          {
+            "status": 200,
+            "headers": {},
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "error": {
+                "code": 1,
+                "message": ""
+              }
+            }
+          }
+        ],
+        "ops": [
+          {
+            "op": "send",
+            "method": "x",
+            "params": {}
+          }
+        ]
+      },
+      "expected": {
+        "results": [
+          {
+            "error": "The server reported an error."
+          }
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "https://tools.example/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "MCP-Protocol-Version": "2025-06-18"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "x",
+              "params": {}
+            }
+          }
+        ],
+        "sessionId": null
+      }
+    }
+  ]
+}

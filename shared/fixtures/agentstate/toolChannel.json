@@ -1,0 +1,253 @@
+{
+  "area": "toolChannel",
+  "description": "Tool channel: choosing native or prompted tool calls, the repair schema and prompt, reading a repaired call, and spotting a broken call. Pure functions in src/agent/toolChannel.ts.",
+  "cases": [
+    {
+      "name": "the tool interface is used when the model has one",
+      "input": {
+        "op": "chooseChannel",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      "expected": "native"
+    },
+    {
+      "name": "the prompted format is used for a model without tools",
+      "input": {
+        "op": "chooseChannel",
+        "capabilities": [
+          "vision"
+        ]
+      },
+      "expected": "text"
+    },
+    {
+      "name": "an empty capability list is the prompted format",
+      "input": {
+        "op": "chooseChannel",
+        "capabilities": []
+      },
+      "expected": "text"
+    },
+    {
+      "name": "missing capabilities are the prompted format",
+      "input": {
+        "op": "chooseChannel",
+        "capabilities": null
+      },
+      "expected": "text"
+    },
+    {
+      "name": "a repair schema lists the tools that exist",
+      "input": {
+        "op": "repairSchema",
+        "definitions": [
+          {
+            "type": "function",
+            "function": {
+              "name": "search_web",
+              "description": "Search.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "description": "Read.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "search_web",
+              "read_file"
+            ]
+          },
+          "args": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "args"
+        ]
+      }
+    },
+    {
+      "name": "a repair schema with no tools still asks for a name",
+      "input": {
+        "op": "repairSchema",
+        "definitions": []
+      },
+      "expected": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "args": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "args"
+        ]
+      }
+    },
+    {
+      "name": "a repair prompt does not paste a whole reply back",
+      "input": {
+        "op": "repairPrompt",
+        "broken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "That tool call could not be read:\n\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nSend it again as JSON with exactly two keys: \"name\" for the tool and \"args\" for its arguments. No prose, no tags, no code fences."
+    },
+    {
+      "name": "a short broken reply is shown whole",
+      "input": {
+        "op": "repairPrompt",
+        "broken": "<tool>{\"name\": \"x\""
+      },
+      "expected": "That tool call could not be read:\n\n<tool>{\"name\": \"x\"\n\nSend it again as JSON with exactly two keys: \"name\" for the tool and \"args\" for its arguments. No prose, no tags, no code fences."
+    },
+    {
+      "name": "a bare call is read",
+      "input": {
+        "op": "readRepair",
+        "raw": "{\"name\": \"search_web\", \"args\": {\"query\": \"paris\"}}"
+      },
+      "expected": {
+        "name": "search_web",
+        "args": {
+          "query": "paris"
+        }
+      }
+    },
+    {
+      "name": "a fenced call is read anyway",
+      "input": {
+        "op": "readRepair",
+        "raw": "```json\n{\"name\": \"read_file\", \"args\": {}}\n```"
+      },
+      "expected": {
+        "name": "read_file",
+        "args": {}
+      }
+    },
+    {
+      "name": "a call with no arguments gets an empty object",
+      "input": {
+        "op": "readRepair",
+        "raw": "{\"name\": \"read_file\"}"
+      },
+      "expected": {
+        "name": "read_file",
+        "args": {}
+      }
+    },
+    {
+      "name": "a reply with no call gives nothing",
+      "input": {
+        "op": "readRepair",
+        "raw": "I could not do that."
+      },
+      "expected": {}
+    },
+    {
+      "name": "an empty reply gives nothing",
+      "input": {
+        "op": "readRepair",
+        "raw": ""
+      },
+      "expected": {}
+    },
+    {
+      "name": "an unclosed tag around a known tool is a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "<tool>{\"name\": \"search_web\", \"args\": {}",
+        "names": [
+          "search_web",
+          "read_file"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a bare object naming a tool is a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "Sure: {\"name\": \"read_file\", \"path\": \"a.txt\"}",
+        "names": [
+          "search_web",
+          "read_file"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a plain answer is not a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "Paris is the capital of France.",
+        "names": [
+          "search_web",
+          "read_file"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty text is not a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "",
+        "names": [
+          "search_web"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "prose that mentions a tool is not a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "I could use search_web for this if you want.",
+        "names": [
+          "search_web"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "a call to a tool that does not exist is not a call",
+      "input": {
+        "op": "looksLikeCall",
+        "text": "<tool>{\"name\": \"launch_missiles\"}</tool>",
+        "names": [
+          "search_web",
+          "read_file"
+        ]
+      },
+      "expected": false
+    }
+  ]
+}

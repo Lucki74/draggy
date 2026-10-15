@@ -1,0 +1,461 @@
+{
+  "area": "mcp",
+  "description": "The server config model: which definition a server id resolves to (catalogue entry, saved npm package, or saved URL), whether it is remote, and what is still missing before it can start. Expected: the definition (null when none), remote, and the missing requirement labels.",
+  "cases": [
+    {
+      "name": "a catalogue server is found by its id",
+      "input": {
+        "id": "memory",
+        "config": {}
+      },
+      "expected": {
+        "definition": {
+          "id": "memory",
+          "name": "Memory",
+          "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
+          "package": "@modelcontextprotocol/server-memory",
+          "args": [],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a catalogue server that needs a credential names it when it is missing",
+      "input": {
+        "id": "github",
+        "config": {}
+      },
+      "expected": {
+        "definition": {
+          "id": "github",
+          "name": "GitHub",
+          "description": "Search repositories, read issues and pull requests, create branches and commits.",
+          "package": "@modelcontextprotocol/server-github",
+          "site": "https://github.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "label": "GitHub personal access token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
+        },
+        "remote": false,
+        "missing": [
+          "GitHub personal access token"
+        ]
+      }
+    },
+    {
+      "name": "a catalogue server with its credential has nothing missing",
+      "input": {
+        "id": "github",
+        "config": {
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_x"
+          }
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "github",
+          "name": "GitHub",
+          "description": "Search repositories, read issues and pull requests, create branches and commits.",
+          "package": "@modelcontextprotocol/server-github",
+          "site": "https://github.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "label": "GitHub personal access token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a catalogue remote server is remote",
+      "input": {
+        "id": "composio",
+        "config": {
+          "env": {
+            "COMPOSIO_API_KEY": "ck"
+          }
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "composio",
+          "name": "Composio",
+          "description": "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
+          "transport": "http",
+          "url": "https://connect.composio.dev/mcp",
+          "package": "composio-mcp",
+          "site": "https://composio.dev",
+          "args": [],
+          "env": [
+            {
+              "key": "COMPOSIO_API_KEY",
+              "label": "Composio API key",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/composio-mcp"
+        },
+        "remote": true,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved URL is a remote definition named by the user",
+      "input": {
+        "id": "custom",
+        "config": {
+          "url": "https://tools.example/mcp",
+          "name": "Our tools"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom",
+          "name": "Our tools",
+          "transport": "http",
+          "url": "https://tools.example/mcp",
+          "remote": true
+        },
+        "remote": true,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved URL with no name is named by its id",
+      "input": {
+        "id": "custom",
+        "config": {
+          "url": "https://tools.example/mcp"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom",
+          "name": "custom",
+          "transport": "http",
+          "url": "https://tools.example/mcp",
+          "remote": true
+        },
+        "remote": true,
+        "missing": []
+      }
+    },
+    {
+      "name": "a whitespace-only name still counts as a name",
+      "input": {
+        "id": "custom",
+        "config": {
+          "url": "https://tools.example/mcp",
+          "name": " "
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom",
+          "name": " ",
+          "transport": "http",
+          "url": "https://tools.example/mcp",
+          "remote": true
+        },
+        "remote": true,
+        "missing": []
+      }
+    },
+    {
+      "name": "a config with no address or package is not a server",
+      "input": {
+        "id": "nonsense",
+        "config": {}
+      },
+      "expected": {
+        "definition": null,
+        "remote": false,
+        "missing": [
+          "unknown server"
+        ]
+      }
+    },
+    {
+      "name": "a shipped server is not shadowed by a saved URL",
+      "input": {
+        "id": "github",
+        "config": {
+          "url": "https://evil.example"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "github",
+          "name": "GitHub",
+          "description": "Search repositories, read issues and pull requests, create branches and commits.",
+          "package": "@modelcontextprotocol/server-github",
+          "site": "https://github.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "label": "GitHub personal access token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
+        },
+        "remote": false,
+        "missing": [
+          "GitHub personal access token"
+        ]
+      }
+    },
+    {
+      "name": "a saved npm package is a registry definition",
+      "input": {
+        "id": "custom-weather",
+        "config": {
+          "package": "@someone/weather-mcp",
+          "name": "Weather",
+          "description": "Weather forecasts.",
+          "docs": "https://github.com/someone/weather"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom-weather",
+          "name": "Weather",
+          "description": "Weather forecasts.",
+          "package": "@someone/weather-mcp",
+          "docs": "https://github.com/someone/weather",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved package with no docs links to its npm page",
+      "input": {
+        "id": "custom-weather",
+        "config": {
+          "package": "@someone/weather-mcp"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom-weather",
+          "name": "custom-weather",
+          "description": "",
+          "package": "@someone/weather-mcp",
+          "docs": "https://www.npmjs.com/package/@someone/weather-mcp",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved package's required folder is missing until one is given",
+      "input": {
+        "id": "custom-weather",
+        "config": {
+          "package": "@someone/weather-mcp",
+          "argumentsList": [
+            {
+              "key": "roots",
+              "label": "Folders",
+              "multiple": true,
+              "required": true
+            }
+          ]
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom-weather",
+          "name": "custom-weather",
+          "description": "",
+          "package": "@someone/weather-mcp",
+          "docs": "https://www.npmjs.com/package/@someone/weather-mcp",
+          "args": [],
+          "arguments": [
+            {
+              "key": "roots",
+              "label": "Folders",
+              "multiple": true,
+              "required": true
+            }
+          ],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": [
+          "Folders"
+        ]
+      }
+    },
+    {
+      "name": "a saved package's declared credential is missing until it is entered",
+      "input": {
+        "id": "custom-weather",
+        "config": {
+          "package": "@someone/weather-mcp",
+          "envDeclarations": [
+            {
+              "key": "WEATHER_KEY",
+              "label": "Weather key",
+              "required": true
+            }
+          ]
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom-weather",
+          "name": "custom-weather",
+          "description": "",
+          "package": "@someone/weather-mcp",
+          "docs": "https://www.npmjs.com/package/@someone/weather-mcp",
+          "args": [],
+          "arguments": [],
+          "env": [
+            {
+              "key": "WEATHER_KEY",
+              "label": "Weather key",
+              "required": true
+            }
+          ],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": [
+          "Weather key"
+        ]
+      }
+    },
+    {
+      "name": "a saved package wins over a saved URL",
+      "input": {
+        "id": "custom",
+        "config": {
+          "package": "@someone/weather-mcp",
+          "url": "https://tools.example/mcp"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "custom",
+          "name": "custom",
+          "description": "",
+          "package": "@someone/weather-mcp",
+          "docs": "https://www.npmjs.com/package/@someone/weather-mcp",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved package's own docs link replaces the npm page",
+      "input": {
+        "id": "acme",
+        "config": {
+          "package": "@acme/tools",
+          "docs": "https://acme.example/docs"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "acme",
+          "name": "acme",
+          "description": "",
+          "package": "@acme/tools",
+          "docs": "https://acme.example/docs",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved package keeps the description it was saved with",
+      "input": {
+        "id": "acme",
+        "config": {
+          "package": "@acme/tools",
+          "description": "Acme tools for the team"
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "acme",
+          "name": "acme",
+          "description": "Acme tools for the team",
+          "package": "@acme/tools",
+          "docs": "https://www.npmjs.com/package/@acme/tools",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    },
+    {
+      "name": "a saved package with a blank docs link falls back to its npm page",
+      "input": {
+        "id": "acme",
+        "config": {
+          "package": "@acme/tools",
+          "docs": ""
+        }
+      },
+      "expected": {
+        "definition": {
+          "id": "acme",
+          "name": "acme",
+          "description": "",
+          "package": "@acme/tools",
+          "docs": "https://www.npmjs.com/package/@acme/tools",
+          "args": [],
+          "arguments": [],
+          "env": [],
+          "source": "registry"
+        },
+        "remote": false,
+        "missing": []
+      }
+    }
+  ]
+}

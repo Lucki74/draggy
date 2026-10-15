@@ -1,0 +1,878 @@
+{
+  "area": "documents",
+  "description": "isHtml, parseColor, parseStyle, parsePt, parseWidth and decodeEntities from htmlDocument.cjs. NaN is written as \"NaN\". parsePt with one arg uses its default of 11.",
+  "cases": [
+    {
+      "name": "h1 is html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<h1>Title</h1>"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "p is html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<p>Paragraph</p>"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "table is html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<table><tr><td>Cell</td></tr></table>"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "doctype is html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<!DOCTYPE html><html><body>Hello</body></html>"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "markdown heading is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "# Markdown heading"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "csv is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "name,score\nAda,99"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "plain text is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "Just some plain text"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "null is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          null
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "leading space before the doctype",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "  \n <!doctype html>x"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "tag name followed by a non-ascii letter is a boundary",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<pé>x"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "tag name longer than a listed one is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<bold>"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "doctype without html is not html",
+      "input": {
+        "fn": "isHtml",
+        "args": [
+          "<!doctype"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "colors: named",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "red"
+        ]
+      },
+      "expected": "FF0000"
+    },
+    {
+      "name": "colors: named ignores case",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "RED"
+        ]
+      },
+      "expected": "FF0000"
+    },
+    {
+      "name": "colors: six digit hex",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "#00ff00"
+        ]
+      },
+      "expected": "00FF00"
+    },
+    {
+      "name": "colors: three digit hex doubles",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "#abc"
+        ]
+      },
+      "expected": "AABBCC"
+    },
+    {
+      "name": "colors: hex without hash",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "FFFFFF"
+        ]
+      },
+      "expected": "FFFFFF"
+    },
+    {
+      "name": "colors: four digit hex is not a color",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "#abcd"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "colors: rgb",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgb(0, 0, 255)"
+        ]
+      },
+      "expected": "0000FF"
+    },
+    {
+      "name": "colors: rgba ignores alpha",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgba(10, 20, 30, 0.5)"
+        ]
+      },
+      "expected": "0A141E"
+    },
+    {
+      "name": "colors: rgb clamps to 255",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgb(300, 0, 0)"
+        ]
+      },
+      "expected": "FF0000"
+    },
+    {
+      "name": "colors: huge rgb clamps",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgb(99999999999999999999,0,0)"
+        ]
+      },
+      "expected": "FF0000"
+    },
+    {
+      "name": "colors: rgb with spaces and capitals",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "RGB( 1 , 2 , 3 )"
+        ]
+      },
+      "expected": "010203"
+    },
+    {
+      "name": "colors: trailing text after rgb is ignored",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgb(0,0,0) junk"
+        ]
+      },
+      "expected": "000000"
+    },
+    {
+      "name": "colors: short rgb is not a color",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "rgb(1,2)"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "colors: transparent is not a color",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "transparent"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "colors: grey",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "grey"
+        ]
+      },
+      "expected": "808080"
+    },
+    {
+      "name": "colors: empty",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          ""
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "colors: spaces only",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          "   "
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "colors: null",
+      "input": {
+        "fn": "parseColor",
+        "args": [
+          null
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "style: declarations with spacing",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "color: red; font-size : 12pt;;"
+        ]
+      },
+      "expected": {
+        "color": "red",
+        "font-size": "12pt"
+      }
+    },
+    {
+      "name": "style: keys are lowercased and values kept",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "COLOR:Red"
+        ]
+      },
+      "expected": {
+        "color": "Red"
+      }
+    },
+    {
+      "name": "style: value may contain colons",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "a:b:c"
+        ]
+      },
+      "expected": {
+        "a": "b:c"
+      }
+    },
+    {
+      "name": "style: a missing key or value is dropped",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          ":x"
+        ]
+      },
+      "expected": {}
+    },
+    {
+      "name": "style: a missing value is dropped",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "x:"
+        ]
+      },
+      "expected": {}
+    },
+    {
+      "name": "style: a declaration without a colon is dropped",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "bad; font-size: 9pt"
+        ]
+      },
+      "expected": {
+        "font-size": "9pt"
+      }
+    },
+    {
+      "name": "style: later declarations win",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          "color: red; color: blue"
+        ]
+      },
+      "expected": {
+        "color": "blue"
+      }
+    },
+    {
+      "name": "style: empty",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          ""
+        ]
+      },
+      "expected": {}
+    },
+    {
+      "name": "style: null",
+      "input": {
+        "fn": "parseStyle",
+        "args": [
+          null
+        ]
+      },
+      "expected": {}
+    },
+    {
+      "name": "pt: plain points",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "14pt"
+        ]
+      },
+      "expected": 14
+    },
+    {
+      "name": "pt: pixels scale by three quarters",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "16px"
+        ]
+      },
+      "expected": 12
+    },
+    {
+      "name": "pt: empty takes the default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          ""
+        ]
+      },
+      "expected": 11
+    },
+    {
+      "name": "pt: em uses the default as the base",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "2em"
+        ]
+      },
+      "expected": 22
+    },
+    {
+      "name": "pt: rem with an explicit default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "1.5rem",
+          10
+        ]
+      },
+      "expected": 15
+    },
+    {
+      "name": "pt: rounds to whole points",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "12.6pt"
+        ]
+      },
+      "expected": 13
+    },
+    {
+      "name": "pt: unknown text takes the default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "abc"
+        ]
+      },
+      "expected": 11
+    },
+    {
+      "name": "pt: unit ignores case",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "10 PT"
+        ]
+      },
+      "expected": 10
+    },
+    {
+      "name": "pt: em with a default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "3em",
+          12
+        ]
+      },
+      "expected": 36
+    },
+    {
+      "name": "pt: parseFloat keeps the first number",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "1.2.3pt"
+        ]
+      },
+      "expected": 1
+    },
+    {
+      "name": "pt: a lone dot is NaN",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "."
+        ]
+      },
+      "expected": "NaN"
+    },
+    {
+      "name": "pt: pixels round half up",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "5px",
+          99
+        ]
+      },
+      "expected": 4
+    },
+    {
+      "name": "pt: half point rounds up",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "2.5pt"
+        ]
+      },
+      "expected": 3
+    },
+    {
+      "name": "pt: tiny pixels round to zero",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "0.5px"
+        ]
+      },
+      "expected": 0
+    },
+    {
+      "name": "pt: surrounding space and no unit",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "   8  "
+        ]
+      },
+      "expected": 8
+    },
+    {
+      "name": "pt: bare number with a default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          "12",
+          9
+        ]
+      },
+      "expected": 12
+    },
+    {
+      "name": "pt: null takes the default",
+      "input": {
+        "fn": "parsePt",
+        "args": [
+          null
+        ]
+      },
+      "expected": 11
+    },
+    {
+      "name": "width: pixels",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "100px"
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": 100
+      }
+    },
+    {
+      "name": "width: percent",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "50%"
+        ]
+      },
+      "expected": {
+        "type": "percent",
+        "value": 50
+      }
+    },
+    {
+      "name": "width: bare number is pixels",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "12"
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": 12
+      }
+    },
+    {
+      "name": "width: points are reported as pixels",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "1.5pt"
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": 1.5
+      }
+    },
+    {
+      "name": "width: unit ignores case",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "10PX"
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": 10
+      }
+    },
+    {
+      "name": "width: percent with a space",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "100 %"
+        ]
+      },
+      "expected": {
+        "type": "percent",
+        "value": 100
+      }
+    },
+    {
+      "name": "width: empty",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          ""
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "width: words",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "abc"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "width: only a percent sign",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "%"
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "width: parseFloat keeps the first number",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "1.2.3px"
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": 1.2
+      }
+    },
+    {
+      "name": "entities: common named and numeric",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&lt;b&gt; &amp; &quot;q&#39;s&quot; &#65;&#x42;"
+        ]
+      },
+      "expected": "<b> & \"q's\" AB"
+    },
+    {
+      "name": "entities: decoded once",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&amp;lt;script&amp;gt;"
+        ]
+      },
+      "expected": "&lt;script&gt;"
+    },
+    {
+      "name": "entities: double ampersand",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&amp;amp;"
+        ]
+      },
+      "expected": "&amp;"
+    },
+    {
+      "name": "entities: nbsp is a space",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&nbsp;x"
+        ]
+      },
+      "expected": " x"
+    },
+    {
+      "name": "entities: numeric beyond 16 bits wraps",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#65536;"
+        ]
+      },
+      "expected": "\u0000"
+    },
+    {
+      "name": "entities: code point above the BMP wraps to the low 16 bits",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#128512;"
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "entities: hex above the BMP wraps",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#x10041;"
+        ]
+      },
+      "expected": "A"
+    },
+    {
+      "name": "entities: uppercase X",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#X41;"
+        ]
+      },
+      "expected": "A"
+    },
+    {
+      "name": "entities: leading zeros",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#0065;"
+        ]
+      },
+      "expected": "A"
+    },
+    {
+      "name": "entities: long hex with leading zeros",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#x0000000000000000000000000000000000000041;"
+        ]
+      },
+      "expected": "A"
+    },
+    {
+      "name": "entities: a surrogate pair written as two references",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#55357;&#56832;"
+        ]
+      },
+      "expected": "😀"
+    },
+    {
+      "name": "entities: empty hex is literal",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#x;"
+        ]
+      },
+      "expected": "&#x;"
+    },
+    {
+      "name": "entities: numeric step runs before the ampersand step",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&#38;amp;"
+        ]
+      },
+      "expected": "&"
+    },
+    {
+      "name": "entities: escaped entity stays literal",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          "&amp;#65;"
+        ]
+      },
+      "expected": "&#65;"
+    },
+    {
+      "name": "entities: null",
+      "input": {
+        "fn": "decodeEntities",
+        "args": [
+          null
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "name": "width: a lone dot is NaN",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          "."
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "width: two dots is NaN",
+      "input": {
+        "fn": "parseWidth",
+        "args": [
+          ".. "
+        ]
+      },
+      "expected": {
+        "type": "px",
+        "value": "NaN"
+      }
+    }
+  ]
+}
