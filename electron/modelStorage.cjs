@@ -350,6 +350,8 @@ function downloadGgufModel({ url, modelsDir, filename, onProgress, cid, maxRedir
           activeDownloads.delete(key);
           // A chunk still in flight writes into the stream a cancel just destroyed; that is the cancel, not a failure.
           if (entry.cancelled) return reject(abortError());
+          // The same for a stall or drop: transient() closed this stream and owns the outcome from there.
+          if (entry.req !== req) return;
           log.fail("engine.models", "download write failed", err, { file: safeName });
           reject(err);
         });

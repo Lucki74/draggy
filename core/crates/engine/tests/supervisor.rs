@@ -423,7 +423,8 @@ async fn stopping_takes_the_whole_process_group_with_it() {
     let binary = server(
         dir.path(),
         &[],
-        "touch \"DIR/up\"\n(sleep 4; touch \"DIR/late\") &\nsleep 30",
+        // The background child exists before the server reports up, so the stop cannot race its fork.
+        "(sleep 2; touch \"DIR/late\") &\ntouch \"DIR/up\"\nsleep 30",
     );
     let sup = supervisor(dir.path().join("up"), None);
 
@@ -431,7 +432,7 @@ async fn stopping_takes_the_whole_process_group_with_it() {
         .await
         .expect("starts");
     sup.stop().await;
-    tokio::time::sleep(Duration::from_millis(5000)).await;
+    tokio::time::sleep(Duration::from_millis(3000)).await;
     assert!(!late.exists(), "a child of the server outlived the stop");
 }
 
