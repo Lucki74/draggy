@@ -195,8 +195,8 @@ describe("the chat and code switch", () => {
     const chat = await screen.findByRole("radio", { name: "Chat" });
     expect(chat.getAttribute("aria-checked")).toBe("true");
     expect(screen.getByRole("radio", { name: "Code" }).getAttribute("aria-checked")).toBe("false");
-    // Talk is offered from the sidebar and from the empty chat's home.
-    expect(screen.getAllByRole("button", { name: /talk/i })).toHaveLength(2);
+    // Talk is offered from the sidebar only; the empty chat no longer repeats it.
+    expect(screen.getAllByRole("button", { name: /talk/i })).toHaveLength(1);
     // The settings menu names Projects too, so the sidebar is checked by its own button.
     expect(screen.queryByRole("button", { name: /new project/i })).toBeNull();
   });

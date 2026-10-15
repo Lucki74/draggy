@@ -37,7 +37,6 @@ interface ChatScreenProps {
   onSelectModel: (name: string) => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onNewChat: () => void;
-  onTalk?: () => void;
   surface: "chat" | "code";
   skills?: InstalledSkill[];
   settings: AppSettings;
@@ -77,7 +76,6 @@ export default function ChatScreen({
   onSelectModel,
   onOpenSettings,
   onNewChat,
-  onTalk,
   surface,
   skills = NO_SKILLS,
   settings,
@@ -243,6 +241,7 @@ export default function ChatScreen({
       fileErrors={session.fileErrors}
       notice={session.notice}
       micState={session.micState}
+      micAnalyser={session.micAnalyser}
       micDetail={session.micDetail}
       slashMatches={session.slashMatches}
       activeSlashIndex={session.activeSlashIndex}
@@ -313,16 +312,6 @@ export default function ChatScreen({
             <TypedGreeting key={greeting} text={greeting} />
           </h1>
           {composer}
-          {onTalk && (
-            <button
-              type="button"
-              onClick={onTalk}
-              className="mt-4 h-8 px-3.5 inline-flex items-center gap-2 rounded-pill border border-rule text-[13px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors duration-120 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary"
-            >
-              <Icon name="waveform" size={16} />
-              {t("talkInstead")}
-            </button>
-          )}
         </div>
       ) : (
         <>
