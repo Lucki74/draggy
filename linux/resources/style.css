@@ -1,0 +1,24 @@
+/* Typography and shape from DESIGN.md. Colors come from light.css or dark.css. */
+window {
+  font-family: "Geologica", "Cantarell", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.message-text {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.caption {
+  font-size: 12px;
+}
+
+.code, textview.code, .code-block {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 13px;
+}
+
+.navigation-sidebar row {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
