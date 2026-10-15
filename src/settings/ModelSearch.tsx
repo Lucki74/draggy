@@ -4,7 +4,7 @@ import { Icon } from "../ui/icons/Icon";
 import { StatusDot } from "../ui/StatusDot";
 import { Badge } from "./Controls";
 import InView from "../chat/InView";
-import { describeFit, describeSplit, FIT_STATUS } from "../vram";
+import { describeFit, describeSplit, describeVerdict, FIT_STATUS, FIT_VERDICT_KEY } from "../vram";
 import type { PullState } from "./useModelManager";
 import type { LibraryModel } from "../types";
 import { swallowed } from "../logger";
@@ -48,6 +48,8 @@ const CAPABILITY_KEYS: Record<string, string> = {
 
 interface ModelSearchProps {
   vram: number;
+  /** System RAM in GB; lets a model too big for card plus RAM read "exceeds memory". */
+  ram?: number;
   unifiedMemory: boolean;
   /** Set for a variant already downloading or waiting in the queue. */
   phaseFor: (reference: string) => PullState["phase"] | undefined;
@@ -60,7 +62,7 @@ interface ModelSearchProps {
   t: (key: string) => string;
 }
 
-export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, trailing, picked, pickLabel, t }: ModelSearchProps) {
+export default function ModelSearch({ vram, ram, unifiedMemory, phaseFor, onPick, trailing, picked, pickLabel, t }: ModelSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LibraryModel[]>([]);
   const [searching, setSearching] = useState(false);
@@ -219,6 +221,7 @@ export default function ModelSearch({ vram, unifiedMemory, phaseFor, onPick, tra
                             label={reference}
                             bytes={sizes[reference]}
                             vram={vram}
+                            ram={ram}
                             unifiedMemory={unifiedMemory}
                             phase={phaseFor(reference)}
                             picked={picked === undefined ? undefined : picked === reference}
@@ -244,6 +247,7 @@ function Variant({
   label,
   bytes,
   vram,
+  ram,
   unifiedMemory,
   phase,
   picked,
@@ -254,6 +258,7 @@ function Variant({
   label: string;
   bytes?: number;
   vram: number;
+  ram?: number;
   unifiedMemory: boolean;
   /** Set while this variant is already downloading or waiting in the queue. */
   phase?: PullState["phase"];
@@ -264,6 +269,8 @@ function Variant({
 }) {
   const fit = bytes ? describeFit({ modelBytes: bytes, vramGB: vram, unifiedMemory }) : null;
   const summary = fit ? describeSplit(fit) : "";
+  const kind = bytes ? describeVerdict({ modelBytes: bytes, vramGB: vram, ramGB: ram, unifiedMemory }) : "unknown";
+  const verdict = kind === "unknown" ? "" : t(FIT_VERDICT_KEY[kind]);
 
   return (
     <div className="flex items-center gap-3 rounded-sm px-2 py-1.5">
@@ -271,7 +278,7 @@ function Variant({
       <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text-primary">{label}</span>
       {fit && (
         <span className="flex-shrink-0 text-[12px] tabular-nums text-text-secondary">
-          {fit.sizeGB.toFixed(1)} GB{summary ? ` · ${summary}` : ""}
+          {fit.sizeGB.toFixed(1)} GB{summary ? ` · ${summary}` : ""}{verdict ? ` · ${verdict}` : ""}
         </span>
       )}
       {phase ? (

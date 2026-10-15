@@ -152,6 +152,7 @@ export default function LocalModel({
         {searching && !offline && (
           <ModelSearch
             vram={specs?.vram || 0}
+            ram={specs?.ram || 0}
             unifiedMemory={Boolean(specs?.unifiedMemory)}
             phaseFor={() => undefined}
             picked={choice && !choice.installed ? choice.reference : undefined}

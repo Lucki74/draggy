@@ -519,8 +519,18 @@ async function launchServer(options) {
   }
 
   const engine = userDataDir ? binaryManager.getEngineEnvironment(userDataDir, vramGB, binaryPath) : { env: {} };
+  // On a hybrid laptop pin CUDA to the largest NVIDIA card; an explicit user choice is left alone.
+  const devicePin = {};
+  if (engine.runnerType === "cuda" && process.env.CUDA_VISIBLE_DEVICES === undefined) {
+    const [best] = await platform.nvidiaDevices().catch(() => []);
+    if (best) {
+      devicePin.CUDA_DEVICE_ORDER = "PCI_BUS_ID";
+      devicePin.CUDA_VISIBLE_DEVICES = String(best.index);
+    }
+  }
   const engineEnv = buildEnv({
     ...engine.env,
+    ...devicePin,
     LLAMA_ARG_FLASH_ATTN: "on",
     LLAMA_ARG_CACHE_TYPE_K: cacheType,
     LLAMA_ARG_CACHE_TYPE_V: cacheType,

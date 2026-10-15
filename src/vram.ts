@@ -2,6 +2,8 @@ export interface FitInput {
   modelBytes: number;
   vramGB: number;
   unifiedMemory?: boolean;
+  /** System RAM in GB. Only `describeVerdict` reads it. */
+  ramGB?: number;
 }
 
 export interface ModelFit {
@@ -51,4 +53,26 @@ export function describeSplit(fit: ModelFit): string {
   if (fit.tone === "unknown") return "";
   if (fit.gpuPercent >= 100) return "100% GPU";
   return `${fit.gpuPercent}% GPU / ${100 - fit.gpuPercent}% CPU`;
+}
+
+export type FitVerdict = "fast" | "partial" | "exceeds" | "unknown";
+
+/** Share of system RAM that spilled layers may use, leaving room for the OS and the KV cache. */
+export const RAM_USABLE_FRACTION = 0.75;
+
+/** Translation key for each verdict badge. */
+export const FIT_VERDICT_KEY = {
+  fast: "fitFast",
+  partial: "fitPartial",
+  exceeds: "fitExceeds",
+} as const;
+
+/** Whether a model runs fully on the card, spills into RAM, or fits in neither. */
+export function describeVerdict(input: FitInput): FitVerdict {
+  const fit = describeFit(input);
+  if (fit.tone === "unknown") return "unknown";
+  if (fit.gpuPercent >= 98) return "fast";
+  const spillGB = Math.max(0, fit.neededGB - fit.usableGB);
+  if (input.ramGB && input.ramGB > 0 && spillGB > input.ramGB * RAM_USABLE_FRACTION) return "exceeds";
+  return "partial";
 }
