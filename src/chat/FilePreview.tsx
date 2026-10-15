@@ -130,6 +130,7 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
       ext === "docx" ||
       ext === "doc" ||
       ext === "pdf");
+  const isWord = hasExt && (ext === "docx" || ext === "doc");
   const isWebPage = hasExt && (ext === "html" || ext === "htm");
 
   // A document the model wrote as HTML is shown as that HTML. Handing it to the
@@ -307,6 +308,28 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
         </SyntaxHighlighter>
         {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
           <div style={{ height: `${bottomSpacerHeight}px` }} />
+        )}
+      </div>
+    );
+  }
+
+  if (isWord && (asHtml !== null || isDoc)) {
+    return (
+      <div
+        className={`overflow-y-auto bg-[#e9e9ec] p-4 ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"}`}
+      >
+        {asHtml !== null ? (
+          <div className="mx-auto w-full max-w-[680px] bg-white px-[8%] py-10 font-sans text-[14px] leading-relaxed text-[#1f1f1f] shadow-md markdown-body [--text-primary:#1f1f1f] [--text-secondary:#444444] [--text-tertiary:#6b6b6b] [--rule:#d4d4d4] [--rule-strong:#b5b5b5] [--surface-raised:#f3f3f3] [&_table]:my-3 [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-[#c8c8c8] [&_th]:border-[#c8c8c8] [&_td]:px-2 [&_th]:px-2 [&_td]:py-1 [&_th]:py-1 [&_th]:bg-[#f3f3f3] [&_blockquote]:border-s-4 [&_blockquote]:border-[#c8c8c8] [&_blockquote]:ps-3 [&_blockquote]:text-[#555] [&_pre]:bg-[#f3f3f3] [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto" dangerouslySetInnerHTML={{ __html: asHtml }} />
+        ) : (
+          <div className="mx-auto w-full max-w-[680px] bg-white px-[8%] py-10 font-sans text-[14px] leading-relaxed text-[#1f1f1f] shadow-md markdown-body [--text-primary:#1f1f1f] [--text-secondary:#444444] [--text-tertiary:#6b6b6b] [--rule:#d4d4d4] [--rule-strong:#b5b5b5] [--surface-raised:#f3f3f3] [&_table]:my-3 [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-[#c8c8c8] [&_th]:border-[#c8c8c8] [&_td]:px-2 [&_th]:px-2 [&_td]:py-1 [&_th]:py-1 [&_th]:bg-[#f3f3f3] [&_blockquote]:border-s-4 [&_blockquote]:border-[#c8c8c8] [&_blockquote]:ps-3 [&_blockquote]:text-[#555] [&_pre]:bg-[#f3f3f3] [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto">
+            <ReactMarkdown
+              remarkPlugins={DOCUMENT_REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={MARKDOWN_COMPONENTS}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
         )}
       </div>
     );
