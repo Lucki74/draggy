@@ -1,0 +1,108 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $DraggyWindow: Adw.ApplicationWindow {
+  title: "Draggy";
+  default-width: 1100;
+  default-height: 720;
+  width-request: 360;
+  height-request: 400;
+
+  Adw.Breakpoint {
+    condition ("max-width: 640sp")
+
+    setters {
+      split.collapsed: true;
+    }
+  }
+
+  content: Adw.ToastOverlay toasts {
+    Adw.NavigationSplitView split {
+      min-sidebar-width: 220;
+      max-sidebar-width: 280;
+
+      sidebar: Adw.NavigationPage {
+        title: "Draggy";
+
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            title-widget: Adw.WindowTitle {
+              title: "Draggy";
+            };
+          }
+
+          content: Gtk.ListBox sections {
+            selection-mode: single;
+            styles ["navigation-sidebar"]
+
+            Gtk.ListBoxRow {
+              name: "chat";
+
+              Gtk.Label {
+                label: "Chat";
+                xalign: 0;
+              }
+            }
+
+            Gtk.ListBoxRow {
+              name: "code";
+
+              Gtk.Label {
+                label: "Code";
+                xalign: 0;
+              }
+            }
+
+            Gtk.ListBoxRow {
+              name: "talk";
+
+              Gtk.Label {
+                label: "Talk";
+                xalign: 0;
+              }
+            }
+          };
+        };
+      };
+
+      content: Adw.NavigationPage {
+        title: "Chat";
+
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {}
+
+          content: Gtk.Stack pages {
+            Gtk.StackPage {
+              name: "chat";
+
+              child: Adw.StatusPage {
+                title: "Chat";
+                description: "Conversations will show here.";
+              };
+            }
+
+            Gtk.StackPage {
+              name: "code";
+
+              child: Adw.StatusPage {
+                title: "Code";
+                description: "Work on a folder with a model.";
+              };
+            }
+
+            Gtk.StackPage {
+              name: "talk";
+
+              child: Adw.StatusPage {
+                title: "Talk";
+                description: "Voice is not available yet.";
+              };
+            }
+          };
+        };
+      };
+    }
+  };
+}

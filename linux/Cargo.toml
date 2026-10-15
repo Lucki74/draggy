@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
-rust-version = "1.90"
+rust-version = "1.92"
 description = "Draggy for Linux: a GTK 4 and libadwaita shell over the shared Rust core"
 
 # A standalone crate, outside the `core/` workspace, so the core's CI and its dependency policy never need GTK.
@@ -30,6 +30,9 @@ gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }
 adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
 async-channel = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+
+[build-dependencies]
+glib-build-tools = "0.22"
 
 [package.metadata.deb]
 name = "draggy"
