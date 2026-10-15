@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/com/draggy/Draggy">
     <file>window.ui</file>
+    <file>settings.ui</file>
     <file>style.css</file>
     <file>light.css</file>
     <file>dark.css</file>

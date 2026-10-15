@@ -30,6 +30,13 @@ template $DraggyWindow: Adw.ApplicationWindow {
             title-widget: Adw.WindowTitle {
               title: "Draggy";
             };
+
+            [end]
+            Gtk.Button {
+              icon-name: "emblem-system-symbolic";
+              tooltip-text: "Settings";
+              action-name: "win.settings";
+            }
           }
 
           content: Gtk.ListBox sections {

@@ -1,0 +1,67 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $DraggySettings: Adw.PreferencesDialog {
+  title: "Settings";
+  search-enabled: false;
+
+  Adw.PreferencesPage {
+    Adw.PreferencesGroup {
+      title: "Model server";
+      description: "An OpenAI-compatible server, such as llama-server or Ollama, that is already running.";
+
+      Adw.EntryRow server {
+        title: "Address";
+        input-purpose: url;
+      }
+
+      Adw.EntryRow model {
+        title: "Model";
+      }
+
+      Adw.PasswordEntryRow key {
+        title: "API key";
+      }
+
+      Adw.ActionRow {
+        title: "Key storage";
+        subtitle: "The key is kept in the desktop keyring and never written to a file.";
+
+        [suffix]
+        Gtk.Box {
+          valign: center;
+          spacing: 6;
+
+          Gtk.Button save_key {
+            label: "Store key";
+          }
+
+          Gtk.Button remove_key {
+            label: "Remove key";
+          }
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: "Folder";
+      description: "The folder the model may read. Without one it gets no file tools.";
+
+      Adw.ActionRow folder_row {
+        title: "Project folder";
+        subtitle: "None chosen";
+
+        [suffix]
+        Gtk.Button choose_folder {
+          label: "Choose";
+          valign: center;
+        }
+      }
+
+      Adw.SwitchRow commands {
+        title: "Allow commands";
+        subtitle: "The model can ask to run shell commands in the folder. You approve each one.";
+      }
+    }
+  }
+}
