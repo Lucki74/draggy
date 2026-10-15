@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Draggy
+Comment=Chat with local models and work on your files
+Exec=draggy
+Icon=com.draggy.Draggy
+Terminal=false
+Categories=Utility;Development;
+StartupWMClass=com.draggy.Draggy

@@ -1,0 +1,45 @@
+[package]
+name = "draggy-linux"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.90"
+description = "Draggy for Linux: a GTK 4 and libadwaita shell over the shared Rust core"
+
+# A standalone crate, outside the `core/` workspace, so the core's CI and its dependency policy never need GTK.
+[workspace]
+
+[lib]
+name = "draggy_linux"
+path = "src/lib.rs"
+
+[[bin]]
+name = "draggy"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+draggy-core = { path = "../core/crates/draggy-core" }
+gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
+async-channel = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+
+[package.metadata.deb]
+name = "draggy"
+maintainer = "Draggy"
+section = "utils"
+priority = "optional"
+depends = "$auto, libgtk-4-1, libadwaita-1-0"
+assets = [
+    ["target/release/draggy", "usr/bin/", "755"],
+    ["data/com.draggy.Draggy.desktop", "usr/share/applications/", "644"],
+    ["data/com.draggy.Draggy.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["data/icons/hicolor/512x512/apps/com.draggy.Draggy.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
+]

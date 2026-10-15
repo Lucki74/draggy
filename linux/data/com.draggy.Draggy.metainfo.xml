@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.draggy.Draggy</id>
+  <name>Draggy</name>
+  <summary>Chat with local models and work on your files</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <description>
+    <p>Draggy runs language models on your own computer and lets them read and work on files in a folder you choose.</p>
+  </description>
+  <launchable type="desktop-id">com.draggy.Draggy.desktop</launchable>
+  <provides>
+    <binary>draggy</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-15"/>
+  </releases>
+</component>

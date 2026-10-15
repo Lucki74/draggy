@@ -48,3 +48,4 @@ core/target
 # SQLite sidecar files the storage fixtures leave behind when a test opens a database
 shared/fixtures/**/*.db-shm
 shared/fixtures/**/*.db-wal
+linux/target/
