@@ -39,7 +39,7 @@ graphify-out
 # Local planning docs
 docs/
 scratch/
-build/release-notes.md
+win/build/release-notes.md
 .env.local
 
 # Rust core build output

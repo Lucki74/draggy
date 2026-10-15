@@ -44,8 +44,6 @@
       "electron/**/*",
       "!electron/**/*.test.js",
       "package.json",
-      "LICENSE",
-      "NOTICE",
       "src/providers/icons/LICENSE",
       "src/ui/fonts/LICENSE",
       "src/ui/icons/LICENSE",
@@ -54,6 +52,10 @@
       "!node_modules/pdfjs-dist/image_decoders/**",
       "!node_modules/pdfjs-dist/types/**",
       "!node_modules/pdfjs-dist/**/*.map"
+    ],
+    "extraResources": [
+      { "from": "../LICENSE", "to": "LICENSE" },
+      { "from": "../NOTICE", "to": "NOTICE" }
     ],
     "asarUnpack": [
       "node_modules/pdfjs-dist/**"

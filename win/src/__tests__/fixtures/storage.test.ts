@@ -13,7 +13,7 @@ const storage = require("../../../electron/storage.cjs");
 const legacy = require("../../../electron/fixtures/v1.2.7/storage.cjs");
 const onboarding = require("../../../electron/onboarding.cjs");
 
-const FIXTURES = fileURLToPath(new URL("../../../shared/fixtures/storage/", import.meta.url));
+const FIXTURES = fileURLToPath(new URL("../../../../shared/fixtures/storage/", import.meta.url));
 const TEN_MINUTES = 10 * 60 * 1000;
 
 interface Op {

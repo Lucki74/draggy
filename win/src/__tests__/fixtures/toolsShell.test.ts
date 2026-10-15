@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/tools");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/tools");
 
 const commands = require("../../../electron/commands.cjs") as {
   shellInvocation: (command: string, requested: string | undefined, options: Record<string, unknown>) => Record<string, unknown>;

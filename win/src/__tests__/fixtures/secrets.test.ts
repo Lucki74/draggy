@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const secrets = require("../../../electron/secrets.cjs") as SecretsApi;
 
-const FIXTURES = fileURLToPath(new URL("../../../shared/fixtures/secrets/", import.meta.url));
+const FIXTURES = fileURLToPath(new URL("../../../../shared/fixtures/secrets/", import.meta.url));
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 

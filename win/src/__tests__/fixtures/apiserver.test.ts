@@ -10,7 +10,7 @@ import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/apiserver");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/apiserver");
 
 // RUNNERS START
 type Fixture = { op?: string; [field: string]: unknown };

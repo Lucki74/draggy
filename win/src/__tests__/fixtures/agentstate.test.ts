@@ -64,7 +64,7 @@ import type { InstalledSkill, LoadedSkill } from "../../types";
 import type { AppSettings, ChatSession, Message, MessageVersion, MetricRow } from "../../types";
 import type { Grant } from "../../agent/permissions";
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/agentstate");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/agentstate");
 
 /** Turns the task manager started, in order, so a fixture can finish, fail or ask on one of them. */
 const pending = vi.hoisted(() => {

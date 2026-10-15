@@ -14,7 +14,7 @@ import * as recs from "../../modelRecommendations";
 import { FIT_STATUS, RUNTIME_OVERHEAD_GB, USABLE_UNIFIED_FRACTION, USABLE_VRAM_FRACTION, describeFit, describeSplit } from "../../vram";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/models");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/models");
 
 // RUNNERS START
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };

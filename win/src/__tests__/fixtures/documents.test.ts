@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/documents");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/documents");
 
 const markdownHtml = require("../../../electron/markdownHtml.cjs") as {
   escapeHtml: (value: unknown) => string;

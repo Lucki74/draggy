@@ -363,7 +363,7 @@ export async function run(area: string, input: any): Promise<any> {
   }
 }
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/providers");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/providers");
 
 /** Numbers compare as they are. An `arguments` string is compared as the JSON it holds, since key order is not meaningful. */
 function canon(value: unknown): unknown {

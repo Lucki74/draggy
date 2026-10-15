@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runScenario, type Scenario } from "./modelstoreDownloadHarness";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/modelstore");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/modelstore");
 const HF_PATH = require.resolve("../../../electron/huggingface.cjs");
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };

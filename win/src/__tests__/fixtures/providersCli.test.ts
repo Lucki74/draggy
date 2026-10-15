@@ -7,7 +7,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/providers");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/providers");
 const P = "../../../electron/providers";
 const rpcMod = require(`${P}/rpc.cjs`);
 const envMod = require(`${P}/account/env.cjs`);

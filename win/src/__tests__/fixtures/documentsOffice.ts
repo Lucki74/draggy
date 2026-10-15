@@ -38,7 +38,7 @@ interface DocumentsModule {
 
 export const documents = require("../../../electron/documents.cjs") as DocumentsModule;
 
-export const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/documents");
+export const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/documents");
 
 const DOCX_PARTS = [
   "[Content_Types].xml",

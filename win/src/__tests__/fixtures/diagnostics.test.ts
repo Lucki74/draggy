@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 const LOGGER = require.resolve("../../../electron/logger.cjs");
 const SCRUB = require.resolve("../../../electron/logScrub.cjs");
 const THRESHOLDS = require.resolve("../../../electron/logThresholds.cjs");
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/diagnostics");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/diagnostics");
 
 /** A timer starts at MONO_START on the monotonic clock and ends `elapsedMs` later. */
 const MONO_START = 1000;

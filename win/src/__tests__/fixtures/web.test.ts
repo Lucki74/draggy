@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { JSDOM } = require("jsdom") as { JSDOM: new (html: string, options: object) => { window: Window & typeof globalThis } };
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/web");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/web");
 
 // RUNNERS START
 type Case = { name: string; input: unknown; expected: unknown };

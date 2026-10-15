@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { runAcceptance, runDraftStats, runFailureReason, runKvCache, runLlamaArgs, runSizing } from "./engineLlama";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/engine");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/engine");
 
 // RUNNERS START
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };

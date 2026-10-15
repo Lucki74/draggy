@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/mcp");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/mcp");
 
 // RUNNERS START
 type Case = { name: string; input: unknown; expected: unknown };

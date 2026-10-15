@@ -7,7 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runSessionCase } from "./mcpSessionRunner";
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/mcp");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/mcp");
 
 describe("mcp session fixtures", () => {
   const files = fs

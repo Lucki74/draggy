@@ -34,7 +34,7 @@ import { registerTools, resetRegistry } from "../../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../../tools/registry";
 import type { AppSettings, InstalledSkill, PermissionMode, ProviderInstance, ProviderModel } from "../../types";
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../shared/fixtures/agent");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/agent");
 
 /** One fixture's input: plain JSON whose `op` names the function under test. */
 type Fixture = { op: string; [field: string]: unknown };
