@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Tokens from DESIGN.md and src/index.css
+// Tokens from src/index.css
 const TOKENS = {
   light: {
     "surface-canvas": "#f5f7f9",
