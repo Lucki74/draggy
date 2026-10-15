@@ -272,13 +272,18 @@ pub fn candidate_dirs(platform: &Platform) -> Vec<PathBuf> {
             join_all(env.get("LOCALAPPDATA"), &["Programs", "llama.cpp"]),
         ]
     } else {
+        // DRAGGY_FS_ROOT re-roots the system folders so a test does not pick up an engine installed on its host.
+        let root = env.or("DRAGGY_FS_ROOT", "/");
         vec![
-            PathBuf::from("/usr/local/bin"),
-            PathBuf::from("/usr/bin"),
+            join_all(root, &["usr", "local", "bin"]),
+            join_all(root, &["usr", "bin"]),
             join_all(env.get("HOME"), &[".local", "bin"]),
-            PathBuf::from("/usr/local/lib/ollama"),
-            PathBuf::from("/usr/lib/ollama"),
-            PathBuf::from("/Applications/Ollama.app/Contents/Resources"),
+            join_all(root, &["usr", "local", "lib", "ollama"]),
+            join_all(root, &["usr", "lib", "ollama"]),
+            join_all(
+                root,
+                &["Applications", "Ollama.app", "Contents", "Resources"],
+            ),
         ]
     };
     dirs.extend(

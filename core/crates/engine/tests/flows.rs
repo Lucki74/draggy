@@ -110,7 +110,11 @@ impl Extractor for FakeExtract {
 }
 
 fn linux() -> Platform {
-    Platform::new(Os::Linux, Arch::X64, Env::new([("PATH", "")]))
+    Platform::new(
+        Os::Linux,
+        Arch::X64,
+        Env::new([("PATH", ""), ("DRAGGY_FS_ROOT", "/nonexistent-draggy-root")]),
+    )
 }
 
 fn windows_with(local: &Path, path: &str) -> Platform {
