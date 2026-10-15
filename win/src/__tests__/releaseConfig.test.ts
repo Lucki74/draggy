@@ -13,15 +13,15 @@ function matrixScripts() {
 }
 
 describe("the release workflow", () => {
-  it("builds for all three platforms", () => {
-    for (const os of ["windows-latest", "ubuntu-latest", "macos-latest"]) {
-      expect(workflow).toContain(`os: ${os}`);
-    }
+  it("builds for Windows only; the native apps have their own pipelines", () => {
+    expect(workflow).toContain("os: windows-latest");
+    expect(workflow).not.toContain("os: macos-latest");
+    expect(workflow).not.toContain("os: ubuntu-latest");
   });
 
   it("calls only scripts that exist", () => {
     const scripts = matrixScripts();
-    expect(scripts.length).toBe(3);
+    expect(scripts.length).toBe(1);
 
     for (const name of scripts) {
       expect(Object.keys(pkg.scripts)).toContain(name);
@@ -35,7 +35,7 @@ describe("the release workflow", () => {
     expect(Object.keys(pkg.scripts).filter((name) => pkg.scripts[name].includes("--publish always"))).toEqual([]);
   });
 
-  it("stops everything when a platform fails, so a release is all three or none", () => {
+  it("stops everything when a platform fails, so a release is every build or none", () => {
     expect(workflow).toContain("fail-fast: true");
   });
 
@@ -99,26 +99,16 @@ describe("the frozen Linux update feed", () => {
 describe("artifact names", () => {
   it("are fixed, so latest/download links never go stale", () => {
     expect(pkg.build.win.artifactName).toBe("draggy_setup.exe");
-    expect(pkg.build.mac.artifactName).toBe("Draggy-${arch}.${ext}");
-    expect(pkg.build.linux.artifactName).toBe("Draggy-${arch}.${ext}");
   });
 });
 
 describe("packaging", () => {
-  it("signs ad-hoc rather than hunting for a certificate it will not find", () => {
-    // "-" is electron-builder's own sentinel for an ad-hoc signature: it never
-    // touches CSC_LINK or a real keychain entry, so CI needs no certificate.
-    // Apple refuses to launch an arm64 build with no signature at all, which
-    // is why plain `null` here shipped a Mac build nobody on Apple Silicon
-    // could open.
-    expect(pkg.build.mac.identity).toBe("-");
-    expect(pkg.build.mac.notarize).toBe(false);
-    expect(pkg.scripts["electron:build:mac"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
+  it("builds without hunting for a signing certificate", () => {
     expect(pkg.scripts["electron:build"]).toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
   });
 
-  it("ships an icon for every platform it builds", () => {
-    for (const icon of [pkg.build.win.icon, pkg.build.mac.icon, pkg.build.linux.icon]) {
+  it("ships its icon", () => {
+    for (const icon of [pkg.build.win.icon]) {
       expect(fs.existsSync(icon)).toBe(true);
     }
   });

@@ -25,9 +25,6 @@
     "logs": "node scripts/logs.cjs",
     "logs:turn": "node scripts/logs.cjs --turn",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "electron:build:mac": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
-    "electron:build:linux": "npm run build && electron-builder --linux --publish never",
-    "electron:build:all": "npm run build && electron-builder -mwl --publish never",
     "icons": "node scripts/make-icons.mjs",
     "bench:engine": "node scripts/bench-engine.cjs"
   },
@@ -73,33 +70,6 @@
       "artifactName": "draggy_setup.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "category": "public.app-category.productivity",
-      "artifactName": "Draggy-${arch}.${ext}",
-      "darkModeSupport": true,
-      "icon": "build/icon.icns",
-      "identity": "-",
-      "notarize": false
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Utility",
-      "artifactName": "Draggy-${arch}.${ext}",
-      "maintainer": "The Draggy authors <215649322+Lucki74@users.noreply.github.com>",
-      "icon": "build/icons"
     },
     "publish": [
       {

@@ -46,8 +46,6 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, script: "electron:build" }
-          - { os: macos-latest, script: "electron:build:mac" }
-          - { os: ubuntu-latest, script: "electron:build:linux" }
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -92,9 +90,6 @@ jobs:
           name: dist-${{ matrix.os }}
           path: |
             win/dist-electron/*.exe
-            win/dist-electron/*.dmg
-            win/dist-electron/*.AppImage
-            win/dist-electron/*.deb
             win/dist-electron/*.blockmap
             win/dist-electron/latest*.yml
           if-no-files-found: error
