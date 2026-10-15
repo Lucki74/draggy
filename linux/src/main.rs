@@ -1,5 +1,7 @@
 //! The Draggy window. Everything that is not widget code lives in the library so it can be tested without a display.
 
+mod settings_dialog;
+mod state;
 mod window;
 
 use adw::prelude::*;

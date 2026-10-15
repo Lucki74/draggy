@@ -3,13 +3,18 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
+use std::rc::Rc;
+
+use crate::settings_dialog::DraggySettings;
+use crate::state::AppState;
 
 mod imp {
     use super::*;
 
-    #[derive(Debug, Default, gtk::CompositeTemplate)]
+    #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/com/draggy/Draggy/window.ui")]
     pub struct DraggyWindow {
+        pub state: Rc<AppState>,
         #[template_child]
         pub toasts: TemplateChild<adw::ToastOverlay>,
         #[template_child]
@@ -67,7 +72,27 @@ glib::wrapper! {
 
 impl DraggyWindow {
     pub fn new(app: &adw::Application) -> Self {
-        glib::Object::builder().property("application", app).build()
+        let window: Self = glib::Object::builder().property("application", app).build();
+        window.install_actions();
+        window
+    }
+
+    fn install_actions(&self) {
+        let settings = gio::SimpleAction::new("settings", None);
+        let weak = self.downgrade();
+        settings.connect_activate(move |_, _| {
+            let Some(window) = weak.upgrade() else { return };
+            let notify = {
+                let weak = window.downgrade();
+                move |text: &str| {
+                    if let Some(window) = weak.upgrade() {
+                        window.toast(text);
+                    }
+                }
+            };
+            DraggySettings::new(&window.imp().state, notify).present(Some(&window));
+        });
+        self.add_action(&settings);
     }
 
     /// Shows a short message at the bottom of the window.

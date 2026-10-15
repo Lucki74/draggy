@@ -29,7 +29,8 @@ draggy-core = { path = "../core/crates/draggy-core" }
 gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }
 adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
 async-channel = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "rt"] }
+oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_crypto"] }
 
 [build-dependencies]
 glib-build-tools = "0.22"
