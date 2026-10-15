@@ -183,7 +183,7 @@ export async function startRecording(): Promise<Recorder> {
   recorder.start();
 
   let context: AudioContext | null = null;
-  let analyser: AnalyserNode | null = null;
+  let analyser: AnalyserNode | null;
   try {
     context = new AudioContext();
     analyser = context.createAnalyser();
