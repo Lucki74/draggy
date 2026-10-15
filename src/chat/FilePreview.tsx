@@ -109,6 +109,12 @@ function parseSlideCards(text: string): SlideItem[] {
     .filter((s) => s.title || s.items.length > 0);
 }
 
+const columnLetter = (index: number): string => {
+  let name = "";
+  for (let n = index; n >= 0; n = Math.floor(n / 26) - 1) name = String.fromCharCode(65 + (n % 26)) + name;
+  return name;
+};
+
 export function FilePreview({ filename, content, t = (k) => k, fullHeight = false }: FilePreviewProps) {
   const dot = filename.lastIndexOf(".");
   const hasExt = dot > 0;
@@ -191,7 +197,6 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
     }
 
     const header = tableRows[0];
-    const data = tableRows.slice(1);
 
     return (
       <div className={`flex flex-col w-full overflow-hidden ${fullHeight ? "h-full flex-1" : ""}`}>
@@ -200,32 +205,30 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
             {tableRows.length} {t("rowCount")} · {header.length} {t("columnCount")}
           </span>
         </div>
-        <div className={`overflow-y-auto overflow-x-hidden bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
-          <table className="w-full table-fixed border-collapse text-start font-mono text-xs">
+        <div className={`overflow-y-auto overflow-x-hidden bg-white ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
+          <table className="w-full table-fixed border-collapse text-start font-sans text-[13px] text-[#1f1f1f]">
             <thead>
-              <tr className="bg-[var(--bg-panel)] sticky top-0 border-b-2 border-[var(--border-light)]">
-                {header.map((col, idx) => (
-                  <th
-                    key={idx}
-                    className="px-3 py-2 font-semibold text-text-primary text-start border-e border-[var(--border-light)] last:border-e-0 break-words"
-                  >
-                    {col}
+              <tr className="sticky top-0 bg-[#f3f3f3] text-[11px] font-normal text-[#5f5f5f]">
+                <th className="w-9 border border-[#d4d4d4] py-0.5 font-normal" />
+                {header.map((_, idx) => (
+                  <th key={idx} className="border border-[#d4d4d4] py-0.5 text-center font-normal">
+                    {columnLetter(idx)}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {data.map((row, rIdx) => (
-                <tr
-                  key={rIdx}
-                  className="border-b border-[var(--border-light)] hover:bg-[var(--hover-bg)] transition-colors"
-                >
-                  {row.map((cell, cIdx) => (
+              {tableRows.map((row, rIdx) => (
+                <tr key={rIdx}>
+                  <td className="border border-[#d4d4d4] bg-[#f3f3f3] text-center text-[11px] text-[#5f5f5f]">
+                    {rIdx + 1}
+                  </td>
+                  {header.map((_, cIdx) => (
                     <td
                       key={cIdx}
-                      className="px-3 py-1.5 text-[var(--text-main)] border-e border-[var(--border-light)] last:border-e-0 break-words align-top"
+                      className={`border border-[#d4d4d4] px-2 py-1 align-top break-words ${rIdx === 0 ? "font-semibold bg-[#f9fafb]" : ""}`}
                     >
-                      {cell}
+                      {row[cIdx] ?? ""}
                     </td>
                   ))}
                 </tr>
@@ -251,29 +254,23 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
         <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[11px] font-medium text-text-secondary flex items-center justify-end">
           <span>{slides.length} {t("slideCount")}</span>
         </div>
-        <div className={`p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-80"}`}>
+        <div className={`p-4 overflow-y-auto flex flex-col items-center gap-4 bg-[#e9e9ec] ${fullHeight ? "flex-1 min-h-0" : "max-h-96"}`}>
           {slides.map((slide, idx) => (
             <div
               key={idx}
-              className="rounded-lg border-2 border-[var(--border-light)] p-3 bg-[var(--bg-panel)] flex flex-col justify-between shadow-xs aspect-video"
+              className="relative w-full max-w-[560px] aspect-video shrink-0 overflow-hidden bg-white text-[#1f1f1f] shadow-md px-[7%] py-[6%] flex flex-col"
             >
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-medium text-text-secondary">
-                    {idx + 1}
-                  </span>
-                </div>
-                <h4 className="text-xs font-semibold text-text-primary line-clamp-2 mb-2">
-                  {slide.title}
-                </h4>
-                <ul className="text-[11px] text-[var(--text-muted)] space-y-1">
-                  {slide.items.slice(0, 3).map((item, itemIdx) => (
-                    <li key={itemIdx} className="truncate">
-                      • {item}
-                    </li>
+              <h4 className={`font-semibold leading-tight ${slide.items.length === 0 ? "m-auto text-center text-2xl" : "text-xl mb-3"}`}>
+                {slide.title}
+              </h4>
+              {slide.items.length > 0 && (
+                <ul className="list-disc ps-5 space-y-1.5 text-[13px] text-[#3a3a3a]">
+                  {slide.items.map((item, itemIdx) => (
+                    <li key={itemIdx}>{item}</li>
                   ))}
                 </ul>
-              </div>
+              )}
+              <span className="absolute bottom-2 end-3 text-[10px] text-[#8a8a8a]">{idx + 1}</span>
             </div>
           ))}
         </div>

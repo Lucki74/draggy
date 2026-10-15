@@ -36,7 +36,7 @@ describe("FilePreview presentation view", () => {
 
     expect(screen.getByText("Intro")).toBeTruthy();
     expect(screen.getByText("Architecture")).toBeTruthy();
-    expect(screen.getByText("• Welcome")).toBeTruthy();
+    expect(screen.getByText("Welcome")).toBeTruthy();
     expect(screen.getByText("2 slideCount")).toBeTruthy();
   });
 
@@ -46,7 +46,7 @@ describe("FilePreview presentation view", () => {
 
     expect(screen.getByText("Slide One")).toBeTruthy();
     expect(screen.getByText("Slide Two")).toBeTruthy();
-    expect(screen.getByText("• Point A")).toBeTruthy();
+    expect(screen.getByText("Point A")).toBeTruthy();
   });
 });
 
