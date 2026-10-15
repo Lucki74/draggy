@@ -215,7 +215,11 @@ export async function runLlamaArgs(input: ArgsInput): Promise<ArgsOutput> {
     });
     if (!result.success) throw new Error(`start failed: ${JSON.stringify(result)}`);
     const status = llamaProcess.getServerStatus();
-    const args = spawned.map((arg) => arg.split(dir).join("<dir>"));
+    // Fixtures spell a path under the temp folder with "/"; a Windows host's separators are mapped to it.
+    const args = spawned.map((arg) => {
+      const scrubbed = arg.split(dir).join("<dir>");
+      return process.platform === "win32" && scrubbed.startsWith("<dir>") ? scrubbed.replaceAll("\\", "/") : scrubbed;
+    });
     const at = args.indexOf("--port");
     if (at >= 0) args[at + 1] = "<port>";
     return { args, contextSize: status.contextSize, speculation: status.speculation };

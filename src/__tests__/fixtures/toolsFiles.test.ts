@@ -73,7 +73,12 @@ function fill(value: Json, base: string): Json {
 
 /** Puts the temp folder back as {base} in every string of a result, so paths compare across machines. */
 function unfill(value: unknown, base: string): unknown {
-  if (typeof value === "string") return value.split(base).join("{base}");
+  if (typeof value === "string") {
+    const text = value.split(base).join("{base}");
+    // Fixtures spell paths with "/"; the host's own separator is mapped to it for any path that sat under the folder.
+    const underBase = text.startsWith("{base}") || /^[\w.-]+(\\[\w.-]+)+$/.test(text);
+    return path.sep === "\\" && underBase ? text.replaceAll("\\", "/") : text;
+  }
   if (Array.isArray(value)) return value.map((item) => unfill(item, base));
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, unfill(item, base)]));
@@ -592,7 +597,9 @@ describe("tools file, git and skill fixtures", () => {
     };
     describe(file, () => {
       for (const testCase of fixture.cases) {
-        it(testCase.name, async () => {
+        // A backslash is a separator on Windows, so these two cases describe POSIX file names only.
+        const posixNames = file === "files-guard.json" && /\bbackslash in a (directory|file) name\b/.test(testCase.name);
+        it.skipIf(process.platform === "win32" && posixNames)(testCase.name, async () => {
           const runner = RUNNERS[file];
           if (!runner) throw new Error(`no runner for ${file}`);
           expect(await inCase(testCase.input, runner)).toEqual(testCase.expected);

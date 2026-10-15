@@ -28,7 +28,18 @@ import { runSupervisor } from "./supervisorDriver";
 const gateway = require(`${P}/gateway.cjs`);
 const { createRegistry } = require(`${P}/registry.cjs`);
 
-const plain = (v: unknown): any => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
+/**
+ * Fixtures spell a rooted path with "/". On a Windows host path.join makes it "\data\...", so any string that starts
+ * with a single backslash is mapped back. Strings that name a drive (C:\Windows) are the fixture's own and stay.
+ */
+const hostPath = (v: unknown): unknown => {
+  if (process.platform !== "win32") return v;
+  if (typeof v === "string") return /^\\(?!\\)/.test(v) ? v.replaceAll("\\", "/") : v;
+  if (Array.isArray(v)) return v.map(hostPath);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, hostPath(x)]));
+  return v;
+};
+const plain = (v: unknown): any => (v === undefined ? null : hostPath(JSON.parse(JSON.stringify(v))));
 const tick = async (n = 12) => {
   for (let i = 0; i < n; i++) await Promise.resolve();
 };
@@ -358,7 +369,10 @@ describe("providers CLI and gateway fixtures", () => {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };
     describe(name, () => {
       for (const testCase of fixture.cases) {
-        it(testCase.name, async () => {
+        // Windows has no execute bit, so a case that expects one cannot be observed there; the Rust runner gates the same way.
+        const needsExecuteBit =
+          process.platform === "win32" && JSON.stringify(testCase.expected).includes('"executable":true');
+        it.skipIf(needsExecuteBit)(testCase.name, async () => {
           expect(plain(await driveCase(name, testCase.input))).toEqual(testCase.expected);
         });
       }

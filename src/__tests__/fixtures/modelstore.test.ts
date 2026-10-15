@@ -123,7 +123,10 @@ describe("modelstore fixtures: model cache paths", () => {
   for (const c of loadCases<Case>("model-cache-paths.json")) {
     it(c.name, () => {
       const input = c.input as { root: string; relative: string };
-      expect(canon(cache.cachedPath(input.root, input.relative))).toEqual(c.expected);
+      const result = cache.cachedPath(input.root, input.relative);
+      // A Windows host resolves "/cache" onto the current drive and joins with "\"; the fixtures spell it with "/".
+      const portable = path.sep === "\\" && result !== null ? result.replace(/^[A-Za-z]:/, "").replaceAll("\\", "/") : result;
+      expect(canon(portable)).toEqual(c.expected);
     });
   }
 });

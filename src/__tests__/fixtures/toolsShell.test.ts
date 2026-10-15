@@ -70,7 +70,8 @@ describe("tools shell fixtures", () => {
     };
     describe(file, () => {
       for (const testCase of fixture.cases) {
-        it(testCase.name, () => {
+        // The Homebrew and /usr/local additions are for POSIX shells; a Windows host keeps its PATH as it is.
+        it.skipIf(process.platform === "win32" && file === "shell-env.json")(testCase.name, () => {
           const runner = RUNNERS[file];
           if (!runner) throw new Error(`no runner for ${file}`);
           expect(runner(testCase.input)).toEqual(testCase.expected);

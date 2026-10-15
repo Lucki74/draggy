@@ -398,7 +398,11 @@ function runEnvironment(input: Input): unknown {
         withNvidia(input.nvidia === true, root, () => {
           const explicit = input.explicit === undefined ? undefined : path.join(root, input.explicit as string);
           const engine = binaryManager.getEngineEnvironment(root, num(input.vramGB), explicit);
-          const scrub = (text: string) => text.split(root).join("<root>");
+          // Fixtures spell the folder with "/" and list entries with ":"; a Windows host's separators are mapped to them.
+          const scrub = (text: string) => {
+            const scrubbed = text.split(root).join("<root>");
+            return path.sep === "\\" ? scrubbed.replaceAll("\\", "/").replaceAll(";", ":") : scrubbed;
+          };
           const env = Object.fromEntries(Object.entries(engine.env).map(([key, value]) => [key, scrub(value)]));
           return {
             env,
