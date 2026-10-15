@@ -2,6 +2,7 @@
 // mmproj.cjs, draftModel.cjs, draftPairing.cjs, shards.cjs, src/modelKinds.ts, modelRecommendations.ts, vram.ts) and checks
 // what it returns. core/crates/models/tests/fixtures.rs runs the same inputs against the Rust port, so both must agree.
 // Whole numbers in expected output are decimal strings, so 64-bit values survive JSON; `canon` applies the same rule here.
+import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -90,7 +91,10 @@ function withTempDir<T>(body: (dir: string) => T): T {
 /** A file of `size` bytes: `bytes` at the start, zeros after (a sparse file when it is large). */
 function writeSized(file: string, size: number, bytes: Buffer = Buffer.alloc(0)): void {
   fs.writeFileSync(file, bytes);
-  if (size > bytes.length) fs.truncateSync(file, size);
+  if (size <= bytes.length) return;
+  // NTFS gives the whole length real disk blocks on truncate unless the file is marked sparse first.
+  if (process.platform === "win32") spawnSync("fsutil", ["sparse", "setflag", file], { windowsHide: true });
+  fs.truncateSync(file, size);
 }
 
 function runGguf(input: { hex: string | null }): unknown {
