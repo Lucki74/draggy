@@ -208,6 +208,9 @@ function runOps(api: StorageApi, dir: string, ops: Op[]): unknown[] {
       case "sql": {
         const db = new DatabaseSync(path.join(dir, "draggy.db"));
         try {
+          // Some Node 24 releases switch SQLite's defensive mode on, which refuses the DROP of a shadow table that
+          // these cases use to damage the database on purpose.
+          if (typeof db.enableDefensive === "function") db.enableDefensive(false);
           db.exec((args[0] as string[]).join(";\n"));
         } finally {
           db.close();

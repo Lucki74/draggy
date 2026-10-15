@@ -208,7 +208,9 @@ async function runStep(
       const entries = (result.entries as { name: string; isDirectory: boolean; size: number }[]).map((entry) => ({
         name: entry.name,
         isDirectory: entry.isDirectory,
-        size: entry.size,
+        // A folder's own size is whatever the filesystem says (4096 on ext4, 96 on APFS), so the fixtures record the
+        // ext4 value and every runner reports that value for folders. File sizes are compared as they are.
+        size: entry.isDirectory ? 4096 : entry.size,
       }));
       return { outcome: { success: true, entries, truncated: result.truncated === true } };
     }

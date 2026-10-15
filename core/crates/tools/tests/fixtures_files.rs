@@ -534,7 +534,12 @@ where
                 let entries: Vec<Value> = listing
                     .entries
                     .iter()
-                    .map(|entry| json!({ "name": entry.name, "isDirectory": entry.is_directory, "size": entry.size }))
+                    .map(|entry| {
+                        // A folder's own size is whatever the filesystem says (4096 on ext4, 96 on APFS), so the
+                        // fixtures record the ext4 value and every runner reports it for folders.
+                        let size = if entry.is_directory { 4096 } else { entry.size };
+                        json!({ "name": entry.name, "isDirectory": entry.is_directory, "size": size })
+                    })
                     .collect();
                 (
                     json!({ "success": true, "entries": entries, "truncated": listing.truncated }),
