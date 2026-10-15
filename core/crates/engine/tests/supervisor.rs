@@ -423,7 +423,7 @@ async fn stopping_takes_the_whole_process_group_with_it() {
     let binary = server(
         dir.path(),
         &[],
-        "touch \"DIR/up\"\n(sleep 1; touch \"DIR/late\") &\nsleep 30",
+        "touch \"DIR/up\"\n(sleep 4; touch \"DIR/late\") &\nsleep 30",
     );
     let sup = supervisor(dir.path().join("up"), None);
 
@@ -431,7 +431,7 @@ async fn stopping_takes_the_whole_process_group_with_it() {
         .await
         .expect("starts");
     sup.stop().await;
-    tokio::time::sleep(Duration::from_millis(1500)).await;
+    tokio::time::sleep(Duration::from_millis(5000)).await;
     assert!(!late.exists(), "a child of the server outlived the stop");
 }
 
