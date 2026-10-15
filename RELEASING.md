@@ -41,6 +41,10 @@ gh workflow run release.yml --ref main -f dry_run=true -f notes="dry run"
 A dry run builds all three systems and keeps the installers as workflow artifacts. It creates no
 tag and no release, so it does not use up a build number.
 
+## Last Electron-only build
+
+build-3 (tag `b-3`, version 3.0.3) is the last build before the platform split. The tag `electron-crossplatform-final` marks the commit it was built from.
+
 ## Tags are permanent
 
 The next build number comes from the existing `b-N` tags. Moving or deleting one would hand the same
