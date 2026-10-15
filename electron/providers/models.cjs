@@ -3,6 +3,7 @@
 const { capabilitiesFor } = require("./catalog.cjs");
 const { fromResponse, fromNetwork } = require("./errors.cjs");
 const { log } = require("../logger.cjs");
+const offload = require("./offloadPlan.cjs");
 
 const ADAPTERS = {
   openai: require("./adapters/openai.cjs"),
@@ -79,12 +80,18 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
       return runtime.models(connection.instance.id);
     }
     if (entry?.protocol === "ollama") {
-      const listed = ADAPTERS.ollama.parseModels(await request(connection, ADAPTERS.ollama.modelsRequest(connection)));
+      const tags = await request(connection, ADAPTERS.ollama.modelsRequest(connection));
+      if (offload.isLocalUrl(connection.baseUrl)) {
+        offload.prime();
+        offload.rememberTags(tags);
+      }
+      const listed = ADAPTERS.ollama.parseModels(tags);
       // `/api/show` is the only place Ollama says what a model takes; a model it cannot show stays unknown.
       return Promise.all(
         listed.map(async (model, index) => {
           if (index >= MAX_SHOWN) return model;
           const shown = await request(connection, ADAPTERS.ollama.showRequest(connection, model.id)).catch(log.swallowed("providers", "model details are optional", null));
+          if (shown && offload.isLocalUrl(connection.baseUrl)) offload.rememberShow(model.id, shown);
           return shown ? { ...model, ...ADAPTERS.ollama.parseShow(shown) } : model;
         }),
       );

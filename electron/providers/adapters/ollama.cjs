@@ -2,6 +2,7 @@
  * per line and hands tool calls whole, so they are numbered and passed on as they arrive. */
 const { fromResponse } = require("../errors.cjs");
 const { log } = require("../../logger.cjs");
+const offload = require("../offloadPlan.cjs");
 
 function buildRequest(body, { baseUrl, headers }, modelId) {
   const payload = { model: String(modelId), messages: toMessages(body.messages || []), stream: Boolean(body.stream) };
@@ -12,6 +13,12 @@ function buildRequest(body, { baseUrl, headers }, modelId) {
 
   const options = {};
   if (Number(body.options?.num_ctx) > 0) options.num_ctx = Number(body.options.num_ctx);
+  // A caller's own layer count wins; otherwise a model too big for the card gets one that leaves headroom.
+  const callerGpu = Number(body.options?.num_gpu);
+  const planned = Number.isInteger(callerGpu) && callerGpu >= 0 && body.options?.num_gpu !== undefined ? callerGpu : (offload.isLocalUrl(baseUrl) ? offload.numGpuFor(modelId) : null);
+  if (planned !== null) options.num_gpu = planned;
+  if (Number.isInteger(Number(body.options?.main_gpu)) && body.options?.main_gpu !== undefined) options.main_gpu = Number(body.options.main_gpu);
+  if (Number(body.options?.num_thread) > 0) options.num_thread = Number(body.options.num_thread);
   const limit = Number(body.max_tokens) > 0 ? Number(body.max_tokens) : Number(body.options?.num_predict) > 0 ? Number(body.options.num_predict) : 0;
   if (limit) options.num_predict = limit;
   if (typeof body.temperature === "number") options.temperature = body.temperature;

@@ -123,6 +123,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
         <Block>
           <ModelSearch
             vram={manager.vram}
+            ram={manager.ram}
             unifiedMemory={manager.unifiedMemory}
             phaseFor={(reference) => manager.pulls.find((pull) => pull.name === reference && isActivePull(pull))?.phase}
             onPick={(reference, _bytes, capabilities) => pull(reference, isImageModel(capabilities))}

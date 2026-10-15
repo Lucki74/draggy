@@ -63,6 +63,7 @@ export interface ModelManager {
   unload: (name: string) => Promise<void>;
   error: string;
   vram: number;
+  ram?: number;
   unifiedMemory: boolean;
 }
 
@@ -86,6 +87,7 @@ export function useModelManager(page?: string): ModelManager {
   const [pulls, setPulls] = useState<PullState[]>([]);
   const [error, setError] = useState("");
   const [vram, setVram] = useState(0);
+  const [ram, setRam] = useState(0);
   const [unifiedMemory, setUnifiedMemory] = useState(false);
   const jobsRef = useRef<PullJob[]>([]);
 
@@ -126,6 +128,7 @@ export function useModelManager(page?: string): ModelManager {
       .then((specs) => {
         if (cancelled || !specs) return;
         setVram(specs.vram || 0);
+        setRam(specs.ram || 0);
         setUnifiedMemory(Boolean(specs.unifiedMemory));
       })
       .catch(swallowed("settings", "the main process already logged this call"));
@@ -284,5 +287,5 @@ export function useModelManager(page?: string): ModelManager {
     [refresh],
   );
 
-  return { installed, loaded, refresh, pulls, startPull, cancelPull, remove, unload, error, vram, unifiedMemory };
+  return { installed, loaded, refresh, pulls, startPull, cancelPull, remove, unload, error, vram, ram, unifiedMemory };
 }

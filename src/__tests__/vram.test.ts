@@ -4,6 +4,7 @@ import {
   USABLE_UNIFIED_FRACTION,
   USABLE_VRAM_FRACTION,
   describeFit,
+  describeVerdict,
   describeSplit,
 } from "../vram";
 
@@ -90,5 +91,23 @@ describe("describing the split", () => {
     const [, gpu, cpu] = describeSplit(fit).match(/(\d+)% GPU \/ (\d+)% CPU/) as string[];
 
     expect(Number(gpu) + Number(cpu)).toBe(100);
+  });
+});
+
+describe("fit verdict", () => {
+  it("is fast when the model fits the card", () => {
+    expect(describeVerdict({ modelBytes: 4 * GB, vramGB: 16, ramGB: 32 })).toBe("fast");
+  });
+
+  it("is partial when layers spill into RAM that can hold them", () => {
+    expect(describeVerdict({ modelBytes: 40 * GB, vramGB: 16, ramGB: 64 })).toBe("partial");
+  });
+
+  it("exceeds when the spill does not fit in RAM", () => {
+    expect(describeVerdict({ modelBytes: 40 * GB, vramGB: 8, ramGB: 16 })).toBe("exceeds");
+  });
+
+  it("never says exceeds without a RAM figure", () => {
+    expect(describeVerdict({ modelBytes: 40 * GB, vramGB: 8 })).toBe("partial");
   });
 });

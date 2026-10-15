@@ -102,16 +102,27 @@ function largestQword(out) {
   return best;
 }
 
+/** NVIDIA devices as `index, total MiB` rows from nvidia-smi, biggest card first. */
+function parseNvidiaDevices(out) {
+  return String(out || "")
+    .trim()
+    .split("\n")
+    .map((line) => line.split(",").map((part) => part.trim()))
+    .map(([index, mib]) => ({ index: parseInt(index, 10), totalMiB: parseInt(mib, 10) }))
+    .filter((device) => device.index >= 0 && device.totalMiB > 0)
+    .sort((a, b) => b.totalMiB - a.totalMiB || a.index - b.index);
+}
+
+/** Every NVIDIA card, so an inference engine can be pinned to the dedicated one on a hybrid laptop
+ * instead of whichever device a backend happens to enumerate first. Empty without an NVIDIA driver. */
+async function nvidiaDevices() {
+  const out = await runCommand("nvidia-smi", ["--query-gpu=index,memory.total", "--format=csv,noheader,nounits"], 4000);
+  return parseNvidiaDevices(out);
+}
+
 async function detectVideoMemoryGB() {
-  const nvidia = await runCommand(
-    "nvidia-smi",
-    ["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-    4000,
-  );
-  if (nvidia) {
-    const mib = parseInt(nvidia.trim().split("\n")[0], 10);
-    if (!isNaN(mib) && mib > 0) return mib / 1024;
-  }
+  const [best] = await nvidiaDevices();
+  if (best) return best.totalMiB / 1024;
 
   if (IS_WINDOWS) {
     // reg.exe, not PowerShell: antivirus heuristics block a hidden PowerShell started by an app.
@@ -327,6 +338,8 @@ module.exports = {
   detectFreeVideoMemoryGB,
   largestQword,
   nvidiaInfo,
+  nvidiaDevices,
+  parseNvidiaDevices,
   parseNvidiaInfo,
   hasUnifiedMemory,
   defaultShellEnv,
