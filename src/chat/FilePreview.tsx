@@ -195,20 +195,19 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
 
     return (
       <div className={`flex flex-col w-full overflow-hidden ${fullHeight ? "h-full flex-1" : ""}`}>
-        <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[11px] font-medium text-text-secondary flex items-center justify-between">
-          <span>{filename}</span>
+        <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[11px] font-medium text-text-secondary flex items-center justify-end">
           <span>
             {tableRows.length} {t("rowCount")} · {header.length} {t("columnCount")}
           </span>
         </div>
-        <div className={`overflow-auto bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
-          <table className="w-full border-collapse text-start font-mono text-xs">
+        <div className={`overflow-y-auto overflow-x-hidden bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-72"}`}>
+          <table className="w-full table-fixed border-collapse text-start font-mono text-xs">
             <thead>
               <tr className="bg-[var(--bg-panel)] sticky top-0 border-b-2 border-[var(--border-light)]">
                 {header.map((col, idx) => (
                   <th
                     key={idx}
-                    className="px-3 py-2 font-semibold text-text-primary border-e border-[var(--border-light)] last:border-e-0 whitespace-nowrap"
+                    className="px-3 py-2 font-semibold text-text-primary text-start border-e border-[var(--border-light)] last:border-e-0 break-words"
                   >
                     {col}
                   </th>
@@ -224,7 +223,7 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
                   {row.map((cell, cIdx) => (
                     <td
                       key={cIdx}
-                      className="px-3 py-1.5 text-[var(--text-main)] border-e border-[var(--border-light)] last:border-e-0 whitespace-nowrap"
+                      className="px-3 py-1.5 text-[var(--text-main)] border-e border-[var(--border-light)] last:border-e-0 break-words align-top"
                     >
                       {cell}
                     </td>
@@ -249,8 +248,7 @@ export function FilePreview({ filename, content, t = (k) => k, fullHeight = fals
 
     return (
       <div className={`flex flex-col w-full overflow-hidden ${fullHeight ? "h-full flex-1" : ""}`}>
-        <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[11px] font-medium text-text-secondary flex items-center justify-between">
-          <span>{filename}</span>
+        <div className="px-3 py-1.5 bg-[var(--hover-bg)] border-b border-[var(--border-light)] text-[11px] font-medium text-text-secondary flex items-center justify-end">
           <span>{slides.length} {t("slideCount")}</span>
         </div>
         <div className={`p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--bg-base)] ${fullHeight ? "flex-1 min-h-0" : "max-h-80"}`}>

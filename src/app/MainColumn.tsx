@@ -78,7 +78,6 @@ export interface MainColumnProps {
     onOpenSettings: (tab: SettingsTab) => void;
     onNewChat: () => void;
     /** Opens Talk from the empty chat's home. */
-    onTalk?: () => void;
     onTalkTurn: (turn: Utterance) => void;
     onLeaveTalk: () => void;
     onSeedUsed?: () => void;
@@ -134,7 +133,6 @@ export function MainColumn({
     onSelectModel,
     onOpenSettings,
     onNewChat,
-    onTalk,
     onTalkTurn,
     onLeaveTalk,
     onSeedUsed,
@@ -228,7 +226,6 @@ export function MainColumn({
                             onSelectModel={onSelectModel}
                             onOpenSettings={onOpenSettings}
                             onNewChat={onNewChat}
-                            onTalk={mode === "chat" ? onTalk : undefined}
                             surface={mode}
                             skills={skills}
                             unavailable={arrivingModel ? t("onbStillDownloading") : undefined}

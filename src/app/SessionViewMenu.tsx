@@ -15,12 +15,14 @@ interface Props {
   sortBy: SortBy;
   onGroupBy: (next: GroupBy) => void;
   onSortBy: (next: SortBy) => void;
+  /** False for chats, which sit in no folder. */
+  byFolder?: boolean;
   t: (key: string) => string;
 }
 
 /** The sidebar's view options: one button opening Group by and Sort by, each with its choices in a
  * flyout beside the row. */
-export function SessionViewMenu({ groupBy, sortBy, onGroupBy, onSortBy, t }: Props) {
+export function SessionViewMenu({ groupBy, sortBy, onGroupBy, onSortBy, byFolder = true, t }: Props) {
   const [open, setOpen] = useState(false);
   const [flyout, setFlyout] = useState<"group" | "sort" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -41,7 +43,7 @@ export function SessionViewMenu({ groupBy, sortBy, onGroupBy, onSortBy, t }: Pro
 
   const groupOptions: Option<GroupBy>[] = [
     { value: "date", label: t("groupDate") },
-    { value: "folder", label: t("groupFolder") },
+    ...(byFolder ? [{ value: "folder" as const, label: t("groupFolder") }] : []),
     { value: "status", label: t("groupStatus") },
     { value: "custom", label: t("groupCustom") },
     { value: "none", label: t("groupNone") },

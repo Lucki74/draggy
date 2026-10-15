@@ -31,6 +31,7 @@ const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
   library: "books",
   run_code: "terminal",
   command: "terminal-window",
+  plan: "check-circle",
   extension: "puzzle-piece",
   // The same book as the Skills tab, so a loaded skill never reads as a web search.
   skill: "book-open",

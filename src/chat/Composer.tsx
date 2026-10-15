@@ -15,6 +15,7 @@ import type { ModelInfo } from "../llama";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
 import type { SettingsTab } from "../settings/pages";
+import { MicWave } from "./MicWave";
 import type {
     AppSettings,
     Attachment,
@@ -66,6 +67,7 @@ export interface ComposerProps {
     fileErrors: string[];
     notice: string | null;
     micState: "idle" | "recording" | "loading" | "transcribing";
+    micAnalyser?: AnalyserNode | null;
     micDetail: string;
     slashMatches: Array<{ id: string; label: string; description?: string }>;
     activeSlashIndex: number;
@@ -131,6 +133,7 @@ export function Composer({
     fileErrors,
     notice,
     micState,
+    micAnalyser,
     micDetail,
     slashMatches,
     activeSlashIndex,
@@ -722,6 +725,8 @@ export function Composer({
                                     onOpenUsage={onOpenUsage}
                                 />
                             )}
+
+                            {micState === "recording" && micAnalyser && <MicWave analyser={micAnalyser} />}
 
                             {speechSupported && (
                                 <IconButton
