@@ -67,6 +67,10 @@ export interface ToolContext {
   syncSteps: () => void;
 
   newId: () => string;
+  /** Whether the model can read images. A tool that would return one checks this first. */
+  vision?: boolean;
+  /** Hands the model a base64 image with this tool's result. Ignored for a model without vision. */
+  attachImage?: (base64: string) => void;
   signal: AbortSignal;
   /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to
    * notice that they are being asked the same thing twice. */

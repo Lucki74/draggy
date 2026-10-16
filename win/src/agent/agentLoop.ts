@@ -713,9 +713,20 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     findStep: (predicate) => steps.find(predicate),
     syncSteps,
     newId: generateId,
+    attachImage: (base64) => {
+      if (toolContext.vision) pendingImages.push(base64);
+    },
 
     signal,
     memo: new Map<string, unknown>(),
+  };
+
+  /** Pictures tools produced during this pass, sent after their results since a tool message
+   * cannot carry one. */
+  const pendingImages: string[] = [];
+  const flushImages = () => {
+    if (pendingImages.length === 0) return;
+    wire.push({ role: "user", content: "Image from the tool result above.", images: pendingImages.splice(0) });
   };
 
   /** The plan as the model last saw it, so only the user's edits are reported. */
@@ -871,6 +882,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   const {
     info,
     nativeTools,
+    nativeVision,
     hasThinkingCapability,
     nativeThinking,
     slow,
@@ -881,6 +893,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     wire,
     invokedSkill,
   } = await prepareTurn(request);
+  toolContext.vision = nativeVision;
   const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
   const turnStartedAt = Date.now();
 
@@ -1576,6 +1589,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             tool_name: call.function?.name || "",
           });
         }
+        flushImages();
       } else {
         wire.push({ role: "assistant", content: rawChunk, ...kept });
         let { name, args } = parseToolCall(toolMatch as string);
@@ -1595,6 +1609,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           toolsRan = true;
           lastToolResult = result;
           wire.push({ role: "user", content: result });
+          flushImages();
         }
       }
 

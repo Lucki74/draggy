@@ -607,6 +607,47 @@ describe("native tool calling", () => {
   });
 });
 
+describe("a tool that returns an image", () => {
+  const shot: ToolSpec = {
+    name: "take_shot",
+    group: "web",
+    description: "Takes a picture.",
+    parameters: {},
+    required: [],
+    usage: "{}",
+    run: async (_args, ctx) => {
+      if (!ctx.vision) return "TOOL RESULT (take_shot): no image, this model cannot see";
+      ctx.attachImage?.("AAAA");
+      return "TOOL RESULT (take_shot): image attached";
+    },
+  };
+
+  it("shows the image to a model that can see, after the tool result", async () => {
+    registerTool(shot);
+    const { requests } = installFetch(
+      [{ toolCalls: [{ function: { name: "take_shot", arguments: {} } }] }, { content: ["ok"] }],
+      ["tools", "vision"],
+    );
+    await run([userMessage("look")]).promise;
+    const second = requests[1] as { messages: { role: string; content: unknown }[] };
+    const roles = second.messages.map((m) => m.role);
+    expect(roles.lastIndexOf("tool")).toBeLessThan(roles.length - 1);
+    expect(JSON.stringify(second.messages[second.messages.length - 1])).toContain("AAAA");
+  });
+
+  it("tells a model that cannot see so, and sends no image", async () => {
+    registerTool(shot);
+    const { requests } = installFetch(
+      [{ toolCalls: [{ function: { name: "take_shot", arguments: {} } }] }, { content: ["ok"] }],
+      ["tools"],
+    );
+    await run([userMessage("look")]).promise;
+    const second = requests[1] as { messages: unknown[] };
+    expect(JSON.stringify(second.messages)).not.toContain("AAAA");
+    expect(JSON.stringify(second.messages)).toContain("cannot see");
+  });
+});
+
 describe("text-mode tool calling", () => {
   it("recovers a tool call from plain text and hides it from the user", async () => {
     installFetch(
