@@ -42,12 +42,17 @@ function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
   let view = null;
   let visible = false;
   let bounds = null;
+  /** Callers waiting for the page to be on screen, woken by `apply`. */
+  const waiters = new Set();
+
+  const shown = () => Boolean(view && visible && bounds && bounds.width > 0 && bounds.height > 0);
 
   const apply = () => {
     if (!view) return;
-    const show = visible && bounds && bounds.width > 0 && bounds.height > 0;
+    const show = shown();
     if (show) view.setBounds(bounds);
-    view.setVisible(Boolean(show));
+    view.setVisible(show);
+    if (show) for (const wake of [...waiters]) wake(true);
   };
 
   /** Navigation host, load failures and crashes. Paths and queries never reach the log. */
@@ -93,6 +98,23 @@ function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
 
     /** Creates the view on first use. Loading is left to the caller, which owns URL policy. */
     ensure,
+
+    /** Whether the page is on screen with a size, which is when input and screenshots mean something. */
+    isShown: shown,
+
+    /** Resolves true once the page is on screen, or false after `timeoutMs`. */
+    whenShown(timeoutMs) {
+      if (shown()) return Promise.resolve(true);
+      return new Promise((resolve) => {
+        const finish = (value) => {
+          clearTimeout(timer);
+          waiters.delete(finish);
+          resolve(value);
+        };
+        const timer = setTimeout(() => finish(false), timeoutMs);
+        waiters.add(finish);
+      });
+    },
 
     /** The renderer measures in CSS pixels; views are placed in window units, which differ by the
      * page zoom. */

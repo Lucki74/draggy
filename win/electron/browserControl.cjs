@@ -32,6 +32,14 @@ const FAILURES = {
     message: "The page did not answer.",
     hint: "The page may have navigated or closed. Call browser_get_elements to see where you are.",
   },
+  user_took_over: {
+    message: "The user took over the browser, so this step was stopped.",
+    hint: "Stop and ask the user what they want next. Do not retry the step unless they say so.",
+  },
+  pane_unavailable: {
+    message: "The browser pane could not be shown.",
+    hint: "Tell the user the browser pane did not open. They can open it from the browser button.",
+  },
   unknown: {
     message: "The browser step failed.",
     hint: "Call browser_get_elements to see the page, then retry.",
@@ -133,9 +141,10 @@ const readTextScript = (limit = 12000) => `
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** One move, one press, one release. Nothing else may click on the agent's behalf. */
-async function clickAt(contents, x, y, pause = wait) {
+async function clickAt(contents, x, y, pause = wait, stopped = () => false) {
   contents.sendInputEvent({ type: "mouseMove", x, y });
   await pause(50);
+  if (stopped()) return;
   contents.sendInputEvent({ type: "mouseDown", x, y, button: "left", clickCount: 1 });
   await pause(50);
   contents.sendInputEvent({ type: "mouseUp", x, y, button: "left", clickCount: 1 });
@@ -146,9 +155,10 @@ async function clickAt(contents, x, y, pause = wait) {
  * page starts itself, and subframes. A refused hop is cancelled and remembered so the caller can
  * say why the page never loaded.
  * @param {object} contents A `webContents`.
- * @param {{ isFetchableUrl: (url: string) => boolean, scope?: string }} options
+ * @param {{ isFetchableUrl: (url: string) => boolean, scope?: string, enabled?: () => boolean }} options
+ * `enabled` lets the user browse freely in the pane while the agent is not driving it.
  */
-function guardNavigation(contents, { isFetchableUrl, scope = "browser" }) {
+function guardNavigation(contents, { isFetchableUrl, scope = "browser", enabled = () => true }) {
   let refused = null;
   const refuse = (event, hop, what) => {
     event.preventDefault();
@@ -157,14 +167,14 @@ function guardNavigation(contents, { isFetchableUrl, scope = "browser" }) {
   };
 
   contents.on("will-redirect", (event, hop) => {
-    if (!isFetchableUrl(hop)) refuse(event, hop, "redirect");
+    if (enabled() && !isFetchableUrl(hop)) refuse(event, hop, "redirect");
   });
   contents.on("will-navigate", (event, hop) => {
-    if (!isFetchableUrl(hop)) refuse(event, hop, "navigation");
+    if (enabled() && !isFetchableUrl(hop)) refuse(event, hop, "navigation");
   });
   // A subframe's about: or blob: page has no address to check, so only web addresses are held to the policy.
   contents.on("will-frame-navigate", (details) => {
-    if (details.isMainFrame || !/^https?:/i.test(details.url)) return;
+    if (!enabled() || details.isMainFrame || !/^https?:/i.test(details.url)) return;
     if (!isFetchableUrl(details.url)) refuse(details, details.url, "frame navigation");
   });
 
@@ -176,7 +186,130 @@ function guardNavigation(contents, { isFetchableUrl, scope = "browser" }) {
   };
 }
 
+const OVERLAY_ATTR = "data-draggy-agent-overlay";
+
+/** Lives in an isolated world, so page script cannot see or move it. Animates the cursor to a point. */
+const overlayScript = ({ x, y } = {}) => `
+  (() => {
+    let host = document.querySelector('[${OVERLAY_ATTR}]');
+    if (!host) {
+      host = document.createElement('div');
+      host.setAttribute('${OVERLAY_ATTR}', '');
+      host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
+      const root = host.attachShadow({ mode: 'open' });
+      root.innerHTML = '<style>'
+        + '.border{position:absolute;inset:0;box-sizing:border-box;border:3px solid #6d5efc;box-shadow:inset 0 0 18px rgba(109,94,252,.45);}'
+        + '.cursor{position:absolute;left:0;top:0;width:18px;height:18px;margin:-2px 0 0 -2px;'
+        + 'transition:transform .35s cubic-bezier(.2,.8,.2,1);display:none;}'
+        + '.cursor svg{width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}'
+        + '</style><div class="border"></div>'
+        + '<div class="cursor"><svg viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="#6d5efc" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>';
+      (document.documentElement || document.body).appendChild(host);
+    }
+    const cursor = host.shadowRoot.querySelector('.cursor');
+    const x = ${Number.isFinite(x) ? Number(x) : "null"};
+    const y = ${Number.isFinite(y) ? Number(y) : "null"};
+    if (x !== null && y !== null) {
+      cursor.style.display = 'block';
+      cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    }
+    return true;
+  })();
+`;
+
+const hideOverlayScript = () => `
+  (() => {
+    document.querySelectorAll('[${OVERLAY_ATTR}]').forEach((el) => el.remove());
+    return true;
+  })();
+`;
+
+const INPUT_THAT_TAKES_OVER = new Set(["mouseDown", "mouseUp", "mouseWheel", "contextMenu"]);
+
+/**
+ * The agent's hold on the visible pane. One step runs at a time; any user input in the view while a
+ * step runs ends it with `user_took_over`. Input the agent sends itself is flagged and ignored.
+ * @param {{ pane: object, requestOpen: () => void, onStatus?: (status: object) => void, openWaitMs?: number }} options
+ */
+function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 4000 }) {
+  let current = null;
+  let sendingDepth = 0;
+  const watched = new WeakSet();
+
+  const emit = (step) => onStatus({ active: Boolean(step), step: step || null });
+
+  const userInput = () => {
+    if (current && sendingDepth === 0) takeOver();
+  };
+
+  function takeOver() {
+    if (!current) return;
+    current.stopped = true;
+    current.resolveTakeover(failure("user_took_over"));
+  }
+
+  function watch(contents) {
+    if (watched.has(contents)) return;
+    watched.add(contents);
+    contents.on("before-input-event", userInput);
+    contents.on("before-mouse-event", (_event, input) => {
+      if (INPUT_THAT_TAKES_OVER.has(input && input.type)) userInput();
+    });
+  }
+
+  async function ensureTab() {
+    if (!pane.isShown()) {
+      requestOpen();
+      if (!(await pane.whenShown(openWaitMs))) return { failed: failure("pane_unavailable") };
+    }
+    const view = pane.ensure();
+    if (!view) return { failed: failure("pane_unavailable") };
+    watch(view.webContents);
+    return { view };
+  }
+
+  async function run(label, fn) {
+    const state = { stopped: false, resolveTakeover: null };
+    const taken = new Promise((resolve) => {
+      state.resolveTakeover = resolve;
+    });
+    current = state;
+    emit(label);
+    try {
+      return await Promise.race([taken, fn({ stopped: () => state.stopped })]);
+    } finally {
+      if (current === state) current = null;
+      emit(null);
+    }
+  }
+
+  async function sending(fn) {
+    sendingDepth += 1;
+    try {
+      return await fn();
+    } finally {
+      sendingDepth -= 1;
+    }
+  }
+
+  return {
+    ensureTab,
+    watch,
+    run,
+    sending,
+    takeOver,
+    active: () => current !== null,
+    end: () => {
+      current = null;
+      emit(null);
+    },
+  };
+}
+
 module.exports = {
+  createDriver,
+  overlayScript,
+  hideOverlayScript,
   failure,
   parseElementIndex,
   COLLECT_ELEMENTS_FN,

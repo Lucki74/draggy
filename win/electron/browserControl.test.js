@@ -162,4 +162,200 @@ describe("clickAt", () => {
     expect(sent.map((event) => event.type)).toEqual(["mouseMove", "mouseDown", "mouseUp"]);
     expect(sent.filter((event) => event.type === "mouseDown")).toHaveLength(1);
   });
+
+  it("sends no press once the user took over", async () => {
+    const sent = [];
+    const contents = { sendInputEvent: (event) => sent.push(event) };
+    let stopped = false;
+    await control.clickAt(contents, 1, 2, async () => { stopped = true; }, () => stopped);
+    expect(sent.map((event) => event.type)).toEqual(["mouseMove"]);
+  });
+});
+
+describe("guardNavigation while the agent is not driving", () => {
+  it("leaves the user's own navigation alone", () => {
+    const contents = fakeContents();
+    let driving = false;
+    const guard = control.guardNavigation(contents, {
+      isFetchableUrl: () => false,
+      enabled: () => driving,
+    });
+    const event = { preventDefault: vi.fn() };
+    contents.handlers["will-navigate"](event, "http://localhost:3000/");
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(guard.refusedHop()).toBeNull();
+
+    driving = true;
+    contents.handlers["will-navigate"](event, "http://localhost:3000/");
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
+});
+
+function fakePane({ shown = true, appears = true } = {}) {
+  const state = { shown };
+  const view = { webContents: fakeContents() };
+  return {
+    state,
+    view,
+    ensure: vi.fn(() => view),
+    isShown: () => state.shown,
+    whenShown: vi.fn(async () => {
+      if (appears) state.shown = true;
+      return appears;
+    }),
+  };
+}
+
+describe("driver.ensureTab", () => {
+  it("returns the pane view without asking for anything when the pane is showing", async () => {
+    const pane = fakePane();
+    const requestOpen = vi.fn();
+    const driver = control.createDriver({ pane, requestOpen });
+    const result = await driver.ensureTab();
+    expect(result.view).toBe(pane.view);
+    expect(requestOpen).not.toHaveBeenCalled();
+  });
+
+  it("asks the renderer to open the pane and waits for it to be on screen", async () => {
+    const pane = fakePane({ shown: false });
+    const requestOpen = vi.fn();
+    const driver = control.createDriver({ pane, requestOpen, openWaitMs: 1234 });
+    const result = await driver.ensureTab();
+    expect(requestOpen).toHaveBeenCalledTimes(1);
+    expect(pane.whenShown).toHaveBeenCalledWith(1234);
+    expect(result.view).toBe(pane.view);
+  });
+
+  it("fails with a reason when the pane never appears", async () => {
+    const pane = fakePane({ shown: false, appears: false });
+    const driver = control.createDriver({ pane, requestOpen: vi.fn() });
+    const result = await driver.ensureTab();
+    expect(result.failed.error.code).toBe("pane_unavailable");
+  });
+});
+
+describe("driver steps and takeover", () => {
+  const setup = () => {
+    const statuses = [];
+    const driver = control.createDriver({
+      pane: fakePane(),
+      requestOpen: vi.fn(),
+      onStatus: (status) => statuses.push(status),
+    });
+    const contents = fakeContents();
+    driver.watch(contents);
+    return { driver, contents, statuses };
+  };
+
+  it("reports a step as active while it runs and idle after", async () => {
+    const { driver, statuses } = setup();
+    expect(driver.active()).toBe(false);
+    const result = await driver.run("clicking", async () => {
+      expect(driver.active()).toBe(true);
+      return { ok: true };
+    });
+    expect(result).toEqual({ ok: true });
+    expect(driver.active()).toBe(false);
+    expect(statuses[0]).toMatchObject({ active: true, step: "clicking" });
+    expect(statuses.at(-1)).toMatchObject({ active: false, step: null });
+  });
+
+  it("ends the step with user_took_over when the user presses a key mid-step", async () => {
+    const { driver, contents } = setup();
+    const result = await driver.run("typing", () => new Promise(() => {
+      setTimeout(() => contents.handlers["before-input-event"]({}, { type: "keyDown" }), 0);
+    }));
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("user_took_over");
+    expect(result.error.hint).toBeTruthy();
+  });
+
+  it("treats a click or the wheel as the user, but not a mouse move", async () => {
+    for (const [type, takes] of [["mouseDown", true], ["mouseWheel", true], ["mouseMove", false]]) {
+      const { driver, contents } = setup();
+      const result = await driver.run("reading", async () => {
+        contents.handlers["before-mouse-event"]({}, { type });
+        return { ok: true };
+      });
+      expect(result.ok).toBe(!takes);
+    }
+  });
+
+  it("ignores the input the agent sends itself", async () => {
+    const { driver, contents } = setup();
+    const result = await driver.run("clicking", async () => {
+      await driver.sending(async () => {
+        contents.handlers["before-mouse-event"]({}, { type: "mouseDown" });
+        contents.handlers["before-input-event"]({}, { type: "keyDown" });
+      });
+      return { ok: true };
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("ignores user input between steps", async () => {
+    const { driver, contents } = setup();
+    contents.handlers["before-input-event"]({}, { type: "keyDown" });
+    const result = await driver.run("reading", async () => ({ ok: true }));
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("stops on the Take over button and lets the next step start fresh", async () => {
+    const { driver } = setup();
+    const result = await driver.run("navigating", () => new Promise(() => {
+      setTimeout(() => driver.takeOver(), 0);
+    }));
+    expect(result.error.code).toBe("user_took_over");
+
+    const next = await driver.run("reading", async (step) => ({ ok: !step.stopped() }));
+    expect(next).toEqual({ ok: true });
+  });
+
+  it("tells a running step it has been stopped", async () => {
+    const { driver } = setup();
+    let seen = null;
+    await driver.run("clicking", async (step) => {
+      driver.takeOver();
+      seen = step.stopped();
+      return { ok: true };
+    });
+    expect(seen).toBe(true);
+  });
+
+  it("goes idle on end", () => {
+    const { driver, statuses } = setup();
+    driver.end();
+    expect(statuses.at(-1)).toMatchObject({ active: false });
+  });
+});
+
+describe("the agent overlay", () => {
+  const dom = () => new JSDOM(`<body><button>Go</button></body>`, { runScripts: "outside-only" });
+  const hosts = (d) => d.window.document.querySelectorAll("[data-draggy-agent-overlay]");
+
+  it("draws one host however often it is shown, and moves the cursor", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({ x: 10, y: 20 }));
+    d.window.eval(control.overlayScript({ x: 30, y: 40 }));
+    expect(hosts(d)).toHaveLength(1);
+    const cursor = hosts(d)[0].shadowRoot.querySelector(".cursor");
+    expect(cursor.style.transform).toContain("30px");
+    expect(cursor.style.transform).toContain("40px");
+    expect(hosts(d)[0].shadowRoot.querySelectorAll(".border")).toHaveLength(1);
+  });
+
+  it("lets every click through to the page", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({}));
+    const host = hosts(d)[0];
+    expect(host.style.pointerEvents).toBe("none");
+    expect(host.style.position).toBe("fixed");
+  });
+
+  it("is gone when hidden", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({}));
+    d.window.eval(control.hideOverlayScript());
+    expect(hosts(d)).toHaveLength(0);
+  });
 });

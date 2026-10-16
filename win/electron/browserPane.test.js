@@ -103,6 +103,31 @@ describe("createBrowserPane", () => {
     expect(view.visible).toBe(false);
   });
 
+  it("says whether the page can be seen, and wakes a caller waiting for that", async () => {
+    const { WebContentsView, host } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    pane.ensure();
+    expect(pane.isShown()).toBe(false);
+
+    const waiting = pane.whenShown(1000);
+    pane.setVisible(true);
+    pane.setBounds({ x: 800, y: 40, width: 400, height: 700 });
+    await expect(waiting).resolves.toBe(true);
+    expect(pane.isShown()).toBe(true);
+    await expect(pane.whenShown(10)).resolves.toBe(true);
+  });
+
+  it("gives up waiting for a pane that never shows", async () => {
+    vi.useFakeTimers();
+    const { WebContentsView, host } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    pane.ensure();
+    const waiting = pane.whenShown(500);
+    await vi.advanceTimersByTimeAsync(600);
+    await expect(waiting).resolves.toBe(false);
+    vi.useRealTimers();
+  });
+
   it("scales CSS pixels by the window's zoom", () => {
     const { WebContentsView, host } = fakeElectron({ zoom: 1.25 });
     const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
