@@ -8,8 +8,8 @@ const ROOT = path.resolve(__dirname, "..");
 const ROOTS = ["electron", "src"];
 const SKIP_DIRS = new Set(["node_modules", "__tests__", "dist", "fixtures"]);
 
-const BLOCK = /catch\s*(?:\([^)]*\))?\s*\{(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*\}/g;
-const PROMISE = /\.catch\(\s*(?:\(\s*\w*\s*\)|\w+)\s*=>\s*(?:\{(?:\s|\/\/[^\n]*)*\}|undefined|null|void 0)\s*\)/g;
+const BLOCK = /catch\s*(?:\([^)]*\))?\s*\{(?:\s|\/\/[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*\}/g;
+const PROMISE = /\.catch\(\s*(?:\(\s*\w*\s*\)|\w+)\s*=>\s*(?:\{(?:\s|\/\/[^\n]*(?:\n|$))*\}|undefined|null|void 0)\s*\)/g;
 
 function sourceFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
