@@ -11,7 +11,7 @@ use gtk::{gdk, glib};
 use crate::state::{AppState, SERVER_KEY};
 use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session};
 use draggy_linux::chat::{
-    metrics_line, start_turn, step_label, ChatMessage, Entry, Role, Transcript,
+    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label,
 };
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;

@@ -1,8 +1,8 @@
 //! The chat's logic without any widget: the transcript, how core events change it, and the bridge that carries a turn
 //! from the core's threads to the window's main loop.
 
-use std::sync::mpsc;
 use std::sync::Arc;
+use std::sync::mpsc;
 
 use async_channel::Sender;
 use draggy_core::{
