@@ -157,7 +157,14 @@ function createObserver(cdp) {
   async function viewport() {
     const m = await send("Page.getLayoutMetrics");
     const v = m.cssVisualViewport || m.visualViewport;
-    return { width: v.clientWidth, height: v.clientHeight, pageX: v.pageX, pageY: v.pageY, content: m.cssContentSize || m.contentSize };
+    let dpr = 1;
+    try {
+      const r = await send("Runtime.evaluate", { expression: "window.devicePixelRatio", returnByValue: true });
+      if (r.result && r.result.value > 0) dpr = r.result.value;
+    } catch {
+      // Without the ratio the picture may be larger than needed, never wrong.
+    }
+    return { width: v.clientWidth, height: v.clientHeight, pageX: v.pageX, pageY: v.pageY, dpr, content: m.cssContentSize || m.contentSize };
   }
 
   const visibilityOf = (box, vp) => {
@@ -280,14 +287,15 @@ function createObserver(cdp) {
     } else {
       clip = { x: vp.pageX, y: vp.pageY, width: vp.width, height: vp.height };
     }
-    const scale = Math.min(1, MAX_SHOT_WIDTH / clip.width);
+    // The capture scale multiplies the screen's pixel ratio, so divide it out: one pixel per css pixel at most.
+    const pixels = Math.min(1, MAX_SHOT_WIDTH / clip.width);
     const { data } = await send("Page.captureScreenshot", {
       format: "jpeg",
       quality: 60,
-      clip: { ...clip, scale },
+      clip: { ...clip, scale: pixels / vp.dpr },
       captureBeyondViewport: capturesBeyond,
     });
-    return { data, width: Math.round(clip.width * scale), height: Math.round(clip.height * scale) };
+    return { data, width: Math.round(clip.width * pixels), height: Math.round(clip.height * pixels) };
   }
 
   /** Boxes for labelling interactive refs that are on screen right now. */

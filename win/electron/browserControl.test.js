@@ -52,6 +52,32 @@ describe("clickTargetScript", () => {
   });
 });
 
+describe("readTextScript with a selector", () => {
+  const html = `<nav>Menu</nav><section id="cart"><p>Total 12</p><p>Tax 2</p></section><footer>Legal</footer>`;
+
+  it("reads only the part of the page the selector names, without touching the page", () => {
+    const dom = page(html);
+    const before = dom.window.document.body.innerHTML;
+    const result = evaluate(dom, control.readTextScript(12000, "#cart"));
+    expect(result.text).toContain("Total 12");
+    expect(result.text).not.toContain("Menu");
+    expect(dom.window.document.body.innerHTML).toBe(before);
+  });
+
+  it("says so when nothing matches, or the selector is not valid", () => {
+    const dom = page(html);
+    expect(evaluate(dom, control.readTextScript(12000, "#nope"))).toEqual({ missing: true });
+    expect(evaluate(dom, control.readTextScript(12000, "!!"))).toEqual({ missing: true });
+  });
+
+  it("keeps a selector from breaking out of the script", () => {
+    const dom = page(html);
+    const result = evaluate(dom, control.readTextScript(12000, `"]); window.hacked = 1; ("`));
+    expect(result).toEqual({ missing: true });
+    expect(dom.window.hacked).toBeUndefined();
+  });
+});
+
 describe("readTextScript", () => {
   const html = `<header>Site header</header><nav>Menu links</nav>
     <main><h1>Title</h1><p>Body   text here</p><aside>Related</aside></main><footer>Legal</footer>`;

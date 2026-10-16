@@ -16,8 +16,9 @@ const ax = (nodeId, role, name, extra = {}) => ({
 });
 
 /** A page of two frames. `box(backendId)` says where each node sits. */
-function fakePage({ main, frame = [], box = () => ({ x: 10, y: 10, width: 100, height: 20 }), gone = new Set(), failFrame = false } = {}) {
+function fakePage({ main, frame = [], box = () => ({ x: 10, y: 10, width: 100, height: 20 }), gone = new Set(), failFrame = false, dpr = 1 } = {}) {
   const calls = [];
+  const page = { dpr };
   const send = async (method, params = {}) => {
     calls.push([method, params]);
     switch (method) {
@@ -53,6 +54,8 @@ function fakePage({ main, frame = [], box = () => ({ x: 10, y: 10, width: 100, h
         return {};
       case "Page.captureScreenshot":
         return { data: "JPEGDATA" };
+      case "Runtime.evaluate":
+        return { result: { value: page.dpr || 1 } };
       case "DOM.resolveNode":
         return { object: { objectId: "obj1" } };
       case "Runtime.callFunctionOn":
@@ -224,6 +227,14 @@ describe("screenshot", () => {
     const full = await snap.createObserver({ send }).screenshot({ mode: "full" });
     expect(full.width).toBe(1280);
     expect(full.height).toBeLessThanOrEqual(2000);
+  });
+
+  it("asks for one pixel per css pixel on a high-density screen", async () => {
+    const page = fakePage({ main, dpr: 2 });
+    const shot = await snap.createObserver(page).screenshot();
+    const call = page.calls.find(([m]) => m === "Page.captureScreenshot")[1];
+    expect(call.clip.scale).toBe(0.5);
+    expect(shot.width).toBe(800);
   });
 
   it("clips to an element with a margin", async () => {

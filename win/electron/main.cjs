@@ -71,6 +71,7 @@ const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs")
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const browserControl = require("./browserControl.cjs");
+const browserSnapshot = require("./browserSnapshot.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -1845,6 +1846,77 @@ ipc.handle("browser-navigate", async (event, url) => {
   }, { prepare: (view) => load(view.webContents), needsPage: false });
 });
 
+/** One observer per pane page. It talks to the page over the debugger and forgets its refs when the
+ * main frame navigates. */
+const paneObservers = new WeakMap();
+function observerFor(contents) {
+  let observer = paneObservers.get(contents);
+  if (observer) return observer;
+  const dbg = contents.debugger;
+  observer = browserSnapshot.createObserver({
+    send: async (method, params) => {
+      if (!dbg.isAttached()) dbg.attach("1.3");
+      return dbg.sendCommand(method, params);
+    },
+  });
+  contents.on("did-start-navigation", (details) => {
+    if (details.isMainFrame && !details.isSameDocument) observer.forget();
+  });
+  paneObservers.set(contents, observer);
+  return observer;
+}
+
+/** A ref problem keeps its own code; anything else is the page not answering. */
+const observationFailure = (e) =>
+  e instanceof browserSnapshot.RefError ? browserControl.failure(e.code, e.message) : browserControl.failure("script_failed", e.message);
+
+ipc.handle("browser-snapshot", async (event, options) => {
+  const { scope, maxItems } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    try {
+      const result = await observerFor(contents).snapshot({
+        scope: typeof scope === "string" ? scope : undefined,
+        maxItems,
+      });
+      const title = await contents.executeJavaScript('document.title || ""');
+      const text = browserSnapshot.formatSnapshot({ ...result, title, url: contents.getURL() });
+      log.info("browser", "snapshot", { items: result.items.length, omitted: result.omitted, frames: result.skippedFrames });
+      return { ok: true, title, url: contents.getURL(), text, total: result.total, omitted: result.omitted };
+    } catch (e) {
+      return observationFailure(e);
+    }
+  });
+});
+
+ipc.handle("browser-screenshot", async (event, options) => {
+  const { mode, ref, marks } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    const observer = observerFor(contents);
+    let marked = false;
+    try {
+      if (marks && (mode === undefined || mode === "viewport")) {
+        const boxes = await observer.marks();
+        await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserSnapshot.marksScript(boxes) }]);
+        marked = true;
+      }
+      const shot = await observer.screenshot({
+        mode: ["viewport", "full", "element"].includes(mode) ? mode : "viewport",
+        ref: typeof ref === "string" ? ref : undefined,
+      });
+      log.info("browser", "screenshot", { width: shot.width, height: shot.height, bytes: shot.data.length });
+      return { ok: true, ...shot, url: contents.getURL() };
+    } catch (e) {
+      return e instanceof browserSnapshot.RefError ? observationFailure(e) : browserControl.failure("screenshot_failed", e.message);
+    } finally {
+      if (marked && !contents.isDestroyed()) {
+        await contents
+          .executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserSnapshot.hideMarksScript() }])
+          .catch((e) => log.swallow("browser", "marks clear failed", e));
+      }
+    }
+  });
+});
+
 ipc.handle("browser-get-elements", async () => {
   const result = await inPane("reading", async (contents) => {
     try {
@@ -1858,13 +1930,16 @@ ipc.handle("browser-get-elements", async () => {
 });
 
 ipc.handle("browser-click", async (event, elementIndex) => {
-  const index = browserControl.parseElementIndex(elementIndex);
-  if (index === null) return browserControl.failure("invalid_index");
+  const ref = typeof elementIndex === "string" && /^e\d+$/.test(elementIndex) ? elementIndex : null;
+  const index = ref ? null : browserControl.parseElementIndex(elementIndex);
+  if (!ref && index === null) return browserControl.failure("invalid_index");
 
   return inPane("clicking", async (contents, step) => {
     try {
       paneGuard?.reset();
-      const target = JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
+      const target = ref
+        ? await observerFor(contents).pointOf(ref)
+        : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
       if (target.missing) return browserControl.failure("element_not_found");
 
       // The cursor glides to the point first, so the user sees where the click will land.
@@ -1885,7 +1960,7 @@ ipc.handle("browser-click", async (event, elementIndex) => {
       const title = await contents.executeJavaScript('document.title || ""');
       return { ok: true, title, url: contents.getURL() };
     } catch (e) {
-      return browserControl.failure("script_failed", e.message);
+      return observationFailure(e);
     }
   });
 });
@@ -1942,13 +2017,24 @@ ipc.handle("browser-press-key", async (event, key) => {
   });
 });
 
-ipc.handle("browser-get-text", async () => {
+ipc.handle("browser-get-text", async (event, options) => {
+  const { ref, selector } = options && typeof options === "object" ? options : {};
   return inPane("reading", async (contents) => {
     try {
-      const result = await contents.executeJavaScript(browserControl.readTextScript());
-      return { ok: true, ...JSON.parse(result) };
+      if (typeof ref === "string" && ref) {
+        const text = (await observerFor(contents).textOf(ref)).slice(0, 12000);
+        const title = await contents.executeJavaScript('document.title || ""');
+        return { ok: true, title, url: contents.getURL(), text };
+      }
+      const result = JSON.parse(
+        await contents.executeJavaScript(
+          browserControl.readTextScript(12000, typeof selector === "string" ? selector : ""),
+        ),
+      );
+      if (result.missing) return browserControl.failure("element_not_found", "Nothing on the page matches that selector.");
+      return { ok: true, ...result };
     } catch (e) {
-      return browserControl.failure("script_failed", e.message);
+      return observationFailure(e);
     }
   });
 });

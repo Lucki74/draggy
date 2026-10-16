@@ -133,10 +133,20 @@ const clickTargetScript = (index) => `
 `;
 
 /** Reads the page without touching it: the chrome is dropped from a copy, not from the live DOM. */
-const readTextScript = (limit = 12000) => `
+const readTextScript = (limit = 12000, selector = "") => `
   (() => {
     const title = document.title || '';
-    const source = document.querySelector('main, article, [role="main"]') || document.body;
+    let source;
+    if (${JSON.stringify(String(selector))}) {
+      try {
+        source = document.querySelector(${JSON.stringify(String(selector))});
+      } catch (e) {
+        source = null;
+      }
+      if (!source) return JSON.stringify({ missing: true });
+    } else {
+      source = document.querySelector('main, article, [role="main"]') || document.body;
+    }
     const copy = source.cloneNode(true);
     copy.querySelectorAll('script, style, nav, footer, header, aside, .ad, .ads, [role="banner"], [role="navigation"]')
       .forEach((el) => el.remove());

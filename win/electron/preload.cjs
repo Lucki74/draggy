@@ -89,10 +89,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),
   browserGetElements: () => ipcRenderer.invoke("browser-get-elements"),
-  browserClick: (index) => ipcRenderer.invoke("browser-click", index),
+  browserClick: (target) => ipcRenderer.invoke("browser-click", target),
+  browserSnapshot: (options) => ipcRenderer.invoke("browser-snapshot", options),
+  browserScreenshot: (options) => ipcRenderer.invoke("browser-screenshot", options),
   browserType: (index, text) => ipcRenderer.invoke("browser-type", index, text),
   browserPressKey: (key) => ipcRenderer.invoke("browser-press-key", key),
-  browserGetText: () => ipcRenderer.invoke("browser-get-text"),
+  browserGetText: (options) => ipcRenderer.invoke("browser-get-text", options),
   browserClose: () => ipcRenderer.invoke("browser-close"),
 
   createFile: (filename, content) => ipcRenderer.invoke("create-file", filename, content),

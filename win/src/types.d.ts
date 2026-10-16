@@ -1091,10 +1091,18 @@ declare global {
 
       browserNavigate: (url: string) => Promise<BrowserResult<{ title: string; url: string }>>;
       browserGetElements: () => Promise<BrowserResult<{ elements: BrowserElement[] }>>;
-      browserClick: (index: number) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserClick: (target: number | string) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserSnapshot: (options?: { scope?: string; maxItems?: number }) => Promise<
+        BrowserResult<{ title: string; url: string; text: string; total: number; omitted: number }>
+      >;
+      browserScreenshot: (options?: { mode?: "viewport" | "full" | "element"; ref?: string; marks?: boolean }) => Promise<
+        BrowserResult<{ data: string; width: number; height: number; url: string }>
+      >;
       browserType: (index: number, text: string) => Promise<BrowserResult>;
       browserPressKey: (key: string) => Promise<BrowserResult>;
-      browserGetText: () => Promise<BrowserResult<{ title: string; text: string; url: string }>>;
+      browserGetText: (options?: { ref?: string; selector?: string }) => Promise<
+        BrowserResult<{ title: string; text: string; url: string }>
+      >;
       browserClose: () => Promise<{ ok: true }>;
 
       createFile: (filename: string, content: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
