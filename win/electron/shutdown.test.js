@@ -191,9 +191,9 @@ describe("shutdown covers every module that starts a process", () => {
   });
 
   it("quits when the main window closes, whatever hidden windows remain", () => {
-    // The agent's hidden browser kept a windowless Draggy and its engine running after a close.
-    const close = main.slice(main.indexOf("function closeBrowserWindows()"));
-    expect(close.slice(0, close.indexOf("\n}"))).toContain("browserSession.destroy()");
+    // The agent's hidden browser kept a windowless Draggy and its engine running after a close. The
+    // agent now drives the pane, so no window of its own is left to outlive the main one.
+    expect(main).not.toContain("browserSession");
     const created = main.slice(main.indexOf("function createWindow("));
     expect(created.slice(0, created.indexOf("\n}"))).toMatch(/mainWindow\.on\("closed", \(\) => \{\s+app\.quit\(\);/);
   });
