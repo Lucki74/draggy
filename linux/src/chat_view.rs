@@ -296,7 +296,7 @@ impl DraggyChat {
         ]);
         dialog.set_default_response(Some("no"));
         dialog.set_close_response("no");
-        dialog.choose(self, gtk::gio::Cancellable::NONE, move |response| {
+        dialog.choose(Some(self), gtk::gio::Cancellable::NONE, move |response| {
             let choice = match response.as_str() {
                 "once" => ApprovalChoice::Once,
                 "task" => ApprovalChoice::Task,
