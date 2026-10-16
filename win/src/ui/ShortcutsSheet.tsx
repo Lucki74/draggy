@@ -21,8 +21,7 @@ interface ShortcutGroup {
 /** Shows the full keyboard map grouped by task, opened with Ctrl+/.
  * Uses standard modifier keys and platform conventions. */
 export function ShortcutsSheet({ open, onClose, t }: ShortcutsSheetProps) {
-  const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-  const mod = isMac ? "⌘" : "Ctrl";
+  const mod = "Ctrl";
 
   const groups: ShortcutGroup[] = [
     {
