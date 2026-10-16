@@ -3,7 +3,6 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 const {
-  IS_WINDOWS,
   defaultShellEnv,
   killTree,
   killTreeSync,
@@ -61,8 +60,7 @@ function truncate(text) {
   };
 }
 
-/** Every run currently in flight. A program with a twenty-second budget outlives a quit otherwise,
- * and on macOS and Linux it is detached into its own group. */
+/** Every run currently in flight. A program with a twenty-second budget outlives a quit otherwise. */
 const live = new Set();
 
 /** Kills every run still going. Called when the app is on its way out, so each kill has to have
@@ -152,7 +150,6 @@ async function runCode({ userDataPath, language, source, timeoutMs }) {
     const child = spawnHidden(command, [...args, scriptPath], {
       cwd: workdir,
       env,
-      detached: !IS_WINDOWS,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
