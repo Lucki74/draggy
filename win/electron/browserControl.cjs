@@ -257,14 +257,17 @@ function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 400
     });
   }
 
-  async function ensureTab() {
-    if (!pane.isShown()) {
-      requestOpen();
-      if (!(await pane.whenShown(openWaitMs))) return { failed: failure("pane_unavailable") };
-    }
+  /** `prepare(view)` runs only when the pane has to be opened: a blank pane is never shown, so the
+   * page has to start loading before the wait. */
+  async function ensureTab({ prepare } = {}) {
     const view = pane.ensure();
     if (!view) return { failed: failure("pane_unavailable") };
     watch(view.webContents);
+    if (!pane.isShown()) {
+      if (prepare) prepare(view);
+      requestOpen();
+      if (!(await pane.whenShown(openWaitMs))) return { failed: failure("pane_unavailable") };
+    }
     return { view };
   }
 

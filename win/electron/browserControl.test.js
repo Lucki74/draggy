@@ -226,6 +226,25 @@ describe("driver.ensureTab", () => {
     expect(result.view).toBe(pane.view);
   });
 
+  it("lets the caller start a page load before waiting, since a blank pane is never shown", async () => {
+    const pane = fakePane({ shown: false });
+    const order = [];
+    pane.whenShown = vi.fn(async () => {
+      order.push("wait");
+      return true;
+    });
+    const driver = control.createDriver({ pane, requestOpen: () => order.push("open") });
+    await driver.ensureTab({ prepare: () => order.push("prepare") });
+    expect(order).toEqual(["prepare", "open", "wait"]);
+  });
+
+  it("does not prepare when the pane is already showing", async () => {
+    const driver = control.createDriver({ pane: fakePane(), requestOpen: vi.fn() });
+    const prepare = vi.fn();
+    await driver.ensureTab({ prepare });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
   it("fails with a reason when the pane never appears", async () => {
     const pane = fakePane({ shown: false, appears: false });
     const driver = control.createDriver({ pane, requestOpen: vi.fn() });

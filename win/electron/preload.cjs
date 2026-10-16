@@ -237,6 +237,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onOpen: (callback) => subscribe("browser-pane-open", callback),
   },
 
+  // The agent drives the Browser pane. The renderer hears which step it is on and can take the pane back.
+  browserAgent: {
+    stop: () => ipcRenderer.invoke("browser-agent:stop"),
+    onState: (callback) => subscribe("browser-agent-state", callback),
+  },
+
   mcp: {
     catalogue: () => ipcRenderer.invoke("mcp:catalogue"),
     config: () => ipcRenderer.invoke("mcp:config"),

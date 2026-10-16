@@ -1391,6 +1391,11 @@ declare global {
         onOpen: (callback: () => void) => Unsubscribe;
       };
 
+      browserAgent: {
+        stop: () => Promise<{ success: boolean }>;
+        onState: (callback: (state: { active: boolean; step: string | null }) => void) => Unsubscribe;
+      };
+
 
       mcp: {
         catalogue: () => Promise<{

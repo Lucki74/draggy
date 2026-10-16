@@ -12,6 +12,14 @@ import { EMPTY_BROWSER_STATE, type BrowserState } from "./browser/browserState";
 
 type Action = "back" | "forward" | "reload" | "stop" | "navigate" | "external" | "popout";
 
+const AGENT_STEP_KEYS: Record<string, string> = {
+  navigating: "browserAgentNavigating",
+  reading: "browserAgentReading",
+  clicking: "browserAgentClicking",
+  typing: "browserAgentTyping",
+  pressing: "browserAgentPressing",
+};
+
 interface BrowserBarProps {
   t: (key: string) => string;
   /** In the Browser pane rather than its own window. Adds "Pop out" and leaves menu room alone. */
@@ -43,6 +51,14 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
       if (!editingRef.current) setDraft(next.url);
     });
   }, []);
+
+  const [agent, setAgent] = useState<{ active: boolean; step: string | null }>({ active: false, step: null });
+  useEffect(() => {
+    // Only the pane is driven by the agent; the separate window has no agent step to show.
+    const api = window.electronAPI?.browserAgent;
+    if (!embedded || !api) return;
+    return api.onState(setAgent);
+  }, [embedded]);
 
   const act = (name: Action, value?: string) => window.electronAPI?.browserBar.action(name, value);
 
@@ -138,6 +154,20 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
         />
       </form>
 
+      {agent.active && (
+        <>
+          <span role="status" className="flex-shrink-0 truncate text-[12px] text-text-secondary">
+            {t(AGENT_STEP_KEYS[agent.step ?? ""] ?? "browserAgentWorking")}
+          </span>
+          <button
+            type="button"
+            onClick={() => window.electronAPI?.browserAgent.stop()}
+            className="h-7 flex-shrink-0 rounded-md border border-rule-control px-2 text-[12px] text-text-primary hover:bg-surface-raised"
+          >
+            {t("browserAgentTakeOver")}
+          </button>
+        </>
+      )}
       <Menu
         label={t("browserSettings")}
         align="end"

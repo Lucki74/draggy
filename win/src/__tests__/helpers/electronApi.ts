@@ -198,6 +198,10 @@ export function installFakeElectronApi(): FakeApi {
       },
       onOpen: browserPaneOpen.subscribe,
     },
+    browserAgent: {
+      stop: async () => ({ success: true }),
+      onState: () => () => {},
+    },
     onboarding: {
       state: async () => ({ plan: "done", record: fake.onboardingRecord }),
       start: async () => {
