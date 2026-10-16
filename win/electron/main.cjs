@@ -2215,7 +2215,7 @@ ipc.handle("create-file", async (event, filename, content) => {
       log.warn("create-file", `refused executable name ${safeFilename}`);
       return {
         success: false,
-        error: `Refused to write ${safeFilename}: ${APP_NAME} does not create executable or script files that Windows, macOS or Linux would run on a double-click. Use a .txt or .md extension instead.`,
+        error: `Refused to write ${safeFilename}: ${APP_NAME} does not create executable or script files that Windows would run on a double-click. Use a .txt or .md extension instead.`,
       };
     }
 

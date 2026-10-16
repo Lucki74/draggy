@@ -107,14 +107,10 @@ function defaultShellEnv() {
   return process.env;
 }
 
-/** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder. Windows ships
- * `npx.cmd` with the real program in `node_modules` beside it; macOS and Linux put the shim in
- * `bin` and the program in `../lib/node_modules`. */
+/** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder: `npx.cmd` ships
+ * with the real program in `node_modules` beside it. */
 function npmCliFrom(dir, tool) {
-  const file = `${tool}-cli.js`;
-  const beside = path.join(dir, "node_modules", "npm", "bin", file);
-  if (IS_WINDOWS) return [beside];
-  return [beside, path.join(dir, "..", "lib", "node_modules", "npm", "bin", file)];
+  return [path.join(dir, "node_modules", "npm", "bin", `${tool}-cli.js`)];
 }
 
 /** Runs npx's JavaScript directly: Node refuses to spawn a .cmd since CVE-2024-27980, and a shell

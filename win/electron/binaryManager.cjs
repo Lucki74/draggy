@@ -163,10 +163,9 @@ function writeEngineMeta(llamaDir, meta) {
   }
 }
 
-/** The build flavour named in a release archive: "cuda-12.4", "vulkan", "cpu", or "metal" on macOS. */
+/** The build flavour named in a release archive: "cuda-12.4", "vulkan", "cpu". */
 function variantOf(assetName) {
-  if (/-bin-macos-/.test(assetName || "")) return "metal";
-  return String(assetName || "").match(/-bin-(?:win|ubuntu)-(.+?)-(?:x64|arm64)\./)?.[1] || "cpu";
+  return String(assetName || "").match(/-bin-win-(.+?)-(?:x64|arm64)\./)?.[1] || "cpu";
 }
 
 /** The build number of a tag such as "b11146", or 0. */

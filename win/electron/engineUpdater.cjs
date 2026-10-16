@@ -36,7 +36,7 @@ function variantFamily(variant) {
 function cudaMajorIn(dir) {
   try {
     for (const name of fs.readdirSync(dir)) {
-      const match = name.match(/^(?:cudart64_|libcudart\.so\.)(\d+)/);
+      const match = name.match(/^cudart64_(\d+)/);
       if (match) return Number(match[1]);
     }
   } catch (error) {
