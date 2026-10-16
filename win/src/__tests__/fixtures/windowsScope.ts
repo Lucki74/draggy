@@ -3,11 +3,14 @@
 const NON_WINDOWS = /^(darwin|macos|mac|linux|aarch64-apple-darwin|x86_64-unknown-linux-.*)$/;
 
 /** Drivers for code that only served macOS and Linux, now gone from the Windows reference. */
+/** A release archive built for macOS or Ubuntu. */
+const OTHER_ARCHIVE = /-bin-(macos|ubuntu)-/;
 const REMOVED_OPS = new Set(["parseCpuList", "linuxTopology"]);
 
 function namesOtherPlatform(value: unknown, key = ""): boolean {
   if (typeof value === "string") {
     if ((key === "op" || key === "fn") && REMOVED_OPS.has(value)) return true;
+    if (key === "name" && OTHER_ARCHIVE.test(value)) return true;
     return (key === "platform" || key === "platformName" || key === "scheme") && NON_WINDOWS.test(value);
   }
   if (typeof value === "boolean") return key === "windows" && value === false;
