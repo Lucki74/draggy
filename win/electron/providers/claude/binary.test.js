@@ -25,33 +25,28 @@ const fakeDownload = (bytes = payload) =>
   });
 
 describe("claude binary", () => {
-  it("pins one digest per platform the app ships on, musl included", () => {
-    expect(Object.keys(ASSETS).sort()).toEqual([
-      "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl",
-      "linux-x64", "linux-x64-musl", "win32-arm64", "win32-x64",
-    ]);
+  it("pins one digest per platform the app ships on", () => {
+    expect(Object.keys(ASSETS).sort()).toEqual(["win32-arm64", "win32-x64"]);
     for (const [sha256, size] of Object.values(ASSETS)) {
       expect(sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(size).toBeGreaterThan(50_000_000);
     }
   });
 
-  it("names the file from Anthropic's own download host, and picks the musl build on musl", () => {
-    expect(assetFor("win32", "x64", ASSETS, false)).toEqual({
+  it("names the file from Anthropic's own download host", () => {
+    expect(assetFor("win32", "x64", ASSETS)).toEqual({
       name: "claude.exe",
       url: `https://downloads.claude.ai/claude-code-releases/${VERSION}/win32-x64/claude.exe`,
       sha256: "0416631e846f743110da5282409776fa1313e65f33a588aae066eaf8db0fda7d",
       size: 246480032,
     });
-    expect(assetFor("linux", "x64", ASSETS, true).url).toMatch(/\/linux-x64-musl\/claude$/);
-    expect(assetFor("darwin", "arm64", ASSETS, true).url).toMatch(/\/darwin-arm64\/claude$/);
-    expect(assetFor("freebsd", "x64", ASSETS, false)).toBeNull();
+    expect(assetFor("linux", "x64", ASSETS)).toBeNull();
   });
 
   it("downloads, verifies and installs once, reporting progress", async () => {
     const download = fakeDownload();
     const onProgress = vi.fn();
-    const options = { download, onProgress, platformName: "win32", arch: "x64", assets: table, musl: false };
+    const options = { download, onProgress, platformName: "win32", arch: "x64", assets: table };
     const binary = await ensureClaude(appData, options);
     expect(binary).toBe(path.join(appData, "claude", "bin", VERSION, "claude.exe"));
     expect(fs.readFileSync(binary)).toEqual(payload);
@@ -68,7 +63,7 @@ describe("claude binary", () => {
     expect(previousBinary(appData)).toBe(old);
 
     const download = fakeDownload();
-    const options = { download, platformName: "win32", arch: "x64", assets: table, musl: false };
+    const options = { download, platformName: "win32", arch: "x64", assets: table };
     const [a, b] = await Promise.all([ensureClaude(appData, options), ensureClaude(appData, options)]);
     expect(a).toBe(b);
     expect(download).toHaveBeenCalledTimes(1);
@@ -77,14 +72,14 @@ describe("claude binary", () => {
   });
 
   it("refuses a download whose digest differs, and leaves nothing behind to run", async () => {
-    const run = ensureClaude(appData, { download: fakeDownload(Buffer.from("tampered")), platformName: "win32", arch: "x64", assets: table, musl: false });
+    const run = ensureClaude(appData, { download: fakeDownload(Buffer.from("tampered")), platformName: "win32", arch: "x64", assets: table });
     await expect(run).rejects.toMatchObject({ code: "account-runtime-unavailable", message: /Checksum mismatch/ });
     expect(installedBinary(appData)).toBeNull();
     expect(fs.existsSync(path.join(appData, "claude", "bin", `${VERSION}.part`))).toBe(false);
   });
 
   it("says so on a platform Claude Code does not build for", async () => {
-    const run = ensureClaude(appData, { download: fakeDownload(), platformName: "freebsd", arch: "x64", musl: false });
+    const run = ensureClaude(appData, { download: fakeDownload(), platformName: "freebsd", arch: "x64" });
     await expect(run).rejects.toMatchObject({ code: "account-runtime-unavailable" });
   });
 });

@@ -30,9 +30,7 @@ describe("asset selection", () => {
     expect(pick({ cudaCapable: true }).variant).toBe("cuda");
   });
 
-  it("picks the Linux and macOS archives, and nothing for a platform without one", () => {
-    expect(binary.pickColibriAssets(WINDOWS_ASSETS, { platformName: "linux", arch: "x64" }).main.name).toMatch(/linux/);
-    expect(binary.pickColibriAssets(WINDOWS_ASSETS, { platformName: "darwin", arch: "arm64" }).main.name).toMatch(/macos/);
+  it("picks nothing for a platform without an archive", () => {
     expect(binary.pickColibriAssets(WINDOWS_ASSETS, { platformName: "win32", arch: "arm64" }).main).toBeNull();
   });
 

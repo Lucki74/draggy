@@ -45,7 +45,6 @@ describe("choosing the archive for this machine", () => {
       extra: "cudart-sd-bin-win-cu12-x64.zip",
     });
     expect(sd.pickSdAssets({ system: "win32", arch: "x64", vramGB: 8, nvidia: false }).runner).toBe("vulkan");
-    expect(sd.pickSdAssets({ system: "linux", arch: "x64", vramGB: 8, nvidia: true }).runner).toBe("vulkan");
   });
 
   it("brings the CUDA runtime along when CUDA is chosen", () => {
@@ -62,23 +61,15 @@ describe("choosing the archive for this machine", () => {
 
   it("falls back to the CPU build without a GPU", () => {
     expect(sd.pickSdAssets({ system: "win32", arch: "x64", vramGB: 0 }).runner).toBe("cpu");
-    expect(sd.pickSdAssets({ system: "linux", arch: "x64", vramGB: 0 }).main).toBe("sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64.zip");
   });
 
-  it("uses Metal on Apple Silicon and Vulkan on a Linux GPU", () => {
-    expect(sd.pickSdAssets({ system: "darwin", arch: "arm64" }).runner).toBe("metal");
-    expect(sd.pickSdAssets({ system: "linux", arch: "x64", vramGB: 8 }).runner).toBe("vulkan");
-  });
-
-  it("offers ROCm where it is published", () => {
-    expect(sd.runnersFor({ system: "linux", arch: "x64" })).toContain("rocm");
+  it("offers ROCm on Windows", () => {
     expect(sd.runnersFor({ system: "win32", arch: "x64" })).toContain("rocm");
   });
 
   it("has nothing for a system with no published build", () => {
     expect(sd.pickSdAssets({ system: "win32", arch: "arm64", vramGB: 0 })).toBeNull();
-    expect(sd.pickSdAssets({ system: "darwin", arch: "x64" })).toBeNull();
-    expect(sd.runnersFor({ system: "linux", arch: "arm64" })).toEqual([]);
+    expect(sd.runnersFor({ system: "win32", arch: "arm64" })).toEqual([]);
   });
 });
 
