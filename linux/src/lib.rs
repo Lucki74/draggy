@@ -14,6 +14,10 @@ mod tests {
     #[test]
     fn the_app_id_is_a_valid_dbus_name() {
         assert!(APP_ID.split('.').count() >= 3);
-        assert!(APP_ID.chars().all(|c| c.is_ascii_alphanumeric() || c == '.'));
+        assert!(
+            APP_ID
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '.')
+        );
     }
 }
