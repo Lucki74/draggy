@@ -1,8 +1,8 @@
 //! The chat's logic without any widget: the transcript, how core events change it, and the bridge that carries a turn
 //! from the core's threads to the window's main loop.
 
-use std::sync::Arc;
 use std::sync::mpsc;
+use std::sync::Arc;
 
 use async_channel::Sender;
 use draggy_core::{
@@ -204,9 +204,7 @@ pub fn start_turn(
     runtime().spawn(async move {
         let observer: Arc<dyn TurnObserver> = Arc::new(Observer(tx.clone()));
         let approvals: Arc<dyn ApprovalHandler> = Arc::new(Approvals(tx.clone()));
-        let result = session
-            .send(text, observer, Some(approvals), cancel)
-            .await;
+        let result = session.send(text, observer, Some(approvals), cancel).await;
         drop(tx.send(ChatMessage::Finished(result)).await);
     });
     token

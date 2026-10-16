@@ -11,7 +11,7 @@ use gtk::{gdk, glib};
 use crate::state::{AppState, SERVER_KEY};
 use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session};
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label,
+    metrics_line, start_turn, step_label, ChatMessage, Entry, Role, Transcript,
 };
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
@@ -278,7 +278,11 @@ impl DraggyChat {
         glib::idle_add_local_once(move || adjustment.set_value(adjustment.upper()));
     }
 
-    fn ask_approval(&self, request: ApprovalRecord, reply: std::sync::mpsc::Sender<ApprovalChoice>) {
+    fn ask_approval(
+        &self,
+        request: ApprovalRecord,
+        reply: std::sync::mpsc::Sender<ApprovalChoice>,
+    ) {
         let body = match &request.target {
             Some(target) => format!("{}\n\n{}", request.reason, target),
             None => request.reason.clone(),
