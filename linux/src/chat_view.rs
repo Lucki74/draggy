@@ -16,16 +16,18 @@ use draggy_linux::chat::{
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 
+type Toast = Rc<dyn Fn(&str)>;
+
 /// The labels of the reply being written, kept so each batch of events updates them in place.
 #[derive(Clone)]
-struct ReplyParts {
+pub struct ReplyParts {
     text: gtk::Label,
     steps: gtk::Label,
     meta: gtk::Label,
 }
 
 /// The conversation's session with the settings it was built from. A change in the settings starts a new one.
-struct Live {
+pub struct Live {
     settings: Settings,
     session: Arc<Session>,
 }
@@ -47,7 +49,7 @@ mod imp {
         #[template_child]
         pub stop: TemplateChild<gtk::Button>,
         pub state: RefCell<Option<Rc<AppState>>>,
-        pub toast: RefCell<Option<Rc<dyn Fn(&str)>>>,
+        pub toast: RefCell<Option<Toast>>,
         pub log: RefCell<Transcript>,
         pub reply: RefCell<Option<ReplyParts>>,
         pub live: RefCell<Option<Live>>,
@@ -174,10 +176,10 @@ impl DraggyChat {
     /// conversation, so the transcript is cleared.
     async fn session_for(&self, state: &Rc<AppState>, settings: &Settings) -> Option<Arc<Session>> {
         let imp = self.imp();
-        if let Some(live) = imp.live.borrow().as_ref() {
-            if &live.settings == settings {
-                return Some(Arc::clone(&live.session));
-            }
+        if let Some(live) = imp.live.borrow().as_ref()
+            && &live.settings == settings
+        {
+            return Some(Arc::clone(&live.session));
         }
         let secrets = Arc::clone(&state.secrets);
         // Without a keyring the server is tried with no key; a server that needs one answers with an error.
@@ -304,7 +306,7 @@ impl DraggyChat {
                 _ => ApprovalChoice::No,
             };
             // The turn's thread has stopped waiting if the turn was stopped; nothing more to do then.
-            drop(reply.send(choice));
+            let _ = reply.send(choice);
         });
     }
 }
