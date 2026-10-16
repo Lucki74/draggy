@@ -229,11 +229,13 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 };
 // RUNNERS END
 
+import { windowsCases } from "./windowsScope";
+
 describe("models fixtures", () => {
   for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json")).sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
     describe(file, () => {
-      for (const testCase of fixture.cases) {
+      for (const testCase of windowsCases(file, fixture.cases)) {
         it(testCase.name, () => {
           const runner = RUNNERS[file];
           if (!runner) throw new Error(`no runner for ${file}`);

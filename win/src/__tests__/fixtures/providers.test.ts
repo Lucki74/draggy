@@ -388,13 +388,15 @@ function parsedOrText(text: string): unknown {
   }
 }
 
+import { windowsCases } from "./windowsScope";
+
 describe("providers fixtures", () => {
   // The CLI-runtime and gateway files run in providersCli.test.ts, which dispatches on each case's driver.
   for (const name of fs.readdirSync(FIXTURE_DIR).filter((file) => file.endsWith(".json") && !/^providers-(cli|gateway)-/.test(file)).sort()) {
     const area = path.basename(name, ".json");
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };
     describe(area, () => {
-      for (const testCase of fixture.cases) {
+      for (const testCase of windowsCases(name, fixture.cases)) {
         it(testCase.name, async () => {
           expect(canon(await run(area, testCase.input))).toEqual(canon(testCase.expected));
         });

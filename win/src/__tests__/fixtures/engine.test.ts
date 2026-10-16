@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
+import { windowsCases } from "./windowsScope";
 import { runAcceptance, runDraftStats, runFailureReason, runKvCache, runLlamaArgs, runSizing } from "./engineLlama";
 
 const require = createRequire(import.meta.url);
@@ -549,8 +550,10 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 describe("engine fixtures", () => {
   for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json")).sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
+    const cases = windowsCases(file, fixture.cases);
+    if (cases.length === 0) continue;
     describe(file, () => {
-      for (const testCase of fixture.cases) {
+      for (const testCase of cases) {
         it(testCase.name, async () => {
           const runner = RUNNERS[file];
           if (!runner) throw new Error(`no runner for ${file}`);

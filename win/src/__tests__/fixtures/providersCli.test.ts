@@ -360,6 +360,8 @@ async function driveCase(file: string, input: any): Promise<any> {
   throw new Error(`no driver for ${file} (${f})`);
 }
 
+import { windowsCases } from "./windowsScope";
+
 describe("providers CLI and gateway fixtures", () => {
   const names = fs
     .readdirSync(FIXTURE_DIR)
@@ -368,7 +370,7 @@ describe("providers CLI and gateway fixtures", () => {
   for (const name of names) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };
     describe(name, () => {
-      for (const testCase of fixture.cases) {
+      for (const testCase of windowsCases(name, fixture.cases)) {
         // Windows has no execute bit, so a case that expects one cannot be observed there; the Rust runner gates the same way.
         const needsExecuteBit =
           process.platform === "win32" && JSON.stringify(testCase.expected).includes('"executable":true');
