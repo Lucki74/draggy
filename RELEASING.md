@@ -1,8 +1,8 @@
 # Releasing Draggy
 
 Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds
-Windows, macOS and Linux, then publishes a release with the installers and the `latest.yml` and
-`latest-linux.yml` files that `electron-updater` reads inside the app.
+the Windows installer, then publishes a release with it and the `latest.yml` file that
+`electron-updater` reads inside the app.
 
 ## Cutting a build
 
@@ -89,19 +89,3 @@ Before running the workflow, check that:
 
 How updates actually behave once installed is in the wiki's
 [Installation](https://draggy.org/wiki/installation) page.
-
-## macOS
-
-The release workflow builds the macOS `.dmg`, signed with an ad-hoc identity (`identity: "-"` in the
-build config), which is what lets it launch on Apple Silicon at all. It is not notarised. Squirrel.Mac
-refuses to apply an update to an app that is not notarised, so a copy installed this way never
-updates itself, and the dmg target writes no update manifest. Mac users download the new `.dmg`
-from the release page.
-
-Gatekeeper blocks the first launch of a downloaded copy ("Apple could not verify..."). Since
-macOS 15 the right-click and Open bypass is gone: users click **Open Anyway** in System Settings,
-Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Draggy.app`. The README's
-install section explains this; keep it in step if the build changes.
-
-Notarising needs an Apple Developer certificate, `CSC_LINK` and `CSC_KEY_PASSWORD` as repository
-secrets, and notarisation credentials. The matrix entry already exists.

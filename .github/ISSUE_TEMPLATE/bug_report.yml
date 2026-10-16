@@ -8,9 +8,6 @@ body:
       value: |
         Thanks for taking the time to report a bug.
 
-        > [!NOTE]
-        > **macOS users:** macOS builds are unsigned and can't auto-update. To get the latest version, download it from [draggy.org](https://draggy.org) and reinstall manually before reporting.
-
   - type: textarea
     id: what-happened
     attributes:
@@ -45,22 +42,11 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: os
-    attributes:
-      label: OS
-      options:
-        - Windows
-        - macOS
-        - Linux
-    validations:
-      required: true
-
   - type: input
     id: os-version
     attributes:
       label: OS version
-      placeholder: e.g. Windows 11 23H2, macOS 15.1, Ubuntu 24.04
+      placeholder: e.g. Windows 11 23H2
 
   - type: dropdown
     id: feature-area
