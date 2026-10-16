@@ -1,8 +1,13 @@
 import type { ToolContext, ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { logRendererEvent } from "../logger";
+import type { BrowserResult } from "../types";
 
 const api = () => window.electronAPI;
+
+/** The failure line a browser tool hands the model: what happened and what to try next. */
+const browserFailure = (result: BrowserResult<object> | undefined) =>
+  result && !result.ok ? `${result.error.message} ${result.error.hint}` : "No answer from the browser.";
 
 const webEnabled = (environment: { webMode: string }) => environment.webMode !== "off";
 
@@ -238,10 +243,10 @@ const browserNavigate: ToolSpec = {
 
     const result = await api()?.browserNavigate(url);
 
-    if (!result?.success) {
+    if (!result?.ok) {
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
-      return `TOOL RESULT (browser_navigate): Failed - ${result?.error || "Unknown error"}`;
+      return `TOOL RESULT (browser_navigate): Failed - ${browserFailure(result)}`;
     }
 
     ctx.patchStep(stepId, {
@@ -283,14 +288,13 @@ const browserGetElements: ToolSpec = {
     const result = await api()?.browserGetElements();
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: ctx.t("foundElements").replace("{count}", `**${result?.elements?.length || 0}**`),
+      content: ctx.t("foundElements").replace("{count}", `**${(result?.ok && result.elements.length) || 0}**`),
     });
     ctx.syncSteps();
 
-    if (!result?.success || result.elements.length === 0) {
-      return `TOOL RESULT (browser_get_elements): ${
-        result?.error ? `Failed: ${result.error}` : "No interactive elements found on the page."
-      }`;
+    if (!result?.ok) return `TOOL RESULT (browser_get_elements): Failed: ${browserFailure(result)}`;
+    if (result.elements.length === 0) {
+      return `TOOL RESULT (browser_get_elements): No interactive elements found on the page.`;
     }
 
     const listing = result.elements
@@ -332,14 +336,14 @@ const browserClick: ToolSpec = {
     const result = await api()?.browserClick(index);
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("clickedElement")} #${index}${result?.title ? ` → **${result.title}**` : ""}`,
+      content: `${ctx.t("clickedElement")} #${index}${result?.ok && result.title ? ` → **${result.title}**` : ""}`,
     });
     ctx.syncSteps();
 
     return `TOOL RESULT (browser_click): ${
-      result?.success
+      result?.ok
         ? `Clicked. Page: "${result.title}" at ${result.url}`
-        : `Failed: ${result?.error}`
+        : `Failed: ${browserFailure(result)}`
     }`;
   },
 };
@@ -373,14 +377,14 @@ const browserType: ToolSpec = {
     const result = await api()?.browserType(index, text);
     ctx.patchStep(
       stepId,
-      result?.success
+      result?.ok
         ? { isComplete: true, content: `${ctx.t("typedInto")} **#${index}**: "${snippet}"` }
         : { isComplete: true, type: "error" },
     );
     ctx.syncSteps();
 
     return `TOOL RESULT (browser_type): ${
-      result?.success ? "Text entered." : `Failed: ${result?.error}`
+      result?.ok ? "Text entered." : `Failed: ${browserFailure(result)}`
     }`;
   },
 };
@@ -399,7 +403,7 @@ const browserPressKey: ToolSpec = {
     const key = String(args.key);
     const result = await api()?.browserPressKey(key);
     return `TOOL RESULT (browser_press_key): ${
-      result?.success ? `Pressed "${key}".` : `Failed: ${result?.error}`
+      result?.ok ? `Pressed "${key}".` : `Failed: ${browserFailure(result)}`
     }`;
   },
 };
@@ -427,11 +431,11 @@ const browserGetText: ToolSpec = {
     const result = await api()?.browserGetText();
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("readPage")} **${result?.title}** (${result?.url})`,
+      content: result?.ok ? `${ctx.t("readPage")} **${result.title}** (${result.url})` : ctx.t("readPage"),
     });
     ctx.syncSteps();
 
-    if (!result?.success) return `TOOL RESULT (browser_get_text): Failed to read page.`;
+    if (!result?.ok) return `TOOL RESULT (browser_get_text): Failed: ${browserFailure(result)}`;
 
     return `TOOL RESULT (browser_get_text):\nTitle: ${result.title}\nURL: ${result.url}\nContent:\n${result.text}`;
   },

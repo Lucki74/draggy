@@ -70,6 +70,7 @@ const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
 const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
+const browserControl = require("./browserControl.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -1736,6 +1737,7 @@ ipc.handle("get-page-content", async (event, url) => {
 });
 
 let browserSession = null;
+let browserGuard = null;
 
 function getBrowserSession() {
   if (browserSession && !browserSession.isDestroyed()) return browserSession;
@@ -1756,179 +1758,115 @@ function getBrowserSession() {
 
   // A hidden page never opens windows of its own, so a link cannot reach an address the URL check refused.
   browserSession.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // A clicked link or a redirect is held to the same policy as the address the model typed.
+  browserGuard = browserControl.guardNavigation(browserSession.webContents, {
+    isFetchableUrl: urlPolicy.isFetchableUrl,
+    scope: "browser",
+  });
 
   browserSession.on('closed', () => {
     browserSession = null;
+    browserGuard = null;
   });
 
   return browserSession;
 }
 
+/** The session's window once it has a page, or the failure to hand back when it has none. */
+function openedBrowserPage() {
+  const win = getBrowserSession();
+  const currentUrl = win.webContents.getURL();
+  if (!currentUrl || currentUrl === "about:blank") return { failed: browserControl.failure("not_navigated") };
+  return { win };
+}
+
+/** A hop the guard cancelled while a step ran, as the failure the model should hear about. */
+function refusedByGuard() {
+  const hop = browserGuard?.refusedHop();
+  return hop ? browserControl.failure("refused_url", urlPolicy.refusalFor(hop)) : null;
+}
+
 ipc.handle("browser-navigate", async (event, url) => {
   if (!urlPolicy.isFetchableUrl(url)) {
     log.warn("browser", `refused navigation to ${String(url).slice(0, 120)}`);
-    return { success: false, refused: true, error: urlPolicy.refusalFor(url) };
+    return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
   }
 
   const win = getBrowserSession();
+  browserGuard.reset();
 
   try {
     await win.loadURL(url, {
       userAgent: cleanUserAgent(win.webContents),
       timeout: 30000,
+    }).catch((e) => {
+      if (!browserGuard.refusedHop()) throw e;
     });
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 6 && !browserGuard.refusedHop(); i++) {
       const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
 
-      if (isBotChallengePage(state)) {
-        return {
-          success: false,
-          blocked: "human-verification",
-          url: win.webContents.getURL(),
-          error:
-            "This page is behind a human-verification challenge and cannot be read automatically.",
-        };
-      }
+      if (isBotChallengePage(state)) return browserControl.failure("human_verification");
 
       if (state.readyState === "complete" && state.textLength > 50) break;
       await sleep(2000);
     }
 
+    const refused = refusedByGuard();
+    if (refused) return refused;
+
     const title = await win.webContents.executeJavaScript('document.title || ""');
-    const currentUrl = win.webContents.getURL();
-    return { success: true, title, url: currentUrl };
+    return { ok: true, title, url: win.webContents.getURL() };
   } catch (e) {
-    return { success: false, error: e.message };
+    return browserControl.failure("navigation_failed", e.message);
   }
 });
 
-const COLLECT_ELEMENTS_FN = `
-  function __draggyCollect() {
-    const items = [];
-    const seen = new Set();
-    document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]').forEach((el) => {
-      const text = (el.innerText || el.value || el.title || el.getAttribute('aria-label') || '').trim().substring(0, 80);
-      if (!text || seen.has(text)) return;
-      seen.add(text);
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) items.push({ el, rect, type: 'button', text });
-    });
-    document.querySelectorAll('a[href]').forEach((el) => {
-      const text = (el.innerText || el.title || el.getAttribute('aria-label') || '').trim().substring(0, 80);
-      if (!text || seen.has(text)) return;
-      seen.add(text);
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) items.push({ el, rect, type: 'link', text, href: el.href });
-    });
-    document.querySelectorAll('input:not([type="hidden"]), textarea, select, [contenteditable="true"]').forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const label = el.getAttribute('placeholder') || el.getAttribute('aria-label') || el.getAttribute('name') || el.tagName;
-      items.push({
-        el,
-        rect,
-        type: el.tagName === 'SELECT' ? 'select' : 'input',
-        text: String(label).substring(0, 80),
-        value: el.value || '',
-      });
-    });
-    return items;
-  }
-`;
-
-
-function parseElementIndex(value) {
-  const index = Number.parseInt(value, 10);
-  return Number.isInteger(index) && index >= 0 ? index : null;
-}
-
 ipc.handle("browser-get-elements", async () => {
-  const win = getBrowserSession();
+  const { win, failed } = openedBrowserPage();
+  if (failed) return { ...failed, elements: [] };
   try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
-    const data = await win.webContents.executeJavaScript(`
-      (() => {
-        ${COLLECT_ELEMENTS_FN}
-        return JSON.stringify(__draggyCollect().slice(0, 50).map((it, index) => ({
-          index,
-          type: it.type,
-          text: it.text,
-          href: it.href,
-          value: it.value,
-          x: Math.round(it.rect.x + it.rect.width / 2),
-          y: Math.round(it.rect.y + it.rect.height / 2),
-        })));
-      })();
-    `);
-    return { success: true, elements: JSON.parse(data) };
+    const data = await win.webContents.executeJavaScript(browserControl.listElementsScript());
+    return { ok: true, elements: JSON.parse(data) };
   } catch (e) {
-    return { success: false, error: e.message, elements: [] };
+    return { ...browserControl.failure("script_failed", e.message), elements: [] };
   }
 });
 
 ipc.handle("browser-click", async (event, elementIndex) => {
-  const index = parseElementIndex(elementIndex);
-  if (index === null) {
-    return { success: false, error: "Invalid element index" };
-  }
+  const index = browserControl.parseElementIndex(elementIndex);
+  if (index === null) return browserControl.failure("invalid_index");
 
-  const win = getBrowserSession();
+  const { win, failed } = openedBrowserPage();
+  if (failed) return failed;
   try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
-    const coordData = await win.webContents.executeJavaScript(`
-      (() => {
-        ${COLLECT_ELEMENTS_FN}
-        const target = __draggyCollect()[${index}];
-        if (!target) return JSON.stringify({ error: "Element not found" });
-        target.el.click();
-        target.el.focus();
-        return JSON.stringify({
-          success: true,
-          x: Math.round(target.rect.x + target.rect.width / 2),
-          y: Math.round(target.rect.y + target.rect.height / 2),
-        });
-      })();
-    `);
-    const result = JSON.parse(coordData);
-    if (result.error) return { success: false, error: result.error };
-  
-    win.webContents.sendInputEvent({ type: 'mouseMove', x: result.x, y: result.y });
-    await sleep(50);
-    win.webContents.sendInputEvent({ type: 'mouseDown', x: result.x, y: result.y, button: 'left', clickCount: 1 });
-    await sleep(50);
-    win.webContents.sendInputEvent({ type: 'mouseUp', x: result.x, y: result.y, button: 'left', clickCount: 1 });
+    browserGuard.reset();
+    const target = JSON.parse(await win.webContents.executeJavaScript(browserControl.clickTargetScript(index)));
+    if (target.missing) return browserControl.failure("element_not_found");
+
+    await browserControl.clickAt(win.webContents, target.x, target.y, sleep);
     await sleep(500);
 
+    const refused = refusedByGuard();
+    if (refused) return refused;
+
     const title = await win.webContents.executeJavaScript('document.title || ""');
-    const updatedUrl = win.webContents.getURL();
-    return { success: true, title, url: updatedUrl };
+    return { ok: true, title, url: win.webContents.getURL() };
   } catch (e) {
-    return { success: false, error: e.message };
+    return browserControl.failure("script_failed", e.message);
   }
 });
 
 ipc.handle("browser-type", async (event, elementIndex, text) => {
-  const index = parseElementIndex(elementIndex);
-  if (index === null) {
-    return { success: false, error: "Invalid element index" };
-  }
+  const index = browserControl.parseElementIndex(elementIndex);
+  if (index === null) return browserControl.failure("invalid_index");
 
-  const win = getBrowserSession();
+  const { win, failed } = openedBrowserPage();
+  if (failed) return failed;
   try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
     const typed = await win.webContents.executeJavaScript(`
       (() => {
-        ${COLLECT_ELEMENTS_FN}
+        ${browserControl.COLLECT_ELEMENTS_FN}
         const target = __draggyCollect()[${index}];
         if (!target) return false;
         target.el.focus();
@@ -1943,57 +1881,38 @@ ipc.handle("browser-type", async (event, elementIndex, text) => {
         return true;
       })();
     `);
-    if (!typed) return { success: false, error: "Element not found" };
-    return { success: true };
+    if (!typed) return browserControl.failure("element_not_found");
+    return { ok: true };
   } catch (e) {
-    return { success: false, error: e.message };
+    return browserControl.failure("script_failed", e.message);
   }
 });
 
 ipc.handle("browser-press-key", async (event, key) => {
-  const win = getBrowserSession();
+  const { win, failed } = openedBrowserPage();
+  if (failed) return failed;
   try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
     const keyMap = { enter: 'Return', tab: 'Tab', escape: 'Escape', backspace: 'Backspace', space: ' ' };
-    const keyCode = keyMap[key.toLowerCase()] || key;
+    const keyCode = keyMap[String(key).toLowerCase()] || key;
+    browserGuard.reset();
     win.webContents.sendInputEvent({ type: 'keyDown', keyCode });
-    await new Promise(r => setTimeout(r, 50));
+    await sleep(50);
     win.webContents.sendInputEvent({ type: 'keyUp', keyCode });
-    await new Promise(r => setTimeout(r, 300));
-    return { success: true };
+    await sleep(300);
+    return refusedByGuard() || { ok: true };
   } catch (e) {
-    return { success: false, error: e.message };
+    return browserControl.failure("script_failed", e.message);
   }
 });
 
 ipc.handle("browser-get-text", async () => {
-  const win = getBrowserSession();
+  const { win, failed } = openedBrowserPage();
+  if (failed) return failed;
   try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
-    const result = await win.webContents.executeJavaScript(`
-      (() => {
-        document.querySelectorAll('script, style, nav, footer, header, aside, .ad, .ads, [role="banner"], [role="navigation"]')
-          .forEach(el => el.remove());
-        const title = document.title || '';
-        const mainEl = document.querySelector('main, article, [role="main"]') || document.body;
-        const text = mainEl.innerText
-          .replace(/[ \\t]+/g, ' ')
-          .replace(/\\n{3,}/g, '\\n\\n')
-          .trim()
-          .substring(0, 12000);
-        const url = window.location.href;
-        return JSON.stringify({ title, text, url });
-      })();
-    `);
-    return { success: true, ...JSON.parse(result) };
+    const result = await win.webContents.executeJavaScript(browserControl.readTextScript());
+    return { ok: true, ...JSON.parse(result) };
   } catch (e) {
-    return { success: false, error: e.message };
+    return browserControl.failure("script_failed", e.message);
   }
 });
 
@@ -2001,8 +1920,9 @@ ipc.handle("browser-close", async () => {
   if (browserSession && !browserSession.isDestroyed()) {
     browserSession.destroy();
     browserSession = null;
+    browserGuard = null;
   }
-  return { success: true };
+  return { ok: true };
 });
 
 function ggufModelsDir() {

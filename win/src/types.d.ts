@@ -97,6 +97,15 @@ export interface SearchResult {
   snippet: string;
 }
 
+/** Why a browser step failed: a stable code to branch on, a sentence, and what the model can try next. */
+export interface BrowserFailure {
+  code: string;
+  message: string;
+  hint: string;
+}
+
+export type BrowserResult<T = object> = ({ ok: true } & T) | { ok: false; error: BrowserFailure };
+
 export interface BrowserElement {
   index: number;
   type: "button" | "link" | "input" | "select";
@@ -1080,26 +1089,13 @@ declare global {
         url?: string;
       }>;
 
-      browserNavigate: (url: string) => Promise<{
-        success: boolean;
-        title?: string;
-        url?: string;
-        /** Set when a bot check stopped the page, as `readUrl` reports it. */
-        blocked?: "human-verification";
-        /** Set when the address was outside what the tools may fetch. */
-        refused?: boolean;
-        error?: string;
-      }>;
-      browserGetElements: () => Promise<{
-        success: boolean;
-        elements: BrowserElement[];
-        error?: string;
-      }>;
-      browserClick: (index: number) => Promise<{ success: boolean; title?: string; url?: string; error?: string }>;
-      browserType: (index: number, text: string) => Promise<{ success: boolean; error?: string }>;
-      browserPressKey: (key: string) => Promise<{ success: boolean; error?: string }>;
-      browserGetText: () => Promise<{ success: boolean; title?: string; text?: string; url?: string; error?: string }>;
-      browserClose: () => Promise<{ success: boolean }>;
+      browserNavigate: (url: string) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserGetElements: () => Promise<BrowserResult<{ elements: BrowserElement[] }>>;
+      browserClick: (index: number) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserType: (index: number, text: string) => Promise<BrowserResult>;
+      browserPressKey: (key: string) => Promise<BrowserResult>;
+      browserGetText: () => Promise<BrowserResult<{ title: string; text: string; url: string }>>;
+      browserClose: () => Promise<{ ok: true }>;
 
       createFile: (filename: string, content: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
       openFile: (filepath: string) => Promise<string>;
