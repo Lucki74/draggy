@@ -5,7 +5,7 @@ description: Uses Draggy's live browser tools to get through pages that need cli
 
 # Browser tasks
 
-Draggy can drive a real browser session: browser_navigate, browser_get_elements, browser_click, browser_type, browser_press_key, browser_get_text and browser_close. They need web access switched on.
+Draggy can drive a real browser session: browser_navigate, browser_snapshot, browser_get_elements, browser_click, browser_type, browser_press_key, browser_get_text, browser_screenshot and browser_close. They need web access switched on.
 
 ## When to use it
 
@@ -18,6 +18,7 @@ Draggy can drive a real browser session: browser_navigate, browser_get_elements,
 2. **browser_get_elements** to see the interactive elements and their index numbers.
 3. Act by index with **browser_click** and **browser_type** (into an input you found), and use **browser_press_key** for keys such as Enter to submit a search.
 4. After each action, check the result with browser_get_elements or **browser_get_text** before the next step. Pages change: never assume a click worked.
+   **browser_snapshot** lists headings, controls and inputs with refs such as e7. Pass a ref to browser_click or browser_get_text instead of an index. Refs expire at the next snapshot or navigation, so snapshot again after a stale_ref error. Use **browser_screenshot** only when the page needs to be seen, such as a chart or a layout question.
 5. When you have the information, read it with browser_get_text and call **browser_close**.
 
 ## Good habits

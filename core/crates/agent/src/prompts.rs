@@ -102,6 +102,8 @@ const BROWSING_WORKFLOW_PROMPT: &str = r##"BROWSER INTERACTION WORKFLOW: when yo
 5. browser_get_text to read the result
 6. browser_close when done
 
+To read the page structure instead, browser_snapshot lists headings, controls and inputs with refs (e1, e2) that browser_click and browser_get_text accept in place of an index. Refs expire at the next snapshot or navigation: snapshot again on a stale_ref error. browser_screenshot shows the page as an image, for charts and layout questions, if the model can see images.
+
 If the user asks for up-to-date, recent or specific information you do not know, use search_web first, then read_url on the most relevant results. Do not answer until you have enough information."##;
 
 const LIBRARY_PROMPT: &str = r##"The user indexed local documents in a private library. Call search_library before web search when questions may involve their files, notes, contracts, or code. Base answers on returned passages, citing the source filename. If no relevant documents exist, state so plainly."##;
