@@ -22,9 +22,7 @@ type Space = { sizeBytes: number; freeBytes: number };
 
 const cpuTopology = require("../../../electron/cpuTopology.cjs") as {
   fromCounts: (logical: number, physical: number) => unknown;
-  parseCpuList: (text: string) => number[];
   windowsTopology: (cpus: { model: string }[]) => unknown;
-  linuxTopology: (sysRoot: string) => unknown;
 };
 const hardwareProbe = require("../../../electron/hardwareProbe.cjs") as {
   createHardwareProbe: (options: Record<string, unknown>) => {
@@ -232,8 +230,6 @@ function runCpu(input: Input): unknown {
   switch (input.op) {
     case "fromCounts":
       return cpuTopology.fromCounts(num(input.logical), num(input.physical));
-    case "parseCpuList":
-      return cpuTopology.parseCpuList(input.text as string);
     case "windowsTopology": {
       const cores = os as unknown as { availableParallelism: () => number };
       const saved = cores.availableParallelism;
@@ -244,11 +240,6 @@ function runCpu(input: Input): unknown {
         cores.availableParallelism = saved;
       }
     }
-    case "linuxTopology":
-      return withTempDir((root) => {
-        writeTree(root, input.files as Record<string, string>);
-        return cpuTopology.linuxTopology(root);
-      });
   }
   throw new Error(`unknown cpu op ${String(input.op)}`);
 }

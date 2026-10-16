@@ -28,7 +28,6 @@ describe("naming the graphics card", () => {
 
   it("falls back to the renderer string", () => {
     expect(gpuNameFrom({ auxAttributes: windows.auxAttributes })).toBe("NVIDIA GeForce RTX 4070 Ti");
-    expect(gpuNameFrom({ auxAttributes: { glRenderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)" } })).toBe("Apple M2 Max");
     expect(gpuNameFrom({ auxAttributes: { glRenderer: "Mesa Intel(R) UHD Graphics 620 (KBL GT2)" } })).toBe("Mesa Intel UHD Graphics 620 (KBL GT2)");
   });
 

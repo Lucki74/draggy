@@ -134,9 +134,8 @@ async function checkForUpdate(userDataDir, vramGB, { force = false, now = Date.n
     const { outDir, tag, variant } = await binaryManager.downloadEngine(stageDir, vramGB, () => {}, { gpu, release });
     const stagedServer = path.join(outDir, binaryManager.serverName());
     const { runnerType } = binaryManager.detectGpuRunner(outDir, vramGB);
-    const wantsGpu = vramGB > 0 && !platform.IS_MAC;
+    const wantsGpu = vramGB > 0;
     if (wantsGpu && runnerType === "cpu") throw new Error(`${tag} has no GPU backend for this machine`);
-    if (!platform.IS_WINDOWS) fs.chmodSync(stagedServer, 0o755);
     if (!(await probeEngine(stagedServer, engineEnv(userDataDir, vramGB, stagedServer))).ok) {
       throw new Error(`${tag} does not start on this machine`);
     }

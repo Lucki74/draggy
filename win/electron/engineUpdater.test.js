@@ -99,16 +99,16 @@ describe("engineUpdater.checkForUpdate", () => {
   const release = (build, ageDays, variant = "vulkan") => ({
     tag_name: `b${build}`,
     published_at: new Date(now - ageDays * DAY).toISOString(),
-    assets: [{ name: `llama-b${build}-bin-ubuntu-${variant}-x64.tar.gz` }],
+    assets: [{ name: `llama-b${build}-bin-win-${variant}-x64.zip` }],
   });
 
   function setup({ releases, installed = { tag: "b100", variant: "vulkan" }, starts = true }) {
     const root = userData();
-    const llama = engineAt(binaryManager.engineDir(root), installed, ["libggml-vulkan.so"]);
+    const llama = engineAt(binaryManager.engineDir(root), installed, ["ggml-vulkan.dll"]);
     vi.spyOn(binaryManager, "gpuProfile").mockResolvedValue({ vramGB: 8, nvidia: false, cuda13: false });
     vi.spyOn(binaryManager, "fetchJson").mockResolvedValue(releases);
     const download = vi.spyOn(binaryManager, "downloadEngine").mockImplementation(async (stage, _vram, _progress, { release: rel }) => {
-      const outDir = engineAt(path.join(stage, "engine"), {}, ["libggml-vulkan.so"]);
+      const outDir = engineAt(path.join(stage, "engine"), {}, ["ggml-vulkan.dll"]);
       return { outDir, tag: rel.tag_name, variant: "vulkan" };
     });
     vi.spyOn(platform, "execFileHidden").mockImplementation((_file, _args, _options, callback) => {
@@ -119,17 +119,9 @@ describe("engineUpdater.checkForUpdate", () => {
 
   const check = (root, options = {}) => engineUpdater.checkForUpdate(root, 8, { now, log: quiet, ...options });
 
-  // The releases are Linux builds, so the whole test runs as Linux, installed engine included:
-  // on the Windows runner it would otherwise be written as llama-server.exe and never found.
-  let saved;
   beforeEach(() => {
-    saved = { IS_WINDOWS: platform.IS_WINDOWS, IS_MAC: platform.IS_MAC, IS_LINUX: platform.IS_LINUX };
-    Object.assign(platform, { IS_WINDOWS: false, IS_MAC: false, IS_LINUX: true });
     // The fixture holds x64 builds only; an arm64 runner would otherwise find none.
     vi.spyOn(os, "arch").mockReturnValue("x64");
-  });
-  afterEach(() => {
-    Object.assign(platform, saved);
   });
 
   it("stages the newest settled build, skipping ones too fresh to trust", async () => {
@@ -165,8 +157,8 @@ describe("engineUpdater.checkForUpdate", () => {
       {
         ...release(100, 5, "cuda-13.4"),
         assets: [
-          { name: "llama-b100-bin-ubuntu-cuda-13.4-x64.tar.gz" },
-          { name: "cudart-llama-b100-bin-ubuntu-cuda-13.4-x64.tar.gz" },
+          { name: "llama-b100-bin-win-cuda-13.4-x64.zip" },
+          { name: "cudart-llama-bin-win-cuda-13.4-x64.zip" },
         ],
       },
     ]);

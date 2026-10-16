@@ -2,8 +2,12 @@
 // runners drive only the cases that do not name another platform. The JSON files themselves are never edited.
 const NON_WINDOWS = /^(darwin|macos|mac|linux|aarch64-apple-darwin|x86_64-unknown-linux-.*)$/;
 
+/** Drivers for code that only served macOS and Linux, now gone from the Windows reference. */
+const REMOVED_OPS = new Set(["parseCpuList", "linuxTopology"]);
+
 function namesOtherPlatform(value: unknown, key = ""): boolean {
   if (typeof value === "string") {
+    if ((key === "op" || key === "fn") && REMOVED_OPS.has(value)) return true;
     return (key === "platform" || key === "platformName" || key === "scheme") && NON_WINDOWS.test(value);
   }
   if (typeof value === "boolean") return key === "windows" && value === false;

@@ -715,7 +715,7 @@ function syncTitleBarTheme() {
   const bg = windowBackground();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setBackgroundColor(bg);
-    if (process.platform !== "darwin" && typeof mainWindow.setTitleBarOverlay === "function") {
+    if (typeof mainWindow.setTitleBarOverlay === "function") {
       mainWindow.setTitleBarOverlay(themes.overlayColors(themeSetting, nativeTheme.shouldUseDarkColors));
     }
   }
@@ -871,9 +871,7 @@ function createWindow({ onboarding: showSetup = false } = {}) {
     title: APP_NAME,
     icon: path.join(__dirname, "icon.ico"),
     titleBarStyle: "hidden",
-    ...(process.platform === "darwin"
-      ? { trafficLightPosition: { x: 16, y: 12 } }
-      : { titleBarOverlay: overlay }),
+    titleBarOverlay: overlay,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
@@ -951,7 +949,7 @@ function createWindow({ onboarding: showSetup = false } = {}) {
   });
   // Hidden scraping windows count too, so window-all-closed never came and Draggy lived on unseen.
   mainWindow.on("closed", () => {
-    if (process.platform !== "darwin") app.quit();
+    app.quit();
   });
 
   // Closing the window saves first as well, or its last writes race the quit that follows.
@@ -1324,9 +1322,7 @@ ipc.handle("onboarding:reset", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 let cachedSpecs = null;
@@ -1337,16 +1333,13 @@ async function getSystemSpecs() {
   const cpus = os.cpus();
   const cpuModel = cpus.length > 0 ? cpus[0].model : "Unknown CPU";
   const totalMemGB = os.totalmem() / 1024 ** 3;
-  const unified = platform.hasUnifiedMemory();
 
   let vram = 0;
   const gpuInfo = await app.getGPUInfo("complete").catch(log.swallowed("ipc", "no GPU details, the probe falls back", null));
 
-  if (!unified) {
-    const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
-    if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
-      vram = videoMemoryMb / 1024;
-    }
+  const videoMemoryMb = gpuInfo?.auxAttributes?.videoMemoryMb;
+  if (typeof videoMemoryMb === "number" && videoMemoryMb > 0) {
+    vram = videoMemoryMb / 1024;
   }
 
   if (vram <= 0) vram = await platform.detectVideoMemoryGB();
@@ -1355,15 +1348,13 @@ async function getSystemSpecs() {
     cpu: cpuModel,
     ram: Number(totalMemGB.toFixed(1)),
     vram: Number(vram.toFixed(1)),
-    unifiedMemory: unified,
-    // On unified memory the chip is the graphics card, and its name is the CPU's.
-    gpu: platform.gpuNameFrom(gpuInfo) || (unified ? cpuModel : null),
+    gpu: platform.gpuNameFrom(gpuInfo),
     platform: process.platform,
     arch: os.arch(),
   };
 
   // Several callers probe at once on a cold start; the same line once is enough.
-  const specLine = `${cpuModel} | ${cachedSpecs.gpu || "no GPU name"} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM${unified ? " (unified)" : ""}`;
+  const specLine = `${cpuModel} | ${cachedSpecs.gpu || "no GPU name"} | ${cachedSpecs.ram} GB RAM | ${cachedSpecs.vram} GB VRAM`;
   log.once(`specs:${specLine}`, "specs", specLine, undefined, "INFO");
 
   return cachedSpecs;
@@ -2034,7 +2025,7 @@ ipc.handle("gguf:status", async () => {
   const specs = await getSystemSpecs();
   const engine = binaryManager.getEngineEnvironment(app.getPath("userData"), specs?.vram || 0);
   const status = llamaProcess.getServerStatus();
-  const wantsGpu = (specs?.vram || 0) > 0 && !platform.IS_MAC;
+  const wantsGpu = (specs?.vram || 0) > 0;
   return {
     ...status,
     hasBinary: Boolean(engine.binaryPath),

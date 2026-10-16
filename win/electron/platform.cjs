@@ -1,13 +1,10 @@
 const path = require("path");
-const os = require("os");
 const fs = require("fs");
 const { execFile, execFileSync, spawn } = require("child_process");
 const { trackChild, trackExec } = require("./spawnLog.cjs");
 const { log } = require("./logger.cjs");
 
 const IS_WINDOWS = process.platform === "win32";
-const IS_MAC = process.platform === "darwin";
-const IS_LINUX = process.platform === "linux";
 
 /** Every child process, console window hidden and never through a shell. A GUI app starting a console
  * program otherwise flashes a new window; one call site means it cannot be forgotten. */
@@ -29,66 +26,6 @@ function runCommand(file, args, timeout) {
       (err, stdout) => resolve(err ? null : stdout),
     );
   });
-}
-
-async function appleSiliconBudget() {
-  const wired = await runCommand("sysctl", ["-n", "iogpu.wired_limit_mb"], 4000);
-  const limitMb = wired ? parseInt(wired.trim(), 10) : 0;
-  if (!isNaN(limitMb) && limitMb > 0) return limitMb / 1024;
-
-  const totalBytes = os.totalmem();
-  const totalGB = totalBytes / 1024 ** 3;
-
-  return totalGB > 36 ? totalGB * 0.75 : totalGB * 0.67;
-}
-
-async function macVideoMemory() {
-  if (os.arch() === "arm64") return appleSiliconBudget();
-
-  const out = await runCommand(
-    "system_profiler",
-    ["-json", "SPDisplaysDataType"],
-    8000,
-  );
-  if (!out) return 0;
-
-  try {
-    const parsed = JSON.parse(out);
-    const displays = parsed?.SPDisplaysDataType || [];
-    let best = 0;
-    for (const entry of displays) {
-      const raw = entry?.spdisplays_vram || entry?.spdisplays_vram_shared || "";
-      const match = String(raw).match(/([\d.]+)\s*(GB|MB)/i);
-      if (!match) continue;
-      const value =
-        match[2].toUpperCase() === "GB"
-          ? Number(match[1])
-          : Number(match[1]) / 1024;
-      if (value > best) best = value;
-    }
-    return best;
-  } catch {
-    return 0;
-  }
-}
-
-function linuxAmdVram() {
-  try {
-    const cards = fs
-      .readdirSync("/sys/class/drm")
-      .filter((name) => /^card\d+$/.test(name));
-
-    let best = 0;
-    for (const card of cards) {
-      const file = `/sys/class/drm/${card}/device/mem_info_vram_total`;
-      if (!fs.existsSync(file)) continue;
-      const bytes = parseInt(fs.readFileSync(file, "utf8").trim(), 10);
-      if (!isNaN(bytes)) best = Math.max(best, bytes / 1024 ** 3);
-    }
-    return best;
-  } catch {
-    return 0;
-  }
 }
 
 const DISPLAY_CLASS = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
@@ -131,19 +68,6 @@ async function detectVideoMemoryGB() {
     return largestQword(out) / 1024 ** 3;
   }
 
-  if (IS_MAC) return macVideoMemory();
-
-  if (IS_LINUX) {
-    const amd = linuxAmdVram();
-    if (amd > 0) return amd;
-
-    const rocm = await runCommand("rocm-smi", ["--showmeminfo", "vram"], 4000);
-    if (rocm) {
-      const match = rocm.match(/Total\s*\(?B\)?[^\d]*(\d+)/i);
-      if (match) return Number(match[1]) / 1024 ** 3;
-    }
-  }
-
   return 0;
 }
 
@@ -155,24 +79,11 @@ async function detectFreeVideoMemoryGB() {
     if (!isNaN(mib) && mib >= 0) return mib / 1024;
   }
 
-  if (IS_LINUX) {
-    try {
-      for (const card of fs.readdirSync("/sys/class/drm").filter((name) => /^card\d+$/.test(name))) {
-        const base = `/sys/class/drm/${card}/device`;
-        if (!fs.existsSync(`${base}/mem_info_vram_total`)) continue;
-        const total = parseInt(fs.readFileSync(`${base}/mem_info_vram_total`, "utf8"), 10);
-        const used = parseInt(fs.readFileSync(`${base}/mem_info_vram_used`, "utf8"), 10);
-        if (!isNaN(total) && !isNaN(used)) return (total - used) / 1024 ** 3;
-      }
-    } catch (error) {
-      log.swallow("proc", error, "no readable AMD card");
-    }
-  }
   return null;
 }
 
 /** The first NVIDIA GPU's compute capability and driver version, from nvidia-smi (installed with the
- * driver on Windows and Linux). Null when there is no NVIDIA driver or it cannot be asked. */
+ * driver). Null when there is no NVIDIA driver or it cannot be asked. */
 let nvidiaInfoPromise = null;
 function parseNvidiaInfo(out) {
   const [cap, driver] = String(out || "").trim().split("\n")[0].split(",").map((part) => part.trim());
@@ -192,18 +103,8 @@ function nvidiaInfo() {
   return nvidiaInfoPromise;
 }
 
-function hasUnifiedMemory() {
-  return IS_MAC && os.arch() === "arm64";
-}
-
 function defaultShellEnv() {
-  if (IS_WINDOWS) return process.env;
-
-  const extraPaths = ["/usr/local/bin", "/opt/homebrew/bin"];
-  const current = (process.env.PATH || "").split(path.delimiter);
-  const merged = [...new Set([...current, ...extraPaths])].filter(Boolean);
-
-  return { ...process.env, PATH: merged.join(path.delimiter) };
+  return process.env;
 }
 
 /** Where npm keeps the JavaScript behind the `npx` shim, given the shim's folder. Windows ships
@@ -322,8 +223,6 @@ function gpuNameFrom(info) {
 
   const renderer = String(info?.auxAttributes?.glRenderer || "");
   if (!renderer || SOFTWARE_RENDERER.test(renderer)) return null;
-  const metal = renderer.match(/Metal Renderer: ([^,)]+)/);
-  if (metal) return tidy(metal[1]);
   const angle = renderer.match(/^ANGLE \([^,]+, (.+?)(?: \(0x[0-9a-f]+\))?(?: Direct3D| OpenGL| Vulkan|,)/i);
   return tidy(angle ? angle[1] : renderer);
 }
@@ -331,8 +230,6 @@ function gpuNameFrom(info) {
 module.exports = {
   gpuNameFrom,
   IS_WINDOWS,
-  IS_MAC,
-  IS_LINUX,
   runCommand,
   detectVideoMemoryGB,
   detectFreeVideoMemoryGB,
@@ -341,7 +238,6 @@ module.exports = {
   nvidiaDevices,
   parseNvidiaDevices,
   parseNvidiaInfo,
-  hasUnifiedMemory,
   defaultShellEnv,
   pythonCandidates,
   resolveNpx,
