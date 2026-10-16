@@ -160,6 +160,16 @@ describe("failure", () => {
     expect(result.error.hint).toBeTruthy();
   });
 
+  it("tells the model to take a new snapshot when a ref went stale", () => {
+    const result = control.failure("stale_ref");
+    expect(result.error.code).toBe("stale_ref");
+    expect(result.error.hint).toMatch(/browser_snapshot/);
+  });
+
+  it("names a screenshot that could not be taken", () => {
+    expect(control.failure("screenshot_failed").error.code).toBe("screenshot_failed");
+  });
+
   it("falls back to a generic code for one it does not know", () => {
     expect(control.failure("nope").error.code).toBe("unknown");
   });

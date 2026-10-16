@@ -32,6 +32,14 @@ const FAILURES = {
     message: "The page did not answer.",
     hint: "The page may have navigated or closed. Call browser_get_elements to see where you are.",
   },
+  stale_ref: {
+    message: "That ref no longer points at anything on the page.",
+    hint: "Call browser_snapshot again and use a ref from the new list. Refs end when the page changes.",
+  },
+  screenshot_failed: {
+    message: "The screenshot could not be taken.",
+    hint: "Use browser_snapshot to read the page instead, or try again in a moment.",
+  },
   user_took_over: {
     message: "The user took over the browser, so this step was stopped.",
     hint: "Stop and ask the user what they want next. Do not retry the step unless they say so.",
