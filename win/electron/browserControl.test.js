@@ -39,6 +39,17 @@ describe("clickTargetScript", () => {
     const dom = page(`<button>Go</button>`);
     expect(evaluate(dom, control.clickTargetScript(5))).toEqual({ missing: true });
   });
+
+  it("scrolls a hidden element into view before measuring it", () => {
+    const dom = page(`<button>Below the fold</button>`);
+    let scrolled = false;
+    dom.window.HTMLElement.prototype.scrollIntoView = () => {
+      scrolled = true;
+    };
+    dom.window.Element.prototype.getBoundingClientRect = () =>
+      scrolled ? { x: 10, y: 20, width: 100, height: 40 } : { x: 10, y: 900, width: 100, height: 40 };
+    expect(evaluate(dom, control.clickTargetScript(0))).toEqual({ x: 60, y: 40 });
+  });
 });
 
 describe("readTextScript", () => {

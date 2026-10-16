@@ -114,9 +114,12 @@ const clickTargetScript = (index) => `
     ${COLLECT_ELEMENTS_FN}
     const target = __draggyCollect()[${Number(index)}];
     if (!target) return JSON.stringify({ missing: true });
+    // The real click lands where the pixel is, so the element has to be on screen first.
+    if (typeof target.el.scrollIntoView === 'function') target.el.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = target.el.getBoundingClientRect();
     return JSON.stringify({
-      x: Math.round(target.rect.x + target.rect.width / 2),
-      y: Math.round(target.rect.y + target.rect.height / 2),
+      x: Math.round(rect.x + rect.width / 2),
+      y: Math.round(rect.y + rect.height / 2),
     });
   })();
 `;
