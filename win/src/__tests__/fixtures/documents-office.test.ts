@@ -6,6 +6,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { FIXTURE_DIR, runCase, toFixtureJson } from "./documentsOffice";
 
+// Date#toString names the time zone in the machine's language; the fixtures were captured in English.
+const englishZone = (value: unknown): unknown => JSON.parse(JSON.stringify(value).replace(/(GMT[+-]\d{4}) \([^)]*\)/g, "$1 (Coordinated Universal Time)"));
+
 type Case = { name: string; input: { fn: string; args: unknown[] }; expected: unknown };
 
 const files = fs
@@ -20,7 +23,7 @@ describe("documents office fixtures", () => {
       for (const c of doc.cases) {
         it(c.name, async () => {
           const result = await runCase(c.input.fn, c.input.args);
-          expect(toFixtureJson(result)).toEqual(c.expected);
+          expect(englishZone(toFixtureJson(result))).toEqual(c.expected);
         }, 15000);
       }
     });

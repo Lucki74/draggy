@@ -1,6 +1,6 @@
 name: CI
 
-# Typecheck, lint and the full test suite on every OS Draggy ships for.
+# Typecheck, lint and the full test suite on Windows, the only OS this app ships for.
 on:
   push:
     branches: [main]
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
