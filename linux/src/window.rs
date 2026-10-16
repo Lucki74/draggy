@@ -5,6 +5,7 @@ use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use std::rc::Rc;
 
+use crate::chat_view::DraggyChat;
 use crate::settings_dialog::DraggySettings;
 use crate::state::AppState;
 
@@ -23,6 +24,8 @@ mod imp {
         pub sections: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub pages: TemplateChild<gtk::Stack>,
+        #[template_child]
+        pub chat: TemplateChild<DraggyChat>,
     }
 
     #[glib::object_subclass]
@@ -32,6 +35,7 @@ mod imp {
         type ParentType = adw::ApplicationWindow;
 
         fn class_init(class: &mut Self::Class) {
+            DraggyChat::ensure_type();
             class.bind_template();
         }
 
@@ -74,7 +78,17 @@ impl DraggyWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
         window.install_actions();
+        window.attach_chat();
         window
+    }
+
+    fn attach_chat(&self) {
+        let weak = self.downgrade();
+        self.imp().chat.attach(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
     }
 
     fn install_actions(&self) {

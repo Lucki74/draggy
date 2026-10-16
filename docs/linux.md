@@ -29,7 +29,11 @@ cargo test --lib
 cargo clippy --all-targets -- -D warnings
 ```
 
-The library crate holds everything that can be checked without a display (settings, secret store, runtime). The widgets are in the binary and have no automated tests yet.
+The library crate holds everything that can be checked without a display: settings, the secret store, the runtime, and the chat logic in `src/chat.rs` (the transcript, how core events change it, and the bridge from a turn's threads to the main loop). The widgets are in the binary. Their few tests build the chat page and the settings dialog, and run under `xvfb-run` in CI and return early when there is no display.
+
+## Chat
+
+Settings name a server address and a model. The first message creates a `draggy_core::Session` from them and the stored key; a change in the settings starts a new conversation. A turn runs on the shell's runtime. Its events, approval questions and result come back over a channel to the main loop, which updates the labels of the reply in place. Replies show as plain text for now.
 
 The shared core has its own suite:
 
