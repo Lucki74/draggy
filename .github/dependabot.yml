@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directory: /win
     schedule:
       interval: weekly
     # Only versions out for a week, so a hijacked release has time to be caught and pulled.

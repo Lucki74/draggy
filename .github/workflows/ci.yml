@@ -20,6 +20,9 @@ jobs:
   check:
     name: Typecheck, lint and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: win
     strategy:
       fail-fast: false
       matrix:
@@ -33,8 +36,9 @@ jobs:
       # The release workflow builds on the same Node version.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: .nvmrc
+          node-version-file: win/.nvmrc
           cache: npm
+          cache-dependency-path: win/package-lock.json
 
       - run: npm ci
 

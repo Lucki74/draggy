@@ -970,7 +970,7 @@ async fn diff_case(input: &Value) -> Value {
 fn library_case() -> Value {
     let roots = Roots {
         library: Some(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../electron/skills-library"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/electron/skills-library"),
         ),
         user: None,
         project: None,

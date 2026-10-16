@@ -7,13 +7,13 @@ on:
     paths:
       - "core/**"
       - "shared/fixtures/**"
-      - "src/__tests__/fixtures/**"
+      - "win/src/__tests__/fixtures/**"
       - ".github/workflows/core.yml"
   pull_request:
     paths:
       - "core/**"
       - "shared/fixtures/**"
-      - "src/__tests__/fixtures/**"
+      - "win/src/__tests__/fixtures/**"
       - ".github/workflows/core.yml"
   workflow_dispatch:
 
@@ -59,6 +59,9 @@ jobs:
   fixtures:
     name: Fixtures in vitest
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: win
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,8 +70,9 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: .nvmrc
+          node-version-file: win/.nvmrc
           cache: npm
+          cache-dependency-path: win/package-lock.json
 
       - run: npm ci
 
