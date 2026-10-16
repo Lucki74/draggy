@@ -4,7 +4,7 @@ import { Icon } from "../ui/icons/Icon";
 import { StatusDot } from "../ui/StatusDot";
 import { Badge } from "./Controls";
 import InView from "../chat/InView";
-import { describeFit, describeSplit, describeVerdict, FIT_STATUS, FIT_VERDICT_KEY } from "../vram";
+import { describeMemoryLoad, FIT_STATUS } from "../vram";
 import type { PullState } from "./useModelManager";
 import type { LibraryModel } from "../types";
 import { swallowed } from "../logger";
@@ -267,20 +267,13 @@ function Variant({
   onPull: () => void;
   t: (key: string) => string;
 }) {
-  const fit = bytes ? describeFit({ modelBytes: bytes, vramGB: vram, unifiedMemory }) : null;
-  const summary = fit ? describeSplit(fit) : "";
-  const kind = bytes ? describeVerdict({ modelBytes: bytes, vramGB: vram, ramGB: ram, unifiedMemory }) : "unknown";
-  const verdict = kind === "unknown" ? "" : t(FIT_VERDICT_KEY[kind]);
+  const load = bytes ? describeMemoryLoad({ modelBytes: bytes, vramGB: vram, ramGB: ram, unifiedMemory }) : null;
 
   return (
     <div className="flex items-center gap-3 rounded-sm px-2 py-1.5">
-      {fit && fit.tone !== "unknown" ? <StatusDot status={FIT_STATUS[fit.tone]} /> : <StatusDot status="idle" />}
+      <StatusDot status={load && load.tone !== "unknown" ? FIT_STATUS[load.tone] : "idle"} />
       <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text-primary">{label}</span>
-      {fit && (
-        <span className="flex-shrink-0 text-[12px] tabular-nums text-text-secondary">
-          {fit.sizeGB.toFixed(1)} GB{summary ? ` · ${summary}` : ""}{verdict ? ` · ${verdict}` : ""}
-        </span>
-      )}
+      {load && <span className="flex-shrink-0 text-[12px] tabular-nums text-text-secondary">{load.sizeGB.toFixed(1)} GB</span>}
       {phase ? (
         <span
           role="status"

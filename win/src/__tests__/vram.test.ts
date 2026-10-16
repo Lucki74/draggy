@@ -4,6 +4,7 @@ import {
   USABLE_UNIFIED_FRACTION,
   USABLE_VRAM_FRACTION,
   describeFit,
+  describeMemoryLoad,
   describeVerdict,
   describeSplit,
 } from "../vram";
@@ -109,5 +110,25 @@ describe("fit verdict", () => {
 
   it("never says exceeds without a RAM figure", () => {
     expect(describeVerdict({ modelBytes: 40 * GB, vramGB: 8 })).toBe("partial");
+  });
+});
+
+describe("describeMemoryLoad", () => {
+  const load = (gb: number) => describeMemoryLoad({ modelBytes: gb * GB, vramGB: 8, ramGB: 32 }).tone;
+
+  it("is green up to 75% of VRAM plus RAM", () => {
+    expect(load(20)).toBe("green");
+  });
+
+  it("is amber between 75% and 100%", () => {
+    expect(load(30)).toBe("amber");
+  });
+
+  it("is red at 100% or more", () => {
+    expect(load(40)).toBe("red");
+  });
+
+  it("is unknown without any memory figure", () => {
+    expect(describeMemoryLoad({ modelBytes: 4 * GB, vramGB: 0 }).tone).toBe("unknown");
   });
 });

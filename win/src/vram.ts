@@ -76,3 +76,21 @@ export function describeVerdict(input: FitInput): FitVerdict {
   if (input.ramGB && input.ramGB > 0 && spillGB > input.ramGB * RAM_USABLE_FRACTION) return "exceeds";
   return "partial";
 }
+
+export interface MemoryLoad {
+  tone: "green" | "amber" | "red" | "unknown";
+  sizeGB: number;
+  /** Model size plus runtime overhead, over all memory the machine has. */
+  occupied: number;
+}
+
+/** Green up to 75% of total memory (VRAM plus RAM, never disk), amber up to 100%, red beyond. */
+export function describeMemoryLoad(input: FitInput): MemoryLoad {
+  const sizeGB = input.modelBytes / BYTES_PER_GB;
+  const vram = input.vramGB > 0 ? input.vramGB : 0;
+  const ram = input.ramGB && input.ramGB > 0 ? input.ramGB : 0;
+  const totalGB = input.unifiedMemory ? Math.max(vram, ram) : vram + ram;
+  if (totalGB <= 0) return { tone: "unknown", sizeGB, occupied: 0 };
+  const occupied = (sizeGB + RUNTIME_OVERHEAD_GB) / totalGB;
+  return { tone: occupied <= 0.75 ? "green" : occupied < 1 ? "amber" : "red", sizeGB, occupied };
+}
