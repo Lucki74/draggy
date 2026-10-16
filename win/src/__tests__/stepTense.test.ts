@@ -164,7 +164,7 @@ describe("the web and browser tools", () => {
   it("navigate", async () => {
     vi.stubGlobal("window", {
       electronAPI: {
-        browserNavigate: async () => ({ success: true, title: "A", url: "https://a.example" }),
+        browserNavigate: async () => ({ ok: true, title: "A", url: "https://a.example" }),
       },
     });
     const { context, steps, lifecycle } = harness();
@@ -178,7 +178,7 @@ describe("the web and browser tools", () => {
 
   it("mark a navigation that failed as failed rather than done", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserNavigate: async () => ({ success: false, error: "Nope" }) },
+      electronAPI: { browserNavigate: async () => ({ ok: false, error: { code: "navigation_failed", message: "Nope", hint: "Retry." } }) },
     });
     const { context, steps } = harness();
 
@@ -190,7 +190,7 @@ describe("the web and browser tools", () => {
 
   it("type into a page", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserType: async () => ({ success: true }) },
+      electronAPI: { browserType: async () => ({ ok: true }) },
     });
     const { context, lifecycle } = harness();
 
@@ -203,7 +203,7 @@ describe("the web and browser tools", () => {
   it("read a page", async () => {
     vi.stubGlobal("window", {
       electronAPI: {
-        browserGetText: async () => ({ success: true, title: "A", url: "https://a.example", text: "hi" }),
+        browserGetText: async () => ({ ok: true, title: "A", url: "https://a.example", text: "hi" }),
       },
     });
     const { context, lifecycle } = harness();
