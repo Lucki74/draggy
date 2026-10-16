@@ -1,0 +1,61 @@
+name: Draggy
+options:
+  bundleIdPrefix: com.draggy
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ARCHS: arm64
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  DraggyCore:
+    path: Packages/DraggyCore
+targets:
+  Draggy:
+    type: application
+    platform: macOS
+    sources:
+      - path: Draggy
+      - path: ../shared/icons/icon.icns
+        buildPhase: resources
+    dependencies:
+      - package: DraggyCore
+    info:
+      path: Draggy/Resources/Info.plist
+      properties:
+        CFBundleName: Draggy
+        CFBundleDisplayName: Draggy
+        CFBundleIconFile: icon
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHighResolutionCapable: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.draggy.app
+        GENERATE_INFOPLIST_FILE: NO
+  DraggyTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: DraggyTests
+    dependencies:
+      - target: Draggy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.draggy.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Draggy:
+    build:
+      targets:
+        Draggy: all
+        DraggyTests: [test]
+    test:
+      targets: [DraggyTests]
