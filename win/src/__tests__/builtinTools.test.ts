@@ -198,3 +198,48 @@ describe("run_code execution", () => {
     expect(result).toContain("not enabled");
   });
 });
+
+describe("browser tool failures", () => {
+  const failure = {
+    ok: false,
+    error: { code: "element_not_found", message: "No element has that index.", hint: "Call browser_get_elements again." },
+  };
+
+  function stubBrowser(methods: Record<string, unknown>) {
+    vi.stubGlobal("window", { electronAPI: methods });
+  }
+
+  it("gives the model the reason and the hint when a click fails", async () => {
+    stubBrowser({ browserClick: vi.fn().mockResolvedValue(failure) });
+
+    const { context } = harness();
+    const result = await runTool("browser_click", { index: 3 }, context, ALL_ON);
+
+    expect(result).toContain("No element has that index.");
+    expect(result).toContain("Call browser_get_elements again.");
+  });
+
+  it("does the same for a refused navigation", async () => {
+    stubBrowser({
+      browserNavigate: vi.fn().mockResolvedValue({
+        ok: false,
+        error: { code: "refused_url", message: "Private address.", hint: "Use a public address." },
+      }),
+    });
+
+    const { context } = harness();
+    const result = await runTool("browser_navigate", { url: "http://10.0.0.1/" }, context, ALL_ON);
+
+    expect(result).toContain("Private address.");
+    expect(result).toContain("Use a public address.");
+  });
+
+  it("reports a successful click with the page it landed on", async () => {
+    stubBrowser({ browserClick: vi.fn().mockResolvedValue({ ok: true, title: "Cart", url: "https://shop.test/cart" }) });
+
+    const { context } = harness();
+    const result = await runTool("browser_click", { index: 0 }, context, ALL_ON);
+
+    expect(result).toContain('Clicked. Page: "Cart"');
+  });
+});
