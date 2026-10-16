@@ -64,10 +64,6 @@ function pickColibriAssets(assets, { platformName = process.platform, arch = os.
   if (platformName === "win32" && arch === "x64") {
     main = find(/windows-x86_64\.zip$/);
     cuda = cudaCapable ? find(/windows-x86_64-cuda\.zip$/) : null;
-  } else if (platformName === "linux" && arch === "x64") {
-    main = find(/linux-x86_64\.tar\.gz$/);
-  } else if (platformName === "darwin" && arch === "arm64") {
-    main = find(/macos-arm64\.tar\.gz$/);
   }
   return { main, cuda, sums, variant: cuda ? "cuda" : "vulkan" };
 }

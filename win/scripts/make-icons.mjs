@@ -28,22 +28,6 @@ const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 /** Beyond this, an entry goes in as a PNG; below it, as a bitmap. */
 const ICO_PNG_FROM = 128;
 
-const LINUX_SIZES = [16, 32, 48, 64, 128, 256, 512];
-
-/** The chunk name macOS looks for at each size. */
-const ICNS_TYPES = [
-  { type: "icp4", size: 16 },
-  { type: "icp5", size: 32 },
-  { type: "icp6", size: 64 },
-  { type: "ic07", size: 128 },
-  { type: "ic08", size: 256 },
-  { type: "ic09", size: 512 },
-  { type: "ic11", size: 32 },
-  { type: "ic12", size: 64 },
-  { type: "ic13", size: 256 },
-  { type: "ic14", size: 512 },
-];
-
 /** The drawing sits in a wide transparent margin. Scaling the whole canvas would halve the dragon,
  * so the margin is measured and cut away first. */
 async function readArtwork() {
@@ -173,25 +157,6 @@ async function buildIco(artwork) {
   return Buffer.concat([directory, ...images.map((image) => image.data)]);
 }
 
-async function buildIcns(artwork) {
-  const chunks = [];
-  let total = 8;
-
-  for (const { type, size } of ICNS_TYPES) {
-    const data = await png(artwork, size);
-    const head = Buffer.alloc(8);
-    head.write(type, 0, 4, "ascii");
-    head.writeUInt32BE(data.length + 8, 4);
-    chunks.push(head, data);
-    total += data.length + 8;
-  }
-
-  const header = Buffer.alloc(8);
-  header.write("icns", 0, 4, "ascii");
-  header.writeUInt32BE(total, 4);
-  return Buffer.concat([header, ...chunks]);
-}
-
 async function main() {
   const meta = await sharp(SOURCE).metadata();
   if (!meta.width || !meta.height) throw new Error(`${SOURCE} is unreadable`);
@@ -202,14 +167,6 @@ async function main() {
   // The running app loads its window icon from beside the main process, and the installer reuses it.
   await writeFile(path.join(ROOT, "electron", "icon.ico"), ico);
 
-  await writeFile(path.join(ROOT, "build", "icon.icns"), await buildIcns(artwork));
-
-  const linux = path.join(ROOT, "build", "icons");
-  await mkdir(linux, { recursive: true });
-  for (const size of LINUX_SIZES) {
-    await writeFile(path.join(linux, `${size}x${size}.png`), await png(artwork, size));
-  }
-
   // The mark the interface draws, without the tile: inside the app it takes
   // its colour from the text around it, so only the shape is needed.
   const inApp = path.join(ROOT, "src", "assets");
@@ -218,7 +175,7 @@ async function main() {
 
   console.log(
     `icon.ico (${ICO_SIZES.length} sizes, ${(ico.length / 1024).toFixed(1)} kB), ` +
-      `icon.icns, ${LINUX_SIZES.length} PNGs for Linux, and src/assets/dragon.png ` +
+      `and src/assets/dragon.png ` +
       `for the interface — all from ${path.basename(SOURCE)}`,
   );
 }

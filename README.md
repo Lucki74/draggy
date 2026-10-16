@@ -14,8 +14,6 @@
 [![License](https://img.shields.io/github/license/Lucki74/draggy?style=flat&label=license&color=2b2b2b)](LICENSE)
 
 [![Windows](https://img.shields.io/badge/Windows-2b2b2b?style=flat&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTMgNS43IDEwLjQgNC41djcuMUgzek0xMS41IDQuMyAyMSAzdjguNmgtOS41ek0zIDEyLjdoNy40djcuMUwzIDE4LjZ6TTExLjUgMTIuN0gyMVYyMWwtOS41LTEuM3oiLz48L3N2Zz4=)](https://github.com/Lucki74/draggy/releases/latest)
-[![macOS](https://img.shields.io/badge/macOS-2b2b2b?style=flat&logo=apple&logoColor=white)](https://github.com/Lucki74/draggy/releases/latest)
-[![Linux](https://img.shields.io/badge/Linux-2b2b2b?style=flat&logo=linux&logoColor=white)](https://github.com/Lucki74/draggy/releases/latest)
 
 ![Electron](https://img.shields.io/badge/Electron-47848F?style=flat&logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
@@ -39,8 +37,7 @@ running open models on your own computer.
 
 It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
 from Hugging Face. There is no account, no telemetry, and no network traffic
-unless you request it. Built with Electron, React, and TypeScript for Windows,
-macOS, and Linux.
+unless you request it. Built with Electron, React, and TypeScript for Windows.
 
 Documentation lives on the wiki at [draggy.org/wiki](https://draggy.org/wiki):
 installation details, hardware requirements, features, troubleshooting, and
@@ -69,31 +66,14 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 ## Installing and requirements
 
-Download an installer from [draggy.org](https://draggy.org) or the
-[Releases page](https://github.com/Lucki74/draggy/releases/latest):
-[Windows](https://github.com/Lucki74/draggy/releases/latest/download/draggy_setup.exe),
-macOS ([Apple Silicon](https://github.com/Lucki74/draggy/releases/latest/download/Draggy-arm64.dmg) or [Intel](https://github.com/Lucki74/draggy/releases/latest/download/Draggy-x64.dmg)),
-and [Linux](https://github.com/Lucki74/draggy/releases/latest) as an AppImage or a `.deb`. On first launch,
+Download the [Windows installer](https://github.com/Lucki74/draggy/releases/latest/download/draggy_setup.exe) from [draggy.org](https://draggy.org) or the
+[Releases page](https://github.com/Lucki74/draggy/releases/latest). On first launch,
 Draggy suggests a model sized for your hardware and downloads it directly. See
 [Installation](https://draggy.org/wiki/installation) for system requirements.
 
 Image generation is optional and installed from Settings, under Models. The engine is a separate download of 17 to 900 MB depending on the build, and a model needs about 2 GB of video memory for Stable Diffusion 1.5 or 6 GB for Z-Image Turbo. With less, the weights stay in system memory.
 
-### macOS: "Draggy" not opened
-
-Because the macOS build is not notarized by Apple, the first launch shows
-*Apple could not verify "Draggy" is free of malware*. Click **Done**, then either:
-
-- Open **System Settings → Privacy & Security**, scroll down to *"Draggy" was blocked* and click **Open Anyway**, then enter your password; or
-- Clear the quarantine attribute in Terminal after copying the app to Applications:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Draggy.app
-```
-
-This is required once per install. Because the app is not notarized, macOS installs do not update automatically: download the newer `.dmg` from the [Releases page](https://github.com/Lucki74/draggy/releases) when upgrading.
-
-Large models are managed from Settings, under Models, in the Large models panel. Draggy downloads colibri on demand, along with a small private Python runtime on Windows. On macOS and Linux colibri uses the `python3` you have installed. Below 3 tokens per second it switches to slow mode: fewer tool rounds per turn, thinking off unless you turn it on, and a notification when a long answer is ready.
+Large models are managed from Settings, under Models, in the Large models panel. Draggy downloads colibri on demand, along with a small private Python runtime on Windows. Below 3 tokens per second it switches to slow mode: fewer tool rounds per turn, thinking off unless you turn it on, and a notification when a long answer is ready.
 
 ## Building from source
 

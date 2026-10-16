@@ -12,10 +12,6 @@ const RELEASE = `https://github.com/openai/codex/releases/download/rust-v${VERSI
 const ASSETS = {
   "win32-x64": ["x86_64-pc-windows-msvc.exe.zip", "85ca951a6859757fe425407c4afe3ee1c59f3d35f739cdbd3be109393493048c", 79967102],
   "win32-arm64": ["aarch64-pc-windows-msvc.exe.zip", "6c63db9e1b7f8f1395235c818a606e85348fe2c82c52d9eb67926d7adabe2cdb", 73709402],
-  "darwin-x64": ["x86_64-apple-darwin.tar.gz", "21bbe629d147e3ef965550a4a248aaab29c21336ec8b21df65177c7c459d2646", 79136797],
-  "darwin-arm64": ["aarch64-apple-darwin.tar.gz", "a427487e775e3053feacb9dee699439e36e1dac2fe9516fa5c22e922fcc70d60", 72664357],
-  "linux-x64": ["x86_64-unknown-linux-musl.tar.gz", "4bccc8c9f59dbbc473ce602ec9ef332e9e763d04ef4e1a3c206bfb9f132e7234", 83275904],
-  "linux-arm64": ["aarch64-unknown-linux-musl.tar.gz", "c9bd7ae2864a11f324eb99dfd6a3260865894739c2014024805baabd0f4659d3", 77526660],
 };
 
 function assetFor(platformName = process.platform, arch = process.arch, table = ASSETS) {

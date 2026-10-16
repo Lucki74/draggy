@@ -77,13 +77,9 @@ export function TitleBar({
   if (onOpenBrowser) viewItems.push({ id: "browser", label: t("browser"), shortcut: "Ctrl+Shift+B", onSelect: onOpenBrowser });
   if (onOpenPlan) viewItems.push({ id: "plan", label: t("plan"), onSelect: onOpenPlan });
 
-  const isMac = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac");
-
   return (
     <header
-      className={`drag-region h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ${
-        isMac ? "ps-[78px] pe-3" : "ps-3 pe-[140px]"
-      } ${className}`}
+      className={`drag-region h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ps-3 pe-[140px] ${className}`}
     >
       {/* Left side: dragon mark, sidebar toggle and breadcrumbs */}
       <div className="flex items-center min-w-0 gap-2">

@@ -16,10 +16,6 @@ const ENGINE_LABEL = "Image engine";
 /** Written by scripts/updateSdRelease.mjs from the release above; edit the script, not this table. */
 const SD_CPP_ASSETS = {
   "cudart-sd-bin-win-cu12-x64.zip": { sha256: "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d", size: 563452046 },
-  "sd-master-2bb7294-bin-Darwin-macOS-26.6.2-arm64.zip": { sha256: "ca4bf4f40c491c4d1d75d3bef57f2600ecb19dedaac17fd1670e2b98ade1ce7e", size: 34322747 },
-  "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64-rocm-7.14.0.zip": { sha256: "8187e62198ff5f56ba95bdc0616b53d029da9736895c23a9b40193b109828807", size: 258091395 },
-  "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip": { sha256: "c848a914b156fc48d3d67656e779b20009132e874144252407526a32160c298d", size: 38549371 },
-  "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64.zip": { sha256: "d284ae24f61dafc75076d32cde69bd38cdf22c18e3330e8d7b29bcb477519d24", size: 25426079 },
   "sd-master-2bb7294-bin-win-cpu-x64.zip": { sha256: "ae344e272aabf9be51ce8732ef0d079cbd1a977a58d472c221a633791978e987", size: 17185807 },
   "sd-master-2bb7294-bin-win-cuda12-x64.zip": { sha256: "220d2a7e1cd24d8b9c0073e2370c91780e8547cd841d398644fe54543cc5a620", size: 333380261 },
   "sd-master-2bb7294-bin-win-rocm-7.14.0-x64.zip": { sha256: "2699a9cbfe3e89c6130e3257347a50136b7b22807881e835abe9c86bc32f6f8e", size: 192108045 },
@@ -33,14 +29,6 @@ const RUNNER_ASSETS = {
     vulkan: { main: "sd-master-2bb7294-bin-win-vulkan-x64.zip" },
     rocm: { main: "sd-master-2bb7294-bin-win-rocm-7.14.0-x64.zip" },
     cpu: { main: "sd-master-2bb7294-bin-win-cpu-x64.zip" },
-  },
-  "linux-x64": {
-    vulkan: { main: "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip" },
-    rocm: { main: "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64-rocm-7.14.0.zip" },
-    cpu: { main: "sd-master-2bb7294-bin-Linux-Ubuntu-24.04-x86_64.zip" },
-  },
-  "darwin-arm64": {
-    metal: { main: "sd-master-2bb7294-bin-Darwin-macOS-26.6.2-arm64.zip" },
   },
 };
 
@@ -63,11 +51,10 @@ function runnersFor({ system = process.platform, arch = os.arch(), nvidia = fals
   return Object.keys(table).filter((runner) => runner !== "cuda" || nvidia);
 }
 
-/** CUDA on NVIDIA, Metal on Apple, Vulkan on every other GPU. ROCm covers only some AMD cards, so it is never picked. */
+/** CUDA on NVIDIA, Vulkan on every other GPU. ROCm covers only some AMD cards, so it is never picked. */
 function defaultRunner({ system = process.platform, arch = os.arch(), vramGB = 0, nvidia = false } = {}) {
   const available = runnersFor({ system, arch, nvidia });
   if (available.length === 0) return null;
-  if (available.includes("metal")) return "metal";
   if (nvidia && available.includes("cuda")) return "cuda";
   if (vramGB > 0 && available.includes("vulkan")) return "vulkan";
   return available.includes("cpu") ? "cpu" : available[0];
@@ -122,11 +109,10 @@ function smokeTest(binaryPath, timeoutMs = 10_000) {
   });
 }
 
-/** Linux looks for the engine's libraries beside it only when told to. */
+/** Windows finds the engine's DLLs beside it through PATH. */
 function engineEnv(binaryPath) {
   const dir = path.dirname(binaryPath);
-  if (platform.IS_WINDOWS) return { ...process.env, PATH: [dir, process.env.PATH || ""].join(path.delimiter) };
-  return { ...process.env, LD_LIBRARY_PATH: [dir, process.env.LD_LIBRARY_PATH || ""].filter(Boolean).join(path.delimiter) };
+  return { ...process.env, PATH: [dir, process.env.PATH || ""].join(path.delimiter) };
 }
 
 /** The server inside an unpacked archive, which may sit one folder down. */
@@ -223,7 +209,7 @@ async function downloadAsset(name, destination, progress, fetcher = fetchStream)
 }
 
 function systemTar() {
-  return platform.IS_WINDOWS ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar";
+  return path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
 }
 
 function runTar(args) {
@@ -329,7 +315,6 @@ async function installRunner(userDataDir, { vramGB, nvidia, runner }, onProgress
 
     const binary = findServerIn(out);
     if (!binary) throw new Error("The image engine archive has no sd-server");
-    if (!platform.IS_WINDOWS) fs.chmodSync(binary, 0o755);
 
     fs.rmSync(target, { recursive: true, force: true });
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -352,10 +337,7 @@ async function installRunner(userDataDir, { vramGB, nvidia, runner }, onProgress
 }
 
 function hasNvidiaDriver() {
-  if (platform.IS_WINDOWS) {
-    return fs.existsSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "nvcuda.dll"));
-  }
-  return fs.existsSync("/usr/lib/x86_64-linux-gnu/libcuda.so.1");
+  return fs.existsSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "nvcuda.dll"));
 }
 
 module.exports = {

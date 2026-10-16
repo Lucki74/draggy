@@ -148,7 +148,6 @@ function run({ id, cwd, command, shell, timeoutMs }) {
       child = spawnHidden(invocation.file, invocation.args, {
         cwd,
         env,
-        detached: !IS_WINDOWS,
         stdio: ["ignore", "pipe", "pipe"],
         windowsVerbatimArguments: Boolean(invocation.verbatim),
       });

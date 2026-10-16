@@ -38,21 +38,12 @@ function isDirectory(dir) {
 /** Folders that may already hold a llama-server, most specific first. */
 function candidateDirs() {
   const env = process.env;
-  const dirs = platform.IS_WINDOWS
-    ? [
-        path.join(env.LOCALAPPDATA || "", "Programs", "Ollama", "lib", "ollama"),
-        path.join(env.ProgramFiles || "C:\\Program Files", "Ollama", "lib", "ollama"),
-        path.join(env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Ollama", "lib", "ollama"),
-        path.join(env.LOCALAPPDATA || "", "Programs", "llama.cpp"),
-      ]
-    : [
-        "/usr/local/bin",
-        "/usr/bin",
-        path.join(env.HOME || "", ".local", "bin"),
-        "/usr/local/lib/ollama",
-        "/usr/lib/ollama",
-        "/Applications/Ollama.app/Contents/Resources",
-      ];
+  const dirs = [
+    path.join(env.LOCALAPPDATA || "", "Programs", "Ollama", "lib", "ollama"),
+    path.join(env.ProgramFiles || "C:\\Program Files", "Ollama", "lib", "ollama"),
+      path.join(env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Ollama", "lib", "ollama"),
+    path.join(env.LOCALAPPDATA || "", "Programs", "llama.cpp"),
+  ];
 
   for (const dir of (env.PATH || "").split(path.delimiter)) {
     if (dir) dirs.push(dir);
@@ -88,12 +79,7 @@ function findLlamaBinary(userDataDir) {
 
 /** Determines recommended release asset name based on platform and detected GPU. */
 function recommendedReleaseAsset(vramGB) {
-  let asset = "llama-server-vulkan-x64";
-  if (platform.IS_WINDOWS) {
-    asset = vramGB > 0 ? "llama-server-cuda-x64" : "llama-server-vulkan-x64";
-  } else if (platform.IS_MAC) {
-    asset = "llama-server-metal-arm64";
-  }
+  const asset = vramGB > 0 ? "llama-server-cuda-x64" : "llama-server-vulkan-x64";
   log.debug("binaryManager", `Recommended asset: ${asset} (vramGB=${vramGB})`);
   return asset;
 }
@@ -113,37 +99,21 @@ function detectGpuRunner(llamaDir, vramGB = 0) {
     runnerType,
   });
 
-  if (platform.IS_MAC) return found(llamaDir, null, "metal");
-
   // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
   const cudaUsable = vramGB > 0 && hasNvidiaDriver();
 
-  if (platform.IS_WINDOWS) {
-    // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
-    if (cudaUsable) {
-      for (const name of ["cuda_v12", "cuda_v13"]) {
-        const dir = path.join(llamaDir, name);
-        if (isDirectory(dir)) return found(dir, "ggml-cuda.dll", "cuda");
-      }
-      if (fs.existsSync(path.join(llamaDir, "ggml-cuda.dll"))) return found(llamaDir, "ggml-cuda.dll", "cuda");
+  // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
+  if (cudaUsable) {
+    for (const name of ["cuda_v12", "cuda_v13"]) {
+      const dir = path.join(llamaDir, name);
+      if (isDirectory(dir)) return found(dir, "ggml-cuda.dll", "cuda");
     }
-    const vulkanDir = path.join(llamaDir, "vulkan");
-    if (isDirectory(vulkanDir)) return found(vulkanDir, "ggml-vulkan.dll", "vulkan");
-    if (fs.existsSync(path.join(llamaDir, "ggml-vulkan.dll"))) {
-      return found(llamaDir, "ggml-vulkan.dll", "vulkan");
-    }
-    return found(llamaDir, null, "cpu");
+    if (fs.existsSync(path.join(llamaDir, "ggml-cuda.dll"))) return found(llamaDir, "ggml-cuda.dll", "cuda");
   }
-
-  const linuxRunners = [
-    ...(cudaUsable ? [["cuda_v12", "libggml-cuda.so", "cuda"], ["cuda_v13", "libggml-cuda.so", "cuda"]] : []),
-    ["vulkan", "libggml-vulkan.so", "vulkan"],
-    ["rocm", "libggml-hip.so", "rocm"],
-  ];
-  for (const [name, library, runnerType] of linuxRunners) {
-    const dir = path.join(llamaDir, name);
-    if (isDirectory(dir)) return found(dir, library, runnerType);
-    if (fs.existsSync(path.join(llamaDir, library))) return found(llamaDir, library, runnerType);
+  const vulkanDir = path.join(llamaDir, "vulkan");
+  if (isDirectory(vulkanDir)) return found(vulkanDir, "ggml-vulkan.dll", "vulkan");
+  if (fs.existsSync(path.join(llamaDir, "ggml-vulkan.dll"))) {
+    return found(llamaDir, "ggml-vulkan.dll", "vulkan");
   }
   return found(llamaDir, null, "cpu");
 }
@@ -157,9 +127,6 @@ function getEngineEnvironment(userDataDir, vramGB = 0, explicitBinary = null) {
 
   const dirs = [...new Set([runnerDir, llamaDir])];
   const env = { PATH: [...dirs, process.env.PATH || ""].join(path.delimiter) };
-  if (!platform.IS_WINDOWS) {
-    env.LD_LIBRARY_PATH = [...dirs, process.env.LD_LIBRARY_PATH || ""].filter(Boolean).join(path.delimiter);
-  }
   // A flat layout is found beside the executable; loading it twice is pointless.
   if (backendDll && runnerDir !== llamaDir) env.GGML_BACKEND_PATH = backendDll;
 
@@ -172,7 +139,7 @@ function engineState(llamaDir, vramGB) {
   const binaryPath = path.join(llamaDir, serverName());
   const { runnerType } = detectGpuRunner(llamaDir, vramGB);
   const present = fs.existsSync(binaryPath);
-  const wantsGpu = vramGB > 0 && !platform.IS_MAC;
+  const wantsGpu = vramGB > 0;
   return { present, complete: present && (runnerType !== "cpu" || !wantsGpu), binaryPath, runnerType };
 }
 
@@ -196,10 +163,9 @@ function writeEngineMeta(llamaDir, meta) {
   }
 }
 
-/** The build flavour named in a release archive: "cuda-12.4", "vulkan", "cpu", or "metal" on macOS. */
+/** The build flavour named in a release archive: "cuda-12.4", "vulkan", "cpu". */
 function variantOf(assetName) {
-  if (/-bin-macos-/.test(assetName || "")) return "metal";
-  return String(assetName || "").match(/-bin-(?:win|ubuntu)-(.+?)-(?:x64|arm64)\./)?.[1] || "cpu";
+  return String(assetName || "").match(/-bin-win-(.+?)-(?:x64|arm64)\./)?.[1] || "cpu";
 }
 
 /** The build number of a tag such as "b11146", or 0. */
@@ -260,24 +226,11 @@ function installStaged(stageDir, llamaDir, { replace = false } = {}) {
     fs.cpSync(stageDir, llamaDir, { recursive: true, force: true });
     fs.rmSync(stageDir, { recursive: true, force: true });
   }
-  if (!platform.IS_WINDOWS) fs.chmodSync(path.join(llamaDir, serverName()), 0o755);
 }
-
-/** Where distributions put the NVIDIA driver library: Debian/Ubuntu, Fedora/openSUSE, Arch, WSL. */
-const NVIDIA_LINUX_DRIVER = [
-  "/usr/lib/x86_64-linux-gnu/libcuda.so.1",
-  "/usr/lib/aarch64-linux-gnu/libcuda.so.1",
-  "/usr/lib64/libcuda.so.1",
-  "/usr/lib/libcuda.so.1",
-  "/usr/lib/wsl/lib/libcuda.so.1",
-];
 
 /** Whether an NVIDIA driver is installed. AMD and Intel cards report VRAM too but cannot run CUDA. */
 function hasNvidiaDriver() {
-  if (platform.IS_WINDOWS) {
-    return fs.existsSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "nvcuda.dll"));
-  }
-  return NVIDIA_LINUX_DRIVER.some((file) => fs.existsSync(file));
+  return fs.existsSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "nvcuda.dll"));
 }
 
 /** Chooses release assets for this machine: the engine archive, plus the CUDA runtime when it is not
@@ -286,35 +239,22 @@ function hasNvidiaDriver() {
 function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false } = {}) {
   const byName = (pattern) => assets.find((asset) => pattern.test(asset.name));
   const arm = arch === "arm64";
-  const cpu = arm ? "arm64" : "x64";
   const withVariant = (picked) => (picked.main ? { ...picked, variant: variantOf(picked.main.name) } : picked);
 
-  if (platform.IS_MAC) return withVariant({ main: byName(new RegExp(`^llama-b\\d+-bin-macos-${cpu}\\.tar\\.gz$`)) });
-
-  const os_ = platform.IS_WINDOWS ? "win" : "ubuntu";
-  const ext = platform.IS_WINDOWS ? "zip" : "tar\\.gz";
   if (vramGB > 0 && nvidia && !arm) {
     for (const major of cuda13 ? ["13", "12"] : ["12"]) {
-      const main = byName(new RegExp(`^llama-(b\\d+)-bin-${os_}-cuda-${major}\\.[\\d.]+-x64\\.${ext}$`));
-      const [, build, version] = main?.name.match(/^llama-(b\d+)-bin-\w+-cuda-([\d.]+)-x64/) || [];
-      // Windows names the runtime without the build number, Linux with it.
-      const runtimeNames = platform.IS_WINDOWS
-        ? [`cudart-llama-bin-win-cuda-${version}-x64.zip`]
-        : [`cudart-llama-${build}-bin-ubuntu-cuda-${version}-x64.tar.gz`];
-      const runtime = version && assets.find((asset) => runtimeNames.includes(asset.name));
+      const main = byName(new RegExp(`^llama-b\\d+-bin-win-cuda-${major}\\.[\\d.]+-x64\\.zip$`));
+      const [, version] = main?.name.match(/^llama-b\d+-bin-win-cuda-([\d.]+)-x64/) || [];
+      const runtimeName = `cudart-llama-bin-win-cuda-${version}-x64.zip`;
+      const runtime = version && assets.find((asset) => asset.name === runtimeName);
       if (main && runtime) return withVariant({ main, extra: runtime });
     }
   }
 
-  if (platform.IS_WINDOWS) {
-    if (arm) return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-arm64\.zip$/) });
-    const vulkan = byName(/^llama-b\d+-bin-win-vulkan-x64\.zip$/);
-    if (vramGB > 0 && vulkan) return withVariant({ main: vulkan });
-    return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-x64\.zip$/) });
-  }
-
-  const variant = vramGB > 0 ? "vulkan-" : "";
-  return withVariant({ main: byName(new RegExp(`^llama-b\\d+-bin-ubuntu-${variant}${cpu}\\.tar\\.gz$`)) });
+  if (arm) return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-arm64\.zip$/) });
+  const vulkan = byName(/^llama-b\d+-bin-win-vulkan-x64\.zip$/);
+  if (vramGB > 0 && vulkan) return withVariant({ main: vulkan });
+  return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-x64\.zip$/) });
 }
 
 /** What pickReleaseAssets needs to know about the GPU. */
@@ -375,11 +315,9 @@ async function downloadAsset(asset, destination, progress) {
   log.info("engine.binary", expected ? "checksum verified" : "no published checksum", { asset: asset.name, host });
 }
 
-/** Unpacks with the system tar, which reads zip on Windows 10+ and tar.gz everywhere. */
+/** Unpacks with the system tar, which reads zip on Windows 10+. */
 function extractArchive(archive, destination) {
-  const tar = platform.IS_WINDOWS
-    ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe")
-    : "tar";
+  const tar = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
   fs.mkdirSync(destination, { recursive: true });
   return new Promise((resolve, reject) => {
     platform.execFileHidden(tar, ["-xf", archive, "-C", destination], { timeout: 600000 }, (err) =>

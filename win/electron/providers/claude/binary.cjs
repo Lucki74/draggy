@@ -13,19 +13,10 @@ const RELEASE = `https://downloads.claude.ai/claude-code-releases/${VERSION}`;
 const ASSETS = {
   "win32-x64": ["0416631e846f743110da5282409776fa1313e65f33a588aae066eaf8db0fda7d", 246480032],
   "win32-arm64": ["8a968e1500576eea43d04d7cffd40cf39b1c83e5b443522bafe0e92e50d6a389", 234005152],
-  "darwin-x64": ["79441b868935a11ed0630b2ee59327eda9f6a93bb8d470bd6633c03df76d2135", 235010944],
-  "darwin-arm64": ["50a14c2f50f56668380fdda490167f1d3630d5cc18fb8aed3073c2c7ea7314fe", 226563088],
-  "linux-x64": ["5cd90aabd83f8a15136c35aa37bb1d92b348993573316643dc3fe4e04afbf88f", 243059896],
-  "linux-arm64": ["3dd0f96d7ada463152d20300186f6cfc6ab94b57e218f49e3ac86db42ac695a6", 242409464],
-  "linux-x64-musl": ["1c5e4d7431c1e70c45efdce69ea74c2c9a2ad309f16555f7dc563f4743d978a0", 236810328],
-  "linux-arm64-musl": ["d8bce5724ecd1e6930ddf5f4cef7cebb0cd3e50b4f5d5158b30a53f81824f982", 234764096],
 };
 
-// A glibc build does not start on musl (Alpine and the like), which reports no glibc version.
-const isMusl = () => process.platform === "linux" && !process.report?.getReport?.().header?.glibcVersionRuntime;
-
-function assetFor(platformName = process.platform, arch = process.arch, table = ASSETS, musl = isMusl()) {
-  const target = `${platformName}-${arch}${platformName === "linux" && musl ? "-musl" : ""}`;
+function assetFor(platformName = process.platform, arch = process.arch, table = ASSETS) {
+  const target = `${platformName}-${arch}`;
   const entry = table[target];
   if (!entry) return null;
   const [sha256, size] = entry;
@@ -79,8 +70,8 @@ function ensureClaude(appData, options = {}) {
   return installing.get(appData);
 }
 
-async function install(appData, { download = downloadRelease, onProgress = () => {}, platformName, arch, assets = ASSETS, musl } = {}) {
-  const asset = assetFor(platformName, arch, assets, musl);
+async function install(appData, { download = downloadRelease, onProgress = () => {}, platformName, arch, assets = ASSETS } = {}) {
+  const asset = assetFor(platformName, arch, assets);
   if (!asset) {
     throw Object.assign(new Error(`Claude Code has no build for ${platformName ?? process.platform} ${arch ?? process.arch}`), {
       code: "account-runtime-unavailable",

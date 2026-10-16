@@ -25,7 +25,7 @@ describe("llamaProcess.startServer", () => {
     const userData = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-llama-"));
     const llama = path.join(userData, "bin", "llama");
     fs.mkdirSync(path.join(llama, "vulkan"), { recursive: true });
-    const saved = { win: platform.IS_WINDOWS, mac: platform.IS_MAC };
+    const saved = { win: platform.IS_WINDOWS };
     // A stand-in that answers the health check, but only once spawned, or startServer adopts it.
     const health = http.createServer((_req, res) => res.end("ok"));
     await new Promise((resolve) => health.listen(0, "127.0.0.1", resolve));
@@ -45,7 +45,6 @@ describe("llamaProcess.startServer", () => {
 
     try {
       platform.IS_WINDOWS = true;
-      platform.IS_MAC = false;
       const result = await llamaProcess.startServer({
         binaryPath: path.join(llama, "llama-server.exe"),
         modelPath: "m.gguf",
@@ -57,7 +56,6 @@ describe("llamaProcess.startServer", () => {
       expect(result.success).toBe(true);
     } finally {
       platform.IS_WINDOWS = saved.win;
-      platform.IS_MAC = saved.mac;
       await new Promise((resolve) => health.close(resolve));
       fs.rmSync(userData, { recursive: true, force: true });
     }

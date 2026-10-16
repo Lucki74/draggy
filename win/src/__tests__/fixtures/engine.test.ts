@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
+import { windowsCases } from "./windowsScope";
 import { runAcceptance, runDraftStats, runFailureReason, runKvCache, runLlamaArgs, runSizing } from "./engineLlama";
 
 const require = createRequire(import.meta.url);
@@ -21,9 +22,7 @@ type Space = { sizeBytes: number; freeBytes: number };
 
 const cpuTopology = require("../../../electron/cpuTopology.cjs") as {
   fromCounts: (logical: number, physical: number) => unknown;
-  parseCpuList: (text: string) => number[];
   windowsTopology: (cpus: { model: string }[]) => unknown;
-  linuxTopology: (sysRoot: string) => unknown;
 };
 const hardwareProbe = require("../../../electron/hardwareProbe.cjs") as {
   createHardwareProbe: (options: Record<string, unknown>) => {
@@ -231,8 +230,6 @@ function runCpu(input: Input): unknown {
   switch (input.op) {
     case "fromCounts":
       return cpuTopology.fromCounts(num(input.logical), num(input.physical));
-    case "parseCpuList":
-      return cpuTopology.parseCpuList(input.text as string);
     case "windowsTopology": {
       const cores = os as unknown as { availableParallelism: () => number };
       const saved = cores.availableParallelism;
@@ -243,11 +240,6 @@ function runCpu(input: Input): unknown {
         cores.availableParallelism = saved;
       }
     }
-    case "linuxTopology":
-      return withTempDir((root) => {
-        writeTree(root, input.files as Record<string, string>);
-        return cpuTopology.linuxTopology(root);
-      });
   }
   throw new Error(`unknown cpu op ${String(input.op)}`);
 }
@@ -549,8 +541,10 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 describe("engine fixtures", () => {
   for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json")).sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
+    const cases = windowsCases(file, fixture.cases);
+    if (cases.length === 0) continue;
     describe(file, () => {
-      for (const testCase of fixture.cases) {
+      for (const testCase of cases) {
         it(testCase.name, async () => {
           const runner = RUNNERS[file];
           if (!runner) throw new Error(`no runner for ${file}`);

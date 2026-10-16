@@ -1,7 +1,4 @@
-const fs = require("node:fs");
 const os = require("node:os");
-const path = require("node:path");
-const platform = require("./platform.cjs");
 const { log } = require("./logger.cjs");
 
 /**
@@ -27,57 +24,6 @@ function fromCounts(logical, physical) {
   return { logical, physical: safePhysical, performance };
 }
 
-/** Expands a sysfs CPU list such as "0-7,16,18-19". */
-function parseCpuList(text) {
-  const cpus = [];
-  for (const part of String(text || "").trim().split(",")) {
-    if (!part) continue;
-    const [from, to = from] = part.split("-");
-    const lo = parseInt(from, 10);
-    const hi = parseInt(to, 10);
-    if (Number.isNaN(lo) || Number.isNaN(hi)) continue;
-    for (let cpu = lo; cpu <= hi; cpu++) cpus.push(cpu);
-  }
-  return cpus;
-}
-
-function readText(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch {
-    return null;
-  }
-}
-
-/** Linux exposes the real answer: sibling lists give physical cores, cpu_core lists Intel P-cores. */
-function linuxTopology(sysRoot = "/sys/devices") {
-  const cpuDir = path.join(sysRoot, "system", "cpu");
-  let names;
-  try {
-    names = fs.readdirSync(cpuDir).filter((name) => /^cpu\d+$/.test(name));
-  } catch (error) {
-    log.warn("engine.cpu", "cpu sysfs unreadable", { code: error?.code ?? null });
-    return null;
-  }
-  const coreOf = new Map();
-  for (const name of names) {
-    const siblings = readText(path.join(cpuDir, name, "topology", "thread_siblings_list"))
-      ?? readText(path.join(cpuDir, name, "topology", "core_cpus_list"));
-    if (siblings === null) continue;
-    coreOf.set(Number(name.slice(3)), siblings.trim());
-  }
-  if (coreOf.size === 0) return null;
-
-  const logical = coreOf.size;
-  const physical = new Set(coreOf.values()).size;
-  const pCoreList = readText(path.join(sysRoot, "cpu_core", "cpus"));
-  if (pCoreList !== null) {
-    const pCores = new Set(parseCpuList(pCoreList).map((cpu) => coreOf.get(cpu)).filter(Boolean));
-    if (pCores.size > 0) return { logical, physical, performance: pCores.size };
-  }
-  return { logical, physical, performance: physical };
-}
-
 /** Read from the processor's name, with no process started: antivirus blocks a hidden PowerShell.
  * AMD names its core count; Intel 12th-14th gen i7/i9 chips have 8 P-cores. */
 function windowsTopology(cpus = os.cpus()) {
@@ -91,22 +37,10 @@ function windowsTopology(cpus = os.cpus()) {
   return null;
 }
 
-async function macTopology() {
-  const read = async (key) => parseInt(String(await platform.runCommand("sysctl", ["-n", key], 4000) || "").trim(), 10);
-  const physical = await read("hw.physicalcpu");
-  const logical = await read("hw.logicalcpu");
-  if (!(physical > 0)) return null;
-  // Apple silicon lists its performance cluster separately; Intel Macs have no perflevels.
-  const perf = await read("hw.perflevel0.physicalcpu");
-  return { logical: logical > 0 ? logical : physical, physical, performance: perf > 0 ? perf : physical };
-}
-
 async function detect() {
   let found;
   try {
-    if (platform.IS_WINDOWS) found = windowsTopology();
-    else if (platform.IS_MAC) found = await macTopology();
-    else found = linuxTopology();
+    found = windowsTopology();
   } catch (error) {
     log.warn("engine.cpu", "cpu topology probe failed", { platform: process.platform, error: error?.name, code: error?.code ?? null });
     found = null;
@@ -129,4 +63,4 @@ function resetForTests() {
   cached = null;
 }
 
-module.exports = { getCpuTopology, fromCounts, parseCpuList, linuxTopology, windowsTopology, resetForTests };
+module.exports = { getCpuTopology, fromCounts, windowsTopology, resetForTests };

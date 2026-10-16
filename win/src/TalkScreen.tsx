@@ -34,7 +34,6 @@ interface TalkScreenProps {
 
 type Failure = { kind: "mic" } | { kind: "error"; message: string } | null;
 
-const isMac = () => typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
 export default function TalkScreen({ settings, seed, onTurn, onLeave }: TalkScreenProps) {
   const t = useCallback(
@@ -310,7 +309,7 @@ export default function TalkScreen({ settings, seed, onTurn, onLeave }: TalkScre
 
         {failure?.kind === "mic" && (
           <p className="max-w-md text-center text-[14px] leading-6 text-text-secondary">
-            {isMac() ? t("micBlockedMac") : t("micBlockedWindows")}
+            {t("micBlockedWindows")}
           </p>
         )}
 

@@ -41,7 +41,7 @@ jobs:
   build:
     needs: prepare
     strategy:
-      # A platform that fails stops the rest: a release is all three or none.
+      # A platform that fails stops the rest.
       fail-fast: true
       matrix:
         include:
@@ -62,11 +62,6 @@ jobs:
           node-version-file: win/.nvmrc
           cache: npm
           cache-dependency-path: win/package-lock.json
-
-      # electron-builder shells out to fakeroot to stage the .deb.
-      - name: Install Linux packaging tools
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y fakeroot
 
       - run: npm ci
 

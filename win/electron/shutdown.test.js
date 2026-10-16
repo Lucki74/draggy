@@ -195,7 +195,7 @@ describe("shutdown covers every module that starts a process", () => {
     const close = main.slice(main.indexOf("function closeBrowserWindows()"));
     expect(close.slice(0, close.indexOf("\n}"))).toContain("browserSession.destroy()");
     const created = main.slice(main.indexOf("function createWindow("));
-    expect(created.slice(0, created.indexOf("\n}"))).toMatch(/mainWindow\.on\("closed", \(\) => \{\s+if \(process\.platform !== "darwin"\) app\.quit\(\);/);
+    expect(created.slice(0, created.indexOf("\n}"))).toMatch(/mainWindow\.on\("closed", \(\) => \{\s+app\.quit\(\);/);
   });
 
   it("runs as a single instance", () => {
