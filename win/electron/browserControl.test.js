@@ -357,10 +357,17 @@ describe("the agent overlay", () => {
     d.window.eval(control.overlayScript({ x: 10, y: 20 }));
     d.window.eval(control.overlayScript({ x: 30, y: 40 }));
     expect(hosts(d)).toHaveLength(1);
-    const cursor = hosts(d)[0].shadowRoot.querySelector(".cursor");
+    const root = d.window.__draggyAgentRoot;
+    const cursor = root.querySelector(".cursor");
     expect(cursor.style.transform).toContain("30px");
     expect(cursor.style.transform).toContain("40px");
-    expect(hosts(d)[0].shadowRoot.querySelectorAll(".border")).toHaveLength(1);
+    expect(root.querySelectorAll(".border")).toHaveLength(1);
+  });
+
+  it("keeps its insides closed to the page", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({ x: 1, y: 2 }));
+    expect(hosts(d)[0].shadowRoot).toBeNull();
   });
 
   it("lets every click through to the page", () => {

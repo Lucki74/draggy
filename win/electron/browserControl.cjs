@@ -196,7 +196,8 @@ const overlayScript = ({ x, y } = {}) => `
       host = document.createElement('div');
       host.setAttribute('${OVERLAY_ATTR}', '');
       host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
-      const root = host.attachShadow({ mode: 'open' });
+      const root = host.attachShadow({ mode: 'closed' });
+      window.__draggyAgentRoot = root;
       root.innerHTML = '<style>'
         + '.border{position:absolute;inset:0;box-sizing:border-box;border:3px solid #6d5efc;box-shadow:inset 0 0 18px rgba(109,94,252,.45);}'
         + '.cursor{position:absolute;left:0;top:0;width:18px;height:18px;margin:-2px 0 0 -2px;'
@@ -206,7 +207,7 @@ const overlayScript = ({ x, y } = {}) => `
         + '<div class="cursor"><svg viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="#6d5efc" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>';
       (document.documentElement || document.body).appendChild(host);
     }
-    const cursor = host.shadowRoot.querySelector('.cursor');
+    const cursor = window.__draggyAgentRoot.querySelector('.cursor');
     const x = ${Number.isFinite(x) ? Number(x) : "null"};
     const y = ${Number.isFinite(y) ? Number(y) : "null"};
     if (x !== null && y !== null) {
