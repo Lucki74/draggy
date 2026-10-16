@@ -590,6 +590,13 @@ export default function AppShell({
     [store.sessions, active.id],
   );
 
+  // The sidebar lists every project's sessions in Code, so a folder you are not in still shows its chats.
+  // Chat lists the sessions that sit in no project.
+  const sidebarSessions = useMemo(() => {
+    const projectIds = new Set(projects.map((project) => project.id));
+    return store.sessions.filter((session) => projectIds.has(workspaceIdOf(session)) === (mode === "code"));
+  }, [store.sessions, projects, mode]);
+
   const blankChatId = `blank-${active.id}`;
 
   const currentChatId = store.hydrated
@@ -1224,7 +1231,7 @@ export default function AppShell({
           activeWorkspaceId={active.id}
           projects={projects}
           runningSessionIds={runningHere}
-          sessions={visibleSessions}
+          sessions={sidebarSessions}
           currentChatId={currentChatId}
           t={t}
           onSwitchMode={handleSwitchMode}
@@ -1301,7 +1308,6 @@ export default function AppShell({
           onSelectModel={selectModelHere}
           onOpenSettings={openSettings}
           onNewChat={handleNewChat}
-          onTalk={() => setViewMode("talk")}
           onTalkTurn={handleTalkTurn}
           onLeaveTalk={() => setViewMode("chat")}
           onSeedUsed={onSeedUsed}

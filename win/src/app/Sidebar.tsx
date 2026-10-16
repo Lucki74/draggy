@@ -56,34 +56,6 @@ const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 360;
 const DEFAULT_SIDEBAR_WIDTH = 264;
 
-function groupChatSessions(sessions: ChatSession[]) {
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const todayStart = new Date().setHours(0, 0, 0, 0);
-  const yesterdayStart = todayStart - dayMs;
-  const weekStart = todayStart - 6 * dayMs;
-
-  const pinned: ChatSession[] = [];
-  const today: ChatSession[] = [];
-  const yesterday: ChatSession[] = [];
-  const lastWeek: ChatSession[] = [];
-  const older: ChatSession[] = [];
-
-  for (const session of sessions) {
-    if (session.pinned) {
-      pinned.push(session);
-      continue;
-    }
-    const time = session.updatedAt || now;
-    if (time >= todayStart) today.push(session);
-    else if (time >= yesterdayStart) yesterday.push(session);
-    else if (time >= weekStart) lastWeek.push(session);
-    else older.push(session);
-  }
-
-  return { pinned, today, yesterday, lastWeek, older };
-}
-
 function NavRow({ icon, label, shortcut, onClick }: { icon: IconName; label: string; shortcut?: string; onClick: () => void }) {
   return (
     <button
@@ -135,7 +107,7 @@ export function Sidebar({
     return isNaN(num) ? DEFAULT_SIDEBAR_WIDTH : Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, num));
   });
 
-  const view = useSessionView();
+  const view = useSessionView(mode);
   const [newGroupFor, setNewGroupFor] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
@@ -204,7 +176,7 @@ export function Sidebar({
 
   const sections = useMemo(
     () =>
-      mode === "code" && view.groupBy !== "folder"
+      view.groupBy !== "folder"
         ? arrangeSessions({
             sessions: filteredSessions,
             groupBy: view.groupBy,
@@ -215,16 +187,19 @@ export function Sidebar({
             t,
           })
         : null,
-    [mode, view.groupBy, view.sortBy, view.groups, view.assignments, filteredSessions, runningSessionIds, t],
+    [view.groupBy, view.sortBy, view.groups, view.assignments, filteredSessions, runningSessionIds, t],
   );
 
   const viewMenu = (
-    <SessionViewMenu groupBy={view.groupBy} sortBy={view.sortBy} onGroupBy={view.setGroupBy} onSortBy={view.setSortBy} t={t} />
+    <SessionViewMenu
+      groupBy={view.groupBy}
+      sortBy={view.sortBy}
+      onGroupBy={view.setGroupBy}
+      onSortBy={view.setSortBy}
+      byFolder={mode === "code"}
+      t={t}
+    />
   );
-
-  const chatGroups = useMemo(() => {
-    return groupChatSessions(filteredSessions);
-  }, [filteredSessions]);
 
   const saveRename = (id: string) => {
     const trimmed = renameDraft.trim();
@@ -239,15 +214,11 @@ export function Sidebar({
 
   // Rows in the order they show, for arrow keys and the one row Tab lands on.
   const visibleIds =
-    mode === "code" && sections
+    sections
       ? sections.flatMap((section) => section.sessions.map((s) => s.id))
-      : mode === "code"
-        ? projects.flatMap((project) =>
-            collapsedProjects[project.id] ? [] : (codeSessionsByProject.get(project.id) ?? []).map((s) => s.id),
-          )
-        : [...chatGroups.pinned, ...chatGroups.today, ...chatGroups.yesterday, ...chatGroups.lastWeek, ...chatGroups.older].map(
-            (s) => s.id,
-          );
+      : projects.flatMap((project) =>
+          collapsedProjects[project.id] ? [] : (codeSessionsByProject.get(project.id) ?? []).map((s) => s.id),
+        );
   const tabStop = [focusedId, currentChatId].find((id) => id && visibleIds.includes(id)) ?? visibleIds[0];
 
   const moveFocus = (from: string, step: number | "first" | "last") => {
@@ -312,31 +283,23 @@ export function Sidebar({
             },
           ]
         : []),
-      ...(mode === "code"
-        ? [
-            { type: "separator", id: "sep-group" } as MenuEntry,
-            {
-              type: "heading",
-              id: "group-heading",
-              label: t("moveToGroup"),
-            } as MenuEntry,
-            ...view.groups.map((group) => ({
-              id: `group-${group.id}`,
-              label: group.name,
-              checked: view.assignments[session.id] === group.id,
-              onSelect: () => view.assign(session.id, view.assignments[session.id] === group.id ? null : group.id),
-            })),
-            {
-              id: "group-new",
-              label: t("newGroup"),
-              icon: <Icon name="plus" size={16} />,
-              onSelect: () => {
-                setNewGroupName("");
-                setNewGroupFor(session.id);
-              },
-            } as MenuEntry,
-          ]
-        : []),
+      { type: "separator", id: "sep-group" } as MenuEntry,
+      { type: "heading", id: "group-heading", label: t("moveToGroup") } as MenuEntry,
+      ...view.groups.map((group) => ({
+        id: `group-${group.id}`,
+        label: group.name,
+        checked: view.assignments[session.id] === group.id,
+        onSelect: () => view.assign(session.id, view.assignments[session.id] === group.id ? null : group.id),
+      })),
+      {
+        id: "group-new",
+        label: t("newGroup"),
+        icon: <Icon name="plus" size={16} />,
+        onSelect: () => {
+          setNewGroupName("");
+          setNewGroupFor(session.id);
+        },
+      } as MenuEntry,
       { type: "separator", id: "sep" },
       {
         id: "delete",
@@ -480,7 +443,7 @@ export function Sidebar({
 
           {/* Sessions list area */}
           <div ref={listRef} className="flex-1 overflow-y-auto px-2 py-2 space-y-3 min-h-0">
-            {mode === "code" && sections ? (
+            {sections ? (
               <>
                 {sections.length === 0 && <div className="flex justify-end">{viewMenu}</div>}
                 {sections.map((section, index) => (
@@ -509,9 +472,23 @@ export function Sidebar({
                     )}
                   </div>
                 ))}
-                {sessions.length === 0 && <p className="p-4 text-center text-xs text-text-secondary">{t("noSessionsYet")}</p>}
+                {sessions.length === 0 &&
+                  (mode === "chat" ? (
+                    <div className="p-4 text-center text-xs text-text-secondary space-y-2">
+                      <p>{t("noSessionsYet")}</p>
+                      <button
+                        onClick={onNewChat}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-text-primary hover:underline cursor-pointer"
+                      >
+                        <Icon name="plus" size={12} />
+                        <span>{t("newDiscussion")}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="p-4 text-center text-xs text-text-secondary">{t("noSessionsYet")}</p>
+                  ))}
               </>
-            ) : mode === "code" ? (
+            ) : (
               <>
                 <div className="flex items-center justify-between gap-1 ps-2 text-xs font-medium text-text-tertiary">
                   <span className="flex-1 min-w-0 truncate">{t("projects")}</span>
@@ -616,54 +593,6 @@ export function Sidebar({
                     </div>
                   );
                 })}
-              </>
-            ) : (
-              <>
-                {chatGroups.pinned.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-xs font-medium text-text-tertiary">{t("pinned")}</div>
-                    {chatGroups.pinned.map(renderSessionRow)}
-                  </div>
-                )}
-                {chatGroups.today.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-xs font-medium text-text-tertiary">{t("today")}</div>
-                    {chatGroups.today.map(renderSessionRow)}
-                  </div>
-                )}
-                {chatGroups.yesterday.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-xs font-medium text-text-tertiary">{t("yesterday")}</div>
-                    {chatGroups.yesterday.map(renderSessionRow)}
-                  </div>
-                )}
-                {chatGroups.lastWeek.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-xs font-medium text-text-tertiary">{t("thisWeek")}</div>
-                    {chatGroups.lastWeek.map(renderSessionRow)}
-                  </div>
-                )}
-                {chatGroups.older.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-xs font-medium text-text-tertiary">{t("earlier")}</div>
-                    {chatGroups.older.map(renderSessionRow)}
-                  </div>
-                )}
-                {filteredSessions.length === 0 && sessions.length > 0 && (
-                  <p className="p-4 text-center text-xs text-text-secondary">{t("noSessionsFound")}</p>
-                )}
-                {sessions.length === 0 && (
-                  <div className="p-4 text-center text-xs text-text-secondary space-y-2">
-                    <p>{t("noSessionsYet")}</p>
-                    <button
-                      onClick={onNewChat}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-text-primary hover:underline cursor-pointer"
-                    >
-                      <Icon name="plus" size={12} />
-                      <span>{t("newDiscussion")}</span>
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </div>

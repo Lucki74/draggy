@@ -116,7 +116,10 @@ async function serveModelFile(relative, { root, origin, fetchImpl = fetch }) {
     return new Response(upstream.statusText, { status: upstream.status || 502 });
   }
 
-  const size = Number(upstream.headers.get("content-length"));
+  // fetch hands over the decoded body, so a compressed response's content-length is smaller than
+  // what streams out; a wrong length makes the page reject small JSON files such as tokenizer.json.
+  const encoded = Boolean(upstream.headers.get("content-encoding"));
+  const size = encoded ? NaN : Number(upstream.headers.get("content-length"));
   return new Response(teeToFile(upstream, target), {
     headers: modelFileHeaders(relative, Number.isFinite(size) && size > 0 ? size : NaN),
   });

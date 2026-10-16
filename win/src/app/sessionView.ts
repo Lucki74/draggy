@@ -26,41 +26,55 @@ export interface SessionSection {
   customId?: string;
 }
 
-const KEY = "draggy_session_view";
-const GROUP_BY: GroupBy[] = ["folder", "date", "status", "custom", "none"];
-const SORT_BY: SortBy[] = ["activity", "title"];
-const DEFAULTS: ViewState = { groupBy: "folder", sortBy: "activity", groups: [], assignments: {} };
+export type ViewMode = "code" | "chat";
 
-function read(): ViewState {
+const KEYS: Record<ViewMode, string> = { code: "draggy_session_view", chat: "draggy_session_view_chat" };
+/** Chats live in no folder, so they cannot be grouped by one. */
+const GROUP_BY: Record<ViewMode, GroupBy[]> = {
+  code: ["folder", "date", "status", "custom", "none"],
+  chat: ["date", "status", "custom", "none"],
+};
+const SORT_BY: SortBy[] = ["activity", "title"];
+const DEFAULTS: Record<ViewMode, ViewState> = {
+  code: { groupBy: "folder", sortBy: "activity", groups: [], assignments: {} },
+  chat: { groupBy: "date", sortBy: "activity", groups: [], assignments: {} },
+};
+
+function read(mode: ViewMode): ViewState {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || "null") as Partial<ViewState> | null;
-    if (!saved) return DEFAULTS;
+    const saved = JSON.parse(localStorage.getItem(KEYS[mode]) || "null") as Partial<ViewState> | null;
+    if (!saved) return DEFAULTS[mode];
     return {
-      groupBy: GROUP_BY.includes(saved.groupBy as GroupBy) ? (saved.groupBy as GroupBy) : DEFAULTS.groupBy,
-      sortBy: SORT_BY.includes(saved.sortBy as SortBy) ? (saved.sortBy as SortBy) : DEFAULTS.sortBy,
+      groupBy: GROUP_BY[mode].includes(saved.groupBy as GroupBy) ? (saved.groupBy as GroupBy) : DEFAULTS[mode].groupBy,
+      sortBy: SORT_BY.includes(saved.sortBy as SortBy) ? (saved.sortBy as SortBy) : DEFAULTS[mode].sortBy,
       groups: Array.isArray(saved.groups) ? saved.groups.filter((g) => g && g.id && g.name) : [],
       assignments: saved.assignments && typeof saved.assignments === "object" ? saved.assignments : {},
     };
   } catch {
-    return DEFAULTS;
+    return DEFAULTS[mode];
   }
 }
 
-/** How the code sidebar groups and orders sessions, remembered between runs. */
-export function useSessionView() {
-  const [state, setState] = useState<ViewState>(read);
+/** How the sidebar groups and orders sessions, remembered between runs. Code and chat each keep
+ * their own choices. */
+export function useSessionView(mode: ViewMode = "code") {
+  const [states, setStates] = useState<Record<ViewMode, ViewState>>(() => ({ code: read("code"), chat: read("chat") }));
+  const state = states[mode];
 
-  const update = useCallback((patch: (current: ViewState) => ViewState) => {
-    setState((current) => {
-      const next = patch(current);
-      try {
-        localStorage.setItem(KEY, JSON.stringify(next));
-      } catch (error) {
-        logSwallow("app", error, "the view still works for this run");
-      }
-      return next;
-    });
-  }, []);
+  const update = useCallback(
+    (patch: (current: ViewState) => ViewState) => {
+      setStates((all) => {
+        const next = patch(all[mode]);
+        try {
+          localStorage.setItem(KEYS[mode], JSON.stringify(next));
+        } catch (error) {
+          logSwallow("app", error, "the view still works for this run");
+        }
+        return { ...all, [mode]: next };
+      });
+    },
+    [mode],
+  );
 
   return {
     ...state,

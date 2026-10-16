@@ -155,6 +155,7 @@ export function useChatSession({
     const [notice, setNotice] = useState<string | null>(null);
     const [micState, setMicState] = useState<"idle" | "recording" | "loading" | "transcribing">("idle");
     const [micDetail, setMicDetail] = useState("");
+    const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
     const [slashIndex, setSlashIndex] = useState(0);
     const [lastSlashQuery, setLastSlashQuery] = useState<string | null>(null);
     const recorderRef = useRef<Recorder | null>(null);
@@ -205,6 +206,7 @@ export function useChatSession({
                 return;
             }
 
+            setMicAnalyser(null);
             setMicState("transcribing");
             setMicDetail("");
             try {
@@ -227,6 +229,7 @@ export function useChatSession({
 
         try {
             recorderRef.current = await startRecording();
+            setMicAnalyser(recorderRef.current.analyser);
             setMicState("recording");
         } catch {
             setFileErrors([t("micUnavailable")]);
@@ -535,6 +538,7 @@ export function useChatSession({
         notice,
         micState,
         micDetail,
+        micAnalyser,
         slashMatches,
         activeSlashIndex,
         setSlashIndex,

@@ -24,6 +24,8 @@ export interface SpeechProgress {
 }
 
 export interface Recorder {
+  /** Live level source for the recording waveform. */
+  analyser: AnalyserNode | null;
   stop: () => Promise<Blob>;
   cancel: () => void;
 }
@@ -180,11 +182,24 @@ export async function startRecording(): Promise<Recorder> {
   };
   recorder.start();
 
+  let context: AudioContext | null = null;
+  let analyser: AnalyserNode | null;
+  try {
+    context = new AudioContext();
+    analyser = context.createAnalyser();
+    analyser.fftSize = 256;
+    context.createMediaStreamSource(stream).connect(analyser);
+  } catch {
+    analyser = null;
+  }
+
   const releaseMicrophone = () => {
     stream.getTracks().forEach((track) => track.stop());
+    void context?.close();
   };
 
   return {
+    analyser,
     stop: () =>
       new Promise<Blob>((resolve) => {
         recorder.onstop = () => {
