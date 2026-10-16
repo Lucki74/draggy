@@ -217,7 +217,9 @@ function createObserver(cdp) {
       const ref = `e${counter}`;
       const visibility = visibilityOf(boxes[i], vp);
       table.set(ref, { backendNodeId: item.backendNodeId, frameId: item.frameId, role: item.role });
-      const { backendNodeId, frameId, ...rest } = item;
+      const rest = { ...item };
+      delete rest.backendNodeId;
+      delete rest.frameId;
       return { ref, ...rest, visibility };
     });
 

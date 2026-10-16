@@ -348,7 +348,7 @@ const browserScreenshot: ToolSpec = {
   description:
     "Look at the current browser page as an image. Use it when the snapshot does not explain the page, such as a chart, a canvas or a layout question.",
   parameters: {
-    mode: { type: "string", description: "viewport (default), full or element.", enum: ["viewport", "full", "element"] },
+    mode: { type: "string", description: "viewport (default), full or element." },
     ref: { type: "string", description: "Ref from browser_snapshot, for mode element." },
     marks: { type: "boolean", description: "Draw each ref on the viewport image." },
   },
