@@ -1,0 +1,15 @@
+@define-color window_bg_color #0e1012;
+@define-color view_bg_color #15171a;
+@define-color headerbar_bg_color #0e1012;
+@define-color sidebar_bg_color #0e1012;
+@define-color window_fg_color #e7eaed;
+@define-color view_fg_color #e7eaed;
+@define-color headerbar_fg_color #e7eaed;
+@define-color sidebar_fg_color #e7eaed;
+@define-color card_bg_color #15171a;
+@define-color success_color #78d694;
+@define-color warning_color #e5d183;
+@define-color error_color #fa7f8e;
+@define-color draggy_raised #1f2225;
+@define-color draggy_secondary #a6abb2;
+@define-color draggy_ember #fd962c;

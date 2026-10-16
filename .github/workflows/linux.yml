@@ -1,0 +1,52 @@
+name: Linux
+
+# Build, lint and test the native Linux app. It only runs for changes to the app, the core it uses, or this file.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "linux/**"
+      - "core/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/linux.yml"
+  pull_request:
+    paths:
+      - "linux/**"
+      - "core/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/linux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Format, clippy and test
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: linux
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-4-dev libadwaita-1-dev blueprint-compiler
+
+      - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - run: cargo fmt --check
+
+      - run: cargo clippy --all-targets --locked -- -D warnings
+
+      - run: cargo test --locked
