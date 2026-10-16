@@ -1,3 +1,5 @@
+const { log } = require("./logger.cjs");
+
 /** What the agent sees of a page: the accessibility tree as a short list with refs, a screenshot,
  * and the box a ref sits in. It talks to the page through one `send(method, params)` function
  * so it can be tested without Electron. Nothing here writes to disk or the log beyond counts. */
@@ -161,8 +163,9 @@ function createObserver(cdp) {
     try {
       const r = await send("Runtime.evaluate", { expression: "window.devicePixelRatio", returnByValue: true });
       if (r.result && r.result.value > 0) dpr = r.result.value;
-    } catch {
+    } catch (e) {
       // Without the ratio the picture may be larger than needed, never wrong.
+      log.swallow("browser.snapshot", "pixel ratio unavailable", e);
     }
     return { width: v.clientWidth, height: v.clientHeight, pageX: v.pageX, pageY: v.pageY, dpr, content: m.cssContentSize || m.contentSize };
   }
@@ -187,7 +190,8 @@ function createObserver(cdp) {
       let nodes;
       try {
         ({ nodes } = await send("Accessibility.getFullAXTree", { frameId: frame.id }));
-      } catch {
+      } catch (e) {
+        log.swallow("browser.snapshot", "frame tree unreadable", e);
         skippedFrames += 1;
         continue;
       }
@@ -243,8 +247,9 @@ function createObserver(cdp) {
     const entry = await resolve(ref);
     try {
       await send("DOM.scrollIntoViewIfNeeded", { backendNodeId: entry.backendNodeId });
-    } catch {
+    } catch (e) {
       // A node with no box cannot be scrolled to; the box lookup below says so.
+      log.swallow("browser.snapshot", "scroll into view failed", e);
     }
     const box = await boxOf(entry.backendNodeId);
     if (!box || box.width <= 0 || box.height <= 0) throw new RefError("element_not_found", "That element has no visible box.");
@@ -270,7 +275,7 @@ function createObserver(cdp) {
     let capturesBeyond = false;
     if (mode === "element") {
       const entry = await resolve(ref);
-      await send("DOM.scrollIntoViewIfNeeded", { backendNodeId: entry.backendNodeId }).catch(() => {});
+      await send("DOM.scrollIntoViewIfNeeded", { backendNodeId: entry.backendNodeId }).catch((e) => log.swallow("browser.snapshot", "scroll into view failed", e));
       const box = await boxOf(entry.backendNodeId);
       if (!box || box.width <= 0 || box.height <= 0) throw new RefError("element_not_found", "That element has no visible box.");
       const pad = 8;

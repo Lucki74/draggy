@@ -243,3 +243,49 @@ describe("browser tool failures", () => {
     expect(result).toContain('Clicked. Page: "Cart"');
   });
 });
+
+describe("browser snapshot and screenshot tools", () => {
+  function stubBrowser(methods: Record<string, unknown>) {
+    vi.stubGlobal("window", { electronAPI: methods });
+  }
+
+  it("hands the model the snapshot text", async () => {
+    const browserSnapshot = vi.fn().mockResolvedValue({ ok: true, title: "Shop", url: "https://shop.test/", text: 'e1 button "Buy"', total: 1, omitted: 0 });
+    stubBrowser({ browserSnapshot });
+    const { context } = harness();
+    const result = await runTool("browser_snapshot", { scope: "e4", maxItems: 20 }, context, ALL_ON);
+    expect(browserSnapshot).toHaveBeenCalledWith({ scope: "e4", maxItems: 20 });
+    expect(result).toContain('e1 button "Buy"');
+  });
+
+  it("attaches the screenshot for a vision model", async () => {
+    const browserScreenshot = vi.fn().mockResolvedValue({ ok: true, data: "JPEG", width: 800, height: 600, url: "https://shop.test/" });
+    stubBrowser({ browserScreenshot });
+    const { context } = harness();
+    const attachImage = vi.fn();
+    const result = await runTool("browser_screenshot", { mode: "full", marks: true }, { ...context, vision: true, attachImage }, ALL_ON);
+    expect(browserScreenshot).toHaveBeenCalledWith({ mode: "full", ref: undefined, marks: true });
+    expect(attachImage).toHaveBeenCalledWith("JPEG");
+    expect(result).toContain("800x600");
+  });
+
+  it("skips the capture and points a text-only model to the snapshot", async () => {
+    const browserScreenshot = vi.fn();
+    stubBrowser({ browserScreenshot });
+    const { context } = harness();
+    const result = await runTool("browser_screenshot", {}, { ...context, vision: false }, ALL_ON);
+    expect(browserScreenshot).not.toHaveBeenCalled();
+    expect(result).toContain("browser_snapshot");
+  });
+
+  it("passes a ref to click and to get_text", async () => {
+    const browserClick = vi.fn().mockResolvedValue({ ok: true, title: "Cart", url: "u" });
+    const browserGetText = vi.fn().mockResolvedValue({ ok: true, title: "t", url: "u", text: "hello" });
+    stubBrowser({ browserClick, browserGetText });
+    const { context } = harness();
+    await runTool("browser_click", { ref: "e7" }, context, ALL_ON);
+    await runTool("browser_get_text", { ref: "e7", selector: "main" }, context, ALL_ON);
+    expect(browserClick).toHaveBeenCalledWith("e7");
+    expect(browserGetText).toHaveBeenCalledWith({ ref: "e7", selector: "main" });
+  });
+});

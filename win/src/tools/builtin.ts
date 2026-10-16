@@ -310,33 +310,102 @@ const browserGetElements: ToolSpec = {
   },
 };
 
+const browserSnapshot: ToolSpec = {
+  name: "browser_snapshot",
+  annotations: { readOnly: true, sandboxed: true },
+  group: "browser",
+  description:
+    "List the controls, links, headings and inputs on the current browser page with a ref (e1, e2...) for each. Refs stay valid until the next snapshot or a navigation.",
+  parameters: {
+    scope: { type: "string", description: "Optional ref of a dialog or form to list only what is inside it." },
+    maxItems: { type: "integer", description: "Optional cap on the number of items listed." },
+  },
+  required: [],
+  usage: '{} → refs for everything on the page, or {"scope": "e4"} → only what is inside e4',
+  available: webEnabled,
+  run: async (args, ctx) => {
+    const stepId = ctx.newId();
+    ctx.pushStep({ id: stepId, type: "scanned", content: ctx.t("scanningPage"), isComplete: false });
+
+    const scope = typeof args.scope === "string" && args.scope ? args.scope : undefined;
+    const maxItems = Number.isFinite(Number(args.maxItems)) && Number(args.maxItems) > 0 ? Number(args.maxItems) : undefined;
+    const result = await api()?.browserSnapshot({ scope, maxItems });
+    ctx.patchStep(stepId, {
+      isComplete: true,
+      content: ctx.t("foundElements").replace("{count}", `**${(result?.ok && result.total - result.omitted) || 0}**`),
+    });
+    ctx.syncSteps();
+
+    if (!result?.ok) return `TOOL RESULT (browser_snapshot): Failed: ${browserFailure(result)}`;
+    return `TOOL RESULT (browser_snapshot):\n${result.text}`;
+  },
+};
+
+const browserScreenshot: ToolSpec = {
+  name: "browser_screenshot",
+  annotations: { readOnly: true, sandboxed: true },
+  group: "browser",
+  description:
+    "Look at the current browser page as an image. Use it when the snapshot does not explain the page, such as a chart, a canvas or a layout question.",
+  parameters: {
+    mode: { type: "string", description: "viewport (default), full or element.", enum: ["viewport", "full", "element"] },
+    ref: { type: "string", description: "Ref from browser_snapshot, for mode element." },
+    marks: { type: "boolean", description: "Draw each ref on the viewport image." },
+  },
+  required: [],
+  usage: '{} → the visible part of the page, or {"mode": "element", "ref": "e3"} → one element',
+  available: webEnabled,
+  run: async (args, ctx) => {
+    if (!ctx.vision || !ctx.attachImage) {
+      return "TOOL RESULT (browser_screenshot): This model cannot look at images. Use browser_snapshot to read the page instead.";
+    }
+    const stepId = ctx.newId();
+    ctx.pushStep({ id: stepId, type: "reading", content: ctx.t("readingPage"), isComplete: false });
+
+    const result = await api()?.browserScreenshot({
+      mode: typeof args.mode === "string" ? (args.mode as "viewport" | "full" | "element") : undefined,
+      ref: typeof args.ref === "string" ? args.ref : undefined,
+      marks: args.marks === true,
+    });
+    ctx.patchStep(stepId, { isComplete: true, content: ctx.t("readPage") });
+    ctx.syncSteps();
+
+    if (!result?.ok) return `TOOL RESULT (browser_screenshot): Failed: ${browserFailure(result)}`;
+    ctx.attachImage(result.data);
+    return `TOOL RESULT (browser_screenshot): Captured ${result.width}x${result.height} of ${result.url}. The image follows this message.`;
+  },
+};
+
 const browserClick: ToolSpec = {
   name: "browser_click",
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
-  description: "Click an element on the current browser page by its index.",
+  description: "Click an element on the current browser page by its ref from browser_snapshot or its index from browser_get_elements.",
   parameters: {
+    ref: { type: "string", description: "Ref from browser_snapshot, such as e7." },
     index: { type: "integer", description: "Index from browser_get_elements." },
   },
-  required: ["index"],
+  required: [],
   usage:
-    '{"index": 0} → clicks the element at that index',
+    '{"ref": "e7"} → clicks that ref, or {"index": 0} → clicks the element at that index',
   available: webEnabled,
   run: async (args, ctx) => {
-    const index = Number(args.index);
+    const ref = typeof args.ref === "string" && args.ref ? args.ref : null;
+    const target = ref ?? Number(args.index);
+    const label = ref ?? `#${target}`;
     const stepId = ctx.newId();
 
     ctx.pushStep({
       id: stepId,
       type: "clicking",
-      content: `${ctx.t("clickingElement")} **#${index}**`,
+      content: `${ctx.t("clickingElement")} **${label}**`,
       isComplete: false,
     });
 
-    const result = await api()?.browserClick(index);
+    const result = await api()?.browserClick(target);
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("clickedElement")} #${index}${result?.ok && result.title ? ` → **${result.title}**` : ""}`,
+      content: `${ctx.t("clickedElement")} ${label}${result?.ok && result.title ? ` → **${result.title}**` : ""}`,
     });
     ctx.syncSteps();
 
@@ -412,13 +481,16 @@ const browserGetText: ToolSpec = {
   name: "browser_get_text",
   annotations: { readOnly: true, sandboxed: true },
   group: "browser",
-  description: "Read the text content of the current browser page.",
-  parameters: {},
+  description: "Read the text content of the current browser page, or of one part of it.",
+  parameters: {
+    ref: { type: "string", description: "Optional ref from browser_snapshot to read only that element." },
+    selector: { type: "string", description: "Optional CSS selector to read only the first match." },
+  },
   required: [],
   usage:
-    "{} → the text of the current browser page",
+    '{} → the text of the current browser page, or {"ref": "e5"} → the text of that element',
   available: webEnabled,
-  run: async (_args, ctx) => {
+  run: async (args, ctx) => {
     const stepId = ctx.newId();
 
     ctx.pushStep({
@@ -428,7 +500,9 @@ const browserGetText: ToolSpec = {
       isComplete: false,
     });
 
-    const result = await api()?.browserGetText();
+    const ref = typeof args.ref === "string" && args.ref ? args.ref : undefined;
+    const selector = typeof args.selector === "string" && args.selector ? args.selector : undefined;
+    const result = await api()?.browserGetText(ref || selector ? { ref, selector } : undefined);
     ctx.patchStep(stepId, {
       isComplete: true,
       content: result?.ok ? `${ctx.t("readPage")} **${result.title}** (${result.url})` : ctx.t("readPage"),
@@ -694,7 +768,9 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
   searchWeb,
   readUrl,
   browserNavigate,
+  browserSnapshot,
   browserGetElements,
+  browserScreenshot,
   browserClick,
   browserType,
   browserPressKey,
