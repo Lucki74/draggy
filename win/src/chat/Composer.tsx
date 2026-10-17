@@ -20,12 +20,14 @@ import type {
     AppSettings,
     Attachment,
     ChatSession,
+    EffortLevel,
     InstalledSkill,
     PermissionMode,
     ProviderInstance,
 } from "../types";
-import { allowedEfforts, effectiveEffort } from "../ai/effort";
-import { EFFORT_LABELS, effortOptions } from "../settings/pages";
+import { allowedEfforts, effectiveEffort, EFFORT_ORDER, nextEffort } from "../ai/effort";
+import { EffortSlider } from "./EffortSlider";
+import { EFFORT_LABELS } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
 const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
@@ -121,6 +123,23 @@ export interface WorkContext {
 }
 
 /* Prompt field, attachments, the mode, effort and model chips, and the token budget meter. */
+/** Five small bars, filled up to the level; a dot marks a turn sent lower than asked. */
+function EffortMeter({ level, sent }: { level: EffortLevel; sent: EffortLevel }) {
+    const at = EFFORT_ORDER.indexOf(level);
+    return (
+        <span className="relative inline-flex items-end gap-px h-3" aria-hidden="true">
+            {EFFORT_ORDER.slice(1).map((step, i) => (
+                <span
+                    key={step}
+                    className={`w-[3px] rounded-pill ${i < at ? "bg-[var(--accent)]" : "bg-rule-strong"}`}
+                    style={{ height: `${5 + i * 2}px` }}
+                />
+            ))}
+            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill bg-[var(--accent)]" />}
+        </span>
+    );
+}
+
 export function Composer({
     model,
     chat,
@@ -234,20 +253,37 @@ export function Composer({
         return () => observer.disconnect();
     }, []);
 
+    const lockedEfforts = EFFORT_ORDER.filter((level) => !allowedEfforts(surface, settings.allowMaxInChat).includes(level));
+    const flashTimer = useRef<number | undefined>(undefined);
+    // Ctrl+Shift+E steps to the next level and shows the slider for a moment, unless motion is reduced.
+    const cycleEffort = () => {
+        const next = nextEffort(settings.effort, { mode: surface, allowMaxInChat: settings.allowMaxInChat });
+        onPatchSettings({ effort: next });
+        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+        setOpenMenu("effort");
+        window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(() => setOpenMenu((current) => (current === "effort" ? null : current)), 1200);
+    };
+    useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
     // Claude Code's menu keys: Ctrl+Shift+M mode, Ctrl+Shift+E effort, Ctrl+Shift+I model.
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) return;
             const key = event.key.toLowerCase();
-            const target: OpenMenu =
-                key === "m" && showPermission ? "permission" : key === "e" && !thinkingUnavailable ? "effort" : key === "i" ? "model" : null;
+            if (key === "e" && !thinkingUnavailable) {
+                event.preventDefault();
+                cycleEffort();
+                return;
+            }
+            const target: OpenMenu = key === "m" && showPermission ? "permission" : key === "i" ? "model" : null;
             if (!target) return;
             event.preventDefault();
             setOpenMenu((current) => (current === target ? null : target));
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [showPermission, thinkingUnavailable]);
+    }, [showPermission, thinkingUnavailable, settings.effort, settings.allowMaxInChat, surface]);
 
     const menuState = (name: Exclude<OpenMenu, null>) => ({
         open: openMenu === name,
@@ -350,17 +386,6 @@ export function Composer({
             disabled: toolsUnavailable && mode !== "off",
             title: toolsUnavailable ? `${displayModelName(model)} ${t("toolsNotNative")}` : undefined,
             onSelect: () => onPatchSettings({ webMode: mode }),
-        })),
-    ];
-
-    // Temporary five-level menu until the slider lands; Chat leaves out Max unless allowed.
-    const effortItems: MenuEntry[] = [
-        { type: "heading", id: "effort", label: t("effort") },
-        ...effortOptions(t, allowedEfforts(surface, settings.allowMaxInChat)).map<MenuEntry>(({ id, label }) => ({
-            id,
-            label,
-            checked: settings.effort === id,
-            onSelect: () => onPatchSettings({ effort: id }),
         })),
     ];
 
@@ -649,23 +674,46 @@ export function Composer({
                                     title={`${displayModelName(model)} ${t("thinkingNotSupported")}`}
                                 />
                             ) : (
-                                <Menu
+                                <Popover
                                     label={t("effort")}
                                     side="top"
                                     align="end"
-                                    items={effortItems}
+                                    className="p-3"
                                     {...menuState("effort")}
                                     trigger={(props) => (
                                         <Chip
                                             {...props}
                                             dropdown
                                             icon={<Icon name="brain" size={16} />}
-                                            className="max-w-[160px]"
-                                            label={t(EFFORT_LABELS[settings.effort])}
+                                            className="max-w-[180px]"
+                                            label={
+                                                tightToolbar ? (
+                                                    <span className="sr-only">{t(EFFORT_LABELS[settings.effort])}</span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <EffortMeter level={settings.effort} sent={sentLevel} />
+                                                        {t(EFFORT_LABELS[settings.effort])}
+                                                    </span>
+                                                )
+                                            }
                                             title={`${t("effort")}: ${t(EFFORT_LABELS[settings.effort])} (Ctrl+Shift+E)${sentNote}`}
                                         />
                                     )}
-                                />
+                                >
+                                    {(close) => (
+                                        <EffortSlider
+                                            value={settings.effort}
+                                            onChange={(effort) => onPatchSettings({ effort })}
+                                            locked={lockedEfforts}
+                                            onLockedPick={() => {
+                                                close();
+                                                onOpenSettings("chat");
+                                            }}
+                                            hint={sentLevel !== settings.effort ? `${t("effortChatCap")}` : undefined}
+                                            t={t}
+                                        />
+                                    )}
+                                </Popover>
                             )}
 
                             <Popover
