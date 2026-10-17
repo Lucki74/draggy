@@ -8,7 +8,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -118,7 +118,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "on",
           "customInstructions": []
         },
@@ -228,7 +228,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "low",
+          "effort": "off",
           "webMode": "off",
           "customInstructions": [
             "Be brief."
@@ -273,7 +273,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -491,7 +491,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "high",
+          "effort": "high",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -698,7 +698,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -906,7 +906,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1017,7 +1017,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1225,7 +1225,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1432,7 +1432,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1640,7 +1640,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1750,7 +1750,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "low",
+          "effort": "off",
           "webMode": "off",
           "customInstructions": []
         },
@@ -1785,7 +1785,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -1898,7 +1898,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -2108,7 +2108,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "high",
+          "effort": "high",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -2316,7 +2316,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": [
             "Répondez en français.",
@@ -2430,7 +2430,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -2653,7 +2653,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -3176,7 +3176,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -3383,7 +3383,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "high",
+          "effort": "high",
           "webMode": "auto",
           "customInstructions": []
         },
@@ -3502,7 +3502,7 @@
         "op": "system",
         "date": "10/12/2026",
         "settings": {
-          "thinkingMode": "medium",
+          "effort": "medium",
           "webMode": "off",
           "customInstructions": []
         },

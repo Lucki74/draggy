@@ -15,7 +15,7 @@ import type { AppSettings, InstalledSkill } from "../types";
 /** The built-in engine's prompt, frozen: `compact` must stay byte for byte what the engine was sent
  * before prompt profiles existed. The snapshots were written against that code. */
 
-const SETTINGS = { thinkingMode: "medium", webMode: "auto", customInstructions: [] } as unknown as AppSettings;
+const SETTINGS = { effort: "medium", webMode: "auto", customInstructions: [] } as unknown as AppSettings;
 const CHAT: ToolEnvironment = { webMode: "auto", codeExecution: false, libraryReady: true };
 const CODE: ToolEnvironment = { webMode: "auto", codeExecution: true, libraryReady: false, hasFolder: true, projectRoot: "C:\\projects\\thing" };
 const SKILL = { id: "pdf", name: "PDF", description: "Reads and writes PDF files.", path: "pdf/SKILL.md", source: "library" } as InstalledSkill;
@@ -26,14 +26,14 @@ const CASES: [string, () => string][] = [
     buildSystemPrompt({ ...SETTINGS, webMode: "on" } as AppSettings, { nativeTools: false, nativeThinking: false }, CHAT)],
   ["chat, fast, web off, own instructions", () =>
     buildSystemPrompt(
-      { ...SETTINGS, thinkingMode: "low", webMode: "off", customInstructions: ["Be brief."] } as AppSettings,
+      { ...SETTINGS, effort: "off", webMode: "off", customInstructions: ["Be brief."] } as AppSettings,
       { nativeTools: true, nativeThinking: false },
       { ...CHAT, webMode: "off" },
     )],
   ["code, native tools, memory and a skill", () =>
     buildSystemPrompt(SETTINGS, { nativeTools: true, nativeThinking: true }, CODE, { path: "AGENTS.md", text: "Use tabs." }, [SKILL])],
   ["code, text tools, high thinking", () =>
-    buildSystemPrompt({ ...SETTINGS, thinkingMode: "high" } as AppSettings, { nativeTools: false, nativeThinking: false }, CODE)],
+    buildSystemPrompt({ ...SETTINGS, effort: "high" } as AppSettings, { nativeTools: false, nativeThinking: false }, CODE)],
 ];
 
 beforeAll(() => {

@@ -42,7 +42,8 @@ const SETTINGS = {
   language: "en",
   modelName: MODEL,
   customInstructions: [],
-  thinkingMode: "medium",
+  effort: "medium",
+  allowMaxInChat: false,
   slowModelThinking: false,
   colibriLossy: false,
   webMode: "auto",
@@ -60,7 +61,7 @@ const SETTINGS = {
   searxngUrl: "",
   codeModel: "",
   codeInstructions: [],
-  codeThinkingMode: "medium",
+  codeEffort: "medium",
   codeWebMode: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
@@ -697,7 +698,7 @@ describe("a model that cannot think", () => {
 });
 
 describe("fast thinking mode", () => {
-  const FAST_SETTINGS = { ...SETTINGS, thinkingMode: "low" } as AppSettings;
+  const FAST_SETTINGS = { ...SETTINGS, effort: "off" } as AppSettings;
 
   it("tells a native-capable model not to think, explicitly rather than by omission", async () => {
     const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
@@ -1954,7 +1955,7 @@ describe("a model that cannot think", () => {
     await run([userMessage("2+2")]).promise;
 
     const fast = installFetch([{ content: ["Four."] }], ["tools", "completion"]);
-    await run([userMessage("2+2")], undefined, undefined, { ...SETTINGS, thinkingMode: "low" } as AppSettings).promise;
+    await run([userMessage("2+2")], undefined, undefined, { ...SETTINGS, effort: "off" } as AppSettings).promise;
 
     expect(systemOf(medium.requests[0])).toBe(systemOf(fast.requests[0]));
     expect(medium.requests[0]).not.toHaveProperty("think");
@@ -2189,7 +2190,7 @@ describe("a provider's model", () => {
 describe("the thinking pill's level", () => {
   const turn = (model: string) =>
     runAgentTurn(
-      { model, settings: { ...SETTINGS, thinkingMode: "high" }, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
+      { model, settings: { ...SETTINGS, effort: "high" }, environment: ENVIRONMENT, messages: [userMessage("hi")], compaction: null, signal: new AbortController().signal },
       makeHost().host,
     );
 

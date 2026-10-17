@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Block, Group, Row, Segmented, Select, Toggle } from "../../settings/Controls";
 import PermissionChoice from "../../settings/PermissionChoice";
-import { searchProviderOptions, thinkingOptions } from "../../settings/pages";
+import { effortOptions, searchProviderOptions } from "../../settings/pages";
+import { allowedEfforts } from "../../ai/effort";
 import type { AppMode } from "../../app/modes";
 import type { AppSettings, SearchProvider } from "../../types";
 import { Icon } from "../../ui/icons/Icon";
@@ -133,9 +134,9 @@ export default function Preferences({
             <Row label={t("thinking")}>
               <Segmented
                 label={t("thinking")}
-                value={settings.thinkingMode}
-                options={thinkingOptions(t)}
-                onChange={(thinkingMode) => onUpdateSettings({ thinkingMode })}
+                value={settings.effort}
+                options={effortOptions(t, allowedEfforts("chat", settings.allowMaxInChat))}
+                onChange={(effort) => onUpdateSettings({ effort })}
               />
             </Row>
           </Group>

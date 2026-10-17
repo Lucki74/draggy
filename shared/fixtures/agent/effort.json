@@ -1,0 +1,211 @@
+{
+  "area": "agent",
+  "description": "The effort levels and the rules that set the level a turn runs at (win/src/ai/effort.ts, core/crates/agent/src/effort.rs).",
+  "cases": [
+    {
+      "name": "code keeps the level asked for",
+      "input": { "op": "effective", "asked": "high", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "high", "sent": "high" }
+    },
+    {
+      "name": "code may use max",
+      "input": { "op": "effective", "asked": "max", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "max" }
+    },
+    {
+      "name": "chat caps max at high",
+      "input": { "op": "effective", "asked": "max", "mode": "chat", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "high", "reason": "chatCap" }
+    },
+    {
+      "name": "chat keeps max when the user allowed it",
+      "input": { "op": "effective", "asked": "max", "mode": "chat", "allowMaxInChat": true, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "max" }
+    },
+    {
+      "name": "chat leaves high alone",
+      "input": { "op": "effective", "asked": "high", "mode": "chat", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "high", "sent": "high" }
+    },
+    {
+      "name": "a model that cannot think is sent off, and the reason says so",
+      "input": { "op": "effective", "asked": "high", "mode": "code", "allowMaxInChat": false, "canThink": false, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "high", "sent": "off", "reason": "noThinking" }
+    },
+    {
+      "name": "off asked of a model that cannot think has no reason",
+      "input": { "op": "effective", "asked": "off", "mode": "code", "allowMaxInChat": false, "canThink": false, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "off", "sent": "off" }
+    },
+    {
+      "name": "unknown capabilities keep the level asked for",
+      "input": { "op": "effective", "asked": "high", "mode": "code", "allowMaxInChat": false, "canThink": null, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "high", "sent": "high" }
+    },
+    {
+      "name": "a slow model does not think until allowed",
+      "input": { "op": "effective", "asked": "medium", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": true },
+      "expected": { "asked": "medium", "sent": "off", "reason": "slow" }
+    },
+    {
+      "name": "off asked of a slow model has no reason",
+      "input": { "op": "effective", "asked": "off", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": true },
+      "expected": { "asked": "off", "sent": "off" }
+    },
+    {
+      "name": "a slow model thinks when the user allowed it",
+      "input": { "op": "effective", "asked": "medium", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": false },
+      "expected": { "asked": "medium", "sent": "medium" }
+    },
+    {
+      "name": "max clamps down to the highest supported level",
+      "input": { "op": "effective", "asked": "max", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": ["off", "low", "medium", "high"], "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "high", "reason": "unsupported" }
+    },
+    {
+      "name": "a level the model lacks clamps to the highest one below it",
+      "input": { "op": "effective", "asked": "medium", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": ["off", "high"], "slowBlocksThinking": false },
+      "expected": { "asked": "medium", "sent": "off", "reason": "unsupported" }
+    },
+    {
+      "name": "a supported level is sent as asked",
+      "input": { "op": "effective", "asked": "low", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": ["off", "low", "medium"], "slowBlocksThinking": false },
+      "expected": { "asked": "low", "sent": "low" }
+    },
+    {
+      "name": "an empty list of supported levels clamps nothing",
+      "input": { "op": "effective", "asked": "high", "mode": "code", "allowMaxInChat": false, "canThink": true, "supported": [], "slowBlocksThinking": false },
+      "expected": { "asked": "high", "sent": "high" }
+    },
+    {
+      "name": "the chat cap gives the reason even when clamping follows",
+      "input": { "op": "effective", "asked": "max", "mode": "chat", "allowMaxInChat": false, "canThink": true, "supported": ["off", "low", "medium", "high"], "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "high", "reason": "chatCap" }
+    },
+    {
+      "name": "the chat cap holds when the model then clamps lower",
+      "input": { "op": "effective", "asked": "max", "mode": "chat", "allowMaxInChat": false, "canThink": true, "supported": ["off", "low", "medium"], "slowBlocksThinking": false },
+      "expected": { "asked": "max", "sent": "medium", "reason": "chatCap" }
+    },
+    {
+      "name": "the first reason that changes the level is kept when a slow model follows the chat cap",
+      "input": { "op": "effective", "asked": "max", "mode": "chat", "allowMaxInChat": false, "canThink": true, "supported": null, "slowBlocksThinking": true },
+      "expected": { "asked": "max", "sent": "off", "reason": "chatCap" }
+    },
+    {
+      "name": "next level steps up through the cycle",
+      "input": { "op": "next", "level": "off", "mode": "code", "allowMaxInChat": false },
+      "expected": "low"
+    },
+    {
+      "name": "next after low is medium",
+      "input": { "op": "next", "level": "low", "mode": "code", "allowMaxInChat": false },
+      "expected": "medium"
+    },
+    {
+      "name": "next after high in code is max",
+      "input": { "op": "next", "level": "high", "mode": "code", "allowMaxInChat": false },
+      "expected": "max"
+    },
+    {
+      "name": "next after max wraps back to off",
+      "input": { "op": "next", "level": "max", "mode": "code", "allowMaxInChat": false },
+      "expected": "off"
+    },
+    {
+      "name": "chat skips max when it is not allowed",
+      "input": { "op": "next", "level": "high", "mode": "chat", "allowMaxInChat": false },
+      "expected": "off"
+    },
+    {
+      "name": "chat reaches max when it is allowed",
+      "input": { "op": "next", "level": "high", "mode": "chat", "allowMaxInChat": true },
+      "expected": "max"
+    },
+    {
+      "name": "a level chat does not allow moves to the highest it does",
+      "input": { "op": "next", "level": "max", "mode": "chat", "allowMaxInChat": false },
+      "expected": "high"
+    },
+    {
+      "name": "clamp keeps a supported level",
+      "input": { "op": "clamp", "level": "medium", "supported": ["off", "low", "medium", "high"] },
+      "expected": "medium"
+    },
+    {
+      "name": "clamp drops to the highest supported level below",
+      "input": { "op": "clamp", "level": "max", "supported": ["off", "medium"] },
+      "expected": "medium"
+    },
+    {
+      "name": "clamp with nothing below rises to the first supported level",
+      "input": { "op": "clamp", "level": "low", "supported": ["medium", "high"] },
+      "expected": "medium"
+    },
+    {
+      "name": "clamp with no list of levels keeps the level",
+      "input": { "op": "clamp", "level": "off", "supported": [] },
+      "expected": "off"
+    },
+    {
+      "name": "chat without max lists four levels",
+      "input": { "op": "allowed", "mode": "chat", "allowMaxInChat": false },
+      "expected": ["off", "low", "medium", "high"]
+    },
+    {
+      "name": "code lists all five levels",
+      "input": { "op": "allowed", "mode": "code", "allowMaxInChat": false },
+      "expected": ["off", "low", "medium", "high", "max"]
+    },
+    {
+      "name": "chat lists all five levels when max is allowed",
+      "input": { "op": "allowed", "mode": "chat", "allowMaxInChat": true },
+      "expected": ["off", "low", "medium", "high", "max"]
+    },
+    {
+      "name": "off has no budget",
+      "input": { "op": "budget", "level": "off", "numCtx": 8192 },
+      "expected": null
+    },
+    {
+      "name": "a budget never exceeds a quarter of a small context",
+      "input": { "op": "budget", "level": "max", "numCtx": 8192 },
+      "expected": 2048
+    },
+    {
+      "name": "a large context leaves the level's full budget",
+      "input": { "op": "budget", "level": "max", "numCtx": 131072 },
+      "expected": 32768
+    },
+    {
+      "name": "low has its own budget",
+      "input": { "op": "budget", "level": "low", "numCtx": 131072 },
+      "expected": 1024
+    },
+    {
+      "name": "medium is capped by a quarter of a 4096 context",
+      "input": { "op": "budget", "level": "medium", "numCtx": 4096 },
+      "expected": 1024
+    },
+    {
+      "name": "the old low is off",
+      "input": { "op": "legacy", "value": "low" },
+      "expected": "off"
+    },
+    {
+      "name": "the old medium stays medium",
+      "input": { "op": "legacy", "value": "medium" },
+      "expected": "medium"
+    },
+    {
+      "name": "the old high stays high",
+      "input": { "op": "legacy", "value": "high" },
+      "expected": "high"
+    },
+    {
+      "name": "max has no old name",
+      "input": { "op": "legacy", "value": "max" },
+      "expected": null
+    }
+  ]
+}

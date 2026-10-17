@@ -6,7 +6,8 @@ import InstructionsEditor from "./InstructionsEditor";
 import LibraryPanel from "./LibraryPanel";
 import { selectableModels } from "../modelKinds";
 import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
-import { thinkingOptions, webOptions } from "./pages";
+import { effortOptions, webOptions } from "./pages";
+import { allowedEfforts } from "../ai/effort";
 import { NEURAL_VOICES, isNeuralVoiceAvailable, resolveNeuralVoice } from "../voice/neuralVoice";
 import { previewVoice } from "../voice/preview";
 import { isSystemVoiceSupported, listVoices } from "../voice/systemVoice";
@@ -57,9 +58,9 @@ export function ChatPreferencesPage({
         <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
-            value={settings.thinkingMode}
-            options={thinkingOptions(t)}
-            onChange={(thinkingMode) => onUpdate({ thinkingMode })}
+            value={settings.effort}
+            options={effortOptions(t, allowedEfforts("chat", settings.allowMaxInChat))}
+            onChange={(effort) => onUpdate({ effort })}
           />
         </Row>
         <Row label={t("webAccess")}>

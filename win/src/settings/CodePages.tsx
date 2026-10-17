@@ -5,7 +5,7 @@ import InstructionsEditor from "./InstructionsEditor";
 import PermissionChoice from "./PermissionChoice";
 import { selectableModels } from "../modelKinds";
 import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
-import { thinkingOptions, webOptions } from "./pages";
+import { effortOptions, webOptions } from "./pages";
 import { workspaceLabel } from "../workspaces";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings, PermissionMode, Workspace, WorkspaceGrant } from "../types";
@@ -50,9 +50,9 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
-            value={settings.codeThinkingMode}
-            options={thinkingOptions(t)}
-            onChange={(codeThinkingMode) => onUpdate({ codeThinkingMode })}
+            value={settings.codeEffort}
+            options={effortOptions(t)}
+            onChange={(codeEffort) => onUpdate({ codeEffort })}
           />
         </Row>
         <Row label={t("webAccess")}>

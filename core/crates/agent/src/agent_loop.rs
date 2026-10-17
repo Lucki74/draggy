@@ -16,13 +16,14 @@ use crate::parsing::{
     ParsedToolCall, ToolParser, extract_file_streaming_args, extract_thought,
     has_tool_marker_across, parse_tool_call,
 };
+use crate::effort::{Effort, EffortInput, Surface, effective_effort};
 use crate::permissions::{
     Decision, Grant, PermissionMode, PermissionQuery, ToolAnnotations, Verdict, add_grant, decide,
     denied_by_user, grants_for, refusal_for, target_from_args,
 };
 use crate::prompts::{
     ProjectMemory, PromptEnvironment, PromptMode, PromptProfile, PromptSettings, PromptSkill,
-    PromptTool, SystemPromptInput, ThinkingMode, WebMode, build_system_prompt, current_time_note,
+    PromptTool, SystemPromptInput, WebMode, build_system_prompt, current_time_note,
     describe_skills, describe_tools_for_prompt, render_memory,
 };
 use crate::repetition::detect_repetition;
@@ -913,7 +914,8 @@ pub struct PreparedTurn {
     pub has_thinking: bool,
     pub clean_stream: bool,
     pub settings: PromptSettings,
-    pub effective_thinking: ThinkingMode,
+    /// The level the turn runs at, after the rules in [`effective_effort`] have applied.
+    pub effective_effort: Effort,
     pub prompt_parts: PromptParts,
     pub tool_chars: i64,
     /// The skill the last message started with a slash command, once its instructions are loaded.
@@ -940,20 +942,25 @@ pub fn prepare_turn(
     let unavailable = profile.tool_access == ToolAccess::Unavailable;
 
     // A model that cannot think is run as if thinking were off. A probe that got no answer proves nothing, so the setting stands.
-    let effective_thinking = if profile.probed && !profile.has_thinking {
-        ThinkingMode::Low
-    } else {
-        request.settings.thinking_mode
-    };
+    let surface = if request.environment.has_folder { Surface::Code } else { Surface::Chat };
+    let outcome = effective_effort(EffortInput {
+        asked: request.settings.effort,
+        surface,
+        allow_max_in_chat: request.settings.allow_max_in_chat,
+        can_think: profile.probed.then_some(profile.has_thinking),
+        supported: None,
+        // A slow model does not think until the settings allow it.
+        slow_blocks_thinking: !profile.thinking_allowed,
+    });
+    let sent = outcome.sent;
     let native_tools = profile.tool_access == ToolAccess::Native;
-    let native_thinking =
-        profile.has_thinking && effective_thinking != ThinkingMode::Low && profile.thinking_allowed;
+    let native_thinking = profile.has_thinking && sent.is_thinking();
     let clean_stream = native_tools && native_thinking;
 
     // A model that cannot call tools is offered none, is told web access is off, and loses the prompt sections that
     // describe its tools. The folder stays, since its rules are still text.
     let mut settings = request.settings.clone();
-    settings.thinking_mode = effective_thinking;
+    settings.effort = sent;
     if unavailable {
         settings.web_mode = WebMode::Off;
     }
@@ -1107,7 +1114,7 @@ pub fn prepare_turn(
         has_thinking: profile.has_thinking,
         clean_stream,
         settings,
-        effective_thinking,
+        effective_effort: sent,
         prompt_parts,
         tool_chars,
         invoked_skill: invoked.map(|(skill, _)| InvokedSkill {
@@ -1596,7 +1603,7 @@ impl<'a> Turn<'a> {
                 .has_thinking
                 .then_some(self.prepared.native_thinking),
             thinking_level: (self.remote && self.prepared.has_thinking)
-                .then(|| thinking_name(self.prepared.effective_thinking).to_string()),
+                .then(|| self.prepared.effective_effort.name().to_string()),
         };
         pass.request_start = self.ports.clock.now_ms();
         let mut stream = self.ports.model.stream(request)?;
@@ -2606,14 +2613,6 @@ fn approval_json(
         "kind": kind,
         "allows": allows,
     })
-}
-
-fn thinking_name(mode: ThinkingMode) -> &'static str {
-    match mode {
-        ThinkingMode::Low => "low",
-        ThinkingMode::Medium => "medium",
-        ThinkingMode::High => "high",
-    }
 }
 
 fn non_empty(value: Option<&str>) -> bool {

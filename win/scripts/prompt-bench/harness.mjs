@@ -30,7 +30,7 @@ export async function loadHarness(server) {
   const registry = await server.ssrLoadModule("/src/tools/registry.ts");
   for (const [file, register] of TOOL_MODULES) (await server.ssrLoadModule(`/src/tools/${file}.ts`))[register]();
   const parsing = await server.ssrLoadModule("/src/toolParsing.ts");
-  const settingsDefaults = { thinkingMode: "medium", webMode: "auto", customInstructions: [], language: "en", slowModelThinking: false };
+  const settingsDefaults = { effort: "medium", webMode: "auto", customInstructions: [], language: "en", slowModelThinking: false };
 
   const requiredArgs = Object.fromEntries(registry.allTools().map((spec) => [spec.name, spec.required ?? []]));
 
@@ -78,12 +78,12 @@ export async function loadHarness(server) {
     const settings = {
       ...requested,
       ...(cannotUseTools ? { webMode: "off" } : {}),
-      ...(cannotThink ? { thinkingMode: "low" } : {}),
+      ...(cannotThink ? { effort: "off" } : {}),
     };
     const baseEnvironment = surface === "code" ? CODE_ENVIRONMENT : CHAT_ENVIRONMENT;
     const environment = cannotUseTools ? registry.withoutTools(baseEnvironment) : baseEnvironment;
     const nativeTools = has("tools");
-    const nativeThinking = has("thinking") && settings.thinkingMode !== "low";
+    const nativeThinking = has("thinking") && settings.effort !== "off";
     const definitions = registry.toolDefinitions(environment);
 
     let system = prompts.buildSystemPrompt(settings, { nativeTools, nativeThinking, profile: tier }, environment, null, []);

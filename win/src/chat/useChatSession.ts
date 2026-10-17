@@ -409,7 +409,7 @@ export function useChatSession({
         chat.messages.length,
         lastMessage?.id ?? "",
         lastMessage?.content.length ?? 0,
-        settings.thinkingMode,
+        settings.effort,
         settings.webMode,
         chat.compaction?.throughIndex ?? -1,
     ].join("|");

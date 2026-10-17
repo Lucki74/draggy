@@ -11,9 +11,10 @@ use draggy_agent::agent_loop::{
     MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
     run_turn,
 };
+use draggy_agent::effort::Effort;
 use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{
-    PromptEnvironment, PromptProfile, PromptSettings, ThinkingMode, WebMode,
+    PromptEnvironment, PromptProfile, PromptSettings, WebMode,
 };
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{LoadedSkill, SkillReader};
@@ -236,7 +237,8 @@ impl Session {
             },
             workspace_id: "default".to_owned(),
             settings: PromptSettings {
-                thinking_mode: ThinkingMode::Medium,
+                effort: Effort::Medium,
+                allow_max_in_chat: false,
                 web_mode: WebMode::Off,
                 custom_instructions: Vec::new(),
             },

@@ -24,9 +24,10 @@ import type {
     PermissionMode,
     ProviderInstance,
 } from "../types";
+import { allowedEfforts, effectiveEffort } from "../ai/effort";
+import { EFFORT_LABELS, effortOptions } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
-const THINKING_ORDER: AppSettings["thinkingMode"][] = ["low", "medium", "high"];
 const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
 const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
     auto: "webAuto",
@@ -352,15 +353,27 @@ export function Composer({
         })),
     ];
 
+    // Temporary five-level menu until the slider lands; Chat leaves out Max unless allowed.
     const effortItems: MenuEntry[] = [
-        { type: "heading", id: "effort", label: t("thinkingMode") },
-        ...THINKING_ORDER.map<MenuEntry>((mode) => ({
-            id: mode,
-            label: t(mode),
-            checked: settings.thinkingMode === mode,
-            onSelect: () => onPatchSettings({ thinkingMode: mode }),
+        { type: "heading", id: "effort", label: t("effort") },
+        ...effortOptions(t, allowedEfforts(surface, settings.allowMaxInChat)).map<MenuEntry>(({ id, label }) => ({
+            id,
+            label,
+            checked: settings.effort === id,
+            onSelect: () => onPatchSettings({ effort: id }),
         })),
     ];
+
+    // What a turn actually sends can be lower than the level picked (Chat caps Max): say so on the pill.
+    const sentLevel = effectiveEffort({
+        asked: settings.effort,
+        mode: surface,
+        allowMaxInChat: settings.allowMaxInChat,
+        canThink: true,
+        supported: null,
+        slowBlocksThinking: false,
+    }).sent;
+    const sentNote = sentLevel !== settings.effort ? ` · ${t("effortSentAs").replace("{level}", t(EFFORT_LABELS[sentLevel]))}` : "";
 
     const modelGlyph = modelProvider ? (
         <ProviderIcon type={modelProvider.type} name={modelProvider.label} size="w-4 h-4" />
@@ -632,12 +645,12 @@ export function Composer({
                                 <Chip
                                     disabled
                                     icon={<Icon name="brain" size={16} />}
-                                    label={t("thinkingOff")}
+                                    label={t("effortOff")}
                                     title={`${displayModelName(model)} ${t("thinkingNotSupported")}`}
                                 />
                             ) : (
                                 <Menu
-                                    label={t("thinkingMode")}
+                                    label={t("effort")}
                                     side="top"
                                     align="end"
                                     items={effortItems}
@@ -648,8 +661,8 @@ export function Composer({
                                             dropdown
                                             icon={<Icon name="brain" size={16} />}
                                             className="max-w-[160px]"
-                                            label={t(settings.thinkingMode)}
-                                            title={`${t("thinkingMode")}: ${t(settings.thinkingMode)} (Ctrl+Shift+E)`}
+                                            label={t(EFFORT_LABELS[settings.effort])}
+                                            title={`${t("effort")}: ${t(EFFORT_LABELS[settings.effort])} (Ctrl+Shift+E)${sentNote}`}
                                         />
                                     )}
                                 />

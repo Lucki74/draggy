@@ -3,6 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::effort::Effort;
+
 /// How long an exploration may run before the answer stops being worth it.
 pub const EXPLORE_TIMEOUT_MS: u64 = 120_000;
 
@@ -62,7 +64,7 @@ pub struct ExploreRequest {
     pub model: String,
     /// The explorer gets the parent's tools with the read-only ones only, and plan mode.
     pub read_only_tools: bool,
-    pub thinking_mode: &'static str,
+    pub effort: Effort,
     pub custom_instructions: Vec<&'static str>,
 }
 
@@ -72,7 +74,7 @@ pub fn explore_request(question: &str, model: &str) -> ExploreRequest {
         question: question.to_string(),
         model: model.to_string(),
         read_only_tools: true,
-        thinking_mode: "low",
+        effort: Effort::Off,
         custom_instructions: vec![EXPLORE_PROMPT],
     }
 }

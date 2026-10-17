@@ -11,7 +11,7 @@ import type { AppSettings } from "../types";
  * chat never plans or edits a project, and a project never makes loose files. */
 
 const SETTINGS = {
-  thinkingMode: "medium",
+  effort: "medium",
   webMode: "auto",
   customInstructions: [],
 } as unknown as AppSettings;

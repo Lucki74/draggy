@@ -30,9 +30,25 @@ import { VOICE_SEARCH_MARKER, buildProjectPrompt, buildSystemPrompt, buildVoiceP
 import type { PromptMode } from "../../prompts";
 import type { ProjectMemory } from "../../project/memory";
 import { promptProfileFor } from "../../ai/providers";
+import {
+  allowedEfforts,
+  clampEffort,
+  effectiveEffort,
+  effortFromLegacy,
+  localBudget,
+  nextEffort,
+} from "../../ai/effort";
+import type { AppMode } from "../../app/modes";
 import { registerTools, resetRegistry } from "../../tools/registry";
 import type { ToolEnvironment, ToolSpec } from "../../tools/registry";
-import type { AppSettings, InstalledSkill, PermissionMode, ProviderInstance, ProviderModel } from "../../types";
+import type {
+  AppSettings,
+  EffortLevel,
+  InstalledSkill,
+  PermissionMode,
+  ProviderInstance,
+  ProviderModel,
+} from "../../types";
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../shared/fixtures/agent");
 
@@ -213,8 +229,37 @@ function runProfile(input: Fixture): unknown {
   );
 }
 
+function runEffort(input: Fixture): unknown {
+  const allowMaxInChat = input.allowMaxInChat as boolean;
+  switch (input.op) {
+    case "effective":
+      return effectiveEffort({
+        asked: text(input, "asked") as EffortLevel,
+        mode: text(input, "mode") as AppMode,
+        allowMaxInChat,
+        canThink: input.canThink as boolean | null,
+        supported: (input.supported ?? null) as EffortLevel[] | null,
+        slowBlocksThinking: input.slowBlocksThinking as boolean,
+      });
+    case "next":
+      return nextEffort(text(input, "level") as EffortLevel, { mode: text(input, "mode") as AppMode, allowMaxInChat });
+    case "clamp":
+      return clampEffort(text(input, "level") as EffortLevel, input.supported as EffortLevel[]);
+    case "allowed":
+      return allowedEfforts(text(input, "mode") as AppMode, allowMaxInChat);
+    case "budget":
+      return localBudget(text(input, "level") as EffortLevel, input.numCtx as number);
+    case "legacy":
+      return effortFromLegacy(input.value) ?? null;
+    default:
+      throw new Error(`unknown effort op ${input.op}`);
+  }
+}
+
 function run(file: string, input: Fixture): unknown {
   switch (file) {
+    case "effort":
+      return runEffort(input);
     case "toolParsing":
       return runToolParsing(input);
     case "repetition":
