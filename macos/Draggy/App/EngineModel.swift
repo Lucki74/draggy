@@ -4,6 +4,20 @@ import Foundation
 import Metal
 import Observation
 
+/// Forwards the engine download's progress to the main actor. The core calls it from the install's own thread.
+private final class InstallSink: InstallObserver, @unchecked Sendable {
+    private let show: @MainActor @Sendable (InstallProgressRecord) -> Void
+
+    init(show: @escaping @MainActor @Sendable (InstallProgressRecord) -> Void) {
+        self.show = show
+    }
+
+    func onProgress(progress: InstallProgressRecord) {
+        let show = show
+        Task { @MainActor in show(progress) }
+    }
+}
+
 /// Runs the local llama-server for the chat: which program and model file, and whether it is up.
 @MainActor
 @Observable
@@ -27,6 +41,9 @@ final class EngineModel {
     @ObservationIgnored var onReady: (EngineInfo) -> Void = { _ in }
 
     private(set) var phase = Phase.stopped
+    /// The engine download, as a percentage. Nil when none is running.
+    private(set) var installPercent: Double?
+    private(set) var installError: String?
 
     var binaryPath: String {
         didSet { defaults.set(binaryPath, forKey: Key.binary) }
@@ -38,6 +55,8 @@ final class EngineModel {
 
     var isBusy: Bool { phase == .starting }
 
+    var isInstalling: Bool { installPercent != nil }
+
     var isRunning: Bool {
         if case .running = phase { return true }
         return false
@@ -47,6 +66,27 @@ final class EngineModel {
         self.defaults = defaults
         binaryPath = defaults.string(forKey: Key.binary) ?? ""
         modelPath = defaults.string(forKey: Key.modelFile) ?? ""
+    }
+
+    /// Downloads the llama.cpp engine into Application Support when it is not there yet, and points the app at it.
+    func installEngine() async {
+        guard !isInstalling else { return }
+        installError = nil
+        installPercent = 0
+        defer { installPercent = nil }
+        do {
+            let support = try FileManager.default.url(
+                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+            ).appendingPathComponent("Draggy", isDirectory: true)
+            let installer = try EngineInstaller(userData: support.path)
+            let sink = InstallSink { [weak self] progress in self?.installPercent = progress.percent }
+            let installed = try await installer.install(gpuMemoryGb: Self.gpuMemoryGB(), observer: sink)
+            binaryPath = installed.binaryPath
+        } catch let error as CoreError {
+            installError = AppModel.message(for: error)
+        } catch {
+            installError = error.localizedDescription
+        }
     }
 
     func start() async {

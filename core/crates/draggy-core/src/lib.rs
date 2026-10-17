@@ -8,6 +8,7 @@
 pub mod cancel;
 pub mod engine;
 pub mod error;
+pub mod installer;
 pub mod model;
 pub mod models;
 pub mod net;
@@ -19,6 +20,9 @@ pub mod tools;
 pub use cancel::CancelToken;
 pub use engine::{EngineHost, EngineInfo, EngineState, LocalEngine};
 pub use error::CoreError;
+pub use installer::{
+    EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
+};
 pub use models::{
     DownloadObserver, DownloadProgressRecord, InstalledModelRecord, LibraryModelRecord,
     ModelLibrary,

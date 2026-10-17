@@ -20,6 +20,16 @@ struct SettingsView: View {
                 pathRow("Engine program", path: model.engine.binaryPath, clear: { model.engine.binaryPath = "" }) {
                     model.engine.binaryPath = $0
                 }
+                HStack {
+                    Button("Get engine") { Task { await model.engine.installEngine() } }
+                        .disabled(model.engine.isInstalling)
+                    if let percent = model.engine.installPercent {
+                        ProgressView(value: percent, total: 100)
+                        Text("\(Int(percent))%").foregroundStyle(.secondary).monospacedDigit()
+                    } else if let message = model.engine.installError {
+                        Text(message).foregroundStyle(.red).lineLimit(2)
+                    }
+                }
                 pathRow("Model file", path: model.engine.modelPath, clear: { model.engine.modelPath = "" }) {
                     model.engine.modelPath = $0
                 }
