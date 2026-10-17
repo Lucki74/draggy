@@ -27,7 +27,7 @@ CI runs the same steps on `macos-15` (`.github/workflows/macos.yml`).
 - Chat: type a message and watch the reply stream in. A turn goes through `draggy_core.Session`, and the core's events arrive on a `TurnObserver`. The transcript logic is a plain value type (`Transcript.swift`) with unit tests.
 - The transcript view is an `NSTableView` with TextKit 2 text views (`TranscriptView.swift`). Streaming reloads only the changed rows, and row heights are cached per line and width. `MessageText.swift` draws fenced code, inline code and bold, and lists each tool step above its reply.
 - Tools: a project folder, a permission mode (ask, edit freely, or read only) and a switch for commands, all in settings. Running everything without asking is left out on purpose. The core's questions arrive on an `ApprovalHandler` that blocks the turn's thread until the approval sheet is answered, and Stop answers a waiting question with no.
-- Tests for the Keychain store, the transcript, the message text and the approval broker.
+- Tests for the Keychain store, the transcript, the message text and the approval broker, plus a streaming test that fails when one update in a 2,000-message chat costs more than 4 ms on the main thread. It measures the styling and row height work, not scrolling or frame drops.
 
 ## What is missing
 
