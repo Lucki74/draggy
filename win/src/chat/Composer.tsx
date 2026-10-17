@@ -698,7 +698,7 @@ export function Composer({
                                         />
                                     )}
                                 >
-                                    {(close) => (
+                                    {() => (
                                         <EffortSlider
                                             value={settings.effort}
                                             onChange={(effort) => onPatchSettings({ effort })}
