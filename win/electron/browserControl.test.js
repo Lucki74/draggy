@@ -117,7 +117,7 @@ function fakeContents() {
 }
 
 describe("guardNavigation", () => {
-  const allow = (url) => url.startsWith("https://ok.test");
+  const allow = (url) => new URL(url).origin === "https://ok.test";
   const prevent = () => ({ preventDefault: vi.fn() });
 
   it("cancels a redirect to a refused address and remembers it", () => {
