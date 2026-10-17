@@ -16,8 +16,10 @@ cargo build -p draggy-core --lib --release --locked --target "$target"
 rm -rf "$work" "$package/DraggyCoreFFI.xcframework"
 mkdir -p "$work/headers" "$package/Sources/DraggyCore"
 
-cargo run -p draggy-core --bin uniffi-bindgen --locked -- generate \
-  --library "target/$target/release/libdraggy_core.a" \
+# Library mode reads the metadata from the cdylib that the same build produced next to the static library.
+cargo build -p draggy-core --bin uniffi-bindgen --release --locked
+target/release/uniffi-bindgen generate \
+  --library "target/$target/release/libdraggy_core.dylib" \
   --language swift --out-dir "$work/bindings"
 
 cp "$work/bindings/draggy_core.swift" "$package/Sources/DraggyCore/draggy_core.swift"
