@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "logs": "node scripts/logs.cjs",
     "logs:turn": "node scripts/logs.cjs --turn",
+    "browser:eval": "electron scripts/browser-eval.cjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "icons": "node scripts/make-icons.mjs",
     "bench:engine": "node scripts/bench-engine.cjs"

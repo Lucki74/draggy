@@ -188,6 +188,19 @@ final class AppModel {
         errorMessage = nil
     }
 
+    /// Adds the text of a document to the message being written.
+    func attach(_ url: URL) async {
+        errorMessage = nil
+        do {
+            let text = try await readDocument(path: url.path)
+            draft = Attachment.append(text, named: url.lastPathComponent, to: draft)
+        } catch let error as CoreError {
+            errorMessage = Self.message(for: error)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     /// Stops the turn. A question that is waiting for the user is answered with no, so the turn can end.
     func stop() {
         cancel?.cancel()

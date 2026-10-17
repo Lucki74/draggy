@@ -15,6 +15,7 @@ const HARMLESS = new Set([
   "slowModelThinking",
   "colibriLossy",
   "webMode",
+  "browserActions",
   "codeWebMode",
   "codePermissionMode",
   "voiceEngine",

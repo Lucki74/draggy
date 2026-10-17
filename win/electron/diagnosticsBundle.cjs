@@ -22,6 +22,7 @@ const SETTINGS_ALLOWLIST = new Set([
   "slowModelThinking",
   "colibriLossy",
   "webMode",
+  "browserActions",
   "voiceEngine",
   "voiceRate",
   "voiceSounds",

@@ -37,7 +37,7 @@ interface StartupScreenProps {
 /** Steps that move bytes over the network rather than work on this machine. */
 const NETWORK_STEPS = new Set(["preparingDownload", "downloadingModel"]);
 
-/** The splash: the dragon in ink with embers coming off it while the engine loads, one line saying
+/** The splash: the dragon in ink with an ember arc circling it while the engine loads, one line saying
  * what is happening, and a line under it that only fills when the work reports how far it is. */
 export default function StartupScreen({ modelName, language, onReady, onUseProvider }: StartupScreenProps) {
   const t = useCallback(
@@ -51,10 +51,8 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
 
   const bootedRef = useRef(false);
   const tRef = useRef(t);
-  const stateRef = useRef({ step, failed: false });
   useEffect(() => {
     tRef.current = t;
-    stateRef.current = { step, failed: Boolean(error) };
   });
 
   useEffect(() => {
@@ -92,13 +90,6 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
         });
       });
   }, [modelName, onReady]);
-
-  /** Engine work burns brightest; a download is waiting on the network, so the dragon idles. */
-  const heat = useCallback(() => {
-    const { step: current, failed } = stateRef.current;
-    if (failed) return 0;
-    return NETWORK_STEPS.has(current) ? 0.22 : 0.5;
-  }, []);
 
   const network = NETWORK_STEPS.has(step);
   const measured = progress !== null && progress.total > 0;
@@ -138,7 +129,7 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
           </div>
         ) : (
           <>
-            <EmberMark heat={heat} />
+            <EmberMark />
             <p role="status" className="mt-2 min-h-5 text-center text-[14px] leading-5 text-text-secondary">
               {status}
             </p>

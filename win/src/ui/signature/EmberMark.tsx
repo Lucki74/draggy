@@ -1,44 +1,35 @@
-import { useCallback, useEffect, useRef } from "react";
 import Logo from "../../Logo";
-import { Embers } from "./Embers";
-import { markOutline } from "./markOutline";
 
 interface EmberMarkProps {
-  /** Read every frame. 0 leaves the dragon in plain ink. */
-  heat: () => number;
-  /** The whole square, embers included. */
+  /** The whole square, ring included. */
   size?: number;
   /** The dragon inside it. */
   mark?: number;
 }
 
-/** The dragon in ink with embers rising off its outline: the startup screen's one moving thing. */
-export function EmberMark({ heat, size = 224, mark = 96 }: EmberMarkProps) {
-  const outlineRef = useRef<{ x: number; y: number }[]>([]);
-  const inset = (size - mark) / 2;
-  // Embers rise, so the dragon sits below centre and leaves them room above.
-  const lift = inset * 0.35;
-
-  useEffect(() => {
-    let alive = true;
-    void markOutline().then((points) => {
-      if (!alive) return;
-      outlineRef.current = points.map((p) => ({ x: inset + p.x * mark, y: inset + lift + p.y * mark }));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [inset, lift, mark]);
-
-  const points = useCallback(() => outlineRef.current, []);
-  // Nothing is born until the outline is known, or the first embers would come off the bottom edge.
-  const burning = useCallback(() => (outlineRef.current.length ? heat() : 0), [heat]);
-
+/** The dragon in ink with an ember arc circling it: the startup screen's one moving thing. */
+export function EmberMark({ size = 152, mark = 76 }: EmberMarkProps) {
+  const stroke = 2;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
   return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <Embers heat={burning} source={{ kind: "points", points }} budget={70} className="absolute inset-0 h-full w-full" />
-      {/* Same offsets as the outline, so the drawn edge and the sampled one coincide. */}
-      <span aria-hidden className="absolute" style={{ left: inset, top: inset + lift, width: mark, height: mark }}>
+    <div className="relative flex flex-shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg aria-hidden viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 h-full w-full">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-rule-strong)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#fff"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference * 0.22} ${circumference}`}
+          className="origin-center animate-spin motion-reduce:animate-none"
+          style={{ animationDuration: "1.1s", animationTimingFunction: "linear" }}
+        />
+      </svg>
+      <span aria-hidden style={{ width: mark, height: mark }}>
         <Logo className="h-full w-full text-text-primary" />
       </span>
     </div>
