@@ -21,7 +21,7 @@ export function EmberMark({ size = 152, mark = 76 }: EmberMarkProps) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--ember-2)"
+          stroke="#fff"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${circumference * 0.22} ${circumference}`}
