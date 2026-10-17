@@ -8,8 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 use draggy_core::{
-    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, PermissionModeRecord,
-    Session, SessionConfig, TurnEventRecord, TurnObserver, TurnOutcome,
+    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, MessageRecord,
+    PermissionModeRecord, Session, SessionConfig, TurnEventRecord, TurnObserver, TurnOutcome,
 };
 use serde_json::{Value, json};
 
@@ -252,6 +252,46 @@ fn a_tool_call_reads_a_file_inside_the_folder_and_the_model_sees_the_result() {
     );
     let second = bodies[1]["messages"].to_string();
     assert!(second.contains("the secret word is plum"), "{second}");
+}
+
+#[test]
+fn restored_messages_reach_the_model_and_new_ids_do_not_collide() {
+    let server = serve(vec![text_reply(&["Fine"])]);
+    let session = Session::new(config(&server.url, None)).expect("session");
+    let saved = vec![
+        MessageRecord {
+            id: "m1".to_owned(),
+            role: "user".to_owned(),
+            content: "Earlier question".to_owned(),
+        },
+        MessageRecord {
+            id: "m2".to_owned(),
+            role: "assistant".to_owned(),
+            content: "Earlier answer".to_owned(),
+        },
+    ];
+    session.restore(saved).expect("restore");
+
+    run(&session, "Next question", &Arc::new(Recorder::default()));
+
+    let messages = session.messages();
+    let ids: Vec<&str> = messages.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(ids, ["m1", "m2", "m3", "m4"]);
+    let bodies = server.bodies.lock().expect("bodies");
+    let sent = bodies[0]["messages"].to_string();
+    assert!(sent.contains("Earlier question") && sent.contains("Earlier answer"));
+}
+
+#[test]
+fn restoring_a_message_with_another_role_is_refused() {
+    let session = Session::new(config("http://127.0.0.1:1/v1", None)).expect("session");
+    let result = session.restore(vec![MessageRecord {
+        id: "m1".to_owned(),
+        role: "system".to_owned(),
+        content: "x".to_owned(),
+    }]);
+    assert!(matches!(result, Err(CoreError::Invalid { .. })));
+    assert!(session.messages().is_empty());
 }
 
 #[test]

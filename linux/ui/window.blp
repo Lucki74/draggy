@@ -84,10 +84,7 @@ template $DraggyWindow: Adw.ApplicationWindow {
             Gtk.StackPage {
               name: "chat";
 
-              child: Adw.StatusPage {
-                title: "Chat";
-                description: "Conversations will show here.";
-              };
+              child: $DraggyChat chat {};
             }
 
             Gtk.StackPage {

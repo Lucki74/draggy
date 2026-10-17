@@ -22,3 +22,13 @@ window {
   padding: 8px 12px;
   border-radius: 8px;
 }
+
+.message-user {
+  background-color: alpha(currentColor, 0.08);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.composer textview {
+  border-radius: 12px;
+}

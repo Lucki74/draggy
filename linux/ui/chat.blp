@@ -1,0 +1,74 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $DraggyChat: Gtk.Box {
+  orientation: vertical;
+
+  Gtk.ScrolledWindow scroller {
+    vexpand: true;
+    hscrollbar-policy: never;
+
+    Adw.Clamp {
+      maximum-size: 760;
+      tightening-threshold: 560;
+
+      Gtk.Box transcript {
+        orientation: vertical;
+        spacing: 16;
+        margin-top: 16;
+        margin-bottom: 16;
+        margin-start: 16;
+        margin-end: 16;
+      }
+    }
+  }
+
+  Adw.Clamp {
+    maximum-size: 760;
+    tightening-threshold: 560;
+
+    Gtk.Box {
+      spacing: 8;
+      margin-top: 8;
+      margin-bottom: 12;
+      margin-start: 16;
+      margin-end: 16;
+      styles ["composer"]
+
+      Gtk.ScrolledWindow {
+        hexpand: true;
+        propagate-natural-height: true;
+        max-content-height: 160;
+        hscrollbar-policy: never;
+
+        Gtk.TextView input {
+          wrap-mode: word_char;
+          accepts-tab: false;
+          top-margin: 8;
+          bottom-margin: 8;
+          left-margin: 10;
+          right-margin: 10;
+
+          accessibility {
+            label: "Message";
+          }
+        }
+      }
+
+      Gtk.Button send {
+        icon-name: "mail-send-symbolic";
+        tooltip-text: "Send (Enter)";
+        valign: end;
+        styles ["suggested-action", "circular"]
+      }
+
+      Gtk.Button stop {
+        icon-name: "media-playback-stop-symbolic";
+        tooltip-text: "Stop";
+        valign: end;
+        visible: false;
+        styles ["destructive-action", "circular"]
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+name: macOS
+
+# Build and test the native macOS app. It only runs for changes to the app, the core it uses, or this file.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "macos/**"
+      - "core/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/macos.yml"
+  pull_request:
+    paths:
+      - "macos/**"
+      - "core/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - run: brew install xcodegen
+
+      # Builds the core, generates the Swift bindings and packs the XCFramework.
+      - run: macos/scripts/build-core.sh
+
+      - run: xcodegen generate
+        working-directory: macos
+
+      - run: >
+          xcodebuild test
+          -project Draggy.xcodeproj
+          -scheme Draggy
+          -destination "platform=macOS,arch=arm64"
+          CODE_SIGNING_ALLOWED=NO
+        working-directory: macos

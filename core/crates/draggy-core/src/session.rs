@@ -391,6 +391,33 @@ impl Session {
             .collect()
     }
 
+    /// Replaces the conversation with saved messages, so the model sees them on the next turn. Grants and notes from
+    /// the earlier conversation are dropped. Only `user` and `assistant` messages are accepted.
+    pub fn restore(&self, saved: Vec<MessageRecord>) -> Result<(), CoreError> {
+        if let Some(bad) = saved
+            .iter()
+            .find(|record| record.role != "user" && record.role != "assistant")
+        {
+            return Err(CoreError::Invalid {
+                message: format!("Cannot restore a message with the role \"{}\".", bad.role),
+            });
+        }
+        let highest = saved
+            .iter()
+            .filter_map(|record| record.id.strip_prefix('m')?.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0);
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state.next_message = highest.max(u64::try_from(saved.len()).unwrap_or(0));
+        state.messages = saved
+            .into_iter()
+            .map(|record| message(record.id, &record.role, &record.content))
+            .collect();
+        state.tail_notes = TailNotes::default();
+        state.grants.clear();
+        Ok(())
+    }
+
     /// Adds the user's message and runs the turn to its end. Events reach the observer while it runs. A call that
     /// needs the user's answer goes to `approvals`; without one it is refused.
     pub async fn send(
