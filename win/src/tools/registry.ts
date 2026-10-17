@@ -24,6 +24,8 @@ export interface ToolParameter {
 
 export interface ToolEnvironment {
   webMode: AppSettings["webMode"];
+  /** Whether the agent may use the pane beyond reading and plain clicks: coordinates, hover, drag, scroll and the rest. */
+  browserActions?: boolean;
   codeExecution: boolean;
   libraryReady: boolean;
   /** Whether this conversation has a folder of the user's to work in. */
@@ -44,6 +46,8 @@ export interface ToolEnvironment {
   /** Only tools that change nothing. Set for a nested exploration, which reads the project on the
    * conversation's behalf and must not act on it. */
   readOnlyTools?: boolean;
+  /** A small model gets the short tool list: tools marked `extended` are left out. */
+  compactTools?: boolean;
 }
 
 export interface ToolContext {
@@ -67,6 +71,10 @@ export interface ToolContext {
   syncSteps: () => void;
 
   newId: () => string;
+  /** Whether the model can read images. A tool that would return one checks this first. */
+  vision?: boolean;
+  /** Hands the model a base64 image with this tool's result. Ignored for a model without vision. */
+  attachImage?: (base64: string) => void;
   signal: AbortSignal;
   /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to
    * notice that they are being asked the same thing twice. */
@@ -84,6 +92,8 @@ export interface ToolSpec {
    * the most cautious one, costing a prompt, not a mistake. */
   annotations?: ToolAnnotations;
   available?: (environment: ToolEnvironment) => boolean;
+  /** Left out of the list a small model sees, to spare its context. It can still be called. */
+  extended?: boolean;
   run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
 }
 
@@ -152,6 +162,7 @@ export function availableTools(environment: ToolEnvironment): ToolSpec[] {
     // as "not safe", which is the cautious way round.
     if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
     if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) return false;
+    if (environment.compactTools && spec.extended) return false;
 
     return !spec.available || spec.available(environment);
   });

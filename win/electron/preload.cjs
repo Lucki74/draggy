@@ -89,10 +89,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),
   browserGetElements: () => ipcRenderer.invoke("browser-get-elements"),
-  browserClick: (index) => ipcRenderer.invoke("browser-click", index),
-  browserType: (index, text) => ipcRenderer.invoke("browser-type", index, text),
-  browserPressKey: (key) => ipcRenderer.invoke("browser-press-key", key),
-  browserGetText: () => ipcRenderer.invoke("browser-get-text"),
+  browserClick: (target, options) => ipcRenderer.invoke("browser-click", target, options),
+  browserSnapshot: (options) => ipcRenderer.invoke("browser-snapshot", options),
+  browserScreenshot: (options) => ipcRenderer.invoke("browser-screenshot", options),
+  browserType: (target, text, options) => ipcRenderer.invoke("browser-type", target, text, options),
+  browserPressKey: (key, options) => ipcRenderer.invoke("browser-press-key", key, options),
+  browserHover: (target) => ipcRenderer.invoke("browser-hover", target),
+  browserDrag: (from, to) => ipcRenderer.invoke("browser-drag", from, to),
+  browserScroll: (options) => ipcRenderer.invoke("browser-scroll", options),
+  browserSelectOption: (ref, choice) => ipcRenderer.invoke("browser-select-option", ref, choice),
+  browserWait: (options) => ipcRenderer.invoke("browser-wait", options),
+  browserHistory: (action) => ipcRenderer.invoke("browser-history", action),
+  browserTabs: (action, options) => ipcRenderer.invoke("browser-tabs", action, options),
+  browserDialog: (action, text) => ipcRenderer.invoke("browser-dialog", action, text),
+  browserTrace: (kind, options) => ipcRenderer.invoke("browser-trace", kind, options),
+  browserGetText: (options) => ipcRenderer.invoke("browser-get-text", options),
   browserClose: () => ipcRenderer.invoke("browser-close"),
 
   createFile: (filename, content) => ipcRenderer.invoke("create-file", filename, content),
@@ -235,6 +246,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
       }),
     setVisible: (visible) => ipcRenderer.invoke("browser-pane:visible", Boolean(visible)),
     onOpen: (callback) => subscribe("browser-pane-open", callback),
+  },
+
+  // The agent drives the Browser pane. The renderer hears which step it is on and can take the pane back.
+  browserAgent: {
+    stop: () => ipcRenderer.invoke("browser-agent:stop"),
+    onState: (callback) => subscribe("browser-agent-state", callback),
+    onConsent: (callback) => subscribe("browser-consent", callback),
+    answerConsent: (id, choice) => ipcRenderer.invoke("browser-consent:answer", String(id), String(choice)),
+    trustedSites: () => ipcRenderer.invoke("browser-grants:list"),
+    revokeSite: (origin) => ipcRenderer.invoke("browser-grants:revoke", String(origin)),
   },
 
   mcp: {

@@ -1,7 +1,8 @@
 import { diffLines } from "./diff";
+import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 
-type Kind = "read" | "edited" | "ran" | "searched" | "browsed" | "other";
+type Kind = "read" | "site" | "edited" | "ran" | "searched" | "browsed" | "other";
 
 const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   reading: "read",
@@ -10,8 +11,8 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   run_code: "ran",
   command: "ran",
   searching: "searched",
+  // Old saved chats opened a page with no address on the step.
   opening: "searched",
-  results: "searched",
   navigating: "browsed",
   loaded: "browsed",
   clicking: "browsed",
@@ -19,11 +20,12 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   scanned: "browsed",
 };
 
-const ORDER: Kind[] = ["read", "edited", "ran", "searched", "browsed", "other"];
+const ORDER: Kind[] = ["read", "site", "edited", "ran", "searched", "browsed", "other"];
 
 /** Translation keys are work<Name>_one and work<Name>_other. */
 const KEY: Record<Kind, string> = {
   read: "Read",
+  site: "ReadPages",
   edited: "Edited",
   ran: "Ran",
   searched: "Searched",
@@ -41,6 +43,7 @@ export function isWorkStep(step: SearchStep) {
 /** "Read 3 files, edited 2 files and ran 1 command", in the reader's language. */
 export function summarizeWork(steps: SearchStep[], language: string, t: (key: string) => string) {
   const counts = new Map<Kind, number>();
+  const sites = new Set<string>();
   let failed = 0;
   for (const step of steps) {
     if (step.type === "error") {
@@ -48,6 +51,16 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
       continue;
     }
     if (step.type === "loading") continue;
+    // A search is its "searching" step plus the "results" row it fills in: one search, not two.
+    if (step.type === "results") continue;
+    const host = (step.type === "reading" || step.type === "opening") && step.url
+      ? hostnameOf(step.url).replace(/^www\./i, "")
+      : "";
+    if (host) {
+      sites.add(host);
+      counts.set("site", (counts.get("site") ?? 0) + 1);
+      continue;
+    }
     const kind = KIND_OF[step.type] ?? "other";
     counts.set(kind, (counts.get(kind) ?? 0) + 1);
   }
@@ -58,24 +71,28 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
   } catch {
     plural = new Intl.PluralRules("en");
   }
+  const listOf = (items: string[]) => {
+    try {
+      return new Intl.ListFormat(language, { type: "conjunction" }).format(items);
+    } catch {
+      return items.join(", ");
+    }
+  };
   const phrase = (key: string, n: number) => {
     const form = plural.select(n) === "one" ? "one" : "other";
     return t(`work${key}_${form}`).replace("{n}", String(n));
   };
 
   const parts = ORDER.filter((kind) => counts.has(kind)).map((kind, index) => {
-    const text = phrase(KEY[kind], counts.get(kind)!);
+    // One or two sites are named; more are counted.
+    const text = kind === "site" && sites.size > 0 && sites.size <= 2
+      ? t("workReadSite").replace("{sites}", listOf([...sites]))
+      : phrase(KEY[kind], counts.get(kind)!);
     return index === 0 ? text : text.charAt(0).toLocaleLowerCase(language) + text.slice(1);
   });
   if (failed > 0) parts.push(phrase("Failed", failed));
 
-  let list: string;
-  try {
-    list = new Intl.ListFormat(language, { type: "conjunction" }).format(parts);
-  } catch {
-    list = parts.join(", ");
-  }
-  return { text: list, failed };
+  return { text: listOf(parts), failed };
 }
 
 export function editTotals(steps: SearchStep[]) {

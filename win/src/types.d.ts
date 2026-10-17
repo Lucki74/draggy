@@ -97,6 +97,23 @@ export interface SearchResult {
   snippet: string;
 }
 
+/** Why a browser step failed: a stable code to branch on, a sentence, and what the model can try next. */
+export interface BrowserFailure {
+  code: string;
+  message: string;
+  hint: string;
+}
+
+/** The agent asking, in the Browser pane's bar, to act on a site or to do something that cannot be undone. */
+export interface BrowserConsentAsk {
+  id: string;
+  kind: "site" | "action";
+  host: string;
+  detail: string;
+}
+
+export type BrowserResult<T = object> = ({ ok: true } & T) | { ok: false; error: BrowserFailure };
+
 export interface BrowserElement {
   index: number;
   type: "button" | "link" | "input" | "select";
@@ -362,6 +379,8 @@ export interface SearchStep {
   content: string;
   thoughtTime?: number;
   isComplete?: boolean;
+  /** For a step that opened or read a web page, the address. The group title names the site. */
+  url?: string;
   /** For a skill step whose instructions loaded, the skill's id, which keeps it loaded afterwards. */
   skill?: string;
   results?: SearchResult[];
@@ -974,6 +993,8 @@ export interface AppSettings {
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
   webMode: "auto" | "on" | "off";
+  /** Lets the agent hover, drag, scroll, pick options, wait and click by position in the browser pane. */
+  browserActions?: boolean;
   voiceName: string;
   /** Model that answers in Talk. Empty means automatic, which sizes a small conversational model to
    * the graphics card and downloads it on first use. */
@@ -1080,26 +1101,54 @@ declare global {
         url?: string;
       }>;
 
-      browserNavigate: (url: string) => Promise<{
-        success: boolean;
-        title?: string;
-        url?: string;
-        /** Set when a bot check stopped the page, as `readUrl` reports it. */
-        blocked?: "human-verification";
-        /** Set when the address was outside what the tools may fetch. */
-        refused?: boolean;
-        error?: string;
-      }>;
-      browserGetElements: () => Promise<{
-        success: boolean;
-        elements: BrowserElement[];
-        error?: string;
-      }>;
-      browserClick: (index: number) => Promise<{ success: boolean; title?: string; url?: string; error?: string }>;
-      browserType: (index: number, text: string) => Promise<{ success: boolean; error?: string }>;
-      browserPressKey: (key: string) => Promise<{ success: boolean; error?: string }>;
-      browserGetText: () => Promise<{ success: boolean; title?: string; text?: string; url?: string; error?: string }>;
-      browserClose: () => Promise<{ success: boolean }>;
+      browserNavigate: (url: string) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserGetElements: () => Promise<BrowserResult<{ elements: BrowserElement[] }>>;
+      browserClick: (
+        target: number | string | null,
+        options?: { x?: number; y?: number; button?: string; count?: number; modifiers?: string[] },
+      ) => Promise<BrowserResult<{ title: string; url: string; changed?: string }>>;
+      browserSnapshot: (options?: { scope?: string; maxItems?: number }) => Promise<
+        BrowserResult<{ title: string; url: string; text: string; total: number; omitted: number }>
+      >;
+      browserScreenshot: (options?: { mode?: "viewport" | "full" | "element"; ref?: string; marks?: boolean }) => Promise<
+        BrowserResult<{ data: string; width: number; height: number; url: string }>
+      >;
+      browserType: (
+        target: number | string,
+        text: string,
+        options?: { clear?: boolean; submit?: boolean; slowly?: boolean },
+      ) => Promise<BrowserResult<{ value?: string; landed?: boolean; changed?: string }>>;
+      browserPressKey: (key: string, options?: { repeat?: number }) => Promise<BrowserResult<{ changed?: string }>>;
+      browserHover: (target: string | { x: number; y: number }) => Promise<BrowserResult<{ changed?: string }>>;
+      browserDrag: (
+        from: string | { x: number; y: number },
+        to: string | { x: number; y: number },
+      ) => Promise<BrowserResult<{ changed?: string }>>;
+      browserScroll: (options: { ref?: string; dx?: number; dy?: number; to?: "top" | "bottom" }) => Promise<
+        BrowserResult<{ scroll: { y: number; max: number } }>
+      >;
+      browserSelectOption: (ref: string, choice: { value?: string; label?: string }) => Promise<
+        BrowserResult<{ chosen: string; value: string; changed?: string }>
+      >;
+      browserWait: (options: { text?: string; url?: string; ms?: number; timeoutMs?: number }) => Promise<
+        BrowserResult<{ waited: number }>
+      >;
+      browserHistory: (action: "back" | "forward" | "reload") => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserTabs: (
+        action: "list" | "new" | "select" | "close",
+        options?: { index?: number; url?: string },
+      ) => Promise<BrowserResult<{ tabs: { index: number; active: boolean; title: string; url: string }[] }>>;
+      browserTrace: (
+        kind: "console" | "network",
+        options?: { limit?: number; onlyFailed?: boolean },
+      ) => Promise<BrowserResult<{ entries: Record<string, unknown>[] }>>;
+      browserDialog: (action: "accept" | "dismiss", text?: string) => Promise<
+        BrowserResult<{ answered: string; url: string; downloads?: { name: string; bytes: number }[] }>
+      >;
+      browserGetText: (options?: { ref?: string; selector?: string }) => Promise<
+        BrowserResult<{ title: string; text: string; url: string }>
+      >;
+      browserClose: () => Promise<{ ok: true }>;
 
       createFile: (filename: string, content: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
       openFile: (filepath: string) => Promise<string>;
@@ -1393,6 +1442,15 @@ declare global {
         setBounds: (rect: { x: number; y: number; width: number; height: number }) => Promise<{ success: boolean }>;
         setVisible: (visible: boolean) => Promise<{ success: boolean }>;
         onOpen: (callback: () => void) => Unsubscribe;
+      };
+
+      browserAgent: {
+        stop: () => Promise<{ success: boolean }>;
+        onState: (callback: (state: { active: boolean; step: string | null }) => void) => Unsubscribe;
+        onConsent: (callback: (ask: BrowserConsentAsk | null) => void) => Unsubscribe;
+        answerConsent: (id: string, choice: "session" | "once" | "always" | "deny") => Promise<{ success: boolean }>;
+        trustedSites: () => Promise<string[]>;
+        revokeSite: (origin: string) => Promise<{ success: boolean }>;
       };
 
 

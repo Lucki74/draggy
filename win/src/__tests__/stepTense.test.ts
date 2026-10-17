@@ -157,14 +157,14 @@ describe("the web and browser tools", () => {
 
     await runTool("read_url", { url: "https://a.example" }, context, EVERYTHING);
 
-    expect(lifecycle().began).toMatch(/^openingPage /);
-    expect(lifecycle().ended).toMatch(/^openedPage /);
+    expect(lifecycle().began).toMatch(/^readingSite /);
+    expect(lifecycle().ended).toMatch(/^readSite /);
   });
 
   it("navigate", async () => {
     vi.stubGlobal("window", {
       electronAPI: {
-        browserNavigate: async () => ({ success: true, title: "A", url: "https://a.example" }),
+        browserNavigate: async () => ({ ok: true, title: "A", url: "https://a.example" }),
       },
     });
     const { context, steps, lifecycle } = harness();
@@ -172,13 +172,13 @@ describe("the web and browser tools", () => {
     await runTool("browser_navigate", { url: "https://a.example" }, context, EVERYTHING);
 
     expect(lifecycle().began).toMatch(/^navigatingTo /);
-    expect(lifecycle().ended).toMatch(/^navigatedTo /);
-    expect(steps[1].content).toMatch(/^loadedPage /);
+    expect(lifecycle().ended).toMatch(/^openedSite /);
+    expect(steps).toHaveLength(1);
   });
 
   it("mark a navigation that failed as failed rather than done", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserNavigate: async () => ({ success: false, error: "Nope" }) },
+      electronAPI: { browserNavigate: async () => ({ ok: false, error: { code: "navigation_failed", message: "Nope", hint: "Retry." } }) },
     });
     const { context, steps } = harness();
 
@@ -190,20 +190,20 @@ describe("the web and browser tools", () => {
 
   it("type into a page", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserType: async () => ({ success: true }) },
+      electronAPI: { browserType: async () => ({ ok: true }) },
     });
     const { context, lifecycle } = harness();
 
     await runTool("browser_type", { index: 3, text: "hello" }, context, EVERYTHING);
 
-    expect(lifecycle().began).toMatch(/^typingInto /);
-    expect(lifecycle().ended).toMatch(/^typedInto /);
+    expect(lifecycle().began).toBe("bsTyping");
+    expect(lifecycle().ended).toBe("bsTyped");
   });
 
   it("read a page", async () => {
     vi.stubGlobal("window", {
       electronAPI: {
-        browserGetText: async () => ({ success: true, title: "A", url: "https://a.example", text: "hi" }),
+        browserGetText: async () => ({ ok: true, title: "A", url: "https://a.example", text: "hi" }),
       },
     });
     const { context, lifecycle } = harness();
@@ -211,7 +211,7 @@ describe("the web and browser tools", () => {
     await runTool("browser_get_text", {}, context, EVERYTHING);
 
     expect(lifecycle().began).toBe("readingPage");
-    expect(lifecycle().ended).toMatch(/^readPage /);
+    expect(lifecycle().ended).toMatch(/^readSite /);
   });
 });
 

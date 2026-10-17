@@ -70,6 +70,12 @@ const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
 const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
+const browserControl = require("./browserControl.cjs");
+const browserSnapshot = require("./browserSnapshot.cjs");
+const browserInput = require("./browserInput.cjs");
+const browserDialogs = require("./browserDialogs.cjs");
+const browserTrace = require("./browserTrace.cjs");
+const browserSafety = require("./browserSafety.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -322,7 +328,53 @@ function getWebSession() {
     callback({ requestHeaders: details.requestHeaders });
   });
 
+  // While the agent drives, a download is kept in a folder of its own and never opened, and a
+  // permission prompt is refused. The user's own browsing keeps Electron's defaults.
+  ses.on("will-download", (event, item) => {
+    if (!paneDriver.active()) return;
+    const folder = path.join(app.getPath("userData"), "agent-downloads");
+    const name = browserDialogs.safeDownloadName(item.getFilename());
+    try {
+      fs.mkdirSync(folder, { recursive: true });
+    } catch (e) {
+      log.swallow("window.browser.control", "download folder failed", e);
+      item.cancel();
+      return;
+    }
+    const target = path.join(folder, `${Date.now().toString(36)}-${name}`);
+    item.setSavePath(target);
+    agentDownloads.running += 1;
+    item.once("done", (_event, state) => {
+      agentDownloads.running -= 1;
+      if (state === "completed") agentDownloads.done.push({ name, bytes: item.getReceivedBytes(), path: target });
+      log.info("window.browser.control", "download", { state, bytes: item.getReceivedBytes(), ext: path.extname(name).slice(0, 8) });
+    });
+  });
+  ses.setPermissionRequestHandler((contents, permission, callback) => {
+    if (!paneDriver.active()) return callback(true);
+    agentDownloads.denied.add(String(permission));
+    log.info("window.browser.control", "permission refused", { permission });
+    callback(false);
+  });
+
   return ses;
+}
+
+/** What the page did on its own while the agent drove: downloads it saved, prompts it was refused. */
+const agentDownloads = { running: 0, done: [], denied: new Set() };
+
+/** Hands over, once, whatever the last step left behind. */
+function takeSideEffects() {
+  const out = {};
+  if (agentDownloads.done.length) {
+    out.downloads = agentDownloads.done.splice(0).map(({ name, bytes, path: saved }) => ({ name, bytes, saved }));
+  }
+  if (agentDownloads.running) out.downloading = agentDownloads.running;
+  if (agentDownloads.denied.size) {
+    out.permissionsRefused = [...agentDownloads.denied];
+    agentDownloads.denied.clear();
+  }
+  return out;
 }
 
 /** Whether the ad blocker is on, for every web session at once. Persisted in the renderer's store
@@ -407,7 +459,7 @@ function openInAppBrowser(url) {
   // Reached from `setWindowOpenHandler` and `will-navigate`, so the string can
   // come from a page rather than from the person using the app.
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", `refused to open ${String(url).slice(0, 120)}`);
+    log.warn("window.browser.control", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
 
@@ -530,6 +582,24 @@ function sendBrowserState(toolbar, page) {
 
 /** The Browser pane in the main window. Created with the window; its page view only on first use. */
 let browserPane = null;
+const paneGuards = new WeakMap();
+const activeGuard = () => paneGuards.get(browserPane?.view?.webContents);
+
+/** The agent's hold on the pane: opens it when needed, and ends a step the moment the user takes over. */
+const paneDriver = browserControl.createDriver({
+  pane: {
+    ensure: () => browserPane?.ensure(),
+    isShown: () => Boolean(browserPane?.isShown()),
+    whenShown: (ms) => (browserPane ? browserPane.whenShown(ms) : Promise.resolve(false)),
+  },
+  requestOpen: () => {
+    if (mainWindow && !mainWindow.isDestroyed()) sendTo(mainWindow, "browser-pane-open");
+  },
+  onStatus: (status) => {
+    if (!status.active) void hideAgentOverlay();
+    if (mainWindow && !mainWindow.isDestroyed()) sendTo(mainWindow, "browser-agent-state", status);
+  },
+});
 
 function sendPaneState() {
   if (!browserPane?.view || !mainWindow || mainWindow.isDestroyed()) return;
@@ -538,12 +608,27 @@ function sendPaneState() {
 
 function preparePaneView(view) {
   for (const event of PAGE_EVENTS) view.webContents.on(event, sendPaneState);
-  // The pane is a single page, so a link asking for a new window replaces it rather than stacking
-  // windows the user did not ask for.
+  // While the agent drives, a clicked link or a redirect is held to the same policy as the address the
+  // model typed. The user's own browsing is left to the user.
+  paneGuards.set(
+    view.webContents,
+    browserControl.guardNavigation(view.webContents, {
+      isFetchableUrl: urlPolicy.isFetchableUrl,
+      scope: "window.browser.control",
+      enabled: () => paneDriver.active(),
+    }),
+  );
+  // A new page has lost the overlay, so it is painted again while the agent is still on it.
+  view.webContents.on("dom-ready", () => {
+    if (paneDriver.active()) void showAgentOverlay(view.webContents);
+  });
+  // A link asking for a new window replaces the page for the user, so no windows stack up. While the
+  // agent drives it opens a tab instead, which the agent can see and switch to.
   view.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (urlPolicy.isFetchableUrl(target, { allowPrivate: true })) {
-      view.webContents.loadURL(target, { userAgent: cleanUserAgent(view.webContents) });
-    }
+    if (!urlPolicy.isFetchableUrl(target, { allowPrivate: !paneDriver.active() })) return { action: "deny" };
+    const tab = paneDriver.active() ? browserPane.openTab() : null;
+    const contents = tab ? tab.webContents : view.webContents;
+    contents.loadURL(target, { userAgent: cleanUserAgent(contents) }).catch((e) => log.swallow("window.browser.control", "new tab load failed", e));
     return { action: "deny" };
   });
 }
@@ -553,7 +638,7 @@ function preparePaneView(view) {
 function openLink(url) {
   if (!browserPane || !mainWindow || mainWindow.isDestroyed()) return openInAppBrowser(url);
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", `refused to open ${String(url).slice(0, 120)}`);
+    log.warn("window.browser.control", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
   const view = browserPane.ensure();
@@ -584,8 +669,6 @@ function closeBrowserWindows() {
     if (!entry.win.isDestroyed()) entry.win.destroy();
   }
   browserWindows.clear();
-  // The agent's hidden browser is a window as well, and kept the process and its engine alive.
-  if (browserSession && !browserSession.isDestroyed()) browserSession.destroy();
 }
 
 /** The window a toolbar belongs to, found from the message it just sent. */
@@ -888,6 +971,7 @@ function createWindow({ onboarding: showSetup = false } = {}) {
     host: mainWindow,
     webSession: getWebSession(),
     prepare: preparePaneView,
+    onTabsChange: sendPaneState,
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -1735,273 +1819,610 @@ ipc.handle("get-page-content", async (event, url) => {
   }
 });
 
-let browserSession = null;
+const AGENT_WORLD = 1000;
 
-function getBrowserSession() {
-  if (browserSession && !browserSession.isDestroyed()) return browserSession;
+/** Paints the "agent is controlling this page" border, and moves the cursor when given a point.
+ * Runs in an isolated world, so the page cannot see or reach it. */
+async function showAgentOverlay(contents, point) {
+  if (contents.isDestroyed()) return;
+  try {
+    await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserControl.overlayScript(point) }]);
+  } catch (e) {
+    log.swallow("window.browser.control", "agent overlay failed", e);
+  }
+}
 
-  browserSession = new BrowserWindow({
-    show: false,
-    width: 1280,
-    height: 900,
-    webPreferences: {
-      session: getWebSession(),
-      nodeIntegration: false,
-      contextIsolation: true,
-      webgl: true,
-      plugins: true,
-      autoplayPolicy: 'no-user-gesture-required',
-    },
+async function hideAgentOverlay() {
+  const contents = browserPane?.view?.webContents;
+  if (!contents || contents.isDestroyed()) return;
+  try {
+    await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserControl.hideOverlayScript() }]);
+  } catch (e) {
+    log.swallow("window.browser.control", "agent overlay clear failed", e);
+  }
+}
+
+/** One dialog tracker per page, fed by the debugger. A dialog freezes its page, so every step asks
+ * first. */
+const paneDialogs = new WeakMap();
+const paneTraces = new WeakMap();
+async function dialogsFor(contents) {
+  let dialogs = paneDialogs.get(contents);
+  if (dialogs) return dialogs;
+  const send = debuggerSend(contents);
+  dialogs = browserDialogs.createDialogs({ send, onError: (e) => log.swallow("window.browser.control", "dialog answer failed", e) });
+  paneDialogs.set(contents, dialogs);
+  const trace = browserTrace.createTrace();
+  paneTraces.set(contents, trace);
+  try {
+    await send("Page.enable", {});
+    await send("Runtime.enable", {});
+    await send("Network.enable", {});
+    contents.debugger.on("message", (_event, method, params) => {
+      dialogs.handle(method, params);
+      trace.handle(method, params);
+    });
+  } catch (e) {
+    log.swallow("window.browser.control", "dialog watch failed", e);
+  }
+  return dialogs;
+}
+
+const dialogFailure = (dialog) =>
+  browserControl.failure("dialog_open", `A ${dialog.type} dialog is open: "${dialog.message}". Call browser_dialog to answer it.`);
+
+/** Runs one agent browser step on the visible pane, or returns the failure to hand the model. */
+async function inPane(label, fn, { prepare, needsPage = true } = {}) {
+  return paneDriver.run(label, async (step) => {
+    const { view, failed } = await paneDriver.ensureTab({ prepare });
+    if (failed) return failed;
+    const contents = view.webContents;
+    const url = contents.getURL();
+    if (needsPage && (!url || url === "about:blank")) return browserControl.failure("not_navigated");
+    const open = (await dialogsFor(contents)).pending();
+    if (open) return dialogFailure(open);
+    await showAgentOverlay(contents);
+    return fn(contents, step);
   });
+}
 
-  // A hidden page never opens windows of its own, so a link cannot reach an address the URL check refused.
-  browserSession.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-
-  browserSession.on('closed', () => {
-    browserSession = null;
-  });
-
-  return browserSession;
+/** A hop the guard cancelled while a step ran, as the failure the model should hear about. */
+function refusedByGuard() {
+  const hop = activeGuard()?.refusedHop();
+  return hop ? browserControl.failure("refused_url", urlPolicy.refusalFor(hop)) : null;
 }
 
 ipc.handle("browser-navigate", async (event, url) => {
   if (!urlPolicy.isFetchableUrl(url)) {
-    log.warn("browser", `refused navigation to ${String(url).slice(0, 120)}`);
-    return { success: false, refused: true, error: urlPolicy.refusalFor(url) };
+    log.warn("window.browser.control", "refused navigation", { host: browserSafety.hostOf(url) });
+    return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
   }
 
-  const win = getBrowserSession();
+  let loading = null;
+  const load = (contents) => {
+    activeGuard()?.reset();
+    loading = contents.loadURL(url, { userAgent: cleanUserAgent(contents), timeout: 30000 });
+    // The wait below reports a failed load; this keeps an early rejection from going unhandled.
+    loading.catch((e) => log.swallow("window.browser.control", "pane load failed", e));
+  };
 
-  try {
-    await win.loadURL(url, {
-      userAgent: cleanUserAgent(win.webContents),
-      timeout: 30000,
-    });
+  return inPane("navigating", async (contents, step) => {
+    try {
+      if (!loading) load(contents);
+      await loading.catch((e) => {
+        if (!activeGuard()?.refusedHop()) throw e;
+      });
 
-    for (let i = 0; i < 6; i++) {
-      const state = await win.webContents.executeJavaScript(PAGE_STATE_SCRIPT);
+      for (let i = 0; i < 6 && !activeGuard()?.refusedHop() && !step.stopped(); i++) {
+        const state = await contents.executeJavaScript(PAGE_STATE_SCRIPT);
 
-      if (isBotChallengePage(state)) {
-        return {
-          success: false,
-          blocked: "human-verification",
-          url: win.webContents.getURL(),
-          error:
-            "This page is behind a human-verification challenge and cannot be read automatically.",
-        };
+        if (isBotChallengePage(state)) return browserControl.failure("human_verification");
+
+        if (state.readyState === "complete" && state.textLength > 50) break;
+        await sleep(2000);
       }
 
-      if (state.readyState === "complete" && state.textLength > 50) break;
-      await sleep(2000);
-    }
+      const refused = refusedByGuard();
+      if (refused) return refused;
 
-    const title = await win.webContents.executeJavaScript('document.title || ""');
-    const currentUrl = win.webContents.getURL();
-    return { success: true, title, url: currentUrl };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
+      const title = await contents.executeJavaScript('document.title || ""');
+      return { ok: true, title, url: contents.getURL() };
+    } catch (e) {
+      return browserControl.failure("navigation_failed", e.message);
+    }
+  }, { prepare: (view) => load(view.webContents), needsPage: false });
 });
 
-const COLLECT_ELEMENTS_FN = `
-  function __draggyCollect() {
-    const items = [];
-    const seen = new Set();
-    document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]').forEach((el) => {
-      const text = (el.innerText || el.value || el.title || el.getAttribute('aria-label') || '').trim().substring(0, 80);
-      if (!text || seen.has(text)) return;
-      seen.add(text);
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) items.push({ el, rect, type: 'button', text });
-    });
-    document.querySelectorAll('a[href]').forEach((el) => {
-      const text = (el.innerText || el.title || el.getAttribute('aria-label') || '').trim().substring(0, 80);
-      if (!text || seen.has(text)) return;
-      seen.add(text);
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) items.push({ el, rect, type: 'link', text, href: el.href });
-    });
-    document.querySelectorAll('input:not([type="hidden"]), textarea, select, [contenteditable="true"]').forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const label = el.getAttribute('placeholder') || el.getAttribute('aria-label') || el.getAttribute('name') || el.tagName;
-      items.push({
-        el,
-        rect,
-        type: el.tagName === 'SELECT' ? 'select' : 'input',
-        text: String(label).substring(0, 80),
-        value: el.value || '',
-      });
-    });
-    return items;
+/** One observer per pane page. It talks to the page over the debugger and forgets its refs when the
+ * main frame navigates. */
+const paneObservers = new WeakMap();
+const paneInputs = new WeakMap();
+const debuggerSend = (contents) => async (method, params) => {
+  const dbg = contents.debugger;
+  if (!dbg.isAttached()) dbg.attach("1.3");
+  return dbg.sendCommand(method, params);
+};
+
+/** Real input for the pane. Shares the observer's refs so a ref means the same thing to both. */
+function inputFor(contents) {
+  let input = paneInputs.get(contents);
+  if (!input) {
+    input = browserInput.createInput({ send: debuggerSend(contents), observer: observerFor(contents), contents, pause: sleep });
+    paneInputs.set(contents, input);
   }
-`;
-
-
-function parseElementIndex(value) {
-  const index = Number.parseInt(value, 10);
-  return Number.isInteger(index) && index >= 0 ? index : null;
+  return input;
 }
 
+function observerFor(contents) {
+  let observer = paneObservers.get(contents);
+  if (observer) return observer;
+  observer = browserSnapshot.createObserver({ send: debuggerSend(contents) });
+  contents.on("did-start-navigation", (details) => {
+    if (details.isMainFrame && !details.isSameDocument) observer.forget();
+  });
+  paneObservers.set(contents, observer);
+  return observer;
+}
+
+/** A ref problem keeps its own code; anything else is the page not answering. */
+const observationFailure = (e) =>
+  e instanceof browserSnapshot.RefError ? browserControl.failure(e.code, e.message) : browserControl.failure("script_failed", e.message);
+
+ipc.handle("browser-snapshot", async (event, options) => {
+  const { scope, maxItems } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    try {
+      const result = await observerFor(contents).snapshot({
+        scope: typeof scope === "string" ? scope : undefined,
+        maxItems,
+      });
+      const title = await contents.executeJavaScript('document.title || ""');
+      const text = browserSnapshot.formatSnapshot({ ...result, title, url: contents.getURL() });
+      log.info("window.browser.control", "snapshot", { items: result.items.length, omitted: result.omitted, frames: result.skippedFrames });
+      return { ok: true, title, url: contents.getURL(), text, total: result.total, omitted: result.omitted };
+    } catch (e) {
+      return observationFailure(e);
+    }
+  });
+});
+
+ipc.handle("browser-screenshot", async (event, options) => {
+  const { mode, ref, marks } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    const observer = observerFor(contents);
+    let marked = false;
+    try {
+      if (marks && (mode === undefined || mode === "viewport")) {
+        const boxes = await observer.marks();
+        await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserSnapshot.marksScript(boxes) }]);
+        marked = true;
+      }
+      const shot = await observer.screenshot({
+        mode: ["viewport", "full", "element"].includes(mode) ? mode : "viewport",
+        ref: typeof ref === "string" ? ref : undefined,
+      });
+      log.info("window.browser.control", "screenshot", { width: shot.width, height: shot.height, bytes: shot.data.length });
+      return { ok: true, ...shot, url: contents.getURL() };
+    } catch (e) {
+      return e instanceof browserSnapshot.RefError ? observationFailure(e) : browserControl.failure("screenshot_failed", e.message);
+    } finally {
+      if (marked && !contents.isDestroyed()) {
+        await contents
+          .executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserSnapshot.hideMarksScript() }])
+          .catch((e) => log.swallow("window.browser.control", "marks clear failed", e));
+      }
+    }
+  });
+});
+
 ipc.handle("browser-get-elements", async () => {
-  const win = getBrowserSession();
-  try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
+  const result = await inPane("reading", async (contents) => {
+    try {
+      const data = await contents.executeJavaScript(browserControl.listElementsScript());
+      return { ok: true, elements: JSON.parse(data) };
+    } catch (e) {
+      return browserControl.failure("script_failed", e.message);
     }
-    const data = await win.webContents.executeJavaScript(`
-      (() => {
-        ${COLLECT_ELEMENTS_FN}
-        return JSON.stringify(__draggyCollect().slice(0, 50).map((it, index) => ({
-          index,
-          type: it.type,
-          text: it.text,
-          href: it.href,
-          value: it.value,
-          x: Math.round(it.rect.x + it.rect.width / 2),
-          y: Math.round(it.rect.y + it.rect.height / 2),
-        })));
-      })();
-    `);
-    return { success: true, elements: JSON.parse(data) };
-  } catch (e) {
-    return { success: false, error: e.message, elements: [] };
-  }
+  });
+  return result.ok ? result : { ...result, elements: [] };
 });
 
-ipc.handle("browser-click", async (event, elementIndex) => {
-  const index = parseElementIndex(elementIndex);
-  if (index === null) {
-    return { success: false, error: "Invalid element index" };
-  }
+/** What an action did to the page, from a before and after look. A page that navigated mid-look is
+ * reported by its address alone. */
+async function changeNote(input, contents, before) {
+  const after = await input.signature().catch((e) => {
+    log.swallow("window.browser.control", "page look failed", e);
+    return null;
+  });
+  if (before && after) return browserInput.summarizeChange(before, after);
+  return before && contents.getURL() !== before.url ? `The page navigated to ${contents.getURL()}.` : "";
+}
 
-  const win = getBrowserSession();
-  try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
+/** What the user let the agent do on which sites. "Always" is saved; "this session" is not. */
+const TRUSTED_SITES_KEY = "browserTrustedSites";
+const browserGrants = browserSafety.createGrants({
+  trusted: (() => {
+    try {
+      const saved = JSON.parse(storage.getValue(TRUSTED_SITES_KEY) || "[]");
+      return Array.isArray(saved) ? saved.filter((origin) => typeof origin === "string") : [];
+    } catch (e) {
+      log.swallow("window.browser.control", "trusted sites unreadable", e);
+      return [];
     }
-    const coordData = await win.webContents.executeJavaScript(`
-      (() => {
-        ${COLLECT_ELEMENTS_FN}
-        const target = __draggyCollect()[${index}];
-        if (!target) return JSON.stringify({ error: "Element not found" });
-        target.el.click();
-        target.el.focus();
-        return JSON.stringify({
-          success: true,
-          x: Math.round(target.rect.x + target.rect.width / 2),
-          y: Math.round(target.rect.y + target.rect.height / 2),
-        });
-      })();
-    `);
-    const result = JSON.parse(coordData);
-    if (result.error) return { success: false, error: result.error };
-  
-    win.webContents.sendInputEvent({ type: 'mouseMove', x: result.x, y: result.y });
-    await sleep(50);
-    win.webContents.sendInputEvent({ type: 'mouseDown', x: result.x, y: result.y, button: 'left', clickCount: 1 });
-    await sleep(50);
-    win.webContents.sendInputEvent({ type: 'mouseUp', x: result.x, y: result.y, button: 'left', clickCount: 1 });
-    await sleep(500);
+  })(),
+  onChange: (origins) => storage.setValue(TRUSTED_SITES_KEY, JSON.stringify(origins)),
+});
+const actionLimit = browserSafety.createRateLimit({ max: 60, windowMs: 60000 });
 
-    const title = await win.webContents.executeJavaScript('document.title || ""');
-    const updatedUrl = win.webContents.getURL();
-    return { success: true, title, url: updatedUrl };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
+const consents = new Map();
+let consentSeq = 0;
+const CONSENT_WAIT_MS = 120000;
+
+/** Asks the user in the chat. No answer in two minutes is a no. */
+function askConsent(kind, host, detail) {
+  if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve("deny");
+  const id = `consent-${++consentSeq}`;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      consents.delete(id);
+      sendTo(mainWindow, "browser-consent", null);
+      resolve("deny");
+    }, CONSENT_WAIT_MS);
+    consents.set(id, (choice) => {
+      clearTimeout(timer);
+      resolve(choice);
+    });
+    sendTo(mainWindow, "browser-consent", { id, kind, host, detail });
+  });
+}
+
+ipc.handle("browser-consent:answer", (event, id, choice) => {
+  if (!fromMainWindow(event)) return { success: false };
+  const answer = consents.get(id);
+  if (!answer) return { success: false };
+  consents.delete(id);
+  answer(["session", "once", "always"].includes(choice) ? choice : "deny");
+  sendTo(mainWindow, "browser-consent", null);
+  return { success: true };
 });
 
-ipc.handle("browser-type", async (event, elementIndex, text) => {
-  const index = parseElementIndex(elementIndex);
-  if (index === null) {
-    return { success: false, error: "Invalid element index" };
-  }
-
-  const win = getBrowserSession();
-  try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
-    const typed = await win.webContents.executeJavaScript(`
-      (() => {
-        ${COLLECT_ELEMENTS_FN}
-        const target = __draggyCollect()[${index}];
-        if (!target) return false;
-        target.el.focus();
-        const val = ${JSON.stringify(String(text ?? ""))};
-        if (target.el.isContentEditable || target.el.getAttribute('contenteditable') === 'true') {
-          target.el.innerText = val;
-        } else {
-          target.el.value = val;
-        }
-        target.el.dispatchEvent(new Event('input', { bubbles: true }));
-        target.el.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      })();
-    `);
-    if (!typed) return { success: false, error: "Element not found" };
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
+ipc.handle("browser-grants:list", (event) => (fromMainWindow(event) ? browserGrants.list() : []));
+ipc.handle("browser-grants:revoke", (event, origin) => {
+  if (!fromMainWindow(event) || typeof origin !== "string") return { success: false };
+  browserGrants.revoke(origin);
+  return { success: true };
 });
 
-ipc.handle("browser-press-key", async (event, key) => {
-  const win = getBrowserSession();
-  try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
+/** The first thing the agent does on a site needs the user's word. */
+async function siteAllowed(contents) {
+  const origin = browserSafety.originOf(contents.getURL());
+  if (!origin || browserGrants.status(origin) !== "unknown") return true;
+  const choice = await askConsent("site", browserSafety.hostOf(origin), "");
+  if (choice === "always") browserGrants.trust(origin);
+  else if (choice === "session") browserGrants.allowSession(origin);
+  else if (choice !== "once") return false;
+  return true;
+}
+
+/** Origins where the user said risky clicks are fine for the rest of this run of the app. */
+const actionSessionOrigins = new Set();
+
+/** A click that pays, deletes or sends needs the user's word unless they trust the site. */
+async function actionAllowed(contents, why) {
+  const origin = browserSafety.originOf(contents.getURL());
+  if (origin && (browserGrants.status(origin) === "trusted" || actionSessionOrigins.has(origin))) return true;
+  const choice = await askConsent("action", browserSafety.hostOf(origin || ""), why);
+  if (choice === "always" && origin) browserGrants.trust(origin);
+  if (choice === "session" && origin) actionSessionOrigins.add(origin);
+  return choice === "once" || choice === "always" || choice === "session";
+}
+
+/** Runs one real-input step: marks agent input as the agent's own, honors a takeover, and turns
+ * a ref problem into the failure the model should hear. `work` returns extra fields for the result. */
+function acting(label, work, { report = false } = {}) {
+  return inPane(label, async (contents, step) => {
+    try {
+      if (!actionLimit.take()) return browserControl.failure("rate_limited");
+      if (!(await siteAllowed(contents))) return browserControl.failure("site_denied");
+      activeGuard()?.reset();
+      const input = inputFor(contents);
+      const before = report ? await input.signature().catch((e) => {
+        log.swallow("window.browser.control", "page look failed", e);
+        return null;
+      }) : null;
+      if (step.stopped()) return browserControl.failure("user_took_over");
+      let extra = {};
+      let failed = null;
+      const dialogs = await dialogsFor(contents);
+      await paneDriver.sending(async () => {
+        // A click that raises an alert never returns until the alert is answered.
+        const out = await Promise.race([work(input, contents, step), dialogs.opened().then(() => ({}))]);
+        if (out && out.ok === false) failed = out;
+        else extra = out || {};
+        // The input events reach the listeners a beat after they are sent.
+        await sleep(60);
+      });
+      if (failed) return failed;
+      if (step.stopped()) return browserControl.failure("user_took_over");
+      if (report) await sleep(500);
+      const refused = refusedByGuard();
+      if (refused) return refused;
+      const open = dialogs.pending();
+      if (open) return { ok: true, url: contents.getURL(), dialog: open, ...takeSideEffects(), ...extra };
+      if (report && (await challengeShown(contents))) return browserControl.failure("human_verification");
+      const title = await contents.executeJavaScript('document.title || ""');
+      const changed = report ? await changeNote(input, contents, before) : undefined;
+      return { ok: true, title, url: contents.getURL(), ...(changed ? { changed } : {}), ...takeSideEffects(), ...extra };
+    } catch (e) {
+      return observationFailure(e);
     }
-    const keyMap = { enter: 'Return', tab: 'Tab', escape: 'Escape', backspace: 'Backspace', space: ' ' };
-    const keyCode = keyMap[key.toLowerCase()] || key;
-    win.webContents.sendInputEvent({ type: 'keyDown', keyCode });
-    await new Promise(r => setTimeout(r, 50));
-    win.webContents.sendInputEvent({ type: 'keyUp', keyCode });
-    await new Promise(r => setTimeout(r, 300));
-    return { success: true };
+  });
+}
+
+/** Whether the page in front is a bot check the user has to pass. */
+async function challengeShown(contents) {
+  try {
+    return isBotChallengePage(await contents.executeJavaScript(PAGE_STATE_SCRIPT));
   } catch (e) {
-    return { success: false, error: e.message };
+    log.swallow("window.browser.control", "challenge look failed", e);
+    return false;
   }
+}
+
+ipc.handle("browser-trace", (event, kind, options) => {
+  if (!["console", "network"].includes(kind)) {
+    return browserControl.failure("invalid_input", "The trace kind is console or network.");
+  }
+  const { limit, onlyFailed } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    await dialogsFor(contents);
+    const trace = paneTraces.get(contents);
+    const count = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    return kind === "console"
+      ? { ok: true, entries: trace.console(count) }
+      : { ok: true, entries: trace.network(count, onlyFailed === true) };
+  });
 });
 
-ipc.handle("browser-get-text", async () => {
-  const win = getBrowserSession();
-  try {
-    const currentUrl = win.webContents.getURL();
-    if (!currentUrl || currentUrl === "about:blank") {
-      return { success: false, error: "Browser has not navigated to a page yet. Please use browser_navigate first." };
-    }
-    const result = await win.webContents.executeJavaScript(`
-      (() => {
-        document.querySelectorAll('script, style, nav, footer, header, aside, .ad, .ads, [role="banner"], [role="navigation"]')
-          .forEach(el => el.remove());
-        const title = document.title || '';
-        const mainEl = document.querySelector('main, article, [role="main"]') || document.body;
-        const text = mainEl.innerText
-          .replace(/[ \\t]+/g, ' ')
-          .replace(/\\n{3,}/g, '\\n\\n')
-          .trim()
-          .substring(0, 12000);
-        const url = window.location.href;
-        return JSON.stringify({ title, text, url });
-      })();
-    `);
-    return { success: true, ...JSON.parse(result) };
-  } catch (e) {
-    return { success: false, error: e.message };
+ipc.handle("browser-dialog", (event, action, text) => {
+  if (!["accept", "dismiss"].includes(action)) {
+    return browserControl.failure("invalid_input", "The dialog action is accept or dismiss.");
   }
+  // Not through inPane: a page with a dialog open cannot run the overlay script.
+  return paneDriver.run("answering", async () => {
+    const { view, failed } = await paneDriver.ensureTab({});
+    if (failed) return failed;
+    const dialogs = await dialogsFor(view.webContents);
+    try {
+      const closed = await dialogs.answer({ accept: action === "accept", text: typeof text === "string" ? text : undefined });
+      await sleep(300);
+      return { ok: true, answered: closed.type, url: view.webContents.getURL(), ...takeSideEffects() };
+    } catch (e) {
+      return e.code === "no_dialog" ? browserControl.failure("no_dialog") : browserControl.failure("script_failed", e.message);
+    }
+  });
 });
 
+const tabList = () =>
+  browserPane.tabs().map(({ index, active, view }) => ({
+    index,
+    active,
+    title: view.webContents.getTitle(),
+    url: view.webContents.getURL(),
+  }));
+
+ipc.handle("browser-tabs", async (event, action, options) => {
+  if (!["list", "new", "select", "close"].includes(action)) {
+    return browserControl.failure("invalid_input", "The tabs action is list, new, select or close.");
+  }
+  const { index, url } = options && typeof options === "object" ? options : {};
+  return inPane("tabs", async () => {
+    if (action === "new") {
+      if (url !== undefined && !urlPolicy.isFetchableUrl(url)) {
+        return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
+      }
+      const tab = browserPane.openTab();
+      if (!tab) return browserControl.failure("tab_limit");
+      if (url) {
+        activeGuard()?.reset();
+        await tab.webContents
+          .loadURL(url, { userAgent: cleanUserAgent(tab.webContents), timeout: 30000 })
+          .catch((e) => log.swallow("window.browser.control", "new tab load failed", e));
+      }
+    } else if (action === "select") {
+      if (!browserPane.selectTab(Number(index))) return browserControl.failure("invalid_tab");
+    } else if (action === "close") {
+      if (!browserPane.closeTab(Number(index))) return browserControl.failure("invalid_tab");
+    }
+    return { ok: true, tabs: tabList() };
+  }, { needsPage: false });
+});
+
+const isRef = (value) => typeof value === "string" && /^e\d+$/.test(value);
+
+ipc.handle("browser-click", async (event, target, options) => {
+  const opts = options && typeof options === "object" ? options : {};
+  const byPoint = Number.isFinite(opts.x) && Number.isFinite(opts.y);
+  const ref = isRef(target) ? target : null;
+  const index = ref || byPoint ? null : browserControl.parseElementIndex(target);
+  if (!ref && !byPoint && index === null) return browserControl.failure("invalid_index");
+
+  return acting("clicking", async (input, contents, step) => {
+    const point = byPoint
+      ? await input.where({ x: opts.x, y: opts.y })
+      : ref
+        ? await observerFor(contents).pointOf(ref)
+        : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
+    if (point.missing) return browserControl.failure("element_not_found");
+    if (index !== null) {
+      const item = JSON.parse(await contents.executeJavaScript(browserControl.indexInfoScript(index)));
+      const why = !item.missing && browserSafety.riskyAction(item);
+      if (why && !(await actionAllowed(contents, why))) return browserControl.failure("needs_confirmation");
+    }
+    if (ref) {
+      const entry = await observerFor(contents).resolve(ref);
+      const why = browserSafety.riskyAction({ role: entry.role, name: entry.name });
+      if (why && !(await actionAllowed(contents, why))) return browserControl.failure("needs_confirmation");
+      const blocker = await input.blockedBy(ref, point.x, point.y);
+      if (blocker) return browserControl.failure("click_blocked", blocker);
+    }
+    // The cursor glides to the point first, so the user sees where the click will land.
+    await showAgentOverlay(contents, point);
+    await sleep(400);
+    if (step.stopped()) return browserControl.failure("user_took_over");
+    if (ref || byPoint) await input.clickAt(point.x, point.y, opts, step.stopped);
+    else await browserControl.clickAt(contents, point.x, point.y, sleep, step.stopped);
+    return {};
+  }, { report: true });
+});
+
+ipc.handle("browser-type", async (event, target, text, options) => {
+  const opts = options && typeof options === "object" ? options : {};
+  if (isRef(target)) {
+    return acting("typing", async (input, contents, step) => {
+      if (opts.submit && !(await actionAllowed(contents, "submits a form"))) return browserControl.failure("needs_confirmation");
+      const result = await input.typeInto(target, text, opts, step.stopped);
+      log.info("window.browser.control", "typed", { chars: String(text ?? "").length, landed: result.landed });
+      return { value: result.value, landed: result.landed };
+    });
+  }
+  const index = browserControl.parseElementIndex(target);
+  if (index === null) return browserControl.failure("invalid_index");
+
+  return inPane("typing", async (contents) => {
+    try {
+      if (!(await siteAllowed(contents))) return browserControl.failure("site_denied");
+      const item = JSON.parse(await contents.executeJavaScript(browserControl.indexInfoScript(index)));
+      const sensitive = !item.missing && browserSafety.sensitiveField(item.attrs);
+      if (sensitive) {
+        return browserControl.failure("needs_user", `That is ${sensitive}. Ask the user to fill it in themselves in the browser pane.`);
+      }
+      const typed = await contents.executeJavaScript(`
+        (() => {
+          ${browserControl.COLLECT_ELEMENTS_FN}
+          const target = __draggyCollect()[${index}];
+          if (!target) return false;
+          target.el.focus();
+          const val = ${JSON.stringify(String(text ?? ""))};
+          if (target.el.isContentEditable || target.el.getAttribute('contenteditable') === 'true') {
+            target.el.innerText = val;
+          } else {
+            target.el.value = val;
+          }
+          target.el.dispatchEvent(new Event('input', { bubbles: true }));
+          target.el.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })();
+      `);
+      if (!typed) return browserControl.failure("element_not_found");
+      return { ok: true };
+    } catch (e) {
+      return browserControl.failure("script_failed", e.message);
+    }
+  });
+});
+
+ipc.handle("browser-press-key", async (event, key, options) => {
+  const { repeat } = options && typeof options === "object" ? options : {};
+  return acting("pressing", async (input, contents, step) => {
+    await input.pressKey(key, repeat, step.stopped);
+    await sleep(300);
+    return {};
+  }, { report: true });
+});
+
+ipc.handle("browser-hover", (event, target) =>
+  acting("hovering", async (input, contents) => {
+    const point = await input.hover(isRef(target) ? target : target && typeof target === "object" ? target : null);
+    await showAgentOverlay(contents, point);
+    return {};
+  }, { report: true }),
+);
+
+ipc.handle("browser-drag", (event, from, to) =>
+  acting("dragging", async (input, contents, step) => {
+    await input.drag(from, to, step.stopped);
+    return {};
+  }, { report: true }),
+);
+
+ipc.handle("browser-scroll", (event, options) =>
+  acting("scrolling", async (input) => {
+    const position = await input.scroll(options && typeof options === "object" ? options : {});
+    return { scroll: position };
+  }),
+);
+
+ipc.handle("browser-select-option", (event, ref, choice) =>
+  acting("choosing", async (input) => {
+    if (!isRef(ref)) return browserControl.failure("invalid_input", "Give the ref of a dropdown from browser_snapshot.");
+    return input.selectOption(ref, choice && typeof choice === "object" ? choice : {});
+  }, { report: true }),
+);
+
+ipc.handle("browser-wait", (event, options) =>
+  acting("waiting", async (input) => {
+    const out = await input.wait(options && typeof options === "object" ? options : {});
+    return { waited: out.ms };
+  }),
+);
+
+ipc.handle("browser-history", async (event, action) => {
+  if (!["back", "forward", "reload"].includes(action)) {
+    return browserControl.failure("invalid_input", 'The history action is back, forward or reload.');
+  }
+  return inPane("navigating", async (contents, step) => {
+    try {
+      activeGuard()?.reset();
+      const history = contents.navigationHistory;
+      if (action === "back" && !history.canGoBack()) return browserControl.failure("navigation_failed", "There is no earlier page.");
+      if (action === "forward" && !history.canGoForward()) return browserControl.failure("navigation_failed", "There is no later page.");
+      if (action === "back") history.goBack();
+      else if (action === "forward") history.goForward();
+      else contents.reload();
+      await sleep(300);
+      for (let waited = 0; contents.isLoading() && waited < 15000 && !step.stopped(); waited += 250) await sleep(250);
+      const refused = refusedByGuard();
+      if (refused) return refused;
+      const title = await contents.executeJavaScript('document.title || ""');
+      return { ok: true, title, url: contents.getURL() };
+    } catch (e) {
+      return browserControl.failure("navigation_failed", e.message);
+    }
+  });
+});
+
+ipc.handle("browser-get-text", async (event, options) => {
+  const { ref, selector } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    try {
+      if (typeof ref === "string" && ref) {
+        const text = (await observerFor(contents).textOf(ref)).slice(0, 12000);
+        const title = await contents.executeJavaScript('document.title || ""');
+        return { ok: true, title, url: contents.getURL(), text };
+      }
+      const result = JSON.parse(
+        await contents.executeJavaScript(
+          browserControl.readTextScript(12000, typeof selector === "string" ? selector : ""),
+        ),
+      );
+      if (result.missing) return browserControl.failure("element_not_found", "Nothing on the page matches that selector.");
+      return { ok: true, ...result };
+    } catch (e) {
+      return observationFailure(e);
+    }
+  });
+});
+
+// The agent no longer owns a window of its own, so closing only lets go of the pane.
 ipc.handle("browser-close", async () => {
-  if (browserSession && !browserSession.isDestroyed()) {
-    browserSession.destroy();
-    browserSession = null;
-  }
+  paneDriver.end();
+  return { ok: true };
+});
+
+ipc.handle("browser-agent:stop", (event) => {
+  if (!fromMainWindow(event)) return { success: false };
+  paneDriver.takeOver();
   return { success: true };
 });
 
