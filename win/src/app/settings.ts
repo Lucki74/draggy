@@ -21,7 +21,7 @@ export const defaultSettings: AppSettings = {
   modelName: "",
   customInstructions: [],
   effort: EFFORT_DEFAULT,
-  allowMaxInChat: false,
+  allowMaxInChat: true,
   slowModelThinking: false,
   colibriLossy: false,
   webMode: "auto",

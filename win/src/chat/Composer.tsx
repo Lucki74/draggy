@@ -253,6 +253,7 @@ export function Composer({
         return () => observer.disconnect();
     }, []);
 
+    // Max is locked in Chat only until picked once: picking it turns the allowance on.
     const lockedEfforts = EFFORT_ORDER.filter((level) => !allowedEfforts(surface, settings.allowMaxInChat).includes(level));
     const flashTimer = useRef<number | undefined>(undefined);
     // Ctrl+Shift+E steps to the next level and shows the slider for a moment, unless motion is reduced.
@@ -684,16 +685,13 @@ export function Composer({
                                         <Chip
                                             {...props}
                                             dropdown
-                                            icon={<Icon name="brain" size={16} />}
+                                            icon={<EffortMeter level={settings.effort} sent={sentLevel} />}
                                             className="max-w-[180px]"
                                             label={
                                                 tightToolbar ? (
                                                     <span className="sr-only">{t(EFFORT_LABELS[settings.effort])}</span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <EffortMeter level={settings.effort} sent={sentLevel} />
-                                                        {t(EFFORT_LABELS[settings.effort])}
-                                                    </span>
+                                                    t(EFFORT_LABELS[settings.effort])
                                                 )
                                             }
                                             title={`${t("effort")}: ${t(EFFORT_LABELS[settings.effort])} (Ctrl+Shift+E)${sentNote}`}
@@ -705,11 +703,7 @@ export function Composer({
                                             value={settings.effort}
                                             onChange={(effort) => onPatchSettings({ effort })}
                                             locked={lockedEfforts}
-                                            onLockedPick={() => {
-                                                close();
-                                                onOpenSettings("chat");
-                                            }}
-                                            hint={sentLevel !== settings.effort ? `${t("effortChatCap")}` : undefined}
+                                            onLockedPick={(effort) => onPatchSettings({ effort, allowMaxInChat: true })}
                                             t={t}
                                         />
                                     )}
