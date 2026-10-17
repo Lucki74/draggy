@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button as UiButton } from "../ui/Button";
+import { CapabilityIcons } from "../providers/CapabilityIcons";
+import { modelMetaParts } from "../providers/modelMeta";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import { formatBytes } from "../formatBytes";
 import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
 import ModelSearch from "./ModelSearch";
 import CompactLimitField from "./CompactLimitField";
@@ -10,10 +11,9 @@ import DownloadsMenu from "./DownloadsMenu";
 import { ImageModelRow } from "./ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
 import { cannotGenerate, isEmbeddingModel, isImageModel } from "../modelKinds";
-import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, quantizationOf, type InstalledModel } from "../llama";
+import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, type InstalledModel } from "../llama";
 import { isActivePull, type ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
-import type { SettingsTab } from "./pages";
 import { swallowed } from "../logger";
 
 interface ModelsPageProps {
@@ -22,12 +22,10 @@ interface ModelsPageProps {
   /** The model Chat is running. */
   chatModel: string;
   onUpdate: (patch: Partial<AppSettings>) => void;
-  /** Navigates to another settings tab, used for the chat/code preference shortcuts. */
-  onNavigate: (tab: SettingsTab) => void;
+  /** Makes a model the one Chat runs. */
+  onSelectChatModel: (name: string) => void;
   t: (key: string) => string;
 }
-
-const formatSize = (bytes: number) => formatBytes(bytes);
 
 const ABILITY_LABELS: Record<string, string> = {
   tools: "capabilityTools",
@@ -38,7 +36,7 @@ const ABILITY_LABELS: Record<string, string> = {
 
 /** What is installed, what can be downloaded, and the two models that serve everything else: the
  * one that indexes documents, and when a conversation gets folded. */
-export default function ModelsPage({ manager, settings, chatModel, onUpdate, onNavigate, t }: ModelsPageProps) {
+export default function ModelsPage({ manager, settings, chatModel, onUpdate, onSelectChatModel, t }: ModelsPageProps) {
   const codeModel = settings.codeModel || chatModel;
   const displayNames = installedModelDisplayNames(manager.installed);
   const imageEngine = useImageEngine();
@@ -62,32 +60,20 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
   return (
     <Page title={t("models")}>
       <Group title={t("installed")}>
-        {/* The model each mode runs is picked on its own page, so these jump straight there. */}
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="text-[13px] text-text-secondary">{t("chooseModel")}</span>
-          <div className="flex items-center gap-2">
-            {(["chat", "code"] as const).map((tab) => (
-              <UiButton
-                key={tab}
-                variant="secondary"
-                size="dense"
-                onClick={() => onNavigate(tab)}
-                iconEnd={<Icon name="caret-right" size={12} />}
-              >
-                {t(tab === "chat" ? "chatMode" : "codeMode")}
-              </UiButton>
-            ))}
-          </div>
-        </div>
-
         {manager.installed.length === 0 && imageModels.length === 0 ? (
           <Row label={t("noModelsFound")} />
         ) : (
           manager.installed.map((entry) => {
             const usedBy = [
-              entry.name === chatModel ? t("chatMode") : null,
-              entry.name === codeModel ? t("codeMode") : null,
+              entry.name === chatModel ? t("usedForChat") : null,
+              entry.name === codeModel ? t("usedForCode") : null,
             ].filter((label): label is string => Boolean(label));
+            const roles = cannotGenerate(entry.capabilities)
+              ? []
+              : [
+                  entry.name !== chatModel && { label: t("useForChat"), apply: () => onSelectChatModel(entry.name) },
+                  entry.name !== codeModel && { label: t("useForCode"), apply: () => onUpdate({ codeModel: entry.name }) },
+                ].filter((role): role is { label: string; apply: () => void } => Boolean(role));
 
             const loaded =
               manager.loaded.includes(entry.name) ||
@@ -99,6 +85,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onN
                 entry={entry}
                 displayName={displayNames.get(entry.name) || displayModelName(entry.name)}
                 usedBy={usedBy}
+                roles={roles}
                 loaded={loaded}
                 onUnload={() => manager.unload(entry.name)}
                 onRemove={() => void manager.remove(entry.name)}
@@ -191,6 +178,7 @@ function InstalledRow({
   entry,
   displayName,
   usedBy,
+  roles,
   loaded,
   onUnload,
   onRemove,
@@ -199,6 +187,7 @@ function InstalledRow({
   entry: InstalledModel;
   displayName?: string;
   usedBy: string[];
+  roles: { label: string; apply: () => void }[];
   loaded: boolean;
   onUnload: () => Promise<void>;
   onRemove: () => void;
@@ -208,7 +197,7 @@ function InstalledRow({
   const [switching, setSwitching] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const name = displayName || displayModelName(entry.name);
-  const quantization = quantizationOf(entry.name);
+  const meta = modelMetaParts(entry, t);
   const abilities = entry.capabilities.filter((ability) => ABILITY_LABELS[ability]);
   const detailsId = `model-details-${entry.name.replace(/[^\w-]/g, "-")}`;
 
@@ -225,12 +214,7 @@ function InstalledRow({
         >
           <span className="flex items-center gap-2 text-[14px] leading-5 text-text-primary">
             <span className="truncate">{name}</span>
-            {entry.parameterSize && (
-              <span className="flex-shrink-0 text-[13px] text-text-secondary">{entry.parameterSize}</span>
-            )}
-            {quantization && (
-              <span className="flex-shrink-0 font-mono text-[12px] text-text-tertiary">{quantization}</span>
-            )}
+            <CapabilityIcons capabilities={entry.capabilities} t={t} />
             <Icon
               name="caret-down"
               size={12}
@@ -238,7 +222,7 @@ function InstalledRow({
             />
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-text-secondary">
-            <span className="tabular-nums">{formatSize(entry.size)}</span>
+            <span className="tabular-nums">{meta.join(" · ")}</span>
             {cannotGenerate(entry.capabilities) && <Badge title={t("embeddingOnlyHint")}>{t("embeddingOnly")}</Badge>}
             {usedBy.map((label) => (
               <Badge key={label} strong>
@@ -248,6 +232,11 @@ function InstalledRow({
           </span>
         </button>
 
+        {roles.map((role) => (
+          <UiButton key={role.label} variant="secondary" size="dense" onClick={role.apply}>
+            {role.label}
+          </UiButton>
+        ))}
         {loaded && (
           <UiButton
             variant="secondary"

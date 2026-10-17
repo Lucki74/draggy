@@ -37,12 +37,6 @@ const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
     off: "webOff",
 };
 
-const MODEL_CAPABILITIES = [
-    { id: "tools", label: "capabilityTools" },
-    { id: "vision", label: "capabilityVision" },
-    { id: "thinking", label: "capabilityThinking" },
-];
-
 /** Grows the field with its text, up to the cap, and preserves scroll position. */
 function fitHeight(field: HTMLTextAreaElement) {
     const prevScroll = field.scrollTop;
@@ -157,7 +151,6 @@ export function Composer({
     micDetail,
     slashMatches,
     activeSlashIndex,
-    modelInfo,
     modelProvider,
     thinkingUnavailable,
     toolsUnavailable,
@@ -744,29 +737,23 @@ export function Composer({
                                             }}
                                             t={t}
                                         />
-                                        {modelInfo && modelInfo.capabilities.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 px-1">
-                                                {MODEL_CAPABILITIES.filter((c) => modelInfo.capabilities.includes(c.id)).map((c) => (
-                                                    <span key={c.id} className="h-5 px-1.5 inline-flex items-center rounded-pill bg-surface-tint text-[11px] text-text-secondary">
-                                                        {t(c.label)}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
                                         <div className="border-t border-rule -mx-2" />
-                                        {(["models", "providers"] as const).map((tab) => (
-                                            <button
-                                                key={tab}
-                                                type="button"
-                                                onClick={() => {
-                                                    close();
-                                                    onOpenSettings(tab);
-                                                }}
-                                                className="w-full text-start px-2 py-1.5 rounded-xs text-[13px] text-text-primary hover:bg-surface-raised"
-                                            >
-                                                {t(tab === "models" ? "manageModels" : "providers")}
-                                            </button>
-                                        ))}
+                                        <div className="flex items-center gap-1">
+                                            {(["models", "providers"] as const).map((tab) => (
+                                                <button
+                                                    key={tab}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        close();
+                                                        onOpenSettings(tab);
+                                                    }}
+                                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xs text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                                                >
+                                                    <Icon name={tab === "models" ? "cpu" : "plug"} size={13} />
+                                                    {t(tab === "models" ? "manageModels" : "providers")}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </>
                                 )}
                             </Popover>

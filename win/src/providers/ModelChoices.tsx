@@ -8,6 +8,8 @@ import { selectableModels } from "../modelKinds";
 import { onProvidersChange } from "./useProviders";
 import { ProviderIcon } from "./ProviderIcon";
 import { swallowed } from "../logger";
+import { CapabilityIcons } from "./CapabilityIcons";
+import { modelMetaParts } from "./modelMeta";
 
 type Translate = (key: string) => string;
 
@@ -19,6 +21,7 @@ interface Choice {
   name: string;
   label: string;
   detail?: string;
+  capabilities?: string[];
 }
 
 /** The composer's model list: the engine's models, then each provider's ticked ones under its name.
@@ -63,7 +66,7 @@ export default function ModelChoices({
   const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
-      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: entry.parameterSize })),
+      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: modelMetaParts(entry, t).slice(0, 2).join(" · "), capabilities: entry.capabilities })),
     },
     ...groups.map((group) => ({
       title: group.label,
@@ -108,13 +111,17 @@ export default function ModelChoices({
                   key={choice.name}
                   type="button"
                   onClick={() => onPick(choice.name)}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors ${
-                    choice.name === model ? "bg-action-bg text-action-fg" : "hover:bg-surface-raised"
+                  aria-current={choice.name === model ? "true" : undefined}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors hover:bg-surface-raised ${
+                    choice.name === model ? "bg-surface-tint" : ""
                   }`}
                 >
-                  <span className="flex-1 min-w-0 truncate text-[11px] font-medium">{choice.label}</span>
-                  {choice.detail && <span className="text-[9px] font-medium opacity-60 flex-shrink-0">{choice.detail}</span>}
-                  {choice.name === model && <Icon name="check" size={14} className="flex-shrink-0" />}
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate text-[13px] font-medium text-text-primary">{choice.label}</span>
+                    {choice.detail && <span className="block truncate text-[11px] text-text-secondary tabular-nums">{choice.detail}</span>}
+                  </span>
+                  {choice.capabilities && <CapabilityIcons capabilities={choice.capabilities} t={t} size={13} />}
+                  {choice.name === model && <Icon name="check" size={14} className="flex-shrink-0 text-text-primary" />}
                 </button>
               ))}
             </div>

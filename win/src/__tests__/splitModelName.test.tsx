@@ -34,11 +34,11 @@ describe("a split model in the installed list", () => {
     };
 
     render(
-      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onNavigate={vi.fn()} t={t} />,
+      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onSelectChatModel={vi.fn()} t={t} />,
     );
 
     expect(screen.getByText("Qwen3-Coder-Next")).toBeTruthy();
-    expect(screen.getByText("Q4_K_M")).toBeTruthy();
+    expect(screen.getByText(/Q4_K_M/)).toBeTruthy();
     expect(screen.queryByText(/00001-of-00004/)).toBeNull();
 
     // Opening details shows the context ceiling and file name.
@@ -74,7 +74,7 @@ describe("a split model in the installed list", () => {
     };
 
     render(
-      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onNavigate={vi.fn()} t={t} />,
+      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onSelectChatModel={vi.fn()} t={t} />,
     );
 
     expect(screen.getByText("gemma-4-E4B-it")).toBeTruthy();
