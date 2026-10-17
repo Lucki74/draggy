@@ -1,9 +1,11 @@
 import AppKit
 import DraggyCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @Bindable var model: AppModel
+    @State private var isPickingFile = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +37,9 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(alignment: .bottom) {
+            Button { isPickingFile = true } label: { Image(systemName: "paperclip") }
+                .help("Add the text of a Word, PowerPoint, Excel or PDF file")
+                .disabled(model.isRunning)
             TextField("Message", text: $model.draft, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.roundedBorder)
@@ -48,5 +53,11 @@ struct ChatView: View {
             }
         }
         .padding()
+        .fileImporter(isPresented: $isPickingFile, allowedContentTypes: Self.documentTypes) { result in
+            if case let .success(url) = result { Task { await model.attach(url) } }
+        }
     }
+
+    private static let documentTypes: [UTType] = ["docx", "pptx", "xlsx", "pdf"]
+        .compactMap { UTType(filenameExtension: $0) }
 }
