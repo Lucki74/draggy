@@ -16,6 +16,7 @@ pub mod observer;
 pub mod records;
 pub mod session;
 pub mod tools;
+pub mod update;
 
 pub use cancel::CancelToken;
 pub use engine::{EngineHost, EngineInfo, EngineState, LocalEngine};
@@ -33,6 +34,7 @@ pub use records::{
     SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
 };
 pub use session::Session;
+pub use update::{UpdateChecker, UpdateRecord};
 
 uniffi::setup_scaffolding!();
 
