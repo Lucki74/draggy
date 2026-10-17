@@ -24,6 +24,6 @@ final class UpdateModel {
     /// Asks GitHub once. A failure is silent: an offline Mac is not an error worth showing.
     func check() async {
         guard let checker, available == nil else { return }
-        available = try? await checker.check(currentBuild: currentBuild, includePrereleases: false)
+        available = try? await checker.check(currentBuild: currentBuild, includePrereleases: true)
     }
 }
