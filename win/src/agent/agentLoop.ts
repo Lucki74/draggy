@@ -344,7 +344,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...(cannotUseTools ? { webMode: "off" as const } : {}),
     ...(cannotThink ? { thinkingMode: "low" as const } : {}),
   };
-  const environment = cannotUseTools ? withoutTools(request.environment) : request.environment;
+  const sized = { ...request.environment, compactTools: (info?.promptProfile ?? "compact") === "compact" };
+  const environment = cannotUseTools ? withoutTools(sized) : sized;
 
   // A probe that failed is not proof a model cannot call tools: the engine may
   // have been busy. What it said last time stands in.

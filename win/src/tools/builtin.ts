@@ -266,6 +266,7 @@ const browserNavigate: ToolSpec = {
 
 const browserGetElements: ToolSpec = {
   name: "browser_get_elements",
+  extended: true,
   annotations: { readOnly: true, sandboxed: true },
   group: "browser",
   description:
@@ -418,7 +419,13 @@ async function browserAction<T extends { ok: boolean }>(
   const stepId = ctx.newId();
   ctx.pushStep({ id: stepId, type: "clicking", content: `${ctx.t("browserActionRunning")} **${label}**`, isComplete: false });
   const result = await call();
-  ctx.patchStep(stepId, result?.ok ? { isComplete: true, content: `${ctx.t("browserActionDone")} **${label}**` } : { isComplete: true, type: "error" });
+  const code = result && !result.ok ? (result as { error?: { code?: string } }).error?.code : undefined;
+  ctx.patchStep(
+    stepId,
+    result?.ok
+      ? { isComplete: true, content: `${ctx.t("browserActionDone")} **${label}**` }
+      : { isComplete: true, type: "error", content: `${ctx.t("browserActionFailed")} **${label}**${code ? ` (${code})` : ""}` },
+  );
   ctx.syncSteps();
   return result;
 }
@@ -557,6 +564,7 @@ const browserPressKey: ToolSpec = {
 
 const browserHover: ToolSpec = {
   name: "browser_hover",
+  extended: true,
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Move the pointer over an element or a point, to open a menu or tooltip that appears on hover.",
@@ -578,6 +586,7 @@ const browserHover: ToolSpec = {
 
 const browserDrag: ToolSpec = {
   name: "browser_drag",
+  extended: true,
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Drag from one element or point to another, for sliders, sortable lists and drop zones.",
@@ -603,6 +612,7 @@ const browserDrag: ToolSpec = {
 
 const browserScroll: ToolSpec = {
   name: "browser_scroll",
+  extended: true,
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description:
@@ -628,6 +638,7 @@ const browserScroll: ToolSpec = {
 
 const browserSelectOption: ToolSpec = {
   name: "browser_select_option",
+  extended: true,
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Choose an option in a dropdown by its visible label or its value.",
@@ -651,6 +662,7 @@ const browserSelectOption: ToolSpec = {
 
 const browserWait: ToolSpec = {
   name: "browser_wait",
+  extended: true,
   annotations: { readOnly: true, sandboxed: true },
   group: "browser",
   description:
@@ -674,6 +686,7 @@ const browserWait: ToolSpec = {
 
 const browserHistory: ToolSpec = {
   name: "browser_history",
+  extended: true,
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
   description: "Go back or forward one page in the browser's history, or reload the current page.",
@@ -715,6 +728,7 @@ const browserTabs: ToolSpec = {
 
 const traceTool = (name: "browser_console" | "browser_network", kind: "console" | "network", description: string): ToolSpec => ({
   name,
+  extended: true,
   annotations: { readOnly: true, sandboxed: true },
   group: "browser",
   description,

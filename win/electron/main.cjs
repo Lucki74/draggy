@@ -337,7 +337,7 @@ function getWebSession() {
     try {
       fs.mkdirSync(folder, { recursive: true });
     } catch (e) {
-      log.swallow("browser", "download folder failed", e);
+      log.swallow("window.browser.control", "download folder failed", e);
       item.cancel();
       return;
     }
@@ -347,13 +347,13 @@ function getWebSession() {
     item.once("done", (_event, state) => {
       agentDownloads.running -= 1;
       if (state === "completed") agentDownloads.done.push({ name, bytes: item.getReceivedBytes(), path: target });
-      log.info("browser", "download", { state, bytes: item.getReceivedBytes(), ext: path.extname(name).slice(0, 8) });
+      log.info("window.browser.control", "download", { state, bytes: item.getReceivedBytes(), ext: path.extname(name).slice(0, 8) });
     });
   });
   ses.setPermissionRequestHandler((contents, permission, callback) => {
     if (!paneDriver.active()) return callback(true);
     agentDownloads.denied.add(String(permission));
-    log.info("browser", "permission refused", { permission });
+    log.info("window.browser.control", "permission refused", { permission });
     callback(false);
   });
 
@@ -459,7 +459,7 @@ function openInAppBrowser(url) {
   // Reached from `setWindowOpenHandler` and `will-navigate`, so the string can
   // come from a page rather than from the person using the app.
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", "refused to open", { host: browserSafety.hostOf(url) });
+    log.warn("window.browser.control", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
 
@@ -614,7 +614,7 @@ function preparePaneView(view) {
     view.webContents,
     browserControl.guardNavigation(view.webContents, {
       isFetchableUrl: urlPolicy.isFetchableUrl,
-      scope: "browser",
+      scope: "window.browser.control",
       enabled: () => paneDriver.active(),
     }),
   );
@@ -628,7 +628,7 @@ function preparePaneView(view) {
     if (!urlPolicy.isFetchableUrl(target, { allowPrivate: !paneDriver.active() })) return { action: "deny" };
     const tab = paneDriver.active() ? browserPane.openTab() : null;
     const contents = tab ? tab.webContents : view.webContents;
-    contents.loadURL(target, { userAgent: cleanUserAgent(contents) }).catch((e) => log.swallow("browser", "new tab load failed", e));
+    contents.loadURL(target, { userAgent: cleanUserAgent(contents) }).catch((e) => log.swallow("window.browser.control", "new tab load failed", e));
     return { action: "deny" };
   });
 }
@@ -638,7 +638,7 @@ function preparePaneView(view) {
 function openLink(url) {
   if (!browserPane || !mainWindow || mainWindow.isDestroyed()) return openInAppBrowser(url);
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", "refused to open", { host: browserSafety.hostOf(url) });
+    log.warn("window.browser.control", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
   const view = browserPane.ensure();
@@ -1828,7 +1828,7 @@ async function showAgentOverlay(contents, point) {
   try {
     await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserControl.overlayScript(point) }]);
   } catch (e) {
-    log.swallow("browser", "agent overlay failed", e);
+    log.swallow("window.browser.control", "agent overlay failed", e);
   }
 }
 
@@ -1838,7 +1838,7 @@ async function hideAgentOverlay() {
   try {
     await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserControl.hideOverlayScript() }]);
   } catch (e) {
-    log.swallow("browser", "agent overlay clear failed", e);
+    log.swallow("window.browser.control", "agent overlay clear failed", e);
   }
 }
 
@@ -1850,7 +1850,7 @@ async function dialogsFor(contents) {
   let dialogs = paneDialogs.get(contents);
   if (dialogs) return dialogs;
   const send = debuggerSend(contents);
-  dialogs = browserDialogs.createDialogs({ send, onError: (e) => log.swallow("browser", "dialog answer failed", e) });
+  dialogs = browserDialogs.createDialogs({ send, onError: (e) => log.swallow("window.browser.control", "dialog answer failed", e) });
   paneDialogs.set(contents, dialogs);
   const trace = browserTrace.createTrace();
   paneTraces.set(contents, trace);
@@ -1863,7 +1863,7 @@ async function dialogsFor(contents) {
       trace.handle(method, params);
     });
   } catch (e) {
-    log.swallow("browser", "dialog watch failed", e);
+    log.swallow("window.browser.control", "dialog watch failed", e);
   }
   return dialogs;
 }
@@ -1894,7 +1894,7 @@ function refusedByGuard() {
 
 ipc.handle("browser-navigate", async (event, url) => {
   if (!urlPolicy.isFetchableUrl(url)) {
-    log.warn("browser", "refused navigation", { host: browserSafety.hostOf(url) });
+    log.warn("window.browser.control", "refused navigation", { host: browserSafety.hostOf(url) });
     return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
   }
 
@@ -1903,7 +1903,7 @@ ipc.handle("browser-navigate", async (event, url) => {
     activeGuard()?.reset();
     loading = contents.loadURL(url, { userAgent: cleanUserAgent(contents), timeout: 30000 });
     // The wait below reports a failed load; this keeps an early rejection from going unhandled.
-    loading.catch((e) => log.swallow("browser", "pane load failed", e));
+    loading.catch((e) => log.swallow("window.browser.control", "pane load failed", e));
   };
 
   return inPane("navigating", async (contents, step) => {
@@ -1978,7 +1978,7 @@ ipc.handle("browser-snapshot", async (event, options) => {
       });
       const title = await contents.executeJavaScript('document.title || ""');
       const text = browserSnapshot.formatSnapshot({ ...result, title, url: contents.getURL() });
-      log.info("browser", "snapshot", { items: result.items.length, omitted: result.omitted, frames: result.skippedFrames });
+      log.info("window.browser.control", "snapshot", { items: result.items.length, omitted: result.omitted, frames: result.skippedFrames });
       return { ok: true, title, url: contents.getURL(), text, total: result.total, omitted: result.omitted };
     } catch (e) {
       return observationFailure(e);
@@ -2001,7 +2001,7 @@ ipc.handle("browser-screenshot", async (event, options) => {
         mode: ["viewport", "full", "element"].includes(mode) ? mode : "viewport",
         ref: typeof ref === "string" ? ref : undefined,
       });
-      log.info("browser", "screenshot", { width: shot.width, height: shot.height, bytes: shot.data.length });
+      log.info("window.browser.control", "screenshot", { width: shot.width, height: shot.height, bytes: shot.data.length });
       return { ok: true, ...shot, url: contents.getURL() };
     } catch (e) {
       return e instanceof browserSnapshot.RefError ? observationFailure(e) : browserControl.failure("screenshot_failed", e.message);
@@ -2009,7 +2009,7 @@ ipc.handle("browser-screenshot", async (event, options) => {
       if (marked && !contents.isDestroyed()) {
         await contents
           .executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserSnapshot.hideMarksScript() }])
-          .catch((e) => log.swallow("browser", "marks clear failed", e));
+          .catch((e) => log.swallow("window.browser.control", "marks clear failed", e));
       }
     }
   });
@@ -2031,7 +2031,7 @@ ipc.handle("browser-get-elements", async () => {
  * reported by its address alone. */
 async function changeNote(input, contents, before) {
   const after = await input.signature().catch((e) => {
-    log.swallow("browser", "page look failed", e);
+    log.swallow("window.browser.control", "page look failed", e);
     return null;
   });
   if (before && after) return browserInput.summarizeChange(before, after);
@@ -2046,7 +2046,7 @@ const browserGrants = browserSafety.createGrants({
       const saved = JSON.parse(storage.getValue(TRUSTED_SITES_KEY) || "[]");
       return Array.isArray(saved) ? saved.filter((origin) => typeof origin === "string") : [];
     } catch (e) {
-      log.swallow("browser", "trusted sites unreadable", e);
+      log.swallow("window.browser.control", "trusted sites unreadable", e);
       return [];
     }
   })(),
@@ -2123,7 +2123,7 @@ function acting(label, work, { report = false } = {}) {
       activeGuard()?.reset();
       const input = inputFor(contents);
       const before = report ? await input.signature().catch((e) => {
-        log.swallow("browser", "page look failed", e);
+        log.swallow("window.browser.control", "page look failed", e);
         return null;
       }) : null;
       if (step.stopped()) return browserControl.failure("user_took_over");
@@ -2160,7 +2160,7 @@ async function challengeShown(contents) {
   try {
     return isBotChallengePage(await contents.executeJavaScript(PAGE_STATE_SCRIPT));
   } catch (e) {
-    log.swallow("browser", "challenge look failed", e);
+    log.swallow("window.browser.control", "challenge look failed", e);
     return false;
   }
 }
@@ -2223,7 +2223,7 @@ ipc.handle("browser-tabs", async (event, action, options) => {
         activeGuard()?.reset();
         await tab.webContents
           .loadURL(url, { userAgent: cleanUserAgent(tab.webContents), timeout: 30000 })
-          .catch((e) => log.swallow("browser", "new tab load failed", e));
+          .catch((e) => log.swallow("window.browser.control", "new tab load failed", e));
       }
     } else if (action === "select") {
       if (!browserPane.selectTab(Number(index))) return browserControl.failure("invalid_tab");
@@ -2250,6 +2250,11 @@ ipc.handle("browser-click", async (event, target, options) => {
         ? await observerFor(contents).pointOf(ref)
         : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
     if (point.missing) return browserControl.failure("element_not_found");
+    if (index !== null) {
+      const item = JSON.parse(await contents.executeJavaScript(browserControl.indexInfoScript(index)));
+      const why = !item.missing && browserSafety.riskyAction(item);
+      if (why && !(await actionAllowed(contents, why))) return browserControl.failure("needs_confirmation");
+    }
     if (ref) {
       const entry = await observerFor(contents).resolve(ref);
       const why = browserSafety.riskyAction({ role: entry.role, name: entry.name });
@@ -2273,7 +2278,7 @@ ipc.handle("browser-type", async (event, target, text, options) => {
     return acting("typing", async (input, contents, step) => {
       if (opts.submit && !(await actionAllowed(contents, "submits a form"))) return browserControl.failure("needs_confirmation");
       const result = await input.typeInto(target, text, opts, step.stopped);
-      log.info("browser", "typed", { chars: String(text ?? "").length, landed: result.landed });
+      log.info("window.browser.control", "typed", { chars: String(text ?? "").length, landed: result.landed });
       return { value: result.value, landed: result.landed };
     });
   }
@@ -2282,6 +2287,12 @@ ipc.handle("browser-type", async (event, target, text, options) => {
 
   return inPane("typing", async (contents) => {
     try {
+      if (!(await siteAllowed(contents))) return browserControl.failure("site_denied");
+      const item = JSON.parse(await contents.executeJavaScript(browserControl.indexInfoScript(index)));
+      const sensitive = !item.missing && browserSafety.sensitiveField(item.attrs);
+      if (sensitive) {
+        return browserControl.failure("needs_user", `That is ${sensitive}. Ask the user to fill it in themselves in the browser pane.`);
+      }
       const typed = await contents.executeJavaScript(`
         (() => {
           ${browserControl.COLLECT_ELEMENTS_FN}

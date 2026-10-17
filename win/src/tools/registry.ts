@@ -46,6 +46,8 @@ export interface ToolEnvironment {
   /** Only tools that change nothing. Set for a nested exploration, which reads the project on the
    * conversation's behalf and must not act on it. */
   readOnlyTools?: boolean;
+  /** A small model gets the short tool list: tools marked `extended` are left out. */
+  compactTools?: boolean;
 }
 
 export interface ToolContext {
@@ -90,6 +92,8 @@ export interface ToolSpec {
    * the most cautious one, costing a prompt, not a mistake. */
   annotations?: ToolAnnotations;
   available?: (environment: ToolEnvironment) => boolean;
+  /** Left out of the list a small model sees, to spare its context. It can still be called. */
+  extended?: boolean;
   run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
 }
 
@@ -158,6 +162,7 @@ export function availableTools(environment: ToolEnvironment): ToolSpec[] {
     // as "not safe", which is the cautious way round.
     if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
     if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) return false;
+    if (environment.compactTools && spec.extended) return false;
 
     return !spec.available || spec.available(environment);
   });

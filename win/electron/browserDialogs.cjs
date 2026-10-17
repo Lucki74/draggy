@@ -41,12 +41,13 @@ function createDialogs({ send, onError }) {
         error.code = "no_dialog";
         throw error;
       }
+      // The page's close event can land before the answer returns, so keep what was open.
+      const closing = pending;
       const params = { accept: Boolean(accept) };
       if (typeof text === "string") params.promptText = text;
       await send("Page.handleJavaScriptDialog", params);
-      const closed = pending;
       pending = null;
-      return closed;
+      return closing;
     },
   };
 }

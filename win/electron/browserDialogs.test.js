@@ -28,6 +28,18 @@ describe("dialogs", () => {
     expect(dialogs.pending()).toBeNull();
   });
 
+  it("still reports the dialog when the page closes it before the answer returns", async () => {
+    const dialogs = createDialogs({
+      send: async () => {
+        dialogs.handle("Page.javascriptDialogClosed", {});
+        return {};
+      },
+      onError: () => {},
+    });
+    dialogs.handle(...open("alert", "Hi"));
+    await expect(dialogs.answer({ accept: true })).resolves.toMatchObject({ type: "alert", message: "Hi" });
+  });
+
   it("passes prompt text along", async () => {
     const { dialogs, sent } = rig();
     dialogs.handle(...open("prompt"));

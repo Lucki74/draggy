@@ -188,6 +188,30 @@ const clickTargetScript = (index) => `
   })();
 `;
 
+/** What an index points at, for the safety checks the ref table does for refs. */
+const indexInfoScript = (index) => `
+  (() => {
+    ${COLLECT_ELEMENTS_FN}
+    const target = __draggyCollect()[${Number(index)}];
+    if (!target) return JSON.stringify({ missing: true });
+    const el = target.el;
+    const label = el.labels && el.labels[0] ? el.labels[0].textContent : el.getAttribute('aria-label');
+    return JSON.stringify({
+      role: target.type === 'link' ? 'link' : target.type === 'button' ? 'button' : 'textbox',
+      name: target.text,
+      inputType: el.tagName === 'INPUT' && el.type === 'submit' ? 'submit' : '',
+      attrs: {
+        type: el.type || '',
+        autocomplete: el.getAttribute('autocomplete') || '',
+        name: el.name || '',
+        id: el.id || '',
+        placeholder: el.placeholder || '',
+        label: label || '',
+      },
+    });
+  })();
+`;
+
 /** Reads the page without touching it: the chrome is dropped from a copy, not from the live DOM. */
 const readTextScript = (limit = 12000, selector = "") => `
   (() => {
@@ -405,6 +429,7 @@ module.exports = {
   COLLECT_ELEMENTS_FN,
   listElementsScript,
   clickTargetScript,
+  indexInfoScript,
   readTextScript,
   clickAt,
   guardNavigation,

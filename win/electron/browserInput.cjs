@@ -199,7 +199,7 @@ function createInput({ send, observer, contents, pause = (ms) => new Promise((r)
       throw new RefError("needs_user", `That is ${sensitive}. Ask the user to fill it in themselves in the browser pane.`);
     }
     await send("DOM.scrollIntoViewIfNeeded", { backendNodeId: entry.backendNodeId }).catch((e) =>
-      log.swallow("browser.input", "scroll into view failed", e),
+      log.swallow("window.browser.control.input", "scroll into view failed", e),
     );
     await send("DOM.focus", { backendNodeId: entry.backendNodeId });
     if (clear) {
@@ -229,7 +229,7 @@ function createInput({ send, observer, contents, pause = (ms) => new Promise((r)
     try {
       ({ backendNodeId: hit } = await send("DOM.getNodeForLocation", { x, y }));
     } catch (e) {
-      log.swallow("browser.input", "hit test unavailable", e);
+      log.swallow("window.browser.control.input", "hit test unavailable", e);
       return null;
     }
     const entry = await observer.resolve(ref);
