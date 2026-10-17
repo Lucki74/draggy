@@ -5,6 +5,10 @@ use draggy_agent::announcement::announces_action;
 use draggy_agent::command_rules::{
     command_covered, command_grant_targets, command_prefix, command_segments,
 };
+use draggy_agent::effort::{
+    EFFORT_DEFAULT, Effort, EffortInput, Surface, allowed_efforts, clamp_effort, effective_effort,
+    effort_from_legacy, local_budget, next_effort,
+};
 use draggy_agent::json::canonical;
 use draggy_agent::parsing::{
     ParsedToolCall, TOOL_MARKER_OVERLAP, ToolParser, extract_file_streaming_args, extract_thought,
@@ -16,9 +20,9 @@ use draggy_agent::permissions::{
 };
 use draggy_agent::prompts::{
     InstanceKind, InstanceProfile, ListedModel, ProfileChoice, ProjectMemory, PromptEnvironment,
-    PromptMode, PromptProfile, PromptSettings, PromptSkill, PromptTool, SystemPromptInput,
-    ThinkingMode, WebMode, build_project_prompt, build_system_prompt, build_voice_prompt,
-    current_time_note, prompt_profile_for, voice_search_query,
+    PromptMode, PromptProfile, PromptSettings, PromptSkill, PromptTool, SystemPromptInput, WebMode,
+    build_project_prompt, build_system_prompt, build_voice_prompt, current_time_note,
+    prompt_profile_for, voice_search_query,
 };
 use draggy_agent::repetition::detect_repetition;
 use draggy_testkit::{cases, files};
@@ -49,6 +53,7 @@ fn run(file: &str, input: &Value) -> Value {
         "permissions.json" => permissions(input),
         "prompts.json" => prompts(input),
         "promptProfile.json" => profile(input),
+        "effort.json" => effort_rules(input),
         other => panic!("no runner for {other}"),
     }
 }
@@ -259,11 +264,83 @@ fn permissions(input: &Value) -> Value {
     }
 }
 
-fn thinking(value: &Value) -> ThinkingMode {
-    match value.as_str() {
-        Some("low") => ThinkingMode::Low,
-        Some("high") => ThinkingMode::High,
-        _ => ThinkingMode::Medium,
+fn effort_setting(value: &Value) -> Effort {
+    value
+        .as_str()
+        .and_then(Effort::from_name)
+        .unwrap_or(EFFORT_DEFAULT)
+}
+
+fn level_of(value: &Value) -> Effort {
+    effort_setting(value)
+}
+
+fn surface_of(value: &Value) -> Surface {
+    if value.as_str() == Some("chat") {
+        Surface::Chat
+    } else {
+        Surface::Code
+    }
+}
+
+fn level_list(value: &Value) -> Option<Vec<Effort>> {
+    value
+        .as_array()
+        .map(|items| items.iter().map(level_of).collect())
+}
+
+/// `effort.json`: the rules that set the level a turn runs at, against `win/src/ai/effort.ts`.
+fn effort_rules(input: &Value) -> Value {
+    match op(input) {
+        "effective" => {
+            let supported = level_list(&input["supported"]);
+            let result = effective_effort(EffortInput {
+                asked: level_of(&input["asked"]),
+                surface: surface_of(&input["mode"]),
+                allow_max_in_chat: flag(&input["allowMaxInChat"]),
+                can_think: input["canThink"].as_bool(),
+                supported: supported.as_deref(),
+                slow_blocks_thinking: flag(&input["slowBlocksThinking"]),
+            });
+            let mut out = json!({ "asked": result.asked.name(), "sent": result.sent.name() });
+            if let Some(reason) = result.reason {
+                out["reason"] = json!(reason.name());
+            }
+            out
+        }
+        "next" => json!(
+            next_effort(
+                level_of(&input["level"]),
+                surface_of(&input["mode"]),
+                flag(&input["allowMaxInChat"]),
+            )
+            .name()
+        ),
+        "clamp" => json!(
+            clamp_effort(
+                level_of(&input["level"]),
+                &level_list(&input["supported"]).unwrap_or_default(),
+            )
+            .name()
+        ),
+        "allowed" => json!(
+            allowed_efforts(surface_of(&input["mode"]), flag(&input["allowMaxInChat"]))
+                .iter()
+                .map(|level| level.name())
+                .collect::<Vec<_>>()
+        ),
+        "budget" => match local_budget(
+            level_of(&input["level"]),
+            input["numCtx"].as_u64().unwrap_or_default(),
+        ) {
+            Some(budget) => json!(budget),
+            None => Value::Null,
+        },
+        "legacy" => input["value"]
+            .as_str()
+            .and_then(effort_from_legacy)
+            .map_or(Value::Null, |level| json!(level.name())),
+        other => panic!("unknown effort op {other}"),
     }
 }
 
@@ -313,7 +390,8 @@ fn prompts(input: &Value) -> Value {
     match op(input) {
         "system" => {
             let settings = PromptSettings {
-                thinking_mode: thinking(&input["settings"]["thinkingMode"]),
+                effort: effort_setting(&input["settings"]["effort"]),
+                allow_max_in_chat: false,
                 web_mode: web(&input["settings"]["webMode"]),
                 custom_instructions: string_list(&input["settings"]["customInstructions"]),
             };

@@ -3,6 +3,13 @@ import type { AppSettings } from "../types";
 import { SETTINGS_KEY, storageBackend } from "../storage";
 import { safeJsonParse, writeLocalStorage } from "../utils";
 import { swallowed } from "../logger";
+import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
+
+/** Thinking modes before the five effort levels, and the key each one became. */
+const LEGACY_EFFORT_KEYS = [
+  ["thinkingMode", "effort"],
+  ["codeThinkingMode", "codeEffort"],
+] as const;
 
 export const defaultSettings: AppSettings = {
   // Only a new install gets this: anyone with saved settings keeps the theme they saved.
@@ -13,7 +20,9 @@ export const defaultSettings: AppSettings = {
   // already installed, and sizes a model to the graphics card if nothing is.
   modelName: "",
   customInstructions: [],
-  thinkingMode: "medium",
+  effort: EFFORT_DEFAULT,
+  defaultEffort: EFFORT_DEFAULT,
+  allowMaxInChat: true,
   slowModelThinking: false,
   colibriLossy: false,
   webMode: "auto",
@@ -31,7 +40,8 @@ export const defaultSettings: AppSettings = {
   searxngUrl: "",
   codeModel: "",
   codeInstructions: [],
-  codeThinkingMode: "medium",
+  codeEffort: EFFORT_DEFAULT,
+  codeDefaultEffort: EFFORT_DEFAULT,
   codeWebMode: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
@@ -98,6 +108,21 @@ export function loadSettings(): AppSettings {
     if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@claude(?:-\d+)?\/)default$/, "$1opus");
     // The ChatGPT backend refuses gpt-5.5 to plan accounts; Codex ranks gpt-6-astra first.
     if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@chatgpt(?:-\d+)?\/)gpt-5\.5$/, "$1gpt-6-astra");
+  }
+  // Thinking modes are now effort levels. Old "low" meant thinking off, so it maps to off. A blob
+  // with both keys keeps the new one, and an unreadable value reads as the default.
+  const legacy = parsed as Record<string, unknown>;
+  for (const [oldKey, newKey] of LEGACY_EFFORT_KEYS) {
+    if (!(oldKey in legacy)) continue;
+    if (!(newKey in legacy)) legacy[newKey] = effortFromLegacy(legacy[oldKey]) ?? EFFORT_DEFAULT;
+    delete legacy[oldKey];
+    migrated = true;
+  }
+  for (const key of ["effort", "codeEffort", "defaultEffort", "codeDefaultEffort"] as const) {
+    if (key in legacy && !isEffortLevel(legacy[key])) {
+      legacy[key] = EFFORT_DEFAULT;
+      migrated = true;
+    }
   }
   // Earlier versions saved the speed line switched on without anyone asking for it.
   const resolved = parsed.metricsChosen

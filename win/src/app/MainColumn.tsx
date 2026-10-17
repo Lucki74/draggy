@@ -245,6 +245,13 @@ export function MainColumn({
                                                   : gitStatus.branch
                                               : null,
                                           onShow: () => onSetTreeOpen(true),
+                                          projects: projects.map((project) => ({
+                                              id: project.id,
+                                              name: project.name || (project.rootPath ? folderName(project.rootPath) : ""),
+                                          })),
+                                          activeProjectId: active.id,
+                                          onSelectProject: onSelectWorkspace,
+                                          onNewProject,
                                           searchFiles,
                                       }
                                     : undefined
@@ -254,7 +261,7 @@ export function MainColumn({
                         </OpenDiffContext.Provider>
                     </div>
 
-                    {dockNode}
+                    {viewMode !== "settings" && dockNode}
                 </div>
             ) : (
                 <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />

@@ -7,7 +7,7 @@ import type { AppSettings } from "../types";
  * when not, and never outranked by Draggy's. */
 
 const SETTINGS = {
-  thinkingMode: "medium",
+  effort: "medium",
   webMode: "auto",
   customInstructions: [],
 } as unknown as AppSettings;

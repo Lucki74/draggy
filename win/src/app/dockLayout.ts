@@ -1,4 +1,18 @@
-export type PaneId = "plan" | "file" | "files" | "diff" | "browser" | "usage";
+/** One tab per open file is `file:<path>`; the bare "file" is the single-file tab older layouts saved. */
+export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | "usage";
+
+export function filePane(path: string): PaneId {
+  return `file:${path}`;
+}
+
+/** The file a tab shows, or null when the tab is not a file. */
+export function filePathOf(pane: PaneId): string | null {
+  return pane.startsWith("file:") ? pane.slice(5) : null;
+}
+
+function isFilePane(pane: PaneId): boolean {
+  return pane === "file" || pane.startsWith("file:");
+}
 
 export interface DockLayout {
   panes: PaneId[];
@@ -20,8 +34,8 @@ export function createDefaultDockLayout(options?: {
   diffFile?: string | null;
 }): DockLayout {
   const panes: PaneId[] = [];
-  if (options?.file) panes.push("file");
-  const active = options?.file ? "file" : null;
+  if (options?.file) panes.push(filePane(options.file));
+  const active = options?.file ? filePane(options.file) : null;
   return {
     panes,
     active,
@@ -55,6 +69,32 @@ export function openPane(
   };
 }
 
+/** Opens a file in its own tab beside the others, or brings its tab forward when it is already open. */
+export function openFilePane(layout: DockLayout, path: string): DockLayout {
+  return openPane(layout, filePane(path), { file: path });
+}
+
+/** A file that moved or was renamed keeps its tab and its place in the strip. */
+export function renameFilePane(layout: DockLayout, from: string, to: string): DockLayout {
+  const oldId = filePane(from);
+  const newId = filePane(to);
+  if (oldId === newId || !layout.panes.includes(oldId)) return layout;
+  const swap = (pane: PaneId | null | undefined) => (pane === oldId ? newId : pane);
+  const panes = layout.panes.map((pane) => swap(pane) as PaneId).filter((pane, at, all) => all.indexOf(pane) === at);
+  return { ...layout, panes, active: swap(layout.active) ?? null, split: swap(layout.split) ?? null, file: layout.file === from ? to : layout.file };
+}
+
+/** Older layouts held one "file" tab and a path beside it: turn that into a tab named after its file. */
+export function migrateFilePane(layout: DockLayout): DockLayout {
+  if (!layout.panes.includes("file")) return layout;
+  const path = layout.file ?? null;
+  const swap = (pane: PaneId | null | undefined) => (pane === "file" ? (path ? filePane(path) : null) : pane);
+  const panes = layout.panes
+    .map((pane) => swap(pane))
+    .filter((pane, at, all): pane is PaneId => pane !== null && pane !== undefined && all.indexOf(pane) === at);
+  return { ...layout, panes, active: swap(layout.active) ?? panes[0] ?? null, split: swap(layout.split) ?? null };
+}
+
 /** Closes a pane, transferring active focus to an adjacent tab if open. */
 export function closePane(layout: DockLayout, pane: PaneId): DockLayout {
   const idx = layout.panes.indexOf(pane);
@@ -65,7 +105,8 @@ export function closePane(layout: DockLayout, pane: PaneId): DockLayout {
     nextActive = nextPanes[idx] ?? nextPanes[idx - 1] ?? null;
   }
   const nextSplit = layout.split === pane ? null : layout.split;
-  const nextFile = pane === "file" ? null : layout.file;
+  const lastFile = [...nextPanes].reverse().map(filePathOf).find((path) => path !== null) ?? null;
+  const nextFile = isFilePane(pane) ? lastFile : layout.file;
   const nextDiffFile = pane === "diff" ? null : layout.diffFile;
   return {
     ...layout,

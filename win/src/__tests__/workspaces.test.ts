@@ -14,7 +14,7 @@ import type { AppSettings, ChatSession, Workspace } from "../types";
 const global = {
   modelName: "qwen3:8b",
   customInstructions: ["be brief"],
-  thinkingMode: "medium",
+  effort: "medium",
   webMode: "auto",
   libraryEnabled: true,
   theme: "dark",
@@ -104,7 +104,7 @@ describe("resolving settings", () => {
     const resolved = resolveSettings(global, project({ webMode: "off" }));
 
     expect(resolved.modelName).toBe("qwen3:8b");
-    expect(resolved.thinkingMode).toBe("medium");
+    expect(resolved.effort).toBe("medium");
     expect(resolved.libraryEnabled).toBe(true);
   });
 

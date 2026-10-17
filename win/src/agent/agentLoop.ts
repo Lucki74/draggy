@@ -35,7 +35,8 @@ import { renderMemory } from "../project/memory";
 import { CHARS_PER_TOKEN, renderCompactionBlock } from "./compaction";
 import type { LiveTurn } from "./liveTurn";
 import { measureBreakdown } from "./contextBreakdown";
-import { colibriEngine, shouldNotify, thinkingAllowed, toolLoopLimit } from "../slowMode";
+import { colibriEngine, shouldNotify, toolLoopLimit } from "../slowMode";
+import { effectiveEffort, isThinking, type EffectiveEffort } from "../ai/effort";
 import type { PromptParts } from "./contextBreakdown";
 import {
   MAX_TOOL_LOOPS,
@@ -317,6 +318,8 @@ export interface PreparedTurn {
   nativeVision: boolean;
   hasThinkingCapability: boolean;
   nativeThinking: boolean;
+  /** The level asked for, and the one the turn actually sends after the model and mode limits. */
+  effort: EffectiveEffort;
   /** The model is a colibri one whose plan predicts under 3 tokens per second. */
   slow: boolean;
   /** Served by a colibri engine, whose replies feed the speed history. */
@@ -338,11 +341,9 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   // composer shows both as off. A probe that got no answer proves nothing, so an unknown model is
   // left as it was asked for.
   const cannotUseTools = needsTextModeTools(info);
-  const cannotThink = info !== null && !hasCapability(info, "thinking");
   const settings: AppSettings = {
     ...request.settings,
     ...(cannotUseTools ? { webMode: "off" as const } : {}),
-    ...(cannotThink ? { thinkingMode: "low" as const } : {}),
   };
   const sized = { ...request.environment, compactTools: (info?.promptProfile ?? "compact") === "compact" };
   const environment = cannotUseTools ? withoutTools(sized) : sized;
@@ -359,7 +360,17 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const nativeVision = hasCapability(info, "vision");
   const hasThinkingCapability = hasCapability(info, "thinking");
   const { colibri, slow } = await colibriEngine(model);
-  const nativeThinking = hasThinkingCapability && settings.thinkingMode !== "low" && thinkingAllowed(slow, settings);
+  // The level the turn runs at. A model whose capabilities are not known yet keeps the level asked for,
+  // but nothing thinks until the probe says it can.
+  const effort = effectiveEffort({
+    asked: settings.effort,
+    mode: environment.hasFolder ? "code" : "chat",
+    allowMaxInChat: settings.allowMaxInChat,
+    canThink: info ? hasThinkingCapability : null,
+    supported: null,
+    slowBlocksThinking: slow && !settings.slowModelThinking,
+  });
+  const nativeThinking = hasThinkingCapability && isThinking(effort.sent);
   const cleanStream = nativeTools && nativeThinking;
 
   // Read every turn rather than once: a project whose rules changed halfway
@@ -392,7 +403,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const systemPrompt = [
     buildSystemPrompt(
       settings,
-      { nativeTools, nativeThinking, profile: info?.promptProfile ?? "compact" },
+      { nativeTools, nativeThinking, effort: effort.sent, profile: info?.promptProfile ?? "compact" },
       environment,
       memory,
       skills,
@@ -530,6 +541,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     nativeVision,
     hasThinkingCapability,
     nativeThinking,
+    effort,
     slow,
     colibri,
     cleanStream,
@@ -886,6 +898,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     nativeVision,
     hasThinkingCapability,
     nativeThinking,
+    effort,
     slow,
     colibri,
     cleanStream,
@@ -1129,7 +1142,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
           : {}),
         // The pill's level, for a provider that takes one; the engine's body stays as it always was.
-        ...(hasThinkingCapability && isRemote(model) ? { thinking_level: settings.thinkingMode } : {}),
+        ...(hasThinkingCapability && isRemote(model) ? { thinking_level: effort.sent } : {}),
         ...(nativeTools ? { tools: definitions } : {}),
       });
 

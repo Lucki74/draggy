@@ -107,7 +107,7 @@ describe("the closed sidebar", () => {
 describe("an empty list", () => {
   it("offers New when there are no sessions", () => {
     show({ sessions: [] });
-    expect(screen.getByText("No sessions yet")).toBeTruthy();
+    expect(screen.getByText("No chats yet")).toBeTruthy();
   });
 });
 

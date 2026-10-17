@@ -329,8 +329,8 @@ describe("the preferences step", () => {
     fireEvent.click(screen.getByRole("switch", { name: en("showMetrics") }));
     expect(latest.showMetrics).toBe(true);
     expect(latest.metricsChosen).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: en("high") }));
-    expect(latest.thinkingMode).toBe("high");
+    fireEvent.click(screen.getAllByRole("radio", { name: en("effortHigh") })[0]);
+    expect(latest.effort).toBe("high");
   });
 
   it("queues a ticked extra behind the model", async () => {

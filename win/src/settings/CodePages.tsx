@@ -5,7 +5,7 @@ import InstructionsEditor from "./InstructionsEditor";
 import PermissionChoice from "./PermissionChoice";
 import { selectableModels } from "../modelKinds";
 import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
-import { thinkingOptions, webOptions } from "./pages";
+import { effortOptions, webOptions } from "./pages";
 import { workspaceLabel } from "../workspaces";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings, PermissionMode, Workspace, WorkspaceGrant } from "../types";
@@ -31,9 +31,8 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         <Row label={t("model")}>
           <Select
             label={t("model")}
-            value={settings.codeModel}
+            value={settings.codeModel || chatModel}
             options={[
-              { id: "", label: t("sameAsChat"), hint: chatModel },
               ...withProviderModels(
                 selectableModels(manager.installed).map((entry) => ({
                   id: entry.name,
@@ -50,9 +49,9 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
-            value={settings.codeThinkingMode}
-            options={thinkingOptions(t)}
-            onChange={(codeThinkingMode) => onUpdate({ codeThinkingMode })}
+            value={settings.codeDefaultEffort}
+            options={effortOptions(t)}
+            onChange={(codeDefaultEffort) => onUpdate({ codeDefaultEffort, codeEffort: codeDefaultEffort })}
           />
         </Row>
         <Row label={t("webAccess")}>

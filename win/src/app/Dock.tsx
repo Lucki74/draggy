@@ -11,7 +11,9 @@ import { mentionFile } from "../chat/mentions";
 import {
   closePane,
   movePane,
+  filePathOf,
   openPane,
+  renameFilePane,
   splitPane,
   unsplit,
   type DockLayout,
@@ -34,7 +36,7 @@ export interface DockProps {
   rootPath?: string | null;
   gitStatus?: GitStatus | null;
   t: (key: string) => string;
-  onStartResize: (e: React.MouseEvent) => void;
+  onStartResize: (e: React.PointerEvent) => void;
   onPlanChange: (items: PlanItem[]) => void;
   onContinuePlan: () => void;
   /** Plan mode with a plan written: the plan pane asks the user to proceed or comment. */
@@ -74,17 +76,25 @@ export function Dock({
 }: DockProps) {
   const handleSelectPane = useCallback(
     (pane: PaneId) => {
-      onLayoutChange(openPane(layout, pane));
+      const path = filePathOf(pane);
+      if (path) onOpenFile?.(path);
+      onLayoutChange(openPane(layout, pane, path ? { file: path } : undefined));
     },
-    [layout, onLayoutChange],
+    [layout, onLayoutChange, onOpenFile],
   );
 
   const handleClosePane = useCallback(
     (pane: PaneId) => {
-      if (pane === "file") onCloseCanvas();
-      onLayoutChange(closePane(layout, pane));
+      const next = closePane(layout, pane);
+      if (filePathOf(pane)) {
+        // The file area follows the tab that comes forward; with no file tab left it closes.
+        const forward = next.active ? filePathOf(next.active) : null;
+        if (forward) onOpenFile?.(forward);
+        else if (!next.panes.some((one) => filePathOf(one))) onCloseCanvas();
+      }
+      onLayoutChange(next);
     },
-    [layout, onLayoutChange, onCloseCanvas],
+    [layout, onLayoutChange, onCloseCanvas, onOpenFile],
   );
 
   const handleMovePane = useCallback(
@@ -113,11 +123,12 @@ export function Dock({
       browser: t("browser"),
       usage: t("usage"),
     };
-    if (canvasPath) {
-      titles.file = baseName(canvasPath);
+    for (const pane of layout.panes) {
+      const path = filePathOf(pane);
+      if (path) titles[pane] = baseName(path);
     }
     return titles;
-  }, [canvasPath, t]);
+  }, [layout.panes, t]);
 
   const renderPane = useCallback(
     (pane: PaneId, isSplit = false) => {
@@ -151,15 +162,19 @@ export function Dock({
           />
         );
       }
-      if (pane === "file" && canvasPath) {
+      const filePath = filePathOf(pane);
+      if (filePath) {
         return (
           <Canvas
-            key={canvasPath}
+            key={filePath}
             workspaceId={workspaceId}
-            path={canvasPath}
+            path={filePath}
             t={t}
-            onClose={() => handleClosePane("file")}
-            onMoved={onFollowCanvas}
+            onClose={() => handleClosePane(pane)}
+            onMoved={(moved) => {
+              onLayoutChange(renameFilePane(layout, filePath, moved));
+              if (canvasPath === filePath) onFollowCanvas(moved);
+            }}
           />
         );
       }
@@ -198,6 +213,8 @@ export function Dock({
       onProceedPlan,
       t,
       canvasPath,
+      layout,
+      onLayoutChange,
       workspaceId,
       chatId,
       rootPath,

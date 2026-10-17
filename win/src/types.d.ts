@@ -809,7 +809,7 @@ export type WorkspaceOverrides = Partial<
     AppSettings,
     | "modelName"
     | "customInstructions"
-    | "thinkingMode"
+    | "effort"
     | "webMode"
     | "libraryEnabled"
   >
@@ -980,6 +980,9 @@ type ProviderResult<T> = ({ success: true } & T) | { success: false; error: Prov
 
 export type Language = "en" | "fr" | "es" | "zh";
 
+/** How hard a model reasons. Off sends no reasoning; each level above it asks for more. */
+export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
+
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
@@ -987,7 +990,12 @@ export interface AppSettings {
   language: Language;
   modelName: string;
   customInstructions: string[];
-  thinkingMode: "low" | "medium" | "high";
+  /** The level the composer is on now. A new chat starts from `defaultEffort`. */
+  effort: EffortLevel;
+  /** The level new chats start at. */
+  defaultEffort: EffortLevel;
+  /** Lets Chat use Max, the slowest level. Code always may. */
+  allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
   slowModelThinking: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
@@ -1016,7 +1024,9 @@ export interface AppSettings {
   codeModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
   codeInstructions: string[];
-  codeThinkingMode: "low" | "medium" | "high";
+  codeEffort: EffortLevel;
+  /** The level new code sessions start at. */
+  codeDefaultEffort: EffortLevel;
   codeWebMode: "auto" | "on" | "off";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;

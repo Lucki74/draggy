@@ -13,7 +13,7 @@ describe("the narrow composer", () => {
 
     const permission = screen.getByText("Accepter les modifications");
     expect(permission.closest(".sr-only")).toBeNull();
-    expect(screen.getByText("Équilibré").closest(".sr-only")).toBeNull();
+    expect(screen.getByText("Moyen").closest(".sr-only")).toBeNull();
     expect(permission.closest("form")?.querySelector(".flex-wrap .basis-full")).toBeTruthy();
   });
 

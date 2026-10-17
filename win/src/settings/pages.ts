@@ -75,8 +75,20 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
 type Translate = (key: string) => string;
 
 /** The thinking choices, shared by Chat's and Code's preferences. */
-export const thinkingOptions = (t: Translate) =>
-  (["low", "medium", "high"] as const).map((id) => ({ id, label: t(id) }));
+/** Translation keys for each effort level's name. */
+export const EFFORT_LABELS = {
+  off: "effortOff",
+  low: "effortLow",
+  medium: "effortMedium",
+  high: "effortHigh",
+  max: "effortMax",
+} as const;
+
+/** The effort levels as segmented options, in the order given. Chat passes its allowed levels. */
+export const effortOptions = (
+  t: Translate,
+  levels: readonly (keyof typeof EFFORT_LABELS)[] = ["off", "low", "medium", "high", "max"],
+) => levels.map((id) => ({ id, label: t(EFFORT_LABELS[id]) }));
 
 /** The web search providers, for the Web search page and the setup's Preferences step alike. */
 export const searchProviderOptions = (t: Translate) =>

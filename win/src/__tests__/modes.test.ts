@@ -57,11 +57,11 @@ describe("modes", () => {
   const settings = {
     modelName: "qwen3:8b",
     customInstructions: ["answer briefly"],
-    thinkingMode: "low",
+    effort: "off",
     webMode: "on",
     codeModel: "qwen3-coder:30b",
     codeInstructions: ["use pnpm"],
-    codeThinkingMode: "high",
+    codeEffort: "high",
     codeWebMode: "off",
   } as AppSettings;
 
@@ -70,7 +70,7 @@ describe("modes", () => {
 
     expect(chat.modelName).toBe("qwen3:8b");
     expect(chat.customInstructions).toEqual(["answer briefly"]);
-    expect(chat.thinkingMode).toBe("low");
+    expect(chat.effort).toBe("off");
     expect(chat.webMode).toBe("on");
   });
 
@@ -79,7 +79,7 @@ describe("modes", () => {
 
     expect(code.modelName).toBe("qwen3-coder:30b");
     expect(code.customInstructions).toEqual(["use pnpm"]);
-    expect(code.thinkingMode).toBe("high");
+    expect(code.effort).toBe("high");
     expect(code.webMode).toBe("off");
   });
 
@@ -88,13 +88,13 @@ describe("modes", () => {
   });
 
   it("writes a change made in Code to Code's own fields", () => {
-    expect(patchForMode("code", { thinkingMode: "medium", webMode: "auto" })).toEqual({
-      codeThinkingMode: "medium",
+    expect(patchForMode("code", { effort: "medium", webMode: "auto" })).toEqual({
+      codeEffort: "medium",
       codeWebMode: "auto",
     });
     expect(patchForMode("code", { modelName: "x" })).toEqual({ codeModel: "x" });
     expect(patchForMode("code", { compactLimit: 20000 })).toEqual({ compactLimit: 20000 });
-    expect(patchForMode("chat", { thinkingMode: "high" })).toEqual({ thinkingMode: "high" });
+    expect(patchForMode("chat", { effort: "high" })).toEqual({ effort: "high" });
   });
 
   it("keeps running project work out of Chat and chats out of Code", () => {

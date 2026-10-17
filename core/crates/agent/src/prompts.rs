@@ -3,6 +3,7 @@
 
 use std::sync::OnceLock;
 
+use crate::effort::Effort;
 use crate::js::{CaseFold, Flags, JsRegex, cached};
 use crate::skills::MAX_LISTED_SKILLS;
 
@@ -184,16 +185,11 @@ pub fn code_base_prompt() -> String {
 /// The settings a prompt depends on. Mirrors the TypeScript `AppSettings` fields the prompt reads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptSettings {
-    pub thinking_mode: ThinkingMode,
+    pub effort: Effort,
+    /// Whether Chat may use Max. The effort rules read it; the prompt does not.
+    pub allow_max_in_chat: bool,
     pub web_mode: WebMode,
     pub custom_instructions: Vec<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThinkingMode {
-    Low,
-    Medium,
-    High,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -335,12 +331,12 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
         parts.push(CODE_EXECUTION_PROMPT.to_string());
     }
 
-    // Fast mode means no reasoning, not an unspecified amount: omitting the instruction is not the same as asking.
-    match settings.thinking_mode {
-        ThinkingMode::Low => parts.push(FAST_PROMPT.to_string()),
-        thinking if !mode.native_thinking => {
+    // Off means no reasoning, not an unspecified amount: omitting the instruction is not the same as asking.
+    match settings.effort {
+        Effort::Off => parts.push(FAST_PROMPT.to_string()),
+        level if !mode.native_thinking => {
             parts.push(THINK_TAG_PROMPT.to_string());
-            parts.push(thinking_prompt(thinking).to_string());
+            parts.push(thinking_prompt(level).to_string());
         }
         _ => parts.push(REASONING_INTERNAL.to_string()),
     }
@@ -375,11 +371,12 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
     parts.join("\n\n")
 }
 
-fn thinking_prompt(mode: ThinkingMode) -> &'static str {
-    match mode {
-        ThinkingMode::High => THINKING_HIGH,
-        // Low never reaches here: the caller handles fast mode first.
-        ThinkingMode::Medium | ThinkingMode::Low => THINKING_MEDIUM,
+/// Each level above Off has a prompt. Low reads as Medium and Max as High until the prompts are split per level.
+fn thinking_prompt(level: Effort) -> &'static str {
+    match level {
+        Effort::High | Effort::Max => THINKING_HIGH,
+        // Off never reaches here: the caller handles fast mode first.
+        Effort::Low | Effort::Medium | Effort::Off => THINKING_MEDIUM,
     }
 }
 

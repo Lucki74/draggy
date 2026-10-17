@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import Logo from "../Logo";
+import { ProviderIcon } from "../providers/ProviderIcon";
 import { Button as UiButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { FLOAT_CLASSES, useDismiss } from "../ui/float";
@@ -147,6 +149,8 @@ export interface SelectOption {
   hint?: string;
   /** A heading shown above the first option of each run with the same group. */
   group?: string;
+  /** The provider type whose logo leads the group heading; "draggy" is the local engine. */
+  groupType?: string;
 }
 
 /** A choice of many, in a menu. A value missing from the options is still shown, or a removed
@@ -199,8 +203,13 @@ export function Select({
           ) : (
             listed.map((option, index) => [
               option.group && option.group !== listed[index - 1]?.group && (
-                <p key={`group-${option.group}`} className="truncate px-3 pb-1 pt-2 text-[12px] font-medium text-text-secondary">
-                  {option.group}
+                <p key={`group-${option.group}`} className="flex items-center gap-1.5 px-3 pb-1 pt-2 text-[12px] font-medium text-text-secondary">
+                  {option.groupType === "draggy" ? (
+                    <Logo className="w-3 h-3 flex-shrink-0 text-text-primary" />
+                  ) : (
+                    option.groupType && <ProviderIcon type={option.groupType} name={option.group} size="w-3 h-3" />
+                  )}
+                  <span className="truncate">{option.group}</span>
                 </p>
               ),
               <button

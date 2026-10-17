@@ -76,7 +76,7 @@ export function ModelsPreview() {
         settings={defaultSettings}
         chatModel="Qwen3-8B-Q4_K_M.gguf"
         onUpdate={noop}
-        onNavigate={noop}
+        onSelectChatModel={noop}
         t={(key) => translations.en[key] || key}
       />
     </div>

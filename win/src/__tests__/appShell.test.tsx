@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "../App";
 import { SETTINGS_KEY } from "../storage";
 import { allTools } from "../tools/registry";
@@ -273,13 +273,13 @@ describe("the chat and code switch", () => {
     const api = installFakeElectronApi();
     await openProject(api);
 
-    const thinking = screen.getByRole("button", { name: /balanced/i });
+    const thinking = screen.getByRole("button", { name: /medium/i });
     await act(async () => thinking.click());
-    await act(async () => screen.getByRole("menuitemradio", { name: /deep/i }).click());
+    await act(async () => fireEvent.keyDown(screen.getByRole("slider"), { key: "ArrowRight" }));
 
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    expect(saved.codeThinkingMode).toBe("high");
-    expect(saved.thinkingMode ?? "medium").toBe("medium");
+    expect(saved.codeEffort).toBe("high");
+    expect(saved.effort ?? "medium").toBe("medium");
   });
 
   it("comes back in the mode it was left in", async () => {

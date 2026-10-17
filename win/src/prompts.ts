@@ -89,13 +89,18 @@ Hello! How can I help you today?`;
  * writes its scratchpad into the reply regardless. */
 export const FAST_PROMPT = `Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself.`;
 
-export const THINKING_PROMPTS: Record<
-  Exclude<AppSettings["thinkingMode"], "low">,
-  string
-> = {
-  high: "\n\nCRITICAL INSTRUCTION: You MUST use <think>...</think> tags to reason before answering. Your reasoning process must be extremely deep, exhaustive, and step-by-step. Consider multiple perspectives, edge cases, and perform extensive self-correction. Do not rush your conclusion; take as much time and generate as much thought process as necessary in the <think> block to fully explore the problem space.",
-  medium:
-    "\n\nInstruction: You MUST use <think>...</think> tags to reason before answering. Think carefully and be thorough. Outline your logical steps clearly inside the <think> block before providing your final answer.",
+const MEDIUM_THINKING_PROMPT =
+  "\n\nInstruction: You MUST use <think>...</think> tags to reason before answering. Think carefully and be thorough. Outline your logical steps clearly inside the <think> block before providing your final answer.";
+
+const HIGH_THINKING_PROMPT =
+  "\n\nCRITICAL INSTRUCTION: You MUST use <think>...</think> tags to reason before answering. Your reasoning process must be extremely deep, exhaustive, and step-by-step. Consider multiple perspectives, edge cases, and perform extensive self-correction. Do not rush your conclusion; take as much time and generate as much thought process as necessary in the <think> block to fully explore the problem space.";
+
+/** The instruction for each level that reasons. Low and Max reuse the nearest written one until each has its own. */
+export const THINKING_PROMPTS: Record<Exclude<AppSettings["effort"], "off">, string> = {
+  low: MEDIUM_THINKING_PROMPT,
+  medium: MEDIUM_THINKING_PROMPT,
+  high: HIGH_THINKING_PROMPT,
+  max: HIGH_THINKING_PROMPT,
 };
 
 export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search the web before answering, even if you believe you already know the answer, and base your reply on what you find.`;
@@ -203,6 +208,8 @@ export type PromptProfile = "compact" | "full";
 export interface PromptMode {
   nativeTools: boolean;
   nativeThinking: boolean;
+  /** The level the turn sends, after limits. Settings' level is used when absent. */
+  effort?: AppSettings["effort"];
   profile?: PromptProfile;
 }
 
@@ -290,11 +297,13 @@ export function buildSystemPrompt(
 
   // Fast mode means no reasoning, not an unspecified amount. Omitting the
   // instruction is not the same as asking, and the silence gets filled.
-  if (settings.thinkingMode === "low") {
+  // The level the turn runs at, which can be lower than the one in settings (a model that cannot think).
+  const level = mode.effort ?? settings.effort;
+  if (level === "off") {
     parts.push(FAST_PROMPT);
   } else if (!mode.nativeThinking) {
     parts.push(THINK_TAG_PROMPT);
-    parts.push(THINKING_PROMPTS[settings.thinkingMode]);
+    parts.push(THINKING_PROMPTS[level]);
   } else {
     parts.push(
       "Reasoning is internal. Always output your actual answer and response to the user clearly after reasoning.",

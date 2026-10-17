@@ -115,6 +115,11 @@
     --accent-text: #ffffff;
     --accent-ink: #92400e;
     --accent-soft: #fef3c7;
+    /* Effort levels: white off, green low, blue medium, yellow high, orange max. */
+    --effort-low: #16a34a;
+    --effort-mid: #2563eb;
+    --effort-high: #ca8a04;
+    --effort-max: #ea580c;
 }
 
 body.dark,
@@ -179,6 +184,10 @@ body.dark,
     --accent-text: #111111;
     --accent-ink: #fbbf24;
     --accent-soft: #3a2a08;
+    --effort-low: #4ade80;
+    --effort-mid: #60a5fa;
+    --effort-high: #fbbf24;
+    --effort-max: #fb923c;
 }
 
 @layer base {

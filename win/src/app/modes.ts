@@ -58,11 +58,11 @@ export function workspaceOfChat(sessions: ChatSession[], chatId: string): string
 const CODE_KEYS = {
   modelName: "codeModel",
   customInstructions: "codeInstructions",
-  thinkingMode: "codeThinkingMode",
+  effort: "codeEffort",
   webMode: "codeWebMode",
 } as const satisfies Partial<Record<keyof AppSettings, keyof AppSettings>>;
 
-/** The settings a mode runs with: Code reads its own model, instructions, thinking and web. */
+/** The settings a mode runs with: Code reads its own model, instructions, effort and web. */
 export function settingsForMode(settings: AppSettings, mode: AppMode): AppSettings {
   if (mode === "chat") return settings;
 
@@ -71,7 +71,7 @@ export function settingsForMode(settings: AppSettings, mode: AppMode): AppSettin
     // An unset code model follows the chat one rather than meaning no model.
     modelName: settings.codeModel || settings.modelName,
     customInstructions: settings.codeInstructions ?? [],
-    thinkingMode: settings.codeThinkingMode ?? settings.thinkingMode,
+    effort: settings.codeEffort ?? settings.effort,
     webMode: settings.codeWebMode ?? settings.webMode,
   };
 }

@@ -20,25 +20,22 @@ import type {
     AppSettings,
     Attachment,
     ChatSession,
+    EffortLevel,
     InstalledSkill,
     PermissionMode,
     ProviderInstance,
 } from "../types";
+import { allowedEfforts, effectiveEffort, effortColor, EFFORT_ORDER, nextEffort } from "../ai/effort";
+import { EffortSlider } from "./EffortSlider";
+import { EFFORT_LABELS } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
-const THINKING_ORDER: AppSettings["thinkingMode"][] = ["low", "medium", "high"];
 const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
 const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
     auto: "webAuto",
     on: "webOn",
     off: "webOff",
 };
-
-const MODEL_CAPABILITIES = [
-    { id: "tools", label: "capabilityTools" },
-    { id: "vision", label: "capabilityVision" },
-    { id: "thinking", label: "capabilityThinking" },
-];
 
 /** Grows the field with its text, up to the cap, and preserves scroll position. */
 function fitHeight(field: HTMLTextAreaElement) {
@@ -115,11 +112,33 @@ export interface WorkContext {
     branch?: string | null;
     /** Brings the project's files into view. */
     onShow: () => void;
+    /** Every project, for the switcher on the folder chip. Without it the chip just shows the files. */
+    projects?: { id: string; name: string }[];
+    activeProjectId?: string;
+    onSelectProject?: (id: string) => void;
+    onNewProject?: () => void;
     /** Project files whose name contains the text, as paths relative to the folder. */
     searchFiles?: (name: string) => Promise<string[]>;
 }
 
 /* Prompt field, attachments, the mode, effort and model chips, and the token budget meter. */
+/** Five small bars, filled up to the level; a dot marks a turn sent lower than asked. */
+function EffortMeter({ level, sent }: { level: EffortLevel; sent: EffortLevel }) {
+    const at = EFFORT_ORDER.indexOf(level);
+    return (
+        <span className="relative inline-flex items-end gap-px h-3" aria-hidden="true">
+            {EFFORT_ORDER.slice(1).map((step, i) => (
+                <span
+                    key={step}
+                    className={`w-[3px] rounded-pill ${i < at ? "" : "bg-rule-strong"}`}
+                    style={{ height: `${5 + i * 2}px`, background: i < at ? effortColor(level) : undefined }}
+                />
+            ))}
+            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill" style={{ background: effortColor(sent) }} />}
+        </span>
+    );
+}
+
 export function Composer({
     model,
     chat,
@@ -137,7 +156,6 @@ export function Composer({
     micDetail,
     slashMatches,
     activeSlashIndex,
-    modelInfo,
     modelProvider,
     thinkingUnavailable,
     toolsUnavailable,
@@ -233,20 +251,38 @@ export function Composer({
         return () => observer.disconnect();
     }, []);
 
+    // Max is locked in Chat only until picked once: picking it turns the allowance on.
+    const lockedEfforts = EFFORT_ORDER.filter((level) => !allowedEfforts(surface, settings.allowMaxInChat).includes(level));
+    const flashTimer = useRef<number | undefined>(undefined);
+    // Ctrl+Shift+E steps to the next level and shows the slider for a moment, unless motion is reduced.
+    const cycleEffort = () => {
+        const next = nextEffort(settings.effort, { mode: surface, allowMaxInChat: settings.allowMaxInChat });
+        onPatchSettings({ effort: next });
+        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+        setOpenMenu("effort");
+        window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(() => setOpenMenu((current) => (current === "effort" ? null : current)), 1200);
+    };
+    useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
     // Claude Code's menu keys: Ctrl+Shift+M mode, Ctrl+Shift+E effort, Ctrl+Shift+I model.
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) return;
             const key = event.key.toLowerCase();
-            const target: OpenMenu =
-                key === "m" && showPermission ? "permission" : key === "e" && !thinkingUnavailable ? "effort" : key === "i" ? "model" : null;
+            if (key === "e" && !thinkingUnavailable) {
+                event.preventDefault();
+                cycleEffort();
+                return;
+            }
+            const target: OpenMenu = key === "m" && showPermission ? "permission" : key === "i" ? "model" : null;
             if (!target) return;
             event.preventDefault();
             setOpenMenu((current) => (current === target ? null : target));
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [showPermission, thinkingUnavailable]);
+    }, [showPermission, thinkingUnavailable, settings.effort, settings.allowMaxInChat, surface]);
 
     const menuState = (name: Exclude<OpenMenu, null>) => ({
         open: openMenu === name,
@@ -352,15 +388,16 @@ export function Composer({
         })),
     ];
 
-    const effortItems: MenuEntry[] = [
-        { type: "heading", id: "effort", label: t("thinkingMode") },
-        ...THINKING_ORDER.map<MenuEntry>((mode) => ({
-            id: mode,
-            label: t(mode),
-            checked: settings.thinkingMode === mode,
-            onSelect: () => onPatchSettings({ thinkingMode: mode }),
-        })),
-    ];
+    // What a turn actually sends can be lower than the level picked (Chat caps Max): say so on the pill.
+    const sentLevel = effectiveEffort({
+        asked: settings.effort,
+        mode: surface,
+        allowMaxInChat: settings.allowMaxInChat,
+        canThink: true,
+        supported: null,
+        slowBlocksThinking: false,
+    }).sent;
+    const sentNote = sentLevel !== settings.effort ? ` · ${t("effortSentAs").replace("{level}", t(EFFORT_LABELS[sentLevel]))}` : "";
 
     const modelGlyph = modelProvider ? (
         <ProviderIcon type={modelProvider.type} name={modelProvider.label} size="w-4 h-4" />
@@ -632,27 +669,43 @@ export function Composer({
                                 <Chip
                                     disabled
                                     icon={<Icon name="brain" size={16} />}
-                                    label={t("thinkingOff")}
+                                    label={t("effortOff")}
                                     title={`${displayModelName(model)} ${t("thinkingNotSupported")}`}
                                 />
                             ) : (
-                                <Menu
-                                    label={t("thinkingMode")}
+                                <Popover
+                                    label={t("effort")}
                                     side="top"
                                     align="end"
-                                    items={effortItems}
+                                    className="p-3"
                                     {...menuState("effort")}
                                     trigger={(props) => (
                                         <Chip
                                             {...props}
                                             dropdown
-                                            icon={<Icon name="brain" size={16} />}
-                                            className="max-w-[160px]"
-                                            label={t(settings.thinkingMode)}
-                                            title={`${t("thinkingMode")}: ${t(settings.thinkingMode)} (Ctrl+Shift+E)`}
+                                            icon={<EffortMeter level={settings.effort} sent={sentLevel} />}
+                                            className="max-w-[180px] min-w-0 shrink"
+                                            label={
+                                                tightToolbar ? (
+                                                    <span className="sr-only">{t(EFFORT_LABELS[settings.effort])}</span>
+                                                ) : (
+                                                    t(EFFORT_LABELS[settings.effort])
+                                                )
+                                            }
+                                            title={`${t("effort")}: ${t(EFFORT_LABELS[settings.effort])} (Ctrl+Shift+E)${sentNote}`}
                                         />
                                     )}
-                                />
+                                >
+                                    {() => (
+                                        <EffortSlider
+                                            value={settings.effort}
+                                            onChange={(effort) => onPatchSettings({ effort })}
+                                            locked={lockedEfforts}
+                                            onLockedPick={(effort) => onPatchSettings({ effort, allowMaxInChat: true })}
+                                            t={t}
+                                        />
+                                    )}
+                                </Popover>
                             )}
 
                             <Popover
@@ -666,7 +719,7 @@ export function Composer({
                                         {...props}
                                         dropdown
                                         icon={modelGlyph}
-                                        className="max-w-[220px]"
+                                        className="max-w-[220px] min-w-0 shrink"
                                         label={
                                             tightToolbar ? (
                                                 <span className="sr-only">{modelLabel(model)}</span>
@@ -689,29 +742,23 @@ export function Composer({
                                             }}
                                             t={t}
                                         />
-                                        {modelInfo && modelInfo.capabilities.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 px-1">
-                                                {MODEL_CAPABILITIES.filter((c) => modelInfo.capabilities.includes(c.id)).map((c) => (
-                                                    <span key={c.id} className="h-5 px-1.5 inline-flex items-center rounded-pill bg-surface-tint text-[11px] text-text-secondary">
-                                                        {t(c.label)}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
                                         <div className="border-t border-rule -mx-2" />
-                                        {(["models", "providers"] as const).map((tab) => (
-                                            <button
-                                                key={tab}
-                                                type="button"
-                                                onClick={() => {
-                                                    close();
-                                                    onOpenSettings(tab);
-                                                }}
-                                                className="w-full text-start px-2 py-1.5 rounded-xs text-[13px] text-text-primary hover:bg-surface-raised"
-                                            >
-                                                {t(tab === "models" ? "manageModels" : "providers")}
-                                            </button>
-                                        ))}
+                                        <div className="flex items-center gap-1">
+                                            {(["models", "providers"] as const).map((tab) => (
+                                                <button
+                                                    key={tab}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        close();
+                                                        onOpenSettings(tab);
+                                                    }}
+                                                    className="flex-1 inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-xs text-[11px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                                                >
+                                                    <Icon name={tab === "models" ? "cpu" : "plug"} size={12} />
+                                                    {t(tab === "models" ? "manageModels" : "providers")}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </>
                                 )}
                             </Popover>
@@ -726,7 +773,7 @@ export function Composer({
                                 />
                             )}
 
-                            {micState === "recording" && micAnalyser && <MicWave analyser={micAnalyser} />}
+                            {micState === "recording" && micAnalyser && !tightToolbar && <MicWave analyser={micAnalyser} />}
 
                             {speechSupported && (
                                 <IconButton
@@ -758,14 +805,80 @@ export function Composer({
 
                 {workContext && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1">
-                        <Chip
-                            size="dense"
-                            label={workContext.folder}
-                            title={workContext.folder}
-                            icon={<Icon name="folder-simple" size={14} />}
-                            onClick={workContext.onShow}
-                            className="max-w-[16rem]"
-                        />
+                        {workContext.onSelectProject && workContext.projects ? (
+                            <Popover
+                                label={t("projects")}
+                                side="top"
+                                align="start"
+                                className="w-60 p-1.5 flex flex-col gap-0.5"
+                                trigger={(props) => (
+                                    <Chip
+                                        {...props}
+                                        size="dense"
+                                        dropdown
+                                        label={workContext.folder}
+                                        title={workContext.folder}
+                                        icon={<Icon name="folder-simple" size={14} />}
+                                        className="max-w-[16rem]"
+                                    />
+                                )}
+                            >
+                                {(close) => (
+                                    <>
+                                        <div className="max-h-56 overflow-y-auto flex flex-col gap-0.5">
+                                            {workContext.projects!.map((project) => {
+                                                const current = project.id === workContext.activeProjectId;
+                                                return (
+                                                    <button
+                                                        key={project.id}
+                                                        type="button"
+                                                        aria-current={current || undefined}
+                                                        onClick={() => {
+                                                            close();
+                                                            if (!current) workContext.onSelectProject!(project.id);
+                                                        }}
+                                                        className={`w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start text-[13px] transition-colors hover:bg-surface-raised ${current ? "bg-surface-tint font-medium" : ""}`}
+                                                    >
+                                                        <Icon name="folder-simple" size={14} />
+                                                        <span className="flex-1 min-w-0 truncate">{project.name}</span>
+                                                        {current && <Icon name="check" size={14} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="border-t border-rule -mx-1.5 my-0.5" />
+                                        {[
+                                            { id: "new", icon: "plus", label: t("newProject"), run: workContext.onNewProject },
+                                            { id: "files", icon: "folder-open", label: t("showProjectFiles"), run: workContext.onShow },
+                                        ]
+                                            .filter((item) => item.run)
+                                            .map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        close();
+                                                        item.run!();
+                                                    }}
+                                                    className="w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                                                >
+                                                    <Icon name={item.icon as never} size={13} />
+                                                    {item.label}
+                                                </button>
+                                            ))}
+                                    </>
+                                )}
+                            </Popover>
+                        ) : (
+                            <Chip
+                                size="dense"
+                                label={workContext.folder}
+                                title={workContext.folder}
+                                icon={<Icon name="folder-simple" size={14} />}
+                                onClick={workContext.onShow}
+                                className="max-w-[16rem]"
+                            />
+                        )}
                         {workContext.branch && (
                             <Chip
                                 size="dense"

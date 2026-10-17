@@ -1,5 +1,6 @@
 import { generateId } from "./utils";
 import type { AppSettings, ChatSession, Workspace } from "./types";
+import { effortFromLegacy, isEffortLevel } from "./ai/effort";
 
 /** A workspace is a plain chat or a folder the model may work in. Settings have two layers, the
  * app's and the workspace's, combined here. */
@@ -82,7 +83,10 @@ export function resolveSettings(
     resolved.customInstructions = overrides.customInstructions;
   }
 
-  if (overrides.thinkingMode) resolved.thinkingMode = overrides.thinkingMode;
+  // A workspace saved before the effort levels still carries a thinking mode.
+  const legacyEffort = effortFromLegacy((overrides as { thinkingMode?: unknown }).thinkingMode);
+  if (isEffortLevel(overrides.effort)) resolved.effort = overrides.effort;
+  else if (legacyEffort) resolved.effort = legacyEffort;
   if (overrides.webMode) resolved.webMode = overrides.webMode;
 
   if (typeof overrides.libraryEnabled === "boolean") {

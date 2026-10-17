@@ -71,7 +71,7 @@ async function printSizes(harness) {
     for (const surface of ["chat", "code"]) {
       for (const web of ["auto", "on", "off"]) {
         for (const thinking of ["low", "medium", "high"]) {
-          const built = harness.buildCase({ surface, tier, caps, turns: [{ role: "user", content: "hi" }], lang: "en", settings: { webMode: web, thinkingMode: thinking } });
+          const built = harness.buildCase({ surface, tier, caps, turns: [{ role: "user", content: "hi" }], lang: "en", settings: { webMode: web, effort: thinking } });
           const tools = JSON.stringify(built.definitions).length;
           rows.push({ tier, surface, web, thinking, systemTokens: Math.round(built.system.length / 4), toolTokens: Math.round(tools / 4) });
         }

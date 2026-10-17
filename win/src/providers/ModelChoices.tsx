@@ -1,6 +1,7 @@
+import Logo from "../Logo";
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
-import { displayModelName, listInstalledModels } from "../llama";
+import { displayModelName, listInstalledModels, quantizationOf } from "../llama";
 import type { InstalledModel } from "../llama";
 import { listAllModels } from "../ai/providers";
 import type { ModelGroup } from "../ai/providers";
@@ -8,6 +9,7 @@ import { selectableModels } from "../modelKinds";
 import { onProvidersChange } from "./useProviders";
 import { ProviderIcon } from "./ProviderIcon";
 import { swallowed } from "../logger";
+import { CapabilityIcons } from "./CapabilityIcons";
 
 type Translate = (key: string) => string;
 
@@ -19,6 +21,7 @@ interface Choice {
   name: string;
   label: string;
   detail?: string;
+  capabilities?: string[];
 }
 
 /** The composer's model list: the engine's models, then each provider's ticked ones under its name.
@@ -60,10 +63,16 @@ export default function ModelChoices({
     };
   }, [open]);
 
-  const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
+  const sections: { title: string | null; type?: string; local?: boolean; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
-      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: entry.parameterSize })),
+      local: true,
+      choices: installed.map((entry) => {
+        const label = displayModelName(entry.name);
+        // Two files with one name differ by quantization, so say which this is.
+        const twin = installed.some((other) => other !== entry && displayModelName(other.name) === label);
+        return { name: entry.name, label, detail: twin ? quantizationOf(entry.name) : undefined, capabilities: entry.capabilities };
+      }),
     },
     ...groups.map((group) => ({
       title: group.label,
@@ -99,6 +108,7 @@ export default function ModelChoices({
             <div key={section.title ?? ""} role={section.title ? "group" : undefined} aria-label={section.title ?? undefined} className="space-y-1">
               {section.title && (
                 <p className="flex items-center gap-1.5 px-2 pt-1 text-[12px] font-medium text-text-secondary">
+                  {section.local && <Logo className="w-3 h-3 flex-shrink-0 text-text-primary" />}
                   {section.type && <ProviderIcon type={section.type} name={section.title} size="w-3 h-3" />}
                   <span className="truncate">{section.title}</span>
                 </p>
@@ -108,13 +118,17 @@ export default function ModelChoices({
                   key={choice.name}
                   type="button"
                   onClick={() => onPick(choice.name)}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors ${
-                    choice.name === model ? "bg-action-bg text-action-fg" : "hover:bg-surface-raised"
+                  aria-current={choice.name === model ? "true" : undefined}
+                  className={`w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start transition-colors hover:bg-surface-raised ${
+                    choice.name === model ? "bg-surface-tint" : ""
                   }`}
                 >
-                  <span className="flex-1 min-w-0 truncate text-[11px] font-medium">{choice.label}</span>
-                  {choice.detail && <span className="text-[9px] font-medium opacity-60 flex-shrink-0">{choice.detail}</span>}
-                  {choice.name === model && <Icon name="check" size={14} className="flex-shrink-0" />}
+                  <span className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                    <span className="truncate text-[13px] font-medium text-text-primary">{choice.label}</span>
+                    {choice.detail && <span className="flex-shrink-0 font-mono text-[11px] text-text-secondary">{choice.detail}</span>}
+                  </span>
+                  {choice.capabilities && <CapabilityIcons capabilities={choice.capabilities} t={t} size={13} />}
+                  {choice.name === model && <Icon name="check" size={14} className="flex-shrink-0 text-text-primary" />}
                 </button>
               ))}
             </div>

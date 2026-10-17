@@ -13,10 +13,11 @@ use draggy_agent::agent_loop::{
     Unsendable, WireMessage, parse_plan, prepare_turn, run_turn, to_wire_message, unsendable_notes,
 };
 use draggy_agent::compaction::CompactionState;
+use draggy_agent::effort::Effort;
 use draggy_agent::permissions::{Grant, PermissionMode, ToolAnnotations};
 use draggy_agent::prompts::{
-    ProjectMemory, PromptEnvironment, PromptProfile, PromptSettings, PromptTool, ThinkingMode,
-    WebMode, render_memory,
+    ProjectMemory, PromptEnvironment, PromptProfile, PromptSettings, PromptTool, WebMode,
+    render_memory,
 };
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{InstalledSkill, LoadedSkill, SkillReader};
@@ -456,7 +457,8 @@ fn message(id: &str, role: &str, content: &str) -> Message {
 
 fn settings() -> PromptSettings {
     PromptSettings {
-        thinking_mode: ThinkingMode::Medium,
+        effort: Effort::Medium,
+        allow_max_in_chat: false,
         web_mode: WebMode::Auto,
         custom_instructions: Vec::new(),
     }
@@ -832,10 +834,10 @@ fn text_mode_keeps_the_reasoning_as_a_thinking_step() {
     assert_eq!(thinking.and_then(|step| step.is_complete), Some(true));
 }
 
-fn native_thinking_request(messages: Vec<Message>, mode: ThinkingMode) -> TurnRequest {
+fn native_thinking_request(messages: Vec<Message>, mode: Effort) -> TurnRequest {
     let mut turn = native_request(messages);
     turn.profile.has_thinking = true;
-    turn.settings.thinking_mode = mode;
+    turn.settings.effort = mode;
     turn
 }
 
@@ -852,7 +854,7 @@ fn native_thinking_asks_for_thinking_and_keeps_it_out_of_the_answer() {
         text("Four."),
         finished("stop"),
     ]]));
-    let turn = native_thinking_request(vec![user("2+2")], ThinkingMode::Medium);
+    let turn = native_thinking_request(vec![user("2+2")], Effort::Medium);
     let result = run_ok(&mut h, &turn);
 
     assert_eq!(h.model.requests[0].think, Some(true));
@@ -868,7 +870,7 @@ fn native_thinking_asks_for_thinking_and_keeps_it_out_of_the_answer() {
 #[test]
 fn native_thinking_drops_an_empty_thinking_step_rather_than_showing_a_blank_panel() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
-    let turn = native_thinking_request(vec![user("2+2")], ThinkingMode::Medium);
+    let turn = native_thinking_request(vec![user("2+2")], Effort::Medium);
     let result = run_ok(&mut h, &turn);
 
     assert_eq!(
@@ -895,7 +897,7 @@ fn fast_mode_tells_a_native_capable_model_not_to_think_explicitly() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
     run_ok(
         &mut h,
-        &native_thinking_request(vec![user("2+2")], ThinkingMode::Low),
+        &native_thinking_request(vec![user("2+2")], Effort::Off),
     );
 
     assert_eq!(h.model.requests[0].think, Some(false));
@@ -906,7 +908,7 @@ fn fast_mode_tells_a_native_capable_model_not_to_think_explicitly() {
 fn fast_mode_asks_a_non_native_model_for_the_answer_rather_than_saying_nothing() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
     let mut turn = request(vec![user("2+2")]);
-    turn.settings.thinking_mode = ThinkingMode::Low;
+    turn.settings.effort = Effort::Off;
     run_ok(&mut h, &turn);
 
     let system = system_of(&h.model.requests[0]);
@@ -921,7 +923,7 @@ fn fast_mode_tells_a_native_capable_model_to_skip_the_scratchpad_as_well() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
     run_ok(
         &mut h,
-        &native_thinking_request(vec![user("2+2")], ThinkingMode::Low),
+        &native_thinking_request(vec![user("2+2")], Effort::Off),
     );
 
     assert!(system_of(&h.model.requests[0]).contains("Answer immediately"));
@@ -932,7 +934,7 @@ fn fast_mode_still_asks_a_native_capable_model_to_think_in_the_other_modes() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
     run_ok(
         &mut h,
-        &native_thinking_request(vec![user("2+2")], ThinkingMode::Medium),
+        &native_thinking_request(vec![user("2+2")], Effort::Medium),
     );
 
     assert_eq!(h.model.requests[0].think, Some(true));
@@ -1217,7 +1219,7 @@ fn reasoning_goes_back_with_the_history_to_a_model_that_reasons_natively() {
             reasoned_reply(),
             user("and 14 * 13"),
         ],
-        ThinkingMode::Medium,
+        Effort::Medium,
     );
     turn.profile.has_thinking = true;
     run_ok(&mut h, &turn);
@@ -1264,7 +1266,7 @@ fn reasoning_behind_a_tool_call_is_kept_for_the_pass_after_it() {
     ]));
     let mut turn = native_request(vec![user("capital of France?")]);
     turn.profile.has_thinking = true;
-    turn.settings.thinking_mode = ThinkingMode::Medium;
+    turn.settings.effort = Effort::Medium;
     run_ok(&mut h, &turn);
 
     let call_message = h.model.requests[1]
@@ -2171,7 +2173,7 @@ fn a_model_that_cannot_think_is_run_as_if_thinking_were_off_whatever_the_setting
 
     let mut fast = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
     let mut low = native_request(vec![user("2+2")]);
-    low.settings.thinking_mode = ThinkingMode::Low;
+    low.settings.effort = Effort::Off;
     run_ok(&mut fast, &low);
 
     assert_eq!(
@@ -2184,7 +2186,7 @@ fn a_model_that_cannot_think_is_run_as_if_thinking_were_off_whatever_the_setting
 // -- a reasoning model that stops without text after tools -------------------------------------------------------
 
 fn reasoning_turn(messages: Vec<Message>) -> TurnRequest {
-    native_thinking_request(messages, ThinkingMode::Medium)
+    native_thinking_request(messages, Effort::Medium)
 }
 
 #[test]
@@ -2460,7 +2462,7 @@ fn the_thinking_level_reaches_a_provider_which_maps_it_to_its_own_parameter() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Hi"])]));
     let mut turn = remote_request("@openai/thinker", vec![user("hi")]);
     turn.profile.has_thinking = true;
-    turn.settings.thinking_mode = ThinkingMode::High;
+    turn.settings.effort = Effort::High;
     run_ok(&mut h, &turn);
 
     assert_eq!(h.model.requests[0].think, Some(true));
@@ -2470,7 +2472,7 @@ fn the_thinking_level_reaches_a_provider_which_maps_it_to_its_own_parameter() {
 #[test]
 fn the_thinking_level_never_reaches_the_engine_whose_body_stays_as_it_was() {
     let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Hi"])]));
-    let mut turn = native_thinking_request(vec![user("hi")], ThinkingMode::High);
+    let mut turn = native_thinking_request(vec![user("hi")], Effort::High);
     turn.profile.has_thinking = true;
     run_ok(&mut h, &turn);
 
@@ -3323,11 +3325,11 @@ fn a_model_without_tools_is_not_told_about_library_code_execution_or_skills() {
 fn a_model_whose_probe_answered_and_cannot_think_is_run_without_thinking() {
     let mut skills = FakeSkills::default();
     let mut turn = request(vec![user("hello")]);
-    turn.settings.thinking_mode = ThinkingMode::High;
+    turn.settings.effort = Effort::High;
     turn.profile.has_thinking = false;
     let prepared = prepared(&turn, &mut skills);
 
-    assert_eq!(prepared.effective_thinking, ThinkingMode::Low);
+    assert_eq!(prepared.effective_effort, Effort::Off);
     assert!(prepared.wire[0].content.contains("Answer immediately."));
 }
 
@@ -3335,12 +3337,12 @@ fn a_model_whose_probe_answered_and_cannot_think_is_run_without_thinking() {
 fn a_model_whose_probe_failed_keeps_the_thinking_it_was_asked_for() {
     let mut skills = FakeSkills::default();
     let mut turn = request(vec![user("hello")]);
-    turn.settings.thinking_mode = ThinkingMode::High;
+    turn.settings.effort = Effort::High;
     turn.profile.has_thinking = false;
     turn.profile.probed = false;
     let prepared = prepared(&turn, &mut skills);
 
-    assert_eq!(prepared.effective_thinking, ThinkingMode::High);
+    assert_eq!(prepared.effective_effort, Effort::High);
     assert!(!prepared.native_thinking);
     assert!(!prepared.wire[0].content.contains("Answer immediately."));
 }

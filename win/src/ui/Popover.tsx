@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { FLOAT_CLASSES, floatPosition, useDismiss, type PopoverAlign, type PopoverSide } from "./float";
 
 export type { PopoverAlign, PopoverSide };
@@ -52,6 +52,19 @@ export function Popover({
     );
 
     const close = useCallback(() => setOpen(false), [setOpen]);
+
+    // In a narrow column an end-aligned panel can reach past the window edge: slide it back inside.
+    useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!open || !panel) return;
+        panel.style.translate = "";
+        const box = panel.getBoundingClientRect();
+        const margin = 8;
+        let shift = 0;
+        if (box.left < margin) shift = margin - box.left;
+        else if (box.right > window.innerWidth - margin) shift = window.innerWidth - margin - box.right;
+        if (shift) panel.style.translate = `${shift}px 0`;
+    }, [open]);
 
     // When the panel goes away with focus inside it, focus would fall to the page: hand it back to the trigger.
     const wasOpen = useRef(open);

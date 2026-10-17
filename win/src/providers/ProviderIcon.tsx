@@ -28,12 +28,21 @@ export function ProviderIcon({ type, name, size = "w-5 h-5" }: { type: string | 
       <span
         aria-hidden="true"
         data-icon={file}
-        className={`${box} bg-text-primary`}
-        style={{ maskImage: `url("${src}")`, maskSize: "contain", maskRepeat: "no-repeat", maskPosition: "center" }}
+        className={`${box} inline-block align-middle bg-text-primary`}
+        style={{
+          maskImage: `url("${src}")`,
+          maskSize: "contain",
+          maskRepeat: "no-repeat",
+          maskPosition: "center",
+          WebkitMaskImage: `url("${src}")`,
+          WebkitMaskSize: "contain",
+          WebkitMaskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+        }}
       />
     );
   }
-  if (src) return <img src={src} alt="" aria-hidden="true" data-icon={file} className={`${box} object-contain${TILE.has(file) ? " rounded-md" : ""}`} />;
+  if (src) return <img src={src} alt="" aria-hidden="true" data-icon={file} className={`${box} align-middle object-contain${TILE.has(file) ? " rounded-md" : ""}`} />;
 
   return (
     <span

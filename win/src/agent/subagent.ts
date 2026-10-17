@@ -85,7 +85,7 @@ export async function explore(request: ExploreRequest): Promise<string> {
           ...request.settings,
           // The looking is not the thinking, and a small model reasoning about
           // a directory listing is the slowest part of the whole exercise.
-          thinkingMode: "low",
+          effort: "off",
           customInstructions: [EXPLORE_PROMPT],
         },
         environment,
