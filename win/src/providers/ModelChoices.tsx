@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
-import { displayModelName, listInstalledModels } from "../llama";
+import { displayModelName, listInstalledModels, quantizationOf } from "../llama";
 import type { InstalledModel } from "../llama";
 import { listAllModels } from "../ai/providers";
 import type { ModelGroup } from "../ai/providers";
@@ -9,7 +9,6 @@ import { onProvidersChange } from "./useProviders";
 import { ProviderIcon } from "./ProviderIcon";
 import { swallowed } from "../logger";
 import { CapabilityIcons } from "./CapabilityIcons";
-import { formatBytes } from "../formatBytes";
 
 type Translate = (key: string) => string;
 
@@ -66,7 +65,12 @@ export default function ModelChoices({
   const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
-      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: formatBytes(entry.size), capabilities: entry.capabilities })),
+      choices: installed.map((entry) => {
+        const label = displayModelName(entry.name);
+        // Two files with one name differ by quantization, so say which this is.
+        const twin = installed.some((other) => other !== entry && displayModelName(other.name) === label);
+        return { name: entry.name, label, detail: twin ? quantizationOf(entry.name) : undefined, capabilities: entry.capabilities };
+      }),
     },
     ...groups.map((group) => ({
       title: group.label,
@@ -112,13 +116,13 @@ export default function ModelChoices({
                   type="button"
                   onClick={() => onPick(choice.name)}
                   aria-current={choice.name === model ? "true" : undefined}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-start transition-colors hover:bg-surface-raised ${
+                  className={`w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start transition-colors hover:bg-surface-raised ${
                     choice.name === model ? "bg-surface-tint" : ""
                   }`}
                 >
-                  <span className="flex-1 min-w-0">
-                    <span className="block truncate text-[13px] font-medium text-text-primary">{choice.label}</span>
-                    {choice.detail && <span className="block truncate text-[11px] text-text-secondary tabular-nums">{choice.detail}</span>}
+                  <span className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                    <span className="truncate text-[13px] font-medium text-text-primary">{choice.label}</span>
+                    {choice.detail && <span className="flex-shrink-0 font-mono text-[11px] text-text-secondary">{choice.detail}</span>}
                   </span>
                   {choice.capabilities && <CapabilityIcons capabilities={choice.capabilities} t={t} size={13} />}
                   {choice.name === model && <Icon name="check" size={14} className="flex-shrink-0 text-text-primary" />}

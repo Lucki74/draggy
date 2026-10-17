@@ -71,7 +71,11 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
             const roles = cannotGenerate(entry.capabilities)
               ? []
               : [
-                  entry.name !== chatModel && { label: t("useForChat"), apply: () => onSelectChatModel(entry.name) },
+                  entry.name !== chatModel && { label: t("useForChat"), apply: () => {
+                    // An empty Code model follows Chat, so pin it before Chat moves.
+                    if (!settings.codeModel) onUpdate({ codeModel: chatModel });
+                    onSelectChatModel(entry.name);
+                  } },
                   entry.name !== codeModel && { label: t("useForCode"), apply: () => onUpdate({ codeModel: entry.name }) },
                 ].filter((role): role is { label: string; apply: () => void } => Boolean(role));
 

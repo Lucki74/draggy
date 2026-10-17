@@ -747,9 +747,9 @@ export function Composer({
                                                         close();
                                                         onOpenSettings(tab);
                                                     }}
-                                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xs text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                                                    className="flex-1 inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-xs text-[11px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
                                                 >
-                                                    <Icon name={tab === "models" ? "cpu" : "plug"} size={13} />
+                                                    <Icon name={tab === "models" ? "cpu" : "plug"} size={12} />
                                                     {t(tab === "models" ? "manageModels" : "providers")}
                                                 </button>
                                             ))}
