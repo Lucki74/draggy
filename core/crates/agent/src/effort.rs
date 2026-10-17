@@ -168,13 +168,14 @@ pub fn effective_effort(input: EffortInput) -> EffectiveEffort {
         reason = reason.or(Some(EffortReason::Slow));
     }
 
-    if let Some(supported) = input.supported {
-        if sent.is_thinking() && !supported.contains(&sent) {
-            let clamped = clamp_effort(sent, supported);
-            if clamped != sent {
-                sent = clamped;
-                reason = reason.or(Some(EffortReason::Unsupported));
-            }
+    if let Some(supported) = input.supported
+        && sent.is_thinking()
+        && !supported.contains(&sent)
+    {
+        let clamped = clamp_effort(sent, supported);
+        if clamped != sent {
+            sent = clamped;
+            reason = reason.or(Some(EffortReason::Unsupported));
         }
     }
 
