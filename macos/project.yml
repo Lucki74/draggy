@@ -47,6 +47,7 @@ targets:
       - path: DraggyTests
     dependencies:
       - target: Draggy
+      - package: DraggyCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.draggy.app.tests
