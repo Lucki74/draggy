@@ -713,6 +713,36 @@ const browserTabs: ToolSpec = {
   },
 };
 
+const traceTool = (name: "browser_console" | "browser_network", kind: "console" | "network", description: string): ToolSpec => ({
+  name,
+  annotations: { readOnly: true, sandboxed: true },
+  group: "browser",
+  description,
+  parameters: {
+    limit: { type: "integer", description: "How many of the latest entries to return. Default 50." },
+    ...(kind === "network" ? { onlyFailed: { type: "boolean", description: "Only requests that failed or answered 400 and above." } } : {}),
+  },
+  required: [],
+  usage: kind === "console" ? "{} → the latest console lines" : '{"onlyFailed": true} → requests that failed',
+  available: webEnabled,
+  run: async (args, ctx) => {
+    const result = await browserAction(ctx, kind, async () =>
+      api()?.browserTrace(kind, { limit: number(args.limit), onlyFailed: args.onlyFailed === true }),
+    );
+    if (!result?.ok) return `TOOL RESULT (${name}): Failed: ${browserFailure(result)}`;
+    if (!result.entries.length) return `TOOL RESULT (${name}): Nothing recorded since the pane opened.`;
+    const lines = result.entries.map((e) =>
+      kind === "console"
+        ? `[${e.level}] ${e.text}`
+        : `${e.method} ${e.url} ${e.failed ? `failed: ${e.failed}` : (e.status ?? "pending")}`,
+    );
+    return `TOOL RESULT (${name}):\n${pageContent(lines.join("\n"))}`;
+  },
+});
+
+const browserConsole = traceTool("browser_console", "console", "Read the latest console messages and errors the current page logged. Use it to debug a web app.");
+const browserNetwork = traceTool("browser_network", "network", "Read the latest network requests the current page made, with their status. Query strings are left out.");
+
 const browserDialog: ToolSpec = {
   name: "browser_dialog",
   annotations: { sandboxed: true, openWorld: true },
@@ -1040,6 +1070,8 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
   browserHistory,
   browserTabs,
   browserDialog,
+  browserConsole,
+  browserNetwork,
   browserGetText,
   browserClose,
   createFile,

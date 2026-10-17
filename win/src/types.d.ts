@@ -1136,6 +1136,10 @@ declare global {
         action: "list" | "new" | "select" | "close",
         options?: { index?: number; url?: string },
       ) => Promise<BrowserResult<{ tabs: { index: number; active: boolean; title: string; url: string }[] }>>;
+      browserTrace: (
+        kind: "console" | "network",
+        options?: { limit?: number; onlyFailed?: boolean },
+      ) => Promise<BrowserResult<{ entries: Record<string, unknown>[] }>>;
       browserDialog: (action: "accept" | "dismiss", text?: string) => Promise<
         BrowserResult<{ answered: string; url: string; downloads?: { name: string; bytes: number }[] }>
       >;

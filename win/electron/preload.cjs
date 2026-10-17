@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   browserHistory: (action) => ipcRenderer.invoke("browser-history", action),
   browserTabs: (action, options) => ipcRenderer.invoke("browser-tabs", action, options),
   browserDialog: (action, text) => ipcRenderer.invoke("browser-dialog", action, text),
+  browserTrace: (kind, options) => ipcRenderer.invoke("browser-trace", kind, options),
   browserGetText: (options) => ipcRenderer.invoke("browser-get-text", options),
   browserClose: () => ipcRenderer.invoke("browser-close"),
 

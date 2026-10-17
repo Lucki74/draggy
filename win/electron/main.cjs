@@ -74,6 +74,7 @@ const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
 const browserInput = require("./browserInput.cjs");
 const browserDialogs = require("./browserDialogs.cjs");
+const browserTrace = require("./browserTrace.cjs");
 const browserSafety = require("./browserSafety.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
@@ -1844,15 +1845,23 @@ async function hideAgentOverlay() {
 /** One dialog tracker per page, fed by the debugger. A dialog freezes its page, so every step asks
  * first. */
 const paneDialogs = new WeakMap();
+const paneTraces = new WeakMap();
 async function dialogsFor(contents) {
   let dialogs = paneDialogs.get(contents);
   if (dialogs) return dialogs;
   const send = debuggerSend(contents);
   dialogs = browserDialogs.createDialogs({ send, onError: (e) => log.swallow("browser", "dialog answer failed", e) });
   paneDialogs.set(contents, dialogs);
+  const trace = browserTrace.createTrace();
+  paneTraces.set(contents, trace);
   try {
     await send("Page.enable", {});
-    contents.debugger.on("message", (_event, method, params) => dialogs.handle(method, params));
+    await send("Runtime.enable", {});
+    await send("Network.enable", {});
+    contents.debugger.on("message", (_event, method, params) => {
+      dialogs.handle(method, params);
+      trace.handle(method, params);
+    });
   } catch (e) {
     log.swallow("browser", "dialog watch failed", e);
   }
@@ -2155,6 +2164,21 @@ async function challengeShown(contents) {
     return false;
   }
 }
+
+ipc.handle("browser-trace", (event, kind, options) => {
+  if (!["console", "network"].includes(kind)) {
+    return browserControl.failure("invalid_input", "The trace kind is console or network.");
+  }
+  const { limit, onlyFailed } = options && typeof options === "object" ? options : {};
+  return inPane("reading", async (contents) => {
+    await dialogsFor(contents);
+    const trace = paneTraces.get(contents);
+    const count = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    return kind === "console"
+      ? { ok: true, entries: trace.console(count) }
+      : { ok: true, entries: trace.network(count, onlyFailed === true) };
+  });
+});
 
 ipc.handle("browser-dialog", (event, action, text) => {
   if (!["accept", "dismiss"].includes(action)) {
