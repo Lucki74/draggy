@@ -983,6 +983,8 @@ export interface AppSettings {
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
   webMode: "auto" | "on" | "off";
+  /** Lets the agent hover, drag, scroll, pick options, wait and click by position in the browser pane. */
+  browserActions?: boolean;
   voiceName: string;
   /** Model that answers in Talk. Empty means automatic, which sizes a small conversational model to
    * the graphics card and downloads it on first use. */

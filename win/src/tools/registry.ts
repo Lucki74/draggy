@@ -24,6 +24,8 @@ export interface ToolParameter {
 
 export interface ToolEnvironment {
   webMode: AppSettings["webMode"];
+  /** Whether the agent may use the pane beyond reading and plain clicks: coordinates, hover, drag, scroll and the rest. */
+  browserActions?: boolean;
   codeExecution: boolean;
   libraryReady: boolean;
   /** Whether this conversation has a folder of the user's to work in. */

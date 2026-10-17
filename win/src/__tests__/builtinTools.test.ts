@@ -289,3 +289,104 @@ describe("browser snapshot and screenshot tools", () => {
     expect(browserGetText).toHaveBeenCalledWith({ ref: "e7", selector: "main" });
   });
 });
+
+describe("browser input tools", () => {
+  const ACTIONS_ON: ToolEnvironment = { ...ALL_ON, browserActions: true };
+  const stub = (methods: Record<string, unknown>) => vi.stubGlobal("window", { electronAPI: methods });
+  const allowed = () => {
+    const { context } = harness();
+    return { ...context, settings: { browserActions: true } as never };
+  };
+
+  it("keeps the new actions out until the setting is on", () => {
+    const names = (env: ToolEnvironment) => availableTools(env).map((t) => t.name);
+    for (const name of ["browser_hover", "browser_drag", "browser_scroll", "browser_select_option", "browser_wait", "browser_history"]) {
+      expect(names(ALL_ON)).not.toContain(name);
+      expect(names(ACTIONS_ON)).toContain(name);
+    }
+  });
+
+  it("refuses coordinates, buttons and counts while the setting is off", async () => {
+    const browserClick = vi.fn();
+    stub({ browserClick });
+    const { context } = harness();
+    const result = await runTool("browser_click", { x: 10, y: 20 }, context, ALL_ON);
+    expect(browserClick).not.toHaveBeenCalled();
+    expect(result).toMatch(/off|setting/i);
+  });
+
+  it("clicks by coordinates with a button, count and modifiers", async () => {
+    const browserClick = vi.fn().mockResolvedValue({ ok: true, title: "T", url: "u", changed: "Nothing visibly changed on the page." });
+    stub({ browserClick });
+    const result = await runTool("browser_click", { x: 10, y: 20, button: "right", count: 2, modifiers: ["shift"] }, allowed(), ACTIONS_ON);
+    expect(browserClick).toHaveBeenCalledWith(null, { x: 10, y: 20, button: "right", count: 2, modifiers: ["shift"] });
+    expect(result).toContain("Nothing visibly changed");
+  });
+
+  it("types into a ref and reports what the field holds", async () => {
+    const browserType = vi.fn().mockResolvedValue({ ok: true, title: "t", url: "u", value: "hello", landed: true });
+    stub({ browserType });
+    const { context } = harness();
+    const result = await runTool("browser_type", { ref: "e4", text: "hello", clear: true, submit: true }, context, ALL_ON);
+    expect(browserType).toHaveBeenCalledWith("e4", "hello", { clear: true, submit: true, slowly: false });
+    expect(result).toContain('"hello"');
+  });
+
+  it("says when the typed text did not land", async () => {
+    const browserType = vi.fn().mockResolvedValue({ ok: true, title: "t", url: "u", value: "", landed: false });
+    stub({ browserType });
+    const { context } = harness();
+    expect(await runTool("browser_type", { ref: "e4", text: "hello" }, context, ALL_ON)).toMatch(/did not|not land/i);
+  });
+
+  it("still types by index", async () => {
+    const browserType = vi.fn().mockResolvedValue({ ok: true });
+    stub({ browserType });
+    const { context } = harness();
+    await runTool("browser_type", { index: 2, text: "x" }, context, ALL_ON);
+    expect(browserType).toHaveBeenCalledWith(2, "x", { clear: false, submit: false, slowly: false });
+  });
+
+  it("presses a chord with a repeat", async () => {
+    const browserPressKey = vi.fn().mockResolvedValue({ ok: true, changed: "Nothing visibly changed on the page." });
+    stub({ browserPressKey });
+    const { context } = harness();
+    await runTool("browser_press_key", { key: "Control+A", repeat: 2 }, context, ALL_ON);
+    expect(browserPressKey).toHaveBeenCalledWith("Control+A", { repeat: 2 });
+  });
+
+  it("forwards hover, scroll, select, wait and history", async () => {
+    const ok = { ok: true, title: "t", url: "u" };
+    const api = {
+      browserHover: vi.fn().mockResolvedValue(ok),
+      browserDrag: vi.fn().mockResolvedValue(ok),
+      browserScroll: vi.fn().mockResolvedValue({ ok: true, scroll: { y: 400, max: 2000 } }),
+      browserSelectOption: vi.fn().mockResolvedValue({ ok: true, chosen: "Large", value: "l" }),
+      browserWait: vi.fn().mockResolvedValue({ ok: true, waited: 250 }),
+      browserHistory: vi.fn().mockResolvedValue(ok),
+    };
+    stub(api);
+    const ctx = allowed();
+    await runTool("browser_hover", { ref: "e3" }, ctx, ACTIONS_ON);
+    await runTool("browser_drag", { from: "e1", to: "e2" }, ctx, ACTIONS_ON);
+    const scrolled = await runTool("browser_scroll", { dy: 400 }, ctx, ACTIONS_ON);
+    const chosen = await runTool("browser_select_option", { ref: "e5", label: "Large" }, ctx, ACTIONS_ON);
+    await runTool("browser_wait", { text: "Done", timeout_ms: 3000 }, ctx, ACTIONS_ON);
+    await runTool("browser_history", { action: "back" }, ctx, ACTIONS_ON);
+    expect(api.browserHover).toHaveBeenCalledWith("e3");
+    expect(api.browserDrag).toHaveBeenCalledWith("e1", "e2");
+    expect(api.browserScroll).toHaveBeenCalledWith({ ref: undefined, dx: undefined, dy: 400, to: undefined });
+    expect(api.browserSelectOption).toHaveBeenCalledWith("e5", { label: "Large", value: undefined });
+    expect(api.browserWait).toHaveBeenCalledWith({ text: "Done", url: undefined, ms: undefined, timeoutMs: 3000 });
+    expect(api.browserHistory).toHaveBeenCalledWith("back");
+    expect(scrolled).toContain("2000");
+    expect(chosen).toContain("Large");
+  });
+
+  it("drags between points as well as refs", async () => {
+    const browserDrag = vi.fn().mockResolvedValue({ ok: true, title: "t", url: "u" });
+    stub({ browserDrag });
+    await runTool("browser_drag", { from_x: 1, from_y: 2, to_x: 3, to_y: 4 }, allowed(), ACTIONS_ON);
+    expect(browserDrag).toHaveBeenCalledWith({ x: 1, y: 2 }, { x: 3, y: 4 });
+  });
+});

@@ -70,6 +70,9 @@ export function ChatPreferencesPage({
             onChange={(webMode) => onUpdate({ webMode })}
           />
         </Row>
+        <Row label={t("browserActions")} description={t("browserActionsHint")}>
+          <Toggle label={t("browserActions")} checked={settings.browserActions === true} onChange={(browserActions) => onUpdate({ browserActions })} />
+        </Row>
       </Group>
 
       <Group title={t("customInstructions")}>

@@ -376,44 +376,89 @@ const browserScreenshot: ToolSpec = {
   },
 };
 
+/** Hover, drag, scroll and coordinate clicks drive the page more freely than a ref click does, so
+ * they wait for the user's say-so. */
+const actionsOn = (environment: { webMode: string; browserActions?: boolean }) =>
+  webEnabled(environment) && environment.browserActions === true;
+
+const ACTIONS_OFF =
+  "Failed: The extra browser actions are switched off. Use refs from browser_snapshot with browser_click, browser_type and browser_press_key, or ask the user to turn on Browser actions in Settings.";
+
+/** What the model hears after an action: where the page is now and what changed. */
+const pageAfter = (result: { title?: string; url?: string; changed?: string }) =>
+  [result.title !== undefined ? `Page: "${result.title}" at ${result.url}.` : "", result.changed ?? ""].filter(Boolean).join(" ");
+
+/** One browser action as a step in the transcript: running, then done or failed. */
+async function browserAction<T extends { ok: boolean }>(
+  ctx: ToolContext,
+  label: string,
+  call: () => Promise<T | undefined>,
+): Promise<T | undefined> {
+  const stepId = ctx.newId();
+  ctx.pushStep({ id: stepId, type: "clicking", content: `${ctx.t("browserActionRunning")} **${label}**`, isComplete: false });
+  const result = await call();
+  ctx.patchStep(stepId, result?.ok ? { isComplete: true, content: `${ctx.t("browserActionDone")} **${label}**` } : { isComplete: true, type: "error" });
+  ctx.syncSteps();
+  return result;
+}
+
+const text = (value: unknown) => (typeof value === "string" && value ? value : undefined);
+const number = (value: unknown) => (Number.isFinite(Number(value)) && value !== "" && value !== null && value !== undefined ? Number(value) : undefined);
+
+/** A ref, or a point in the last screenshot, from the parameters starting with `prefix`. */
+function pointArg(args: Record<string, unknown>, ref: string, x: string, y: string): string | { x: number; y: number } | undefined {
+  const named = text(args[ref]);
+  if (named) return named;
+  const px = number(args[x]);
+  const py = number(args[y]);
+  return px !== undefined && py !== undefined ? { x: px, y: py } : undefined;
+}
+
 const browserClick: ToolSpec = {
   name: "browser_click",
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
-  description: "Click an element on the current browser page by its ref from browser_snapshot or its index from browser_get_elements.",
+  description:
+    "Click an element on the current browser page by its ref from browser_snapshot or its index from browser_get_elements. With browser actions on, you can also click a point in the last screenshot (x and y), use the right or middle button, double or triple click, and hold modifier keys.",
   parameters: {
     ref: { type: "string", description: "Ref from browser_snapshot, such as e7." },
     index: { type: "integer", description: "Index from browser_get_elements." },
+    x: { type: "number", description: "Horizontal pixel in the last viewport browser_screenshot. Needs y." },
+    y: { type: "number", description: "Vertical pixel in the last viewport browser_screenshot. Needs x." },
+    button: { type: "string", description: "left (default), right or middle." },
+    count: { type: "integer", description: "1 (default), 2 for a double click, 3 for a triple click." },
+    modifiers: { type: "string", description: "Keys held during the click, comma separated: shift, control, alt, meta." },
   },
   required: [],
   usage:
-    '{"ref": "e7"} → clicks that ref, or {"index": 0} → clicks the element at that index',
+    '{"ref": "e7"} → clicks that ref, {"index": 0} → clicks the element at that index, or {"x": 320, "y": 140} → clicks that point of the last screenshot',
   available: webEnabled,
   run: async (args, ctx) => {
-    const ref = typeof args.ref === "string" && args.ref ? args.ref : null;
-    const target = ref ?? Number(args.index);
-    const label = ref ?? `#${target}`;
+    const ref = text(args.ref) ?? null;
+    const x = number(args.x);
+    const y = number(args.y);
+    const modifiers = Array.isArray(args.modifiers)
+      ? args.modifiers.map(String)
+      : text(args.modifiers)?.split(",").map((m) => m.trim()).filter(Boolean);
+    const extra = x !== undefined || y !== undefined || text(args.button) || number(args.count) !== undefined || modifiers?.length;
+    if (extra && ctx.settings?.browserActions !== true) return `TOOL RESULT (browser_click): ${ACTIONS_OFF}`;
+
+    const byPoint = x !== undefined && y !== undefined;
+    const target = byPoint ? null : (ref ?? Number(args.index));
+    const label = byPoint ? `(${x}, ${y})` : ref ?? `#${target}`;
+    const options = extra ? { x, y, button: text(args.button), count: number(args.count), modifiers } : undefined;
+
     const stepId = ctx.newId();
+    ctx.pushStep({ id: stepId, type: "clicking", content: `${ctx.t("clickingElement")} **${label}**`, isComplete: false });
 
-    ctx.pushStep({
-      id: stepId,
-      type: "clicking",
-      content: `${ctx.t("clickingElement")} **${label}**`,
-      isComplete: false,
-    });
-
-    const result = await api()?.browserClick(target);
+    const result = await (options ? api()?.browserClick(target, options) : api()?.browserClick(target as number | string));
     ctx.patchStep(stepId, {
       isComplete: true,
       content: `${ctx.t("clickedElement")} ${label}${result?.ok && result.title ? ` → **${result.title}**` : ""}`,
     });
     ctx.syncSteps();
 
-    return `TOOL RESULT (browser_click): ${
-      result?.ok
-        ? `Clicked. Page: "${result.title}" at ${result.url}`
-        : `Failed: ${browserFailure(result)}`
-    }`;
+    return `TOOL RESULT (browser_click): ${result?.ok ? `Clicked. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
   },
 };
 
@@ -421,40 +466,48 @@ const browserType: ToolSpec = {
   name: "browser_type",
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
-  description: "Type text into an input on the current browser page by its index.",
+  description:
+    "Type text into a field on the current browser page, by its ref from browser_snapshot or its index from browser_get_elements. The reply says what the field holds afterwards.",
   parameters: {
+    ref: { type: "string", description: "Ref from browser_snapshot, such as e4." },
     index: { type: "integer", description: "Index from browser_get_elements." },
     text: { type: "string", description: "Text to type." },
+    clear: { type: "boolean", description: "Replace what is in the field instead of adding to it." },
+    submit: { type: "boolean", description: "Press Enter after typing." },
+    slowly: { type: "boolean", description: "Type one character at a time, for fields that react to each key." },
   },
-  required: ["index", "text"],
+  required: ["text"],
   usage:
-    '{"index": 0, "text": "hello"} → types into that input',
+    '{"ref": "e4", "text": "hello", "clear": true, "submit": true} → replaces the field with hello and presses Enter',
   available: webEnabled,
   run: async (args, ctx) => {
-    const index = Number(args.index);
-    const text = String(args.text);
-    const snippet = `${text.substring(0, 30)}${text.length > 30 ? "…" : ""}`;
+    const ref = text(args.ref);
+    const target = ref ?? Number(args.index);
+    const typed = String(args.text ?? "");
+    const snippet = `${typed.substring(0, 30)}${typed.length > 30 ? "…" : ""}`;
+    const label = ref ?? `#${target}`;
     const stepId = ctx.newId();
 
-    ctx.pushStep({
-      id: stepId,
-      type: "typing",
-      content: `${ctx.t("typingInto")} **#${index}**: "${snippet}"`,
-      isComplete: false,
-    });
+    ctx.pushStep({ id: stepId, type: "typing", content: `${ctx.t("typingInto")} **${label}**: "${snippet}"`, isComplete: false });
 
-    const result = await api()?.browserType(index, text);
+    const result = await api()?.browserType(target, typed, {
+      clear: args.clear === true,
+      submit: args.submit === true,
+      slowly: args.slowly === true,
+    });
     ctx.patchStep(
       stepId,
       result?.ok
-        ? { isComplete: true, content: `${ctx.t("typedInto")} **#${index}**: "${snippet}"` }
+        ? { isComplete: true, content: `${ctx.t("typedInto")} **${label}**: "${snippet}"` }
         : { isComplete: true, type: "error" },
     );
     ctx.syncSteps();
 
-    return `TOOL RESULT (browser_type): ${
-      result?.ok ? "Text entered." : `Failed: ${browserFailure(result)}`
-    }`;
+    if (!result?.ok) return `TOOL RESULT (browser_type): Failed: ${browserFailure(result)}`;
+    if (result.landed === false) {
+      return `TOOL RESULT (browser_type): The text did not land. The field holds "${result.value ?? ""}". Click the field and try again, or check it is the right one.`;
+    }
+    return `TOOL RESULT (browser_type): Text entered.${result.value !== undefined ? ` The field now holds "${result.value}".` : ""}`;
   },
 };
 
@@ -462,18 +515,155 @@ const browserPressKey: ToolSpec = {
   name: "browser_press_key",
   annotations: { sandboxed: true, openWorld: true },
   group: "browser",
-  description: "Press a key in the browser session, such as Enter, Tab or Escape.",
-  parameters: { key: { type: "string", description: "Key name to press." } },
+  description:
+    "Press a key in the browser session: Enter, Tab, Escape, Backspace, an arrow, Home, End, PageUp, PageDown, F1 to F12, a character, or a chord such as Control+A or Shift+Tab.",
+  parameters: {
+    key: { type: "string", description: "Key or chord to press." },
+    repeat: { type: "integer", description: "How many times, at most 20." },
+  },
   required: ["key"],
-  usage:
-    '{"key": "Enter"} → presses a key',
+  usage: '{"key": "Enter"} → presses a key, or {"key": "ArrowDown", "repeat": 3} → presses it three times',
   available: webEnabled,
-  run: async (args) => {
+  run: async (args, ctx) => {
     const key = String(args.key);
-    const result = await api()?.browserPressKey(key);
-    return `TOOL RESULT (browser_press_key): ${
-      result?.ok ? `Pressed "${key}".` : `Failed: ${browserFailure(result)}`
+    const repeat = number(args.repeat);
+    const result = await browserAction(ctx, key, async () =>
+      repeat !== undefined && repeat > 1 ? api()?.browserPressKey(key, { repeat }) : api()?.browserPressKey(key),
+    );
+    return `TOOL RESULT (browser_press_key): ${result?.ok ? `Pressed "${key}". ${result.changed ?? ""}`.trim() : `Failed: ${browserFailure(result)}`}`;
+  },
+};
+
+const browserHover: ToolSpec = {
+  name: "browser_hover",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description: "Move the pointer over an element or a point, to open a menu or tooltip that appears on hover.",
+  parameters: {
+    ref: { type: "string", description: "Ref from browser_snapshot." },
+    x: { type: "number", description: "Horizontal pixel in the last viewport browser_screenshot. Needs y." },
+    y: { type: "number", description: "Vertical pixel in the last viewport browser_screenshot. Needs x." },
+  },
+  required: [],
+  usage: '{"ref": "e3"} → hovers that ref',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const target = pointArg(args, "ref", "x", "y");
+    if (!target) return "TOOL RESULT (browser_hover): Failed: Give a ref, or x and y.";
+    const result = await browserAction(ctx, typeof target === "string" ? target : `(${target.x}, ${target.y})`, async () => api()?.browserHover(target));
+    return `TOOL RESULT (browser_hover): ${result?.ok ? `Hovered. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
+  },
+};
+
+const browserDrag: ToolSpec = {
+  name: "browser_drag",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description: "Drag from one element or point to another, for sliders, sortable lists and drop zones.",
+  parameters: {
+    from: { type: "string", description: "Ref to press on." },
+    from_x: { type: "number", description: "Horizontal start pixel in the last screenshot. Needs from_y." },
+    from_y: { type: "number", description: "Vertical start pixel in the last screenshot. Needs from_x." },
+    to: { type: "string", description: "Ref to release on." },
+    to_x: { type: "number", description: "Horizontal end pixel in the last screenshot. Needs to_y." },
+    to_y: { type: "number", description: "Vertical end pixel in the last screenshot. Needs to_x." },
+  },
+  required: [],
+  usage: '{"from": "e2", "to": "e8"} → drags e2 onto e8',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const from = pointArg(args, "from", "from_x", "from_y");
+    const to = pointArg(args, "to", "to_x", "to_y");
+    if (!from || !to) return "TOOL RESULT (browser_drag): Failed: Give a start and an end, each a ref or an x and y pair.";
+    const result = await browserAction(ctx, "drag", async () => api()?.browserDrag(from, to));
+    return `TOOL RESULT (browser_drag): ${result?.ok ? `Dragged. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
+  },
+};
+
+const browserScroll: ToolSpec = {
+  name: "browser_scroll",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description:
+    "Scroll the page. dy is pixels down (negative goes up), dx is pixels right, to jumps to the top or bottom, and ref brings an element into view. The reply gives the position and the furthest it can go.",
+  parameters: {
+    dy: { type: "number", description: "Pixels to scroll down. Negative scrolls up." },
+    dx: { type: "number", description: "Pixels to scroll right. Negative scrolls left." },
+    to: { type: "string", description: "top or bottom." },
+    ref: { type: "string", description: "Ref from browser_snapshot to bring into view." },
+  },
+  required: [],
+  usage: '{"dy": 600} → one screen down, or {"to": "bottom"} → the end of the page',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const result = await browserAction(ctx, "scroll", async () =>
+      api()?.browserScroll({ ref: text(args.ref), dx: number(args.dx), dy: number(args.dy), to: text(args.to) as "top" | "bottom" | undefined }),
+    );
+    return `TOOL RESULT (browser_scroll): ${
+      result?.ok ? `Scrolled to ${result.scroll.y} of ${result.scroll.max} pixels.` : `Failed: ${browserFailure(result)}`
     }`;
+  },
+};
+
+const browserSelectOption: ToolSpec = {
+  name: "browser_select_option",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description: "Choose an option in a dropdown by its visible label or its value.",
+  parameters: {
+    ref: { type: "string", description: "Ref of the dropdown from browser_snapshot." },
+    label: { type: "string", description: "The option's visible text." },
+    value: { type: "string", description: "The option's value, if the label is not known." },
+  },
+  required: ["ref"],
+  usage: '{"ref": "e5", "label": "Large"} → chooses Large',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const ref = text(args.ref);
+    if (!ref) return "TOOL RESULT (browser_select_option): Failed: Give the ref of the dropdown.";
+    const result = await browserAction(ctx, ref, async () => api()?.browserSelectOption(ref, { label: text(args.label), value: text(args.value) }));
+    return `TOOL RESULT (browser_select_option): ${
+      result?.ok ? `Chose "${result.chosen}". ${result.changed ?? ""}`.trim() : `Failed: ${browserFailure(result)}`
+    }`;
+  },
+};
+
+const browserWait: ToolSpec = {
+  name: "browser_wait",
+  annotations: { readOnly: true, sandboxed: true },
+  group: "browser",
+  description:
+    "Wait for text to appear on the page, for the address to contain something, or for a short pause. Gives up after the timeout, at most 15 seconds.",
+  parameters: {
+    text: { type: "string", description: "Text that should appear on the page." },
+    url: { type: "string", description: "Part of the address the page should reach." },
+    ms: { type: "integer", description: "A plain pause in milliseconds, at most 10000." },
+    timeout_ms: { type: "integer", description: "How long to wait for text or url. Default 10000." },
+  },
+  required: [],
+  usage: '{"text": "Order confirmed"} → waits until that text shows',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const result = await browserAction(ctx, text(args.text) ?? text(args.url) ?? "pause", async () =>
+      api()?.browserWait({ text: text(args.text), url: text(args.url), ms: number(args.ms), timeoutMs: number(args.timeout_ms) }),
+    );
+    return `TOOL RESULT (browser_wait): ${result?.ok ? "Done waiting." : `Failed: ${browserFailure(result)}`}`;
+  },
+};
+
+const browserHistory: ToolSpec = {
+  name: "browser_history",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description: "Go back or forward one page in the browser's history, or reload the current page.",
+  parameters: { action: { type: "string", description: "back, forward or reload." } },
+  required: ["action"],
+  usage: '{"action": "back"} → the previous page',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const action = String(args.action) as "back" | "forward" | "reload";
+    const result = await browserAction(ctx, action, async () => api()?.browserHistory(action));
+    return `TOOL RESULT (browser_history): ${result?.ok ? `Done. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
   },
 };
 
@@ -774,6 +964,12 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
   browserClick,
   browserType,
   browserPressKey,
+  browserHover,
+  browserDrag,
+  browserScroll,
+  browserSelectOption,
+  browserWait,
+  browserHistory,
   browserGetText,
   browserClose,
   createFile,
