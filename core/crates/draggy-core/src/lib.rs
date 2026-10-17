@@ -6,6 +6,7 @@
 //! - cancelling goes through `CancelToken`, which stops the turn and the tools it is running.
 
 pub mod cancel;
+pub mod engine;
 pub mod error;
 pub mod model;
 pub mod net;
@@ -15,6 +16,7 @@ pub mod session;
 pub mod tools;
 
 pub use cancel::CancelToken;
+pub use engine::{EngineHost, EngineInfo, EngineState, LocalEngine};
 pub use error::CoreError;
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
