@@ -128,7 +128,7 @@ describe("Code's preferences", () => {
     const thinking = screen.getByRole("radiogroup", { name: "Thinking" });
     await act(async () => within(thinking).getByRole("radio", { name: "High" }).click());
 
-    expect(onUpdate).toHaveBeenCalledWith({ codeEffort: "high" });
+    expect(onUpdate).toHaveBeenCalledWith({ codeDefaultEffort: "high", codeEffort: "high" });
   });
 });
 

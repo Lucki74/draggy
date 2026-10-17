@@ -49,9 +49,9 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
-            value={settings.codeEffort}
+            value={settings.codeDefaultEffort}
             options={effortOptions(t)}
-            onChange={(codeEffort) => onUpdate({ codeEffort })}
+            onChange={(codeDefaultEffort) => onUpdate({ codeDefaultEffort, codeEffort: codeDefaultEffort })}
           />
         </Row>
         <Row label={t("webAccess")}>

@@ -28,7 +28,7 @@ export function useProviderGroups(): ModelGroup[] {
 export function withProviderModels(engine: SelectOption[], groups: ModelGroup[], engineLabel: string): SelectOption[] {
   if (groups.length === 0) return engine;
   return [
-    ...engine.map((option) => ({ ...option, group: engineLabel })),
-    ...groups.flatMap((group) => group.models.map((model) => ({ id: model.ref, label: model.name || model.id, group: group.label }))),
+    ...engine.map((option) => ({ ...option, group: engineLabel, groupType: "draggy" })),
+    ...groups.flatMap((group) => group.models.map((model) => ({ id: model.ref, label: model.name || model.id, group: group.label, groupType: group.type }))),
   ];
 }

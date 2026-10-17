@@ -110,10 +110,6 @@ Match the surrounding file style. Specific constraints:
 - Avoid new dependencies unless strictly necessary.
 - Keep core logic isolated from hardware APIs to enable headless Node testing.
 
-## Commit messages
-
-One line only: a concise subject line without body paragraphs or trailers.
-
 ## Verification
 
 Evidence is required before concluding work:

@@ -23,14 +23,36 @@ type Shown = "all" | "on" | "off";
 
 /** The service's own icon, fetched and cached by the main process and served over `draggy://`,
  * since the renderer may not load remote images. */
+/** Services whose icon is a single dark mark: painted with the text colour so it shows on a dark theme too. */
+const MONO_HOSTS = new Set(["github.com"]);
+
 function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
   const [failed, setFailed] = useState(false);
   const hostname = entry.site ? hostnameOf(entry.site) : "";
 
   if (hostname && !failed) {
+    const src = `draggy://favicon/${encodeURIComponent(hostname)}`;
+    if (MONO_HOSTS.has(hostname.replace(/^www\./, ""))) {
+      return (
+        <span
+          aria-hidden="true"
+          className="inline-block h-7 w-7 flex-shrink-0 select-none bg-text-primary"
+          style={{
+            maskImage: `url("${src}")`,
+            maskSize: "contain",
+            maskRepeat: "no-repeat",
+            maskPosition: "center",
+            WebkitMaskImage: `url("${src}")`,
+            WebkitMaskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+          }}
+        />
+      );
+    }
     return (
       <img
-        src={`draggy://favicon/${encodeURIComponent(hostname)}`}
+        src={src}
         alt=""
         aria-hidden="true"
         loading="lazy"

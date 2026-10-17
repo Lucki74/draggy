@@ -134,9 +134,9 @@ export default function Preferences({
             <Row label={t("thinking")}>
               <Segmented
                 label={t("thinking")}
-                value={settings.effort}
+                value={settings.defaultEffort}
                 options={effortOptions(t, allowedEfforts("chat", settings.allowMaxInChat))}
-                onChange={(effort) => onUpdateSettings({ effort })}
+                onChange={(defaultEffort) => onUpdateSettings({ defaultEffort, effort: defaultEffort })}
               />
             </Row>
           </Group>

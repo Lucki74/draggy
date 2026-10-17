@@ -43,6 +43,8 @@ const SETTINGS = {
   modelName: MODEL,
   customInstructions: [],
   effort: "medium",
+  defaultEffort: "medium",
+  codeDefaultEffort: "medium",
   allowMaxInChat: false,
   slowModelThinking: false,
   colibriLossy: false,

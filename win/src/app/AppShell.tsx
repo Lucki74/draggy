@@ -462,7 +462,11 @@ export default function AppShell({
   const handleNewChat = useCallback(() => {
     setSelectedChatId(generateId());
     setViewMode("chat");
-  }, []);
+    // A new chat starts at the default level, whatever the last one was moved to.
+    if (settings.effort !== settings.defaultEffort || settings.codeEffort !== settings.codeDefaultEffort) {
+      updateSettings({ effort: settings.defaultEffort, codeEffort: settings.codeDefaultEffort });
+    }
+  }, [settings.effort, settings.defaultEffort, settings.codeEffort, settings.codeDefaultEffort, updateSettings]);
 
   // Global hotkeys for palette, shortcuts, sidebar, new session and settings.
   useEffect(() => {

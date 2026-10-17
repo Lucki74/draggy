@@ -971,7 +971,10 @@ export interface AppSettings {
   language: Language;
   modelName: string;
   customInstructions: string[];
+  /** The level the composer is on now. A new chat starts from `defaultEffort`. */
   effort: EffortLevel;
+  /** The level new chats start at. */
+  defaultEffort: EffortLevel;
   /** Lets Chat use Max, the slowest level. Code always may. */
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
@@ -1001,6 +1004,8 @@ export interface AppSettings {
   /** Instructions for every project, kept apart from the chat ones. */
   codeInstructions: string[];
   codeEffort: EffortLevel;
+  /** The level new code sessions start at. */
+  codeDefaultEffort: EffortLevel;
   codeWebMode: "auto" | "on" | "off";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;

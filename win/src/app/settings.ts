@@ -21,6 +21,7 @@ export const defaultSettings: AppSettings = {
   modelName: "",
   customInstructions: [],
   effort: EFFORT_DEFAULT,
+  defaultEffort: EFFORT_DEFAULT,
   allowMaxInChat: true,
   slowModelThinking: false,
   colibriLossy: false,
@@ -40,6 +41,7 @@ export const defaultSettings: AppSettings = {
   codeModel: "",
   codeInstructions: [],
   codeEffort: EFFORT_DEFAULT,
+  codeDefaultEffort: EFFORT_DEFAULT,
   codeWebMode: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
@@ -116,7 +118,7 @@ export function loadSettings(): AppSettings {
     delete legacy[oldKey];
     migrated = true;
   }
-  for (const key of ["effort", "codeEffort"] as const) {
+  for (const key of ["effort", "codeEffort", "defaultEffort", "codeDefaultEffort"] as const) {
     if (key in legacy && !isEffortLevel(legacy[key])) {
       legacy[key] = EFFORT_DEFAULT;
       migrated = true;

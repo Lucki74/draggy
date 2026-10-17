@@ -58,9 +58,9 @@ export function ChatPreferencesPage({
         <Row label={t("thinking")}>
           <Segmented
             label={t("thinking")}
-            value={settings.effort}
+            value={settings.defaultEffort}
             options={effortOptions(t, allowedEfforts("chat", settings.allowMaxInChat))}
-            onChange={(effort) => onUpdate({ effort })}
+            onChange={(defaultEffort) => onUpdate({ defaultEffort, effort: defaultEffort })}
           />
         </Row>
         <Row label={t("webAccess")}>
