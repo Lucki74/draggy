@@ -11,7 +11,7 @@ import DownloadsMenu from "./DownloadsMenu";
 import { ImageModelRow } from "./ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
 import { cannotGenerate, isEmbeddingModel, isImageModel } from "../modelKinds";
-import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, type InstalledModel } from "../llama";
+import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, quantizationOf, type InstalledModel } from "../llama";
 import { isActivePull, type ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
 import { swallowed } from "../logger";
@@ -221,7 +221,7 @@ function InstalledRow({
             />
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-text-secondary">
-            <span className="tabular-nums">{formatBytes(entry.size)}</span>
+            <span className="tabular-nums">{[formatBytes(entry.size), quantizationOf(entry.name)].filter(Boolean).join(" · ")}</span>
             {cannotGenerate(entry.capabilities) && <Badge title={t("embeddingOnlyHint")}>{t("embeddingOnly")}</Badge>}
             {usedBy.map((label) => (
               <Badge key={label} strong>
