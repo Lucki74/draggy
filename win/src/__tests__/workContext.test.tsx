@@ -25,6 +25,28 @@ describe("the project under the composer", () => {
     expect(onShow).toHaveBeenCalledTimes(2);
   });
 
+  it("switches project or starts a new one from the folder chip", () => {
+    const onSelectProject = vi.fn();
+    const onNewProject = vi.fn();
+    const projects = [
+      { id: "a", name: "draggy" },
+      { id: "b", name: "notes" },
+    ];
+    render(
+      <ComposerPreview
+        workContext={{ folder: "draggy", branch: null, onShow: vi.fn(), projects, activeProjectId: "a", onSelectProject, onNewProject }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "draggy" }));
+    fireEvent.click(screen.getByRole("button", { name: "notes" }));
+    expect(onSelectProject).toHaveBeenCalledWith("b");
+
+    fireEvent.click(screen.getByRole("button", { name: "draggy" }));
+    fireEvent.click(screen.getByRole("button", { name: /new project/i }));
+    expect(onNewProject).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves the branch out of a folder that is not a repository", () => {
     render(<ComposerPreview workContext={{ folder: "notes", branch: null, onShow: vi.fn() }} />);
 

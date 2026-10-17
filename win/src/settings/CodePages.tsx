@@ -31,9 +31,8 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         <Row label={t("model")}>
           <Select
             label={t("model")}
-            value={settings.codeModel}
+            value={settings.codeModel || chatModel}
             options={[
-              { id: "", label: t("sameAsChat"), hint: chatModel },
               ...withProviderModels(
                 selectableModels(manager.installed).map((entry) => ({
                   id: entry.name,

@@ -112,6 +112,11 @@ export interface WorkContext {
     branch?: string | null;
     /** Brings the project's files into view. */
     onShow: () => void;
+    /** Every project, for the switcher on the folder chip. Without it the chip just shows the files. */
+    projects?: { id: string; name: string }[];
+    activeProjectId?: string;
+    onSelectProject?: (id: string) => void;
+    onNewProject?: () => void;
     /** Project files whose name contains the text, as paths relative to the folder. */
     searchFiles?: (name: string) => Promise<string[]>;
 }
@@ -800,14 +805,80 @@ export function Composer({
 
                 {workContext && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1">
-                        <Chip
-                            size="dense"
-                            label={workContext.folder}
-                            title={workContext.folder}
-                            icon={<Icon name="folder-simple" size={14} />}
-                            onClick={workContext.onShow}
-                            className="max-w-[16rem]"
-                        />
+                        {workContext.onSelectProject && workContext.projects ? (
+                            <Popover
+                                label={t("projects")}
+                                side="top"
+                                align="start"
+                                className="w-60 p-1.5 flex flex-col gap-0.5"
+                                trigger={(props) => (
+                                    <Chip
+                                        {...props}
+                                        size="dense"
+                                        dropdown
+                                        label={workContext.folder}
+                                        title={workContext.folder}
+                                        icon={<Icon name="folder-simple" size={14} />}
+                                        className="max-w-[16rem]"
+                                    />
+                                )}
+                            >
+                                {(close) => (
+                                    <>
+                                        <div className="max-h-56 overflow-y-auto flex flex-col gap-0.5">
+                                            {workContext.projects!.map((project) => {
+                                                const current = project.id === workContext.activeProjectId;
+                                                return (
+                                                    <button
+                                                        key={project.id}
+                                                        type="button"
+                                                        aria-current={current || undefined}
+                                                        onClick={() => {
+                                                            close();
+                                                            if (!current) workContext.onSelectProject!(project.id);
+                                                        }}
+                                                        className={`w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start text-[13px] transition-colors hover:bg-surface-raised ${current ? "bg-surface-tint font-medium" : ""}`}
+                                                    >
+                                                        <Icon name="folder-simple" size={14} />
+                                                        <span className="flex-1 min-w-0 truncate">{project.name}</span>
+                                                        {current && <Icon name="check" size={14} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="border-t border-rule -mx-1.5 my-0.5" />
+                                        {[
+                                            { id: "new", icon: "plus", label: t("newProject"), run: workContext.onNewProject },
+                                            { id: "files", icon: "folder-open", label: t("showProjectFiles"), run: workContext.onShow },
+                                        ]
+                                            .filter((item) => item.run)
+                                            .map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        close();
+                                                        item.run!();
+                                                    }}
+                                                    className="w-full flex items-center gap-2 px-2 py-1 rounded-xs text-start text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                                                >
+                                                    <Icon name={item.icon as never} size={13} />
+                                                    {item.label}
+                                                </button>
+                                            ))}
+                                    </>
+                                )}
+                            </Popover>
+                        ) : (
+                            <Chip
+                                size="dense"
+                                label={workContext.folder}
+                                title={workContext.folder}
+                                icon={<Icon name="folder-simple" size={14} />}
+                                onClick={workContext.onShow}
+                                className="max-w-[16rem]"
+                            />
+                        )}
                         {workContext.branch && (
                             <Chip
                                 size="dense"

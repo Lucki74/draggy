@@ -245,6 +245,13 @@ export function MainColumn({
                                                   : gitStatus.branch
                                               : null,
                                           onShow: () => onSetTreeOpen(true),
+                                          projects: projects.map((project) => ({
+                                              id: project.id,
+                                              name: project.name || (project.rootPath ? folderName(project.rootPath) : ""),
+                                          })),
+                                          activeProjectId: active.id,
+                                          onSelectProject: onSelectWorkspace,
+                                          onNewProject,
                                           searchFiles,
                                       }
                                     : undefined
