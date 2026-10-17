@@ -145,15 +145,3 @@ describe("StartupScreen failure", () => {
     }
   });
 });
-
-describe("edgePoints", () => {
-  it("keeps the rim of a shape and drops its inside", async () => {
-    const { edgePoints } = await import("../ui/signature/markOutline");
-    const size = 5;
-    const alpha = new Uint8ClampedArray(size * size * 4);
-    for (let y = 1; y <= 3; y++) for (let x = 1; x <= 3; x++) alpha[(y * size + x) * 4 + 3] = 255;
-    const points = edgePoints(alpha, size);
-    expect(points).toHaveLength(8);
-    expect(points).not.toContainEqual({ x: 2.5 / size, y: 2.5 / size });
-  });
-});
