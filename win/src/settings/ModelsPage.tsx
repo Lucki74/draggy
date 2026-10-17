@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button as UiButton } from "../ui/Button";
 import { CapabilityIcons } from "../providers/CapabilityIcons";
-import { modelMetaParts } from "../providers/modelMeta";
+import { formatBytes } from "../formatBytes";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
 import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
@@ -197,7 +197,6 @@ function InstalledRow({
   const [switching, setSwitching] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const name = displayName || displayModelName(entry.name);
-  const meta = modelMetaParts(entry, t);
   const abilities = entry.capabilities.filter((ability) => ABILITY_LABELS[ability]);
   const detailsId = `model-details-${entry.name.replace(/[^\w-]/g, "-")}`;
 
@@ -222,7 +221,7 @@ function InstalledRow({
             />
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-text-secondary">
-            <span className="tabular-nums">{meta.join(" · ")}</span>
+            <span className="tabular-nums">{formatBytes(entry.size)}</span>
             {cannotGenerate(entry.capabilities) && <Badge title={t("embeddingOnlyHint")}>{t("embeddingOnly")}</Badge>}
             {usedBy.map((label) => (
               <Badge key={label} strong>

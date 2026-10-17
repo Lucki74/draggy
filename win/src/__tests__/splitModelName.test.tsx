@@ -38,7 +38,7 @@ describe("a split model in the installed list", () => {
     );
 
     expect(screen.getByText("Qwen3-Coder-Next")).toBeTruthy();
-    expect(screen.getByText(/Q4_K_M/)).toBeTruthy();
+    expect(screen.queryByText(/Q4_K_M/)).toBeNull();
     expect(screen.queryByText(/00001-of-00004/)).toBeNull();
 
     // Opening details shows the context ceiling and file name.

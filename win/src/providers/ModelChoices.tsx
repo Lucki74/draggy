@@ -9,7 +9,7 @@ import { onProvidersChange } from "./useProviders";
 import { ProviderIcon } from "./ProviderIcon";
 import { swallowed } from "../logger";
 import { CapabilityIcons } from "./CapabilityIcons";
-import { modelMetaParts } from "./modelMeta";
+import { formatBytes } from "../formatBytes";
 
 type Translate = (key: string) => string;
 
@@ -66,7 +66,7 @@ export default function ModelChoices({
   const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
-      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: modelMetaParts(entry, t).slice(0, 2).join(" · "), capabilities: entry.capabilities })),
+      choices: installed.map((entry) => ({ name: entry.name, label: displayModelName(entry.name), detail: formatBytes(entry.size), capabilities: entry.capabilities })),
     },
     ...groups.map((group) => ({
       title: group.label,
