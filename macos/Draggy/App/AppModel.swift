@@ -91,6 +91,7 @@ final class AppModel {
     private let secrets: any SecretStore
     let engine: EngineModel
     let models: ModelsModel
+    let updates = UpdateModel()
     private var session: Session?
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?

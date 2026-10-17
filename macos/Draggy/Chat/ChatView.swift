@@ -1,3 +1,5 @@
+import AppKit
+import DraggyCore
 import SwiftUI
 
 struct ChatView: View {
@@ -5,6 +7,9 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let update = model.updates.available, !model.updates.isDismissed {
+                updateBanner(update)
+            }
             TranscriptView(lines: model.transcript.lines)
             if let message = model.errorMessage {
                 Text(message)
@@ -15,6 +20,17 @@ struct ChatView: View {
             }
             composer
         }
+    }
+
+    private func updateBanner(_ update: UpdateRecord) -> some View {
+        HStack {
+            Text("\(update.name) is available.")
+            Button("Download") { NSWorkspace.shared.open(URL(string: update.url)!) }
+            Spacer()
+            Button("Dismiss") { model.updates.isDismissed = true }
+        }
+        .padding(8)
+        .background(.quaternary)
     }
 
     private var composer: some View {
