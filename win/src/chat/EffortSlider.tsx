@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from "react";
-import { EFFORT_ORDER } from "../ai/effort";
+import { effortColor, EFFORT_ORDER } from "../ai/effort";
 import { EFFORT_LABELS } from "../settings/pages";
 import type { EffortLevel } from "../types";
 import { Icon } from "../ui";
@@ -81,6 +81,7 @@ export function EffortSlider({
         run();
     };
 
+    const color = effortColor(value) ?? "var(--accent)";
     const fill = `${(index / LAST) * 100}%`;
     const sentLower = supported && value !== "off" && !supported.includes(value);
     const width = variant === "popover" ? "w-[188px]" : "w-full max-w-[320px]";
@@ -89,7 +90,7 @@ export function EffortSlider({
         <div className={`flex flex-col gap-2.5 ${width} ${disabled ? "opacity-50" : ""}`}>
             <div className="flex items-baseline justify-between gap-3">
                 <span className="text-[12px] text-text-secondary">{t("effort")}</span>
-                <span className="text-[13px] font-medium text-[var(--accent-ink)]" aria-hidden="true">
+                <span className="text-[13px] font-medium" style={{ color }} aria-hidden="true">
                     {label(value)}
                 </span>
             </div>
@@ -122,7 +123,7 @@ export function EffortSlider({
                     <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-pill bg-surface-tint" />
                     <div
                         className="absolute top-1/2 h-1 -translate-y-1/2 rounded-pill start-0"
-                        style={{ width: fill, background: "linear-gradient(90deg, var(--accent-soft), var(--accent))" }}
+                        style={{ width: fill, background: `linear-gradient(90deg, color-mix(in srgb, ${color} 30%, transparent), ${color})` }}
                     />
                     {EFFORT_ORDER.map((level, at) => {
                         const reached = at <= index;
@@ -135,8 +136,11 @@ export function EffortSlider({
                                 title={label(level)}
                                 className={`absolute top-1/2 size-2 -translate-y-1/2 -translate-x-1/2 rounded-pill border ${
                                     off ? "border-dashed" : ""
-                                } ${reached && !lock ? "bg-[var(--accent)] border-[var(--accent)]" : "bg-surface-base border-rule-strong"}`}
-                                style={{ insetInlineStart: `${(at / LAST) * 100}%` }}
+                                } ${reached && !lock ? "" : "bg-surface-base border-rule-strong"}`}
+                                style={{
+                                    insetInlineStart: `${(at / LAST) * 100}%`,
+                                    ...(reached && !lock ? { background: color, borderColor: color } : {}),
+                                }}
                             >
                                 {lock && (
                                     <span className="absolute -top-4 start-1/2 -translate-x-1/2 text-text-secondary">
@@ -148,8 +152,8 @@ export function EffortSlider({
                     })}
                     <span
                         data-thumb
-                        className="absolute top-1/2 size-3.5 -translate-y-1/2 -translate-x-1/2 rounded-pill bg-[var(--accent)] border-2 border-surface-base shadow-xs group-focus-visible:ring-2 group-focus-visible:ring-[var(--accent-soft)] motion-safe:transition-[inset-inline-start] motion-safe:duration-150 motion-safe:ease-out"
-                        style={{ insetInlineStart: fill }}
+                        className="absolute top-1/2 size-3.5 -translate-y-1/2 -translate-x-1/2 rounded-pill border-2 border-surface-base shadow-xs group-focus-visible:ring-2 group-focus-visible:ring-offset-1 group-focus-visible:ring-text-primary motion-safe:transition-[inset-inline-start] motion-safe:duration-150 motion-safe:ease-out"
+                        style={{ insetInlineStart: fill, background: color }}
                     />
                 </div>
             </div>

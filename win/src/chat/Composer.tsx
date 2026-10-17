@@ -25,7 +25,7 @@ import type {
     PermissionMode,
     ProviderInstance,
 } from "../types";
-import { allowedEfforts, effectiveEffort, EFFORT_ORDER, nextEffort } from "../ai/effort";
+import { allowedEfforts, effectiveEffort, effortColor, EFFORT_ORDER, nextEffort } from "../ai/effort";
 import { EffortSlider } from "./EffortSlider";
 import { EFFORT_LABELS } from "../settings/pages";
 
@@ -131,11 +131,11 @@ function EffortMeter({ level, sent }: { level: EffortLevel; sent: EffortLevel })
             {EFFORT_ORDER.slice(1).map((step, i) => (
                 <span
                     key={step}
-                    className={`w-[3px] rounded-pill ${i < at ? "bg-[var(--accent)]" : "bg-rule-strong"}`}
-                    style={{ height: `${5 + i * 2}px` }}
+                    className={`w-[3px] rounded-pill ${i < at ? "" : "bg-rule-strong"}`}
+                    style={{ height: `${5 + i * 2}px`, background: i < at ? effortColor(level) : undefined }}
                 />
             ))}
-            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill bg-[var(--accent)]" />}
+            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill" style={{ background: effortColor(sent) ?? "var(--accent)" }} />}
         </span>
     );
 }
