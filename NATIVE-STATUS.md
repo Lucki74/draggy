@@ -34,11 +34,12 @@ Works (as written, not yet compiled):
 - The bindings pipeline: `macos/scripts/build-core.sh` builds the core, generates the Swift bindings and packs an XCFramework.
 - The transcript on an `NSTableView` with TextKit 2 text views, with tool steps, tokens per second, and code blocks, inline code and bold drawn.
 - A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
+- The latest conversation is saved to `~/Library/Application Support/Draggy/conversation.json` after each turn. The window shows it again at launch, and the core gets it back through `Session.restore` when the next message is sent.
 - A macOS CI workflow.
 
 Missing:
 
-- Saved conversations. The core has no call to restore messages yet, so they would show but lose the model's context.
+- A list of past conversations. Only the latest one is kept, and tool steps are not saved with it.
 - Full markdown (lists, links, headings) and attachments.
 - Model and engine management, documents and web panes.
 - Signing, notarization, Sparkle and a release workflow.

@@ -25,6 +25,37 @@ struct Transcript: Equatable {
 
     private(set) var lines: [Line] = []
 
+    init() {}
+
+    init(restoring saved: [SavedMessage]) {
+        lines = saved.compactMap { message in
+            switch message.role {
+            case "user": Line(id: UUID(), role: .user, text: message.text)
+            case "assistant": Line(id: UUID(), role: .assistant, text: message.text)
+            default: nil
+            }
+        }
+    }
+
+    /// The finished exchanges, as the core holds them. A question whose reply never came is left out, since the core
+    /// dropped it too.
+    var savedMessages: [SavedMessage] {
+        var saved: [SavedMessage] = []
+        var question: Line?
+        for line in lines {
+            switch line.role {
+            case .user:
+                question = line
+            case .assistant:
+                guard let asked = question, !line.text.isEmpty else { continue }
+                saved.append(SavedMessage(role: "user", text: asked.text))
+                saved.append(SavedMessage(role: "assistant", text: line.text))
+                question = nil
+            }
+        }
+        return saved
+    }
+
     mutating func addUser(_ text: String) {
         lines.append(Line(id: UUID(), role: .user, text: text))
     }
