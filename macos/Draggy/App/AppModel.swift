@@ -96,7 +96,8 @@ final class AppModel {
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
 
-    private(set) var transcript = Transcript()
+    @ObservationIgnored private let store: ConversationStore
+    private(set) var transcript: Transcript
     private(set) var isRunning = false
     private(set) var errorMessage: String?
     /// The tool call that is waiting for the user's answer.
@@ -140,9 +141,15 @@ final class AppModel {
         }
     }
 
-    init(defaults: UserDefaults = .standard, secrets: any SecretStore = KeychainSecretStore()) {
+    init(
+        defaults: UserDefaults = .standard,
+        secrets: any SecretStore = KeychainSecretStore(),
+        store: ConversationStore = .standard
+    ) {
         self.defaults = defaults
         self.secrets = secrets
+        self.store = store
+        transcript = Transcript(restoring: store.load())
         let engine = EngineModel(defaults: defaults)
         self.engine = engine
         models = ModelsModel { [weak engine] path in engine?.modelPath = path }
@@ -173,11 +180,11 @@ final class AppModel {
         }
     }
 
-    /// A settings change starts a new conversation, as on Linux.
     func newConversation() {
         guard !isRunning else { return }
         session = nil
         transcript = Transcript()
+        store.save([])
         errorMessage = nil
     }
 
@@ -225,6 +232,7 @@ final class AppModel {
             errorMessage = error.localizedDescription
         }
         cancel = nil
+        store.save(transcript.savedMessages)
     }
 
     private func currentSession() throws -> Session {
@@ -243,6 +251,12 @@ final class AppModel {
             permissionMode: permission.record
         )
         let created = try Session(config: config)
+        // The reply being filled is not finished yet, so only the exchanges before this send go to the core.
+        let earlier = Transcript(restoring: transcript.savedMessages)
+        let records = earlier.lines.enumerated().map { index, line in
+            MessageRecord(id: "m\(index + 1)", role: line.role == .user ? "user" : "assistant", content: line.text)
+        }
+        if !records.isEmpty { try created.restore(saved: records) }
         session = created
         return created
     }
