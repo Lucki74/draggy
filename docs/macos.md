@@ -25,13 +25,14 @@ CI runs the same steps on `macos-15` (`.github/workflows/macos.yml`).
 
 - Settings: server address, model name, and an API key kept in the Keychain as a generic password under `com.draggy.app`. An empty value deletes the key.
 - Chat: type a message and watch the reply stream in. A turn goes through `draggy_core.Session`, and the core's events arrive on a `TurnObserver`. The transcript logic is a plain value type (`Transcript.swift`) with unit tests.
-- Tests for the Keychain store and the transcript.
+- The transcript view is an `NSTableView` with TextKit 2 text views (`TranscriptView.swift`). Streaming reloads only the changed rows, and row heights are cached per line and width. `MessageText.swift` draws fenced code, inline code and bold, and lists each tool step above its reply.
+- Tools: a project folder, a permission mode (ask, edit freely, or read only) and a switch for commands, all in settings. Running everything without asking is left out on purpose. The core's questions arrive on an `ApprovalHandler` that blocks the turn's thread until the approval sheet is answered, and Stop answers a waiting question with no.
+- Tests for the Keychain store, the transcript, the message text and the approval broker.
 
 ## What is missing
 
-- The transcript view is a placeholder. It is a SwiftUI `LazyVStack`. The plan calls for an `NSTableView` with TextKit 2, and this view has to be replaced before any streaming performance is measured.
-- No tools. Turns run with commands disallowed and no approval sheet, so the core's approval questions are never answered.
-- No saved conversations, markdown, or attachments.
+- No saved conversations. The core has no call to restore messages, so a reopened chat would show but the model would not remember it.
+- Markdown beyond code and bold, and attachments.
 - No engine or model management, documents, or web panes.
 - No signing, notarization, Sparkle updates, or release workflow.
 
@@ -41,5 +42,7 @@ No Swift in this directory has been compiled. The author's machine runs Windows.
 
 - the names and `Sendable` conformances in the generated UniFFI bindings, which `AppModel.swift` assumes
 - Swift 6 strict concurrency against the generated code
+- row heights from `boundingRect`, which may differ a little from what TextKit 2 lays out
+- the approval flow, which blocks a background thread and has only been exercised by unit tests
 - Keychain access on a CI runner
 - XcodeGen picking up `shared/icons/icon.icns` as a resource
