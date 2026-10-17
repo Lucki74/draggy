@@ -90,6 +90,7 @@ final class AppModel {
     private let defaults: UserDefaults
     private let secrets: any SecretStore
     let engine: EngineModel
+    let models: ModelsModel
     private var session: Session?
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
@@ -141,7 +142,9 @@ final class AppModel {
     init(defaults: UserDefaults = .standard, secrets: any SecretStore = KeychainSecretStore()) {
         self.defaults = defaults
         self.secrets = secrets
-        engine = EngineModel(defaults: defaults)
+        let engine = EngineModel(defaults: defaults)
+        self.engine = engine
+        models = ModelsModel { [weak engine] path in engine?.modelPath = path }
         baseURL = defaults.string(forKey: Key.baseURL) ?? "http://127.0.0.1:8080/v1"
         modelName = defaults.string(forKey: Key.model) ?? ""
         folderPath = defaults.string(forKey: Key.folder) ?? ""
