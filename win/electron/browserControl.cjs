@@ -52,6 +52,26 @@ const FAILURES = {
     message: "Another element would receive that click.",
     hint: "Close the overlay or banner in the way first, or scroll the target clear of it.",
   },
+  needs_user: {
+    message: "That is for the user to do themselves.",
+    hint: "Tell the user which field or step it is and wait for them to finish it in the browser pane.",
+  },
+  needs_confirmation: {
+    message: "The user did not allow that action.",
+    hint: "Do not try it again. Ask the user what they want instead.",
+  },
+  site_denied: {
+    message: "The user did not let the agent act on this site.",
+    hint: "Do not try again on this site. Ask the user how to proceed.",
+  },
+  rate_limited: {
+    message: "Too many browser actions in a short time.",
+    hint: "Wait a little, then call browser_snapshot and continue with fewer, more deliberate steps.",
+  },
+  halted: {
+    message: "The user pressed Esc to stop the browser.",
+    hint: "Stop and ask the user whether to continue.",
+  },
   dialog_open: {
     message: "A dialog is open on the page and is waiting for an answer.",
     hint: "Call browser_dialog with accept or dismiss before anything else.",
@@ -284,13 +304,17 @@ const hideOverlayScript = () => `
 
 const INPUT_THAT_TAKES_OVER = new Set(["mouseDown", "mouseUp", "mouseWheel", "contextMenu"]);
 
+/** How long the agent stays off after the user presses Esc in the pane. */
+const HALT_MS = 30000;
+
 /**
  * The agent's hold on the visible pane. One step runs at a time; any user input in the view while a
  * step runs ends it with `user_took_over`. Input the agent sends itself is flagged and ignored.
  * @param {{ pane: object, requestOpen: () => void, onStatus?: (status: object) => void, openWaitMs?: number }} options
  */
-function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 4000 }) {
+function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 4000, now = Date.now }) {
   let current = null;
+  let haltedUntil = 0;
   let sendingDepth = 0;
   const watched = new WeakSet();
 
@@ -309,7 +333,11 @@ function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 400
   function watch(contents) {
     if (watched.has(contents)) return;
     watched.add(contents);
-    contents.on("before-input-event", userInput);
+    contents.on("before-input-event", (_event, input) => {
+      // Esc in the pane is the kill switch: it stops the step and keeps the agent off for a while.
+      if (sendingDepth === 0 && input && input.type === "keyDown" && input.key === "Escape") haltedUntil = now() + HALT_MS;
+      userInput();
+    });
     contents.on("before-mouse-event", (_event, input) => {
       if (INPUT_THAT_TAKES_OVER.has(input && input.type)) userInput();
     });
@@ -330,6 +358,7 @@ function createDriver({ pane, requestOpen, onStatus = () => {}, openWaitMs = 400
   }
 
   async function run(label, fn) {
+    if (now() < haltedUntil) return failure("halted");
     const state = { stopped: false, resolveTakeover: null };
     const taken = new Promise((resolve) => {
       state.resolveTakeover = resolve;

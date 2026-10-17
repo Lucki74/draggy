@@ -310,6 +310,9 @@ const browserGetElements: ToolSpec = {
   },
 };
 
+/** Page text is written by whoever owns the page: fenced off as data to read, not orders to follow. */
+const pageContent = (text: string) => `<page_content>\n${text}\n</page_content>`;
+
 const browserSnapshot: ToolSpec = {
   name: "browser_snapshot",
   annotations: { readOnly: true, sandboxed: true },
@@ -337,7 +340,7 @@ const browserSnapshot: ToolSpec = {
     ctx.syncSteps();
 
     if (!result?.ok) return `TOOL RESULT (browser_snapshot): Failed: ${browserFailure(result)}`;
-    return `TOOL RESULT (browser_snapshot):\n${result.text}`;
+    return `TOOL RESULT (browser_snapshot):\n${pageContent(result.text)}`;
   },
 };
 
@@ -766,7 +769,7 @@ const browserGetText: ToolSpec = {
 
     if (!result?.ok) return `TOOL RESULT (browser_get_text): Failed: ${browserFailure(result)}`;
 
-    return `TOOL RESULT (browser_get_text):\nTitle: ${result.title}\nURL: ${result.url}\nContent:\n${result.text}`;
+    return `TOOL RESULT (browser_get_text):\nTitle: ${result.title}\nURL: ${result.url}\nContent:\n${pageContent(result.text)}`;
   },
 };
 

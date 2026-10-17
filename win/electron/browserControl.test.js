@@ -367,6 +367,33 @@ describe("driver steps and takeover", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("halts on Esc: the step ends and later steps are refused for a while", async () => {
+    let clock = 1000;
+    const driver = control.createDriver({ pane: fakePane(), requestOpen: vi.fn(), now: () => clock });
+    const contents = fakeContents();
+    driver.watch(contents);
+    const running = driver.run("clicking", () => new Promise(() => {}));
+    contents.handlers["before-input-event"]({}, { type: "keyDown", key: "Escape" });
+    expect((await running).error.code).toBe("user_took_over");
+    expect((await driver.run("clicking", async () => ({ ok: true }))).error.code).toBe("halted");
+    clock += 31000;
+    expect(await driver.run("clicking", async () => ({ ok: true }))).toEqual({ ok: true });
+  });
+
+  it("does not halt on an Esc the agent sent itself", async () => {
+    const driver = control.createDriver({ pane: fakePane(), requestOpen: vi.fn() });
+    const contents = fakeContents();
+    driver.watch(contents);
+    const result = await driver.run("pressing", () =>
+      driver.sending(async () => {
+        contents.handlers["before-input-event"]({}, { type: "keyDown", key: "Escape" });
+        return { ok: true };
+      }),
+    );
+    expect(result).toEqual({ ok: true });
+    expect(await driver.run("clicking", async () => ({ ok: true }))).toEqual({ ok: true });
+  });
+
   it("ignores user input between steps", async () => {
     const { driver, contents } = setup();
     contents.handlers["before-input-event"]({}, { type: "keyDown" });

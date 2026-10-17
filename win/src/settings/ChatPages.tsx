@@ -16,6 +16,34 @@ import type { AppSettings } from "../types";
 
 type Translate = (key: string) => string;
 
+/** Sites the user chose "always allow" for, listed so they can be taken back. */
+function TrustedSites({ t }: { t: Translate }) {
+  const [sites, setSites] = useState<string[]>([]);
+  useEffect(() => {
+    void window.electronAPI?.browserAgent?.trustedSites().then(setSites);
+  }, []);
+  if (!sites.length) return null;
+  return (
+    <Row label={t("browserTrustedSites")} description={t("browserTrustedSitesHint")}>
+      <div className="flex flex-col items-end gap-1">
+        {sites.map((origin) => (
+          <div key={origin} className="flex items-center gap-2 text-[12px]">
+            <span className="truncate">{origin}</span>
+            <Button
+              onClick={() => {
+                void window.electronAPI?.browserAgent.revokeSite(origin);
+                setSites((list) => list.filter((o) => o !== origin));
+              }}
+            >
+              {t("browserTrustedRemove")}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </Row>
+  );
+}
+
 interface ChatPageProps {
   settings: AppSettings;
   onUpdate: (patch: Partial<AppSettings>) => void;
@@ -73,6 +101,7 @@ export function ChatPreferencesPage({
         <Row label={t("browserActions")} description={t("browserActionsHint")}>
           <Toggle label={t("browserActions")} checked={settings.browserActions === true} onChange={(browserActions) => onUpdate({ browserActions })} />
         </Row>
+        <TrustedSites t={t} />
       </Group>
 
       <Group title={t("customInstructions")}>

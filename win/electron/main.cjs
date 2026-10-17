@@ -74,6 +74,7 @@ const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
 const browserInput = require("./browserInput.cjs");
 const browserDialogs = require("./browserDialogs.cjs");
+const browserSafety = require("./browserSafety.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -457,7 +458,7 @@ function openInAppBrowser(url) {
   // Reached from `setWindowOpenHandler` and `will-navigate`, so the string can
   // come from a page rather than from the person using the app.
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", `refused to open ${String(url).slice(0, 120)}`);
+    log.warn("browser", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
 
@@ -636,7 +637,7 @@ function preparePaneView(view) {
 function openLink(url) {
   if (!browserPane || !mainWindow || mainWindow.isDestroyed()) return openInAppBrowser(url);
   if (!urlPolicy.isFetchableUrl(url, { allowPrivate: true })) {
-    log.warn("browser", `refused to open ${String(url).slice(0, 120)}`);
+    log.warn("browser", "refused to open", { host: browserSafety.hostOf(url) });
     return null;
   }
   const view = browserPane.ensure();
@@ -1884,7 +1885,7 @@ function refusedByGuard() {
 
 ipc.handle("browser-navigate", async (event, url) => {
   if (!urlPolicy.isFetchableUrl(url)) {
-    log.warn("browser", `refused navigation to ${String(url).slice(0, 120)}`);
+    log.warn("browser", "refused navigation", { host: browserSafety.hostOf(url) });
     return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
   }
 
@@ -2028,11 +2029,88 @@ async function changeNote(input, contents, before) {
   return before && contents.getURL() !== before.url ? `The page navigated to ${contents.getURL()}.` : "";
 }
 
+/** What the user let the agent do on which sites. "Always" is saved; "this session" is not. */
+const TRUSTED_SITES_KEY = "browserTrustedSites";
+const browserGrants = browserSafety.createGrants({
+  trusted: (() => {
+    try {
+      const saved = JSON.parse(storage.getValue(TRUSTED_SITES_KEY) || "[]");
+      return Array.isArray(saved) ? saved.filter((origin) => typeof origin === "string") : [];
+    } catch (e) {
+      log.swallow("browser", "trusted sites unreadable", e);
+      return [];
+    }
+  })(),
+  onChange: (origins) => storage.setValue(TRUSTED_SITES_KEY, JSON.stringify(origins)),
+});
+const actionLimit = browserSafety.createRateLimit({ max: 60, windowMs: 60000 });
+
+const consents = new Map();
+let consentSeq = 0;
+const CONSENT_WAIT_MS = 120000;
+
+/** Asks the user in the pane's bar. No answer in two minutes is a no. */
+function askConsent(kind, host, detail) {
+  if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve("deny");
+  const id = `consent-${++consentSeq}`;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      consents.delete(id);
+      sendTo(mainWindow, "browser-consent", null);
+      resolve("deny");
+    }, CONSENT_WAIT_MS);
+    consents.set(id, (choice) => {
+      clearTimeout(timer);
+      resolve(choice);
+    });
+    sendTo(mainWindow, "browser-consent", { id, kind, host, detail });
+  });
+}
+
+ipc.handle("browser-consent:answer", (event, id, choice) => {
+  if (!fromMainWindow(event)) return { success: false };
+  const answer = consents.get(id);
+  if (!answer) return { success: false };
+  consents.delete(id);
+  answer(["session", "once", "always"].includes(choice) ? choice : "deny");
+  sendTo(mainWindow, "browser-consent", null);
+  return { success: true };
+});
+
+ipc.handle("browser-grants:list", (event) => (fromMainWindow(event) ? browserGrants.list() : []));
+ipc.handle("browser-grants:revoke", (event, origin) => {
+  if (!fromMainWindow(event) || typeof origin !== "string") return { success: false };
+  browserGrants.revoke(origin);
+  return { success: true };
+});
+
+/** The first thing the agent does on a site needs the user's word. */
+async function siteAllowed(contents) {
+  const origin = browserSafety.originOf(contents.getURL());
+  if (!origin || browserGrants.status(origin) !== "unknown") return true;
+  const choice = await askConsent("site", browserSafety.hostOf(origin), "");
+  if (choice === "always") browserGrants.trust(origin);
+  else if (choice === "session") browserGrants.allowSession(origin);
+  else return false;
+  return true;
+}
+
+/** A click that pays, deletes or sends needs the user's word unless they trust the site. */
+async function actionAllowed(contents, why) {
+  const origin = browserSafety.originOf(contents.getURL());
+  if (origin && browserGrants.status(origin) === "trusted") return true;
+  const choice = await askConsent("action", browserSafety.hostOf(origin || ""), why);
+  if (choice === "always" && origin) browserGrants.trust(origin);
+  return choice === "once" || choice === "always";
+}
+
 /** Runs one real-input step: marks agent input as the agent's own, honors a takeover, and turns
  * a ref problem into the failure the model should hear. `work` returns extra fields for the result. */
 function acting(label, work, { report = false } = {}) {
   return inPane(label, async (contents, step) => {
     try {
+      if (!actionLimit.take()) return browserControl.failure("rate_limited");
+      if (!(await siteAllowed(contents))) return browserControl.failure("site_denied");
       activeGuard()?.reset();
       const input = inputFor(contents);
       const before = report ? await input.signature().catch((e) => {
@@ -2149,6 +2227,9 @@ ipc.handle("browser-click", async (event, target, options) => {
         : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
     if (point.missing) return browserControl.failure("element_not_found");
     if (ref) {
+      const entry = await observerFor(contents).resolve(ref);
+      const why = browserSafety.riskyAction({ role: entry.role, name: entry.name });
+      if (why && !(await actionAllowed(contents, why))) return browserControl.failure("needs_confirmation");
       const blocker = await input.blockedBy(ref, point.x, point.y);
       if (blocker) return browserControl.failure("click_blocked", blocker);
     }
@@ -2166,6 +2247,7 @@ ipc.handle("browser-type", async (event, target, text, options) => {
   const opts = options && typeof options === "object" ? options : {};
   if (isRef(target)) {
     return acting("typing", async (input, contents, step) => {
+      if (opts.submit && !(await actionAllowed(contents, "submits a form"))) return browserControl.failure("needs_confirmation");
       const result = await input.typeInto(target, text, opts, step.stopped);
       log.info("browser", "typed", { chars: String(text ?? "").length, landed: result.landed });
       return { value: result.value, landed: result.landed };

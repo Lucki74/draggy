@@ -251,6 +251,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   browserAgent: {
     stop: () => ipcRenderer.invoke("browser-agent:stop"),
     onState: (callback) => subscribe("browser-agent-state", callback),
+    onConsent: (callback) => subscribe("browser-consent", callback),
+    answerConsent: (id, choice) => ipcRenderer.invoke("browser-consent:answer", String(id), String(choice)),
+    trustedSites: () => ipcRenderer.invoke("browser-grants:list"),
+    revokeSite: (origin) => ipcRenderer.invoke("browser-grants:revoke", String(origin)),
   },
 
   mcp: {

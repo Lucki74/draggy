@@ -1,5 +1,6 @@
 const { log } = require("./logger.cjs");
 const { RefError } = require("./browserSnapshot.cjs");
+const { sensitiveField } = require("./browserSafety.cjs");
 
 /** Real input for the pane: keys, typing, clicks with options, hover, drag and scroll. Like the observer
  * it talks through `send(method, params)` for the page and `contents.sendInputEvent` for pointer and
@@ -112,6 +113,19 @@ const SELECT_ALL_FN = `function() {
   return true;
 }`;
 
+/** What the page says about a field, enough to tell whether it takes a password or a card number. */
+const ATTRS_FN = `function() {
+  const label = this.labels && this.labels[0] ? this.labels[0].textContent : this.getAttribute("aria-label");
+  return {
+    type: this.type || "",
+    autocomplete: this.getAttribute("autocomplete") || "",
+    name: this.name || "",
+    id: this.id || "",
+    placeholder: this.placeholder || "",
+    label: label || "",
+  };
+}`;
+
 const READ_BACK_FN = `function() {
   if (this.type === 'password') return { hidden: true };
   return { value: this.value !== undefined ? this.value : (this.innerText || '') };
@@ -180,6 +194,10 @@ function createInput({ send, observer, contents, pause = (ms) => new Promise((r)
     const entry = await observer.resolve(ref);
     const objectId = await objectOf(entry);
     if (!(await callOn(objectId, EDITABLE_FN))) throw new RefError("not_editable", "That element is not a text field.");
+    const sensitive = sensitiveField(await callOn(objectId, ATTRS_FN));
+    if (sensitive) {
+      throw new RefError("needs_user", `That is ${sensitive}. Ask the user to fill it in themselves in the browser pane.`);
+    }
     await send("DOM.scrollIntoViewIfNeeded", { backendNodeId: entry.backendNodeId }).catch((e) =>
       log.swallow("browser.input", "scroll into view failed", e),
     );

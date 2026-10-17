@@ -9,6 +9,8 @@ import { translations } from "../translations";
 const t = (key: string) => translations.en[key] || key;
 
 let pushAgent: (state: { active: boolean; step: string | null }) => void = () => {};
+let pushConsent: (ask: { id: string; kind: "site" | "action"; host: string; detail: string } | null) => void = () => {};
+const answerConsent = vi.fn(async () => ({ success: true }));
 const stop = vi.fn(async () => ({ success: true }));
 
 beforeEach(() => {
@@ -26,6 +28,11 @@ beforeEach(() => {
         pushAgent = callback;
         return () => {};
       },
+      onConsent: (callback: typeof pushConsent) => {
+        pushConsent = callback;
+        return () => {};
+      },
+      answerConsent,
     },
   };
 });
@@ -58,6 +65,23 @@ describe("the pane bar while the agent drives", () => {
     act(() => pushAgent({ active: true, step: "typing" }));
     act(() => pushAgent({ active: false, step: null }));
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("asks before acting on a site and sends the answer", () => {
+    render(<BrowserBar t={t} embedded />);
+    act(() => pushConsent({ id: "c1", kind: "site", host: "shop.test", detail: "" }));
+    expect(screen.getByRole("alertdialog").textContent).toContain("shop.test");
+    fireEvent.click(screen.getByRole("button", { name: t("browserConsentSession") }));
+    expect(answerConsent).toHaveBeenCalledWith("c1", "session");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("offers once or always for an action, and deny", () => {
+    render(<BrowserBar t={t} embedded />);
+    act(() => pushConsent({ id: "c2", kind: "action", host: "shop.test", detail: "Buy now" }));
+    expect(screen.getByRole("button", { name: t("browserConsentOnce") })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: t("browserConsentDeny") }));
+    expect(answerConsent).toHaveBeenCalledWith("c2", "deny");
   });
 
   it("does not listen in the separate browser window", () => {

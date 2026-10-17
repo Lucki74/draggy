@@ -129,6 +129,15 @@ describe("typeInto", () => {
     expect(JSON.stringify(result)).not.toContain("s3cret");
   });
 
+  it("leaves a password or card field to the user", async () => {
+    const field = (attrs) => (d) => (d.includes("autocomplete") ? attrs : d.includes("readOnly") ? true : { value: "" });
+    const pw = fakeRig({ onCall: field({ type: "password" }) });
+    await expect(pw.api.typeInto("e1", "hunter2")).rejects.toMatchObject({ code: "needs_user" });
+    expect(pw.calls.some(([m]) => m === "Input.insertText")).toBe(false);
+    const card = fakeRig({ onCall: field({ type: "text", autocomplete: "cc-number" }) });
+    await expect(card.api.typeInto("e1", "4242")).rejects.toMatchObject({ code: "needs_user" });
+  });
+
   it("refuses a field that cannot be edited", async () => {
     const rig = fakeRig({ onCall: (d) => (d.includes("readOnly") ? false : {}) });
     await expect(rig.api.typeInto("e1", "x")).rejects.toMatchObject({ code: "not_editable" });

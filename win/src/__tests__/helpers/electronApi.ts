@@ -201,6 +201,10 @@ export function installFakeElectronApi(): FakeApi {
     browserAgent: {
       stop: async () => ({ success: true }),
       onState: () => () => {},
+      onConsent: () => () => {},
+      answerConsent: async () => ({ success: true }),
+      trustedSites: async () => [],
+      revokeSite: async () => ({ success: true }),
     },
     onboarding: {
       state: async () => ({ plan: "done", record: fake.onboardingRecord }),
