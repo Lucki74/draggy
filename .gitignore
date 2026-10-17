@@ -49,3 +49,11 @@ core/target
 shared/fixtures/**/*.db-shm
 shared/fixtures/**/*.db-wal
 linux/target/
+
+# macOS app build output and generated files
+macos/Draggy.xcodeproj/
+macos/build/
+macos/Draggy/Resources/Info.plist
+macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
+macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
+macos/Packages/DraggyCore/.build/

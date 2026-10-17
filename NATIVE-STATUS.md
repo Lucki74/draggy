@@ -24,6 +24,23 @@ Missing:
 
 Not verified on this branch's author machine (Windows): building and running the app. See `docs/linux.md` for the commands CI runs.
 
-## macOS
+## macOS (`macos/`)
 
-Not started.
+Works (as written, not yet compiled):
+
+- SwiftUI window with a sidebar and a settings scene.
+- API key storage in the Keychain.
+- Chat page: type a message and watch the reply stream in through `draggy-core`'s `Session`, with Stop.
+- The bindings pipeline: `macos/scripts/build-core.sh` builds the core, generates the Swift bindings and packs an XCFramework.
+- The transcript on an `NSTableView` with TextKit 2 text views, with tool steps, tokens per second, and code blocks, inline code and bold drawn.
+- A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
+- A macOS CI workflow.
+
+Missing:
+
+- Saved conversations. The core has no call to restore messages yet, so they would show but lose the model's context.
+- Full markdown (lists, links, headings) and attachments.
+- Model and engine management, documents and web panes.
+- Signing, notarization, Sparkle and a release workflow.
+
+Not verified: none of the Swift has been compiled, since the author's machine runs Windows. See `docs/macos.md` for the likely failure points. The first macOS CI run is the first real check.
