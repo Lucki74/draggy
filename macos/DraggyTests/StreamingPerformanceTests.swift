@@ -27,7 +27,7 @@ final class StreamingPerformanceTests: XCTestCase {
         guard let line = transcript.lines.last else { return }
         let styled = MessageText.attributed(line)
         _ = styled.boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
+            with: NSSize(width: width, height: CGFloat.greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]
         )
     }
@@ -57,7 +57,7 @@ final class StreamingPerformanceTests: XCTestCase {
             for line in transcript.lines {
                 let styled = MessageText.attributed(line)
                 _ = styled.boundingRect(
-                    with: NSSize(width: 700, height: .greatestFiniteMagnitude),
+                    with: NSSize(width: 700, height: CGFloat.greatestFiniteMagnitude),
                     options: [.usesLineFragmentOrigin, .usesFontLeading]
                 )
             }
