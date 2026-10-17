@@ -81,19 +81,14 @@ export function EffortSlider({
         run();
     };
 
-    const color = effortColor(value) ?? "var(--accent)";
+    const color = effortColor(value);
     const fill = `${(index / LAST) * 100}%`;
     const sentLower = supported && value !== "off" && !supported.includes(value);
     const width = variant === "popover" ? "w-[188px]" : "w-full max-w-[320px]";
 
     return (
         <div className={`flex flex-col gap-2.5 ${width} ${disabled ? "opacity-50" : ""}`}>
-            <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[12px] text-text-secondary">{t("effort")}</span>
-                <span className="text-[13px] font-medium" style={{ color }} aria-hidden="true">
-                    {label(value)}
-                </span>
-            </div>
+            <span className="text-[12px] text-text-secondary">{t("effort")}</span>
 
             <div
                 role="slider"
@@ -158,9 +153,17 @@ export function EffortSlider({
                 </div>
             </div>
 
-            <div className="flex justify-between text-[11px] text-text-secondary px-0.5" aria-hidden="true">
-                <span>{label("off")}</span>
-                <span>{label("max")}</span>
+            <div className="relative h-4 mx-2" aria-hidden="true">
+                <span
+                    className="absolute top-0 whitespace-nowrap text-[13px] font-medium leading-4 motion-safe:transition-[inset-inline-start,transform] motion-safe:duration-150 motion-safe:ease-out"
+                    style={{
+                        color,
+                        insetInlineStart: fill,
+                        transform: `translateX(${getComputedStyle(document.documentElement).direction === "rtl" ? "" : "-"}${(index / LAST) * 100}%)`,
+                    }}
+                >
+                    {label(value)}
+                </span>
             </div>
 
             {(hint || sentLower) && (

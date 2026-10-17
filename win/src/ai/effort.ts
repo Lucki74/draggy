@@ -137,10 +137,11 @@ export function effortFromLegacy(value: unknown): EffortLevel | undefined {
   return undefined;
 }
 
-/** The colour a level is drawn in: green low, blue medium and high, orange max. Off has none. */
-export function effortColor(level: EffortLevel): string | undefined {
+/** The colour a level is drawn in: white off, green low, blue medium, yellow high, orange max. */
+export function effortColor(level: EffortLevel): string {
+  if (level === "off") return "var(--text-primary)";
   if (level === "low") return "var(--effort-low)";
-  if (level === "medium" || level === "high") return "var(--effort-mid)";
-  if (level === "max") return "var(--effort-max)";
-  return undefined;
+  if (level === "medium") return "var(--effort-mid)";
+  if (level === "high") return "var(--effort-high)";
+  return "var(--effort-max)";
 }

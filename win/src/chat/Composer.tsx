@@ -135,7 +135,7 @@ function EffortMeter({ level, sent }: { level: EffortLevel; sent: EffortLevel })
                     style={{ height: `${5 + i * 2}px`, background: i < at ? effortColor(level) : undefined }}
                 />
             ))}
-            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill" style={{ background: effortColor(sent) ?? "var(--accent)" }} />}
+            {sent !== level && <span className="absolute -top-0.5 -end-1 size-1.5 rounded-pill" style={{ background: effortColor(sent) }} />}
         </span>
     );
 }
