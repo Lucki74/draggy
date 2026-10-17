@@ -20,7 +20,7 @@ struct TranscriptView: NSViewRepresentable {
         table.selectionHighlightStyle = .none
         table.allowsColumnSelection = false
         table.intercellSpacing = NSSize(width: 0, height: 6)
-        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingColumnStyle
+        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.dataSource = context.coordinator
         table.delegate = context.coordinator
         table.onWidthChange = { [weak coordinator = context.coordinator] in
