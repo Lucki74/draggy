@@ -38,20 +38,29 @@ function hostOf(value) {
  * @param {object} deps.webSession The `persist:draggy-web` session. Never `defaultSession`.
  * @param {(view: object) => void} [deps.prepare] Wires page events once the view exists.
  */
-function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
-  let view = null;
+const MAX_TABS = 8;
+
+function createBrowserPane({ WebContentsView, host, webSession, prepare, onTabsChange = () => {} }) {
+  /** Every open tab. One is in front; the rest are kept hidden and keep running. */
+  const views = [];
+  let front = 0;
   let visible = false;
   let bounds = null;
   /** Callers waiting for the page to be on screen, woken by `apply`. */
   const waiters = new Set();
 
-  const shown = () => Boolean(view && visible && bounds && bounds.width > 0 && bounds.height > 0);
+  const current = () => views[front] || null;
+
+  const shown = () => Boolean(current() && visible && bounds && bounds.width > 0 && bounds.height > 0);
 
   const apply = () => {
-    if (!view) return;
+    if (!current()) return;
     const show = shown();
-    if (show) view.setBounds(bounds);
-    view.setVisible(show);
+    views.forEach((tab, at) => {
+      const inFront = at === front;
+      if (inFront && show) tab.setBounds(bounds);
+      tab.setVisible(inFront && show);
+    });
     if (show) for (const wake of [...waiters]) wake(true);
   };
 
@@ -72,9 +81,8 @@ function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
     });
   };
 
-  const ensure = () => {
-    if (view) return view;
-    view = new WebContentsView({
+  const create = () => {
+    const view = new WebContentsView({
       webPreferences: {
         session: webSession,
         nodeIntegration: false,
@@ -91,9 +99,58 @@ function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
     return view;
   };
 
+  const ensure = () => {
+    if (!views.length) views.push(create());
+    return current();
+  };
+
+  const closeView = (view) => {
+    try {
+      host.contentView.removeChildView(view);
+    } catch (error) {
+      log.swallow("window", error, "the window is already gone, and its views with it");
+    }
+    if (!view.webContents.isDestroyed()) view.webContents.close();
+  };
+
   return {
     get view() {
+      return current();
+    },
+
+    /** Opens another tab and brings it to the front. Null at the cap. */
+    openTab() {
+      ensure();
+      if (views.length >= MAX_TABS) return null;
+      const view = create();
+      views.push(view);
+      front = views.length - 1;
+      apply();
+      onTabsChange();
       return view;
+    },
+
+    selectTab(at) {
+      if (!Number.isInteger(at) || at < 0 || at >= views.length) return false;
+      front = at;
+      apply();
+      onTabsChange();
+      return true;
+    },
+
+    /** The last tab stays: the pane always has a page to show. */
+    closeTab(at) {
+      if (!Number.isInteger(at) || at < 0 || at >= views.length || views.length === 1) return false;
+      const [gone] = views.splice(at, 1);
+      if (front >= at && front > 0) front -= 1;
+      closeView(gone);
+      apply();
+      onTabsChange();
+      return true;
+    },
+
+    tabs() {
+      return views.map((tab, at) => ({ index: at, active: at === front, view: tab }));
     },
 
     /** Creates the view on first use. Loading is left to the caller, which owns URL policy. */
@@ -139,14 +196,8 @@ function createBrowserPane({ WebContentsView, host, webSession, prepare }) {
     },
 
     destroy() {
-      if (!view) return;
-      try {
-        host.contentView.removeChildView(view);
-      } catch (error) {
-        log.swallow("window", error, "the window is already gone, and its views with it");
-      }
-      if (!view.webContents.isDestroyed()) view.webContents.close();
-      view = null;
+      for (const view of views.splice(0)) closeView(view);
+      front = 0;
     },
   };
 }

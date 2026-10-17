@@ -1124,6 +1124,13 @@ declare global {
         BrowserResult<{ waited: number }>
       >;
       browserHistory: (action: "back" | "forward" | "reload") => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserTabs: (
+        action: "list" | "new" | "select" | "close",
+        options?: { index?: number; url?: string },
+      ) => Promise<BrowserResult<{ tabs: { index: number; active: boolean; title: string; url: string }[] }>>;
+      browserDialog: (action: "accept" | "dismiss", text?: string) => Promise<
+        BrowserResult<{ answered: string; url: string; downloads?: { name: string; bytes: number }[] }>
+      >;
       browserGetText: (options?: { ref?: string; selector?: string }) => Promise<
         BrowserResult<{ title: string; text: string; url: string }>
       >;

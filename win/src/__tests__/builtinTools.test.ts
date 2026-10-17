@@ -383,6 +383,51 @@ describe("browser input tools", () => {
     expect(chosen).toContain("Large");
   });
 
+  it("lists, opens, switches and closes tabs", async () => {
+    const tabs = [
+      { index: 0, active: false, title: "A", url: "https://a.test/" },
+      { index: 1, active: true, title: "B", url: "https://b.test/" },
+    ];
+    const browserTabs = vi.fn().mockResolvedValue({ ok: true, tabs });
+    stub({ browserTabs });
+    const ctx = allowed();
+    const listed = await runTool("browser_tabs", { action: "list" }, ctx, ACTIONS_ON);
+    await runTool("browser_tabs", { action: "new", url: "https://c.test/" }, ctx, ACTIONS_ON);
+    await runTool("browser_tabs", { action: "select", index: 0 }, ctx, ACTIONS_ON);
+    await runTool("browser_tabs", { action: "close", index: 1 }, ctx, ACTIONS_ON);
+    expect(browserTabs).toHaveBeenNthCalledWith(1, "list", { index: undefined, url: undefined });
+    expect(browserTabs).toHaveBeenNthCalledWith(2, "new", { index: undefined, url: "https://c.test/" });
+    expect(browserTabs).toHaveBeenNthCalledWith(3, "select", { index: 0, url: undefined });
+    expect(browserTabs).toHaveBeenNthCalledWith(4, "close", { index: 1, url: undefined });
+    expect(listed).toContain("1 (open)");
+    expect(listed).toContain("https://b.test/");
+  });
+
+  it("answers a dialog, and works without Browser actions", async () => {
+    const browserDialog = vi.fn().mockResolvedValue({ ok: true, answered: "confirm", url: "u" });
+    stub({ browserDialog });
+    expect(availableTools(ALL_ON).map((t) => t.name)).toContain("browser_dialog");
+    const out = await runTool("browser_dialog", { action: "accept", text: "Ada" }, allowed(), ALL_ON);
+    expect(browserDialog).toHaveBeenCalledWith("accept", "Ada");
+    expect(out).toContain("confirm");
+  });
+
+  it("tells the model about a dialog, a download and a refused permission", async () => {
+    const browserClick = vi.fn().mockResolvedValue({
+      ok: true,
+      url: "u",
+      dialog: { type: "confirm", message: "Delete it?" },
+      downloads: [{ name: "r.pdf", bytes: 2048, saved: "C:/x/r.pdf" }],
+      permissionsRefused: ["geolocation"],
+    });
+    stub({ browserClick });
+    const out = await runTool("browser_click", { ref: "e1" }, allowed(), ACTIONS_ON);
+    expect(out).toContain("Delete it?");
+    expect(out).toContain("browser_dialog");
+    expect(out).toContain("r.pdf");
+    expect(out).toContain("geolocation");
+  });
+
   it("drags between points as well as refs", async () => {
     const browserDrag = vi.fn().mockResolvedValue({ ok: true, title: "t", url: "u" });
     stub({ browserDrag });

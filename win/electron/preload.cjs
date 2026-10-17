@@ -100,6 +100,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   browserSelectOption: (ref, choice) => ipcRenderer.invoke("browser-select-option", ref, choice),
   browserWait: (options) => ipcRenderer.invoke("browser-wait", options),
   browserHistory: (action) => ipcRenderer.invoke("browser-history", action),
+  browserTabs: (action, options) => ipcRenderer.invoke("browser-tabs", action, options),
+  browserDialog: (action, text) => ipcRenderer.invoke("browser-dialog", action, text),
   browserGetText: (options) => ipcRenderer.invoke("browser-get-text", options),
   browserClose: () => ipcRenderer.invoke("browser-close"),
 

@@ -385,8 +385,26 @@ const ACTIONS_OFF =
   "Failed: The extra browser actions are switched off. Use refs from browser_snapshot with browser_click, browser_type and browser_press_key, or ask the user to turn on Browser actions in Settings.";
 
 /** What the model hears after an action: where the page is now and what changed. */
-const pageAfter = (result: { title?: string; url?: string; changed?: string }) =>
-  [result.title !== undefined ? `Page: "${result.title}" at ${result.url}.` : "", result.changed ?? ""].filter(Boolean).join(" ");
+/** What the page did on its own during a step: a dialog it raised, files it saved, prompts it was refused. */
+type SideEffects = {
+  dialog?: { type: string; message: string };
+  downloads?: { name: string; bytes: number }[];
+  downloading?: number;
+  permissionsRefused?: string[];
+};
+
+const sideEffects = (result: SideEffects) =>
+  [
+    result.dialog ? `A ${result.dialog.type} dialog is open: "${result.dialog.message}". Call browser_dialog to answer it.` : "",
+    ...(result.downloads ?? []).map((d) => `Downloaded ${d.name} (${Math.max(1, Math.round(d.bytes / 1024))} KB). It was saved, not opened.`),
+    result.downloading ? `${result.downloading} download(s) still running.` : "",
+    result.permissionsRefused?.length ? `The page asked for ${result.permissionsRefused.join(", ")}, which was refused.` : "",
+  ].filter(Boolean);
+
+const pageAfter = (result: { title?: string; url?: string; changed?: string } & SideEffects) =>
+  [result.title !== undefined ? `Page: "${result.title}" at ${result.url}.` : "", result.changed ?? "", ...sideEffects(result)]
+    .filter(Boolean)
+    .join(" ");
 
 /** One browser action as a step in the transcript: running, then done or failed. */
 async function browserAction<T extends { ok: boolean }>(
@@ -664,6 +682,53 @@ const browserHistory: ToolSpec = {
     const action = String(args.action) as "back" | "forward" | "reload";
     const result = await browserAction(ctx, action, async () => api()?.browserHistory(action));
     return `TOOL RESULT (browser_history): ${result?.ok ? `Done. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
+  },
+};
+
+const browserTabs: ToolSpec = {
+  name: "browser_tabs",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description:
+    "List the browser's tabs, open a new one, switch to one or close one. A link that opens a new window arrives as a new tab. After switching, call browser_snapshot: refs belong to one tab.",
+  parameters: {
+    action: { type: "string", description: "list, new, select or close." },
+    index: { type: "integer", description: "Tab number from the list, for select and close." },
+    url: { type: "string", description: "Address to open, for new." },
+  },
+  required: ["action"],
+  usage: '{"action": "new", "url": "https://example.com"} → opens a tab, or {"action": "select", "index": 0}',
+  available: actionsOn,
+  run: async (args, ctx) => {
+    const action = String(args.action);
+    const result = await browserAction(ctx, action, async () =>
+      api()?.browserTabs(action as "list" | "new" | "select" | "close", { index: number(args.index), url: text(args.url) }),
+    );
+    if (!result?.ok) return `TOOL RESULT (browser_tabs): Failed: ${browserFailure(result)}`;
+    const lines = result.tabs.map((t) => `${t.index}${t.active ? " (open)" : ""}: "${t.title}" at ${t.url}`);
+    return `TOOL RESULT (browser_tabs): ${lines.join("\n")}`;
+  },
+};
+
+const browserDialog: ToolSpec = {
+  name: "browser_dialog",
+  annotations: { sandboxed: true, openWorld: true },
+  group: "browser",
+  description:
+    "Answer an alert, confirm or prompt dialog the page has opened. Until it is answered the page is frozen and other browser tools fail. Accept leaves or agrees; dismiss cancels.",
+  parameters: {
+    action: { type: "string", description: "accept or dismiss." },
+    text: { type: "string", description: "Text to type into a prompt dialog, with accept." },
+  },
+  required: ["action"],
+  usage: '{"action": "accept"} → presses OK on the open dialog',
+  available: webEnabled,
+  run: async (args, ctx) => {
+    const action = String(args.action) as "accept" | "dismiss";
+    const result = await browserAction(ctx, action, async () => api()?.browserDialog(action, text(args.text)));
+    return `TOOL RESULT (browser_dialog): ${
+      result?.ok ? `Answered the ${result.answered} dialog. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`
+    }`;
   },
 };
 
@@ -970,6 +1035,8 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
   browserSelectOption,
   browserWait,
   browserHistory,
+  browserTabs,
+  browserDialog,
   browserGetText,
   browserClose,
   createFile,

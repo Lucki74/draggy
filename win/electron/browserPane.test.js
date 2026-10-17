@@ -166,3 +166,76 @@ describe("createBrowserPane", () => {
     error.mockRestore();
   });
 });
+
+describe("tabs", () => {
+  const sized = (pane) => {
+    pane.setBounds({ x: 0, y: 0, width: 400, height: 300 });
+    pane.setVisible(true);
+  };
+
+  it("starts with one tab and opens more, the newest in front", () => {
+    const { WebContentsView, host, views } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    const first = pane.ensure();
+    sized(pane);
+    const second = pane.openTab();
+    expect(views).toHaveLength(2);
+    expect(pane.view).toBe(second);
+    expect(first.visible).toBe(false);
+    expect(second.visible).toBe(true);
+    expect(pane.tabs().map((t) => t.active)).toEqual([false, true]);
+  });
+
+  it("prepares every tab it opens", () => {
+    const { WebContentsView, host } = fakeElectron();
+    const prepare = vi.fn();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {}, prepare });
+    pane.ensure();
+    pane.openTab();
+    expect(prepare).toHaveBeenCalledTimes(2);
+  });
+
+  it("selects a tab by position and rejects one that is not there", () => {
+    const { WebContentsView, host } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    const first = pane.ensure();
+    sized(pane);
+    pane.openTab();
+    expect(pane.selectTab(0)).toBe(true);
+    expect(pane.view).toBe(first);
+    expect(first.visible).toBe(true);
+    expect(pane.selectTab(5)).toBe(false);
+  });
+
+  it("closes a tab and falls back to the one before it, never leaving none", () => {
+    const { WebContentsView, host, views } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    const first = pane.ensure();
+    sized(pane);
+    pane.openTab();
+    expect(pane.closeTab(1)).toBe(true);
+    expect(views[1].webContents.close).toHaveBeenCalled();
+    expect(pane.view).toBe(first);
+    expect(pane.closeTab(0)).toBe(false);
+    expect(pane.tabs()).toHaveLength(1);
+  });
+
+  it("caps how many tabs can be open", () => {
+    const { WebContentsView, host } = fakeElectron();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {} });
+    pane.ensure();
+    for (let i = 0; i < 20; i += 1) pane.openTab();
+    expect(pane.tabs().length).toBeLessThanOrEqual(8);
+    expect(pane.openTab()).toBeNull();
+  });
+
+  it("tells the caller when the tabs change", () => {
+    const { WebContentsView, host } = fakeElectron();
+    const onChange = vi.fn();
+    const pane = createBrowserPane({ WebContentsView, host, webSession: {}, onTabsChange: onChange });
+    pane.ensure();
+    pane.openTab();
+    pane.selectTab(0);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+});

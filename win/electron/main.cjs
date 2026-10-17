@@ -73,6 +73,7 @@ const urlPolicy = require("./urlPolicy.cjs");
 const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
 const browserInput = require("./browserInput.cjs");
+const browserDialogs = require("./browserDialogs.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -325,7 +326,53 @@ function getWebSession() {
     callback({ requestHeaders: details.requestHeaders });
   });
 
+  // While the agent drives, a download is kept in a folder of its own and never opened, and a
+  // permission prompt is refused. The user's own browsing keeps Electron's defaults.
+  ses.on("will-download", (event, item) => {
+    if (!paneDriver.active()) return;
+    const folder = path.join(app.getPath("userData"), "agent-downloads");
+    const name = browserDialogs.safeDownloadName(item.getFilename());
+    try {
+      fs.mkdirSync(folder, { recursive: true });
+    } catch (e) {
+      log.swallow("browser", "download folder failed", e);
+      item.cancel();
+      return;
+    }
+    const target = path.join(folder, `${Date.now().toString(36)}-${name}`);
+    item.setSavePath(target);
+    agentDownloads.running += 1;
+    item.once("done", (_event, state) => {
+      agentDownloads.running -= 1;
+      if (state === "completed") agentDownloads.done.push({ name, bytes: item.getReceivedBytes(), path: target });
+      log.info("browser", "download", { state, bytes: item.getReceivedBytes(), ext: path.extname(name).slice(0, 8) });
+    });
+  });
+  ses.setPermissionRequestHandler((contents, permission, callback) => {
+    if (!paneDriver.active()) return callback(true);
+    agentDownloads.denied.add(String(permission));
+    log.info("browser", "permission refused", { permission });
+    callback(false);
+  });
+
   return ses;
+}
+
+/** What the page did on its own while the agent drove: downloads it saved, prompts it was refused. */
+const agentDownloads = { running: 0, done: [], denied: new Set() };
+
+/** Hands over, once, whatever the last step left behind. */
+function takeSideEffects() {
+  const out = {};
+  if (agentDownloads.done.length) {
+    out.downloads = agentDownloads.done.splice(0).map(({ name, bytes, path: saved }) => ({ name, bytes, saved }));
+  }
+  if (agentDownloads.running) out.downloading = agentDownloads.running;
+  if (agentDownloads.denied.size) {
+    out.permissionsRefused = [...agentDownloads.denied];
+    agentDownloads.denied.clear();
+  }
+  return out;
 }
 
 /** Whether the ad blocker is on, for every web session at once. Persisted in the renderer's store
@@ -533,7 +580,8 @@ function sendBrowserState(toolbar, page) {
 
 /** The Browser pane in the main window. Created with the window; its page view only on first use. */
 let browserPane = null;
-let paneGuard = null;
+const paneGuards = new WeakMap();
+const activeGuard = () => paneGuards.get(browserPane?.view?.webContents);
 
 /** The agent's hold on the pane: opens it when needed, and ends a step the moment the user takes over. */
 const paneDriver = browserControl.createDriver({
@@ -560,21 +608,25 @@ function preparePaneView(view) {
   for (const event of PAGE_EVENTS) view.webContents.on(event, sendPaneState);
   // While the agent drives, a clicked link or a redirect is held to the same policy as the address the
   // model typed. The user's own browsing is left to the user.
-  paneGuard = browserControl.guardNavigation(view.webContents, {
-    isFetchableUrl: urlPolicy.isFetchableUrl,
-    scope: "browser",
-    enabled: () => paneDriver.active(),
-  });
+  paneGuards.set(
+    view.webContents,
+    browserControl.guardNavigation(view.webContents, {
+      isFetchableUrl: urlPolicy.isFetchableUrl,
+      scope: "browser",
+      enabled: () => paneDriver.active(),
+    }),
+  );
   // A new page has lost the overlay, so it is painted again while the agent is still on it.
   view.webContents.on("dom-ready", () => {
     if (paneDriver.active()) void showAgentOverlay(view.webContents);
   });
-  // The pane is a single page, so a link asking for a new window replaces it rather than stacking
-  // windows the user did not ask for.
+  // A link asking for a new window replaces the page for the user, so no windows stack up. While the
+  // agent drives it opens a tab instead, which the agent can see and switch to.
   view.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (urlPolicy.isFetchableUrl(target, { allowPrivate: !paneDriver.active() })) {
-      view.webContents.loadURL(target, { userAgent: cleanUserAgent(view.webContents) });
-    }
+    if (!urlPolicy.isFetchableUrl(target, { allowPrivate: !paneDriver.active() })) return { action: "deny" };
+    const tab = paneDriver.active() ? browserPane.openTab() : null;
+    const contents = tab ? tab.webContents : view.webContents;
+    contents.loadURL(target, { userAgent: cleanUserAgent(contents) }).catch((e) => log.swallow("browser", "new tab load failed", e));
     return { action: "deny" };
   });
 }
@@ -917,6 +969,7 @@ function createWindow({ onboarding: showSetup = false } = {}) {
     host: mainWindow,
     webSession: getWebSession(),
     prepare: preparePaneView,
+    onTabsChange: sendPaneState,
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -1787,6 +1840,27 @@ async function hideAgentOverlay() {
   }
 }
 
+/** One dialog tracker per page, fed by the debugger. A dialog freezes its page, so every step asks
+ * first. */
+const paneDialogs = new WeakMap();
+async function dialogsFor(contents) {
+  let dialogs = paneDialogs.get(contents);
+  if (dialogs) return dialogs;
+  const send = debuggerSend(contents);
+  dialogs = browserDialogs.createDialogs({ send, onError: (e) => log.swallow("browser", "dialog answer failed", e) });
+  paneDialogs.set(contents, dialogs);
+  try {
+    await send("Page.enable", {});
+    contents.debugger.on("message", (_event, method, params) => dialogs.handle(method, params));
+  } catch (e) {
+    log.swallow("browser", "dialog watch failed", e);
+  }
+  return dialogs;
+}
+
+const dialogFailure = (dialog) =>
+  browserControl.failure("dialog_open", `A ${dialog.type} dialog is open: "${dialog.message}". Call browser_dialog to answer it.`);
+
 /** Runs one agent browser step on the visible pane, or returns the failure to hand the model. */
 async function inPane(label, fn, { prepare, needsPage = true } = {}) {
   return paneDriver.run(label, async (step) => {
@@ -1795,6 +1869,8 @@ async function inPane(label, fn, { prepare, needsPage = true } = {}) {
     const contents = view.webContents;
     const url = contents.getURL();
     if (needsPage && (!url || url === "about:blank")) return browserControl.failure("not_navigated");
+    const open = (await dialogsFor(contents)).pending();
+    if (open) return dialogFailure(open);
     await showAgentOverlay(contents);
     return fn(contents, step);
   });
@@ -1802,7 +1878,7 @@ async function inPane(label, fn, { prepare, needsPage = true } = {}) {
 
 /** A hop the guard cancelled while a step ran, as the failure the model should hear about. */
 function refusedByGuard() {
-  const hop = paneGuard?.refusedHop();
+  const hop = activeGuard()?.refusedHop();
   return hop ? browserControl.failure("refused_url", urlPolicy.refusalFor(hop)) : null;
 }
 
@@ -1814,7 +1890,7 @@ ipc.handle("browser-navigate", async (event, url) => {
 
   let loading = null;
   const load = (contents) => {
-    paneGuard?.reset();
+    activeGuard()?.reset();
     loading = contents.loadURL(url, { userAgent: cleanUserAgent(contents), timeout: 30000 });
     // The wait below reports a failed load; this keeps an early rejection from going unhandled.
     loading.catch((e) => log.swallow("browser", "pane load failed", e));
@@ -1824,10 +1900,10 @@ ipc.handle("browser-navigate", async (event, url) => {
     try {
       if (!loading) load(contents);
       await loading.catch((e) => {
-        if (!paneGuard?.refusedHop()) throw e;
+        if (!activeGuard()?.refusedHop()) throw e;
       });
 
-      for (let i = 0; i < 6 && !paneGuard?.refusedHop() && !step.stopped(); i++) {
+      for (let i = 0; i < 6 && !activeGuard()?.refusedHop() && !step.stopped(); i++) {
         const state = await contents.executeJavaScript(PAGE_STATE_SCRIPT);
 
         if (isBotChallengePage(state)) return browserControl.failure("human_verification");
@@ -1957,7 +2033,7 @@ async function changeNote(input, contents, before) {
 function acting(label, work, { report = false } = {}) {
   return inPane(label, async (contents, step) => {
     try {
-      paneGuard?.reset();
+      activeGuard()?.reset();
       const input = inputFor(contents);
       const before = report ? await input.signature().catch((e) => {
         log.swallow("browser", "page look failed", e);
@@ -1966,8 +2042,10 @@ function acting(label, work, { report = false } = {}) {
       if (step.stopped()) return browserControl.failure("user_took_over");
       let extra = {};
       let failed = null;
+      const dialogs = await dialogsFor(contents);
       await paneDriver.sending(async () => {
-        const out = await work(input, contents, step);
+        // A click that raises an alert never returns until the alert is answered.
+        const out = await Promise.race([work(input, contents, step), dialogs.opened().then(() => ({}))]);
         if (out && out.ok === false) failed = out;
         else extra = out || {};
         // The input events reach the listeners a beat after they are sent.
@@ -1978,14 +2056,81 @@ function acting(label, work, { report = false } = {}) {
       if (report) await sleep(500);
       const refused = refusedByGuard();
       if (refused) return refused;
+      const open = dialogs.pending();
+      if (open) return { ok: true, url: contents.getURL(), dialog: open, ...takeSideEffects(), ...extra };
+      if (report && (await challengeShown(contents))) return browserControl.failure("human_verification");
       const title = await contents.executeJavaScript('document.title || ""');
       const changed = report ? await changeNote(input, contents, before) : undefined;
-      return { ok: true, title, url: contents.getURL(), ...(changed ? { changed } : {}), ...extra };
+      return { ok: true, title, url: contents.getURL(), ...(changed ? { changed } : {}), ...takeSideEffects(), ...extra };
     } catch (e) {
       return observationFailure(e);
     }
   });
 }
+
+/** Whether the page in front is a bot check the user has to pass. */
+async function challengeShown(contents) {
+  try {
+    return isBotChallengePage(await contents.executeJavaScript(PAGE_STATE_SCRIPT));
+  } catch (e) {
+    log.swallow("browser", "challenge look failed", e);
+    return false;
+  }
+}
+
+ipc.handle("browser-dialog", (event, action, text) => {
+  if (!["accept", "dismiss"].includes(action)) {
+    return browserControl.failure("invalid_input", "The dialog action is accept or dismiss.");
+  }
+  // Not through inPane: a page with a dialog open cannot run the overlay script.
+  return paneDriver.run("answering", async () => {
+    const { view, failed } = await paneDriver.ensureTab({});
+    if (failed) return failed;
+    const dialogs = await dialogsFor(view.webContents);
+    try {
+      const closed = await dialogs.answer({ accept: action === "accept", text: typeof text === "string" ? text : undefined });
+      await sleep(300);
+      return { ok: true, answered: closed.type, url: view.webContents.getURL(), ...takeSideEffects() };
+    } catch (e) {
+      return e.code === "no_dialog" ? browserControl.failure("no_dialog") : browserControl.failure("script_failed", e.message);
+    }
+  });
+});
+
+const tabList = () =>
+  browserPane.tabs().map(({ index, active, view }) => ({
+    index,
+    active,
+    title: view.webContents.getTitle(),
+    url: view.webContents.getURL(),
+  }));
+
+ipc.handle("browser-tabs", async (event, action, options) => {
+  if (!["list", "new", "select", "close"].includes(action)) {
+    return browserControl.failure("invalid_input", "The tabs action is list, new, select or close.");
+  }
+  const { index, url } = options && typeof options === "object" ? options : {};
+  return inPane("tabs", async () => {
+    if (action === "new") {
+      if (url !== undefined && !urlPolicy.isFetchableUrl(url)) {
+        return browserControl.failure("refused_url", urlPolicy.refusalFor(url));
+      }
+      const tab = browserPane.openTab();
+      if (!tab) return browserControl.failure("tab_limit");
+      if (url) {
+        activeGuard()?.reset();
+        await tab.webContents
+          .loadURL(url, { userAgent: cleanUserAgent(tab.webContents), timeout: 30000 })
+          .catch((e) => log.swallow("browser", "new tab load failed", e));
+      }
+    } else if (action === "select") {
+      if (!browserPane.selectTab(Number(index))) return browserControl.failure("invalid_tab");
+    } else if (action === "close") {
+      if (!browserPane.closeTab(Number(index))) return browserControl.failure("invalid_tab");
+    }
+    return { ok: true, tabs: tabList() };
+  }, { needsPage: false });
+});
 
 const isRef = (value) => typeof value === "string" && /^e\d+$/.test(value);
 
@@ -2107,7 +2252,7 @@ ipc.handle("browser-history", async (event, action) => {
   }
   return inPane("navigating", async (contents, step) => {
     try {
-      paneGuard?.reset();
+      activeGuard()?.reset();
       const history = contents.navigationHistory;
       if (action === "back" && !history.canGoBack()) return browserControl.failure("navigation_failed", "There is no earlier page.");
       if (action === "forward" && !history.canGoForward()) return browserControl.failure("navigation_failed", "There is no later page.");

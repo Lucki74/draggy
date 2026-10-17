@@ -209,9 +209,10 @@ AVAILABLE TOOLS
 8. browser_click: {"ref": "e7"} → clicks that ref, {"index": 0} → clicks the element at that index, or {"x": 320, "y": 140} → clicks that point of the last screenshot
 9. browser_type: {"ref": "e4", "text": "hello", "clear": true, "submit": true} → replaces the field with hello and presses Enter
 10. browser_press_key: {"key": "Enter"} → presses a key, or {"key": "ArrowDown", "repeat": 3} → presses it three times
-11. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
-12. browser_close: {} → closes the browser session
-13. create_file: {"filename": "report.docx", "content": "# Title\\n\\nBody"} → writes a file the user can open
+11. browser_dialog: {"action": "accept"} → presses OK on the open dialog
+12. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
+13. browser_close: {} → closes the browser session
+14. create_file: {"filename": "report.docx", "content": "# Title\\n\\nBody"} → writes a file the user can open
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>
@@ -250,7 +251,7 @@ BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather th
 5. browser_get_text to read the result
 6. browser_close when done
 
-To read the page structure instead, browser_snapshot lists headings, controls and inputs with refs (e1, e2) that browser_click and browser_get_text accept in place of an index. Refs expire at the next snapshot or navigation: snapshot again on a stale_ref error. browser_screenshot shows the page as an image, for charts and layout questions, if the model can see images. browser_type takes a ref and reads the field back, with clear, submit and slowly options, and browser_press_key accepts chords such as Control+A. After a click or key press the reply says whether the page navigated, changed or stayed the same: read it before repeating the action. browser_hover, browser_drag, browser_scroll, browser_select_option, browser_wait, browser_history and clicking at x and y of a screenshot exist only when the tool list shows them.
+To read the page structure instead, browser_snapshot lists headings, controls and inputs with refs (e1, e2) that browser_click and browser_get_text accept in place of an index. Refs expire at the next snapshot or navigation: snapshot again on a stale_ref error. browser_screenshot shows the page as an image, for charts and layout questions, if the model can see images. browser_type takes a ref and reads the field back, with clear, submit and slowly options, and browser_press_key accepts chords such as Control+A. After a click or key press the reply says whether the page navigated, changed or stayed the same: read it before repeating the action. browser_hover, browser_drag, browser_scroll, browser_select_option, browser_wait, browser_history and clicking at x and y of a screenshot exist only when the tool list shows them. A link that opens a new window arrives as a new tab: call browser_tabs to see and switch tabs, then browser_snapshot, since refs belong to one tab. If a reply says a dialog is open, answer it with browser_dialog before anything else. Downloads are saved, never opened, and a page asking for permissions such as location is refused.
 
 If the user asks for up-to-date, recent or specific information you do not know, use search_web first, then read_url on the most relevant results. Do not answer until you have enough information.
 
@@ -411,18 +412,19 @@ AVAILABLE TOOLS
 7. browser_click: {"ref": "e7"} → clicks that ref, {"index": 0} → clicks the element at that index, or {"x": 320, "y": 140} → clicks that point of the last screenshot
 8. browser_type: {"ref": "e4", "text": "hello", "clear": true, "submit": true} → replaces the field with hello and presses Enter
 9. browser_press_key: {"key": "Enter"} → presses a key, or {"key": "ArrowDown", "repeat": 3} → presses it three times
-10. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
-11. browser_close: {} → closes the browser session
-12. run_code: {"language": "python", "source": "print(2 + 2)"} → runs the program and returns its output
-13. read_file: {"path": "src/App.tsx"} → the text of the file
-14. list_directory: {"path": "src"} → the files and folders in it
-15. search_files: {"text": "createTaskManager"} → the files and lines it appears on
-16. edit_file: {"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place
-17. write_file: {"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file
-18. move_file: {"from": "notes.md", "to": "docs/notes.md"} → moves the file
-19. delete_file: {"path": "old-notes.md"} → moves the file to the recycle bin
-20. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
-21. explore: {"question": "Where is the permission engine called from?"} → a short answer with the files it is in
+10. browser_dialog: {"action": "accept"} → presses OK on the open dialog
+11. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
+12. browser_close: {} → closes the browser session
+13. run_code: {"language": "python", "source": "print(2 + 2)"} → runs the program and returns its output
+14. read_file: {"path": "src/App.tsx"} → the text of the file
+15. list_directory: {"path": "src"} → the files and folders in it
+16. search_files: {"text": "createTaskManager"} → the files and lines it appears on
+17. edit_file: {"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place
+18. write_file: {"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file
+19. move_file: {"from": "notes.md", "to": "docs/notes.md"} → moves the file
+20. delete_file: {"path": "old-notes.md"} → moves the file to the recycle bin
+21. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
+22. explore: {"question": "Where is the permission engine called from?"} → a short answer with the files it is in
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>
@@ -467,7 +469,7 @@ BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather th
 5. browser_get_text to read the result
 6. browser_close when done
 
-To read the page structure instead, browser_snapshot lists headings, controls and inputs with refs (e1, e2) that browser_click and browser_get_text accept in place of an index. Refs expire at the next snapshot or navigation: snapshot again on a stale_ref error. browser_screenshot shows the page as an image, for charts and layout questions, if the model can see images. browser_type takes a ref and reads the field back, with clear, submit and slowly options, and browser_press_key accepts chords such as Control+A. After a click or key press the reply says whether the page navigated, changed or stayed the same: read it before repeating the action. browser_hover, browser_drag, browser_scroll, browser_select_option, browser_wait, browser_history and clicking at x and y of a screenshot exist only when the tool list shows them.
+To read the page structure instead, browser_snapshot lists headings, controls and inputs with refs (e1, e2) that browser_click and browser_get_text accept in place of an index. Refs expire at the next snapshot or navigation: snapshot again on a stale_ref error. browser_screenshot shows the page as an image, for charts and layout questions, if the model can see images. browser_type takes a ref and reads the field back, with clear, submit and slowly options, and browser_press_key accepts chords such as Control+A. After a click or key press the reply says whether the page navigated, changed or stayed the same: read it before repeating the action. browser_hover, browser_drag, browser_scroll, browser_select_option, browser_wait, browser_history and clicking at x and y of a screenshot exist only when the tool list shows them. A link that opens a new window arrives as a new tab: call browser_tabs to see and switch tabs, then browser_snapshot, since refs belong to one tab. If a reply says a dialog is open, answer it with browser_dialog before anything else. Downloads are saved, never opened, and a page asking for permissions such as location is refused.
 
 If the user asks for up-to-date, recent or specific information you do not know, use search_web first, then read_url on the most relevant results. Do not answer until you have enough information."
 `;

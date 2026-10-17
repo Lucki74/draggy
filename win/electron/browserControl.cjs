@@ -52,6 +52,22 @@ const FAILURES = {
     message: "Another element would receive that click.",
     hint: "Close the overlay or banner in the way first, or scroll the target clear of it.",
   },
+  dialog_open: {
+    message: "A dialog is open on the page and is waiting for an answer.",
+    hint: "Call browser_dialog with accept or dismiss before anything else.",
+  },
+  no_dialog: {
+    message: "No dialog is open on the page.",
+    hint: "Call browser_snapshot to see the page.",
+  },
+  tab_limit: {
+    message: "Eight tabs are open, which is the most the browser keeps.",
+    hint: "Close a tab with browser_tabs before opening another.",
+  },
+  invalid_tab: {
+    message: "There is no tab with that number, or it is the last one.",
+    hint: "Call browser_tabs with action list to see the open tabs. The last tab cannot be closed.",
+  },
   wait_timeout: {
     message: "What you waited for did not appear in time.",
     hint: "Call browser_snapshot to see where the page is. Do not wait again for the same thing without a reason.",
