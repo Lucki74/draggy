@@ -88,7 +88,7 @@ export function EffortSlider({
 
     return (
         <div className={`flex flex-col gap-2.5 ${width} ${disabled ? "opacity-50" : ""}`}>
-            <span className="text-[12px] text-text-secondary">{t("effort")}</span>
+            <span className="text-center text-[12px] text-text-secondary">{t("effort")}</span>
 
             <div
                 role="slider"
@@ -102,7 +102,7 @@ export function EffortSlider({
                 aria-disabled={disabled || undefined}
                 aria-describedby={hint ? hintId : undefined}
                 onKeyDown={onKeyDown}
-                className="group relative h-8 mx-2 cursor-pointer touch-none select-none rounded-pill focus-visible:outline-none"
+                className="group relative h-8 mx-5 cursor-pointer touch-none select-none rounded-pill focus-visible:outline-none"
             >
                 <div ref={trackRef} className="absolute inset-y-0 inset-x-0" onPointerDown={(event) => {
                     if (disabled) return;
@@ -153,13 +153,13 @@ export function EffortSlider({
                 </div>
             </div>
 
-            <div className="relative h-4 mx-2" aria-hidden="true">
+            <div className="relative h-4 mx-5" aria-hidden="true">
                 <span
-                    className="absolute top-0 whitespace-nowrap text-[13px] font-medium leading-4 motion-safe:transition-[inset-inline-start,transform] motion-safe:duration-150 motion-safe:ease-out"
+                    className="absolute top-0 whitespace-nowrap text-[13px] font-medium leading-4 motion-safe:transition-[inset-inline-start] motion-safe:duration-150 motion-safe:ease-out"
                     style={{
                         color,
                         insetInlineStart: fill,
-                        transform: `translateX(${getComputedStyle(document.documentElement).direction === "rtl" ? "" : "-"}${(index / LAST) * 100}%)`,
+                        transform: "translateX(-50%)",
                     }}
                 >
                     {label(value)}
