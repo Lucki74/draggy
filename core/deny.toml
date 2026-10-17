@@ -6,6 +6,14 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+# docx-rs 0.4.22 (the latest release) pins zip 8, which these three advisories cover. They concern
+# ZipArchive::extract and ZipStreamReader::extract. Neither docx-rs nor draggy-documents calls those, and nothing
+# unpacks an archive to disk. Drop these once docx-rs moves to zip 9.
+ignore = [
+    { id = "RUSTSEC-2026-0367", reason = "zip extract only; docx-rs 0.4.22 pins zip 8 and does not extract to disk" },
+    { id = "RUSTSEC-2026-0368", reason = "zip extract only; docx-rs 0.4.22 pins zip 8 and does not extract to disk" },
+    { id = "RUSTSEC-2026-0369", reason = "zip extract only; docx-rs 0.4.22 pins zip 8 and does not extract to disk" },
+]
 
 [licenses]
 version = 2

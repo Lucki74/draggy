@@ -89,6 +89,7 @@ final class AppModel {
 
     private let defaults: UserDefaults
     private let secrets: any SecretStore
+    let engine: EngineModel
     private var session: Session?
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
@@ -140,6 +141,7 @@ final class AppModel {
     init(defaults: UserDefaults = .standard, secrets: any SecretStore = KeychainSecretStore()) {
         self.defaults = defaults
         self.secrets = secrets
+        engine = EngineModel(defaults: defaults)
         baseURL = defaults.string(forKey: Key.baseURL) ?? "http://127.0.0.1:8080/v1"
         modelName = defaults.string(forKey: Key.model) ?? ""
         folderPath = defaults.string(forKey: Key.folder) ?? ""
@@ -147,6 +149,10 @@ final class AppModel {
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
+        }
+        engine.onReady = { [weak self] info in
+            self?.baseURL = info.baseUrl
+            self?.modelName = info.model
         }
     }
 
@@ -237,7 +243,7 @@ final class AppModel {
         return created
     }
 
-    private static func message(for error: CoreError) -> String {
+    static func message(for error: CoreError) -> String {
         switch error {
         case let .Invalid(message), let .Engine(message), let .Model(message):
             message
