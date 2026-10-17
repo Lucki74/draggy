@@ -28,7 +28,7 @@ export function ProviderIcon({ type, name, size = "w-5 h-5" }: { type: string | 
       <span
         aria-hidden="true"
         data-icon={file}
-        className={`${box} inline-block bg-text-primary`}
+        className={`${box} inline-block align-middle bg-text-primary`}
         style={{
           maskImage: `url("${src}")`,
           maskSize: "contain",
@@ -42,7 +42,7 @@ export function ProviderIcon({ type, name, size = "w-5 h-5" }: { type: string | 
       />
     );
   }
-  if (src) return <img src={src} alt="" aria-hidden="true" data-icon={file} className={`${box} object-contain${TILE.has(file) ? " rounded-md" : ""}`} />;
+  if (src) return <img src={src} alt="" aria-hidden="true" data-icon={file} className={`${box} align-middle object-contain${TILE.has(file) ? " rounded-md" : ""}`} />;
 
   return (
     <span

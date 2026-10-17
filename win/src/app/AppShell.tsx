@@ -41,6 +41,9 @@ import { Dock } from "./Dock";
 import {
   closePane,
   createDefaultDockLayout,
+  filePane,
+  migrateFilePane,
+  openFilePane,
   openPane,
   type DockLayout,
 } from "./dockLayout";
@@ -721,17 +724,18 @@ export default function AppShell({
   const [dockLayoutsByChat, setDockLayoutsByChat] = useState<Record<string, DockLayout>>({});
 
   const currentDockLayout = useMemo<DockLayout>(() => {
-    const saved =
+    const stored =
       currentSession?.dock ??
       (currentChatId ? dockLayoutsByChat[currentChatId] : undefined);
+    const saved = stored ? migrateFilePane(stored) : undefined;
     let base =
       saved ??
       createDefaultDockLayout({
         file: canvasPath,
         width: rightPaneWidth,
       });
-    if (canvasPath && !base.panes.includes("file")) {
-      base = openPane(base, "file", { file: canvasPath });
+    if (canvasPath && !base.panes.includes(filePane(canvasPath))) {
+      base = openFilePane(base, canvasPath);
     } else if (canvasPath && base.file !== canvasPath) {
       base = { ...base, file: canvasPath };
     }
@@ -805,7 +809,7 @@ export default function AppShell({
   const handleOpenFile = useCallback(
     (path: string) => {
       setCanvas({ workspaceId: active.id, path });
-      updateDockLayout(openPane(currentDockLayout, "file", { file: path }));
+      updateDockLayout(openFilePane(currentDockLayout, path));
     },
     [active.id, currentDockLayout, updateDockLayout],
   );

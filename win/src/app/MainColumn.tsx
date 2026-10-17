@@ -261,7 +261,7 @@ export function MainColumn({
                         </OpenDiffContext.Provider>
                     </div>
 
-                    {dockNode}
+                    {viewMode !== "settings" && dockNode}
                 </div>
             ) : (
                 <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />

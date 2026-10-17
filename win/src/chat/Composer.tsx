@@ -684,7 +684,7 @@ export function Composer({
                                             {...props}
                                             dropdown
                                             icon={<EffortMeter level={settings.effort} sent={sentLevel} />}
-                                            className="max-w-[180px]"
+                                            className="max-w-[180px] min-w-0 shrink"
                                             label={
                                                 tightToolbar ? (
                                                     <span className="sr-only">{t(EFFORT_LABELS[settings.effort])}</span>
@@ -719,7 +719,7 @@ export function Composer({
                                         {...props}
                                         dropdown
                                         icon={modelGlyph}
-                                        className="max-w-[220px]"
+                                        className="max-w-[220px] min-w-0 shrink"
                                         label={
                                             tightToolbar ? (
                                                 <span className="sr-only">{modelLabel(model)}</span>
@@ -773,7 +773,7 @@ export function Composer({
                                 />
                             )}
 
-                            {micState === "recording" && micAnalyser && <MicWave analyser={micAnalyser} />}
+                            {micState === "recording" && micAnalyser && !tightToolbar && <MicWave analyser={micAnalyser} />}
 
                             {speechSupported && (
                                 <IconButton

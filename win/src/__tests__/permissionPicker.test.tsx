@@ -38,7 +38,7 @@ describe("PermissionPicker for a model that cannot use tools", () => {
     const byName = (name: string) => screen.getByRole("menuitemradio", { name: new RegExp(name) }) as HTMLButtonElement;
 
     expect(byName("Plan only").getAttribute("aria-disabled")).toBeNull();
-    for (const name of ["Ask first", "Accept edits", "Auto"]) {
+    for (const name of ["Ask first", "Accept edits", "YOLO"]) {
       expect(byName(name).getAttribute("aria-disabled")).toBe("true");
       expect(byName(name).title).toBe("Needs a model that supports tools");
     }
@@ -47,7 +47,7 @@ describe("PermissionPicker for a model that cannot use tools", () => {
   it("does not pick a grayed-out mode, but still picks Plan only", () => {
     const onPick = renderPicker(true);
 
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /Auto/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /YOLO/ }));
     expect(onPick).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Plan only/ }));

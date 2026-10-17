@@ -3,11 +3,15 @@ import {
   closePane,
   createDefaultDockLayout,
   isDockOpen,
+  migrateFilePane,
   movePane,
+  openFilePane,
   openPane,
+  renameFilePane,
   setDockWidth,
   splitPane,
   unsplit,
+  type PaneId,
 } from "../app/dockLayout";
 
 describe("dockLayout", () => {
@@ -21,8 +25,8 @@ describe("dockLayout", () => {
 
   it("initializes with the file and leaves the plan closed", () => {
     const layout = createDefaultDockLayout({ file: "src/main.ts" });
-    expect(layout.panes).toEqual(["file"]);
-    expect(layout.active).toBe("file");
+    expect(layout.panes).toEqual(["file:src/main.ts"]);
+    expect(layout.active).toBe("file:src/main.ts");
     expect(layout.file).toBe("src/main.ts");
     expect(isDockOpen(layout)).toBe(true);
   });
@@ -108,5 +112,27 @@ describe("dockLayout", () => {
     expect(setDockWidth(layout, 100).width).toBe(260);
     expect(setDockWidth(layout, 2000).width).toBe(1200);
     expect(setDockWidth(layout, 650).width).toBe(650);
+  });
+
+  it("opens each file in its own tab and closes one at a time", () => {
+    let layout = openFilePane(createDefaultDockLayout(), "a.ts");
+    layout = openFilePane(layout, "b.ts");
+    layout = openFilePane(layout, "a.ts");
+    expect(layout.panes).toEqual(["file:a.ts", "file:b.ts"]);
+    expect(layout.active).toBe("file:a.ts");
+    const closed = closePane(layout, "file:a.ts");
+    expect(closed.panes).toEqual(["file:b.ts"]);
+    expect(closed.file).toBe("b.ts");
+  });
+
+  it("keeps the tab when a file is renamed and migrates the old single tab", () => {
+    const opened = openFilePane(createDefaultDockLayout(), "a.ts");
+    const renamed = renameFilePane(opened, "a.ts", "c.ts");
+    expect(renamed.panes).toEqual(["file:c.ts"]);
+    expect(renamed.active).toBe("file:c.ts");
+    const old = { ...createDefaultDockLayout(), panes: ["plan", "file"] as PaneId[], active: "file" as PaneId, file: "x.ts" };
+    const migrated = migrateFilePane(old);
+    expect(migrated.panes).toEqual(["plan", "file:x.ts"]);
+    expect(migrated.active).toBe("file:x.ts");
   });
 });

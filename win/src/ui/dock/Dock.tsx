@@ -14,14 +14,14 @@ export interface DockProps {
   onMovePane: (fromIndex: number, toIndex: number) => void;
   onSplitPane?: (pane: PaneId) => void;
   onUnsplit?: () => void;
-  onStartResize?: (e: React.MouseEvent) => void;
+  onStartResize?: (e: React.PointerEvent) => void;
   paneTitles?: Partial<Record<PaneId, string>>;
   paneIcons?: Partial<Record<PaneId, IconName>>;
   isOverlay?: boolean;
   className?: string;
 }
 
-const DEFAULT_PANE_ICONS: Record<PaneId, IconName> = {
+const DEFAULT_PANE_ICONS: Partial<Record<PaneId, IconName>> = {
   plan: "check",
   file: "file-code",
   files: "folder-simple",
@@ -65,7 +65,7 @@ export function Dock({
   if (panes.length === 0 || !active) return null;
 
   const titleOf = (pane: PaneId) => paneTitles[pane] ?? t(pane);
-  const iconOf = (pane: PaneId) => paneIcons[pane] ?? DEFAULT_PANE_ICONS[pane] ?? "file";
+  const iconOf = (pane: PaneId) => paneIcons[pane] ?? DEFAULT_PANE_ICONS[pane] ?? (pane.startsWith("file:") ? "file-code" : "file");
 
   const handleSplitToggle = () => {
     if (split) {
@@ -82,13 +82,13 @@ export function Dock({
       tabIndex={-1}
       className={`${
         isOverlay
-          ? "absolute inset-y-0 end-0 z-30 shadow-2xl bg-surface-base border-s border-rule"
+          ? "absolute inset-y-0 end-0 z-30 flex shadow-2xl bg-surface-base border-s border-rule"
           : "flex h-full flex-shrink-0 relative"
       } ${className}`}
     >
       {onStartResize && (
         <div
-          onMouseDown={onStartResize}
+          onPointerDown={onStartResize}
           className="w-1.5 cursor-col-resize hover:bg-rule-strong active:bg-text-secondary flex-shrink-0 select-none z-10 transition-colors"
           title={t("resizePane")}
         />

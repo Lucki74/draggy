@@ -45,7 +45,7 @@ export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(function Chip
             className={`inline-flex items-center min-w-0 font-medium rounded-pill border transition-colors duration-120 select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas ${sizeClasses} ${stateClasses} ${className}`}
             {...props}
         >
-            {icon && <span className="shrink-0">{icon}</span>}
+            {icon && <span className="shrink-0 inline-flex items-center">{icon}</span>}
             <span className="truncate">{label}</span>
             {count !== undefined && (
                 <span className="px-1.5 py-0.2 rounded-pill bg-surface-raised text-[10px] tabular-nums font-mono">

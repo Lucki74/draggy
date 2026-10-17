@@ -1,3 +1,4 @@
+import Logo from "../Logo";
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { displayModelName, listInstalledModels, quantizationOf } from "../llama";
@@ -62,9 +63,10 @@ export default function ModelChoices({
     };
   }, [open]);
 
-  const sections: { title: string | null; type?: string; choices: Choice[] }[] = [
+  const sections: { title: string | null; type?: string; local?: boolean; choices: Choice[] }[] = [
     {
       title: groups.length > 0 ? t("draggyEngine") : null,
+      local: true,
       choices: installed.map((entry) => {
         const label = displayModelName(entry.name);
         // Two files with one name differ by quantization, so say which this is.
@@ -106,6 +108,7 @@ export default function ModelChoices({
             <div key={section.title ?? ""} role={section.title ? "group" : undefined} aria-label={section.title ?? undefined} className="space-y-1">
               {section.title && (
                 <p className="flex items-center gap-1.5 px-2 pt-1 text-[12px] font-medium text-text-secondary">
+                  {section.local && <Logo className="w-3 h-3 flex-shrink-0 text-text-primary" />}
                   {section.type && <ProviderIcon type={section.type} name={section.title} size="w-3 h-3" />}
                   <span className="truncate">{section.title}</span>
                 </p>
