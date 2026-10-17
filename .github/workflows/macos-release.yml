@@ -1,0 +1,127 @@
+name: macOS release
+
+# Run from the Actions tab on main. Builds the macOS app as 0.N, where N is one more than the highest macos-b-N tag,
+# signs it ad hoc and publishes a pre-release with a zip. The pre-release flag keeps it away from the Windows updater,
+# which reads the newest b-N release and falls back to the release marked Latest.
+# Developer ID signing, notarization and Sparkle replace the ad-hoc step once the Apple Developer Program is joined.
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: Release notes in Markdown
+        required: true
+        type: string
+      dry_run:
+        description: Build everything but do not publish
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      n: ${{ steps.next.outputs.n }}
+    steps:
+      - id: next
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/macos-b-" --jq '.[].ref' \
+            | sed -n 's#^refs/tags/macos-b-\([0-9]\+\)$#\1#p' | sort -n | tail -1)
+          echo "n=$(( ${last:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - run: brew install xcodegen
+
+      - run: macos/scripts/build-core.sh
+
+      - run: xcodegen generate
+        working-directory: macos
+
+      - name: Test
+        run: >
+          xcodebuild test
+          -project Draggy.xcodeproj
+          -scheme Draggy
+          -destination "platform=macOS,arch=arm64"
+          CODE_SIGNING_ALLOWED=NO
+        working-directory: macos
+
+      # The build number is what the in-app update check compares, so it must be N.
+      - name: Build and sign ad hoc
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+        run: >
+          xcodebuild build
+          -project Draggy.xcodeproj
+          -scheme Draggy
+          -configuration Release
+          -destination "platform=macOS,arch=arm64"
+          -derivedDataPath build/derived
+          CODE_SIGN_IDENTITY=-
+          CODE_SIGNING_REQUIRED=NO
+          MARKETING_VERSION="0.$N"
+          CURRENT_PROJECT_VERSION="$N"
+        working-directory: macos
+
+      - name: Package
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+        run: |
+          app="macos/build/derived/Build/Products/Release/Draggy.app"
+          codesign --force --deep --sign - --options runtime "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir -p out
+          ditto -c -k --keepParent "$app" "out/Draggy-0.$N-arm64.zip"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-dist
+          path: out/*.zip
+          if-no-files-found: error
+
+  # Drafting first and publishing last means a failed upload never leaves a half-empty release.
+  publish:
+    needs: [prepare, build]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ needs.prepare.outputs.n }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          body="$NOTES"$'\n\n'"This build is signed ad hoc. On first launch, right-click the app and choose Open."
+          if [ "$N" -gt 1 ]; then
+            body="$body"$'\n\n'"**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/macos-b-$((N-1))...macos-b-$N"
+          fi
+          gh release create "macos-b-$N" out/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "macOS build $N" --notes "$body" --prerelease --latest=false
