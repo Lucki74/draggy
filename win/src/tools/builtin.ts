@@ -160,9 +160,10 @@ const readUrl: ToolSpec = {
 
     ctx.pushStep({
       id: stepId,
-      type: "opening",
-      content: `${ctx.t("openingPage")} **${url}**`,
+      type: "reading",
+      content: `${ctx.t("readingSite")} **${url}**`,
       isComplete: false,
+      url,
     });
 
     try {
@@ -197,14 +198,9 @@ const readUrl: ToolSpec = {
 
       ctx.patchStep(stepId, {
         isComplete: true,
-        content: `${ctx.t("openedPage")} **${url}**`,
+        content: `${ctx.t("readSite")} **${url}**`,
       });
-      ctx.pushStep({
-        id: ctx.newId(),
-        type: "reading",
-        content: `**${page.title}** (${url}) (${ctx.t("lines")} 0-${shown} ${ctx.t("of")} ${lines.length})`,
-        isComplete: true,
-      });
+      ctx.syncSteps();
 
       return `TOOL RESULT (read_url):\nTitle: ${page.title}\nContent:\n${lines.slice(0, shown).join("\n")}`;
     } catch (error) {
@@ -239,6 +235,7 @@ const browserNavigate: ToolSpec = {
       type: "navigating",
       content: `${ctx.t("navigatingTo")} **${url}**`,
       isComplete: false,
+      url,
     });
 
     const result = await api()?.browserNavigate(url);
@@ -251,14 +248,9 @@ const browserNavigate: ToolSpec = {
 
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("navigatedTo")} **${url}**`,
+      content: `${ctx.t("openedSite")} **${result.url || url}**`,
     });
-    ctx.pushStep({
-      id: ctx.newId(),
-      type: "loaded",
-      content: `${ctx.t("loadedPage")} **${result.title}** (${result.url})`,
-      isComplete: true,
-    });
+    ctx.syncSteps();
 
     return `TOOL RESULT (browser_navigate): Opened "${result.title}" at ${result.url}. Use browser_get_elements to see interactive elements, or browser_get_text to read the page.`;
   },
@@ -413,18 +405,18 @@ const pageAfter = (result: { title?: string; url?: string; changed?: string } & 
 /** One browser action as a step in the transcript: running, then done or failed. */
 async function browserAction<T extends { ok: boolean }>(
   ctx: ToolContext,
-  label: string,
+  done: string,
   call: () => Promise<T | undefined>,
+  running: string = done,
 ): Promise<T | undefined> {
   const stepId = ctx.newId();
-  ctx.pushStep({ id: stepId, type: "clicking", content: `${ctx.t("browserActionRunning")} **${label}**`, isComplete: false });
+  ctx.pushStep({ id: stepId, type: "clicking", content: running, isComplete: false });
   const result = await call();
-  const code = result && !result.ok ? (result as { error?: { code?: string } }).error?.code : undefined;
   ctx.patchStep(
     stepId,
     result?.ok
-      ? { isComplete: true, content: `${ctx.t("browserActionDone")} **${label}**` }
-      : { isComplete: true, type: "error", content: `${ctx.t("browserActionFailed")} **${label}**${code ? ` (${code})` : ""}` },
+      ? { isComplete: true, content: done }
+      : { isComplete: true, type: "error", content: `${ctx.t("browserActionFailed")} (${done})` },
   );
   ctx.syncSteps();
   return result;
@@ -473,17 +465,18 @@ const browserClick: ToolSpec = {
 
     const byPoint = x !== undefined && y !== undefined;
     const target = byPoint ? null : (ref ?? Number(args.index));
-    const label = byPoint ? `(${x}, ${y})` : ref ?? `#${target}`;
     const options = extra ? { x, y, button: text(args.button), count: number(args.count), modifiers } : undefined;
 
     const stepId = ctx.newId();
-    ctx.pushStep({ id: stepId, type: "clicking", content: `${ctx.t("clickingElement")} **${label}**`, isComplete: false });
+    ctx.pushStep({ id: stepId, type: "clicking", content: ctx.t("bsClicking"), isComplete: false });
 
     const result = await (options ? api()?.browserClick(target, options) : api()?.browserClick(target as number | string));
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      content: `${ctx.t("clickedElement")} ${label}${result?.ok && result.title ? ` → **${result.title}**` : ""}`,
-    });
+    ctx.patchStep(
+      stepId,
+      result?.ok
+        ? { isComplete: true, content: ctx.t("bsClicked") }
+        : { isComplete: true, type: "error", content: `${ctx.t("browserActionFailed")} (${ctx.t("bsClicked")})` },
+    );
     ctx.syncSteps();
 
     return `TOOL RESULT (browser_click): ${result?.ok ? `Clicked. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
@@ -512,11 +505,9 @@ const browserType: ToolSpec = {
     const ref = text(args.ref);
     const target = ref ?? Number(args.index);
     const typed = String(args.text ?? "");
-    const snippet = `${typed.substring(0, 30)}${typed.length > 30 ? "…" : ""}`;
-    const label = ref ?? `#${target}`;
     const stepId = ctx.newId();
 
-    ctx.pushStep({ id: stepId, type: "typing", content: `${ctx.t("typingInto")} **${label}**: "${snippet}"`, isComplete: false });
+    ctx.pushStep({ id: stepId, type: "typing", content: ctx.t("bsTyping"), isComplete: false });
 
     const result = await api()?.browserType(target, typed, {
       clear: args.clear === true,
@@ -526,8 +517,8 @@ const browserType: ToolSpec = {
     ctx.patchStep(
       stepId,
       result?.ok
-        ? { isComplete: true, content: `${ctx.t("typedInto")} **${label}**: "${snippet}"` }
-        : { isComplete: true, type: "error" },
+        ? { isComplete: true, content: ctx.t("bsTyped") }
+        : { isComplete: true, type: "error", content: `${ctx.t("browserActionFailed")} (${ctx.t("bsTyped")})` },
     );
     ctx.syncSteps();
 
@@ -555,7 +546,8 @@ const browserPressKey: ToolSpec = {
   run: async (args, ctx) => {
     const key = String(args.key);
     const repeat = number(args.repeat);
-    const result = await browserAction(ctx, key, async () =>
+    const label = ctx.t("bsKey").replace("{key}", key) + (repeat !== undefined && repeat > 1 ? ` x${repeat}` : "");
+    const result = await browserAction(ctx, label, async () =>
       repeat !== undefined && repeat > 1 ? api()?.browserPressKey(key, { repeat }) : api()?.browserPressKey(key),
     );
     return `TOOL RESULT (browser_press_key): ${result?.ok ? `Pressed "${key}". ${result.changed ?? ""}`.trim() : `Failed: ${browserFailure(result)}`}`;
@@ -579,7 +571,7 @@ const browserHover: ToolSpec = {
   run: async (args, ctx) => {
     const target = pointArg(args, "ref", "x", "y");
     if (!target) return "TOOL RESULT (browser_hover): Failed: Give a ref, or x and y.";
-    const result = await browserAction(ctx, typeof target === "string" ? target : `(${target.x}, ${target.y})`, async () => api()?.browserHover(target));
+    const result = await browserAction(ctx, ctx.t("bsHovered"), async () => api()?.browserHover(target));
     return `TOOL RESULT (browser_hover): ${result?.ok ? `Hovered. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
   },
 };
@@ -605,10 +597,22 @@ const browserDrag: ToolSpec = {
     const from = pointArg(args, "from", "from_x", "from_y");
     const to = pointArg(args, "to", "to_x", "to_y");
     if (!from || !to) return "TOOL RESULT (browser_drag): Failed: Give a start and an end, each a ref or an x and y pair.";
-    const result = await browserAction(ctx, "drag", async () => api()?.browserDrag(from, to));
+    const result = await browserAction(ctx, ctx.t("bsDragged"), async () => api()?.browserDrag(from, to));
     return `TOOL RESULT (browser_drag): ${result?.ok ? `Dragged. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
   },
 };
+
+/** Which way a scroll went, in words. The pixels stay between the model and the page. */
+function scrollWords(args: Record<string, unknown>, ctx: ToolContext): string {
+  if (text(args.ref)) return ctx.t("bsScrollView");
+  const to = text(args.to);
+  if (to === "top") return ctx.t("bsScrollTop");
+  if (to === "bottom") return ctx.t("bsScrollBottom");
+  const dx = number(args.dx) ?? 0;
+  const dy = number(args.dy) ?? 0;
+  if (Math.abs(dx) > Math.abs(dy)) return ctx.t(dx > 0 ? "bsScrollRight" : "bsScrollLeft");
+  return ctx.t(dy < 0 ? "bsScrollUp" : "bsScrollDown");
+}
 
 const browserScroll: ToolSpec = {
   name: "browser_scroll",
@@ -627,7 +631,7 @@ const browserScroll: ToolSpec = {
   usage: '{"dy": 600} → one screen down, or {"to": "bottom"} → the end of the page',
   available: actionsOn,
   run: async (args, ctx) => {
-    const result = await browserAction(ctx, "scroll", async () =>
+    const result = await browserAction(ctx, scrollWords(args, ctx), async () =>
       api()?.browserScroll({ ref: text(args.ref), dx: number(args.dx), dy: number(args.dy), to: text(args.to) as "top" | "bottom" | undefined }),
     );
     return `TOOL RESULT (browser_scroll): ${
@@ -653,7 +657,7 @@ const browserSelectOption: ToolSpec = {
   run: async (args, ctx) => {
     const ref = text(args.ref);
     if (!ref) return "TOOL RESULT (browser_select_option): Failed: Give the ref of the dropdown.";
-    const result = await browserAction(ctx, ref, async () => api()?.browserSelectOption(ref, { label: text(args.label), value: text(args.value) }));
+    const result = await browserAction(ctx, ctx.t("bsChose"), async () => api()?.browserSelectOption(ref, { label: text(args.label), value: text(args.value) }));
     return `TOOL RESULT (browser_select_option): ${
       result?.ok ? `Chose "${result.chosen}". ${result.changed ?? ""}`.trim() : `Failed: ${browserFailure(result)}`
     }`;
@@ -677,7 +681,7 @@ const browserWait: ToolSpec = {
   usage: '{"text": "Order confirmed"} → waits until that text shows',
   available: actionsOn,
   run: async (args, ctx) => {
-    const result = await browserAction(ctx, text(args.text) ?? text(args.url) ?? "pause", async () =>
+    const result = await browserAction(ctx, ctx.t("bsWaited"), async () =>
       api()?.browserWait({ text: text(args.text), url: text(args.url), ms: number(args.ms), timeoutMs: number(args.timeout_ms) }),
     );
     return `TOOL RESULT (browser_wait): ${result?.ok ? "Done waiting." : `Failed: ${browserFailure(result)}`}`;
@@ -696,7 +700,7 @@ const browserHistory: ToolSpec = {
   available: actionsOn,
   run: async (args, ctx) => {
     const action = String(args.action) as "back" | "forward" | "reload";
-    const result = await browserAction(ctx, action, async () => api()?.browserHistory(action));
+    const result = await browserAction(ctx, ctx.t(action === "back" ? "bsBack" : action === "forward" ? "bsForward" : "bsReload"), async () => api()?.browserHistory(action));
     return `TOOL RESULT (browser_history): ${result?.ok ? `Done. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`}`;
   },
 };
@@ -717,7 +721,8 @@ const browserTabs: ToolSpec = {
   available: actionsOn,
   run: async (args, ctx) => {
     const action = String(args.action);
-    const result = await browserAction(ctx, action, async () =>
+    const tabKey = action === "new" ? "bsTabNew" : action === "select" ? "bsTabSelect" : action === "close" ? "bsTabClose" : "bsTabList";
+    const result = await browserAction(ctx, ctx.t(tabKey), async () =>
       api()?.browserTabs(action as "list" | "new" | "select" | "close", { index: number(args.index), url: text(args.url) }),
     );
     if (!result?.ok) return `TOOL RESULT (browser_tabs): Failed: ${browserFailure(result)}`;
@@ -740,7 +745,7 @@ const traceTool = (name: "browser_console" | "browser_network", kind: "console" 
   usage: kind === "console" ? "{} → the latest console lines" : '{"onlyFailed": true} → requests that failed',
   available: webEnabled,
   run: async (args, ctx) => {
-    const result = await browserAction(ctx, kind, async () =>
+    const result = await browserAction(ctx, ctx.t(kind === "console" ? "bsConsole" : "bsNetwork"), async () =>
       api()?.browserTrace(kind, { limit: number(args.limit), onlyFailed: args.onlyFailed === true }),
     );
     if (!result?.ok) return `TOOL RESULT (${name}): Failed: ${browserFailure(result)}`;
@@ -772,7 +777,7 @@ const browserDialog: ToolSpec = {
   available: webEnabled,
   run: async (args, ctx) => {
     const action = String(args.action) as "accept" | "dismiss";
-    const result = await browserAction(ctx, action, async () => api()?.browserDialog(action, text(args.text)));
+    const result = await browserAction(ctx, ctx.t(action === "accept" ? "bsDialogAccept" : "bsDialogDismiss"), async () => api()?.browserDialog(action, text(args.text)));
     return `TOOL RESULT (browser_dialog): ${
       result?.ok ? `Answered the ${result.answered} dialog. ${pageAfter(result)}` : `Failed: ${browserFailure(result)}`
     }`;
@@ -807,7 +812,8 @@ const browserGetText: ToolSpec = {
     const result = await api()?.browserGetText(ref || selector ? { ref, selector } : undefined);
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: result?.ok ? `${ctx.t("readPage")} **${result.title}** (${result.url})` : ctx.t("readPage"),
+      content: result?.ok ? `${ctx.t("readSite")} **${result.url}**` : ctx.t("readPage"),
+      ...(result?.ok ? { url: result.url } : {}),
     });
     ctx.syncSteps();
 

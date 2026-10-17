@@ -157,8 +157,8 @@ describe("the web and browser tools", () => {
 
     await runTool("read_url", { url: "https://a.example" }, context, EVERYTHING);
 
-    expect(lifecycle().began).toMatch(/^openingPage /);
-    expect(lifecycle().ended).toMatch(/^openedPage /);
+    expect(lifecycle().began).toMatch(/^readingSite /);
+    expect(lifecycle().ended).toMatch(/^readSite /);
   });
 
   it("navigate", async () => {
@@ -172,8 +172,8 @@ describe("the web and browser tools", () => {
     await runTool("browser_navigate", { url: "https://a.example" }, context, EVERYTHING);
 
     expect(lifecycle().began).toMatch(/^navigatingTo /);
-    expect(lifecycle().ended).toMatch(/^navigatedTo /);
-    expect(steps[1].content).toMatch(/^loadedPage /);
+    expect(lifecycle().ended).toMatch(/^openedSite /);
+    expect(steps).toHaveLength(1);
   });
 
   it("mark a navigation that failed as failed rather than done", async () => {
@@ -196,8 +196,8 @@ describe("the web and browser tools", () => {
 
     await runTool("browser_type", { index: 3, text: "hello" }, context, EVERYTHING);
 
-    expect(lifecycle().began).toMatch(/^typingInto /);
-    expect(lifecycle().ended).toMatch(/^typedInto /);
+    expect(lifecycle().began).toBe("bsTyping");
+    expect(lifecycle().ended).toBe("bsTyped");
   });
 
   it("read a page", async () => {
@@ -211,7 +211,7 @@ describe("the web and browser tools", () => {
     await runTool("browser_get_text", {}, context, EVERYTHING);
 
     expect(lifecycle().began).toBe("readingPage");
-    expect(lifecycle().ended).toMatch(/^readPage /);
+    expect(lifecycle().ended).toMatch(/^readSite /);
   });
 });
 

@@ -291,7 +291,26 @@ describe("browser snapshot and screenshot tools", () => {
     stubBrowser({ browserHistory });
     const { context, steps } = harness();
     await runTool("browser_history", { action: "back" }, context, { ...ALL_ON, browserActions: true });
-    expect(steps.at(-1)).toMatchObject({ type: "error", content: "browserActionFailed **back** (halted)" });
+    expect(steps.at(-1)).toMatchObject({ type: "error", content: "browserActionFailed (bsBack)" });
+  });
+
+  it("words browser steps in plain language with no refs or coordinates", async () => {
+    stubBrowser({
+      browserPressKey: vi.fn().mockResolvedValue({ ok: true }),
+      browserScroll: vi.fn().mockResolvedValue({ ok: true, scroll: { y: 600, max: 900 } }),
+      browserClick: vi.fn().mockResolvedValue({ ok: true, title: "Cart" }),
+    });
+    const env = { ...ALL_ON, browserActions: true };
+    const said = async (tool: string, args: Record<string, unknown>) => {
+      const { context, steps } = harness();
+      await runTool(tool, args, context, env);
+      return steps.map((entry) => entry.content);
+    };
+    expect(await said("browser_press_key", { key: "Enter", repeat: 3 })).toEqual(["bsKey x3"]);
+    expect(await said("browser_scroll", { dy: -400 })).toEqual(["bsScrollUp"]);
+    expect(await said("browser_scroll", { to: "bottom" })).toEqual(["bsScrollBottom"]);
+    expect(await said("browser_scroll", { dx: 300, dy: 10 })).toEqual(["bsScrollRight"]);
+    expect(await said("browser_click", { ref: "e1167" })).toEqual(["bsClicked"]);
   });
 
   it("fences page text as data", async () => {

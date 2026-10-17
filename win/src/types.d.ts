@@ -379,6 +379,8 @@ export interface SearchStep {
   content: string;
   thoughtTime?: number;
   isComplete?: boolean;
+  /** For a step that opened or read a web page, the address. The group title names the site. */
+  url?: string;
   /** For a skill step whose instructions loaded, the skill's id, which keeps it loaded afterwards. */
   skill?: string;
   results?: SearchResult[];
