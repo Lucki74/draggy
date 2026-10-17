@@ -20,6 +20,7 @@ struct ContentView: View {
                 }
         }
         .frame(minWidth: 720, minHeight: 480)
+        .task { await model.updates.check() }
         .sheet(isPresented: Binding(
             get: { model.pendingApproval != nil },
             set: { shown in if !shown { model.answerApproval(.no) } }
