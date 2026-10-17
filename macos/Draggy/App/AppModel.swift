@@ -239,7 +239,7 @@ final class AppModel {
 
     private static func message(for error: CoreError) -> String {
         switch error {
-        case let .invalid(message), let .engine(message), let .model(message):
+        case let .Invalid(message), let .Engine(message), let .Model(message):
             message
         default:
             "The core stopped unexpectedly."
