@@ -10,13 +10,13 @@ use tracing::{debug, warn};
 use crate::announcement::announces_action;
 use crate::compaction::{CHARS_PER_TOKEN, CompactionState, render_compaction_block};
 use crate::context_breakdown::{ContextBreakdown, LoadedSkillPart, PromptParts, measure_breakdown};
+use crate::effort::{Effort, EffortInput, Surface, effective_effort};
 use crate::js::{is_js_space, trim_js, trim_start_js, utf16_len};
 use crate::live_turn::LiveTurn;
 use crate::parsing::{
     ParsedToolCall, ToolParser, extract_file_streaming_args, extract_thought,
     has_tool_marker_across, parse_tool_call,
 };
-use crate::effort::{Effort, EffortInput, Surface, effective_effort};
 use crate::permissions::{
     Decision, Grant, PermissionMode, PermissionQuery, ToolAnnotations, Verdict, add_grant, decide,
     denied_by_user, grants_for, refusal_for, target_from_args,
@@ -942,7 +942,11 @@ pub fn prepare_turn(
     let unavailable = profile.tool_access == ToolAccess::Unavailable;
 
     // A model that cannot think is run as if thinking were off. A probe that got no answer proves nothing, so the setting stands.
-    let surface = if request.environment.has_folder { Surface::Code } else { Surface::Chat };
+    let surface = if request.environment.has_folder {
+        Surface::Code
+    } else {
+        Surface::Chat
+    };
     let outcome = effective_effort(EffortInput {
         asked: request.settings.effort,
         surface,

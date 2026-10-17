@@ -20,9 +20,9 @@ use draggy_agent::permissions::{
 };
 use draggy_agent::prompts::{
     InstanceKind, InstanceProfile, ListedModel, ProfileChoice, ProjectMemory, PromptEnvironment,
-    PromptMode, PromptProfile, PromptSettings, PromptSkill, PromptTool, SystemPromptInput,
-    WebMode, build_project_prompt, build_system_prompt, build_voice_prompt,
-    current_time_note, prompt_profile_for, voice_search_query,
+    PromptMode, PromptProfile, PromptSettings, PromptSkill, PromptTool, SystemPromptInput, WebMode,
+    build_project_prompt, build_system_prompt, build_voice_prompt, current_time_note,
+    prompt_profile_for, voice_search_query,
 };
 use draggy_agent::repetition::detect_repetition;
 use draggy_testkit::{cases, files};

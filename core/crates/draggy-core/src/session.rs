@@ -13,9 +13,7 @@ use draggy_agent::agent_loop::{
 };
 use draggy_agent::effort::Effort;
 use draggy_agent::permissions::{Grant, PermissionMode};
-use draggy_agent::prompts::{
-    PromptEnvironment, PromptProfile, PromptSettings, WebMode,
-};
+use draggy_agent::prompts::{PromptEnvironment, PromptProfile, PromptSettings, WebMode};
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{LoadedSkill, SkillReader};
 use draggy_agent::task_manager::{CancelSignal, Message};

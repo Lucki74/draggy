@@ -16,8 +16,8 @@ use draggy_agent::compaction::CompactionState;
 use draggy_agent::effort::Effort;
 use draggy_agent::permissions::{Grant, PermissionMode, ToolAnnotations};
 use draggy_agent::prompts::{
-    ProjectMemory, PromptEnvironment, PromptProfile, PromptSettings, PromptTool,
-    WebMode, render_memory,
+    ProjectMemory, PromptEnvironment, PromptProfile, PromptSettings, PromptTool, WebMode,
+    render_memory,
 };
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{InstalledSkill, LoadedSkill, SkillReader};
