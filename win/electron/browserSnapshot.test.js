@@ -217,6 +217,33 @@ describe("screenshot", () => {
     expect(shot.data).toBe("JPEGDATA");
   });
 
+  it("turns a point in the last viewport shot back into page pixels", async () => {
+    const page = fakePage({ main });
+    const observer = snap.createObserver(page);
+    expect(() => observer.shotPoint(10, 10)).toThrowError(/screenshot/i);
+    await observer.screenshot();
+    expect(observer.shotPoint(100, 40)).toEqual({ x: 100, y: 40 });
+  });
+
+  it("divides by the shrink factor of a wide viewport", async () => {
+    const send = async (method, params) => {
+      if (method === "Page.getLayoutMetrics") {
+        return { cssVisualViewport: { clientWidth: 2560, clientHeight: 600, pageX: 0, pageY: 0 }, cssContentSize: { width: 2560, height: 600 } };
+      }
+      return fakePage({ main }).send(method, params);
+    };
+    const observer = snap.createObserver({ send });
+    const shot = await observer.screenshot();
+    expect(shot.scale).toBe(0.5);
+    expect(observer.shotPoint(640, 100)).toEqual({ x: 1280, y: 200 });
+  });
+
+  it("does not take coordinates from a full-page or element shot", async () => {
+    const observer = snap.createObserver(fakePage({ main }));
+    await observer.screenshot({ mode: "full" });
+    expect(() => observer.shotPoint(1, 1)).toThrowError(/screenshot/i);
+  });
+
   it("scales a wide page down and caps a very tall one", async () => {
     const send = async (method, params) => {
       if (method === "Page.getLayoutMetrics") {

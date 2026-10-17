@@ -271,6 +271,8 @@ function createObserver(cdp) {
   }
 
   /** @param {{ mode?: "viewport"|"full"|"element", ref?: string, marks?: boolean }} options */
+  let lastShotScale = null;
+
   async function screenshot({ mode = "viewport", ref } = {}) {
     const vp = await viewport();
     let clip;
@@ -302,7 +304,15 @@ function createObserver(cdp) {
       clip: { ...clip, scale: pixels / vp.dpr },
       captureBeyondViewport: capturesBeyond,
     });
-    return { data, width: Math.round(clip.width * pixels), height: Math.round(clip.height * pixels) };
+    // Only a viewport shot can be pointed at: its pixels map straight onto the page the user sees.
+    lastShotScale = capturesBeyond ? null : pixels;
+    return { data, width: Math.round(clip.width * pixels), height: Math.round(clip.height * pixels), scale: pixels };
+  }
+
+  /** A point in the last viewport screenshot, as a point in the page. */
+  function shotPoint(x, y) {
+    if (!lastShotScale) throw new RefError("invalid_input", "Take a viewport browser_screenshot first, then give x and y from it.");
+    return { x: Math.round(x / lastShotScale), y: Math.round(y / lastShotScale) };
   }
 
   /** Boxes for labelling interactive refs that are on screen right now. */
@@ -320,7 +330,7 @@ function createObserver(cdp) {
     return out;
   }
 
-  return { snapshot, resolve, pointOf, textOf, screenshot, marks, forget, refs: () => table.size };
+  return { snapshot, resolve, pointOf, textOf, screenshot, shotPoint, marks, forget, refs: () => table.size };
 }
 
 /** Draws the ref labels in an isolated world, above the page, then takes itself away. */

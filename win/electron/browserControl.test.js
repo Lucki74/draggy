@@ -171,6 +171,14 @@ describe("guardNavigation", () => {
   });
 });
 
+describe("input failures", () => {
+  it.each(["invalid_input", "invalid_key", "not_editable", "click_blocked", "wait_timeout"])("%s keeps its code and a hint", (code) => {
+    const result = control.failure(code);
+    expect(result.error.code).toBe(code);
+    expect(result.error.hint.length).toBeGreaterThan(10);
+  });
+});
+
 describe("failure", () => {
   it("carries a code, a message and a hint the model can act on", () => {
     const result = control.failure("not_navigated");

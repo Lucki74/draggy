@@ -36,6 +36,26 @@ const FAILURES = {
     message: "That ref no longer points at anything on the page.",
     hint: "Call browser_snapshot again and use a ref from the new list. Refs end when the page changes.",
   },
+  invalid_input: {
+    message: "That input is not one the browser tools accept.",
+    hint: "Check the tool's parameters: a ref from browser_snapshot, or x and y from a viewport screenshot.",
+  },
+  invalid_key: {
+    message: "That key is not one the browser knows.",
+    hint: "Use a name like Enter, Tab, Escape, ArrowDown, F5, a single character, or a chord like Control+A.",
+  },
+  not_editable: {
+    message: "That element does not take typed text.",
+    hint: "Call browser_snapshot and pick a textbox. For a dropdown use browser_select_option.",
+  },
+  click_blocked: {
+    message: "Another element would receive that click.",
+    hint: "Close the overlay or banner in the way first, or scroll the target clear of it.",
+  },
+  wait_timeout: {
+    message: "What you waited for did not appear in time.",
+    hint: "Call browser_snapshot to see where the page is. Do not wait again for the same thing without a reason.",
+  },
   screenshot_failed: {
     message: "The screenshot could not be taken.",
     hint: "Use browser_snapshot to read the page instead, or try again in a moment.",

@@ -1091,15 +1091,37 @@ declare global {
 
       browserNavigate: (url: string) => Promise<BrowserResult<{ title: string; url: string }>>;
       browserGetElements: () => Promise<BrowserResult<{ elements: BrowserElement[] }>>;
-      browserClick: (target: number | string) => Promise<BrowserResult<{ title: string; url: string }>>;
+      browserClick: (
+        target: number | string | null,
+        options?: { x?: number; y?: number; button?: string; count?: number; modifiers?: string[] },
+      ) => Promise<BrowserResult<{ title: string; url: string; changed?: string }>>;
       browserSnapshot: (options?: { scope?: string; maxItems?: number }) => Promise<
         BrowserResult<{ title: string; url: string; text: string; total: number; omitted: number }>
       >;
       browserScreenshot: (options?: { mode?: "viewport" | "full" | "element"; ref?: string; marks?: boolean }) => Promise<
         BrowserResult<{ data: string; width: number; height: number; url: string }>
       >;
-      browserType: (index: number, text: string) => Promise<BrowserResult>;
-      browserPressKey: (key: string) => Promise<BrowserResult>;
+      browserType: (
+        target: number | string,
+        text: string,
+        options?: { clear?: boolean; submit?: boolean; slowly?: boolean },
+      ) => Promise<BrowserResult<{ value?: string; landed?: boolean; changed?: string }>>;
+      browserPressKey: (key: string, options?: { repeat?: number }) => Promise<BrowserResult<{ changed?: string }>>;
+      browserHover: (target: string | { x: number; y: number }) => Promise<BrowserResult<{ changed?: string }>>;
+      browserDrag: (
+        from: string | { x: number; y: number },
+        to: string | { x: number; y: number },
+      ) => Promise<BrowserResult<{ changed?: string }>>;
+      browserScroll: (options: { ref?: string; dx?: number; dy?: number; to?: "top" | "bottom" }) => Promise<
+        BrowserResult<{ scroll: { y: number; max: number } }>
+      >;
+      browserSelectOption: (ref: string, choice: { value?: string; label?: string }) => Promise<
+        BrowserResult<{ chosen: string; value: string; changed?: string }>
+      >;
+      browserWait: (options: { text?: string; url?: string; ms?: number; timeoutMs?: number }) => Promise<
+        BrowserResult<{ waited: number }>
+      >;
+      browserHistory: (action: "back" | "forward" | "reload") => Promise<BrowserResult<{ title: string; url: string }>>;
       browserGetText: (options?: { ref?: string; selector?: string }) => Promise<
         BrowserResult<{ title: string; text: string; url: string }>
       >;

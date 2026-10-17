@@ -72,6 +72,7 @@ const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
+const browserInput = require("./browserInput.cjs");
 const { createBrowserPane } = require("./browserPane.cjs");
 const mcp = require("./mcp.cjs");
 const widgets = require("./widgets.cjs");
@@ -1849,16 +1850,27 @@ ipc.handle("browser-navigate", async (event, url) => {
 /** One observer per pane page. It talks to the page over the debugger and forgets its refs when the
  * main frame navigates. */
 const paneObservers = new WeakMap();
+const paneInputs = new WeakMap();
+const debuggerSend = (contents) => async (method, params) => {
+  const dbg = contents.debugger;
+  if (!dbg.isAttached()) dbg.attach("1.3");
+  return dbg.sendCommand(method, params);
+};
+
+/** Real input for the pane. Shares the observer's refs so a ref means the same thing to both. */
+function inputFor(contents) {
+  let input = paneInputs.get(contents);
+  if (!input) {
+    input = browserInput.createInput({ send: debuggerSend(contents), observer: observerFor(contents), contents, pause: sleep });
+    paneInputs.set(contents, input);
+  }
+  return input;
+}
+
 function observerFor(contents) {
   let observer = paneObservers.get(contents);
   if (observer) return observer;
-  const dbg = contents.debugger;
-  observer = browserSnapshot.createObserver({
-    send: async (method, params) => {
-      if (!dbg.isAttached()) dbg.attach("1.3");
-      return dbg.sendCommand(method, params);
-    },
-  });
+  observer = browserSnapshot.createObserver({ send: debuggerSend(contents) });
   contents.on("did-start-navigation", (details) => {
     if (details.isMainFrame && !details.isSameDocument) observer.forget();
   });
@@ -1929,44 +1941,92 @@ ipc.handle("browser-get-elements", async () => {
   return result.ok ? result : { ...result, elements: [] };
 });
 
-ipc.handle("browser-click", async (event, elementIndex) => {
-  const ref = typeof elementIndex === "string" && /^e\d+$/.test(elementIndex) ? elementIndex : null;
-  const index = ref ? null : browserControl.parseElementIndex(elementIndex);
-  if (!ref && index === null) return browserControl.failure("invalid_index");
+/** What an action did to the page, from a before and after look. A page that navigated mid-look is
+ * reported by its address alone. */
+async function changeNote(input, contents, before) {
+  const after = await input.signature().catch((e) => {
+    log.swallow("browser", "page look failed", e);
+    return null;
+  });
+  if (before && after) return browserInput.summarizeChange(before, after);
+  return before && contents.getURL() !== before.url ? `The page navigated to ${contents.getURL()}.` : "";
+}
 
-  return inPane("clicking", async (contents, step) => {
+/** Runs one real-input step: marks agent input as the agent's own, honors a takeover, and turns
+ * a ref problem into the failure the model should hear. `work` returns extra fields for the result. */
+function acting(label, work, { report = false } = {}) {
+  return inPane(label, async (contents, step) => {
     try {
       paneGuard?.reset();
-      const target = ref
-        ? await observerFor(contents).pointOf(ref)
-        : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
-      if (target.missing) return browserControl.failure("element_not_found");
-
-      // The cursor glides to the point first, so the user sees where the click will land.
-      await showAgentOverlay(contents, target);
-      await sleep(400);
+      const input = inputFor(contents);
+      const before = report ? await input.signature().catch((e) => {
+        log.swallow("browser", "page look failed", e);
+        return null;
+      }) : null;
       if (step.stopped()) return browserControl.failure("user_took_over");
-
+      let extra = {};
+      let failed = null;
       await paneDriver.sending(async () => {
-        await browserControl.clickAt(contents, target.x, target.y, sleep, step.stopped);
+        const out = await work(input, contents, step);
+        if (out && out.ok === false) failed = out;
+        else extra = out || {};
         // The input events reach the listeners a beat after they are sent.
         await sleep(60);
       });
-      await sleep(500);
-
+      if (failed) return failed;
+      if (step.stopped()) return browserControl.failure("user_took_over");
+      if (report) await sleep(500);
       const refused = refusedByGuard();
       if (refused) return refused;
-
       const title = await contents.executeJavaScript('document.title || ""');
-      return { ok: true, title, url: contents.getURL() };
+      const changed = report ? await changeNote(input, contents, before) : undefined;
+      return { ok: true, title, url: contents.getURL(), ...(changed ? { changed } : {}), ...extra };
     } catch (e) {
       return observationFailure(e);
     }
   });
+}
+
+const isRef = (value) => typeof value === "string" && /^e\d+$/.test(value);
+
+ipc.handle("browser-click", async (event, target, options) => {
+  const opts = options && typeof options === "object" ? options : {};
+  const byPoint = Number.isFinite(opts.x) && Number.isFinite(opts.y);
+  const ref = isRef(target) ? target : null;
+  const index = ref || byPoint ? null : browserControl.parseElementIndex(target);
+  if (!ref && !byPoint && index === null) return browserControl.failure("invalid_index");
+
+  return acting("clicking", async (input, contents, step) => {
+    const point = byPoint
+      ? await input.where({ x: opts.x, y: opts.y })
+      : ref
+        ? await observerFor(contents).pointOf(ref)
+        : JSON.parse(await contents.executeJavaScript(browserControl.clickTargetScript(index)));
+    if (point.missing) return browserControl.failure("element_not_found");
+    if (ref) {
+      const blocker = await input.blockedBy(ref, point.x, point.y);
+      if (blocker) return browserControl.failure("click_blocked", blocker);
+    }
+    // The cursor glides to the point first, so the user sees where the click will land.
+    await showAgentOverlay(contents, point);
+    await sleep(400);
+    if (step.stopped()) return browserControl.failure("user_took_over");
+    if (ref || byPoint) await input.clickAt(point.x, point.y, opts, step.stopped);
+    else await browserControl.clickAt(contents, point.x, point.y, sleep, step.stopped);
+    return {};
+  }, { report: true });
 });
 
-ipc.handle("browser-type", async (event, elementIndex, text) => {
-  const index = browserControl.parseElementIndex(elementIndex);
+ipc.handle("browser-type", async (event, target, text, options) => {
+  const opts = options && typeof options === "object" ? options : {};
+  if (isRef(target)) {
+    return acting("typing", async (input, contents, step) => {
+      const result = await input.typeInto(target, text, opts, step.stopped);
+      log.info("browser", "typed", { chars: String(text ?? "").length, landed: result.landed });
+      return { value: result.value, landed: result.landed };
+    });
+  }
+  const index = browserControl.parseElementIndex(target);
   if (index === null) return browserControl.failure("invalid_index");
 
   return inPane("typing", async (contents) => {
@@ -1996,23 +2056,72 @@ ipc.handle("browser-type", async (event, elementIndex, text) => {
   });
 });
 
-ipc.handle("browser-press-key", async (event, key) => {
-  return inPane("pressing", async (contents, step) => {
+ipc.handle("browser-press-key", async (event, key, options) => {
+  const { repeat } = options && typeof options === "object" ? options : {};
+  return acting("pressing", async (input, contents, step) => {
+    await input.pressKey(key, repeat, step.stopped);
+    await sleep(300);
+    return {};
+  }, { report: true });
+});
+
+ipc.handle("browser-hover", (event, target) =>
+  acting("hovering", async (input, contents) => {
+    const point = await input.hover(isRef(target) ? target : target && typeof target === "object" ? target : null);
+    await showAgentOverlay(contents, point);
+    return {};
+  }, { report: true }),
+);
+
+ipc.handle("browser-drag", (event, from, to) =>
+  acting("dragging", async (input, contents, step) => {
+    await input.drag(from, to, step.stopped);
+    return {};
+  }, { report: true }),
+);
+
+ipc.handle("browser-scroll", (event, options) =>
+  acting("scrolling", async (input) => {
+    const position = await input.scroll(options && typeof options === "object" ? options : {});
+    return { scroll: position };
+  }),
+);
+
+ipc.handle("browser-select-option", (event, ref, choice) =>
+  acting("choosing", async (input) => {
+    if (!isRef(ref)) return browserControl.failure("invalid_input", "Give the ref of a dropdown from browser_snapshot.");
+    return input.selectOption(ref, choice && typeof choice === "object" ? choice : {});
+  }, { report: true }),
+);
+
+ipc.handle("browser-wait", (event, options) =>
+  acting("waiting", async (input) => {
+    const out = await input.wait(options && typeof options === "object" ? options : {});
+    return { waited: out.ms };
+  }),
+);
+
+ipc.handle("browser-history", async (event, action) => {
+  if (!["back", "forward", "reload"].includes(action)) {
+    return browserControl.failure("invalid_input", 'The history action is back, forward or reload.');
+  }
+  return inPane("navigating", async (contents, step) => {
     try {
-      const keyMap = { enter: 'Return', tab: 'Tab', escape: 'Escape', backspace: 'Backspace', space: ' ' };
-      const keyCode = keyMap[String(key).toLowerCase()] || key;
       paneGuard?.reset();
-      if (step.stopped()) return browserControl.failure("user_took_over");
-      await paneDriver.sending(async () => {
-        contents.sendInputEvent({ type: 'keyDown', keyCode });
-        await sleep(50);
-        contents.sendInputEvent({ type: 'keyUp', keyCode });
-        await sleep(60);
-      });
+      const history = contents.navigationHistory;
+      if (action === "back" && !history.canGoBack()) return browserControl.failure("navigation_failed", "There is no earlier page.");
+      if (action === "forward" && !history.canGoForward()) return browserControl.failure("navigation_failed", "There is no later page.");
+      if (action === "back") history.goBack();
+      else if (action === "forward") history.goForward();
+      else contents.reload();
       await sleep(300);
-      return refusedByGuard() || { ok: true };
+      for (let waited = 0; contents.isLoading() && waited < 15000 && !step.stopped(); waited += 250) await sleep(250);
+      const refused = refusedByGuard();
+      if (refused) return refused;
+      const title = await contents.executeJavaScript('document.title || ""');
+      return { ok: true, title, url: contents.getURL() };
     } catch (e) {
-      return browserControl.failure("script_failed", e.message);
+      return browserControl.failure("navigation_failed", e.message);
     }
   });
 });
