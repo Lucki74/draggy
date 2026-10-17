@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde_json::Value;
 
 use crate::error::CoreError;
 
@@ -20,20 +20,6 @@ pub struct UpdateRecord {
     pub notes: String,
     /// The release page, to open in the browser.
     pub url: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct Release {
-    tag_name: String,
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    body: Option<String>,
-    html_url: String,
-    #[serde(default)]
-    draft: bool,
-    #[serde(default)]
-    prerelease: bool,
 }
 
 /// The build number in `tag`, when it is `<prefix><digits>`.
@@ -53,25 +39,41 @@ pub fn newest_update(
     current_build: u32,
     include_prereleases: bool,
 ) -> Result<Option<UpdateRecord>, CoreError> {
-    let releases: Vec<Release> =
+    let parsed: Value =
         serde_json::from_str(releases_json).map_err(|error| CoreError::Internal {
             message: format!("could not read the release list: {error}"),
         })?;
+    let releases = parsed.as_array().ok_or_else(|| CoreError::Internal {
+        message: "could not read the release list: not a list".to_owned(),
+    })?;
+    let text = |release: &Value, key: &str| {
+        release
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let flag = |release: &Value, key: &str| release.get(key).and_then(Value::as_bool) == Some(true);
     let newest = releases
-        .into_iter()
-        .filter(|release| !release.draft && (include_prereleases || !release.prerelease))
-        .filter_map(|release| build_of(&release.tag_name, tag_prefix).map(|build| (build, release)))
+        .iter()
+        .filter(|release| {
+            !flag(release, "draft") && (include_prereleases || !flag(release, "prerelease"))
+        })
+        .filter_map(|release| {
+            build_of(&text(release, "tag_name"), tag_prefix).map(|build| (build, release))
+        })
         .filter(|(build, _)| *build > current_build)
         .max_by_key(|(build, _)| *build);
-    Ok(newest.map(|(build, release)| UpdateRecord {
-        name: release
-            .name
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| release.tag_name.clone()),
-        notes: release.body.unwrap_or_default(),
-        url: release.html_url,
-        tag: release.tag_name,
-        build,
+    Ok(newest.map(|(build, release)| {
+        let tag = text(release, "tag_name");
+        let name = text(release, "name");
+        UpdateRecord {
+            name: if name.is_empty() { tag.clone() } else { name },
+            notes: text(release, "body"),
+            url: text(release, "html_url"),
+            tag,
+            build,
+        }
     }))
 }
 

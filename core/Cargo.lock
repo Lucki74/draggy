@@ -706,7 +706,6 @@ dependencies = [
  "draggy-tools",
  "draggy-web",
  "reqwest",
- "serde",
  "serde_json",
  "tempfile",
  "thiserror",
