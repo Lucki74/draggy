@@ -9,7 +9,13 @@ struct DraggyApp: App {
             ContentView(model: model)
         }
         Settings {
-            SettingsView(model: model)
+            TabView {
+                SettingsView(model: model)
+                    .tabItem { Label("General", systemImage: "gearshape") }
+                ModelsView(models: model.models)
+                    .tabItem { Label("Models", systemImage: "square.stack.3d.up") }
+            }
+            .frame(width: 520, height: 560)
         }
     }
 }
