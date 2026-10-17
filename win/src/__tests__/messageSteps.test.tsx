@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import MessageItem from "../chat/MessageItem";
 import { TranscriptViewContext, type TranscriptView } from "../chat/transcriptView";
 import { OpenDiffContext } from "../chat/openDiffContext";
@@ -168,6 +168,8 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
+    // A lone step sits in its work group too, closed until opened.
+    fireEvent.click(screen.getByRole("button", { name: "Edited 1 file" }));
     const diffBtn = screen.getByRole("button", { name: "Open changes" });
     expect(diffBtn).toBeTruthy();
     diffBtn.click();

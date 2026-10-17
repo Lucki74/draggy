@@ -3,7 +3,6 @@ import { IconButton } from "./ui/IconButton";
 import { Icon } from "./ui/icons/Icon";
 import { Menu, type MenuEntry } from "./ui/Menu";
 import { EMPTY_BROWSER_STATE, type BrowserState } from "./browser/browserState";
-import type { BrowserConsentAsk } from "./types";
 
 /** The chrome above an opened page. The page itself is a separate view in the web session, so the
  * bar keeps the app's policy and the page gets none of it. Everything below goes through IPC.
@@ -60,17 +59,6 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
     if (!embedded || !api) return;
     return api.onState(setAgent);
   }, [embedded]);
-
-  const [ask, setAsk] = useState<BrowserConsentAsk | null>(null);
-  useEffect(() => {
-    const api = window.electronAPI?.browserAgent;
-    if (!embedded || !api) return;
-    return api.onConsent(setAsk);
-  }, [embedded]);
-  const answer = (choice: "session" | "once" | "always" | "deny") => {
-    if (ask) void window.electronAPI?.browserAgent.answerConsent(ask.id, choice);
-    setAsk(null);
-  };
 
   const act = (name: Action, value?: string) => window.electronAPI?.browserBar.action(name, value);
 
@@ -166,27 +154,7 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
         />
       </form>
 
-      {ask && (
-        <div
-          role="alertdialog"
-          aria-label={t(ask.kind === "site" ? "browserConsentSite" : "browserConsentAction")}
-          className="flex min-w-0 flex-shrink items-center gap-2 text-[12px] text-text-primary"
-        >
-          <span className="truncate">
-            {t(ask.kind === "site" ? "browserConsentSite" : "browserConsentAction")} <strong>{ask.host}</strong>
-            {ask.detail ? `: ${ask.detail}` : ""}
-          </span>
-          {(ask.kind === "site" ? (["session", "always"] as const) : (["once", "always"] as const)).map((choice) => (
-            <button key={choice} type="button" onClick={() => answer(choice)} className="h-7 flex-shrink-0 rounded-md border border-rule-control px-2 text-[12px] text-text-primary hover:bg-surface-raised">
-              {t(choice === "session" ? "browserConsentSession" : choice === "once" ? "browserConsentOnce" : "browserConsentTrust")}
-            </button>
-          ))}
-          <button type="button" onClick={() => answer("deny")} className="h-7 flex-shrink-0 rounded-md border border-rule-control px-2 text-[12px] text-text-primary hover:bg-surface-raised">
-            {t("browserConsentDeny")}
-          </button>
-        </div>
-      )}
-      {agent.active && !ask && (
+      {agent.active && (
         <>
           <span role="status" className="flex-shrink-0 truncate text-[12px] text-text-secondary">
             {t(AGENT_STEP_KEYS[agent.step ?? ""] ?? "browserAgentWorking")}

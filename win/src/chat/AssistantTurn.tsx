@@ -2,11 +2,13 @@ import { useContext, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import StreamingMarkdown from "./StreamingMarkdown";
 import { copyAsMarkdown } from "./copyMarkdown";
+import BrowserConsentCard from "./BrowserConsentCard";
 import ThinkingRow from "./ThinkingRow";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { isWorkStep, touchedFiles } from "./workSummary";
 import { OpenFileContext } from "./openFileContext";
+import { useTranscriptView } from "./transcriptView";
 import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
@@ -100,6 +102,7 @@ export function AssistantTurn({
   t,
 }: AssistantTurnProps) {
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
+  const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
   // In a project the file opens in the canvas; elsewhere it lives in the output folder.
@@ -186,9 +189,16 @@ export function AssistantTurn({
 
   const files = touchedFiles(steps);
 
+  // Steps that draw nothing never split a group. Finished thinking draws nothing in the normal view.
+  const invisible = (step: SearchStep) =>
+    (step.type === "text" && !step.content.trim()) ||
+    (step.type === "thinking" &&
+      (!step.content || (step.isComplete && view === "normal")));
+
   // Consecutive tool steps fold into one work block; prose, reasoning and questions stand alone.
   const segments: SearchStep[][] = [];
   for (const step of steps) {
+    if (invisible(step)) continue;
     const last = segments[segments.length - 1];
     if (isWorkStep(step) && last && isWorkStep(last[0])) last.push(step);
     else segments.push([step]);
@@ -243,7 +253,7 @@ export function AssistantTurn({
       >
         {[
           ...segments.map((segment, segmentIndex) =>
-            segment.length > 1 ? (
+            isWorkStep(segment[0]) ? (
               <WorkGroup
                 key={segment[0].id}
                 steps={segment}
@@ -259,6 +269,7 @@ export function AssistantTurn({
               renderStep(segment[0])
             ),
           ),
+          isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
           msg.failed ? (
             <div
               key="failure"

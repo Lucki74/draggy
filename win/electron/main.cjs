@@ -2058,7 +2058,7 @@ const consents = new Map();
 let consentSeq = 0;
 const CONSENT_WAIT_MS = 120000;
 
-/** Asks the user in the pane's bar. No answer in two minutes is a no. */
+/** Asks the user in the chat. No answer in two minutes is a no. */
 function askConsent(kind, host, detail) {
   if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve("deny");
   const id = `consent-${++consentSeq}`;
@@ -2100,17 +2100,21 @@ async function siteAllowed(contents) {
   const choice = await askConsent("site", browserSafety.hostOf(origin), "");
   if (choice === "always") browserGrants.trust(origin);
   else if (choice === "session") browserGrants.allowSession(origin);
-  else return false;
+  else if (choice !== "once") return false;
   return true;
 }
+
+/** Origins where the user said risky clicks are fine for the rest of this run of the app. */
+const actionSessionOrigins = new Set();
 
 /** A click that pays, deletes or sends needs the user's word unless they trust the site. */
 async function actionAllowed(contents, why) {
   const origin = browserSafety.originOf(contents.getURL());
-  if (origin && browserGrants.status(origin) === "trusted") return true;
+  if (origin && (browserGrants.status(origin) === "trusted" || actionSessionOrigins.has(origin))) return true;
   const choice = await askConsent("action", browserSafety.hostOf(origin || ""), why);
   if (choice === "always" && origin) browserGrants.trust(origin);
-  return choice === "once" || choice === "always";
+  if (choice === "session" && origin) actionSessionOrigins.add(origin);
+  return choice === "once" || choice === "always" || choice === "session";
 }
 
 /** Runs one real-input step: marks agent input as the agent's own, honors a takeover, and turns
