@@ -291,7 +291,14 @@ fn a_document_tool_call_refuses_other_extensions_and_paths_outside_the_folder() 
     run(&session, "Write files", &recorder);
 
     assert!(!folder.path().join("run.exe").exists());
-    assert!(!folder.path().parent().expect("parent").join("escape.docx").exists());
+    assert!(
+        !folder
+            .path()
+            .parent()
+            .expect("parent")
+            .join("escape.docx")
+            .exists()
+    );
 }
 
 #[test]
