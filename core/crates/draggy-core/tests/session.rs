@@ -255,6 +255,57 @@ fn a_tool_call_reads_a_file_inside_the_folder_and_the_model_sees_the_result() {
 }
 
 #[test]
+fn a_document_tool_call_writes_a_docx_inside_the_folder() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        tool_reply(
+            "write_document",
+            r#"{"path": "out/report.docx", "content": "<h1>Report</h1><p>Hello</p>"}"#,
+        ),
+        text_reply(&["Saved."]),
+    ]);
+    let session = Session::new(config(&server.url, Some(folder.path()))).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    let outcome = run_asking(&session, "Write a report", &recorder, Some(handler));
+
+    assert_eq!(outcome.tool_calls.get("write_document"), Some(&1));
+    let bytes = std::fs::read(folder.path().join("out").join("report.docx")).expect("docx");
+    assert_eq!(&bytes[..2], b"PK");
+}
+
+#[test]
+fn a_document_tool_call_refuses_other_extensions_and_paths_outside_the_folder() {
+    let folder = tempfile::tempdir().expect("folder");
+    let server = serve(vec![
+        tool_reply("write_document", r#"{"path": "run.exe", "content": "x"}"#),
+        tool_reply(
+            "write_document",
+            r#"{"path": "../escape.docx", "content": "x"}"#,
+        ),
+        text_reply(&["Refused."]),
+    ]);
+    let session = Session::new(config(&server.url, Some(folder.path()))).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    run_asking(&session, "Write files", &recorder, Some(handler));
+
+    assert!(!folder.path().join("run.exe").exists());
+    assert!(
+        !folder
+            .path()
+            .parent()
+            .expect("parent")
+            .join("escape.docx")
+            .exists()
+    );
+}
+
+#[test]
 fn restored_messages_reach_the_model_and_new_ids_do_not_collide() {
     let server = serve(vec![text_reply(&["Fine"])]);
     let session = Session::new(config(&server.url, None)).expect("session");
