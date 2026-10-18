@@ -16,11 +16,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 thiserror = "2"
-tokio = { version = "1", features = ["rt", "sync", "time"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "process", "io-util", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
 draggy-testkit = { path = "../testkit" }
 hex = "0.4"
-tokio = { version = "1", features = ["rt", "macros", "time", "test-util"] }
+tokio = { version = "1", features = ["rt", "macros", "time", "test-util", "net", "io-util"] }
