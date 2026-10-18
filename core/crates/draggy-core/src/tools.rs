@@ -10,7 +10,7 @@ use draggy_agent::tool_channel::{FunctionDefinition, ToolDefinition};
 use draggy_tools::files::{
     Checkpoint, CheckpointStore, FileOps, NewCheckpoint, Recycler, StoreError,
 };
-use draggy_tools::fs_guard::Guard;
+use draggy_tools::fs_guard::{Guard, ResolveOptions};
 use draggy_tools::shell::{CommandRequest, run_command};
 use draggy_tools::spawn::CancelToken as RunCancel;
 use serde_json::{Value, json};
@@ -54,6 +54,7 @@ type Roots = Box<dyn Fn(&str) -> Vec<PathBuf>>;
 pub struct FileTools {
     ops: FileOps<NoStore, NoRecycler, Roots>,
     folder: String,
+    guard: Guard,
     allow_commands: bool,
 }
 
@@ -87,6 +88,18 @@ pub fn definitions(allow_commands: bool) -> Vec<ToolDefinition> {
                     }
                 },
                 "required": []
+            }),
+        ),
+        definition(
+            "write_document",
+            "Create a Word (.docx), PowerPoint (.pptx) or Excel (.xlsx) file in the project folder from HTML or Markdown. Use headings and paragraphs for Word, one heading per slide for PowerPoint, and tables for Excel. An existing file of that name is replaced.",
+            &json!({
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Where to save it, relative to the project folder, ending in .docx, .pptx or .xlsx."},
+                    "content": {"type": "string", "description": "The document, as HTML or Markdown."}
+                },
+                "required": ["path", "content"]
             }),
         ),
     ];
@@ -126,6 +139,7 @@ impl FileTools {
         Self {
             ops: FileOps::new(Guard::default(), NoStore, NoRecycler, roots),
             folder: folder.to_owned(),
+            guard: Guard::default(),
             allow_commands,
         }
     }
@@ -322,6 +336,48 @@ impl FileTools {
         }
     }
 
+    fn write_document(&self, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        let target = args.get("path").and_then(Value::as_str).unwrap_or("");
+        let content = args.get("content").and_then(Value::as_str).unwrap_or("");
+        let name = draggy_tools::files::name_of(target);
+        let id = Self::step(ctx, format!("Writing **{name}**"), Some(name.clone()));
+        let lower = target.to_lowercase();
+        let outcome = if ![".docx", ".pptx", ".xlsx"]
+            .iter()
+            .any(|ext| lower.ends_with(ext))
+        {
+            Err("Only .docx, .pptx and .xlsx files can be written with write_document.".to_owned())
+        } else {
+            let roots = [PathBuf::from(&self.folder)];
+            let options = ResolveOptions {
+                must_exist: false,
+                create_parents: true,
+            };
+            self.guard
+                .resolve_within(&roots, target, options)
+                .map_err(|refusal| refusal.0)
+                .and_then(|path| {
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+                    }
+                    draggy_documents::office_files::write_generated_file(&path, content)
+                        .map_err(|error| error.to_string())?;
+                    Ok(path)
+                })
+        };
+        match outcome {
+            Ok(path) => {
+                let shown = path.display().to_string();
+                Self::settle(ctx, &id, None, Some(shown.clone()));
+                format!("TOOL RESULT (write_document): Saved {shown}")
+            }
+            Err(error) => {
+                Self::settle(ctx, &id, Some("error"), None);
+                format!("TOOL RESULT (write_document): {error}")
+            }
+        }
+    }
+
     fn list(&self, args: &Value, ctx: &mut ToolContext<'_>) -> String {
         let target = args
             .get("path")
@@ -375,6 +431,10 @@ impl ToolRuntime for FileTools {
                 idempotent: true,
                 ..ToolAnnotations::default()
             },
+            "write_document" => ToolAnnotations {
+                destructive: true,
+                ..ToolAnnotations::default()
+            },
             "run_command" if self.allow_commands => ToolAnnotations {
                 executes: true,
                 open_world: true,
@@ -388,9 +448,10 @@ impl ToolRuntime for FileTools {
         match name {
             "read_file" => self.read(args, ctx),
             "list_directory" => self.list(args, ctx),
+            "write_document" => self.write_document(args, ctx),
             "run_command" if self.allow_commands => self.command(args, ctx),
             other => format!(
-                "TOOL ERROR: There is no tool called \"{other}\". Available tools: read_file, list_directory, run_command."
+                "TOOL ERROR: There is no tool called \"{other}\". Available tools: read_file, list_directory, write_document, run_command."
             ),
         }
     }
