@@ -367,8 +367,8 @@ function backfillMetrics(userDataPath, force = false) {
               if (!cids[obj.cid]) cids[obj.cid] = [];
               cids[obj.cid].push(obj);
             }
-          } catch {
-            // Ignore malformed lines
+          } catch (error) {
+            log.swallow("files", error, "a malformed line in events.jsonl is skipped");
           }
         }
       } catch (error) {
