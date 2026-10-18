@@ -39,6 +39,8 @@ struct ChatView: View {
         HStack(alignment: .bottom) {
             Button { isPickingFile = true } label: { Image(systemName: "paperclip") }
                 .help("Add the text of a Word, PowerPoint, Excel or PDF file")
+                .accessibilityLabel("Attach a file")
+                .accessibilityHint("Add the text of a Word, PowerPoint, Excel or PDF file")
                 .disabled(model.isRunning)
             TextField("Message", text: $model.draft, axis: .vertical)
                 .lineLimit(1...6)
