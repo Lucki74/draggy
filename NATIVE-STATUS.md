@@ -32,7 +32,7 @@ Works (as written, not yet compiled):
 - API key storage in the Keychain.
 - Chat page: type a message and watch the reply stream in through `draggy-core`'s `Session`, with Stop.
 - The bindings pipeline: `macos/scripts/build-core.sh` builds the core, generates the Swift bindings and packs an XCFramework.
-- The transcript on an `NSTableView` with TextKit 2 text views, with tool steps, tokens per second, and code blocks, inline code and bold drawn.
+- The transcript on an `NSTableView` with TextKit 2 text views, with tool steps, tokens per second, and code blocks, inline code and bold drawn, headings, bullet lists and http or https links.
 - The transcript shows the model's reasoning under a "Thinking" line, and each tool step with its full content, stdout and stderr in monospace. Not yet run on a Mac: only CI compiles it.
 - A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
 - Every conversation is saved to its own file in `~/Library/Application Support/Draggy/Conversations` after each turn. The sidebar lists them under History, newest first, and a right-click deletes one. The window shows the latest at launch, and the core gets a conversation back through `Session.restore` when the next message is sent. The single file older builds wrote is moved in as one conversation.
@@ -46,7 +46,7 @@ Works (as written, not yet compiled):
 Missing:
 
 - Tool steps are not saved with a conversation.
-- Full markdown (lists, links, headings) and image attachments.
+- Numbered lists, tables, italics and quotes in markdown, and image attachments.
 - Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output. Writing documents (reading them is built).
 - Signing, notarization, Sparkle and a release workflow.
