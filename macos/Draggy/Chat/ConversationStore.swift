@@ -4,6 +4,8 @@ import Foundation
 struct SavedMessage: Codable, Equatable, Sendable {
     let role: String
     let text: String
+    /// The tool steps of a reply. Files from earlier builds have none.
+    var steps: [Transcript.Step]?
 }
 
 /// Keeps the latest conversation in a JSON file, so the window can show it again and the core can pick it up.

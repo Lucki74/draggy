@@ -6,10 +6,11 @@ use std::sync::mpsc;
 
 use async_channel::Sender;
 use draggy_core::{
-    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, MetricsRecord,
-    Session, StepRecord, TurnEventRecord, TurnObserver, TurnOutcome,
+    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, MessageRecord,
+    MetricsRecord, Session, StepRecord, TurnEventRecord, TurnObserver, TurnOutcome,
 };
 
+use crate::conversations::SavedMessage;
 use crate::runtime::runtime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +61,22 @@ impl Transcript {
         self.entries
             .push(Entry::new(Role::Assistant, String::new(), true));
         self.entries.len() - 1
+    }
+
+    /// The transcript of a saved conversation: its user and assistant text. Steps and speed are not saved with it.
+    pub fn from_saved(messages: &[SavedMessage]) -> Self {
+        let entries = messages
+            .iter()
+            .filter_map(|message| {
+                let role = match message.role.as_str() {
+                    "user" => Role::User,
+                    "assistant" => Role::Assistant,
+                    _ => return None,
+                };
+                Some(Entry::new(role, message.content.clone(), false))
+            })
+            .collect();
+        Self { entries }
     }
 
     /// True while a reply is still arriving.
@@ -155,6 +172,30 @@ pub fn step_label(step: &StepRecord) -> Option<String> {
     Some(format!("{}: {detail}{state}", step.kind))
 }
 
+/// The core's messages in the form they are saved in.
+pub fn to_saved(records: &[MessageRecord]) -> Vec<SavedMessage> {
+    records
+        .iter()
+        .map(|record| SavedMessage {
+            id: record.id.clone(),
+            role: record.role.clone(),
+            content: record.content.clone(),
+        })
+        .collect()
+}
+
+/// Saved messages in the form `Session::restore` takes.
+pub fn to_records(saved: &[SavedMessage]) -> Vec<MessageRecord> {
+    saved
+        .iter()
+        .map(|message| MessageRecord {
+            id: message.id.clone(),
+            role: message.role.clone(),
+            content: message.content.clone(),
+        })
+        .collect()
+}
+
 /// What the core's threads send to the window.
 pub enum ChatMessage {
     Events(Vec<TurnEventRecord>),
@@ -210,9 +251,25 @@ pub fn start_turn(
     token
 }
 
+/// The message with a document's text added after what is typed, under the file's name.
+pub fn with_document(typed: &str, name: &str, text: &str) -> String {
+    let document = format!("{name}:\n{text}");
+    if typed.trim().is_empty() {
+        document
+    } else {
+        format!("{typed}\n\n{document}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_document_is_added_after_the_typed_text() {
+        assert_eq!(with_document("", "a.pdf", "x"), "a.pdf:\nx");
+        assert_eq!(with_document("hi", "a.pdf", "x"), "hi\n\na.pdf:\nx");
+    }
 
     fn patch(text: &str) -> TurnEventRecord {
         TurnEventRecord::Patch {
@@ -274,6 +331,30 @@ mod tests {
             reply.metrics.as_ref().map(metrics_line).as_deref(),
             Some("12 tokens, 30.0 tok/s")
         );
+    }
+
+    #[test]
+    fn a_saved_conversation_restores_its_text_and_ids() {
+        let saved = [
+            SavedMessage {
+                id: "m1".to_owned(),
+                role: "user".to_owned(),
+                content: "hi".to_owned(),
+            },
+            SavedMessage {
+                id: "m2".to_owned(),
+                role: "assistant".to_owned(),
+                content: "hello".to_owned(),
+            },
+        ];
+        let transcript = Transcript::from_saved(&saved);
+        assert_eq!(transcript.entries().len(), 2);
+        assert_eq!(transcript.entries()[1].role, Role::Assistant);
+        assert_eq!(transcript.entries()[1].text, "hello");
+        assert!(!transcript.is_busy());
+        let records = to_records(&saved);
+        assert_eq!(records[0].id, "m1");
+        assert_eq!(to_saved(&records), saved);
     }
 
     #[test]

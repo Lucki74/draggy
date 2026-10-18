@@ -3,21 +3,49 @@ import SwiftUI
 
 struct ContentView: View {
     @Bindable var model: AppModel
+    @State private var page: Page = .chat
+
+    enum Page: Hashable {
+        case chat, browser
+    }
 
     var body: some View {
         NavigationSplitView {
-            List {
-                Label("Chat", systemImage: "bubble.left")
+            List(selection: $page) {
+                Label("Chat", systemImage: "bubble.left").tag(Page.chat)
+                Label("Browser", systemImage: "globe").tag(Page.browser)
+                if !model.conversations.isEmpty {
+                    Section("History") {
+                        ForEach(model.conversations) { item in
+                            Button {
+                                model.open(item.id)
+                                page = .chat
+                            } label: {
+                                Text(item.title).lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Delete", role: .destructive) { model.delete(item.id) }
+                            }
+                            .disabled(model.isRunning)
+                        }
+                    }
+                }
             }
             .navigationSplitViewColumnWidth(min: 160, ideal: 200)
         } detail: {
-            ChatView(model: model)
-                .toolbar {
-                    ToolbarItem {
-                        Button("New chat", systemImage: "square.and.pencil") { model.newConversation() }
-                            .disabled(model.isRunning)
+            switch page {
+            case .chat:
+                ChatView(model: model)
+                    .toolbar {
+                        ToolbarItem {
+                            Button("New chat", systemImage: "square.and.pencil") { model.newConversation() }
+                                .disabled(model.isRunning)
+                        }
                     }
-                }
+            case .browser:
+                BrowserView(browser: model.browser)
+            }
         }
         .frame(minWidth: 720, minHeight: 480)
         .task { await model.updates.check() }

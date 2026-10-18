@@ -14,6 +14,8 @@ struct DraggyApp: App {
                     .tabItem { Label("General", systemImage: "gearshape") }
                 ModelsView(models: model.models)
                     .tabItem { Label("Models", systemImage: "square.stack.3d.up") }
+                McpView(mcp: model.mcp)
+                    .tabItem { Label("Servers", systemImage: "server.rack") }
             }
             .frame(width: 520, height: 560)
         }

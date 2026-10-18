@@ -10,6 +10,7 @@ pub mod documents;
 pub mod engine;
 pub mod error;
 pub mod installer;
+pub mod mcp;
 pub mod model;
 pub mod models;
 pub mod net;
@@ -18,6 +19,7 @@ pub mod records;
 pub mod session;
 pub mod tools;
 pub mod update;
+pub mod web;
 
 pub use cancel::CancelToken;
 pub use documents::read_document;
@@ -26,6 +28,7 @@ pub use error::CoreError;
 pub use installer::{
     EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
 };
+pub use mcp::{McpServerRecord, mcp_catalogue};
 pub use models::{
     DownloadObserver, DownloadProgressRecord, InstalledModelRecord, LibraryModelRecord,
     ModelLibrary,
@@ -37,6 +40,7 @@ pub use records::{
 };
 pub use session::Session;
 pub use update::{UpdateChecker, UpdateRecord};
+pub use web::{web_address_allowed, web_address_refusal};
 
 uniffi::setup_scaffolding!();
 
