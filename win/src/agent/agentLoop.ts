@@ -1131,12 +1131,22 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       }
 
       const thinkingBudget = localBudget(effort.sent, numCtx);
+      const llamaMessages = toLlamaMessages(wire, model);
+      if (
+        effort.sent === "off" &&
+        hasThinkingCapability &&
+        !isRemote(model) &&
+        !request.isContinuation &&
+        llamaMessages[llamaMessages.length - 1]?.role !== "assistant"
+      ) {
+        llamaMessages.push({ role: "assistant", content: "Answer:\n" });
+      }
       const requestBody = JSON.stringify({
         model: ggufModelName(model),
         stream: true,
         stream_options: { include_usage: true },
         options: { num_ctx: numCtx, num_predict: -1 },
-        messages: toLlamaMessages(wire, model),
+        messages: llamaMessages,
 
         // llama-server ignores `think`; the template option is what switches the reasoning on or off.
         ...(hasThinkingCapability

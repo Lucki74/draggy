@@ -940,6 +940,34 @@ fn fast_mode_still_asks_a_native_capable_model_to_think_in_the_other_modes() {
     assert_eq!(h.model.requests[0].think, Some(true));
 }
 
+#[test]
+fn fast_mode_prefills_an_assistant_turn_for_a_native_capable_local_model() {
+    let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
+    run_ok(
+        &mut h,
+        &native_thinking_request(vec![user("2+2")], Effort::Off),
+    );
+
+    let messages = &h.model.requests[0].messages;
+    assert_eq!(
+        messages
+            .last()
+            .map(|m| (m.role.as_str(), m.content.as_str())),
+        Some(("assistant", "Answer:\n"))
+    );
+}
+
+#[test]
+fn fast_mode_does_not_prefill_an_assistant_turn_for_remote_models() {
+    let mut h = Harness::new(FakeModel::with_passes(vec![reply(&["Four."])]));
+    let mut turn = native_thinking_request(vec![user("2+2")], Effort::Off);
+    turn.profile.model = "@openai/thinker".to_string();
+    run_ok(&mut h, &turn);
+
+    let messages = &h.model.requests[0].messages;
+    assert_ne!(messages.last().map(|m| m.role.as_str()), Some("assistant"));
+}
+
 // -- keeping the model loaded (the engine owns windows; the loop asks it and sends what it says) ----------------
 
 #[test]
