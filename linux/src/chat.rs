@@ -251,9 +251,25 @@ pub fn start_turn(
     token
 }
 
+/// The message with a document's text added after what is typed, under the file's name.
+pub fn with_document(typed: &str, name: &str, text: &str) -> String {
+    let document = format!("{name}:\n{text}");
+    if typed.trim().is_empty() {
+        document
+    } else {
+        format!("{typed}\n\n{document}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_document_is_added_after_the_typed_text() {
+        assert_eq!(with_document("", "a.pdf", "x"), "a.pdf:\nx");
+        assert_eq!(with_document("hi", "a.pdf", "x"), "hi\n\na.pdf:\nx");
+    }
 
     fn patch(text: &str) -> TurnEventRecord {
         TurnEventRecord::Patch {

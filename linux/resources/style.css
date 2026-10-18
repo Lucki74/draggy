@@ -32,3 +32,20 @@ window {
 .composer textview {
   border-radius: 12px;
 }
+
+.markdown-heading {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.markdown-quote {
+  border-left: 3px solid alpha(currentColor, 0.25);
+  padding-left: 12px;
+  color: alpha(currentColor, 0.75);
+}
+
+.markdown-code {
+  background-color: alpha(currentColor, 0.06);
+  border-radius: 8px;
+  padding: 4px 4px 8px 12px;
+}
