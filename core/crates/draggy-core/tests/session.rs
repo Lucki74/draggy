@@ -267,7 +267,9 @@ fn a_document_tool_call_writes_a_docx_inside_the_folder() {
     let session = Session::new(config(&server.url, Some(folder.path()))).expect("session");
     let recorder = Arc::new(Recorder::default());
 
-    let outcome = run(&session, "Write a report", &recorder);
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    let outcome = run_asking(&session, "Write a report", &recorder, Some(handler));
 
     assert_eq!(outcome.tool_calls.get("write_document"), Some(&1));
     let bytes = std::fs::read(folder.path().join("out").join("report.docx")).expect("docx");
@@ -288,7 +290,9 @@ fn a_document_tool_call_refuses_other_extensions_and_paths_outside_the_folder() 
     let session = Session::new(config(&server.url, Some(folder.path()))).expect("session");
     let recorder = Arc::new(Recorder::default());
 
-    run(&session, "Write files", &recorder);
+    let handler = Scripted::new(ApprovalChoice::Once);
+
+    run_asking(&session, "Write files", &recorder, Some(handler));
 
     assert!(!folder.path().join("run.exe").exists());
     assert!(
