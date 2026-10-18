@@ -6,21 +6,29 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_agent::agent_loop::Permission;
+use draggy_agent::agent_loop::ToolContext;
 use draggy_agent::agent_loop::{
     AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
     MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
     run_turn,
 };
 use draggy_agent::effort::Effort;
+use draggy_agent::permissions::ToolAnnotations;
 use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{PromptEnvironment, PromptProfile, PromptSettings, WebMode};
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{LoadedSkill, SkillReader};
 use draggy_agent::task_manager::{CancelSignal, Message};
+use draggy_agent::tool_channel::ToolDefinition;
+use draggy_mcp::child_process::StdioLauncher;
+use draggy_mcp::reqwest_net::ReqwestHttp;
 use draggy_tools::files::content_hash;
+use serde_json::Value;
 
 use crate::cancel::CancelToken;
 use crate::error::CoreError;
+use crate::mcp::McpManager;
+use crate::mcp_tools::McpTools;
 use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
@@ -175,6 +183,7 @@ struct State {
 pub struct Session {
     config: SessionConfig,
     net: Arc<Net>,
+    mcp: Option<Arc<McpManager>>,
     state: Mutex<State>,
 }
 
@@ -215,11 +224,59 @@ fn stamp() -> (String, String) {
     )
 }
 
+/// Combines the session's file tools with MCP server tools.
+struct CompositeTools {
+    files: Box<dyn ToolRuntime>,
+    mcp: Option<McpTools<ReqwestHttp, StdioLauncher>>,
+}
+
+impl ToolRuntime for CompositeTools {
+    fn annotations(&self, name: &str) -> ToolAnnotations {
+        if let Some(mcp) = self.mcp.as_ref().filter(|m| m.owns(name)) {
+            return mcp.annotations(name);
+        }
+        self.files.annotations(name)
+    }
+
+    fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        if let Some(mcp) = self.mcp.as_mut().filter(|m| m.owns(name)) {
+            return mcp.run(name, args, ctx);
+        }
+        self.files.run(name, args, ctx)
+    }
+}
+
 impl Session {
-    fn request(&self, messages: Vec<Message>, grants: Vec<Grant>) -> TurnRequest {
+    fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
+        let net = Net::new().map_err(|message| CoreError::Internal { message })?;
+        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
+            return Err(CoreError::Invalid {
+                message: "A session needs a server address and a model.".to_owned(),
+            });
+        }
+        Ok(Arc::new(Self {
+            config,
+            net: Arc::new(net),
+            mcp,
+            state: Mutex::new(State::default()),
+        }))
+    }
+
+    fn request(
+        &self,
+        messages: Vec<Message>,
+        grants: Vec<Grant>,
+        extra_tools: &[ToolDefinition],
+    ) -> TurnRequest {
         let has_folder = self.config.folder.is_some();
         let commands = has_folder && self.config.allow_commands;
         let (date, now) = stamp();
+        let mut tools = if has_folder {
+            definitions(commands)
+        } else {
+            Vec::new()
+        };
+        tools.extend(extra_tools.iter().cloned());
         TurnRequest {
             profile: ModelProfile {
                 model: self.config.model.clone(),
@@ -247,11 +304,7 @@ impl Session {
                 library_ready: false,
                 has_skills: false,
             },
-            tools: if has_folder {
-                definitions(commands)
-            } else {
-                Vec::new()
-            },
+            tools,
             prompt_tools: Vec::new(),
             memory: None,
             skills: Vec::new(),
@@ -279,6 +332,7 @@ impl Session {
         observer: Arc<dyn TurnObserver>,
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: &CancelToken,
+        handle: Option<tokio::runtime::Handle>,
     ) -> Result<TurnOutcome, CoreError> {
         let (messages, mut tail_notes, grants) = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
@@ -292,7 +346,24 @@ impl Session {
             )
         };
 
-        let request = self.request(messages, grants);
+        let handle = handle.or_else(|| tokio::runtime::Handle::try_current().ok());
+        let mcp_tools = match (&self.mcp, &handle) {
+            (Some(mcp), Some(handle)) => {
+                let servers = mcp.servers();
+                let states = handle.block_on(async {
+                    let servers = servers.lock().await;
+                    servers.list()
+                });
+                Some(McpTools::new(handle.clone(), servers, &states))
+            }
+            _ => None,
+        };
+
+        let extra_tools = mcp_tools
+            .as_ref()
+            .map(|tools| tools.definitions())
+            .unwrap_or(&[]);
+        let request = self.request(messages, grants, extra_tools);
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
             &self.config.base_url,
@@ -301,9 +372,13 @@ impl Session {
         let mut engine = RunningServer {
             window: self.config.context_tokens.unwrap_or(8192),
         };
-        let mut files: Box<dyn ToolRuntime> = match &self.config.folder {
+        let files: Box<dyn ToolRuntime> = match &self.config.folder {
             Some(folder) => Box::new(FileTools::new(folder, self.config.allow_commands)),
             None => Box::new(NoTools),
+        };
+        let mut composite = CompositeTools {
+            files,
+            mcp: mcp_tools,
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
@@ -321,7 +396,7 @@ impl Session {
                 model: &mut model,
                 engine: &mut engine,
                 skills: &mut skills,
-                tools: &mut *files,
+                tools: &mut composite,
                 host: &mut host,
                 observer: &mut bridge,
                 refs: &mut refs,
@@ -364,17 +439,13 @@ impl Session {
     /// A session with no messages. Failing to build the HTTP client is the only way this can fail.
     #[uniffi::constructor]
     pub fn new(config: SessionConfig) -> Result<Arc<Self>, CoreError> {
-        let net = Net::new().map_err(|message| CoreError::Internal { message })?;
-        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
-            return Err(CoreError::Invalid {
-                message: "A session needs a server address and a model.".to_owned(),
-            });
-        }
-        Ok(Arc::new(Self {
-            config,
-            net: Arc::new(net),
-            state: Mutex::new(State::default()),
-        }))
+        Self::create(config, None)
+    }
+
+    /// A session with MCP server tools wired in.
+    #[uniffi::constructor(name = "with_mcp")]
+    pub fn with_mcp(config: SessionConfig, mcp: Arc<McpManager>) -> Result<Arc<Self>, CoreError> {
+        Self::create(config, Some(mcp))
     }
 
     /// The conversation so far.
@@ -429,10 +500,12 @@ impl Session {
     ) -> Result<TurnOutcome, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
         let session = Arc::clone(&self);
+        let handle = tokio::runtime::Handle::current();
         std::thread::Builder::new()
             .name("draggy-turn".to_owned())
             .spawn(move || {
-                let outcome = session.run_blocking(&text, observer, approvals, &cancel);
+                let outcome =
+                    session.run_blocking(&text, observer, approvals, &cancel, Some(handle));
                 // The receiver is gone when the shell dropped the call; nothing is waiting for the outcome.
                 drop(reply.send(outcome));
             })

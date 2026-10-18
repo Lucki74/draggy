@@ -8,8 +8,9 @@ use std::thread;
 use std::time::Duration;
 
 use draggy_core::{
-    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, MessageRecord,
-    PermissionModeRecord, Session, SessionConfig, TurnEventRecord, TurnObserver, TurnOutcome,
+    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, McpManager,
+    McpServerConfigRecord, MessageRecord, PermissionModeRecord, Session, SessionConfig,
+    TurnEventRecord, TurnObserver, TurnOutcome,
 };
 use serde_json::{Value, json};
 
@@ -63,7 +64,7 @@ struct Server {
 }
 
 fn read_request(stream: &mut TcpStream) -> Option<Value> {
-    let mut reader = BufReader::new(stream.try_clone().ok()?);
+    let mut reader = BufReader::new(&mut *stream);
     let mut length = 0_usize;
     loop {
         let mut line = String::new();
@@ -183,6 +184,7 @@ fn run_asking(
 ) -> TurnOutcome {
     let observer: Arc<dyn TurnObserver> = recorder.clone();
     let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
         .enable_time()
         .build()
         .expect("runtime");
@@ -675,6 +677,7 @@ fn stopping_the_turn_does_not_wait_for_an_unanswered_approval_and_the_command_ne
     let observer: Arc<dyn TurnObserver> = recorder.clone();
     let approvals: Arc<dyn ApprovalHandler> = waiting.clone();
     let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
         .enable_time()
         .build()
         .expect("runtime");
@@ -692,4 +695,155 @@ fn stopping_the_turn_does_not_wait_for_an_unanswered_approval_and_the_command_ne
 
     assert!(outcome.aborted);
     assert!(!folder.path().join("made.txt").exists());
+}
+
+fn serve_mcp() -> Server {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let address = listener.local_addr().expect("address");
+    let bodies = Arc::new(Mutex::new(Vec::new()));
+    let seen = Arc::clone(&bodies);
+
+    thread::spawn(move || {
+        while let Ok((mut stream, _)) = listener.accept() {
+            let Some(req) = read_request(&mut stream) else {
+                continue;
+            };
+            seen.lock().expect("bodies").push(req.clone());
+
+            let method = req.get("method").and_then(Value::as_str).unwrap_or("");
+            let id = req.get("id").cloned().unwrap_or(json!(1));
+
+            let res = match method {
+                "initialize" => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "test-mcp", "version": "1.0.0"}
+                    }
+                }),
+                "notifications/initialized" => json!({}),
+                "tools/list" => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "echo",
+                                "description": "Echoes text.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {"msg": {"type": "string"}},
+                                    "required": ["msg"]
+                                },
+                                "annotations": {
+                                    "readOnlyHint": true,
+                                    "destructiveHint": false
+                                }
+                            }
+                        ]
+                    }
+                }),
+                "tools/call" => {
+                    let msg = req
+                        .get("params")
+                        .and_then(|p| p.get("arguments"))
+                        .and_then(|a| a.get("msg"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("default");
+                    json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "result": {
+                            "content": [
+                                {"type": "text", "text": format!("mcp says {msg}")}
+                            ]
+                        }
+                    })
+                }
+                _ => json!({"jsonrpc": "2.0", "id": id, "result": {}}),
+            };
+
+            let body_str = serde_json::to_string(&res).unwrap();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n{}\r\n0\r\n\r\n",
+                body_str.len(),
+                body_str
+            );
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+            let _ = stream.shutdown(std::net::Shutdown::Write);
+            let mut discard = [0u8; 128];
+            while let Ok(n) = stream.read(&mut discard) {
+                if n == 0 {
+                    break;
+                }
+            }
+        }
+    });
+
+    Server {
+        url: format!("http://{address}"),
+        bodies,
+    }
+}
+
+#[test]
+fn a_session_with_mcp_runs_normally_when_no_mcp_servers_are_active() {
+    let server = serve(vec![text_reply(&["Hello from session."])]);
+    let mcp = McpManager::new(None, None).expect("manager");
+    let session = Session::with_mcp(config(&server.url, None), mcp).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let outcome = run(&session, "Hi", &recorder);
+    assert_eq!(outcome.text_content, "Hello from session.");
+
+    let bodies = server.bodies.lock().expect("bodies");
+    assert!(bodies[0]["tools"].as_array().is_none_or(|a| a.is_empty()));
+}
+
+#[test]
+fn a_session_with_mcp_offers_server_tools_and_runs_them() {
+    let mcp_server = serve_mcp();
+    let runtime = tokio::runtime::Runtime::new().expect("runtime");
+    let manager = McpManager::new(None, None).expect("manager");
+
+    runtime.block_on(async {
+        let state = manager
+            .start(
+                "test_srv".to_owned(),
+                Some(McpServerConfigRecord {
+                    url: Some(mcp_server.url.clone()),
+                    ..Default::default()
+                }),
+            )
+            .await;
+        if state.status != "ready" {
+            println!("seen requests: {:?}", mcp_server.bodies.lock().unwrap());
+            panic!(
+                "state.status was {} with error {:?}",
+                state.status, state.error
+            );
+        }
+        assert_eq!(state.tools.len(), 1);
+        assert_eq!(state.tools[0].qualified_name, "test_srv__echo");
+    });
+
+    let open_ai_server = serve(vec![
+        tool_reply("test_srv__echo", "{\"msg\": \"banana\"}"),
+        text_reply(&["The echoed answer is banana."]),
+    ]);
+
+    let session = Session::with_mcp(config(&open_ai_server.url, None), manager).expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let outcome = run(&session, "Echo banana please", &recorder);
+    assert_eq!(outcome.text_content, "The echoed answer is banana.");
+    assert_eq!(outcome.tool_calls.get("test_srv__echo"), Some(&1));
+
+    let bodies = open_ai_server.bodies.lock().expect("bodies");
+    assert!(bodies[0]["tools"].to_string().contains("test_srv__echo"));
+    let second_pass_messages = bodies[1]["messages"].to_string();
+    assert!(second_pass_messages.contains("mcp says banana"));
 }

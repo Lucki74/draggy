@@ -29,7 +29,10 @@ pub use error::CoreError;
 pub use installer::{
     EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
 };
-pub use mcp::{McpServerRecord, mcp_catalogue};
+pub use mcp::{
+    McpManager, McpServerConfigRecord, McpServerRecord, McpServerStateRecord, McpToolRecord,
+    mcp_catalogue,
+};
 pub use models::{
     DownloadObserver, DownloadProgressRecord, InstalledModelRecord, LibraryModelRecord,
     ModelLibrary,
