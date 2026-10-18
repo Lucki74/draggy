@@ -717,6 +717,7 @@ describe("native thinking models", () => {
 
     expect((requests[0] as { think?: boolean }).think).toBe(true);
     expect((requests[0] as { chat_template_kwargs?: unknown }).chat_template_kwargs).toEqual({ enable_thinking: true });
+    expect((requests[0] as { thinking_budget_tokens?: number }).thinking_budget_tokens).toEqual(expect.any(Number));
     expect(result.textContent).toBe("Four.");
     expect(result.steps.find((s) => s.type === "thinking")?.content).toContain("let me see");
   });

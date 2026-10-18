@@ -36,7 +36,7 @@ import { CHARS_PER_TOKEN, renderCompactionBlock } from "./compaction";
 import type { LiveTurn } from "./liveTurn";
 import { measureBreakdown } from "./contextBreakdown";
 import { colibriEngine, shouldNotify, toolLoopLimit } from "../slowMode";
-import { effectiveEffort, isThinking, type EffectiveEffort } from "../ai/effort";
+import { effectiveEffort, isThinking, localBudget, type EffectiveEffort } from "../ai/effort";
 import type { PromptParts } from "./contextBreakdown";
 import {
   MAX_TOOL_LOOPS,
@@ -1130,6 +1130,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         noteEngineStart(model, started);
       }
 
+      const thinkingBudget = localBudget(effort.sent, numCtx);
       const requestBody = JSON.stringify({
         model: ggufModelName(model),
         stream: true,
@@ -1141,6 +1142,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         ...(hasThinkingCapability
           ? { think: nativeThinking, chat_template_kwargs: { enable_thinking: nativeThinking } }
           : {}),
+        // llama-server cuts reasoning off at this many tokens and moves on to the answer.
+        ...(thinkingBudget !== null && nativeThinking && !isRemote(model) ? { thinking_budget_tokens: thinkingBudget } : {}),
         // The pill's level, for a provider that takes one; the engine's body stays as it always was.
         ...(hasThinkingCapability && isRemote(model) ? { thinking_level: effort.sent } : {}),
         ...(nativeTools ? { tools: definitions } : {}),
