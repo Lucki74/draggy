@@ -68,4 +68,17 @@ final class MessageTextTests: XCTestCase {
         let font = text.attribute(.font, at: (title as NSString).length, effectiveRange: nil) as? NSFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.italic) ?? false)
     }
+
+    func testItalicsAndQuotesAreDrawn() {
+        let line = Transcript.Line(id: UUID(), role: .assistant, text: "a *slanted* word\n> quoted", steps: [])
+        let text = MessageText.attributed(line)
+        XCTAssertEqual(text.string, "a slanted word\n\u{258E} quoted")
+        let font = text.attribute(.font, at: 3, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.italic) ?? false)
+    }
+
+    func testBoldAndMultiplicationAreNotItalics() {
+        let line = Transcript.Line(id: UUID(), role: .assistant, text: "**bold** and 2 * 3 * 4", steps: [])
+        XCTAssertEqual(MessageText.attributed(line).string, "bold and 2 * 3 * 4")
+    }
 }

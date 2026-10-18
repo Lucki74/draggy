@@ -1,7 +1,7 @@
 import AppKit
 
 /// Turns a transcript line into styled text: tool steps first, then the message with fenced code blocks, `inline
-/// code`, **bold**, [links](https://example.com), headings and bullet lists drawn. Anything else in markdown
+/// code`, **bold**, *italics*, [links](https://example.com), headings, bullet lists and quotes drawn. Anything else in markdown
 /// shows as typed.
 @MainActor
 enum MessageText {
@@ -10,8 +10,9 @@ enum MessageText {
     private static let mono = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
     private static let small = NSFont.systemFont(ofSize: 12)
 
-    private static let inline = try? NSRegularExpression(pattern: "`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*|\\[([^\\]\\n]+)\\]\\((https?://[^)\\s]+)\\)")
+    private static let inline = try? NSRegularExpression(pattern: "`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*|\\[([^\\]\\n]+)\\]\\((https?://[^)\\s]+)\\)|(?<![*\\w])\\*([^*\\s](?:[^*\\n]*[^*\\s])?)\\*(?![*\\w])")
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
+    private static let quote = try? NSRegularExpression(pattern: "^>\\s?(.*)$")
     private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
 
     static func attributed(_ line: Transcript.Line) -> NSAttributedString {
@@ -77,6 +78,13 @@ enum MessageText {
             return styled((row as NSString).substring(with: match.range(at: 2)),
                           font: NSFont.boldSystemFont(ofSize: size))
         }
+        if let match = quote?.firstMatch(in: row, range: whole) {
+            let text = NSMutableAttributedString(attributedString:
+                styled("\u{258E} " + (row as NSString).substring(with: match.range(at: 1)), font: body))
+            text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor,
+                              range: NSRange(location: 0, length: text.length))
+            return text
+        }
         if let match = bullet?.firstMatch(in: row, range: whole) {
             let indent = (row as NSString).substring(with: match.range(at: 1))
             return styled(indent + "\u{2022} " + (row as NSString).substring(with: match.range(at: 2)), font: body)
@@ -97,6 +105,7 @@ enum MessageText {
             let code = match.range(at: 1)
             let strong = match.range(at: 2)
             let label = match.range(at: 3)
+            let slanted = match.range(at: 5)
             if label.location != NSNotFound {
                 let text = (row as NSString).substring(with: label)
                 var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.linkColor]
@@ -112,6 +121,12 @@ enum MessageText {
                         .foregroundColor: NSColor.labelColor,
                         .backgroundColor: NSColor.quaternaryLabelColor,
                     ]
+                ))
+            } else if slanted.location != NSNotFound {
+                let face = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+                out.replaceCharacters(in: match.range, with: NSAttributedString(
+                    string: (row as NSString).substring(with: slanted),
+                    attributes: [.font: face, .foregroundColor: NSColor.labelColor]
                 ))
             } else if strong.location != NSNotFound {
                 out.replaceCharacters(in: match.range, with: NSAttributedString(
