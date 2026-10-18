@@ -148,6 +148,29 @@ describe("readLlamaSseStream", () => {
     expect(chunks[2].done).toBe(true);
     expect(chunks[2].prompt_eval_count).toBe(5);
   });
+
+  it("yields done: true and captures metrics when finish_reason and usage are split across chunks (llama-server behavior)", async () => {
+    const sseLines = [
+      'data: {"choices":[{"index":0,"delta":{"content":"Hi "}}]}\n\n',
+      'data: {"choices":[{"index":0,"delta":{"content":"there"}}]}\n\n',
+      'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: {"choices":[],"usage":{"prompt_tokens":120,"completion_tokens":45},"timings":{"prompt_per_second":250,"predicted_per_second":42.5,"predicted_ms":1058.8,"prompt_ms":480.2}}\n\n',
+      "data: [DONE]\n\n",
+    ];
+
+    const reader = createMockReader(sseLines);
+    const chunks = [];
+    for await (const chunk of sseToLlamaChunks(reader)) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks.length).toBeGreaterThanOrEqual(3);
+    const lastChunk = chunks[chunks.length - 1];
+    expect(lastChunk.done).toBe(true);
+    expect(lastChunk.prompt_eval_count).toBe(120);
+    expect(lastChunk.eval_count).toBe(45);
+    expect(lastChunk.timings?.predicted_per_second).toBe(42.5);
+  });
 });
 
 describe("ggufErrorMessage", () => {

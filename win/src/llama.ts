@@ -459,20 +459,32 @@ export function readMetrics(
   model: string,
   contextWindow: number,
   timeToFirstTokenMs: number | null,
+  durationFallbackMs?: number,
 ): GenerationMetrics | null {
   const responseTokens = Number(chunk.eval_count) || 0;
   const responseNs = Number(chunk.eval_duration) || 0;
   if (responseTokens === 0 && responseNs === 0) return null;
 
-  const responseMs = responseNs / NS_PER_MS;
+  const responseMs = responseNs > 0
+    ? responseNs / NS_PER_MS
+    : (durationFallbackMs !== undefined && durationFallbackMs > 0 ? durationFallbackMs : 0);
+
+  const promptNs = Number(chunk.prompt_eval_duration) || 0;
+  const promptMs = promptNs > 0
+    ? promptNs / NS_PER_MS
+    : (timeToFirstTokenMs !== null && timeToFirstTokenMs > 0 ? timeToFirstTokenMs : 0);
+
+  const loadMs = (Number(chunk.load_duration) || 0) / NS_PER_MS;
+  const totalNs = Number(chunk.total_duration) || 0;
+  const totalMs = totalNs > 0 ? totalNs / NS_PER_MS : promptMs + responseMs + loadMs;
 
   return {
     promptTokens: Number(chunk.prompt_eval_count) || 0,
     responseTokens,
-    promptMs: (Number(chunk.prompt_eval_duration) || 0) / NS_PER_MS,
+    promptMs,
     responseMs,
-    loadMs: (Number(chunk.load_duration) || 0) / NS_PER_MS,
-    totalMs: (Number(chunk.total_duration) || 0) / NS_PER_MS,
+    loadMs,
+    totalMs,
     tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : 0,
     timeToFirstTokenMs,
     contextWindow,

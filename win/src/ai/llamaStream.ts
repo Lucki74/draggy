@@ -151,6 +151,8 @@ export interface AdaptedLlamaChunk {
   prompt_eval_duration?: number;
   eval_duration?: number;
   total_duration?: number;
+  timings?: SseRawPayload["timings"];
+  usage?: SseRawPayload["usage"];
   retry?: GatewayRetry;
   error?: GatewayError;
   provider_state?: ProviderState;
@@ -393,7 +395,7 @@ export async function* sseToLlamaChunks(
             },
           };
         }
-        if (!yieldedDone || (!yieldedMetrics && (lastUsage || lastTimings))) {
+        if (!yieldedDone || !yieldedMetrics) {
           yield {
             done: true,
             prompt_eval_count: lastUsage?.prompt_tokens ?? lastTimings?.prompt_n,
@@ -402,6 +404,12 @@ export async function* sseToLlamaChunks(
               lastTimings?.prompt_ms !== undefined ? lastTimings.prompt_ms * 1e6 : undefined,
             eval_duration:
               lastTimings?.predicted_ms !== undefined ? lastTimings.predicted_ms * 1e6 : undefined,
+            total_duration:
+              lastTimings?.prompt_ms !== undefined || lastTimings?.predicted_ms !== undefined
+                ? ((lastTimings?.prompt_ms ?? 0) + (lastTimings?.predicted_ms ?? 0)) * 1e6
+                : undefined,
+            timings: lastTimings,
+            usage: lastUsage,
           };
         }
         return;
@@ -426,16 +434,18 @@ export async function* sseToLlamaChunks(
       const isToolFinish = choice?.finish_reason === "tool_calls";
       const readyTools = isToolFinish ? drainToolCalls(pendingTools) : [];
 
-      if (choice?.finish_reason) yieldedDone = true;
+      const promptEvalCount = payload.usage?.prompt_tokens ?? payload.timings?.prompt_n ?? lastUsage?.prompt_tokens ?? lastTimings?.prompt_n;
+      const evalCount = payload.usage?.completion_tokens ?? payload.timings?.predicted_n ?? lastUsage?.completion_tokens ?? lastTimings?.predicted_n;
+      const timingsMs = payload.timings ?? lastTimings;
+      const hasMetrics = promptEvalCount !== undefined || evalCount !== undefined;
+
+      const isDone = Boolean(choice?.finish_reason) || (hasMetrics && (yieldedDone || !choice || (!delta?.content && !delta?.reasoning_content)));
+      if (isDone) yieldedDone = true;
+      if (hasMetrics && isDone) yieldedMetrics = true;
 
       const partialCalls = pendingTools.size > 0
         ? Array.from(pendingTools.values()).map((t) => ({ id: t.id || undefined, name: t.name, argsString: t.argsString }))
         : undefined;
-
-      const promptEvalCount = payload.usage?.prompt_tokens ?? payload.timings?.prompt_n ?? lastUsage?.prompt_tokens ?? lastTimings?.prompt_n;
-      const evalCount = payload.usage?.completion_tokens ?? payload.timings?.predicted_n ?? lastUsage?.completion_tokens ?? lastTimings?.predicted_n;
-      const timingsMs = payload.timings ?? lastTimings;
-      if (promptEvalCount !== undefined || evalCount !== undefined) yieldedMetrics = true;
 
       yield {
         message: {
@@ -448,8 +458,8 @@ export async function* sseToLlamaChunks(
           tool_call_deltas: delta?.tool_calls,
         },
 
-        done: Boolean(choice?.finish_reason),
-        done_reason: choice?.finish_reason || undefined,
+        done: isDone,
+        done_reason: choice?.finish_reason || (isDone ? "stop" : undefined),
         prompt_eval_count: promptEvalCount,
         eval_count: evalCount,
         prompt_eval_duration:
@@ -460,6 +470,8 @@ export async function* sseToLlamaChunks(
           timingsMs?.prompt_ms !== undefined || timingsMs?.predicted_ms !== undefined
             ? ((timingsMs?.prompt_ms ?? 0) + (timingsMs?.predicted_ms ?? 0)) * 1e6
             : undefined,
+        timings: timingsMs,
+        usage: payload.usage ?? lastUsage,
       };
     }
   }

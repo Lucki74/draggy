@@ -829,6 +829,25 @@ describe("statistics", () => {
 
     expect(storage.listMetrics()).toHaveLength(1);
   });
+
+  it("backfills completed turns from events.jsonl when present", () => {
+    const logsDir = path.join(workdir, "logs");
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logEvents = [
+      JSON.stringify({ ts: "2026-10-18T10:00:00.000Z", cid: "turn-1", msg: "chunk", data: { chars: 20 } }),
+      JSON.stringify({ ts: "2026-10-18T10:00:01.000Z", cid: "turn-1", msg: "step:turn_complete", data: { toolCalls: { search_web: 1 } } }),
+      JSON.stringify({ ts: "2026-10-18T10:00:02.000Z", cid: "turn-1", scope: "renderer.chat", msg: "turn summary", data: { chatId: "c1", model: "qwen-local.gguf", aborted: false, durMs: 2000, loops: 1 } }),
+    ].join("\n");
+    fs.writeFileSync(path.join(logsDir, "events.jsonl"), logEvents, "utf8");
+
+    storage.backfillMetrics(workdir);
+
+    const rows = storage.listMetrics();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].model).toBe("qwen-local.gguf");
+    expect(rows[0].chatId).toBe("c1");
+    expect(rows[0].tools).toEqual({ search_web: 1 });
+  });
 });
 
 describe("what a workspace is allowed to do", () => {
