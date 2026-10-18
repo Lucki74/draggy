@@ -121,6 +121,22 @@ describe("the settings menu", () => {
   });
 });
 
+describe("Chat's preferences", () => {
+  it("defaults browser actions to on, without an off-by-default hint", async () => {
+    const { onUpdate } = renderSettings("chat");
+
+    const toggle = screen.getByRole("switch", { name: "Browser actions" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+
+    const description = screen.getByText(/hover, drag, scroll/i);
+    expect(description.textContent).not.toMatch(/off by default/i);
+    expect(description.textContent).not.toMatch(/on by default/i);
+
+    await act(async () => toggle.click());
+    expect(onUpdate).toHaveBeenCalledWith({ browserActions: false });
+  });
+});
+
 describe("Code's preferences", () => {
   it("writes thinking to Code's own field", async () => {
     const { onUpdate } = renderSettings("code");

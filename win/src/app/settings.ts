@@ -26,6 +26,7 @@ export const defaultSettings: AppSettings = {
   slowModelThinking: false,
   colibriLossy: false,
   webMode: "auto",
+  browserActions: true,
   voiceName: "",
   voiceModel: "",
   voiceEngine: "neural",
