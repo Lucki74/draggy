@@ -35,6 +35,13 @@ template $DraggyChat: Gtk.Box {
       margin-end: 16;
       styles ["composer"]
 
+      Gtk.Button attach {
+        icon-name: "mail-attachment-symbolic";
+        tooltip-text: "Attach a Word, PowerPoint, Excel or PDF file";
+        valign: end;
+        styles ["flat", "circular"]
+      }
+
       Gtk.ScrolledWindow {
         hexpand: true;
         propagate-natural-height: true;
