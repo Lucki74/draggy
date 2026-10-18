@@ -1,13 +1,12 @@
 //! The production [`Launcher`]: one child per server with piped stdio. Output is read on tasks and handed out as events.
 
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
+use draggy_tools::spawn::{spawn_hidden_with_input, Child, ChildStdin};
 use serde_json::{Map, Value};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
@@ -40,22 +39,15 @@ impl Launcher for StdioLauncher {
     }
 
     fn spawn(&self, args: &[String], env: &Map<String, Value>) -> Result<ChildProcess, String> {
-        let mut command = Command::new(&self.program);
-        command
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
-        for (key, value) in env {
-            let text = value
-                .as_str()
-                .map_or_else(|| value.to_string(), str::to_owned);
-            command.env(key, text);
-        }
-        let mut child = command
-            .spawn()
-            .map_err(|error| format!("Could not start the server: {error}"))?;
+        let mut child = spawn_hidden_with_input(&self.program, args, |command| {
+            for (key, value) in env {
+                let text = value
+                    .as_str()
+                    .map_or_else(|| value.to_string(), str::to_owned);
+                command.env(key, text);
+            }
+        })
+        .map_err(|error| format!("Could not start the server: {error}"))?;
         let input = child
             .stdin
             .take()

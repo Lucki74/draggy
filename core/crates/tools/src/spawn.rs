@@ -84,6 +84,17 @@ pub fn spawn_hidden<S: AsRef<OsStr>>(
     hidden_command(program, args, setup).spawn()
 }
 
+/// Starts a hidden process whose input the caller writes to, for servers that read requests from stdin.
+pub fn spawn_hidden_with_input<S: AsRef<OsStr>>(
+    program: impl AsRef<OsStr>,
+    args: &[S],
+    setup: impl FnOnce(&mut Command),
+) -> io::Result<Child> {
+    let mut command = hidden_command(program, args, setup);
+    command.stdin(Stdio::piped());
+    command.spawn()
+}
+
 /// Runs a hidden process to the end and returns its whole output, for calls that need no timeout or cancel.
 pub async fn exec_hidden<S: AsRef<OsStr>>(
     program: impl AsRef<OsStr>,
