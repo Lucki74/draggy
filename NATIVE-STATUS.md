@@ -39,6 +39,7 @@ Works (as written, not yet compiled):
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
 - A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
+- VoiceOver support in the chat: each message reads as one row with who spoke and what was said, and the attach button has a label. Nothing in the app animates yet, so Reduce Motion has nothing to change. Other pages rely on SwiftUI's default labels and have not been checked with VoiceOver.
 - A macOS CI workflow.
 
 Missing:

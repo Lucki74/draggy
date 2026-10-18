@@ -21,6 +21,7 @@ struct TranscriptView: NSViewRepresentable {
         table.allowsColumnSelection = false
         table.intercellSpacing = NSSize(width: 0, height: 6)
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        table.setAccessibilityLabel(String(localized: "Conversation"))
         table.dataSource = context.coordinator
         table.delegate = context.coordinator
         table.onWidthChange = { [weak coordinator = context.coordinator] in
@@ -168,6 +169,13 @@ private final class MessageCell: NSTableCellView {
             title += String(format: String(localized: " \u{00B7} %.1f tokens/s"), speed)
         }
         caption.stringValue = title
+        // VoiceOver reads one element per message: who spoke, then what was said.
+        setAccessibilityElement(true)
+        setAccessibilityRole(.row)
+        setAccessibilityLabel(title)
+        setAccessibilityValue(line.text)
+        text.setAccessibilityElement(false)
+        caption.setAccessibilityElement(false)
         text.textStorage?.setAttributedString(MessageText.attributed(line))
         needsLayout = true
     }
