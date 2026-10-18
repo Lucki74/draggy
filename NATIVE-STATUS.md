@@ -33,6 +33,7 @@ Works (as written, not yet compiled):
 - Chat page: type a message and watch the reply stream in through `draggy-core`'s `Session`, with Stop.
 - The bindings pipeline: `macos/scripts/build-core.sh` builds the core, generates the Swift bindings and packs an XCFramework.
 - The transcript on an `NSTableView` with TextKit 2 text views, with tool steps, tokens per second, and code blocks, inline code and bold drawn.
+- The transcript shows the model's reasoning under a "Thinking" line, and each tool step with its full content, stdout and stderr in monospace. Not yet run on a Mac: only CI compiles it.
 - A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
 - The latest conversation is saved to `~/Library/Application Support/Draggy/conversation.json` after each turn. The window shows it again at launch, and the core gets it back through `Session.restore` when the next message is sent.
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.

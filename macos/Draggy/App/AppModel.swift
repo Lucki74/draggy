@@ -45,9 +45,14 @@ private final class EventSink: TurnObserver, @unchecked Sendable {
 
 private func transcriptStep(_ record: StepRecord) -> Transcript.Step {
     let firstLine = record.content?.split(separator: "\n", maxSplits: 1).first.map(String.init)
-    let target = record.filename ?? record.filepath ?? firstLine
+    let isThinking = record.kind == "thinking"
+    let target = isThinking ? nil : record.filename ?? record.filepath ?? firstLine
     let label = target.map { "\(record.kind) \($0)" } ?? record.kind
-    return Transcript.Step(kind: record.kind, label: label, isDone: record.isComplete ?? true)
+    let detail = [record.content, record.stdout, record.stderr]
+        .compactMap { $0 }
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
+    return Transcript.Step(kind: record.kind, label: label, isDone: record.isComplete ?? true, detail: detail)
 }
 
 /// How the model's tool calls are decided, as the settings offer it. Running everything unasked is left out.
