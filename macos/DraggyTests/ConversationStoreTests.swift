@@ -15,6 +15,26 @@ final class ConversationStoreTests: XCTestCase {
         XCTAssertEqual(store.load(), messages)
     }
 
+    func testToolStepsComeBackWithTheirReply() {
+        let step = Transcript.Step(kind: "bash", label: "bash ls", isDone: true, detail: "a.txt")
+        let store = makeStore()
+        let saved = [
+            SavedMessage(role: "user", text: "list"),
+            SavedMessage(role: "assistant", text: "done", steps: [step]),
+        ]
+        store.save(saved)
+        XCTAssertEqual(Transcript(restoring: store.load()).lines.last?.steps, [step])
+    }
+
+    func testFilesWithoutStepsStillLoad() throws {
+        let store = makeStore()
+        try FileManager.default.createDirectory(
+            at: store.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"[{"role":"user","text":"hi"},{"role":"assistant","text":"yo"}]"#.utf8).write(to: store.url)
+        XCTAssertEqual(store.load().count, 2)
+        XCTAssertNil(store.load()[1].steps)
+    }
+
     func testAMissingFileIsAnEmptyConversation() {
         XCTAssertEqual(makeStore().load(), [])
     }
