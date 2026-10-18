@@ -10,6 +10,7 @@ pub mod documents;
 pub mod engine;
 pub mod error;
 pub mod installer;
+pub mod mcp;
 pub mod model;
 pub mod models;
 pub mod net;
@@ -26,6 +27,7 @@ pub use error::CoreError;
 pub use installer::{
     EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
 };
+pub use mcp::{McpServerRecord, mcp_catalogue};
 pub use models::{
     DownloadObserver, DownloadProgressRecord, InstalledModelRecord, LibraryModelRecord,
     ModelLibrary,
