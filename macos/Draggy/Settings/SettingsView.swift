@@ -9,7 +9,7 @@ struct SettingsView: View {
         Form {
             TextField("Server address", text: $model.baseURL)
             TextField("Model", text: $model.modelName)
-            SecureField("API key", text: $keyDraft, prompt: Text(model.hasAPIKey() ? "Saved in the Keychain" : "None"))
+            SecureField("API key", text: $keyDraft, prompt: Text(model.hasAPIKey() ? String(localized: "Saved in the Keychain") : String(localized: "None")))
             Button("Save key") {
                 model.saveAPIKey(keyDraft)
                 keyDraft = ""
@@ -46,7 +46,7 @@ struct SettingsView: View {
 
             Section("Project") {
                 LabeledContent("Folder") {
-                    Text(model.folderPath.isEmpty ? "None" : model.folderPath)
+                    Text(model.folderPath.isEmpty ? String(localized: "None") : model.folderPath)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.head)
@@ -73,7 +73,7 @@ struct SettingsView: View {
     ) -> some View {
         LabeledContent(title) {
             HStack {
-                Text(path.isEmpty ? "None" : path)
+                Text(path.isEmpty ? String(localized: "None") : path)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.head)
@@ -85,9 +85,9 @@ struct SettingsView: View {
 
     private func status(_ phase: EngineModel.Phase) -> String {
         switch phase {
-        case .stopped: "Stopped"
-        case .starting: "Starting\u{2026}"
-        case let .running(name): "Running \(name)"
+        case .stopped: String(localized: "Stopped")
+        case .starting: String(localized: "Starting\u{2026}")
+        case let .running(name): String(localized: "Running \(name)")
         case let .failed(message): message
         }
     }
@@ -97,7 +97,7 @@ struct SettingsView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
+        panel.prompt = String(localized: "Choose")
         if panel.runModal() == .OK, let url = panel.url { pick(url.path) }
     }
 
@@ -106,7 +106,7 @@ struct SettingsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
+        panel.prompt = String(localized: "Choose")
         if panel.runModal() == .OK, let url = panel.url {
             model.folderPath = url.path
         }

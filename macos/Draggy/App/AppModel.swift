@@ -60,9 +60,9 @@ enum PermissionChoice: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .ask: "Ask before edits and commands"
-        case .acceptEdits: "Edit freely, ask before commands"
-        case .plan: "Read only"
+        case .ask: String(localized: "Ask before edits and commands")
+        case .acceptEdits: String(localized: "Edit freely, ask before commands")
+        case .plan: String(localized: "Read only")
         }
     }
 
@@ -177,7 +177,7 @@ final class AppModel {
             try secrets.setSecret(key, for: Key.apiKey)
             session = nil
         } catch {
-            errorMessage = "The key could not be saved to the Keychain."
+            errorMessage = String(localized: "The key could not be saved to the Keychain.")
         }
     }
 
@@ -280,7 +280,7 @@ final class AppModel {
         case let .Invalid(message), let .Engine(message), let .Model(message):
             message
         default:
-            "The core stopped unexpectedly."
+            String(localized: "The core stopped unexpectedly.")
         }
     }
 }
