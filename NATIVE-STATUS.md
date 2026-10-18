@@ -14,7 +14,7 @@ Works:
 
 Missing:
 
-- Saved conversations. The transcript lives in memory and a settings change starts a new one.
+- Saved conversations: each turn is saved and the newest one opens at launch. Not yet: a list to switch between conversations, or deleting one.
 - Markdown, code blocks and attachments in the chat. Messages show as plain text.
 - Core calls beyond a chat turn (documents, web, MCP).
 - Model and engine management.
