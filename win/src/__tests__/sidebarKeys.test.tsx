@@ -9,10 +9,12 @@ import type { ChatSession, Workspace } from "../types";
 
 afterEach(cleanup);
 
+const now = Date.now();
+let sessionOffset = 0;
 const session = (id: string, title: string, extra: Partial<ChatSession> = {}): ChatSession => ({
   id,
   title,
-  updatedAt: Date.now(),
+  updatedAt: now - (sessionOffset += 1000),
   messages: [],
   workspaceId: "w1",
   isGenerating: false,
