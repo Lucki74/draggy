@@ -37,6 +37,7 @@ Works (as written, not yet compiled):
 - The latest conversation is saved to `~/Library/Application Support/Draggy/conversation.json` after each turn. The window shows it again at launch, and the core gets it back through `Session.restore` when the next message is sent.
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links.
+- Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
 - A macOS CI workflow.
 
 Missing:

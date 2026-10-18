@@ -163,9 +163,9 @@ private final class MessageCell: NSTableCellView {
     func show(_ line: Transcript.Line, side: CGFloat, captionHeight: CGFloat) {
         self.side = side
         self.captionHeight = captionHeight
-        var title = line.role == .user ? "You" : "Draggy"
+        var title = line.role == .user ? String(localized: "You") : "Draggy"
         if let speed = line.speed {
-            title += String(format: " \u{00B7} %.1f tokens/s", speed)
+            title += String(format: String(localized: " \u{00B7} %.1f tokens/s"), speed)
         }
         caption.stringValue = title
         text.textStorage?.setAttributedString(MessageText.attributed(line))

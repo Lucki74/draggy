@@ -39,7 +39,7 @@ final class ModelsModel {
             library = try ModelLibrary(modelsDir: modelsDirectory.path)
         } catch {
             library = nil
-            errorMessage = "The model library could not start."
+            errorMessage = String(localized: "The model library could not start.")
         }
         refreshInstalled()
     }

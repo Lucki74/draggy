@@ -63,7 +63,7 @@ struct ModelsView: View {
     private func remaining(_ progress: DownloadProgressRecord) -> String {
         let done = ByteCountFormatter.string(fromByteCount: Int64(progress.completed), countStyle: .file)
         let all = ByteCountFormatter.string(fromByteCount: Int64(progress.total), countStyle: .file)
-        guard let seconds = progress.remainingSeconds else { return "\(done) of \(all)" }
-        return "\(done) of \(all), about \(seconds / 60 + 1) min left"
+        guard let seconds = progress.remainingSeconds else { return String(localized: "\(done) of \(all)") }
+        return String(localized: "\(done) of \(all), about \(Int(seconds / 60 + 1)) min left")
     }
 }

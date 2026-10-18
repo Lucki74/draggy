@@ -1,6 +1,7 @@
 name: Draggy
 options:
   bundleIdPrefix: com.draggy
+  developmentLanguage: en
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -31,6 +32,7 @@ targets:
         CFBundleName: Draggy
         CFBundleDisplayName: Draggy
         CFBundleIconFile: icon
+        CFBundleLocalizations: [en, fr, es, zh-Hans]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
