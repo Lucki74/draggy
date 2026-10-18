@@ -15,17 +15,20 @@ use draggy_linux::chat::{
     to_saved,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
+use draggy_linux::markdown::{self, Block};
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 
 type Toast = Rc<dyn Fn(&str)>;
 
-/// The labels of the reply being written, kept so each batch of events updates them in place.
+/// The parts of a message kept so each batch of events updates them in place. `shown` is the text the body was drawn
+/// from, so a batch that changes nothing in it skips the redraw.
 #[derive(Clone)]
 pub struct ReplyParts {
-    text: gtk::Label,
+    body: gtk::Box,
     steps: gtk::Label,
     meta: gtk::Label,
+    shown: RefCell<Option<String>>,
 }
 
 /// The conversation's session with the settings it was built from. A change in the settings starts a new one.
@@ -488,13 +491,7 @@ impl DraggyChat {
 /// A row for one message, and the labels a reply keeps updating.
 fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
-    let text = gtk::Label::builder()
-        .wrap(true)
-        .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .xalign(0.0)
-        .selectable(true)
-        .css_classes(["message-text"])
-        .build();
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 8);
     let steps = gtk::Label::builder()
         .wrap(true)
         .xalign(0.0)
@@ -506,27 +503,35 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .xalign(0.0)
         .css_classes(["caption", "dim-label"])
         .build();
-    row.append(&text);
+    row.append(&body);
     row.append(&steps);
     row.append(&meta);
     match entry.role {
         Role::User => {
             row.add_css_class("message-user");
             row.set_halign(gtk::Align::End);
-            text.set_xalign(1.0);
         }
         Role::Assistant => row.add_css_class("message-assistant"),
     }
-    let parts = ReplyParts { text, steps, meta };
+    let parts = ReplyParts {
+        body,
+        steps,
+        meta,
+        shown: RefCell::new(None),
+    };
     fill(&parts, entry);
     (row, parts)
 }
 
 fn fill(parts: &ReplyParts, entry: &Entry) {
-    if entry.streaming && entry.text.is_empty() {
-        parts.text.set_text("…");
+    let shown = if entry.streaming && entry.text.is_empty() {
+        "…".to_owned()
     } else {
-        parts.text.set_text(&entry.text);
+        entry.text.clone()
+    };
+    if parts.shown.borrow().as_deref() != Some(shown.as_str()) {
+        draw_body(&parts.body, entry, &shown);
+        *parts.shown.borrow_mut() = Some(shown);
     }
     let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
     parts.steps.set_visible(!steps.is_empty());
@@ -540,6 +545,97 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     }
     parts.meta.set_visible(!meta.is_empty());
     parts.meta.set_text(&meta.join(" · "));
+}
+
+/// Replaces the body with the text drawn for its role: plain for the user, Markdown blocks for the assistant.
+fn draw_body(body: &gtk::Box, entry: &Entry, text: &str) {
+    while let Some(child) = body.first_child() {
+        body.remove(&child);
+    }
+    match entry.role {
+        Role::User => {
+            let label = markup_label(&markdown::escape(text), "message-text");
+            label.set_xalign(1.0);
+            body.append(&label);
+        }
+        Role::Assistant => {
+            for block in markdown::parse(text) {
+                body.append(&block_widget(&block));
+            }
+        }
+    }
+}
+
+/// The widget that draws one Markdown block of a reply.
+fn block_widget(block: &Block) -> gtk::Widget {
+    match block {
+        Block::Paragraph(markup) => markup_label(markup, "message-text").upcast(),
+        Block::Heading(markup) => markup_label(markup, "markdown-heading").upcast(),
+        Block::Quote(markup) => markup_label(markup, "markdown-quote").upcast(),
+        Block::Item { marker, markup } => {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            let bullet = gtk::Label::builder()
+                .label(marker.as_str())
+                .valign(gtk::Align::Start)
+                .css_classes(["message-text", "dim-label"])
+                .build();
+            row.append(&bullet);
+            row.append(&markup_label(markup, "message-text"));
+            row.upcast()
+        }
+        Block::Code { language, code } => code_block(language, code).upcast(),
+    }
+}
+
+/// A selectable label that reads its text as Pango markup. The markup comes from `markdown`, which escapes it.
+fn markup_label(markup: &str, class: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .use_markup(true)
+        .label(markup)
+        .wrap(true)
+        .wrap_mode(gtk::pango::WrapMode::WordChar)
+        .xalign(0.0)
+        .hexpand(true)
+        .selectable(true)
+        .css_classes([class])
+        .build()
+}
+
+/// A code block with its language and a button that copies the code. A long line scrolls sideways.
+fn code_block(language: &str, code: &str) -> gtk::Box {
+    let frame = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    frame.add_css_class("markdown-code");
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let name = gtk::Label::builder()
+        .label(if language.is_empty() { "code" } else { language })
+        .xalign(0.0)
+        .hexpand(true)
+        .css_classes(["caption", "dim-label"])
+        .build();
+    let copy = gtk::Button::builder()
+        .icon_name("edit-copy-symbolic")
+        .tooltip_text("Copy code")
+        .css_classes(["flat"])
+        .build();
+    let text = code.to_owned();
+    copy.connect_clicked(move |button| button.clipboard().set_text(&text));
+    header.append(&name);
+    header.append(&copy);
+    let scroller = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .build();
+    let label = gtk::Label::builder()
+        .label(code)
+        .xalign(0.0)
+        .selectable(true)
+        .css_classes(["code"])
+        .build();
+    scroller.set_child(Some(&label));
+    frame.append(&header);
+    frame.append(&scroller);
+    frame
 }
 
 #[cfg(test)]
@@ -565,14 +661,14 @@ mod tests {
         let mut log = Transcript::default();
         log.begin_turn("hello");
         let (_, parts) = entry_row(&log.entries()[1]);
-        assert_eq!(parts.text.text(), "…");
+        assert_eq!(body_text(&parts), "…");
         log.apply(&[TurnEventRecord::Patch {
             content: String::new(),
             text_content: "Hi there".to_owned(),
             steps: Vec::new(),
         }]);
         fill(&parts, &log.entries()[1]);
-        assert_eq!(parts.text.text(), "Hi there");
+        assert_eq!(body_text(&parts), "Hi there");
         assert!(!parts.steps.is_visible());
         assert!(chat.imp().send.is_visible());
         assert!(!chat.imp().stop.is_visible());
@@ -590,6 +686,16 @@ mod tests {
         log.begin_turn("hello");
         let (row, parts) = entry_row(&log.entries()[0]);
         assert_eq!(row.halign(), gtk::Align::End);
-        assert_eq!(parts.text.text(), "hello");
+        assert_eq!(body_text(&parts), "hello");
+    }
+
+    /// The text of a body that holds one label, such as a plain message or a single paragraph.
+    fn body_text(parts: &ReplyParts) -> String {
+        parts
+            .body
+            .first_child()
+            .and_then(|child| child.downcast::<gtk::Label>().ok())
+            .map(|label| label.text().to_string())
+            .unwrap_or_default()
     }
 }
