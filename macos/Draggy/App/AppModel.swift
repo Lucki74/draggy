@@ -103,7 +103,9 @@ final class AppModel {
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
 
-    @ObservationIgnored private let store: ConversationStore
+    @ObservationIgnored private let library: ConversationLibrary
+    private var currentID = UUID()
+    private(set) var conversations: [ConversationSummary] = []
     private(set) var transcript: Transcript
     private(set) var isRunning = false
     private(set) var errorMessage: String?
@@ -151,12 +153,15 @@ final class AppModel {
     init(
         defaults: UserDefaults = .standard,
         secrets: any SecretStore = KeychainSecretStore(),
-        store: ConversationStore = .standard
+        library: ConversationLibrary = .standard
     ) {
         self.defaults = defaults
         self.secrets = secrets
-        self.store = store
-        transcript = Transcript(restoring: store.load())
+        self.library = library
+        let latest = library.list()
+        conversations = latest
+        if let first = latest.first { currentID = first.id }
+        transcript = Transcript(restoring: latest.first.map { library.load($0.id) } ?? [])
         let engine = EngineModel(defaults: defaults)
         self.engine = engine
         models = ModelsModel { [weak engine] path in engine?.modelPath = path }
@@ -191,8 +196,24 @@ final class AppModel {
         guard !isRunning else { return }
         session = nil
         transcript = Transcript()
-        store.save([])
+        currentID = UUID()
         errorMessage = nil
+    }
+
+    /// Shows a saved conversation. The core gets it back when the next message is sent.
+    func open(_ id: UUID) {
+        guard !isRunning, id != currentID else { return }
+        session = nil
+        currentID = id
+        transcript = Transcript(restoring: library.load(id))
+        errorMessage = nil
+    }
+
+    func delete(_ id: UUID) {
+        guard !isRunning else { return }
+        library.delete(id)
+        if id == currentID { newConversation() }
+        conversations = library.list()
     }
 
     /// Adds the text of a document to the message being written.
@@ -252,7 +273,8 @@ final class AppModel {
             errorMessage = error.localizedDescription
         }
         cancel = nil
-        store.save(transcript.savedMessages)
+        library.save(transcript.savedMessages, as: currentID)
+        conversations = library.list()
     }
 
     private func currentSession() throws -> Session {
