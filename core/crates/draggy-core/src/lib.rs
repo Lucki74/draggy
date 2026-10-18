@@ -11,6 +11,7 @@ pub mod engine;
 pub mod error;
 pub mod installer;
 pub mod mcp;
+pub mod mcp_tools;
 pub mod model;
 pub mod models;
 pub mod net;
