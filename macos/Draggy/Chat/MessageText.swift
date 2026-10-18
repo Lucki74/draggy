@@ -1,8 +1,7 @@
 import AppKit
 
-/// Turns a transcript line into styled text: tool steps first, then the message with fenced code blocks, `inline
-/// code`, **bold**, *italics*, [links](https://example.com), headings, bullet lists and quotes drawn. Anything else in markdown
-/// shows as typed.
+/// Turns a transcript line into styled text: tool steps first, then the message with code, emphasis, links,
+/// headings, lists, quotes and tables drawn. Anything else in markdown shows as typed.
 @MainActor
 enum MessageText {
     private static let body = NSFont.systemFont(ofSize: 14)
@@ -14,6 +13,8 @@ enum MessageText {
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
     private static let quote = try? NSRegularExpression(pattern: "^>\\s?(.*)$")
     private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
+    private static let tableSeparator = try? NSRegularExpression(pattern: "^\\s*\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
+    private static let columnWidth: CGFloat = 160
 
     static func attributed(_ line: Transcript.Line) -> NSAttributedString {
         let out = NSMutableAttributedString()
@@ -49,8 +50,19 @@ enum MessageText {
         let out = NSMutableAttributedString()
         var inFence = false
         let rows = text.components(separatedBy: "\n")
-        for (index, row) in rows.enumerated() {
+        var index = 0
+        while index < rows.count {
+            let row = rows[index]
             let end = index == rows.count - 1 ? "" : "\n"
+            if !inFence, let table = tableBlock(rows, at: index) {
+                for (offset, cells) in table.cells.enumerated() {
+                    let rowEnd = index + offset == rows.count - 1 ? "" : "\n"
+                    out.append(tableRow(cells, header: offset == 0, end: rowEnd))
+                }
+                index += table.count
+                continue
+            }
+            index += 1
             if row.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                 inFence.toggle()
                 continue
@@ -67,6 +79,51 @@ enum MessageText {
             }
         }
         return out
+    }
+
+    /// A markdown table starts at a row with pipes followed by a separator row such as `|---|---|`.
+    private static func tableBlock(_ rows: [String], at start: Int) -> (cells: [[String]], count: Int)? {
+        guard start + 1 < rows.count, isTableRow(rows[start]), isSeparator(rows[start + 1]) else { return nil }
+        var cells = [splitCells(rows[start])]
+        var next = start + 2
+        while next < rows.count, isTableRow(rows[next]) {
+            cells.append(splitCells(rows[next]))
+            next += 1
+        }
+        return (cells, next - start)
+    }
+
+    private static func isTableRow(_ row: String) -> Bool {
+        row.contains("|") && !row.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static func isSeparator(_ row: String) -> Bool {
+        guard row.contains("|"), let tableSeparator else { return false }
+        return tableSeparator.firstMatch(in: row, range: NSRange(location: 0, length: (row as NSString).length)) != nil
+    }
+
+    /// Splits a row on its pipes, dropping the outer pipes and the spaces around each cell.
+    private static func splitCells(_ row: String) -> [String] {
+        var trimmed = row.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("|") { trimmed.removeFirst() }
+        if trimmed.hasSuffix("|") { trimmed.removeLast() }
+        return trimmed.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// One table row: cells joined by tabs on fixed columns, the header in bold.
+    private static func tableRow(_ cells: [String], header: Bool, end: String) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.tabStops = (1..<max(cells.count, 1)).map {
+            NSTextTab(textAlignment: .left, location: CGFloat($0) * columnWidth)
+        }
+        let row = NSMutableAttributedString()
+        for (index, cell) in cells.enumerated() {
+            if index > 0 { row.append(NSAttributedString(string: "\t", attributes: [.font: body])) }
+            row.append(styled(cell, font: header ? bold : body))
+        }
+        row.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: row.length))
+        row.append(NSAttributedString(string: end, attributes: [.font: body]))
+        return row
     }
 
     /// One prose row: a heading or bullet loses its marks, then the inline marks are drawn.
