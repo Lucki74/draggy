@@ -155,6 +155,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
+    use draggy_agent::agent_loop::ToolRuntime;
     use draggy_agent::permissions::ToolAnnotations;
     use draggy_agent::tool_channel::ToolDefinition;
     use draggy_mcp::child_process::StdioLauncher;
