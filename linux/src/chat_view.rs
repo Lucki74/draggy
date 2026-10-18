@@ -607,7 +607,11 @@ fn code_block(language: &str, code: &str) -> gtk::Box {
     frame.add_css_class("markdown-code");
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     let name = gtk::Label::builder()
-        .label(if language.is_empty() { "code" } else { language })
+        .label(if language.is_empty() {
+            "code"
+        } else {
+            language
+        })
         .xalign(0.0)
         .hexpand(true)
         .css_classes(["caption", "dim-label"])

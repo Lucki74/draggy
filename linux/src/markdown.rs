@@ -8,8 +8,14 @@ pub enum Block {
     Heading(String),
     Quote(String),
     /// A list item with its marker: a bullet, or the number as the reply typed it.
-    Item { marker: String, markup: String },
-    Code { language: String, code: String },
+    Item {
+        marker: String,
+        markup: String,
+    },
+    Code {
+        language: String,
+        code: String,
+    },
 }
 
 /// Reads a reply into blocks. A fence that is never closed runs to the end, which suits a reply still arriving.
