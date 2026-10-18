@@ -92,6 +92,7 @@ final class AppModel {
     let engine: EngineModel
     let models: ModelsModel
     let updates = UpdateModel()
+    let mcp = McpModel()
     private var session: Session?
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?

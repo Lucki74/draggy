@@ -36,12 +36,14 @@ Works (as written, not yet compiled):
 - A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
 - The latest conversation is saved to `~/Library/Application Support/Draggy/conversation.json` after each turn. The window shows it again at launch, and the core gets it back through `Session.restore` when the next message is sent.
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
+- A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links.
 - A macOS CI workflow.
 
 Missing:
 
 - A list of past conversations. Only the latest one is kept, and tool steps are not saved with it.
 - Full markdown (lists, links, headings) and image attachments.
+- Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet.
 - A web pane, and writing documents (reading them is built).
 - Signing, notarization, Sparkle and a release workflow.
 
