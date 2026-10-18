@@ -109,6 +109,7 @@ describe("local budget", () => {
   });
 
   it("never exceeds a quarter of the context", () => {
+    expect(localBudget("high", 131072)).toBe(8192);
     expect(localBudget("max", 8192)).toBe(2048);
     expect(localBudget("max", 131072)).toBe(32768);
   });

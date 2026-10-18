@@ -12,7 +12,7 @@ export const EFFORT_DEFAULT: EffortLevel = "medium";
 export const LOCAL_BUDGET: Record<Exclude<EffortLevel, "off">, number> = {
   low: 1024,
   medium: 4096,
-  high: 12288,
+  high: 8192,
   max: 32768,
 };
 
