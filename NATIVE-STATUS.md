@@ -13,10 +13,10 @@ Works:
 - Chat page: type a message, watch the reply stream in, see the tool steps and the speed, stop a turn, and answer the core's approval questions. It talks to an OpenAI-compatible server that is already running, through `draggy-core`'s `Session`.
 - Saved conversations: each turn is saved. The sidebar's History list shows them newest first, and a click opens one. The + button starts a new conversation, and the trash button deletes one after a confirmation.
 - Markdown in replies: headings, bold, italic, inline code, bullet and numbered lists, quotes, http and https links, and code blocks with a copy button. User messages and tables show as plain text.
+- A paperclip button in the composer adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 
 Missing:
 
-- Attachments in the chat.
 - Core calls beyond a chat turn (documents, web, MCP).
 - Model and engine management.
 - Documents and web panes.

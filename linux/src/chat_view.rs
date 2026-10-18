@@ -6,13 +6,13 @@ use std::sync::Arc;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use gtk::{gdk, glib};
+use gtk::{gdk, gio, glib};
 
 use crate::state::{AppState, SERVER_KEY};
-use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session};
+use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session, read_document};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
-    to_saved,
+    to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
@@ -51,6 +51,8 @@ mod imp {
         pub transcript: TemplateChild<gtk::Box>,
         #[template_child]
         pub input: TemplateChild<gtk::TextView>,
+        #[template_child]
+        pub attach: TemplateChild<gtk::Button>,
         #[template_child]
         pub send: TemplateChild<gtk::Button>,
         #[template_child]
@@ -98,6 +100,13 @@ mod imp {
             self.stop.connect_clicked(move |_| {
                 if let Some(chat) = weak.upgrade() {
                     chat.stop_turn();
+                }
+            });
+
+            let weak = chat.downgrade();
+            self.attach.connect_clicked(move |_| {
+                if let Some(chat) = weak.upgrade() {
+                    chat.choose_document();
                 }
             });
 
@@ -294,7 +303,53 @@ impl DraggyChat {
         let imp = self.imp();
         imp.send.set_visible(!busy);
         imp.stop.set_visible(busy);
+        imp.attach.set_sensitive(!busy);
         imp.input.set_editable(!busy);
+    }
+
+    /// Asks for a Word, PowerPoint, Excel or PDF file and reads it into the message being typed.
+    fn choose_document(&self) {
+        let filter = gtk::FileFilter::new();
+        filter.set_name(Some("Word, PowerPoint, Excel and PDF"));
+        for suffix in ["docx", "pptx", "xlsx", "pdf"] {
+            filter.add_suffix(suffix);
+        }
+        let filters = gio::ListStore::new::<gtk::FileFilter>();
+        filters.append(&filter);
+        let dialog = gtk::FileDialog::new();
+        dialog.set_title("Attach a document");
+        dialog.set_filters(Some(&filters));
+        let window = self.root().and_downcast::<gtk::Window>();
+        let chat = self.clone();
+        dialog.open(window.as_ref(), gio::Cancellable::NONE, move |result| {
+            let Some(path) = result.ok().and_then(|file| file.path()) else {
+                return;
+            };
+            chat.attach_document(path);
+        });
+    }
+
+    /// Reads the document on the runtime and adds its text to the composer, so the user sees it before sending.
+    fn attach_document(&self, path: std::path::PathBuf) {
+        let chat = self.clone();
+        glib::spawn_future_local(async move {
+            let name = path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let read = runtime()
+                .spawn(read_document(path.to_string_lossy().into_owned()))
+                .await;
+            match read {
+                Ok(Ok(text)) => {
+                    let buffer = chat.imp().input.buffer();
+                    let typed = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
+                    buffer.set_text(&with_document(&typed, &name, &text));
+                }
+                Ok(Err(error)) => chat.toast(&error.to_string()),
+                Err(_) => chat.toast("The document could not be read."),
+            }
+        });
     }
 
     fn stop_turn(&self) {
