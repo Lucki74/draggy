@@ -89,19 +89,29 @@ Hello! How can I help you today?`;
  * writes its scratchpad into the reply regardless. */
 export const FAST_PROMPT = `Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself.`;
 
+const LOW_THINKING_PROMPT =
+  "REASONING EFFORT: LOW (target: under 1,000 reasoning tokens). Keep reasoning concise, focused and linear. Identify the main solution path without exhaustive branching or circular re-checking, then answer promptly.";
+
 const MEDIUM_THINKING_PROMPT =
-  "\n\nInstruction: You MUST use <think>...</think> tags to reason before answering. Think carefully and be thorough. Outline your logical steps clearly inside the <think> block before providing your final answer.";
+  "REASONING EFFORT: MEDIUM (target: about 4,000 reasoning tokens). Reason carefully and step by step through the core constraints. Explore viable branches, but stop re-checking once a branch satisfies every constraint, then answer directly.";
 
 const HIGH_THINKING_PROMPT =
-  "\n\nCRITICAL INSTRUCTION: You MUST use <think>...</think> tags to reason before answering. Your reasoning process must be extremely deep, exhaustive, and step-by-step. Consider multiple perspectives, edge cases, and perform extensive self-correction. Do not rush your conclusion; take as much time and generate as much thought process as necessary in the <think> block to fully explore the problem space.";
+  "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_code, run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
 
-/** The instruction for each level that reasons. Low and Max reuse the nearest written one until each has its own. */
+const MAX_THINKING_PROMPT =
+  "REASONING EFFORT: MAXIMUM (target: use the full reasoning budget). Be exhaustive: enumerate every possibility, re-derive the result by a second independent method, test it against every constraint one by one, and consider alternative readings of the problem. Only answer once two independent derivations agree.";
+
+/** The instruction for each level that reasons. */
 export const THINKING_PROMPTS: Record<Exclude<AppSettings["effort"], "off">, string> = {
-  low: MEDIUM_THINKING_PROMPT,
+  low: LOW_THINKING_PROMPT,
   medium: MEDIUM_THINKING_PROMPT,
   high: HIGH_THINKING_PROMPT,
-  max: HIGH_THINKING_PROMPT,
+  max: MAX_THINKING_PROMPT,
 };
+
+/** Stops the repeated doubt loops open-weight models fall into at Medium and High. */
+const CONVERGENCE_GUARDRAIL =
+  "Avoid circular deliberation: if a deduction has already been verified against all constraints, do not restart or second-guess it. Progress decisively toward the final response.";
 
 export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search the web before answering, even if you believe you already know the answer, and base your reply on what you find.`;
 
@@ -305,6 +315,8 @@ export function buildSystemPrompt(
     parts.push(THINK_TAG_PROMPT);
     parts.push(THINKING_PROMPTS[level]);
   } else {
+    parts.push(THINKING_PROMPTS[level]);
+    if (level === "medium" || level === "high") parts.push(CONVERGENCE_GUARDRAIL);
     parts.push(
       "Reasoning is internal. Always output your actual answer and response to the user clearly after reasoning.",
     );

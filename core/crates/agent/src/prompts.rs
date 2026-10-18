@@ -151,9 +151,16 @@ const FULL_PLAN_PROMPT: &str = r##"The checklist, in more detail: keep each item
 
 const FULL_COMMANDS_PROMPT: &str = r##"Commands, in more detail: explore with read-only commands (git status, git diff, listing files, running the tests) before changing anything. If the user declines a command, that is their answer: do not retry it or reach the same result another way; say what you wanted to do and ask."##;
 
-const THINKING_HIGH: &str = "\n\nCRITICAL INSTRUCTION: You MUST use <think>...</think> tags to reason before answering. Your reasoning process must be extremely deep, exhaustive, and step-by-step. Consider multiple perspectives, edge cases, and perform extensive self-correction. Do not rush your conclusion; take as much time and generate as much thought process as necessary in the <think> block to fully explore the problem space.";
+const THINKING_LOW: &str = "REASONING EFFORT: LOW (target: under 1,000 reasoning tokens). Keep reasoning concise, focused and linear. Identify the main solution path without exhaustive branching or circular re-checking, then answer promptly.";
 
-const THINKING_MEDIUM: &str = "\n\nInstruction: You MUST use <think>...</think> tags to reason before answering. Think carefully and be thorough. Outline your logical steps clearly inside the <think> block before providing your final answer.";
+const THINKING_MEDIUM: &str = "REASONING EFFORT: MEDIUM (target: about 4,000 reasoning tokens). Reason carefully and step by step through the core constraints. Explore viable branches, but stop re-checking once a branch satisfies every constraint, then answer directly.";
+
+const THINKING_HIGH: &str = "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_code, run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
+
+const THINKING_MAX: &str = "REASONING EFFORT: MAXIMUM (target: use the full reasoning budget). Be exhaustive: enumerate every possibility, re-derive the result by a second independent method, test it against every constraint one by one, and consider alternative readings of the problem. Only answer once two independent derivations agree.";
+
+/// Stops the repeated doubt loops open-weight models fall into at Medium and High.
+const CONVERGENCE_GUARDRAIL: &str = "Avoid circular deliberation: if a deduction has already been verified against all constraints, do not restart or second-guess it. Progress decisively toward the final response.";
 
 const CUE_LAUGH: &str = "<laugh> when something is actually funny";
 
@@ -338,7 +345,13 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
             parts.push(THINK_TAG_PROMPT.to_string());
             parts.push(thinking_prompt(level).to_string());
         }
-        _ => parts.push(REASONING_INTERNAL.to_string()),
+        level => {
+            parts.push(thinking_prompt(level).to_string());
+            if matches!(level, Effort::Medium | Effort::High) {
+                parts.push(CONVERGENCE_GUARDRAIL.to_string());
+            }
+            parts.push(REASONING_INTERNAL.to_string());
+        }
     }
 
     if !settings.custom_instructions.is_empty() {
@@ -374,9 +387,11 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
 /// Each level above Off has a prompt. Low reads as Medium and Max as High until the prompts are split per level.
 fn thinking_prompt(level: Effort) -> &'static str {
     match level {
-        Effort::High | Effort::Max => THINKING_HIGH,
+        Effort::Low => THINKING_LOW,
+        Effort::High => THINKING_HIGH,
+        Effort::Max => THINKING_MAX,
         // Off never reaches here: the caller handles fast mode first.
-        Effort::Low | Effort::Medium | Effort::Off => THINKING_MEDIUM,
+        Effort::Medium | Effort::Off => THINKING_MEDIUM,
     }
 }
 
