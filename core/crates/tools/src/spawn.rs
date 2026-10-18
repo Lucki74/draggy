@@ -10,8 +10,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::process::{Child, Command};
+use tokio::process::Command;
 use tokio::sync::{mpsc, watch};
+
+pub use tokio::process::{Child, ChildStdin};
 
 const READ_CHUNK: usize = 8_192;
 

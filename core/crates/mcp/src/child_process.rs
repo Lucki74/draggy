@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
-use draggy_tools::spawn::{spawn_hidden_with_input, Child, ChildStdin};
+use draggy_tools::spawn::{Child, ChildStdin, spawn_hidden_with_input};
 use serde_json::{Map, Value};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{mpsc, oneshot};
