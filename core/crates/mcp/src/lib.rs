@@ -2,6 +2,7 @@
 //! Every network call goes through the [`net::Http`] trait, so tests answer with canned responses.
 
 pub mod catalogue;
+pub mod child_process;
 pub mod definition;
 pub mod http;
 pub mod js;
@@ -14,6 +15,7 @@ pub mod ports;
 pub mod process;
 pub mod provision;
 pub mod registry;
+pub mod reqwest_net;
 pub mod result;
 pub mod server;
 pub mod signin;
