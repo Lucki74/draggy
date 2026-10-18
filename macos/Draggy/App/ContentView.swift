@@ -14,6 +14,23 @@ struct ContentView: View {
             List(selection: $page) {
                 Label("Chat", systemImage: "bubble.left").tag(Page.chat)
                 Label("Browser", systemImage: "globe").tag(Page.browser)
+                if !model.conversations.isEmpty {
+                    Section("History") {
+                        ForEach(model.conversations) { item in
+                            Button {
+                                model.open(item.id)
+                                page = .chat
+                            } label: {
+                                Text(item.title).lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Delete", role: .destructive) { model.delete(item.id) }
+                            }
+                            .disabled(model.isRunning)
+                        }
+                    }
+                }
             }
             .navigationSplitViewColumnWidth(min: 160, ideal: 200)
         } detail: {
