@@ -48,7 +48,7 @@ Works (as written, not yet compiled):
 Missing:
 
 - Image attachments. Numbered lists show as typed.
-- Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet.
+- Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet. The core has `McpTools` (`draggy-core/src/mcp_tools.rs`) that offers running servers' tools with permission flags, but no session or UniFFI entry point uses it yet.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
 - Signing, notarization, Sparkle and a release workflow.
 
