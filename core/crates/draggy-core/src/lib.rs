@@ -19,6 +19,7 @@ pub mod records;
 pub mod session;
 pub mod tools;
 pub mod update;
+pub mod web;
 
 pub use cancel::CancelToken;
 pub use documents::read_document;
@@ -39,6 +40,7 @@ pub use records::{
 };
 pub use session::Session;
 pub use update::{UpdateChecker, UpdateRecord};
+pub use web::{web_address_allowed, web_address_refusal};
 
 uniffi::setup_scaffolding!();
 

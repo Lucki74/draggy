@@ -38,6 +38,7 @@ Works (as written, not yet compiled):
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
+- A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
 - A macOS CI workflow.
 
 Missing:
@@ -45,7 +46,7 @@ Missing:
 - A list of past conversations. Only the latest one is kept, and tool steps are not saved with it.
 - Full markdown (lists, links, headings) and image attachments.
 - Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet.
-- A web pane, and writing documents (reading them is built).
+- Ad blocking and download prompts in the Browser page, and HTML previews of model output. Writing documents (reading them is built).
 - Signing, notarization, Sparkle and a release workflow.
 
 Not verified: none of the Swift has been compiled, since the author's machine runs Windows. See `docs/macos.md` for the likely failure points. The first macOS CI run is the first real check.
