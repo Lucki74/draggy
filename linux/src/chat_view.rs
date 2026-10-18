@@ -11,8 +11,10 @@ use gtk::{gdk, glib};
 use crate::state::{AppState, SERVER_KEY};
 use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session};
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label,
+    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
+    to_saved,
 };
+use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 
@@ -30,6 +32,8 @@ pub struct ReplyParts {
 pub struct Live {
     settings: Settings,
     session: Arc<Session>,
+    /// The id the conversation is saved under.
+    id: String,
 }
 
 mod imp {
@@ -53,6 +57,8 @@ mod imp {
         pub log: RefCell<Transcript>,
         pub reply: RefCell<Option<ReplyParts>>,
         pub live: RefCell<Option<Live>>,
+        /// A saved conversation shown but not yet restored into a session. The next message resumes it.
+        pub pending: RefCell<Option<Conversation>>,
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
     }
 
@@ -123,6 +129,66 @@ impl DraggyChat {
         let imp = self.imp();
         *imp.state.borrow_mut() = Some(Rc::clone(state));
         *imp.toast.borrow_mut() = Some(Rc::new(toast));
+        self.open_latest();
+    }
+
+    /// Shows the most recent saved conversation, ready to be continued. With none saved the page starts empty.
+    fn open_latest(&self) {
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        let latest = match store.list() {
+            Ok(list) => list.into_iter().next(),
+            Err(_) => {
+                self.toast("The saved conversations could not be read.");
+                return;
+            }
+        };
+        let Some(summary) = latest else {
+            return;
+        };
+        match store.load(&summary.id) {
+            Ok(conversation) => self.show(conversation),
+            Err(_) => self.toast("The saved conversation could not be opened."),
+        }
+    }
+
+    /// Shows a saved conversation. The next message restores it into a session and continues it.
+    fn show(&self, conversation: Conversation) {
+        let imp = self.imp();
+        self.clear_transcript();
+        *imp.log.borrow_mut() = Transcript::from_saved(&conversation.messages);
+        {
+            let log = imp.log.borrow();
+            for entry in log.entries() {
+                imp.transcript.append(&entry_row(entry).0);
+            }
+        }
+        *imp.live.borrow_mut() = None;
+        *imp.pending.borrow_mut() = Some(conversation);
+        self.scroll_to_end();
+    }
+
+    /// Saves the conversation the session holds. Called after every turn, so a crash loses at most the turn running.
+    fn save_turn(&self) {
+        let imp = self.imp();
+        let (id, messages) = {
+            let live = imp.live.borrow();
+            let Some(live) = live.as_ref() else {
+                return;
+            };
+            (live.id.clone(), to_saved(&live.session.messages()))
+        };
+        let conversation = Conversation {
+            title: conversations::title_for(&messages),
+            updated: conversations::now(),
+            id,
+            messages,
+        };
+        let saved = Store::in_data_dir().is_some_and(|store| store.save(&conversation).is_ok());
+        if !saved {
+            self.toast("The conversation could not be saved.");
+        }
     }
 
     fn toast(&self, text: &str) {
@@ -172,8 +238,8 @@ impl DraggyChat {
         });
     }
 
-    /// The session for these settings: the one in use, or a new one with the stored key. A new session means a new
-    /// conversation, so the transcript is cleared.
+    /// The session for these settings: the one in use, or a new one with the stored key. A shown saved conversation
+    /// is restored into the new session. Otherwise a new session starts a new conversation.
     async fn session_for(&self, state: &Rc<AppState>, settings: &Settings) -> Option<Arc<Session>> {
         let imp = self.imp();
         if let Some(live) = imp.live.borrow().as_ref()
@@ -203,13 +269,30 @@ impl DraggyChat {
                 return None;
             }
         };
-        if imp.live.borrow().is_some() {
-            self.toast("The settings changed, so this is a new conversation.");
-        }
-        self.clear_transcript();
+        let resume = imp.pending.borrow().clone();
+        let id = match &resume {
+            Some(conversation) => {
+                if !conversation.messages.is_empty()
+                    && let Err(error) = session.restore(to_records(&conversation.messages))
+                {
+                    self.toast(&error.to_string());
+                    return None;
+                }
+                conversation.id.clone()
+            }
+            None => {
+                if imp.live.borrow().is_some() {
+                    self.toast("The settings changed, so this is a new conversation.");
+                    self.clear_transcript();
+                }
+                conversations::new_id()
+            }
+        };
+        *imp.pending.borrow_mut() = None;
         *imp.live.borrow_mut() = Some(Live {
             settings: settings.clone(),
             session: Arc::clone(&session),
+            id,
         });
         Some(session)
     }
@@ -254,6 +337,7 @@ impl DraggyChat {
                     ChatMessage::Finished(result) => {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
+                        chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);
                         chat.imp().input.grab_focus();
