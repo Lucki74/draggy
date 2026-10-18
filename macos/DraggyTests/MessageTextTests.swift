@@ -81,4 +81,25 @@ final class MessageTextTests: XCTestCase {
         let line = Transcript.Line(id: UUID(), role: .assistant, text: "**bold** and 2 * 3 * 4", steps: [])
         XCTAssertEqual(MessageText.attributed(line).string, "bold and 2 * 3 * 4")
     }
+
+    func testTableCellsAreTabbedAndHeaderIsBold() {
+        let text = MessageText.message("| a | b |\n|---|:---:|\n| 1 | **2** |\nafter")
+        XCTAssertEqual(text.string, "a\tb\n1\t2\nafter")
+        let header = text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(header?.fontDescriptor.symbolicTraits.contains(.bold) ?? false)
+        let body = text.attribute(.font, at: 4, effectiveRange: nil) as? NSFont
+        XCTAssertFalse(body?.fontDescriptor.symbolicTraits.contains(.bold) ?? true)
+    }
+
+    func testTableEndsAtTheFirstRowWithoutPipes() {
+        XCTAssertEqual(MessageText.message("| a |\n|-|\n| 1 |\ntext").string, "a\n1\ntext")
+    }
+
+    func testPipesWithoutSeparatorStayAsTyped() {
+        XCTAssertEqual(MessageText.message("a | b\nc").string, "a | b\nc")
+    }
+
+    func testTableInsideFenceIsCode() {
+        XCTAssertEqual(MessageText.message("```\n| a |\n|-|\n```").string, "| a |\n|-|\n")
+    }
 }
