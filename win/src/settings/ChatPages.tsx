@@ -100,7 +100,7 @@ export function ChatPreferencesPage({
           />
         </Row>
         <Row label={t("browserActions")} description={t("browserActionsHint")}>
-          <Toggle label={t("browserActions")} checked={settings.browserActions === true} onChange={(browserActions) => onUpdate({ browserActions })} />
+          <Toggle label={t("browserActions")} checked={settings.browserActions !== false} onChange={(browserActions) => onUpdate({ browserActions })} />
         </Row>
         <TrustedSites t={t} />
       </Group>
