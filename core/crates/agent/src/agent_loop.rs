@@ -1594,10 +1594,20 @@ impl<'a> Turn<'a> {
                 .map_err(TurnError::Engine)?;
         }
 
+        let mut messages = scope_to_target(&self.wire, &self.model);
+        if self.prepared.effective_effort == Effort::Off
+            && self.prepared.has_thinking
+            && !self.remote
+            && !self.is_continuation
+            && messages.last().map(|m| m.role.as_str()) != Some("assistant")
+        {
+            messages.push(WireMessage::text("assistant", "Answer:\n"));
+        }
+
         let request = ChatRequest {
             model: self.model.clone(),
             num_ctx: self.num_ctx,
-            messages: scope_to_target(&self.wire, &self.model),
+            messages,
             tools: self
                 .prepared
                 .native_tools

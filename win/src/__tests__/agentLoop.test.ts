@@ -789,6 +789,34 @@ describe("fast thinking mode", () => {
 
     expect((requests[0] as { think?: boolean }).think).toBe(true);
   });
+
+  it("prefills an assistant turn when effort is off for a native-capable local model", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], ["thinking"]);
+
+    await run([userMessage("2+2")], undefined, undefined, FAST_SETTINGS).promise;
+
+    const messages = (requests[0] as { messages: { role: string; content: string }[] }).messages;
+    expect(messages[messages.length - 1]).toEqual({ role: "assistant", content: "Answer:\n" });
+  });
+
+  it("does not prefill an assistant turn for remote models even when effort is off", async () => {
+    const { requests } = installFetch([{ content: ["Four."] }], []);
+
+    await runAgentTurn(
+      {
+        model: "@openai/thinker",
+        settings: FAST_SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("2+2")],
+        compaction: null,
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    const messages = (requests[0] as { messages: { role: string; content: string }[] }).messages;
+    expect(messages[messages.length - 1].role).toBe("user");
+  });
 });
 
 describe("keeping the model loaded", () => {

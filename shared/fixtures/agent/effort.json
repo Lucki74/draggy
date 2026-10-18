@@ -188,6 +188,16 @@
       "expected": 1024
     },
     {
+      "name": "high has its own budget",
+      "input": { "op": "budget", "level": "high", "numCtx": 131072 },
+      "expected": 8192
+    },
+    {
+      "name": "high is capped by a quarter of a 16384 context",
+      "input": { "op": "budget", "level": "high", "numCtx": 16384 },
+      "expected": 4096
+    },
+    {
       "name": "the old low is off",
       "input": { "op": "legacy", "value": "low" },
       "expected": "off"

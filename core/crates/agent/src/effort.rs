@@ -135,7 +135,7 @@ pub fn local_budget(level: Effort, num_ctx: u64) -> Option<u64> {
         Effort::Off => return None,
         Effort::Low => 1024,
         Effort::Medium => 4096,
-        Effort::High => 12288,
+        Effort::High => 8192,
         Effort::Max => 32768,
     };
     Some(budget.min(num_ctx / 4))
