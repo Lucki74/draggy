@@ -41,6 +41,7 @@ Works (as written, not yet compiled):
 - A `write_document` agent tool that saves .docx, .pptx and .xlsx files inside the project folder from HTML or Markdown, behind the permission prompt.
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
+- Rust core exports UniFFI `McpManager` and composite `Session.with_mcp` tool routing for MCP servers, ready for Swift app wiring.
 - A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
 - VoiceOver support in the chat: each message reads as one row with who spoke and what was said, and the attach button has a label. Nothing in the app animates yet, so Reduce Motion has nothing to change. Other pages rely on SwiftUI's default labels and have not been checked with VoiceOver.
 - A macOS CI workflow.
@@ -48,7 +49,7 @@ Works (as written, not yet compiled):
 Missing:
 
 - Image attachments. Numbered lists show as typed.
-- Turning MCP servers on. The Servers tab only browses, and the agent cannot call their tools yet. The core has `McpTools` (`draggy-core/src/mcp_tools.rs`) that offers running servers' tools with permission flags, but no session or UniFFI entry point uses it yet.
+- Wiring MCP servers in the macOS app UI. The Servers tab only browses so far; the core now exports `McpManager` and composite `Session.with_mcp`, with Swift-side wiring up next.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
 - Signing, notarization, Sparkle and a release workflow.
 
