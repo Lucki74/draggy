@@ -1,7 +1,8 @@
 import AppKit
 
 /// Turns a transcript line into styled text: tool steps first, then the message with fenced code blocks, `inline
-/// code` and **bold** drawn. Anything else in markdown shows as typed.
+/// code`, **bold**, [links](https://example.com), headings and bullet lists drawn. Anything else in markdown
+/// shows as typed.
 @MainActor
 enum MessageText {
     private static let body = NSFont.systemFont(ofSize: 14)
@@ -9,7 +10,9 @@ enum MessageText {
     private static let mono = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
     private static let small = NSFont.systemFont(ofSize: 12)
 
-    private static let inline = try? NSRegularExpression(pattern: "`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*")
+    private static let inline = try? NSRegularExpression(pattern: "`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*|\\[([^\\]\\n]+)\\]\\((https?://[^)\\s]+)\\)")
+    private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
+    private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
 
     static func attributed(_ line: Transcript.Line) -> NSAttributedString {
         let out = NSMutableAttributedString()
@@ -58,17 +61,33 @@ enum MessageText {
                     .backgroundColor: NSColor.quaternaryLabelColor,
                 ]))
             } else {
-                out.append(styled(row))
+                out.append(prose(row))
                 out.append(NSAttributedString(string: end, attributes: [.font: body]))
             }
         }
         return out
     }
 
-    /// One prose row, with its inline code and bold marks replaced by styled text.
-    private static func styled(_ row: String) -> NSAttributedString {
+    /// One prose row: a heading or bullet loses its marks, then the inline marks are drawn.
+    private static func prose(_ row: String) -> NSAttributedString {
+        let whole = NSRange(location: 0, length: (row as NSString).length)
+        if let match = heading?.firstMatch(in: row, range: whole) {
+            let level = match.range(at: 1).length
+            let size: CGFloat = level == 1 ? 20 : level == 2 ? 17 : 15
+            return styled((row as NSString).substring(with: match.range(at: 2)),
+                          font: NSFont.boldSystemFont(ofSize: size))
+        }
+        if let match = bullet?.firstMatch(in: row, range: whole) {
+            let indent = (row as NSString).substring(with: match.range(at: 1))
+            return styled(indent + "\u{2022} " + (row as NSString).substring(with: match.range(at: 2)), font: body)
+        }
+        return styled(row, font: body)
+    }
+
+    /// One prose row, with its inline code, bold and link marks replaced by styled text.
+    private static func styled(_ row: String, font: NSFont) -> NSAttributedString {
         let out = NSMutableAttributedString(string: row, attributes: [
-            .font: body,
+            .font: font,
             .foregroundColor: NSColor.labelColor,
         ])
         guard let inline else { return out }
@@ -77,7 +96,15 @@ enum MessageText {
         for match in inline.matches(in: row, range: range).reversed() {
             let code = match.range(at: 1)
             let strong = match.range(at: 2)
-            if code.location != NSNotFound {
+            let label = match.range(at: 3)
+            if label.location != NSNotFound {
+                let text = (row as NSString).substring(with: label)
+                var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.linkColor]
+                if let url = URL(string: (row as NSString).substring(with: match.range(at: 4))) {
+                    attributes[.link] = url
+                }
+                out.replaceCharacters(in: match.range, with: NSAttributedString(string: text, attributes: attributes))
+            } else if code.location != NSNotFound {
                 out.replaceCharacters(in: match.range, with: NSAttributedString(
                     string: (row as NSString).substring(with: code),
                     attributes: [

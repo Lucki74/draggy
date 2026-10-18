@@ -18,6 +18,28 @@ final class MessageTextTests: XCTestCase {
         XCTAssertTrue(bold?.fontDescriptor.symbolicTraits.contains(.bold) ?? false)
     }
 
+    func testHeadingsLoseTheirHashesAndGrow() {
+        let text = MessageText.message("## Title\nbody")
+        XCTAssertEqual(text.string, "Title\nbody")
+        let heading = text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        XCTAssertGreaterThan(heading?.pointSize ?? 0, 14)
+        XCTAssertTrue(heading?.fontDescriptor.symbolicTraits.contains(.bold) ?? false)
+    }
+
+    func testBulletsBecomeDots() {
+        XCTAssertEqual(MessageText.message("- one\n* two").string, "\u{2022} one\n\u{2022} two")
+    }
+
+    func testLinksKeepTheirLabelAndCarryTheAddress() {
+        let text = MessageText.message("see [docs](https://example.com/a) now")
+        XCTAssertEqual(text.string, "see docs now")
+        XCTAssertEqual(text.attribute(.link, at: 4, effectiveRange: nil) as? URL, URL(string: "https://example.com/a"))
+    }
+
+    func testOtherLinkSchemesStayAsTyped() {
+        XCTAssertEqual(MessageText.message("[x](file:///etc/passwd)").string, "[x](file:///etc/passwd)")
+    }
+
     func testStepsComeBeforeTheMessage() {
         let line = Transcript.Line(
             id: UUID(),
