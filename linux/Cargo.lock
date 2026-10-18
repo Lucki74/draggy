@@ -872,6 +872,8 @@ dependencies = [
  "gtk4",
  "libadwaita",
  "oo7",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

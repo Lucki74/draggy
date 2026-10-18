@@ -8,7 +8,7 @@ struct Transcript: Equatable {
     }
 
     /// One tool step of a reply, reduced to what the window shows.
-    struct Step: Equatable, Hashable {
+    struct Step: Equatable, Hashable, Codable {
         let kind: String
         let label: String
         let isDone: Bool
@@ -33,7 +33,7 @@ struct Transcript: Equatable {
         lines = saved.compactMap { message in
             switch message.role {
             case "user": Line(id: UUID(), role: .user, text: message.text)
-            case "assistant": Line(id: UUID(), role: .assistant, text: message.text)
+            case "assistant": Line(id: UUID(), role: .assistant, text: message.text, steps: message.steps ?? [])
             default: nil
             }
         }
@@ -51,7 +51,8 @@ struct Transcript: Equatable {
             case .assistant:
                 guard let asked = question, !line.text.isEmpty else { continue }
                 saved.append(SavedMessage(role: "user", text: asked.text))
-                saved.append(SavedMessage(role: "assistant", text: line.text))
+                saved.append(SavedMessage(
+                    role: "assistant", text: line.text, steps: line.steps.isEmpty ? nil : line.steps))
                 question = nil
             }
         }

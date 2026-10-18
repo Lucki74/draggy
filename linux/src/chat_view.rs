@@ -11,25 +11,32 @@ use gtk::{gdk, glib};
 use crate::state::{AppState, SERVER_KEY};
 use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session};
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label,
+    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
+    to_saved,
 };
+use draggy_linux::conversations::{self, Conversation, Store};
+use draggy_linux::markdown::{self, Block};
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 
 type Toast = Rc<dyn Fn(&str)>;
 
-/// The labels of the reply being written, kept so each batch of events updates them in place.
+/// The parts of a message kept so each batch of events updates them in place. `shown` is the text the body was drawn
+/// from, so a batch that changes nothing in it skips the redraw.
 #[derive(Clone)]
 pub struct ReplyParts {
-    text: gtk::Label,
+    body: gtk::Box,
     steps: gtk::Label,
     meta: gtk::Label,
+    shown: RefCell<Option<String>>,
 }
 
 /// The conversation's session with the settings it was built from. A change in the settings starts a new one.
 pub struct Live {
     settings: Settings,
     session: Arc<Session>,
+    /// The id the conversation is saved under.
+    id: String,
 }
 
 mod imp {
@@ -53,7 +60,11 @@ mod imp {
         pub log: RefCell<Transcript>,
         pub reply: RefCell<Option<ReplyParts>>,
         pub live: RefCell<Option<Live>>,
+        /// A saved conversation shown but not yet restored into a session. The next message resumes it.
+        pub pending: RefCell<Option<Conversation>>,
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
+        /// Runs when the saved conversations change, so the sidebar list can refresh.
+        pub changed: RefCell<Option<Rc<dyn Fn()>>>,
     }
 
     #[glib::object_subclass]
@@ -118,11 +129,159 @@ glib::wrapper! {
 }
 
 impl DraggyChat {
-    /// Gives the page the state it reads the settings and the key from, and a way to show short messages.
-    pub fn attach(&self, state: &Rc<AppState>, toast: impl Fn(&str) + 'static) {
+    /// Gives the page the state it reads the settings and the key from, a way to show short messages, and a callback
+    /// for when the saved conversations change.
+    pub fn attach(
+        &self,
+        state: &Rc<AppState>,
+        toast: impl Fn(&str) + 'static,
+        changed: impl Fn() + 'static,
+    ) {
         let imp = self.imp();
         *imp.state.borrow_mut() = Some(Rc::clone(state));
         *imp.toast.borrow_mut() = Some(Rc::new(toast));
+        *imp.changed.borrow_mut() = Some(Rc::new(changed));
+        self.open_latest();
+    }
+
+    /// The id of the conversation on screen, whether it is saved yet or not.
+    pub fn current_id(&self) -> Option<String> {
+        let imp = self.imp();
+        if let Some(live) = imp.live.borrow().as_ref() {
+            return Some(live.id.clone());
+        }
+        imp.pending
+            .borrow()
+            .as_ref()
+            .map(|conversation| conversation.id.clone())
+    }
+
+    /// Starts an empty conversation. The one before stays saved.
+    pub fn new_conversation(&self) {
+        if self.busy_refusal() {
+            return;
+        }
+        self.clear_transcript();
+        self.clear_current();
+        self.notify_changed();
+    }
+
+    /// Opens a saved conversation. The next message continues it.
+    pub fn open_conversation(&self, id: &str) {
+        if self.current_id().as_deref() == Some(id) || self.busy_refusal() {
+            return;
+        }
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        match store.load(id) {
+            Ok(conversation) => self.show(conversation),
+            Err(_) => self.toast("The saved conversation could not be opened."),
+        }
+        self.notify_changed();
+    }
+
+    /// Deletes a saved conversation. A conversation on screen is cleared with it.
+    pub fn delete_conversation(&self, id: &str) {
+        let on_screen = self.current_id().as_deref() == Some(id);
+        if on_screen && self.busy_refusal() {
+            return;
+        }
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        if store.delete(id).is_err() {
+            self.toast("The conversation could not be deleted.");
+            return;
+        }
+        if on_screen {
+            self.clear_transcript();
+            self.clear_current();
+        }
+        self.notify_changed();
+    }
+
+    /// True while a reply is still arriving. The user is told to wait, since switching now would lose that reply.
+    fn busy_refusal(&self) -> bool {
+        let busy = self.imp().log.borrow().is_busy();
+        if busy {
+            self.toast("Wait for the reply to finish.");
+        }
+        busy
+    }
+
+    /// Forgets the session and the saved conversation the page was continuing.
+    fn clear_current(&self) {
+        let imp = self.imp();
+        *imp.live.borrow_mut() = None;
+        *imp.pending.borrow_mut() = None;
+    }
+
+    fn notify_changed(&self) {
+        let changed = self.imp().changed.borrow().clone();
+        if let Some(changed) = changed {
+            changed();
+        }
+    }
+
+    /// Shows the most recent saved conversation, ready to be continued. With none saved the page starts empty.
+    fn open_latest(&self) {
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        let latest = match store.list() {
+            Ok(list) => list.into_iter().next(),
+            Err(_) => {
+                self.toast("The saved conversations could not be read.");
+                return;
+            }
+        };
+        let Some(summary) = latest else {
+            return;
+        };
+        match store.load(&summary.id) {
+            Ok(conversation) => self.show(conversation),
+            Err(_) => self.toast("The saved conversation could not be opened."),
+        }
+    }
+
+    /// Shows a saved conversation. The next message restores it into a session and continues it.
+    fn show(&self, conversation: Conversation) {
+        let imp = self.imp();
+        self.clear_transcript();
+        *imp.log.borrow_mut() = Transcript::from_saved(&conversation.messages);
+        {
+            let log = imp.log.borrow();
+            for entry in log.entries() {
+                imp.transcript.append(&entry_row(entry).0);
+            }
+        }
+        *imp.live.borrow_mut() = None;
+        *imp.pending.borrow_mut() = Some(conversation);
+        self.scroll_to_end();
+    }
+
+    /// Saves the conversation the session holds. Called after every turn, so a crash loses at most the turn running.
+    fn save_turn(&self) {
+        let imp = self.imp();
+        let (id, messages) = {
+            let live = imp.live.borrow();
+            let Some(live) = live.as_ref() else {
+                return;
+            };
+            (live.id.clone(), to_saved(&live.session.messages()))
+        };
+        let conversation = Conversation {
+            title: conversations::title_for(&messages),
+            updated: conversations::now(),
+            id,
+            messages,
+        };
+        let saved = Store::in_data_dir().is_some_and(|store| store.save(&conversation).is_ok());
+        if !saved {
+            self.toast("The conversation could not be saved.");
+        }
+        self.notify_changed();
     }
 
     fn toast(&self, text: &str) {
@@ -172,8 +331,8 @@ impl DraggyChat {
         });
     }
 
-    /// The session for these settings: the one in use, or a new one with the stored key. A new session means a new
-    /// conversation, so the transcript is cleared.
+    /// The session for these settings: the one in use, or a new one with the stored key. A shown saved conversation
+    /// is restored into the new session. Otherwise a new session starts a new conversation.
     async fn session_for(&self, state: &Rc<AppState>, settings: &Settings) -> Option<Arc<Session>> {
         let imp = self.imp();
         if let Some(live) = imp.live.borrow().as_ref()
@@ -203,13 +362,30 @@ impl DraggyChat {
                 return None;
             }
         };
-        if imp.live.borrow().is_some() {
-            self.toast("The settings changed, so this is a new conversation.");
-        }
-        self.clear_transcript();
+        let resume = imp.pending.borrow().clone();
+        let id = match &resume {
+            Some(conversation) => {
+                if !conversation.messages.is_empty()
+                    && let Err(error) = session.restore(to_records(&conversation.messages))
+                {
+                    self.toast(&error.to_string());
+                    return None;
+                }
+                conversation.id.clone()
+            }
+            None => {
+                if imp.live.borrow().is_some() {
+                    self.toast("The settings changed, so this is a new conversation.");
+                    self.clear_transcript();
+                }
+                conversations::new_id()
+            }
+        };
+        *imp.pending.borrow_mut() = None;
         *imp.live.borrow_mut() = Some(Live {
             settings: settings.clone(),
             session: Arc::clone(&session),
+            id,
         });
         Some(session)
     }
@@ -254,6 +430,7 @@ impl DraggyChat {
                     ChatMessage::Finished(result) => {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
+                        chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);
                         chat.imp().input.grab_focus();
@@ -314,13 +491,7 @@ impl DraggyChat {
 /// A row for one message, and the labels a reply keeps updating.
 fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
-    let text = gtk::Label::builder()
-        .wrap(true)
-        .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .xalign(0.0)
-        .selectable(true)
-        .css_classes(["message-text"])
-        .build();
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 8);
     let steps = gtk::Label::builder()
         .wrap(true)
         .xalign(0.0)
@@ -332,27 +503,35 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .xalign(0.0)
         .css_classes(["caption", "dim-label"])
         .build();
-    row.append(&text);
+    row.append(&body);
     row.append(&steps);
     row.append(&meta);
     match entry.role {
         Role::User => {
             row.add_css_class("message-user");
             row.set_halign(gtk::Align::End);
-            text.set_xalign(1.0);
         }
         Role::Assistant => row.add_css_class("message-assistant"),
     }
-    let parts = ReplyParts { text, steps, meta };
+    let parts = ReplyParts {
+        body,
+        steps,
+        meta,
+        shown: RefCell::new(None),
+    };
     fill(&parts, entry);
     (row, parts)
 }
 
 fn fill(parts: &ReplyParts, entry: &Entry) {
-    if entry.streaming && entry.text.is_empty() {
-        parts.text.set_text("…");
+    let shown = if entry.streaming && entry.text.is_empty() {
+        "…".to_owned()
     } else {
-        parts.text.set_text(&entry.text);
+        entry.text.clone()
+    };
+    if parts.shown.borrow().as_deref() != Some(shown.as_str()) {
+        draw_body(&parts.body, entry, &shown);
+        *parts.shown.borrow_mut() = Some(shown);
     }
     let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
     parts.steps.set_visible(!steps.is_empty());
@@ -366,6 +545,101 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     }
     parts.meta.set_visible(!meta.is_empty());
     parts.meta.set_text(&meta.join(" · "));
+}
+
+/// Replaces the body with the text drawn for its role: plain for the user, Markdown blocks for the assistant.
+fn draw_body(body: &gtk::Box, entry: &Entry, text: &str) {
+    while let Some(child) = body.first_child() {
+        body.remove(&child);
+    }
+    match entry.role {
+        Role::User => {
+            let label = markup_label(&markdown::escape(text), "message-text");
+            label.set_xalign(1.0);
+            body.append(&label);
+        }
+        Role::Assistant => {
+            for block in markdown::parse(text) {
+                body.append(&block_widget(&block));
+            }
+        }
+    }
+}
+
+/// The widget that draws one Markdown block of a reply.
+fn block_widget(block: &Block) -> gtk::Widget {
+    match block {
+        Block::Paragraph(markup) => markup_label(markup, "message-text").upcast(),
+        Block::Heading(markup) => markup_label(markup, "markdown-heading").upcast(),
+        Block::Quote(markup) => markup_label(markup, "markdown-quote").upcast(),
+        Block::Item { marker, markup } => {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            let bullet = gtk::Label::builder()
+                .label(marker.as_str())
+                .valign(gtk::Align::Start)
+                .css_classes(["message-text", "dim-label"])
+                .build();
+            row.append(&bullet);
+            row.append(&markup_label(markup, "message-text"));
+            row.upcast()
+        }
+        Block::Code { language, code } => code_block(language, code).upcast(),
+    }
+}
+
+/// A selectable label that reads its text as Pango markup. The markup comes from `markdown`, which escapes it.
+fn markup_label(markup: &str, class: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .use_markup(true)
+        .label(markup)
+        .wrap(true)
+        .wrap_mode(gtk::pango::WrapMode::WordChar)
+        .xalign(0.0)
+        .hexpand(true)
+        .selectable(true)
+        .css_classes([class])
+        .build()
+}
+
+/// A code block with its language and a button that copies the code. A long line scrolls sideways.
+fn code_block(language: &str, code: &str) -> gtk::Box {
+    let frame = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    frame.add_css_class("markdown-code");
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let name = gtk::Label::builder()
+        .label(if language.is_empty() {
+            "code"
+        } else {
+            language
+        })
+        .xalign(0.0)
+        .hexpand(true)
+        .css_classes(["caption", "dim-label"])
+        .build();
+    let copy = gtk::Button::builder()
+        .icon_name("edit-copy-symbolic")
+        .tooltip_text("Copy code")
+        .css_classes(["flat"])
+        .build();
+    let text = code.to_owned();
+    copy.connect_clicked(move |button| button.clipboard().set_text(&text));
+    header.append(&name);
+    header.append(&copy);
+    let scroller = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .build();
+    let label = gtk::Label::builder()
+        .label(code)
+        .xalign(0.0)
+        .selectable(true)
+        .css_classes(["code"])
+        .build();
+    scroller.set_child(Some(&label));
+    frame.append(&header);
+    frame.append(&scroller);
+    frame
 }
 
 #[cfg(test)]
@@ -391,14 +665,14 @@ mod tests {
         let mut log = Transcript::default();
         log.begin_turn("hello");
         let (_, parts) = entry_row(&log.entries()[1]);
-        assert_eq!(parts.text.text(), "…");
+        assert_eq!(body_text(&parts), "…");
         log.apply(&[TurnEventRecord::Patch {
             content: String::new(),
             text_content: "Hi there".to_owned(),
             steps: Vec::new(),
         }]);
         fill(&parts, &log.entries()[1]);
-        assert_eq!(parts.text.text(), "Hi there");
+        assert_eq!(body_text(&parts), "Hi there");
         assert!(!parts.steps.is_visible());
         assert!(chat.imp().send.is_visible());
         assert!(!chat.imp().stop.is_visible());
@@ -416,6 +690,16 @@ mod tests {
         log.begin_turn("hello");
         let (row, parts) = entry_row(&log.entries()[0]);
         assert_eq!(row.halign(), gtk::Align::End);
-        assert_eq!(parts.text.text(), "hello");
+        assert_eq!(body_text(&parts), "hello");
+    }
+
+    /// The text of a body that holds one label, such as a plain message or a single paragraph.
+    fn body_text(parts: &ReplyParts) -> String {
+        parts
+            .body
+            .first_child()
+            .and_then(|child| child.downcast::<gtk::Label>().ok())
+            .map(|label| label.text().to_string())
+            .unwrap_or_default()
     }
 }
