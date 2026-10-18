@@ -12,6 +12,8 @@ struct Transcript: Equatable {
         let kind: String
         let label: String
         let isDone: Bool
+        /// The reasoning text, or the content and output of a tool call. Empty when the step has none.
+        var detail: String = ""
     }
 
     struct Line: Identifiable, Equatable {

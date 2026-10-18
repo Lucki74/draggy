@@ -15,13 +15,30 @@ enum MessageText {
         let out = NSMutableAttributedString()
         for step in line.steps {
             let mark = step.isDone ? "\u{2713}" : "\u{2026}"
+            let title = step.kind == "thinking" ? String(localized: "Thinking") : step.label
             out.append(NSAttributedString(
-                string: "\(mark) \(step.label)\n",
+                string: "\(mark) \(title)\n",
                 attributes: [.font: small, .foregroundColor: NSColor.secondaryLabelColor]
             ))
+            guard !step.detail.isEmpty else { continue }
+            out.append(NSAttributedString(string: step.detail + "\n", attributes: detailAttributes(for: step)))
         }
         out.append(message(line.text))
         return out
+    }
+
+    private static let detailMono = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+    private static let italic = NSFontManager.shared.convert(small, toHaveTrait: .italicFontMask)
+
+    private static func detailAttributes(for step: Transcript.Step) -> [NSAttributedString.Key: Any] {
+        if step.kind == "thinking" {
+            return [.font: italic, .foregroundColor: NSColor.secondaryLabelColor]
+        }
+        return [
+            .font: detailMono,
+            .foregroundColor: NSColor.labelColor,
+            .backgroundColor: NSColor.quaternaryLabelColor,
+        ]
     }
 
     static func message(_ text: String) -> NSAttributedString {

@@ -14,6 +14,14 @@ final class TranscriptStepsTests: XCTestCase {
         XCTAssertNil(transcript.lines.first?.speed)
     }
 
+    func testStepDetailSurvivesSetSteps() {
+        var transcript = Transcript()
+        transcript.addUser("hi")
+        transcript.beginReply()
+        transcript.setSteps([Transcript.Step(kind: "thinking", label: "thinking", isDone: true, detail: "hmm")])
+        XCTAssertEqual(transcript.lines.last?.steps.first?.detail, "hmm")
+    }
+
     func testStepsAreIgnoredWhenTheLastLineIsTheUser() {
         var transcript = Transcript()
         transcript.addUser("hi")
