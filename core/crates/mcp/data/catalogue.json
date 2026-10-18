@@ -110,6 +110,24 @@
     "env": []
   },
   {
+    "id": "dchub",
+    "name": "DC Hub",
+    "description": "DC Hub is the live data layer for data-center site selection. Its DCPI is a daily score of where data centers can get grid power, across 300+ markets.",
+    "transport": "http",
+    "url": "https://dchub.cloud/mcp",
+    "package": "dchub-mcp-server",
+    "site": "https://dchub.cloud",
+    "args": [],
+    "env": [
+      {
+        "key": "DCHUB_API_KEY",
+        "label": "DC Hub API key (optional; free tier needs no key)",
+        "secret": true,
+        "required": false
+      }
+    ]
+  },
+  {
     "id": "magic-ui",
     "name": "21st.dev Magic",
     "description": "Generate React interface components from a description.",
