@@ -127,6 +127,11 @@ interface LlamaChunk {
   error?: GatewayError;
   retry?: GatewayRetry;
   provider_state?: ProviderState;
+  prompt_eval_count?: number;
+  eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_duration?: number;
+  total_duration?: number;
 }
 
 export interface WireMessage {
@@ -1207,8 +1212,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (parsed.message?.tool_calls) nativeCalls.push(...parsed.message.tool_calls);
         // A state tagged for another instance could only be misdirected later, so it is not kept.
         if (parsed.provider_state?.instanceId === providerOf(model)) passState = parsed.provider_state;
-        if (parsed.done) {
-          finalChunk = { ...(finalChunk || {}), ...(parsed as unknown as Record<string, unknown>) };
+        const chunkObj = parsed as unknown as Record<string, unknown>;
+        if (
+          parsed.done ||
+          chunkObj.prompt_eval_count !== undefined ||
+          chunkObj.eval_count !== undefined ||
+          chunkObj.eval_duration !== undefined
+        ) {
+          finalChunk = { ...(finalChunk || {}), ...chunkObj };
           if (parsed.done_reason === "length") outOfContext = true;
         }
       };
@@ -1385,12 +1396,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const carried = passState ? { provider_state: passState } : {};
       if (passState) turnState = passState;
 
+      let turnMetrics: GenerationMetrics | null = null;
       if (finalChunk) {
-        const turnMetrics = readMetrics(
+        const generationDurationMs =
+          firstTokenAt !== null ? performance.now() - firstTokenAt : performance.now() - requestStart;
+        turnMetrics = readMetrics(
           finalChunk,
           model,
           numCtx,
           firstTokenAt === null ? null : firstTokenAt - requestStart,
+          generationDurationMs,
         );
         if (turnMetrics) logLlamaMetrics(turnMetrics, correlationId);
         metrics = mergeMetrics(metrics, turnMetrics);
@@ -1416,8 +1431,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
           };
         }
         emitLive(0, null, true);
-      } else if (passChunks > 0) {
-        // Stream aborted mid-pass (such as on tool calls); keep counts for later passes.
+      }
+
+      if (!turnMetrics && passChunks > 0) {
+        // Stream aborted mid-pass (such as on tool calls) or engine reported no counts; keep counts for later passes.
         const passWritten = Math.round(passChunks * tokensPerChunk);
         finishedTokens += passWritten;
         const passDurationMs = firstTokenAt !== null ? performance.now() - firstTokenAt : 0;

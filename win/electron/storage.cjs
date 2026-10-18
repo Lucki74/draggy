@@ -328,9 +328,119 @@ function init(userDataPath) {
   // After either path: a rebuilt database has the table but no rows, and a
   // rescued chat comes back without the workspace it was in.
   ensureDefaultWorkspace();
+  backfillMetrics(userDataPath);
 
   log.info("storage", "storage opened", { schemaVersion: currentSchema(), migrated });
   return dbPath;
+}
+
+/** Recovers unrecorded turns from past sessions if the metrics table is missing them. */
+function backfillMetrics(userDataPath, force = false) {
+  if (!db) return;
+  try {
+    if (!force) {
+      const doneRow = db.prepare("SELECT value FROM kv WHERE key = ?").get("metrics_backfilled");
+      if (doneRow && doneRow.value === "done") return;
+    }
+
+    const logsDir = path.join(userDataPath, "logs");
+    if (!fs.existsSync(logsDir)) return;
+
+    const files = fs
+      .readdirSync(logsDir)
+      .filter((file) => file.startsWith("events.jsonl"))
+      .sort()
+      .reverse();
+
+    if (files.length === 0) return;
+
+    const cids = {};
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(logsDir, file), "utf8");
+        const lines = content.split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+            if (obj.cid) {
+              if (!cids[obj.cid]) cids[obj.cid] = [];
+              cids[obj.cid].push(obj);
+            }
+          } catch {
+            // Ignore malformed lines
+          }
+        }
+      } catch (error) {
+        log.warn("storage", `failed reading log file for metrics backfill: ${error.message}`);
+      }
+    }
+
+    let backfilled = 0;
+    const checkStmt = db.prepare(
+      "SELECT id FROM metrics WHERE (chat_id = ? AND recorded_at BETWEEN ? AND ?) OR (model = ? AND chat_id = ? AND recorded_at = ?)",
+    );
+    const chatStmt = db.prepare("SELECT workspace_id FROM chats WHERE id = ?");
+
+    for (const events of Object.values(cids)) {
+      const summary = events.find((e) => e.msg === "turn summary");
+      if (!summary || summary.data?.aborted) continue;
+
+      const ts = new Date(summary.ts).getTime();
+      const chatId = summary.data.chatId;
+      const model = summary.data.model;
+      if (!model || !ts) continue;
+
+      const existing = checkStmt.get(chatId, ts - 5000, ts + 5000, model, chatId, ts);
+      if (existing) continue;
+
+      let chars = 0;
+      let firstChunkTs = null;
+      const startTs = new Date(events[0].ts).getTime();
+      let tools = {};
+
+      for (const e of events) {
+        if (e.msg === "chunk" && e.data?.chars) {
+          chars += Number(e.data.chars) || 0;
+          if (!firstChunkTs && e.ts) firstChunkTs = new Date(e.ts).getTime();
+        }
+        if (e.msg === "step:turn_complete" && e.data?.toolCalls) {
+          tools = e.data.toolCalls;
+        }
+      }
+
+      const ttft = firstChunkTs && startTs ? Math.max(0, firstChunkTs - startTs) : null;
+      const outTok = summary.data.outputTokens || Math.max(1, Math.round(chars / 3.8));
+      const pTok = summary.data.promptTokens || 6000;
+      const chatRow = chatStmt.get(chatId);
+
+      recordMetric({
+        recordedAt: ts,
+        workspaceId: chatRow?.workspace_id || DEFAULT_WORKSPACE_ID,
+        chatId,
+        model,
+        promptTokens: pTok,
+        responseTokens: outTok,
+        responseMs: summary.data.durMs || 1000,
+        firstTokenMs: ttft,
+        loadMs: 0,
+        taskMs: summary.data.durMs || 1000,
+        loops: summary.data.loops || 1,
+        tools,
+      });
+      backfilled++;
+    }
+
+    db.prepare(
+      "INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run("metrics_backfilled", "done");
+
+    if (backfilled > 0) {
+      log.info("storage", `backfilled ${backfilled} missing metric turn(s) from logs`);
+    }
+  } catch (error) {
+    log.warn("storage", `metrics backfill failed: ${error.message}`);
+  }
 }
 
 /** The schema version on disk, for the open line. Never throws: that line must not be what fails a start. */
@@ -1046,6 +1156,7 @@ module.exports = {
   listMetrics: whenOpen(listMetrics, empty),
   clearMetrics: whenOpen(writeOp("clearMetrics", clearMetrics), () => ({ ...refused(), removed: 0 })),
   init,
+  backfillMetrics,
   listWorkspaces: whenOpen(listWorkspaces, empty),
   getWorkspace: whenOpen(getWorkspace, missing),
   saveWorkspace: whenOpen(writeOp("saveWorkspace", saveWorkspace), refused),

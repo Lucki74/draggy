@@ -130,6 +130,17 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
       timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
       ...extra,
     });
+  } else if (turn.splitUsage) {
+    const finishReason = (extra.finish_reason ?? extra.done_reason ?? "stop") as string;
+    chunks.push({
+      choices: [{ delta: {}, finish_reason: finishReason }],
+    });
+    chunks.push({
+      choices: [],
+      usage: { prompt_tokens: 120, completion_tokens: 40 },
+      timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
+      ...extra,
+    });
   } else {
     const finishReason = (extra.finish_reason ?? extra.done_reason ?? "stop") as string;
     chunks.push({
@@ -151,6 +162,7 @@ interface Turn {
   final?: Record<string, unknown>;
   /** A `provider_state` event the gateway sends with this pass. */
   state?: { instanceId: string; state: unknown };
+  splitUsage?: boolean;
 }
 
 function installFetch(
@@ -2597,3 +2609,20 @@ describe("what the turn writes to the log", () => {
     expect(text).not.toContain(SECRET_PROMPT);
   });
 });
+
+describe("local model metrics collection", () => {
+  it("collects metrics when finish_reason and usage are split across separate SSE chunks", async () => {
+    installFetch([{ content: ["Hello there!"], splitUsage: true }], []);
+
+    const { promise, host } = run([userMessage("hello")]);
+    const result = await promise;
+
+    expect(result.metrics).not.toBeNull();
+    expect(result.metrics?.promptTokens).toBe(120);
+    expect(result.metrics?.responseTokens).toBe(40);
+    expect(host.metrics).not.toBeNull();
+    expect(host.metrics?.promptTokens).toBe(120);
+    expect(host.metrics?.responseTokens).toBe(40);
+  });
+});
+
