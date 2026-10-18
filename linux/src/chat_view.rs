@@ -60,6 +60,8 @@ mod imp {
         /// A saved conversation shown but not yet restored into a session. The next message resumes it.
         pub pending: RefCell<Option<Conversation>>,
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
+        /// Runs when the saved conversations change, so the sidebar list can refresh.
+        pub changed: RefCell<Option<Rc<dyn Fn()>>>,
     }
 
     #[glib::object_subclass]
@@ -124,12 +126,99 @@ glib::wrapper! {
 }
 
 impl DraggyChat {
-    /// Gives the page the state it reads the settings and the key from, and a way to show short messages.
-    pub fn attach(&self, state: &Rc<AppState>, toast: impl Fn(&str) + 'static) {
+    /// Gives the page the state it reads the settings and the key from, a way to show short messages, and a callback
+    /// for when the saved conversations change.
+    pub fn attach(
+        &self,
+        state: &Rc<AppState>,
+        toast: impl Fn(&str) + 'static,
+        changed: impl Fn() + 'static,
+    ) {
         let imp = self.imp();
         *imp.state.borrow_mut() = Some(Rc::clone(state));
         *imp.toast.borrow_mut() = Some(Rc::new(toast));
+        *imp.changed.borrow_mut() = Some(Rc::new(changed));
         self.open_latest();
+    }
+
+    /// The id of the conversation on screen, whether it is saved yet or not.
+    pub fn current_id(&self) -> Option<String> {
+        let imp = self.imp();
+        if let Some(live) = imp.live.borrow().as_ref() {
+            return Some(live.id.clone());
+        }
+        imp.pending
+            .borrow()
+            .as_ref()
+            .map(|conversation| conversation.id.clone())
+    }
+
+    /// Starts an empty conversation. The one before stays saved.
+    pub fn new_conversation(&self) {
+        if self.busy_refusal() {
+            return;
+        }
+        self.clear_transcript();
+        self.clear_current();
+        self.notify_changed();
+    }
+
+    /// Opens a saved conversation. The next message continues it.
+    pub fn open_conversation(&self, id: &str) {
+        if self.current_id().as_deref() == Some(id) || self.busy_refusal() {
+            return;
+        }
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        match store.load(id) {
+            Ok(conversation) => self.show(conversation),
+            Err(_) => self.toast("The saved conversation could not be opened."),
+        }
+        self.notify_changed();
+    }
+
+    /// Deletes a saved conversation. A conversation on screen is cleared with it.
+    pub fn delete_conversation(&self, id: &str) {
+        let on_screen = self.current_id().as_deref() == Some(id);
+        if on_screen && self.busy_refusal() {
+            return;
+        }
+        let Some(store) = Store::in_data_dir() else {
+            return;
+        };
+        if store.delete(id).is_err() {
+            self.toast("The conversation could not be deleted.");
+            return;
+        }
+        if on_screen {
+            self.clear_transcript();
+            self.clear_current();
+        }
+        self.notify_changed();
+    }
+
+    /// True while a reply is still arriving. The user is told to wait, since switching now would lose that reply.
+    fn busy_refusal(&self) -> bool {
+        let busy = self.imp().log.borrow().is_busy();
+        if busy {
+            self.toast("Wait for the reply to finish.");
+        }
+        busy
+    }
+
+    /// Forgets the session and the saved conversation the page was continuing.
+    fn clear_current(&self) {
+        let imp = self.imp();
+        *imp.live.borrow_mut() = None;
+        *imp.pending.borrow_mut() = None;
+    }
+
+    fn notify_changed(&self) {
+        let changed = self.imp().changed.borrow().clone();
+        if let Some(changed) = changed {
+            changed();
+        }
     }
 
     /// Shows the most recent saved conversation, ready to be continued. With none saved the page starts empty.
@@ -189,6 +278,7 @@ impl DraggyChat {
         if !saved {
             self.toast("The conversation could not be saved.");
         }
+        self.notify_changed();
     }
 
     fn toast(&self, text: &str) {

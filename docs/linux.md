@@ -35,7 +35,7 @@ The library crate holds everything that can be checked without a display: settin
 
 Settings name a server address and a model. The first message creates a `draggy_core::Session` from them and the stored key; a change in the settings starts a new conversation. A turn runs on the shell's runtime. Its events, approval questions and result come back over a channel to the main loop, which updates the labels of the reply in place. Replies show as plain text for now.
 
-Each conversation is saved as one JSON file under `$XDG_DATA_HOME/draggy/conversations` (or `~/.local/share/draggy/conversations`) after every turn. The module `src/conversations.rs` holds the store and is pure logic. The newest conversation is shown at launch, and the next message restores it into the session with `Session::restore`. Tool steps and speed are not saved, only the text.
+Each conversation is saved as one JSON file under `$XDG_DATA_HOME/draggy/conversations` (or `~/.local/share/draggy/conversations`) after every turn. The module `src/conversations.rs` holds the store and is pure logic. The newest conversation is shown at launch, and the next message restores it into the session with `Session::restore`. Tool steps and speed are not saved, only the text. The sidebar's History list reads the same folder; opening, starting and deleting a conversation go through `DraggyChat`, and a turn in progress blocks them.
 
 The shared core has its own suite:
 

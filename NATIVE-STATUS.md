@@ -11,10 +11,10 @@ Works:
 - API key storage in the Secret Service keyring, with an explicit error when no keyring is running.
 - Desktop file, AppStream metadata and icon.
 - Chat page: type a message, watch the reply stream in, see the tool steps and the speed, stop a turn, and answer the core's approval questions. It talks to an OpenAI-compatible server that is already running, through `draggy-core`'s `Session`.
+- Saved conversations: each turn is saved. The sidebar's History list shows them newest first, and a click opens one. The + button starts a new conversation, and the trash button deletes one after a confirmation.
 
 Missing:
 
-- Saved conversations: each turn is saved and the newest one opens at launch. Not yet: a list to switch between conversations, or deleting one.
 - Markdown, code blocks and attachments in the chat. Messages show as plain text.
 - Core calls beyond a chat turn (documents, web, MCP).
 - Model and engine management.

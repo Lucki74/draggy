@@ -27,6 +27,13 @@ template $DraggyWindow: Adw.ApplicationWindow {
         child: Adw.ToolbarView {
           [top]
           Adw.HeaderBar {
+            [start]
+            Gtk.Button {
+              icon-name: "list-add-symbolic";
+              tooltip-text: "New conversation";
+              action-name: "win.new-conversation";
+            }
+
             title-widget: Adw.WindowTitle {
               title: "Draggy";
             };
@@ -39,34 +46,58 @@ template $DraggyWindow: Adw.ApplicationWindow {
             }
           }
 
-          content: Gtk.ListBox sections {
-            selection-mode: single;
-            styles ["navigation-sidebar"]
+          content: Gtk.Box {
+            orientation: vertical;
 
-            Gtk.ListBoxRow {
-              name: "chat";
+            Gtk.ListBox sections {
+              selection-mode: single;
+              styles ["navigation-sidebar"]
 
-              Gtk.Label {
-                label: "Chat";
-                xalign: 0;
+              Gtk.ListBoxRow {
+                name: "chat";
+
+                Gtk.Label {
+                  label: "Chat";
+                  xalign: 0;
+                }
+              }
+
+              Gtk.ListBoxRow {
+                name: "code";
+
+                Gtk.Label {
+                  label: "Code";
+                  xalign: 0;
+                }
+              }
+
+              Gtk.ListBoxRow {
+                name: "talk";
+
+                Gtk.Label {
+                  label: "Talk";
+                  xalign: 0;
+                }
               }
             }
 
-            Gtk.ListBoxRow {
-              name: "code";
-
-              Gtk.Label {
-                label: "Code";
-                xalign: 0;
-              }
+            Gtk.Label {
+              label: "History";
+              xalign: 0;
+              margin-top: 16;
+              margin-bottom: 4;
+              margin-start: 16;
+              margin-end: 16;
+              styles ["caption-heading", "dim-label"]
             }
 
-            Gtk.ListBoxRow {
-              name: "talk";
+            Gtk.ScrolledWindow {
+              vexpand: true;
+              hscrollbar-policy: never;
 
-              Gtk.Label {
-                label: "Talk";
-                xalign: 0;
+              Gtk.ListBox history {
+                selection-mode: single;
+                styles ["navigation-sidebar"]
               }
             }
           };
