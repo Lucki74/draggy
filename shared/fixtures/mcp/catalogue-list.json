@@ -7,41 +7,6 @@
       "input": {},
       "expected": [
         {
-          "id": "azure-devops",
-          "name": "Azure DevOps",
-          "description": "Manage projects, repositories, work items, pipelines and wikis in Azure DevOps.",
-          "package": "@azure-devops/mcp",
-          "site": "https://azure.microsoft.com/products/devops",
-          "args": [],
-          "arguments": [
-            {
-              "key": "organization",
-              "label": "Organization name",
-              "placeholder": "contoso",
-              "required": true
-            }
-          ],
-          "env": [
-            {
-              "key": "AZURE_DEVOPS_EXT_PAT",
-              "label": "Personal access token",
-              "secret": true,
-              "required": false
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@azure-devops/mcp"
-        },
-        {
-          "id": "shopify",
-          "name": "Shopify Dev",
-          "description": "Search Shopify documentation, validate GraphQL and Liquid templates, and inspect schemas.",
-          "package": "@shopify/dev-mcp",
-          "site": "https://shopify.dev",
-          "args": [],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/@shopify/dev-mcp"
-        },
-        {
           "id": "github",
           "name": "GitHub",
           "description": "Search repositories, read issues and pull requests, create branches and commits.",
@@ -59,26 +24,79 @@
           "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-github"
         },
         {
-          "id": "gitlab",
-          "name": "GitLab",
-          "description": "Read and write projects, issues and merge requests on GitLab.",
-          "package": "@modelcontextprotocol/server-gitlab",
-          "site": "https://gitlab.com",
+          "id": "context7",
+          "name": "Context7 docs",
+          "description": "Up-to-date API documentation for thousands of libraries, fetched per question instead of recalled from training.",
+          "package": "@upstash/context7-mcp",
+          "site": "https://context7.com",
+          "args": [],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/@upstash/context7-mcp"
+        },
+        {
+          "id": "memory",
+          "name": "Memory",
+          "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
+          "package": "@modelcontextprotocol/server-memory",
+          "args": [],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
+        },
+        {
+          "id": "slack",
+          "name": "Slack",
+          "description": "Read channels and messages, post replies, look up users.",
+          "package": "@modelcontextprotocol/server-slack",
+          "site": "https://slack.com",
           "args": [],
           "env": [
             {
-              "key": "GITLAB_PERSONAL_ACCESS_TOKEN",
-              "label": "GitLab token",
+              "key": "SLACK_BOT_TOKEN",
+              "label": "Slack bot token",
               "secret": true,
               "required": true
             },
             {
-              "key": "GITLAB_API_URL",
-              "label": "GitLab API URL",
-              "required": false
+              "key": "SLACK_TEAM_ID",
+              "label": "Slack team ID",
+              "required": true
             }
           ],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-gitlab"
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-slack"
+        },
+        {
+          "id": "notion",
+          "name": "Notion",
+          "description": "Search, read and write Notion pages and databases.",
+          "package": "@notionhq/notion-mcp-server",
+          "site": "https://www.notion.so",
+          "args": [],
+          "env": [
+            {
+              "key": "NOTION_TOKEN",
+              "label": "Notion integration token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@notionhq/notion-mcp-server"
+        },
+        {
+          "id": "linear",
+          "name": "Linear",
+          "description": "Read and update Linear issues, projects and cycles.",
+          "package": "linear-mcp-server",
+          "site": "https://linear.app",
+          "args": [],
+          "env": [
+            {
+              "key": "LINEAR_API_KEY",
+              "label": "Linear API key",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/linear-mcp-server"
         },
         {
           "id": "sentry",
@@ -103,42 +121,334 @@
           "docs": "https://www.npmjs.com/package/@sentry/mcp-server"
         },
         {
-          "id": "jetbrains",
-          "name": "JetBrains IDEs",
-          "description": "Drive a running JetBrains IDE: open files, read the project tree, run inspections.",
-          "package": "@jetbrains/mcp-proxy",
-          "site": "https://www.jetbrains.com",
-          "args": [],
-          "env": [],
-          "caution": "Needs the MCP Server plugin installed in the IDE and the IDE running.",
-          "docs": "https://www.npmjs.com/package/@jetbrains/mcp-proxy"
-        },
-        {
-          "id": "context7",
-          "name": "Context7 docs",
-          "description": "Up-to-date API documentation for thousands of libraries, fetched per question instead of recalled from training.",
-          "package": "@upstash/context7-mcp",
-          "site": "https://context7.com",
-          "args": [],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/@upstash/context7-mcp"
-        },
-        {
-          "id": "magic-ui",
-          "name": "21st.dev Magic",
-          "description": "Generate React interface components from a description.",
-          "package": "@21st-dev/magic",
-          "site": "https://21st.dev",
-          "args": [],
+          "id": "figma",
+          "name": "Figma",
+          "description": "Read Figma files and turn frames into layout and style information.",
+          "package": "figma-developer-mcp",
+          "site": "https://www.figma.com",
+          "args": [
+            "--stdio"
+          ],
           "env": [
             {
-              "key": "API_KEY",
-              "label": "21st.dev API key",
+              "key": "FIGMA_API_KEY",
+              "label": "Figma API key",
               "secret": true,
               "required": true
             }
           ],
-          "docs": "https://www.npmjs.com/package/@21st-dev/magic"
+          "docs": "https://www.npmjs.com/package/figma-developer-mcp"
+        },
+        {
+          "id": "postgres",
+          "name": "PostgreSQL",
+          "description": "Run read-only queries against a Postgres database and inspect its schema.",
+          "package": "@modelcontextprotocol/server-postgres",
+          "site": "https://www.postgresql.org",
+          "args": [],
+          "arguments": [
+            {
+              "key": "connection",
+              "label": "Connection string",
+              "placeholder": "postgresql://user@localhost/dbname",
+              "required": true
+            }
+          ],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-postgres"
+        },
+        {
+          "id": "sqlite",
+          "name": "SQLite",
+          "description": "Query and inspect SQLite database files on this machine.",
+          "package": "mcp-server-sqlite-npx",
+          "site": "https://www.sqlite.org",
+          "args": [],
+          "arguments": [
+            {
+              "key": "database",
+              "label": "Path to SQLite file",
+              "placeholder": "C:\\Users\\you\\data.db",
+              "required": true
+            }
+          ],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/mcp-server-sqlite-npx"
+        },
+        {
+          "id": "supabase",
+          "name": "Supabase",
+          "description": "Manage Supabase projects, run queries and inspect tables.",
+          "package": "@supabase/mcp-server-supabase",
+          "site": "https://supabase.com",
+          "args": [],
+          "env": [
+            {
+              "key": "SUPABASE_ACCESS_TOKEN",
+              "label": "Supabase access token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@supabase/mcp-server-supabase"
+        },
+        {
+          "id": "stripe",
+          "name": "Stripe",
+          "description": "Look up customers, payments, subscriptions and invoices.",
+          "package": "@stripe/mcp",
+          "site": "https://stripe.com",
+          "args": [
+            "--tools=all"
+          ],
+          "env": [
+            {
+              "key": "STRIPE_SECRET_KEY",
+              "label": "Stripe secret key",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "caution": "A live key can move real money. Use a restricted or test key.",
+          "docs": "https://www.npmjs.com/package/@stripe/mcp"
+        },
+        {
+          "id": "google-drive",
+          "name": "Google Drive",
+          "description": "Search Drive and read the contents of documents.",
+          "package": "@modelcontextprotocol/server-gdrive",
+          "site": "https://drive.google.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GDRIVE_CREDENTIALS_PATH",
+              "label": "Path to credentials JSON",
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-gdrive"
+        },
+        {
+          "id": "gmail",
+          "name": "Gmail",
+          "description": "Search email threads, inspect message contents and send emails through Gmail.",
+          "package": "@gongrzhe/server-gmail-autoauth-mcp",
+          "site": "https://mail.google.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GMAIL_CLIENT_ID",
+              "label": "Google OAuth client ID",
+              "required": true
+            },
+            {
+              "key": "GMAIL_CLIENT_SECRET",
+              "label": "Google OAuth client secret",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp"
+        },
+        {
+          "id": "google-calendar",
+          "name": "Google Calendar",
+          "description": "List upcoming events, create calendar entries and manage schedules.",
+          "package": "@cocal/google-calendar-mcp",
+          "site": "https://calendar.google.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GOOGLE_OAUTH_CREDENTIALS",
+              "label": "Path to Google OAuth credentials JSON",
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@cocal/google-calendar-mcp"
+        },
+        {
+          "id": "jira",
+          "name": "Jira",
+          "description": "Search issues, update projects and track tickets across Jira.",
+          "package": "@aashari/mcp-server-atlassian-jira",
+          "site": "https://www.atlassian.com/software/jira",
+          "args": [],
+          "env": [
+            {
+              "key": "ATLASSIAN_SITE_NAME",
+              "label": "Atlassian site name (e.g. your-company)",
+              "required": true
+            },
+            {
+              "key": "ATLASSIAN_USER_EMAIL",
+              "label": "Atlassian user email",
+              "required": true
+            },
+            {
+              "key": "ATLASSIAN_API_TOKEN",
+              "label": "Atlassian API token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@aashari/mcp-server-atlassian-jira"
+        },
+        {
+          "id": "confluence",
+          "name": "Confluence",
+          "description": "Search spaces, read documentation and update pages in Confluence.",
+          "package": "@aashari/mcp-server-atlassian-confluence",
+          "site": "https://www.atlassian.com/software/confluence",
+          "args": [],
+          "env": [
+            {
+              "key": "ATLASSIAN_SITE_NAME",
+              "label": "Atlassian site name (e.g. your-company)",
+              "required": true
+            },
+            {
+              "key": "ATLASSIAN_USER_EMAIL",
+              "label": "Atlassian user email",
+              "required": true
+            },
+            {
+              "key": "ATLASSIAN_API_TOKEN",
+              "label": "Atlassian API token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@aashari/mcp-server-atlassian-confluence"
+        },
+        {
+          "id": "gitlab",
+          "name": "GitLab",
+          "description": "Read and write projects, issues and merge requests on GitLab.",
+          "package": "@modelcontextprotocol/server-gitlab",
+          "site": "https://gitlab.com",
+          "args": [],
+          "env": [
+            {
+              "key": "GITLAB_PERSONAL_ACCESS_TOKEN",
+              "label": "GitLab token",
+              "secret": true,
+              "required": true
+            },
+            {
+              "key": "GITLAB_API_URL",
+              "label": "GitLab API URL",
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-gitlab"
+        },
+        {
+          "id": "docker",
+          "name": "Docker",
+          "description": "Inspect containers, list images, check container status and execute container commands.",
+          "package": "mcp-server-docker",
+          "site": "https://www.docker.com",
+          "args": [],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/mcp-server-docker"
+        },
+        {
+          "id": "vercel",
+          "name": "Vercel",
+          "description": "List deployments, inspect projects, manage domains and check build logs in Vercel.",
+          "package": "vercel-mcp",
+          "site": "https://vercel.com",
+          "args": [],
+          "env": [
+            {
+              "key": "VERCEL_TOKEN",
+              "label": "Vercel API token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/vercel-mcp"
+        },
+        {
+          "id": "cloudflare",
+          "name": "Cloudflare",
+          "description": "Manage Workers, KV, R2 and D1 on a Cloudflare account.",
+          "package": "@cloudflare/mcp-server-cloudflare",
+          "site": "https://www.cloudflare.com",
+          "args": [],
+          "env": [
+            {
+              "key": "CLOUDFLARE_API_TOKEN",
+              "label": "Cloudflare API token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@cloudflare/mcp-server-cloudflare"
+        },
+        {
+          "id": "kubernetes",
+          "name": "Kubernetes",
+          "description": "Inspect and manage a Kubernetes cluster through your current kubeconfig.",
+          "package": "mcp-server-kubernetes",
+          "site": "https://kubernetes.io",
+          "args": [],
+          "env": [],
+          "caution": "Acts as whatever your current kubeconfig context is allowed to do.",
+          "docs": "https://www.npmjs.com/package/mcp-server-kubernetes"
+        },
+        {
+          "id": "mongodb",
+          "name": "MongoDB",
+          "description": "Query collections and inspect schemas in MongoDB or Atlas.",
+          "package": "mongodb-mcp-server",
+          "site": "https://www.mongodb.com",
+          "args": [],
+          "env": [
+            {
+              "key": "MDB_MCP_CONNECTION_STRING",
+              "label": "Connection string",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/mongodb-mcp-server"
+        },
+        {
+          "id": "redis",
+          "name": "Redis",
+          "description": "Read and write keys in a Redis instance.",
+          "package": "@modelcontextprotocol/server-redis",
+          "site": "https://redis.io",
+          "args": [],
+          "arguments": [
+            {
+              "key": "url",
+              "label": "Redis URL",
+              "placeholder": "redis://localhost:6379",
+              "required": true
+            }
+          ],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-redis"
+        },
+        {
+          "id": "obsidian",
+          "name": "Obsidian",
+          "description": "Read and search an Obsidian vault on this machine.",
+          "package": "mcp-obsidian",
+          "site": "https://obsidian.md",
+          "args": [],
+          "arguments": [
+            {
+              "key": "vault",
+              "label": "Vault folder",
+              "placeholder": "C:\\Users\\you\\notes",
+              "required": true
+            }
+          ],
+          "env": [],
+          "docs": "https://www.npmjs.com/package/mcp-obsidian"
         },
         {
           "id": "perplexity",
@@ -209,182 +519,44 @@
           "docs": "https://www.npmjs.com/package/firecrawl-mcp"
         },
         {
-          "id": "slack",
-          "name": "Slack",
-          "description": "Read channels and messages, post replies, look up users.",
-          "package": "@modelcontextprotocol/server-slack",
-          "site": "https://slack.com",
+          "id": "discord",
+          "name": "Discord",
+          "description": "Send messages, manage channels, and interact with Discord servers.",
+          "package": "discord-mcp",
+          "site": "https://discord.com",
           "args": [],
           "env": [
             {
-              "key": "SLACK_BOT_TOKEN",
-              "label": "Slack bot token",
+              "key": "DISCORD_TOKEN",
+              "label": "Discord bot token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/discord-mcp"
+        },
+        {
+          "id": "trello",
+          "name": "Trello",
+          "description": "Manage boards, lists, cards, checklists and comments on Trello.",
+          "package": "trello-mcp",
+          "site": "https://trello.com",
+          "args": [],
+          "env": [
+            {
+              "key": "TRELLO_API_KEY",
+              "label": "Trello API key",
               "secret": true,
               "required": true
             },
             {
-              "key": "SLACK_TEAM_ID",
-              "label": "Slack team ID",
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-slack"
-        },
-        {
-          "id": "notion",
-          "name": "Notion",
-          "description": "Search, read and write Notion pages and databases.",
-          "package": "@notionhq/notion-mcp-server",
-          "site": "https://www.notion.so",
-          "args": [],
-          "env": [
-            {
-              "key": "NOTION_TOKEN",
-              "label": "Notion integration token",
+              "key": "TRELLO_TOKEN",
+              "label": "Trello token",
               "secret": true,
               "required": true
             }
           ],
-          "docs": "https://www.npmjs.com/package/@notionhq/notion-mcp-server"
-        },
-        {
-          "id": "linear",
-          "name": "Linear",
-          "description": "Read and update Linear issues, projects and cycles.",
-          "package": "linear-mcp-server",
-          "site": "https://linear.app",
-          "args": [],
-          "env": [
-            {
-              "key": "LINEAR_API_KEY",
-              "label": "Linear API key",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/linear-mcp-server"
-        },
-        {
-          "id": "todoist",
-          "name": "Todoist",
-          "description": "Create, complete and search tasks in Todoist.",
-          "package": "@abhiz123/todoist-mcp-server",
-          "site": "https://todoist.com",
-          "args": [],
-          "env": [
-            {
-              "key": "TODOIST_API_TOKEN",
-              "label": "Todoist API token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@abhiz123/todoist-mcp-server"
-        },
-        {
-          "id": "obsidian",
-          "name": "Obsidian",
-          "description": "Read and search an Obsidian vault on this machine.",
-          "package": "mcp-obsidian",
-          "site": "https://obsidian.md",
-          "args": [],
-          "arguments": [
-            {
-              "key": "vault",
-              "label": "Vault folder",
-              "placeholder": "C:\\Users\\you\\notes",
-              "required": true
-            }
-          ],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/mcp-obsidian"
-        },
-        {
-          "id": "google-drive",
-          "name": "Google Drive",
-          "description": "Search Drive and read the contents of documents.",
-          "package": "@modelcontextprotocol/server-gdrive",
-          "site": "https://drive.google.com",
-          "args": [],
-          "env": [
-            {
-              "key": "GDRIVE_CREDENTIALS_PATH",
-              "label": "Path to credentials JSON",
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-gdrive"
-        },
-        {
-          "id": "google-maps",
-          "name": "Google Maps",
-          "description": "Geocoding, directions, places and distance lookups.",
-          "package": "@modelcontextprotocol/server-google-maps",
-          "site": "https://developers.google.com/maps",
-          "args": [],
-          "env": [
-            {
-              "key": "GOOGLE_MAPS_API_KEY",
-              "label": "Google Maps API key",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-google-maps"
-        },
-        {
-          "id": "jira",
-          "name": "Jira",
-          "description": "Search issues, update projects and track tickets across Jira.",
-          "package": "@aashari/mcp-server-atlassian-jira",
-          "site": "https://www.atlassian.com/software/jira",
-          "args": [],
-          "env": [
-            {
-              "key": "ATLASSIAN_SITE_NAME",
-              "label": "Atlassian site name (e.g. your-company)",
-              "required": true
-            },
-            {
-              "key": "ATLASSIAN_USER_EMAIL",
-              "label": "Atlassian user email",
-              "required": true
-            },
-            {
-              "key": "ATLASSIAN_API_TOKEN",
-              "label": "Atlassian API token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@aashari/mcp-server-atlassian-jira"
-        },
-        {
-          "id": "confluence",
-          "name": "Confluence",
-          "description": "Search spaces, read documentation and update pages in Confluence.",
-          "package": "@aashari/mcp-server-atlassian-confluence",
-          "site": "https://www.atlassian.com/software/confluence",
-          "args": [],
-          "env": [
-            {
-              "key": "ATLASSIAN_SITE_NAME",
-              "label": "Atlassian site name (e.g. your-company)",
-              "required": true
-            },
-            {
-              "key": "ATLASSIAN_USER_EMAIL",
-              "label": "Atlassian user email",
-              "required": true
-            },
-            {
-              "key": "ATLASSIAN_API_TOKEN",
-              "label": "Atlassian API token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@aashari/mcp-server-atlassian-confluence"
+          "docs": "https://www.npmjs.com/package/trello-mcp"
         },
         {
           "id": "asana",
@@ -404,151 +576,21 @@
           "docs": "https://www.npmjs.com/package/@roychri/mcp-server-asana"
         },
         {
-          "id": "clickup",
-          "name": "ClickUp",
-          "description": "Manage ClickUp tasks, lists, spaces and custom fields.",
-          "package": "@taazkareem/clickup-mcp-server",
-          "site": "https://clickup.com",
+          "id": "todoist",
+          "name": "Todoist",
+          "description": "Create, complete and search tasks in Todoist.",
+          "package": "@abhiz123/todoist-mcp-server",
+          "site": "https://todoist.com",
           "args": [],
           "env": [
             {
-              "key": "CLICKUP_API_KEY",
-              "label": "ClickUp API key",
-              "secret": true,
-              "required": true
-            },
-            {
-              "key": "CLICKUP_TEAM_ID",
-              "label": "ClickUp team ID",
-              "required": false
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@taazkareem/clickup-mcp-server"
-        },
-        {
-          "id": "google-calendar",
-          "name": "Google Calendar",
-          "description": "List upcoming events, create calendar entries and manage schedules.",
-          "package": "@cocal/google-calendar-mcp",
-          "site": "https://calendar.google.com",
-          "args": [],
-          "env": [
-            {
-              "key": "GOOGLE_OAUTH_CREDENTIALS",
-              "label": "Path to Google OAuth credentials JSON",
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@cocal/google-calendar-mcp"
-        },
-        {
-          "id": "hubspot",
-          "name": "HubSpot",
-          "description": "Manage contacts, companies, deals and CRM objects in HubSpot.",
-          "package": "@hubspot/mcp-server",
-          "site": "https://www.hubspot.com",
-          "args": [],
-          "env": [
-            {
-              "key": "PRIVATE_APP_ACCESS_TOKEN",
-              "label": "HubSpot private app access token",
+              "key": "TODOIST_API_TOKEN",
+              "label": "Todoist API token",
               "secret": true,
               "required": true
             }
           ],
-          "docs": "https://www.npmjs.com/package/@hubspot/mcp-server"
-        },
-        {
-          "id": "postgres",
-          "name": "PostgreSQL",
-          "description": "Run read-only queries against a Postgres database and inspect its schema.",
-          "package": "@modelcontextprotocol/server-postgres",
-          "site": "https://www.postgresql.org",
-          "args": [],
-          "arguments": [
-            {
-              "key": "connection",
-              "label": "Connection string",
-              "placeholder": "postgresql://user@localhost/dbname",
-              "required": true
-            }
-          ],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-postgres"
-        },
-        {
-          "id": "mongodb",
-          "name": "MongoDB",
-          "description": "Query collections and inspect schemas in MongoDB or Atlas.",
-          "package": "mongodb-mcp-server",
-          "site": "https://www.mongodb.com",
-          "args": [],
-          "env": [
-            {
-              "key": "MDB_MCP_CONNECTION_STRING",
-              "label": "Connection string",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/mongodb-mcp-server"
-        },
-        {
-          "id": "redis",
-          "name": "Redis",
-          "description": "Read and write keys in a Redis instance.",
-          "package": "@modelcontextprotocol/server-redis",
-          "site": "https://redis.io",
-          "args": [],
-          "arguments": [
-            {
-              "key": "url",
-              "label": "Redis URL",
-              "placeholder": "redis://localhost:6379",
-              "required": true
-            }
-          ],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-redis"
-        },
-        {
-          "id": "elasticsearch",
-          "name": "Elasticsearch",
-          "description": "Search indices and inspect mappings in Elasticsearch.",
-          "package": "@elastic/mcp-server-elasticsearch",
-          "site": "https://www.elastic.co",
-          "args": [],
-          "env": [
-            {
-              "key": "ES_URL",
-              "label": "Elasticsearch URL",
-              "required": true
-            },
-            {
-              "key": "ES_API_KEY",
-              "label": "API key",
-              "secret": true,
-              "required": false
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@elastic/mcp-server-elasticsearch"
-        },
-        {
-          "id": "supabase",
-          "name": "Supabase",
-          "description": "Manage Supabase projects, run queries and inspect tables.",
-          "package": "@supabase/mcp-server-supabase",
-          "site": "https://supabase.com",
-          "args": [],
-          "env": [
-            {
-              "key": "SUPABASE_ACCESS_TOKEN",
-              "label": "Supabase access token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@supabase/mcp-server-supabase"
+          "docs": "https://www.npmjs.com/package/@abhiz123/todoist-mcp-server"
         },
         {
           "id": "airtable",
@@ -605,22 +647,190 @@
           "docs": "https://www.npmjs.com/package/@benborla29/mcp-server-mysql"
         },
         {
-          "id": "sqlite",
-          "name": "SQLite",
-          "description": "Query and inspect SQLite database files on this machine.",
-          "package": "mcp-server-sqlite-npx",
-          "site": "https://www.sqlite.org",
+          "id": "datadog",
+          "name": "Datadog",
+          "description": "Query metrics, search logs, inspect monitors and view dashboards in Datadog.",
+          "package": "@winor30/mcp-server-datadog",
+          "site": "https://www.datadoghq.com",
           "args": [],
-          "arguments": [
+          "env": [
             {
-              "key": "database",
-              "label": "Path to SQLite file",
-              "placeholder": "C:\\Users\\you\\data.db",
+              "key": "DATADOG_API_KEY",
+              "label": "Datadog API key",
+              "secret": true,
+              "required": true
+            },
+            {
+              "key": "DATADOG_APP_KEY",
+              "label": "Datadog application key",
+              "secret": true,
+              "required": true
+            },
+            {
+              "key": "DATADOG_SITE",
+              "label": "Datadog site (e.g. datadoghq.com)",
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@winor30/mcp-server-datadog"
+        },
+        {
+          "id": "netlify",
+          "name": "Netlify",
+          "description": "Manage Netlify sites, deployments, build logs and environment variables.",
+          "package": "@netlify/mcp",
+          "site": "https://www.netlify.com",
+          "args": [],
+          "env": [
+            {
+              "key": "NETLIFY_PERSONAL_ACCESS_TOKEN",
+              "label": "Netlify personal access token",
+              "secret": true,
               "required": true
             }
           ],
+          "docs": "https://www.npmjs.com/package/@netlify/mcp"
+        },
+        {
+          "id": "azure-devops",
+          "name": "Azure DevOps",
+          "description": "Manage projects, repositories, work items, pipelines and wikis in Azure DevOps.",
+          "package": "@azure-devops/mcp",
+          "site": "https://azure.microsoft.com/products/devops",
+          "args": [],
+          "arguments": [
+            {
+              "key": "organization",
+              "label": "Organization name",
+              "placeholder": "contoso",
+              "required": true
+            }
+          ],
+          "env": [
+            {
+              "key": "AZURE_DEVOPS_EXT_PAT",
+              "label": "Personal access token",
+              "secret": true,
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@azure-devops/mcp"
+        },
+        {
+          "id": "shopify",
+          "name": "Shopify Dev",
+          "description": "Search Shopify documentation, validate GraphQL and Liquid templates, and inspect schemas.",
+          "package": "@shopify/dev-mcp",
+          "site": "https://shopify.dev",
+          "args": [],
           "env": [],
-          "docs": "https://www.npmjs.com/package/mcp-server-sqlite-npx"
+          "docs": "https://www.npmjs.com/package/@shopify/dev-mcp"
+        },
+        {
+          "id": "jetbrains",
+          "name": "JetBrains IDEs",
+          "description": "Drive a running JetBrains IDE: open files, read the project tree, run inspections.",
+          "package": "@jetbrains/mcp-proxy",
+          "site": "https://www.jetbrains.com",
+          "args": [],
+          "env": [],
+          "caution": "Needs the MCP Server plugin installed in the IDE and the IDE running.",
+          "docs": "https://www.npmjs.com/package/@jetbrains/mcp-proxy"
+        },
+        {
+          "id": "magic-ui",
+          "name": "21st.dev Magic",
+          "description": "Generate React interface components from a description.",
+          "package": "@21st-dev/magic",
+          "site": "https://21st.dev",
+          "args": [],
+          "env": [
+            {
+              "key": "API_KEY",
+              "label": "21st.dev API key",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@21st-dev/magic"
+        },
+        {
+          "id": "google-maps",
+          "name": "Google Maps",
+          "description": "Geocoding, directions, places and distance lookups.",
+          "package": "@modelcontextprotocol/server-google-maps",
+          "site": "https://developers.google.com/maps",
+          "args": [],
+          "env": [
+            {
+              "key": "GOOGLE_MAPS_API_KEY",
+              "label": "Google Maps API key",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-google-maps"
+        },
+        {
+          "id": "clickup",
+          "name": "ClickUp",
+          "description": "Manage ClickUp tasks, lists, spaces and custom fields.",
+          "package": "@taazkareem/clickup-mcp-server",
+          "site": "https://clickup.com",
+          "args": [],
+          "env": [
+            {
+              "key": "CLICKUP_API_KEY",
+              "label": "ClickUp API key",
+              "secret": true,
+              "required": true
+            },
+            {
+              "key": "CLICKUP_TEAM_ID",
+              "label": "ClickUp team ID",
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@taazkareem/clickup-mcp-server"
+        },
+        {
+          "id": "hubspot",
+          "name": "HubSpot",
+          "description": "Manage contacts, companies, deals and CRM objects in HubSpot.",
+          "package": "@hubspot/mcp-server",
+          "site": "https://www.hubspot.com",
+          "args": [],
+          "env": [
+            {
+              "key": "PRIVATE_APP_ACCESS_TOKEN",
+              "label": "HubSpot private app access token",
+              "secret": true,
+              "required": true
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@hubspot/mcp-server"
+        },
+        {
+          "id": "elasticsearch",
+          "name": "Elasticsearch",
+          "description": "Search indices and inspect mappings in Elasticsearch.",
+          "package": "@elastic/mcp-server-elasticsearch",
+          "site": "https://www.elastic.co",
+          "args": [],
+          "env": [
+            {
+              "key": "ES_URL",
+              "label": "Elasticsearch URL",
+              "required": true
+            },
+            {
+              "key": "ES_API_KEY",
+              "label": "API key",
+              "secret": true,
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/@elastic/mcp-server-elasticsearch"
         },
         {
           "id": "pinecone",
@@ -640,34 +850,6 @@
           "docs": "https://www.npmjs.com/package/@pinecone-database/mcp"
         },
         {
-          "id": "kubernetes",
-          "name": "Kubernetes",
-          "description": "Inspect and manage a Kubernetes cluster through your current kubeconfig.",
-          "package": "mcp-server-kubernetes",
-          "site": "https://kubernetes.io",
-          "args": [],
-          "env": [],
-          "caution": "Acts as whatever your current kubeconfig context is allowed to do.",
-          "docs": "https://www.npmjs.com/package/mcp-server-kubernetes"
-        },
-        {
-          "id": "cloudflare",
-          "name": "Cloudflare",
-          "description": "Manage Workers, KV, R2 and D1 on a Cloudflare account.",
-          "package": "@cloudflare/mcp-server-cloudflare",
-          "site": "https://www.cloudflare.com",
-          "args": [],
-          "env": [
-            {
-              "key": "CLOUDFLARE_API_TOKEN",
-              "label": "Cloudflare API token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@cloudflare/mcp-server-cloudflare"
-        },
-        {
           "id": "heroku",
           "name": "Heroku",
           "description": "Inspect and manage Heroku apps, dynos, add-ons and logs.",
@@ -683,26 +865,6 @@
             }
           ],
           "docs": "https://www.npmjs.com/package/@heroku/mcp-server"
-        },
-        {
-          "id": "stripe",
-          "name": "Stripe",
-          "description": "Look up customers, payments, subscriptions and invoices.",
-          "package": "@stripe/mcp",
-          "site": "https://stripe.com",
-          "args": [
-            "--tools=all"
-          ],
-          "env": [
-            {
-              "key": "STRIPE_SECRET_KEY",
-              "label": "Stripe secret key",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "caution": "A live key can move real money. Use a restricted or test key.",
-          "docs": "https://www.npmjs.com/package/@stripe/mcp"
         },
         {
           "id": "aws-kb",
@@ -733,51 +895,6 @@
           "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-aws-kb-retrieval"
         },
         {
-          "id": "netlify",
-          "name": "Netlify",
-          "description": "Manage Netlify sites, deployments, build logs and environment variables.",
-          "package": "@netlify/mcp",
-          "site": "https://www.netlify.com",
-          "args": [],
-          "env": [
-            {
-              "key": "NETLIFY_PERSONAL_ACCESS_TOKEN",
-              "label": "Netlify personal access token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@netlify/mcp"
-        },
-        {
-          "id": "datadog",
-          "name": "Datadog",
-          "description": "Query metrics, search logs, inspect monitors and view dashboards in Datadog.",
-          "package": "@winor30/mcp-server-datadog",
-          "site": "https://www.datadoghq.com",
-          "args": [],
-          "env": [
-            {
-              "key": "DATADOG_API_KEY",
-              "label": "Datadog API key",
-              "secret": true,
-              "required": true
-            },
-            {
-              "key": "DATADOG_APP_KEY",
-              "label": "Datadog application key",
-              "secret": true,
-              "required": true
-            },
-            {
-              "key": "DATADOG_SITE",
-              "label": "Datadog site (e.g. datadoghq.com)",
-              "required": false
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@winor30/mcp-server-datadog"
-        },
-        {
           "id": "contentful",
           "name": "Contentful",
           "description": "Create, edit and publish content entries, assets and content models in Contentful.",
@@ -803,34 +920,6 @@
             }
           ],
           "docs": "https://www.npmjs.com/package/@contentful/mcp-server"
-        },
-        {
-          "id": "memory",
-          "name": "Memory",
-          "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
-          "package": "@modelcontextprotocol/server-memory",
-          "args": [],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
-        },
-        {
-          "id": "figma",
-          "name": "Figma",
-          "description": "Read Figma files and turn frames into layout and style information.",
-          "package": "figma-developer-mcp",
-          "site": "https://www.figma.com",
-          "args": [
-            "--stdio"
-          ],
-          "env": [
-            {
-              "key": "FIGMA_API_KEY",
-              "label": "Figma API key",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/figma-developer-mcp"
         },
         {
           "id": "youtube-transcript",
@@ -863,23 +952,6 @@
           "docs": "https://www.npmjs.com/package/composio-mcp"
         },
         {
-          "id": "discord",
-          "name": "Discord",
-          "description": "Send messages, manage channels, and interact with Discord servers.",
-          "package": "discord-mcp",
-          "site": "https://discord.com",
-          "args": [],
-          "env": [
-            {
-              "key": "DISCORD_TOKEN",
-              "label": "Discord bot token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/discord-mcp"
-        },
-        {
           "id": "telegram",
           "name": "Telegram",
           "description": "Send messages, read channels and interact with Telegram bots.",
@@ -895,29 +967,6 @@
             }
           ],
           "docs": "https://www.npmjs.com/package/telegram-mcp"
-        },
-        {
-          "id": "trello",
-          "name": "Trello",
-          "description": "Manage boards, lists, cards, checklists and comments on Trello.",
-          "package": "trello-mcp",
-          "site": "https://trello.com",
-          "args": [],
-          "env": [
-            {
-              "key": "TRELLO_API_KEY",
-              "label": "Trello API key",
-              "secret": true,
-              "required": true
-            },
-            {
-              "key": "TRELLO_TOKEN",
-              "label": "Trello token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/trello-mcp"
         },
         {
           "id": "strapi",
@@ -1324,23 +1373,6 @@
           "docs": "https://www.npmjs.com/package/railway-mcp"
         },
         {
-          "id": "vercel",
-          "name": "Vercel",
-          "description": "List deployments, inspect projects, manage domains and check build logs in Vercel.",
-          "package": "vercel-mcp",
-          "site": "https://vercel.com",
-          "args": [],
-          "env": [
-            {
-              "key": "VERCEL_TOKEN",
-              "label": "Vercel API token",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/vercel-mcp"
-        },
-        {
           "id": "newrelic",
           "name": "New Relic",
           "description": "Query NRQL metrics, inspect application traces and check alert policies in New Relic.",
@@ -1402,16 +1434,6 @@
           "docs": "https://www.npmjs.com/package/bitbucket-mcp"
         },
         {
-          "id": "docker",
-          "name": "Docker",
-          "description": "Inspect containers, list images, check container status and execute container commands.",
-          "package": "mcp-server-docker",
-          "site": "https://www.docker.com",
-          "args": [],
-          "env": [],
-          "docs": "https://www.npmjs.com/package/mcp-server-docker"
-        },
-        {
           "id": "postman",
           "name": "Postman",
           "description": "Search workspaces, inspect collections and run API requests through Postman.",
@@ -1449,28 +1471,6 @@
             }
           ],
           "docs": "https://www.npmjs.com/package/mcp-server-axiom"
-        },
-        {
-          "id": "gmail",
-          "name": "Gmail",
-          "description": "Search email threads, inspect message contents and send emails through Gmail.",
-          "package": "@gongrzhe/server-gmail-autoauth-mcp",
-          "site": "https://mail.google.com",
-          "args": [],
-          "env": [
-            {
-              "key": "GMAIL_CLIENT_ID",
-              "label": "Google OAuth client ID",
-              "required": true
-            },
-            {
-              "key": "GMAIL_CLIENT_SECRET",
-              "label": "Google OAuth client secret",
-              "secret": true,
-              "required": true
-            }
-          ],
-          "docs": "https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp"
         },
         {
           "id": "mastra",
@@ -1984,6 +1984,25 @@
           "args": [],
           "env": [],
           "docs": "https://www.npmjs.com/package/scryfall-mcp-server"
+        },
+        {
+          "id": "dchub",
+          "name": "DC Hub",
+          "description": "DC Hub is the live data layer for data-center site selection. Its DCPI is a daily score of where data centers can get grid power, across 300+ markets.",
+          "transport": "http",
+          "url": "https://dchub.cloud/mcp",
+          "package": "dchub-mcp-server",
+          "site": "https://dchub.cloud",
+          "args": [],
+          "env": [
+            {
+              "key": "DCHUB_API_KEY",
+              "label": "DC Hub API key (optional; free tier needs no key)",
+              "secret": true,
+              "required": false
+            }
+          ],
+          "docs": "https://www.npmjs.com/package/dchub-mcp-server"
         }
       ]
     }
