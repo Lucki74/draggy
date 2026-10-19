@@ -115,7 +115,13 @@ const CODE_EXTENSIONS = new Set([
 ]);
 
 // Offers document vs source view only when format has meaningful markup rendering.
-const PREVIEWABLE_EXTENSIONS = new Set(["docx", "pptx", "xlsx", "html", "htm"]);
+const PREVIEWABLE_EXTENSIONS = new Set([
+  "docx", "doc", "pdf",
+  "pptx", "ppt",
+  "xlsx", "xls", "csv",
+  "md", "markdown", "mdx",
+  "html", "htm",
+]);
 
 // Matches typing speed across file sizes so large cards reveal at a readable pace.
 const FILE_REVEAL_MS = 1600;
@@ -167,7 +173,9 @@ function FileCard({
 
   // Status follows the step only; the typewriter reveal must not keep the card "Writing…".
   const writing = !step.isComplete;
-  const showingPreview = viewMode === "preview" && !writing;
+  // For previewable documents, show preview both while writing and when complete (unless user chose source).
+  // For non-previewable files (code/text), show the streaming editor while writing, then windowed preview when complete.
+  const showingPreview = canToggle ? viewMode === "preview" : !writing;
   const shown = writing || !animate
     ? content
     : content.slice(0, Math.min(revealed, content.length));
@@ -276,6 +284,7 @@ function FileCard({
             filename={step.filename || "file.txt"}
             content={shown}
             t={t}
+            isWriting={writing}
           />
         ) : isCode ? (
           <div className="relative">

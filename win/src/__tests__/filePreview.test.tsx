@@ -176,3 +176,41 @@ describe("FilePreview markdown and code view", () => {
   });
 });
 
+describe("FilePreview live generation mode (isWriting)", () => {
+  it("renders streaming Word HTML document with unclosed style and active caret", () => {
+    const partialHtml = "<style>body { font-family: sans-serif; }\n<h1>Draft Project Plan</h1>\n<p>Initial draft";
+    const { container } = render(<FilePreview filename="plan.docx" content={partialHtml} isWriting />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Draft Project Plan")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
+  it("renders streaming Markdown document with sheet layout and caret", () => {
+    const partialMd = "# Live Spec\n\n- Feature 1\n- Feature 2";
+    const { container } = render(<FilePreview filename="spec.md" content={partialMd} isWriting />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Feature 1")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
+  it("renders empty streaming spreadsheet with active cell highlight instead of preview unavailable", () => {
+    const { container } = render(<FilePreview filename="data.xlsx" content="" isWriting />);
+
+    expect(screen.queryByText("previewUnavailable")).toBeNull();
+    expect(container.querySelector("table")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
+  it("renders streaming presentation slide deck with active slide highlight", () => {
+    const partialDeck = "# Slide One\n- Item A";
+    const { container } = render(<FilePreview filename="pitch.pptx" content={partialDeck} isWriting />);
+
+    expect(screen.queryByText("previewUnavailable")).toBeNull();
+    expect(screen.getByText("Slide One")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+});
+
+
