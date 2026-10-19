@@ -308,4 +308,44 @@ describe("a failed reply", () => {
     fireEvent.click(prevBtn);
     expect(onSwitchVersion).toHaveBeenCalledWith(1, 0);
   });
+
+  it("shows both generated text and error alert when text was produced before failure", () => {
+    const partialFailureMsg: Message = {
+      id: "a1",
+      role: "assistant",
+      content: "Here is the partial solution before the crash.",
+      textContent: "Here is the partial solution before the crash.",
+      failed: true,
+      error: "Connection terminated by host",
+    };
+
+    render(
+      <MessageItem
+        msg={partialFailureMsg}
+        idx={1}
+        isGenerating={false}
+        isLast
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    // Both the generated text and error alert are visible
+    expect(screen.getByText("Here is the partial solution before the crash.")).toBeTruthy();
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.getByText("Connection terminated by host")).toBeTruthy();
+
+    // Verify ordering: generated text appears before error alert in the DOM
+    const generatedEl = screen.getByText("Here is the partial solution before the crash.");
+    const alertEl = screen.getByRole("alert");
+    expect(generatedEl.compareDocumentPosition(alertEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Copy and retry actions are accessible
+    expect(screen.getByLabelText("Copy reply")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
 });

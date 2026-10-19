@@ -284,6 +284,33 @@ describe("the task manager", () => {
     expect(messages[1].versions?.[0]?.failed).toBe(true);
   });
 
+  it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write some code");
+
+    // Simulate stream patching active message before failure
+    host.patchActiveMessage("chat-1", {
+      content: "Here is the code: function test() {}",
+      textContent: "Here is the code: function test() {}",
+      steps: [{ id: "s1", type: "text", content: "Here is the code", isComplete: true }],
+    });
+
+    // Model throws mid-turn
+    pending.at(-1)?.reject(new Error("Engine ran out of memory"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+
+    const messages = sessions.get("chat-1")?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    const assistantMsg = messages[1];
+    expect(assistantMsg.failed).toBe(true);
+    expect(assistantMsg.error).toBe("Engine ran out of memory");
+    expect(assistantMsg.content).toBe("Here is the code: function test() {}");
+    expect(assistantMsg.textContent).toBe("Here is the code: function test() {}");
+    expect(assistantMsg.steps).toHaveLength(1);
+  });
+
   it("reads the newest host after it is reconfigured", () => {
     const first = createHost();
     const manager = createTaskManager(first.host);

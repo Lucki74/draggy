@@ -666,6 +666,8 @@ export interface MessageVersion {
   provider_state?: ProviderState;
   /** The turn ended in an error; content holds the reason. */
   failed?: boolean;
+  /** When a turn fails after text was generated, the error description is preserved here. */
+  error?: string;
 }
 
 export interface Message {
@@ -684,6 +686,8 @@ export interface Message {
   provider_state?: ProviderState;
   /** The turn ended in an error; content holds the reason. */
   failed?: boolean;
+  /** When a turn fails after text was generated, the error description is preserved here. */
+  error?: string;
 }
 
 /** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what
