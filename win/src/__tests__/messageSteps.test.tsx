@@ -107,6 +107,23 @@ describe("a file the model wrote", () => {
     expect(screen.getByText("Source")).toBeTruthy();
   });
 
+  it("renders live preview directly while a document is being generated", () => {
+    const generatingDoc: SearchStep = {
+      id: "f2",
+      type: "create_file",
+      content: "Creating report.docx",
+      isComplete: false,
+      filename: "report.docx",
+      fileContent: "<h1>Live Heading</h1>",
+    };
+    const { container } = show([generatingDoc]);
+
+    expect(screen.getByText("Writing...")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Live Heading")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
   it("stops saying Writing once the file step is complete", () => {
     show([file("format.ts", "export const one = 1;")]);
 

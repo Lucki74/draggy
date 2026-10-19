@@ -29,15 +29,34 @@ export function isHtmlContent(content: string): boolean {
   const trimmed = content.trim();
   return (
     /^\s*<!doctype\s+html/i.test(trimmed) ||
-    /<\s*(?:html|body|div|p|h[1-6]|table|section|article|ul|ol|span|strong|em)\b[^>]*>/i.test(trimmed)
+    /<\s*(?:html|head|style|body|div|p|h[1-6]|table|section|article|ul|ol|span|strong|em)\b/i.test(trimmed)
   );
 }
 
 /** The markup with everything that could act rather than show stripped out of it. */
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, injectCaret = false): string {
   if (typeof window === "undefined" || !window.DOMParser) return "";
 
-  const parsed = new DOMParser().parseFromString(html, "text/html");
+  // Auto-close unclosed <style> or <script> during streaming so subsequent elements aren't swallowed
+  let preprocessed = html;
+  if (/<style\b/i.test(preprocessed) && !/<\/style>/i.test(preprocessed)) {
+    const match = preprocessed.match(/<\/?(?:body|head|div|p|h[1-6]|table|section|ul|ol)\b/i);
+    if (match && match.index !== undefined) {
+      preprocessed = preprocessed.slice(0, match.index) + "</style>" + preprocessed.slice(match.index);
+    } else {
+      preprocessed += "</style>";
+    }
+  }
+  if (/<script\b/i.test(preprocessed) && !/<\/script>/i.test(preprocessed)) {
+    const match = preprocessed.match(/<\/?(?:body|head|div|p|h[1-6]|table|section|ul|ol)\b/i);
+    if (match && match.index !== undefined) {
+      preprocessed = preprocessed.slice(0, match.index) + "</script>" + preprocessed.slice(match.index);
+    } else {
+      preprocessed += "</script>";
+    }
+  }
+
+  const parsed = new DOMParser().parseFromString(preprocessed, "text/html");
   const body = parsed.body;
   if (!body) return "";
 
@@ -76,5 +95,23 @@ export function sanitizeHtml(html: string): string {
   };
 
   clean(body);
+
+  if (injectCaret) {
+    const caret = parsed.createElement("span");
+    caret.className = "ember-caret";
+    caret.setAttribute("aria-hidden", "true");
+    if (body.children.length === 0) {
+      const p = parsed.createElement("p");
+      p.appendChild(caret);
+      body.appendChild(p);
+    } else {
+      let target: Element = body;
+      while (target.lastElementChild && !target.lastElementChild.classList.contains("ember-caret")) {
+        target = target.lastElementChild;
+      }
+      target.appendChild(caret);
+    }
+  }
+
   return body.innerHTML;
 }
