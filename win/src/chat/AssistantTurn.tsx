@@ -103,6 +103,10 @@ export function AssistantTurn({
 }: AssistantTurnProps) {
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
   const isFailed = Boolean(displayMsg.failed) && !isGenerating;
+  const errorMessage = displayMsg.error || (isFailed ? text : "");
+  const hasGeneratedText = isFailed
+    ? Boolean(displayMsg.error && text.trim())
+    : Boolean(text.trim());
   const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
@@ -271,38 +275,8 @@ export function AssistantTurn({
             ),
           ),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
-          isFailed ? (
-            <div
-              key="failure"
-              role="alert"
-              className="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-sm border border-rule bg-surface-base px-3 py-2.5"
-            >
-              <Icon
-                name="warning-circle"
-                size={20}
-                className="text-danger flex-shrink-0 mt-0.5"
-              />
-              <div className="min-w-0 flex-1 text-[14px] [&_p]:mb-1">
-                <ReactMarkdown
-                  remarkPlugins={REMARK_PLUGINS}
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {text}
-                </ReactMarkdown>
-              </div>
-              {isLast && !isGenerating && (
-                <Button
-                  variant="secondary"
-                  size="dense"
-                  icon={<Icon name="arrow-clockwise" size={16} />}
-                  onClick={() => onRegenerate(idx)}
-                >
-                  {t("regenerateResponse")}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div key={bodyKey}>
+          !isFailed || hasGeneratedText ? (
+            <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
                   source={normalizeMath(text)}
@@ -320,7 +294,38 @@ export function AssistantTurn({
                 </ReactMarkdown>
               )}
             </div>
-          ),
+          ) : null,
+          isFailed ? (
+            <div
+              key="failure"
+              role="alert"
+              className="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-sm border border-rule bg-surface-base px-3 py-2.5"
+            >
+              <Icon
+                name="warning-circle"
+                size={20}
+                className="text-danger flex-shrink-0 mt-0.5"
+              />
+              <div className="min-w-0 flex-1 text-[14px] [&_p]:mb-1">
+                <ReactMarkdown
+                  remarkPlugins={REMARK_PLUGINS}
+                  components={MARKDOWN_COMPONENTS}
+                >
+                  {errorMessage}
+                </ReactMarkdown>
+              </div>
+              {isLast && !isGenerating && (
+                <Button
+                  variant="secondary"
+                  size="dense"
+                  icon={<Icon name="arrow-clockwise" size={16} />}
+                  onClick={() => onRegenerate(idx)}
+                >
+                  {t("regenerateResponse")}
+                </Button>
+              )}
+            </div>
+          ) : null,
         ]}
 
         {text === "" &&
@@ -358,7 +363,7 @@ export function AssistantTurn({
         </div>
       )}
 
-      {(!isFailed || totalVersions > 1) && (
+      {(!isFailed || totalVersions > 1 || hasGeneratedText) && (
         <TurnActions
           idx={idx}
           text={text}
@@ -374,6 +379,7 @@ export function AssistantTurn({
           metrics={displayMsg.metrics}
           showMetrics={settings.showMetrics}
           chatId={chatId}
+          isFailed={isFailed}
           t={t}
         />
       )}

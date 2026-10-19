@@ -98,6 +98,7 @@ export interface TurnActionsProps {
   metrics?: TurnMetrics | null;
   showMetrics: boolean;
   chatId?: string;
+  isFailed?: boolean;
   t: (key: string) => string;
 }
 
@@ -118,6 +119,7 @@ export function TurnActions({
   metrics,
   showMetrics,
   chatId,
+  isFailed,
   t,
 }: TurnActionsProps) {
   if (isGenerating) {
@@ -161,7 +163,7 @@ export function TurnActions({
         label={t("copyMessage")}
         onClick={() => copyToClipboard(text, idx)}
       />
-      {isLast && (
+      {isLast && !isFailed && (
         <IconButton name="arrow-clockwise" size="sm" label={t("regenerateResponse")} onClick={() => onRegenerate(idx)} />
       )}
       {showMetrics && metrics && (

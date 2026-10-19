@@ -334,6 +334,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             metrics: lastMsg.metrics,
             provider_state: lastMsg.provider_state,
             failed: lastMsg.failed,
+            error: lastMsg.error,
           };
           lastMsg.versions = [...(lastMsg.versions || []), oldVersion];
           lastMsg.currentVersionIndex = lastMsg.versions.length;
@@ -345,6 +346,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           lastMsg.metrics = null;
           delete lastMsg.provider_state;
           delete lastMsg.failed;
+          delete lastMsg.error;
           msgs[lastIdx] = lastMsg;
         } else {
           logRendererEvent("renderer.agent", "WARN", "retry target not an assistant message", { role: lastMsg.role ?? "missing" });
@@ -557,6 +559,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         logRendererError("chat", "turn failed", err, { chatId, model, shown: "failed assistant message" }, correlationId);
         host.updateSession(chatId, (s) => {
           const last = s.messages[s.messages.length - 1];
+          const errorMessage = err.message || "Error generating response.";
+          const hasGeneratedText = Boolean(last?.textContent?.trim() || last?.content?.trim());
+          const steps = last?.steps
+            ?.filter((step) => step.isComplete || step.type !== "loading")
+            .map((step) => (step.isComplete ? step : { ...step, isComplete: true }));
+
           return {
             ...s,
             messages: [
@@ -564,8 +572,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
               {
                 id: last?.id ?? generateId(),
                 role: "assistant",
-                content: err.message || "Error generating response.",
+                content: hasGeneratedText ? (last?.content ?? "") : errorMessage,
+                textContent: hasGeneratedText ? last?.textContent : undefined,
+                thinkingContent: last?.thinkingContent,
+                thoughtTime: last?.thoughtTime,
+                steps,
                 failed: true,
+                error: errorMessage,
                 ...(last?.versions ? { versions: last.versions } : {}),
                 ...(last?.currentVersionIndex !== undefined
                   ? { currentVersionIndex: last.currentVersionIndex }
