@@ -163,7 +163,8 @@ async function withServer(
 }
 
 async function applyOp(op: Input, script: Script): Promise<unknown> {
-  const config = op.config ?? {};
+  const config = { ...(op.config ?? {}) };
+  if (op.id === "memory" && !config.package) config.package = MEMORY_PACKAGE;
   switch (op.op) {
     case "start": {
       script.current = script.sessions.shift() ?? emptySession();

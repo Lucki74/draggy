@@ -25,12 +25,22 @@
     "env": []
   },
   {
-    "id": "memory",
-    "name": "Memory",
-    "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
-    "package": "@modelcontextprotocol/server-memory",
+    "id": "composio",
+    "name": "Composio",
+    "description": "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
+    "transport": "http",
+    "url": "https://connect.composio.dev/mcp",
+    "package": "composio-mcp",
+    "site": "https://composio.dev",
     "args": [],
-    "env": []
+    "env": [
+      {
+        "key": "COMPOSIO_API_KEY",
+        "label": "Composio API key",
+        "secret": true,
+        "required": true
+      }
+    ]
   },
   {
     "id": "slack",
@@ -876,24 +886,6 @@
     "caution": "YouTube blocks transcript reads for some videos. The server reports the failure rather than returning a partial transcript."
   },
   {
-    "id": "composio",
-    "name": "Composio",
-    "description": "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
-    "transport": "http",
-    "url": "https://connect.composio.dev/mcp",
-    "package": "composio-mcp",
-    "site": "https://composio.dev",
-    "args": [],
-    "env": [
-      {
-        "key": "COMPOSIO_API_KEY",
-        "label": "Composio API key",
-        "secret": true,
-        "required": true
-      }
-    ]
-  },
-  {
     "id": "telegram",
     "name": "Telegram",
     "description": "Send messages, read channels and interact with Telegram bots.",
@@ -935,7 +927,7 @@
     "name": "Spotify",
     "description": "Search tracks and artists, control playback and manage playlists on Spotify.",
     "package": "spotify-mcp",
-    "site": "https://spotify.com",
+    "site": "https://open.spotify.com",
     "args": [],
     "env": [
       {

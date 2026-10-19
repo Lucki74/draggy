@@ -5,7 +5,7 @@
     {
       "name": "passes only the server's own arguments",
       "input": {
-        "entry": "memory",
+        "entry": "context7",
         "config": {}
       },
       "expected": {

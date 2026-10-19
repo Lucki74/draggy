@@ -38,13 +38,18 @@ const CATALOGUE = [
     env: [],
   },
   {
-    id: "memory",
-    name: "Memory",
+    id: "composio",
+    name: "Composio",
     description:
-      "A knowledge graph the model can write to and read back, so facts survive between conversations.",
-    package: "@modelcontextprotocol/server-memory",
+      "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
+    transport: "http",
+    url: "https://connect.composio.dev/mcp",
+    package: "composio-mcp",
+    site: "https://composio.dev",
     args: [],
-    env: [],
+    env: [
+      { key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true },
+    ],
   },
   {
     id: "slack",
@@ -584,20 +589,6 @@ const CATALOGUE = [
       "YouTube blocks transcript reads for some videos. The server reports the failure rather than returning a partial transcript.",
   },
   {
-    id: "composio",
-    name: "Composio",
-    description:
-      "Connect to 500+ apps and services including Gmail, GitHub, Slack and Salesforce.",
-    transport: "http",
-    url: "https://connect.composio.dev/mcp",
-    package: "composio-mcp",
-    site: "https://composio.dev",
-    args: [],
-    env: [
-      { key: "COMPOSIO_API_KEY", label: "Composio API key", secret: true, required: true },
-    ],
-  },
-  {
     id: "telegram",
     name: "Telegram",
     description:
@@ -628,7 +619,7 @@ const CATALOGUE = [
     description:
       "Search tracks and artists, control playback and manage playlists on Spotify.",
     package: "spotify-mcp",
-    site: "https://spotify.com",
+    site: "https://open.spotify.com",
     args: [],
     env: [
       { key: "SPOTIFY_CLIENT_ID", label: "Spotify client ID", required: true },

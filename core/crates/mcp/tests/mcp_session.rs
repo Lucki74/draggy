@@ -205,14 +205,18 @@ fn run_session(raw: &Value) -> Value {
 
 async fn apply(servers: &mut Servers<FakeHttp, FakeLauncher>, fake: &Fake, op: &Value) -> Value {
     let id = op["id"].as_str().unwrap_or_default();
+    let mut config = config_of(&op["config"]);
+    if id == "memory" && config.package.is_none() {
+        config.package = Some(MEMORY_PACKAGE.to_owned());
+    }
     match op["op"].as_str() {
         Some("start") => {
             fake.begin_session();
-            to_value(servers.start(id, &config_of(&op["config"])).await)
+            to_value(servers.start(id, &config).await)
         }
         Some("restart") => {
             fake.begin_session();
-            to_value(servers.restart(id, &config_of(&op["config"])).await)
+            to_value(servers.restart(id, &config).await)
         }
         Some("stop") => json!({"success": servers.stop(id).await}),
         Some("stopAll") => {
