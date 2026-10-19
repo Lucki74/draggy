@@ -186,6 +186,36 @@ describe("editing", () => {
     expect(result.success).toBe(true);
     expect(read("twice.md")).toBe("other\nother\n");
   });
+
+  it("matches across CRLF and LF line ending differences and preserves file endings", () => {
+    fs.writeFileSync(path.join(root, "crlf.ts"), "function test() {\r\n  return 42;\r\n}\r\n");
+
+    // Needle uses LF only
+    const result = ops.edit("w1", "crlf.ts", "function test() {\n  return 42;\n}", "function test() {\n  return 100;\n}");
+
+    expect(result.success).toBe(true);
+    expect(read("crlf.ts")).toBe("function test() {\r\n  return 100;\r\n}\r\n");
+  });
+
+  it("tolerates trailing whitespace differences on matching lines", () => {
+    fs.writeFileSync(path.join(root, "spaces.ts"), "const a = 1;   \nconst b = 2;\n");
+
+    // Needle omits the trailing spaces after "const a = 1;"
+    const result = ops.edit("w1", "spaces.ts", "const a = 1;\nconst b = 2;", "const a = 10;\nconst b = 20;");
+
+    expect(result.success).toBe(true);
+    expect(read("spaces.ts")).toBe("const a = 10;\nconst b = 20;\n");
+  });
+
+  it("tolerates indentation whitespace differences when unique", () => {
+    fs.writeFileSync(path.join(root, "indent.ts"), "function greet() {\n    return 'hi';\n}\n");
+
+    // Needle has 2 spaces indentation instead of 4
+    const result = ops.edit("w1", "indent.ts", "function greet() {\n  return 'hi';\n}", "function greet() {\n  return 'hello';\n}");
+
+    expect(result.success).toBe(true);
+    expect(read("indent.ts")).toBe("function greet() {\n  return 'hello';\n}\n");
+  });
 });
 
 describe("moving and deleting", () => {

@@ -529,30 +529,42 @@ async function record(win, name) {
   let seconds = 0;
   let speed = SPEED;
   for (const tone of TONES) {
-    if (clip.reset) resetProject();
-    // A page left open in the Browser pane by the take before would sit over this one.
-    for (const child of win.contentView.children) {
-      try {
-        if (/^https?:/.test(child.webContents.getURL())) await child.webContents.loadURL("about:blank");
-      } catch {
-        // Not a page view.
+    for (let take = 1; take <= 3; take += 1) {
+      if (clip.reset) resetProject();
+      // A page left open in the Browser pane by the take before would sit over this one.
+      for (const child of win.contentView.children) {
+        try {
+          if (/^https?:/.test(child.webContents.getURL())) await child.webContents.loadURL("about:blank");
+        } catch {
+          // Not a page view.
+        }
       }
+      await openWorkspace(win, ...clip.workspace);
+      await setDark(win, tone === "dark");
+      const rec = new Recorder(win);
+      rec.watchPane = true;
+      rec.speed = clip.speed || SPEED;
+      speed = rec.speed;
+      await rec.start(`${name}-${tone}`);
+      await sleep(400);
+      try {
+        await clip.script(rec, win);
+      } finally {
+        await rec.stop();
+      }
+      const hasErrors = await inPage(win, () => {
+        const warning = Boolean(document.querySelector(".text-danger"));
+        const failedBadge = [...document.querySelectorAll("[data-region=transcript] button, [data-region=transcript] span")].some((n) => /\bfailed\b/i.test(n.textContent));
+        return warning || failedBadge;
+      });
+      if (hasErrors && take < 3) {
+        log(`${name}-${tone}: take ${take} showed failed steps, retrying...`);
+        continue;
+      }
+      seconds = await rec.encode(name, tone);
+      await setDark(win, false);
+      break;
     }
-    await openWorkspace(win, ...clip.workspace);
-    await setDark(win, tone === "dark");
-    const rec = new Recorder(win);
-    rec.watchPane = true;
-    rec.speed = clip.speed || SPEED;
-    speed = rec.speed;
-    await rec.start(`${name}-${tone}`);
-    await sleep(400);
-    try {
-      await clip.script(rec, win);
-    } finally {
-      await rec.stop();
-    }
-    seconds = await rec.encode(name, tone);
-    await setDark(win, false);
   }
   fs.writeFileSync(path.join(OUT, `${name}.json`), JSON.stringify({ seconds: Math.round(seconds * 10) / 10, speed, model: MODEL }));
 }
