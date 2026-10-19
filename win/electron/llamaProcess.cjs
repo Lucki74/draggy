@@ -23,6 +23,8 @@ let activeOffload = null;
 let activeSpeculation = "none";
 /** The start still loading weights, so a second request for the same model joins it instead of restarting it. */
 let starting = null;
+/** The last options used to successfully start the server, so it can be reloaded after image generation. */
+let lastRunningOptions = null;
 
 /** Overlays values on the inherited environment, dropping other-case twins such as Path. */
 function buildEnv(overrides) {
@@ -752,6 +754,7 @@ async function launchServer(options) {
     }
 
     wasHealthy = true;
+    lastRunningOptions = { ...options };
     logger.info("llama", `llama-server ready on 127.0.0.1:${port} in ${Date.now() - readyStart}ms`);
     const memoryAfter = await memoryNow();
     logger.info("proc.engine", "engine loaded", {
@@ -814,8 +817,15 @@ function getServerStatus() {
   };
 }
 
+async function reloadServer() {
+  if (!lastRunningOptions) return { success: false, error: "No previous chat model to reload" };
+  defaultLog.info("llama", `Reloading chat model ${path.basename(lastRunningOptions.modelPath)}`);
+  return startServer(lastRunningOptions);
+}
+
 module.exports = {
   startServer,
+  reloadServer,
   stopServerSync,
   getServerStatus,
   pingHealth,

@@ -85,12 +85,14 @@ function register(ipc, deps) {
       log,
       // The chat engine loads its model again on the next message, so stopping it costs seconds.
       freeChatModel: () => llamaProcess.stopServerSync(),
+      reloadChatModel: () => llamaProcess.reloadServer?.(),
       memory: async () => ({
         freeVramGB: specs?.unifiedMemory ? null : await platform.detectFreeVideoMemoryGB(),
         totalVramGB: specs?.vram || 0,
         loadedLlmGB: loadedChatModelGB(),
         unified: Boolean(specs?.unifiedMemory),
         freeRamGB: os.freemem() / 1024 ** 3,
+        totalRamGB: os.totalmem() / 1024 ** 3,
       }),
     };
   });
@@ -333,7 +335,6 @@ function register(ipc, deps) {
           hires: request.hires,
           fitModel: request.fitModel,
           model: request.model || undefined,
-          stopChat: true,
           outputFormat: format,
         },
         (progress) => imageProgress({ requestId: request.requestId, ...progress }),

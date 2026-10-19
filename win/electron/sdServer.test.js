@@ -256,6 +256,38 @@ describe("sd-server lifecycle against a fake server", { timeout: 45_000 }, () =>
     expect(sdServer.status().running).toBe(false);
   });
 
+  it("reloads the chat model after image generation finishes when it was evicted", async () => {
+    const fake = fakeBinary();
+    let reloaded = 0;
+    useFake({
+      binaryPath: fake.binaryPath,
+      argsPrefix: fake.prefix,
+      memory: async () => ({ freeVramGB: 0.4, loadedLlmGB: 5.6, freeRamGB: 16 }),
+      freeChatModel: () => {},
+      reloadChatModel: () => {
+        reloaded += 1;
+      },
+    });
+    await sdServer.generate("req-reload", { prompt: "x" });
+    expect(reloaded).toBe(1);
+  });
+
+  it("does not reload the chat model if it was never evicted", async () => {
+    const fake = fakeBinary();
+    let reloaded = 0;
+    useFake({
+      binaryPath: fake.binaryPath,
+      argsPrefix: fake.prefix,
+      memory: async () => ({ freeVramGB: 8, loadedLlmGB: 2, freeRamGB: 16 }),
+      freeChatModel: () => {},
+      reloadChatModel: () => {
+        reloaded += 1;
+      },
+    });
+    await sdServer.generate("req-no-evict", { prompt: "x" });
+    expect(reloaded).toBe(0);
+  });
+
   it("leaves the image engine alone when the chat model was never pushed out", async () => {
     const fake = fakeBinary();
     useFake({ binaryPath: fake.binaryPath, argsPrefix: fake.prefix });
@@ -404,11 +436,20 @@ describe("memory plan", () => {
 
   it("stops the chat model first when that alone makes room", () => {
     expect(sdServer.planMemory({ needGB: 2, freeVramGB: 1.2, loadedLlmGB: 5.6, freeRamGB: 16 })).toBe("unload-chat");
-    expect(sdServer.planMemory({ needGB: 6, freeVramGB: 0.2, loadedLlmGB: 2, freeRamGB: 16 })).toBe("offload");
+    expect(sdServer.planMemory({ needGB: 6, freeVramGB: 0.2, loadedLlmGB: 2, freeRamGB: 16 })).toBe("unload-chat");
+    expect(sdServer.planMemory({ needGB: 6, freeVramGB: 0.2, loadedLlmGB: 0, freeRamGB: 16 })).toBe("offload");
   });
 
   it("fails when neither is enough", () => {
     expect(sdServer.planMemory({ needGB: 6, freeVramGB: 1, freeRamGB: 2 })).toBe("fail");
+  });
+
+  it("does not fail when total computer memory is sufficient even if free RAM is below requirement", () => {
+    expect(sdServer.planMemory({ needGB: 9.5, freeVramGB: 2, loadedLlmGB: 0, freeRamGB: 6, totalRamGB: 32, totalVramGB: 8 })).toBe("offload");
+  });
+
+  it("fails only when total computer memory is insufficient", () => {
+    expect(sdServer.planMemory({ needGB: 12, freeVramGB: 1, loadedLlmGB: 0, freeRamGB: 2, totalRamGB: 4, totalVramGB: 2 })).toBe("fail");
   });
 
   it("estimates free VRAM from the total and the loaded chat model when it cannot be measured", () => {
