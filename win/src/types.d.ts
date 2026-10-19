@@ -664,6 +664,8 @@ export interface MessageVersion {
   metrics?: TurnMetrics | null;
   /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
   provider_state?: ProviderState;
+  /** The turn ended in an error; content holds the reason. */
+  failed?: boolean;
 }
 
 export interface Message {
