@@ -238,11 +238,12 @@ function modelTraits(modelPath) {
     const kvBytesQ8 = blockCount && headCountKv && keyLength && valueLength
       ? Math.ceil(blockCount * headCountKv * (keyLength + valueLength) * (34 / 32))
       : null;
+    const base = path.basename(modelPath);
     traitsCache.set(key, {
-      moe: (header?.expertCount || 0) > 1,
+      moe: (header?.expertCount || 0) > 1 || /(?:^|[._-])(?:moe|a\d+b)(?:[._-]|$)/i.test(base),
       trainedContext: header?.contextLength || null,
       kvBytesQ8,
-      mtp: Boolean(header?.mtp || /(?:^|[._-])mtp(?:[._-]|$)/i.test(path.basename(modelPath))),
+      mtp: Boolean(header?.mtp || /(?:^|[._-])mtp(?:[._-]|$)/i.test(base)),
     });
   }
   return traitsCache.get(key);
@@ -325,9 +326,40 @@ function engineFlags(binaryPath, env, cacheDir = null) {
  * buffer, so it is paid for with weights moved off the card rather than a failed load. */
 function batchSizes(runnerType, vramGB, moe) {
   let ubatch = 512;
-  if (runnerType === "cuda") ubatch = moe || vramGB >= 10 ? 2048 : 1024;
-  else if (runnerType === "rocm" && vramGB >= 12) ubatch = 1024;
-  return { batch: Math.max(2048, ubatch), ubatch };
+  let batch = 2048;
+
+  if (runnerType === "cuda") {
+    if (moe || vramGB >= 10) {
+      ubatch = 2048;
+      batch = vramGB >= 16 ? 4096 : 2048;
+    } else if (vramGB >= 6) {
+      ubatch = 1024;
+      batch = 2048;
+    }
+  } else if (runnerType === "rocm") {
+    if (moe || vramGB >= 16) {
+      ubatch = 2048;
+      batch = 4096;
+    } else if (vramGB >= 8) {
+      ubatch = 1024;
+      batch = 2048;
+    }
+  } else if (runnerType === "metal") {
+    if (vramGB >= 16) {
+      ubatch = moe || vramGB >= 32 ? 2048 : 1024;
+      batch = vramGB >= 32 ? 4096 : 2048;
+    } else if (vramGB >= 8) {
+      ubatch = 1024;
+      batch = 2048;
+    }
+  } else if (runnerType === "vulkan") {
+    if (vramGB >= 16) {
+      ubatch = 1024;
+      batch = 2048;
+    }
+  }
+
+  return { batch: Math.max(batch, ubatch), ubatch };
 }
 
 /** Headroom --fit reserves so the desktop, Electron and browser do not push

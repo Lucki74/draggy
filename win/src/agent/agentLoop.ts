@@ -531,9 +531,15 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
 
     let tail = preservePastNotes ? userTailNotes.get(key) : undefined;
     if (!tail && isLast) {
-      const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkill(invokedSkill, invoked.request)}` : "";
-      tail = `${skillPart}\n\n${currentTimeNote()}`;
-      if (preservePastNotes) userTailNotes.set(key, tail);
+      if (preservePastNotes && userTailNotes.has("draft")) {
+        tail = userTailNotes.get("draft");
+        userTailNotes.delete("draft");
+        userTailNotes.set(key, tail!);
+      } else {
+        const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkill(invokedSkill, invoked.request)}` : "";
+        tail = `${skillPart}\n\n${currentTimeNote()}`;
+        if (preservePastNotes) userTailNotes.set(key, tail);
+      }
     }
     if (tail) {
       wire[i] = { ...wire[i], content: `${wire[i].content}${tail}` };
@@ -631,6 +637,7 @@ export async function measureTurn(
         stream: false,
         max_tokens: 1,
         messages: toLlamaMessages(turn.wire, input.model),
+        ...(!isRemote(input.model) ? { cache_prompt: true } : {}),
         ...(turn.nativeTools ? { tools: turn.definitions } : {}),
       }),
       signal: controller.signal,
@@ -879,6 +886,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             ...scopeToTarget(wire, model),
             { role: "user", content: repairPrompt(broken) },
           ],
+          ...(!isRemote(model) ? { cache_prompt: true } : {}),
         }),
         signal: abort,
       });
@@ -1152,6 +1160,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         stream_options: { include_usage: true },
         options: { num_ctx: numCtx, num_predict: -1 },
         messages: llamaMessages,
+        ...(!isRemote(model) ? { cache_prompt: true } : {}),
 
         // llama-server ignores `think`; the template option is what switches the reasoning on or off.
         ...(hasThinkingCapability

@@ -134,6 +134,7 @@ async function streamVoice(options: StreamOptions): Promise<void> {
       messages: options.messages,
       // A reasoning model otherwise spends the whole spoken budget thinking and says nothing at all.
       chat_template_kwargs: { enable_thinking: false },
+      ...(!isRemote(options.model) ? { cache_prompt: true } : {}),
     }),
     signal: options.signal,
   });
