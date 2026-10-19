@@ -88,6 +88,51 @@ describe("llamaProcess.startServer", () => {
     expect(options.cwd).toBe(llama);
   });
 
+  it("reloads the previous server configuration after stopServerSync", async () => {
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-llama-reload-"));
+    const health = http.createServer((_req, res) => res.end("ok"));
+    await new Promise((resolve) => health.listen(0, "127.0.0.1", resolve));
+    const port = health.address().port;
+    await new Promise((resolve) => health.close(resolve));
+
+    let spawnCount = 0;
+    vi.spyOn(platform, "spawnHidden").mockImplementation(() => {
+      spawnCount++;
+      if (!health.listening) health.listen(port, "127.0.0.1");
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.exitCode = null;
+      return child;
+    });
+    vi.spyOn(platform, "killTreeSync").mockImplementation(() => {
+      if (health.listening) health.close();
+    });
+
+    try {
+      const res1 = await llamaProcess.startServer({
+        binaryPath: "llama-server.exe",
+        modelPath: "test-model.gguf",
+        userDataDir: userData,
+        port,
+        log: quiet,
+      });
+      expect(res1.success).toBe(true);
+      expect(spawnCount).toBe(1);
+
+      llamaProcess.stopServerSync();
+      expect(llamaProcess.getServerStatus().running).toBe(false);
+
+      const res2 = await llamaProcess.reloadServer();
+      expect(res2.success).toBe(true);
+      expect(spawnCount).toBe(2);
+      expect(llamaProcess.getServerStatus().model).toBe("test-model.gguf");
+    } finally {
+      if (health.listening) await new Promise((resolve) => health.close(resolve));
+      fs.rmSync(userData, { recursive: true, force: true });
+    }
+  });
+
   /** A server already on a free port that lists `served` as its model, as llama-server does. */
   async function foreignServer(served) {
     const server = http.createServer((req, res) => {

@@ -95,17 +95,26 @@ function freePort() {
 }
 
 /** Where the job runs: the GPU, the GPU once the chat model steps aside, weights in RAM, or nowhere. */
-function planMemory({ needGB, freeVramGB = null, totalVramGB = 0, loadedLlmGB = 0, unified = false, freeRamGB = 0, runner = "" }) {
+function planMemory({ needGB, freeVramGB = null, totalVramGB = 0, loadedLlmGB = 0, unified = false, freeRamGB = 0, totalRamGB = 0, runner = "" }) {
   const need = Math.max(0.5, Number(needGB) || 0);
-  if (runner === "cpu" || unified) return freeRamGB >= need ? "gpu" : "fail";
+
+  if (runner === "cpu" || unified) {
+    const totalMem = totalRamGB > 0 ? totalRamGB : freeRamGB;
+    if (totalMem > 0 && totalMem < need) return "fail";
+    if (freeRamGB >= need) return "gpu";
+    if (loadedLlmGB > 0) return "unload-chat";
+    return totalRamGB >= need || freeRamGB >= need ? "gpu" : "fail";
+  }
+
+  const totalSystemMem = (totalVramGB > 0 ? totalVramGB : 0) + (totalRamGB > 0 ? totalRamGB : freeRamGB);
+  if (totalSystemMem > 0 && totalSystemMem < need) return "fail";
 
   const free = typeof freeVramGB === "number" ? freeVramGB : totalVramGB > 0 ? totalVramGB - loadedLlmGB - 0.5 : null;
   // Unknown VRAM: sd-server's own auto-fit measures it, so the job goes ahead.
   if (free === null) return "gpu";
   if (free >= need) return "gpu";
-  // Measured on an 8 GB card: 8 s of sampling with the chat model stopped, 230 s with weights held in RAM.
-  if (loadedLlmGB > 0 && free + loadedLlmGB >= need) return "unload-chat";
-  return freeRamGB >= need * 1.1 ? "offload" : "fail";
+  if (loadedLlmGB > 0) return "unload-chat";
+  return "offload";
 }
 
 /** Sizes the engine accepts: multiples of 64 inside its limits, with everything else kept in range. */
@@ -399,39 +408,53 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
         tookChatMemory = true;
       }
       const memory = info.memory ? await info.memory() : {};
-      plan = planMemory({ needGB: imageModels.memoryNeedGB(resolved), runner: info.runner, ...memory });
-      if (plan === "fail") throw new SdError("E_VRAM", "Not enough memory for this image model", { needGB: imageModels.memoryNeedGB(resolved).toFixed(1) });
+      const needGB = imageModels.memoryNeedGB(resolved);
+      plan = planMemory({ needGB, runner: info.runner, ...memory });
+      if (plan === "fail") throw new SdError("E_VRAM", "Not enough memory for this image model", { needGB: needGB.toFixed(1) });
       if (plan === "unload-chat") {
         (info.log || defaultLog).info("sd", "Stopping the chat model so the image model fits on the GPU");
         await info.freeChatModel?.();
-        plan = "gpu";
+        const totalVram = memory.totalVramGB || 0;
+        const freeAfter = (memory.freeVramGB || 0) + (memory.loadedLlmGB || 0);
+        plan = totalVram >= needGB || freeAfter >= needGB ? "gpu" : "offload";
         evicted = true;
         tookChatMemory = true;
       }
     }
 
-    for (let attempt = 0; ; attempt++) {
-      if (!child || loadedModelId !== resolved.entry.id) onProgress({ status: "loading-model" });
-      const caps = await ensure(info, resolved, plan);
-      // Set once the engine is up, since starting it clears the flag along with the old engine.
-      if (evicted) tookChatMemory = true;
-      if (record.cancelled) throw new SdError("E_CANCELLED", "Cancelled");
-      const clamped = clampRequest(requestBody, caps?.limits, resolved.entry.defaults);
-      onProgress({ status: "generating" });
-      crashedDuringJob = false;
-      try {
-        const tmpPath = await runJob(info, clamped, record, onProgress);
-        return { tmpPath, width: clamped.width, height: clamped.height, seed: clamped.seed, model: resolved.entry.id };
-      } catch (error) {
-        // A stop that had to end the engine looks like a crash from here, but it is the stop.
+    try {
+      for (let attempt = 0; ; attempt++) {
+        if (!child || loadedModelId !== resolved.entry.id) onProgress({ status: "loading-model" });
+        const caps = await ensure(info, resolved, plan);
+        // Set once the engine is up, since starting it clears the flag along with the old engine.
+        if (evicted) tookChatMemory = true;
         if (record.cancelled) throw new SdError("E_CANCELLED", "Cancelled");
-        const crashed = error.code === "E_CRASH" || crashedDuringJob;
-        if (crashed) noteStat("engineCrash");
-        if (crashed && attempt === 0) {
-          (info.log || defaultLog).warn("sd", "sd-server stopped during a job; restarting it once");
-          continue;
+        const clamped = clampRequest(requestBody, caps?.limits, resolved.entry.defaults);
+        onProgress({ status: "generating" });
+        crashedDuringJob = false;
+        try {
+          const tmpPath = await runJob(info, clamped, record, onProgress);
+          return { tmpPath, width: clamped.width, height: clamped.height, seed: clamped.seed, model: resolved.entry.id };
+        } catch (error) {
+          // A stop that had to end the engine looks like a crash from here, but it is the stop.
+          if (record.cancelled) throw new SdError("E_CANCELLED", "Cancelled");
+          const crashed = error.code === "E_CRASH" || crashedDuringJob;
+          if (crashed) noteStat("engineCrash");
+          if (crashed && attempt === 0) {
+            (info.log || defaultLog).warn("sd", "sd-server stopped during a job; restarting it once");
+            continue;
+          }
+          throw crashed ? new SdError("E_CRASH", "The image engine stopped during the job") : error;
         }
-        throw crashed ? new SdError("E_CRASH", "The image engine stopped during the job") : error;
+      }
+    } finally {
+      if (tookChatMemory && pending <= 1 && info.reloadChatModel) {
+        stopSync();
+        try {
+          await info.reloadChatModel();
+        } catch (err) {
+          defaultLog.swallow("sd", err, "reloading chat model after image generation");
+        }
       }
     }
   });
