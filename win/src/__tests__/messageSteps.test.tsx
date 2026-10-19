@@ -233,4 +233,79 @@ describe("a failed reply", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByText(/Loading model/)).toBeTruthy();
   });
+
+  it("does not show error alert on a successful earlier version when the latest attempt failed", () => {
+    const multiVersionMsg: Message = {
+      id: "a1",
+      role: "assistant",
+      content: "The model engine stopped while loading",
+      failed: true,
+      versions: [
+        {
+          content: "Hello! How can I help you today?",
+          textContent: "Hello! How can I help you today?",
+        },
+      ],
+      currentVersionIndex: 0,
+    };
+
+    render(
+      <MessageItem
+        msg={multiVersionMsg}
+        idx={1}
+        isGenerating={false}
+        isLast
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Hello! How can I help you today?")).toBeTruthy();
+    expect(screen.getByLabelText("Previous version")).toBeTruthy();
+    expect(screen.getByLabelText("Next version")).toBeTruthy();
+  });
+
+  it("shows version switcher on a failed attempt when earlier versions exist", () => {
+    const onSwitchVersion = vi.fn();
+    const multiVersionMsg: Message = {
+      id: "a1",
+      role: "assistant",
+      content: "The model engine stopped while loading",
+      failed: true,
+      versions: [
+        {
+          content: "Hello! How can I help you today?",
+          textContent: "Hello! How can I help you today?",
+        },
+      ],
+      currentVersionIndex: 1,
+    };
+
+    render(
+      <MessageItem
+        msg={multiVersionMsg}
+        idx={1}
+        isGenerating={false}
+        isLast
+        onRegenerate={() => {}}
+        onSwitchVersion={onSwitchVersion}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.getByText("The model engine stopped while loading")).toBeTruthy();
+    const prevBtn = screen.getByLabelText("Previous version");
+    expect(prevBtn).toBeTruthy();
+    fireEvent.click(prevBtn);
+    expect(onSwitchVersion).toHaveBeenCalledWith(1, 0);
+  });
 });
