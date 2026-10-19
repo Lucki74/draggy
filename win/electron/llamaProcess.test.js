@@ -607,7 +607,7 @@ describe("llamaProcess speed tuning", () => {
     expect(llamaProcess.batchSizes("cuda", 8, false)).toEqual({ batch: 2048, ubatch: 1024 });
     expect(llamaProcess.batchSizes("cuda", 8, true)).toEqual({ batch: 2048, ubatch: 2048 });
     expect(llamaProcess.batchSizes("vulkan", 12, false)).toEqual({ batch: 2048, ubatch: 512 });
-    expect(llamaProcess.batchSizes("metal", 36, true)).toEqual({ batch: 4096, ubatch: 2048 });
+    expect(llamaProcess.batchSizes("metal", 36, true)).toEqual({ batch: 2048, ubatch: 512 });
     expect(llamaProcess.batchSizes(undefined, 0, false)).toEqual({ batch: 2048, ubatch: 512 });
   });
 

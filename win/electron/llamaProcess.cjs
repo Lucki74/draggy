@@ -326,40 +326,9 @@ function engineFlags(binaryPath, env, cacheDir = null) {
  * buffer, so it is paid for with weights moved off the card rather than a failed load. */
 function batchSizes(runnerType, vramGB, moe) {
   let ubatch = 512;
-  let batch = 2048;
-
-  if (runnerType === "cuda") {
-    if (moe || vramGB >= 10) {
-      ubatch = 2048;
-      batch = vramGB >= 16 ? 4096 : 2048;
-    } else if (vramGB >= 6) {
-      ubatch = 1024;
-      batch = 2048;
-    }
-  } else if (runnerType === "rocm") {
-    if (moe || vramGB >= 16) {
-      ubatch = 2048;
-      batch = 4096;
-    } else if (vramGB >= 8) {
-      ubatch = 1024;
-      batch = 2048;
-    }
-  } else if (runnerType === "metal") {
-    if (vramGB >= 16) {
-      ubatch = moe || vramGB >= 32 ? 2048 : 1024;
-      batch = vramGB >= 32 ? 4096 : 2048;
-    } else if (vramGB >= 8) {
-      ubatch = 1024;
-      batch = 2048;
-    }
-  } else if (runnerType === "vulkan") {
-    if (vramGB >= 16) {
-      ubatch = 1024;
-      batch = 2048;
-    }
-  }
-
-  return { batch: Math.max(batch, ubatch), ubatch };
+  if (runnerType === "cuda") ubatch = moe || vramGB >= 10 ? 2048 : 1024;
+  else if (runnerType === "rocm" && vramGB >= 12) ubatch = 1024;
+  return { batch: Math.max(2048, ubatch), ubatch };
 }
 
 /** Headroom --fit reserves so the desktop, Electron and browser do not push
