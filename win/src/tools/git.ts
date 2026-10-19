@@ -66,7 +66,16 @@ const gitStatus: ToolSpec = {
   parameters: {},
   required: [],
   usage: "{} → branch and changed files",
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder && environment.hasGit),
   run: async (_args, ctx) => {
     const stepId = ctx.newId();
@@ -117,7 +126,16 @@ const gitDiff: ToolSpec = {
   },
   required: [],
   usage: '{"path": "src/App.tsx"} → the changes to that file',
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder && environment.hasGit),
   run: async (args, ctx) => {
     const target = typeof args.path === "string" && args.path.trim() ? args.path.trim() : "";

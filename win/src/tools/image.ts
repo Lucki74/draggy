@@ -35,7 +35,16 @@ const generateImage: ToolSpec = {
   },
   required: ["prompt"],
   usage: '{"prompt": "a watercolor fox in a snowy forest"} → saves a picture and says where',
-  annotations: {},
+  annotations: {
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.imageReady),
   run: async (args, ctx) => {
     const prompt = String(args.prompt).trim();

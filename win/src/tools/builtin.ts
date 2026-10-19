@@ -34,7 +34,16 @@ function normaliseQuery(query: string): string {
 
 const searchWeb: ToolSpec = {
   name: "search_web",
-  annotations: { readOnly: true, idempotent: true, openWorld: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "web",
   description:
     "Search the web and return a list of results with titles, URLs and snippets.",
@@ -144,7 +153,16 @@ Read the most relevant URL(s) with read_url when you need the full text. If you 
 
 const readUrl: ToolSpec = {
   name: "read_url",
-  annotations: { readOnly: true, idempotent: true, openWorld: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "web",
   description: "Read the readable text content of a web page.",
   parameters: {
@@ -217,7 +235,17 @@ const readUrl: ToolSpec = {
 
 const browserNavigate: ToolSpec = {
   name: "browser_navigate",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Open a URL in an interactive browser session that keeps its state between calls.",
@@ -259,7 +287,17 @@ const browserNavigate: ToolSpec = {
 const browserGetElements: ToolSpec = {
   name: "browser_get_elements",
   extended: true,
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description:
     "List the clickable elements, links and inputs on the current browser page with their index numbers.",
@@ -308,7 +346,17 @@ const pageContent = (text: string) => `<page_content>\n${text}\n</page_content>`
 
 const browserSnapshot: ToolSpec = {
   name: "browser_snapshot",
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description:
     "List the controls, links, headings and inputs on the current browser page with a ref (e1, e2...) for each. Refs stay valid until the next snapshot or a navigation.",
@@ -339,7 +387,17 @@ const browserSnapshot: ToolSpec = {
 
 const browserScreenshot: ToolSpec = {
   name: "browser_screenshot",
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description:
     "Look at the current browser page as an image. Use it when the snapshot does not explain the page, such as a chart, a canvas or a layout question.",
@@ -436,7 +494,17 @@ function pointArg(args: Record<string, unknown>, ref: string, x: string, y: stri
 
 const browserClick: ToolSpec = {
   name: "browser_click",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Click an element on the current browser page by its ref from browser_snapshot or its index from browser_get_elements. With browser actions on, you can also click a point in the last screenshot (x and y), use the right or middle button, double or triple click, and hold modifier keys.",
@@ -485,7 +553,17 @@ const browserClick: ToolSpec = {
 
 const browserType: ToolSpec = {
   name: "browser_type",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Type text into a field on the current browser page, by its ref from browser_snapshot or its index from browser_get_elements. The reply says what the field holds afterwards.",
@@ -532,7 +610,17 @@ const browserType: ToolSpec = {
 
 const browserPressKey: ToolSpec = {
   name: "browser_press_key",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Press a key in the browser session: Enter, Tab, Escape, Backspace, an arrow, Home, End, PageUp, PageDown, F1 to F12, a character, or a chord such as Control+A or Shift+Tab.",
@@ -557,7 +645,17 @@ const browserPressKey: ToolSpec = {
 const browserHover: ToolSpec = {
   name: "browser_hover",
   extended: true,
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description: "Move the pointer over an element or a point, to open a menu or tooltip that appears on hover.",
   parameters: {
@@ -579,7 +677,17 @@ const browserHover: ToolSpec = {
 const browserDrag: ToolSpec = {
   name: "browser_drag",
   extended: true,
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description: "Drag from one element or point to another, for sliders, sortable lists and drop zones.",
   parameters: {
@@ -617,7 +725,17 @@ function scrollWords(args: Record<string, unknown>, ctx: ToolContext): string {
 const browserScroll: ToolSpec = {
   name: "browser_scroll",
   extended: true,
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Scroll the page. dy is pixels down (negative goes up), dx is pixels right, to jumps to the top or bottom, and ref brings an element into view. The reply gives the position and the furthest it can go.",
@@ -643,7 +761,17 @@ const browserScroll: ToolSpec = {
 const browserSelectOption: ToolSpec = {
   name: "browser_select_option",
   extended: true,
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description: "Choose an option in a dropdown by its visible label or its value.",
   parameters: {
@@ -667,7 +795,17 @@ const browserSelectOption: ToolSpec = {
 const browserWait: ToolSpec = {
   name: "browser_wait",
   extended: true,
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description:
     "Wait for text to appear on the page, for the address to contain something, or for a short pause. Gives up after the timeout, at most 15 seconds.",
@@ -691,7 +829,17 @@ const browserWait: ToolSpec = {
 const browserHistory: ToolSpec = {
   name: "browser_history",
   extended: true,
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description: "Go back or forward one page in the browser's history, or reload the current page.",
   parameters: { action: { type: "string", description: "back, forward or reload." } },
@@ -707,7 +855,17 @@ const browserHistory: ToolSpec = {
 
 const browserTabs: ToolSpec = {
   name: "browser_tabs",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "List the browser's tabs, open a new one, switch to one or close one. A link that opens a new window arrives as a new tab. After switching, call browser_snapshot: refs belong to one tab.",
@@ -734,7 +892,17 @@ const browserTabs: ToolSpec = {
 const traceTool = (name: "browser_console" | "browser_network", kind: "console" | "network", description: string): ToolSpec => ({
   name,
   extended: true,
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description,
   parameters: {
@@ -764,7 +932,17 @@ const browserNetwork = traceTool("browser_network", "network", "Read the latest 
 
 const browserDialog: ToolSpec = {
   name: "browser_dialog",
-  annotations: { sandboxed: true, openWorld: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   group: "browser",
   description:
     "Answer an alert, confirm or prompt dialog the page has opened. Until it is answered the page is frozen and other browser tools fail. Accept leaves or agrees; dismiss cancels.",
@@ -786,7 +964,17 @@ const browserDialog: ToolSpec = {
 
 const browserGetText: ToolSpec = {
   name: "browser_get_text",
-  annotations: { readOnly: true, sandboxed: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+    sandboxed: true,
+  },
   group: "browser",
   description: "Read the text content of the current browser page, or of one part of it.",
   parameters: {
@@ -825,7 +1013,17 @@ const browserGetText: ToolSpec = {
 
 const browserClose: ToolSpec = {
   name: "browser_close",
-  annotations: { sandboxed: true, idempotent: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   group: "browser",
   description: "Close the interactive browser session.",
   parameters: {},
@@ -841,7 +1039,17 @@ const browserClose: ToolSpec = {
 
 const createFile: ToolSpec = {
   name: "create_file",
-  annotations: { sandboxed: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   group: "files",
   description: "Create a file for the user and save it to disk.",
   parameters: {
@@ -911,7 +1119,16 @@ const createFile: ToolSpec = {
 
 const searchLibrary: ToolSpec = {
   name: "search_library",
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   group: "library",
   description:
     "Search the user's own indexed documents and return the most relevant passages. Use this before searching the web whenever the question could be about the user's own files, notes or projects.",
@@ -998,7 +1215,17 @@ const RUN_CODE_TIMEOUT_MS = 20000;
 
 const runCode: ToolSpec = {
   name: "run_code",
-  annotations: { sandboxed: true },
+  annotations: {
+    sandboxed: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   group: "code",
   description:
     "Run a short Python or JavaScript program on this machine and return its output. Use it to check calculations and verify that code you wrote actually works before presenting it.",

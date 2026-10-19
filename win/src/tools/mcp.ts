@@ -66,12 +66,19 @@ function toParameter(schema: {
  * able to change and lose things. */
 export function toAnnotations(hints?: McpToolHints): ToolAnnotations {
   const readOnly = hints?.readOnlyHint === true;
+  const destructive = readOnly ? false : hints?.destructiveHint !== false;
+  const idempotent = hints?.idempotentHint === true;
+  const openWorld = hints?.openWorldHint !== false;
 
   return {
     readOnly,
-    destructive: readOnly ? false : hints?.destructiveHint !== false,
-    idempotent: hints?.idempotentHint === true,
-    openWorld: hints?.openWorldHint !== false,
+    readOnlyHint: readOnly,
+    destructive,
+    destructiveHint: destructive,
+    idempotent,
+    idempotentHint: idempotent,
+    openWorld,
+    openWorldHint: openWorld,
   };
 }
 

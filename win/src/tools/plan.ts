@@ -20,9 +20,16 @@ const updatePlan: ToolSpec = {
   required: ["steps"],
   usage:
     '{"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are',
-  // It changes the conversation, not the world, so it runs in every mode
-  // including plan mode, where writing the plan is the whole point.
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   // Plans are for work on a project; a chat answers instead.
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
