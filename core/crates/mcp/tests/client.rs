@@ -25,6 +25,13 @@ const SECRET_ARGUMENT: &str = "sk-argument-value-never-logged";
 /// The package the memory server runs. It is on disk, so no test here installs anything.
 const MEMORY_PACKAGE: &str = "@modelcontextprotocol/server-memory";
 
+fn memory_config() -> ServerConfig {
+    ServerConfig {
+        package: Some(MEMORY_PACKAGE.to_owned()),
+        ..Default::default()
+    }
+}
+
 /// Ports with the memory package installed and npm available.
 fn installed_ports() -> Ports {
     ports(FakeProvisioner::new(true, true, &[MEMORY_PACKAGE]))
@@ -72,7 +79,7 @@ fn a_crash_nobody_asked_about_is_logged_and_the_server_leaves_the_list() {
             installed_ports(),
         );
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
         assert_eq!(state.status, "ready", "{state:?}");
 
         // The exit arrives on its own, with no request pending. Let the reader task see it.
@@ -109,7 +116,7 @@ fn an_interface_past_the_size_limit_is_not_handed_over() {
             installed_ports(),
         );
         fake.begin_session();
-        servers.start("memory", &ServerConfig::default()).await;
+        servers.start("memory", &memory_config()).await;
 
         let outcome = servers
             .call_tool("memory", "board", json!({}), &CallOptions::default())
@@ -173,7 +180,7 @@ fn an_argument_never_reaches_the_log_in_any_form_but_its_short_hash() {
             installed_ports(),
         );
         fake.begin_session();
-        servers.start("memory", &ServerConfig::default()).await;
+        servers.start("memory", &memory_config()).await;
 
         let mut args = Map::new();
         args.insert("path".to_owned(), json!(SECRET_ARGUMENT));
@@ -208,7 +215,7 @@ fn a_session_that_answers_nothing_is_a_timeout_not_a_hang() {
         );
         fake.begin_session();
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(state.status, "error");
         assert!(
@@ -242,7 +249,7 @@ fn the_limits_come_in_as_parameters() {
         fake.begin_session();
 
         let started = tokio::time::Instant::now();
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(state.status, "error");
         assert_eq!(started.elapsed(), Duration::from_millis(250));
@@ -352,7 +359,7 @@ fn a_package_that_is_not_installed_is_installed_then_run_from_its_entry_point() 
         );
         fake.begin_session();
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(state.status, "ready", "{state:?}");
         let installs = provisioner
@@ -405,7 +412,7 @@ fn a_failed_install_is_logged_and_its_stderr_is_the_error() {
             ports(provisioner),
         );
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(state.status, "error");
         assert_eq!(
@@ -448,7 +455,7 @@ fn an_install_that_leaves_no_entry_point_says_so_and_starts_nothing() {
             ports(provisioner),
         );
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(
             state.error.as_deref(),
@@ -476,7 +483,7 @@ fn extensions_that_are_not_set_up_yet_are_refused_before_anything_else() {
             ports(FakeProvisioner::new(false, true, &[MEMORY_PACKAGE])),
         );
 
-        let state = servers.start("memory", &ServerConfig::default()).await;
+        let state = servers.start("memory", &memory_config()).await;
 
         assert_eq!(
             state.error.as_deref(),
@@ -531,10 +538,7 @@ fn a_process_error_during_a_call_fails_the_call_and_lists_the_server_as_failed()
         );
         fake.begin_session();
         assert_eq!(
-            servers
-                .start("memory", &ServerConfig::default())
-                .await
-                .status,
+            servers.start("memory", &memory_config()).await.status,
             "ready"
         );
 

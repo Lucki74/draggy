@@ -74,6 +74,19 @@ describe("fetching an icon", () => {
     expect(bytes).toEqual(PNG);
   });
 
+  it("aliases spotify.com to open.spotify.com", async () => {
+    const calls = [];
+    const bytes = await loadFavicon(dir, "spotify.com", {
+      fetch: async (url) => {
+        calls.push(url);
+        return reply(PNG);
+      },
+    });
+
+    expect(calls).toEqual(["https://open.spotify.com/favicon.ico"]);
+    expect(bytes).toEqual(PNG);
+  });
+
   it("falls back to the icon the page declares", async () => {
     const calls = [];
     const bytes = await loadFavicon(dir, "example.com", {

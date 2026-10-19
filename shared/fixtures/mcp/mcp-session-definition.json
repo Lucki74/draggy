@@ -5,18 +5,19 @@
     {
       "name": "a catalogue server is found by its id",
       "input": {
-        "id": "memory",
+        "id": "context7",
         "config": {}
       },
       "expected": {
         "definition": {
-          "id": "memory",
-          "name": "Memory",
-          "description": "A knowledge graph the model can write to and read back, so facts survive between conversations.",
-          "package": "@modelcontextprotocol/server-memory",
+          "id": "context7",
+          "name": "Context7 docs",
+          "description": "Up-to-date API documentation for thousands of libraries, fetched per question instead of recalled from training.",
+          "package": "@upstash/context7-mcp",
+          "site": "https://context7.com",
           "args": [],
           "env": [],
-          "docs": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
+          "docs": "https://www.npmjs.com/package/@upstash/context7-mcp"
         },
         "remote": false,
         "missing": []

@@ -294,14 +294,14 @@ describe("searching the catalogue", () => {
 
 describe("knowing when a server can start", () => {
   const github = catalogue.findEntry("github");
-  const memory = catalogue.findEntry("memory");
+  const context7 = catalogue.findEntry("context7");
   const listServer = {
     id: "test-roots",
     arguments: [{ key: "roots", multiple: true, required: true }],
   };
 
   it("says nothing is missing for a server that needs nothing", () => {
-    expect(catalogue.missingRequirements(memory, {})).toEqual([]);
+    expect(catalogue.missingRequirements(context7, {})).toEqual([]);
   });
 
   it("names the credential that has not been entered", () => {
@@ -350,7 +350,7 @@ describe("building the command line", () => {
   it("passes only the server's own arguments", () => {
     // The package is installed separately and its entry point run directly, so
     // neither npx nor the package name belongs on this command line.
-    const spec = catalogue.commandFor(catalogue.findEntry("memory"), {});
+    const spec = catalogue.commandFor(catalogue.findEntry("context7"), {});
     expect(spec.args).toEqual([]);
   });
 

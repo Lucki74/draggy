@@ -103,12 +103,17 @@ async function declaredIconUrls(origin, deps) {
   }
 }
 
+const HOST_ALIASES = {
+  "spotify.com": "open.spotify.com",
+};
+
 /** The icon bytes for a host, from disk when asked before. A host with none is remembered as an
  * empty file, so ten results do not re-ask a dead endpoint. */
 async function loadFavicon(cacheDir, hostname, deps = { fetch }) {
   if (!isValidHostname(hostname)) return null;
 
-  const cached = path.join(cacheDir, `${hostname}.icon`);
+  const targetHost = HOST_ALIASES[hostname] || hostname;
+  const cached = path.join(cacheDir, `${targetHost}.icon`);
 
   try {
     if (fs.existsSync(cached)) {
@@ -119,7 +124,7 @@ async function loadFavicon(cacheDir, hostname, deps = { fetch }) {
     log.swallow("net.favicon", error, "fall through and fetch");
   }
 
-  const origin = `https://${hostname}`;
+  const origin = `https://${targetHost}`;
   let bytes = await fetchIcon(`${origin}/favicon.ico`, deps);
 
   if (!bytes) {

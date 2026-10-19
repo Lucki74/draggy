@@ -108,15 +108,13 @@ fn links_every_service_it_names_over_https() {
 }
 
 #[test]
-fn gives_every_server_except_memory_a_website() {
+fn gives_every_server_a_website() {
     for entry in catalogue() {
-        if entry.id != "memory" {
-            assert!(
-                entry.site.as_deref().is_some_and(|site| !site.is_empty()),
-                "{} has no website",
-                entry.id
-            );
-        }
+        assert!(
+            entry.site.as_deref().is_some_and(|site| !site.is_empty()),
+            "{} has no website",
+            entry.id
+        );
     }
 }
 
