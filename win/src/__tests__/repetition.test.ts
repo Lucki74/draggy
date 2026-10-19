@@ -139,4 +139,71 @@ describe("detectRepetition", () => {
     const short = "hello world";
     expect(detectRepetition(short)).toEqual({ hasLoop: false, trimmedText: short });
   });
+
+  describe("ascii and unicode diagrams", () => {
+    it("does not stop a unicode box drawing diagram while being streamed prefix-by-prefix", () => {
+      const text = [
+        "1.6 ASCII Architecture Diagram — Recommended Approach: Confluent Cloud",
+        "```",
+        "┌──────────────────────────────────────────────────────────┐",
+        "│                     Client Application                   │",
+        "└───────────────────────────┬──────────────────────────────┘",
+        "                            │                               ",
+        "                            ▼                               ",
+        "┌──────────────────────────────────────────────────────────┐",
+        "│                      Kafka Cluster                       │",
+        "└──────────────────────────────────────────────────────────┘",
+        "```",
+      ].join("\n");
+
+      for (let i = 1; i <= text.length; i++) {
+        const slice = text.slice(0, i);
+        const res = detectRepetition(slice);
+        expect(res.hasLoop).toBe(false);
+      }
+    });
+
+    it("does not stop a standard ascii diagram with +, -, | streamed prefix-by-prefix", () => {
+      const text = [
+        "Architecture Diagram:",
+        "+----------------------------------------------------------+",
+        "|                     Client Application                   |",
+        "|                                                          |",
+        "|                                                          |",
+        "+---------------------------+------------------------------+",
+        "                            |                               ",
+        "                            v                               ",
+        "+----------------------------------------------------------+",
+        "|                      Kafka Cluster                       |",
+        "+----------------------------------------------------------+",
+      ].join("\n");
+
+      for (let i = 1; i <= text.length; i++) {
+        const slice = text.slice(0, i);
+        const res = detectRepetition(slice);
+        expect(res.hasLoop).toBe(false);
+      }
+    });
+
+    it("does not trip on repeating structural grid/box blocks", () => {
+      const text = [
+        "┌───────┬───────┐",
+        "│       │       │",
+        "├───────┼───────┤",
+        "│       │       │",
+        "├───────┼───────┤",
+        "│       │       │",
+        "├───────┼───────┤",
+        "│       │       │",
+        "└───────┴───────┘",
+      ].join("\n");
+
+      expect(detectRepetition(text).hasLoop).toBe(false);
+    });
+
+    it("still stops a diagram box line whose non-structural label repeats infinitely", () => {
+      const text = `┌───\n│ ${"Looping Label │ ".repeat(25)}`;
+      expect(detectRepetition(text).hasLoop).toBe(true);
+    });
+  });
 });

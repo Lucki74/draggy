@@ -7,9 +7,9 @@ export interface RepetitionResult {
 }
 
 const REDACTED_MARKER = /==\s*\[REDACTED\]\s*==/gi;
-// Whitespace is allowed so a spaced separator such as `| :--- | :--- |` counts as structure, not as a loop.
-const REPEATED_CHAR_LINE = /^[\s\-=~*#_`|/\\.,;:{}()[\]<>]+$/;
-// A comparison table repeats its cells legitimately, so a row must repeat far more before it is a loop.
+// Whitespace is allowed so a spaced separator such as `| :--- | :--- |` or an ASCII/Unicode box diagram counts as structure, not as a loop.
+const REPEATED_CHAR_LINE = /^[\s\-=~*#_`|/\\.,;:{}()[\]<>+\u2500-\u257F\u2580-\u259F\u25A0-\u25FF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2B00-\u2BFF]+$/;
+// A comparison table or diagram repeats its cells/dividers legitimately, so a row must repeat far more before it is a loop.
 const TABLE_ROW_MIN_REPEATS = 20;
 
 /** Scans the end of a stream for degenerate repetition and returns the cleaned text. */
@@ -69,7 +69,12 @@ export function detectRepetition(text: string): RepetitionResult {
       // Multi-line block repetition loops (e.g. repeated question/answer or table rows).
       for (const blockSize of [2, 3]) {
         if (endIdx + 1 >= blockSize * 3) {
-          const block = lines.slice(endIdx - blockSize + 1, endIdx + 1).map((l) => l.trim()).join("\n");
+          const rawBlockLines = lines.slice(endIdx - blockSize + 1, endIdx + 1);
+          // If every line in the block is structural (e.g. alternating diagram borders/spacers), it is not a runaway loop.
+          if (rawBlockLines.every((l) => REPEATED_CHAR_LINE.test(l.trim()))) {
+            continue;
+          }
+          const block = rawBlockLines.map((l) => l.trim()).join("\n");
           if (block.length >= 8) {
             let blockCount = 1;
             let checkIdx = endIdx - blockSize;
@@ -101,7 +106,12 @@ export function detectRepetition(text: string): RepetitionResult {
   // Trailing phrase repetition loop within the most recent window.
   const windowSize = Math.min(text.length, 1000);
   const tail = text.slice(-windowSize);
-  const minRepeats = text.slice(text.lastIndexOf("\n") + 1).trimStart().startsWith("|") ? TABLE_ROW_MIN_REPEATS : 3;
+  const lastLine = text.slice(text.lastIndexOf("\n") + 1).trimStart();
+  const isTableOrDiagram =
+    lastLine.startsWith("|") ||
+    lastLine.startsWith("+") ||
+    /^[\u2500-\u257F\u2580-\u259F]/.test(lastLine);
+  const minRepeats = isTableOrDiagram ? TABLE_ROW_MIN_REPEATS : 3;
 
   for (let len = 4; len <= 120; len++) {
     if (tail.length < len * minRepeats) break;
