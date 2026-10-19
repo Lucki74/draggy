@@ -102,7 +102,7 @@ export function AssistantTurn({
   t,
 }: AssistantTurnProps) {
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
-  const isFailed = Boolean(displayMsg.failed ?? msg.failed) && !isGenerating;
+  const isFailed = Boolean(displayMsg.failed) && !isGenerating;
   const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
@@ -358,7 +358,7 @@ export function AssistantTurn({
         </div>
       )}
 
-      {!isFailed && (
+      {(!isFailed || totalVersions > 1) && (
         <TurnActions
           idx={idx}
           text={text}
