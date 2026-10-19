@@ -37,7 +37,7 @@ interface StartupScreenProps {
 /** Steps that move bytes over the network rather than work on this machine. */
 const NETWORK_STEPS = new Set(["preparingDownload", "downloadingModel"]);
 
-/** The splash: the dragon in ink with an ember arc circling it while the engine loads, one line saying
+/** The splash: the dragon in ink with a subtle ring while the engine loads, one line saying
  * what is happening, and a line under it that only fills when the work reports how far it is. */
 export default function StartupScreen({ modelName, language, onReady, onUseProvider }: StartupScreenProps) {
   const t = useCallback(

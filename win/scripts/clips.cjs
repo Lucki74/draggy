@@ -18,7 +18,7 @@ const appWindow = () =>
   });
 
 const OUT = path.resolve(
-  process.env.DRAGGY_CLIPS_OUT || path.join(__dirname, "..", "..", "draggy-website", "assets", "clips"),
+  process.env.DRAGGY_CLIPS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "clips"),
 );
 const ONLY = (process.env.DRAGGY_CLIPS_ONLY || "").split(",").filter(Boolean);
 const WIDTH = 1280;
@@ -224,7 +224,7 @@ class Recorder {
   // Encodes the frames into mp4 and webm. Fast frames are shown for 1/SPEED of the time they took, and
   // runs of them are merged so that no frame is shown for less than a fifteenth of a second.
   async encode(clip, tone) {
-    const ffmpeg = require(path.join(__dirname, "..", "..", "draggy-website", "node_modules", "ffmpeg-static"));
+    const ffmpeg = require(path.join(__dirname, "..", "..", "..", "draggy-website", "node_modules", "ffmpeg-static"));
     const kept = [];
     let owed = 0;
     for (const f of this.frames) {
@@ -589,3 +589,4 @@ run()
     if (w && DUMP) fs.writeFileSync(path.join(DUMP, "clips-fail.png"), (await w.webContents.capturePage()).toPNG());
     app.exit(1);
   });
+
