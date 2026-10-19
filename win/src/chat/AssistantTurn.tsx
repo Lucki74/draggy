@@ -105,7 +105,11 @@ export function AssistantTurn({
   const isFailed = Boolean(displayMsg.failed) && !isGenerating;
   const errorMessage = displayMsg.error || (isFailed ? text : "");
   const hasGeneratedText = isFailed
-    ? Boolean(displayMsg.error && text.trim())
+    ? Boolean(
+        displayMsg.error &&
+          text.trim() &&
+          text.trim() !== displayMsg.error.trim(),
+      )
     : Boolean(text.trim());
   const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.

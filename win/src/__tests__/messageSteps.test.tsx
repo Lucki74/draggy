@@ -365,4 +365,34 @@ describe("a failed reply", () => {
     expect(screen.getByLabelText("Copy reply")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
   });
+
+  it("does not render the error as ai text when no text was generated", () => {
+    const noTextFailureMsg: Message = {
+      id: "a1",
+      role: "assistant",
+      content: "The model engine stopped while loading",
+      failed: true,
+      error: "The model engine stopped while loading",
+    };
+
+    render(
+      <MessageItem
+        msg={noTextFailureMsg}
+        idx={1}
+        isGenerating={false}
+        isLast
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toBeTruthy();
+    const matches = screen.getAllByText("The model engine stopped while loading");
+    expect(matches).toHaveLength(1);
+    expect(screen.getByRole("alert").contains(matches[0])).toBe(true);
+  });
 });
