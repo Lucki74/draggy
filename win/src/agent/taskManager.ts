@@ -333,6 +333,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             steps: lastMsg.steps,
             metrics: lastMsg.metrics,
             provider_state: lastMsg.provider_state,
+            failed: lastMsg.failed,
           };
           lastMsg.versions = [...(lastMsg.versions || []), oldVersion];
           lastMsg.currentVersionIndex = lastMsg.versions.length;
@@ -343,6 +344,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           lastMsg.steps = [];
           lastMsg.metrics = null;
           delete lastMsg.provider_state;
+          delete lastMsg.failed;
           msgs[lastIdx] = lastMsg;
         } else {
           logRendererEvent("renderer.agent", "WARN", "retry target not an assistant message", { role: lastMsg.role ?? "missing" });
@@ -553,18 +555,25 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
         logRendererError("chat", "turn failed", err, { chatId, model, shown: "failed assistant message" }, correlationId);
-        host.updateSession(chatId, (s) => ({
-          ...s,
-          messages: [
-            ...s.messages.slice(0, -1),
-            {
-              id: generateId(),
-              role: "assistant",
-              content: err.message || "Error generating response.",
-              failed: true,
-            },
-          ],
-        }));
+        host.updateSession(chatId, (s) => {
+          const last = s.messages[s.messages.length - 1];
+          return {
+            ...s,
+            messages: [
+              ...s.messages.slice(0, -1),
+              {
+                id: last?.id ?? generateId(),
+                role: "assistant",
+                content: err.message || "Error generating response.",
+                failed: true,
+                ...(last?.versions ? { versions: last.versions } : {}),
+                ...(last?.currentVersionIndex !== undefined
+                  ? { currentVersionIndex: last.currentVersionIndex }
+                  : {}),
+              },
+            ],
+          };
+        });
       }
     } finally {
       if (runs.get(chatId) === controller) {

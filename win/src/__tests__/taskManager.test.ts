@@ -235,6 +235,55 @@ describe("the task manager", () => {
     expect(messages[1].content).toBe("");
   });
 
+  it("clears failed status when regenerating a failed reply, saving failed on the old version", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "The model engine stopped", failed: true },
+      ],
+    });
+
+    manager.regenerate("chat-1");
+
+    const messages = sessions.get("chat-1")?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[1].versions?.[0]?.content).toBe("The model engine stopped");
+    expect(messages[1].versions?.[0]?.failed).toBe(true);
+    expect(messages[1].failed).toBeUndefined();
+    expect(messages[1].content).toBe("");
+  });
+
+  it("preserves message versions when a retry attempt fails", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "first error", failed: true },
+      ],
+    });
+
+    manager.regenerate("chat-1");
+    pending.at(-1)?.reject(new Error("second error"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+
+    const messages = sessions.get("chat-1")?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[1].failed).toBe(true);
+    expect(messages[1].content).toBe("second error");
+    expect(messages[1].versions).toHaveLength(1);
+    expect(messages[1].versions?.[0]?.content).toBe("first error");
+    expect(messages[1].versions?.[0]?.failed).toBe(true);
+  });
+
   it("reads the newest host after it is reconfigured", () => {
     const first = createHost();
     const manager = createTaskManager(first.host);

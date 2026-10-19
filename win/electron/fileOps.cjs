@@ -214,8 +214,76 @@ function create({ roots, storage, checkpoints, trash }) {
     const needle = String(find ?? "");
     if (!needle) return failed("Nothing was given to replace.");
 
-    const parts = current.text.split(needle);
-    const occurrences = parts.length - 1;
+    const wanted = Number(expected) || 1;
+    let parts = current.text.split(needle);
+    let occurrences = parts.length - 1;
+    let next;
+
+    if (occurrences === wanted) {
+      next = parts.join(String(replace ?? ""));
+    } else if (occurrences === 0) {
+      const hasCrlf = current.text.includes("\r\n");
+      const normText = current.text.replace(/\r\n/g, "\n");
+      const normNeedle = needle.replace(/\r\n/g, "\n");
+      const normReplace = String(replace ?? "").replace(/\r\n/g, "\n");
+
+      const normParts = normText.split(normNeedle);
+      const normOccurrences = normParts.length - 1;
+
+      if (normOccurrences === wanted) {
+        const joined = normParts.join(normReplace);
+        next = hasCrlf ? joined.replace(/\n/g, "\r\n") : joined;
+        occurrences = normOccurrences;
+      } else if (normOccurrences === 0) {
+        const fileLines = normText.split("\n");
+        const needleLines = normNeedle.split("\n");
+        const trimmedNeedle = needleLines.map((l) => l.trimEnd());
+
+        let matches = [];
+        if (needleLines.length > 0 && fileLines.length >= needleLines.length) {
+          for (let i = 0; i <= fileLines.length - needleLines.length; i++) {
+            let lineMatch = true;
+            for (let j = 0; j < needleLines.length; j++) {
+              if (fileLines[i + j].trimEnd() !== trimmedNeedle[j]) {
+                lineMatch = false;
+                break;
+              }
+            }
+            if (lineMatch) matches.push(i);
+          }
+        }
+
+        if (matches.length === 0 && trimmedNeedle.some((l) => l.trim().length > 0)) {
+          const fullyTrimmedNeedle = needleLines.map((l) => l.trim());
+          if (needleLines.length > 0 && fileLines.length >= needleLines.length) {
+            for (let i = 0; i <= fileLines.length - needleLines.length; i++) {
+              let lineMatch = true;
+              for (let j = 0; j < needleLines.length; j++) {
+                if (fileLines[i + j].trim() !== fullyTrimmedNeedle[j]) {
+                  lineMatch = false;
+                  break;
+                }
+              }
+              if (lineMatch) matches.push(i);
+            }
+          }
+        }
+
+        if (matches.length === wanted) {
+          const replaceLines = normReplace.split("\n");
+          for (let m = matches.length - 1; m >= 0; m--) {
+            fileLines.splice(matches[m], needleLines.length, ...replaceLines);
+          }
+          const joined = fileLines.join("\n");
+          next = hasCrlf ? joined.replace(/\n/g, "\r\n") : joined;
+          occurrences = matches.length;
+        } else if (matches.length > 0) {
+          occurrences = matches.length;
+        }
+      } else {
+        occurrences = normOccurrences;
+      }
+    }
 
     if (occurrences === 0) {
       return failed(
@@ -223,14 +291,12 @@ function create({ roots, storage, checkpoints, trash }) {
       );
     }
 
-    const wanted = Number(expected) || 1;
     if (occurrences !== wanted) {
       return failed(
         `That text appears ${occurrences} times, not ${wanted}. Include more of the surrounding lines so it matches once, or say how many to replace.`,
       );
     }
 
-    const next = parts.join(String(replace ?? ""));
     const beforeHash = checkpoints.keep(current.text);
 
     fs.writeFileSync(resolved.path, next, "utf8");

@@ -176,3 +176,61 @@ describe("an edited file step", () => {
     expect(onOpenDiff).toHaveBeenCalledWith("/project/format.ts");
   });
 });
+
+describe("a failed reply", () => {
+  const failedMsg: Message = {
+    id: "a1",
+    role: "assistant",
+    content: "The model engine stopped while loading",
+    failed: true,
+  };
+
+  it("shows the error alert and retry button when not generating", () => {
+    const onRegenerate = vi.fn();
+    render(
+      <MessageItem
+        msg={failedMsg}
+        idx={1}
+        isGenerating={false}
+        isLast
+        onRegenerate={onRegenerate}
+        onSwitchVersion={() => {}}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.getByText("The model engine stopped while loading")).toBeTruthy();
+    const retryBtn = screen.getByRole("button", { name: "Retry" });
+    expect(retryBtn).toBeTruthy();
+    fireEvent.click(retryBtn);
+    expect(onRegenerate).toHaveBeenCalledWith(1);
+  });
+
+  it("hides the error alert while generating a retry", () => {
+    render(
+      <MessageItem
+        msg={{
+          ...failedMsg,
+          content: "",
+          steps: [{ id: "s1", type: "loading", content: "Loading model 0.6s...", isComplete: false }],
+        }}
+        idx={1}
+        isGenerating={true}
+        isLast
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+        copiedIndex={null}
+        copyToClipboard={() => {}}
+        settings={{ ...defaultSettings, showMetrics: false }}
+        onEditMessage={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(/Loading model/)).toBeTruthy();
+  });
+});
