@@ -564,6 +564,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           const steps = last?.steps
             ?.filter((step) => step.isComplete || step.type !== "loading")
             .map((step) => (step.isComplete ? step : { ...step, isComplete: true }));
+          const hasSteps = Boolean(steps && steps.length > 0);
 
           return {
             ...s,
@@ -576,7 +577,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
                 textContent: hasGeneratedText ? last?.textContent : undefined,
                 thinkingContent: last?.thinkingContent,
                 thoughtTime: last?.thoughtTime,
-                steps,
+                ...(hasSteps ? { steps } : {}),
                 failed: true,
                 error: errorMessage,
                 ...(last?.versions ? { versions: last.versions } : {}),
