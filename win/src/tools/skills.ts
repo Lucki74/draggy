@@ -23,9 +23,16 @@ const useSkill: ToolSpec = {
   },
   required: ["id"],
   usage: '{"id": "invoices"} → the instructions that skill holds',
-  // Reading instructions changes nothing, so it runs in every mode including plan mode, where
-  // knowing the rules is what planning needs.
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasSkills),
   run: async (args, ctx) => {
     const id = String(args.id);

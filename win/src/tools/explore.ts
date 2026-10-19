@@ -22,7 +22,16 @@ const exploreTool: ToolSpec = {
   required: ["question"],
   usage:
     '{"question": "Where is the permission engine called from?"} → a short answer with the files it is in',
-  annotations: { readOnly: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   // Only where there is something to explore, and never from inside an
   // exploration: one level is a search, two is a maze.
   available: (environment) =>

@@ -18,6 +18,12 @@ export interface ToolAnnotations {
   /** Runs a command on the user's computer, which can do anything the user can. Asked about in
    * every mode but auto, unless each command in it was allowed before. */
   executes?: boolean;
+
+  /** Explicit hints matching MCP and directory requirements. */
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
 }
 
 /** Something the user has already agreed to. A grant with no target covers every call of that tool;
@@ -83,10 +89,12 @@ export function addGrant(grants: Grant[], grant: Grant): Grant[] {
 
 export function decide(query: PermissionQuery): Verdict {
   const { mode, tool, annotations = {}, target = null, grants = [] } = query;
+  const isReadOnly = annotations.readOnlyHint ?? annotations.readOnly;
+  const isDestructive = annotations.destructiveHint ?? annotations.destructive;
 
   // Reading is allowed everywhere, plan mode included: looking at the project
   // is exactly what plan mode is for.
-  if (annotations.readOnly) {
+  if (isReadOnly) {
     return { decision: "allow", reason: "This tool only reads." };
   }
 
@@ -120,7 +128,7 @@ export function decide(query: PermissionQuery): Verdict {
 
   // Writing a file Draggy made, running code in the scratch directory, driving
   // the embedded browser: nothing here is the user's to lose.
-  if (annotations.sandboxed && !annotations.destructive) {
+  if (annotations.sandboxed && !isDestructive) {
     return {
       decision: "allow",
       reason: "This stays inside Draggy's own storage.",
@@ -131,7 +139,7 @@ export function decide(query: PermissionQuery): Verdict {
     return { decision: "allow", reason: "The user has already allowed this." };
   }
 
-  if (mode === "acceptEdits" && !annotations.destructive) {
+  if (mode === "acceptEdits" && !isDestructive) {
     return {
       decision: "allow",
       reason: "Edits are accepted in this workspace.",
@@ -140,7 +148,7 @@ export function decide(query: PermissionQuery): Verdict {
 
   return {
     decision: "ask",
-    reason: annotations.destructive
+    reason: isDestructive
       ? "This can lose work, so the user is asked first."
       : "This changes something outside Draggy, so the user is asked first.",
   };

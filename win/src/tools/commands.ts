@@ -26,7 +26,17 @@ const runCommand: ToolSpec = {
   },
   required: ["command"],
   usage: '{"command": "npm test"} → runs the tests in the project and returns what they printed',
-  annotations: { executes: true, openWorld: true },
+  annotations: {
+    executes: true,
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: true,
+    destructiveHint: true,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: true,
+    openWorldHint: true,
+  },
   available: (environment) =>
     Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
   run: async (args, ctx) => {

@@ -160,7 +160,7 @@ export function availableTools(environment: ToolEnvironment): ToolSpec[] {
   return allTools().filter((spec) => {
     // A read-only run gets the tools that say so and nothing else: an annotation missing is treated
     // as "not safe", which is the cautious way round.
-    if (environment.readOnlyTools && !spec.annotations?.readOnly) return false;
+    if (environment.readOnlyTools && !(spec.annotations?.readOnlyHint ?? spec.annotations?.readOnly)) return false;
     if (environment.allowedGroups && !environment.allowedGroups.includes(spec.group)) return false;
     if (environment.compactTools && spec.extended) return false;
 

@@ -56,7 +56,16 @@ const readFile: ToolSpec = {
   },
   required: ["path"],
   usage: '{"path": "src/App.tsx"} → the text of the file',
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
@@ -105,7 +114,16 @@ const listDirectory: ToolSpec = {
   },
   required: [],
   usage: '{"path": "src"} → the files and folders in it',
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path || ".");
@@ -162,7 +180,16 @@ const searchFiles: ToolSpec = {
   },
   required: [],
   usage: '{"text": "createTaskManager"} → the files and lines it appears on',
-  annotations: { readOnly: true, idempotent: true },
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const name = args.name ? String(args.name) : "";
@@ -224,7 +251,16 @@ const editFile: ToolSpec = {
   required: ["path", "find", "replace"],
   usage:
     '{"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place',
-  annotations: {},
+  annotations: {
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
@@ -284,7 +320,16 @@ const writeFile: ToolSpec = {
   },
   required: ["path", "content"],
   usage: '{"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file',
-  annotations: {},
+  annotations: {
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
@@ -348,7 +393,16 @@ const moveFile: ToolSpec = {
   },
   required: ["from", "to"],
   usage: '{"from": "notes.md", "to": "docs/notes.md"} → moves the file',
-  annotations: { destructive: true },
+  annotations: {
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: true,
+    destructiveHint: true,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const from = String(args.from);
@@ -393,7 +447,16 @@ const deleteFile: ToolSpec = {
   },
   required: ["path"],
   usage: '{"path": "old-notes.md"} → moves the file to the recycle bin',
-  annotations: { destructive: true },
+  annotations: {
+    readOnly: false,
+    readOnlyHint: false,
+    destructive: true,
+    destructiveHint: true,
+    idempotent: false,
+    idempotentHint: false,
+    openWorld: false,
+    openWorldHint: false,
+  },
   available: (environment) => Boolean(environment.hasFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
