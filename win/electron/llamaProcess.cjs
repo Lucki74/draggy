@@ -238,11 +238,12 @@ function modelTraits(modelPath) {
     const kvBytesQ8 = blockCount && headCountKv && keyLength && valueLength
       ? Math.ceil(blockCount * headCountKv * (keyLength + valueLength) * (34 / 32))
       : null;
+    const base = path.basename(modelPath);
     traitsCache.set(key, {
-      moe: (header?.expertCount || 0) > 1,
+      moe: (header?.expertCount || 0) > 1 || /(?:^|[._-])(?:moe|a\d+b)(?:[._-]|$)/i.test(base),
       trainedContext: header?.contextLength || null,
       kvBytesQ8,
-      mtp: Boolean(header?.mtp || /(?:^|[._-])mtp(?:[._-]|$)/i.test(path.basename(modelPath))),
+      mtp: Boolean(header?.mtp || /(?:^|[._-])mtp(?:[._-]|$)/i.test(base)),
     });
   }
   return traitsCache.get(key);
