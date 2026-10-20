@@ -9,6 +9,9 @@
         "size": null
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Type": "application/octet-stream"
@@ -21,6 +24,9 @@
         "size": 12
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Length": "12",
@@ -34,6 +40,9 @@
         "size": 0
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Length": "0",
@@ -47,6 +56,9 @@
         "size": 5
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Length": "5",
@@ -60,6 +72,9 @@
         "size": "NaN"
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Type": "application/octet-stream"
@@ -72,6 +87,9 @@
         "size": 4920733696
       },
       "expected": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
         "Content-Length": "4920733696",
