@@ -705,8 +705,15 @@ async function run() {
     await sleep(2500);
     // The first visit loads the voice model; the screen worth shooting is the one after it.
     await waitFor(
-      () => inPage(win, () => !/Loading voice model|Downloading/.test(document.body.innerText)),
-      { timeout: 180_000, every: 1000, label: "Talk to finish loading" },
+      () =>
+        inPage(win, () => {
+          const body = document.body.innerText;
+          const loading = /Loading voice model|Downloading|Preparing/.test(body);
+          const hasError = /Failed to fetch|failed|Retry/i.test(body);
+          const hasControls = Boolean(document.querySelector("footer button"));
+          return !loading && !hasError && hasControls;
+        }),
+      { timeout: 180_000, every: 1000, label: "Talk to finish loading and become live" },
     );
     await sleep(2500);
     await shoot(win, "app-talk");

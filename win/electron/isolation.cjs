@@ -8,6 +8,9 @@ const DOCUMENT_HEADERS = {
 
 /** Files the isolated page fetches from another of the app's own schemes (models, widgets, assets). */
 const RESOURCE_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
   "Cross-Origin-Resource-Policy": "cross-origin",
   "Cross-Origin-Embedder-Policy": "credentialless",
 };

@@ -153,7 +153,7 @@ export async function transcribeSamples(
 
   if (samples.length < MIN_SAMPLES) return "";
 
-  await prepareSpeech(settings.onProgress);
+  await prepareSpeech(settings.onProgress, settings.language);
 
   return new Promise<string>((resolve, reject) => {
     const id = nextId++;
@@ -235,7 +235,7 @@ export async function decodeToMono(blob: Blob): Promise<Float32Array> {
 
 export async function transcribe(
   blob: Blob,
-  onProgress?: (progress: SpeechProgress) => void,
+  options?: TranscribeOptions | ((progress: SpeechProgress) => void),
 ): Promise<string> {
-  return transcribeSamples(await decodeToMono(blob), { onProgress });
+  return transcribeSamples(await decodeToMono(blob), options);
 }
