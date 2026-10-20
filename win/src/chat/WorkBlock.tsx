@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Button, EmberCaret, Icon, Spark, type IconName } from "../ui";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
@@ -203,6 +203,16 @@ function FileCard({
 
   const lineCount = content ? content.split("\n").length : 0;
 
+  const CodeWithCaret = useCallback(
+    ({ children, ...props }: React.HTMLProps<HTMLElement>) => (
+      <code {...props}>
+        {children}
+        {writing && <EmberCaret className="ms-0.5 inline-block align-middle" />}
+      </code>
+    ),
+    [writing],
+  );
+
   return (
     <div className="mb-4 border border-rule rounded-md overflow-hidden bg-surface-base w-full">
       <div className="flex items-center justify-between gap-3 h-11 ps-3 pe-2 border-b border-rule">
@@ -299,19 +309,15 @@ function FileCard({
               }}
               wrapLines
               wrapLongLines
+              CodeTag={CodeWithCaret}
             >
               {shown}
             </SyntaxHighlighter>
-            {writing && (
-              <span className="absolute bottom-4 end-4 pointer-events-none">
-                <EmberCaret />
-              </span>
-            )}
           </div>
         ) : (
           <pre className="m-0 p-4 font-mono text-[13px] leading-5 text-text-primary whitespace-pre-wrap break-words">
             {shown}
-            {writing && <EmberCaret />}
+            {writing && <EmberCaret className="ms-0.5 inline-block align-middle" />}
           </pre>
         )}
       </div>

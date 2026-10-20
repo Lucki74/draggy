@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { SYNTAX_THEME } from "./syntaxTheme";
@@ -10,7 +10,7 @@ import {
 import { isCodeFile, prismLanguageOf } from "../canvas/drafts";
 import { isHtmlContent, sanitizeHtml } from "./htmlPreview";
 import { rehypeCaret } from "./streamReveal";
-import { EmberCaret } from "../ui";
+import { EmberCaret, Icon } from "../ui";
 
 const LINE_HEIGHT = 20;
 const OVERSCAN = 30;
@@ -139,12 +139,23 @@ export function FilePreview({
   // A document the model wrote as HTML is shown as that HTML. Handing it to the
   // Markdown renderer indents it into a code block, which is why a .docx used
   // to preview as its own source.
-  const asHtml = useMemo(
-    () => ((isDoc || isWebPage) && isHtmlContent(content) ? sanitizeHtml(content, isWriting) : null),
-    [isDoc, isWebPage, content, isWriting],
-  );
+  const asHtml = useMemo(() => {
+    if (isWebPage) return sanitizeHtml(content, isWriting, true);
+    if (isDoc && isHtmlContent(content)) return sanitizeHtml(content, isWriting, false);
+    return null;
+  }, [isDoc, isWebPage, content, isWriting]);
 
-  const isCode = isCodeFile(filename) && !isSheet && !isPptx && !asHtml;
+  const isCode = isCodeFile(filename) && !isSheet && !isPptx && !isWebPage && !asHtml;
+
+  const CodeWithCaret = useCallback(
+    ({ children, ...props }: React.HTMLProps<HTMLElement>) => (
+      <code {...props}>
+        {children}
+        {isWriting && <EmberCaret className="ms-0.5 inline-block align-middle" />}
+      </code>
+    ),
+    [isWriting],
+  );
 
   const [scrollTop, setScrollTop] = useState(0);
   const lastScrollTopRef = useRef(0);
@@ -381,6 +392,7 @@ export function FilePreview({
             // scrolls too, which is a second bar inside the first.
             overflow: "visible",
           }}
+          CodeTag={CodeWithCaret}
         >
           {visibleText}
         </SyntaxHighlighter>
@@ -446,6 +458,44 @@ export function FilePreview({
     );
   }
 
+  if (isWebPage) {
+    return (
+      <div className={`flex flex-col w-full overflow-hidden border border-rule rounded-md bg-[#f1f3f4] dark:bg-[#202124] ${fullHeight ? "h-full flex-1" : ""}`}>
+        {/* Google Chrome header */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f1f3f4] dark:bg-[#282a2d] border-b border-[#dadce0] dark:border-[#3c4043] select-none">
+          <div className="flex items-center gap-1.5 text-[#5f6368] dark:text-[#9aa0a6]">
+            <Icon name="arrow-left" size={13} className="opacity-60" />
+            <Icon name="arrow-right" size={13} className="opacity-40" />
+            <Icon name="arrow-clockwise" size={13} className="hover:opacity-100 cursor-default" />
+          </div>
+          <div className="flex items-center gap-1.5 flex-1 max-w-[420px] mx-auto px-3 py-1 rounded-full bg-white dark:bg-[#303134] border border-[#dadce0] dark:border-[#3c4043] text-[11px] font-sans text-[#3c4043] dark:text-[#bdc1c6] shadow-2xs min-w-0">
+            <Icon name="lock-simple" size={11} className="text-[#5f6368] dark:text-[#9aa0a6] shrink-0" />
+            <span className="truncate">http://localhost:3000/{filename}</span>
+          </div>
+          <div className="w-12" aria-hidden="true" />
+        </div>
+
+        {/* Google Chrome white canvas */}
+        <div
+          ref={containerRef}
+          onScroll={handleContainerScroll}
+          onWheel={handleContainerWheel}
+          className={`chrome-html-canvas p-6 bg-white text-[#1f1f1f] font-sans overflow-y-auto ${
+            fullHeight ? "flex-1 min-h-0" : "max-h-80"
+          } text-[14px] leading-normal`}
+        >
+          {asHtml !== null ? (
+            <div dangerouslySetInnerHTML={{ __html: asHtml }} />
+          ) : content.trim().length === 0 && isWriting ? (
+            <span className="ember-caret" aria-hidden="true" />
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content, isWriting, true) }} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (asHtml !== null) {
     return (
       <div
@@ -468,6 +518,7 @@ export function FilePreview({
       )}
       <pre className="whitespace-pre font-mono text-xs leading-5 m-0 p-0 text-[var(--text-main)]">
         {visibleText}
+        {isWriting && <EmberCaret className="ms-0.5 inline-block align-middle" />}
       </pre>
       {visibleRange.isWindowed && bottomSpacerHeight > 0 && (
         <div style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />

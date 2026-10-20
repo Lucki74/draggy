@@ -131,6 +131,46 @@ describe("a file the model wrote", () => {
     expect(screen.getByText("File created · 1 lines")).toBeTruthy();
   });
 
+  it("renders the typing indicator directly on the code text, not in a floating corner", () => {
+    const generatingCode: SearchStep = {
+      id: "f3",
+      type: "create_file",
+      content: "Writing format.ts",
+      isComplete: false,
+      filename: "format.ts",
+      fileContent: "const active = true;",
+    };
+    const { container } = show([generatingCode]);
+
+    expect(screen.getByText("Writing...")).toBeTruthy();
+    // The caret is inside the <code> element right next to the code tokens
+    const codeEl = container.querySelector("code");
+    expect(codeEl).toBeTruthy();
+    expect(codeEl?.querySelector(".ember-caret")).toBeTruthy();
+
+    // Detached floating corner container is not present
+    expect(container.querySelector(".absolute.bottom-4.end-4")).toBeNull();
+  });
+
+  it("renders live html generation in Chrome preview with white canvas and active caret", () => {
+    const generatingHtml: SearchStep = {
+      id: "f4",
+      type: "create_file",
+      content: "Writing index.html",
+      isComplete: false,
+      filename: "index.html",
+      fileContent: "<h1>Live Webpage</h1>",
+    };
+    const { container } = show([generatingHtml]);
+
+    expect(screen.getByText("Writing...")).toBeTruthy();
+    expect(screen.getByText("http://localhost:3000/index.html")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Live Webpage")).toBeTruthy();
+    expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
   it("offers neither for a code file", () => {
     show([file("format.ts", "export const one = 1;")]);
 
