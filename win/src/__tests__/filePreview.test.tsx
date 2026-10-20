@@ -186,13 +186,14 @@ describe("FilePreview live generation mode (isWriting)", () => {
     expect(container.querySelector(".ember-caret")).toBeTruthy();
   });
 
-  it("renders streaming Markdown document with sheet layout and caret", () => {
+  it("renders streaming Markdown document with native markdown layout and caret", () => {
     const partialMd = "# Live Spec\n\n- Feature 1\n- Feature 2";
     const { container } = render(<FilePreview filename="spec.md" content={partialMd} isWriting />);
 
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("Feature 1")).toBeTruthy();
     expect(container.querySelector(".ember-caret")).toBeTruthy();
+    expect(container.querySelector(".bg-\\[\\#e9e9ec\\]")).toBeNull();
   });
 
   it("renders empty streaming spreadsheet with active cell highlight instead of preview unavailable", () => {
@@ -209,6 +210,36 @@ describe("FilePreview live generation mode (isWriting)", () => {
 
     expect(screen.queryByText("previewUnavailable")).toBeNull();
     expect(screen.getByText("Slide One")).toBeTruthy();
+    expect(container.querySelector(".ember-caret")).toBeTruthy();
+  });
+
+  it("renders an html file in a Google Chrome frame with white canvas and omnibox", () => {
+    const html = "<style>h1 { color: #0066cc; }</style><h1>Landing Page</h1><p>Welcome to our site.</p>";
+    const { container } = render(<FilePreview filename="index.html" content={html} />);
+
+    expect(screen.getByText("http://localhost:3000/index.html")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(screen.getByText("Landing Page")).toBeTruthy();
+
+    const canvas = container.querySelector(".chrome-html-canvas");
+    expect(canvas).toBeTruthy();
+    expect(canvas?.classList.contains("bg-white")).toBe(true);
+    expect(canvas?.classList.contains("markdown-body")).toBe(false);
+
+    // Style is scoped inside the canvas rather than dropped
+    const styleEl = container.querySelector("style");
+    expect(styleEl).toBeTruthy();
+    expect(styleEl?.textContent).toContain("@scope (.chrome-html-canvas)");
+    expect(styleEl?.textContent).toContain("color: #0066cc");
+  });
+
+  it("renders streaming html page with white canvas and active caret", () => {
+    const partialHtml = "<h1>Streaming Site</h1><p>Loading content";
+    const { container } = render(<FilePreview filename="app.html" content={partialHtml} isWriting />);
+
+    expect(screen.getByText("http://localhost:3000/app.html")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
     expect(container.querySelector(".ember-caret")).toBeTruthy();
   });
 });

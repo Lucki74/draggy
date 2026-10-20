@@ -612,6 +612,158 @@ kbd {
     opacity: 1;
 }
 
+/* Chrome HTML preview canvas styles - authentic browser defaults unaffected by Tailwind resets */
+.chrome-html-canvas {
+    background-color: #ffffff;
+    color: #1f1f1f;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+}
+.chrome-html-canvas h1 {
+    font-size: 2em;
+    font-weight: bold;
+    margin-block-start: 0.67em;
+    margin-block-end: 0.67em;
+}
+.chrome-html-canvas h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-block-start: 0.83em;
+    margin-block-end: 0.83em;
+}
+.chrome-html-canvas h3 {
+    font-size: 1.17em;
+    font-weight: bold;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+}
+.chrome-html-canvas h4 {
+    font-size: 1em;
+    font-weight: bold;
+    margin-block-start: 1.33em;
+    margin-block-end: 1.33em;
+}
+.chrome-html-canvas h5 {
+    font-size: 0.83em;
+    font-weight: bold;
+    margin-block-start: 1.67em;
+    margin-block-end: 1.67em;
+}
+.chrome-html-canvas h6 {
+    font-size: 0.67em;
+    font-weight: bold;
+    margin-block-start: 2.33em;
+    margin-block-end: 2.33em;
+}
+.chrome-html-canvas p {
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+}
+.chrome-html-canvas hr {
+    margin-block-start: 0.5em;
+    margin-block-end: 0.5em;
+    border-style: inset;
+    border-width: 1px;
+    border-color: #e5e7eb;
+}
+.chrome-html-canvas ul {
+    display: block;
+    list-style-type: disc;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    padding-inline-start: 40px;
+}
+.chrome-html-canvas ol {
+    display: block;
+    list-style-type: decimal;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    padding-inline-start: 40px;
+}
+.chrome-html-canvas li {
+    display: list-item;
+}
+.chrome-html-canvas b,
+.chrome-html-canvas strong {
+    font-weight: bold;
+}
+.chrome-html-canvas i,
+.chrome-html-canvas em {
+    font-style: italic;
+}
+.chrome-html-canvas blockquote {
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    margin-inline-start: 40px;
+    margin-inline-end: 40px;
+    border-inline-start: 4px solid #d0d7de;
+    padding-inline-start: 16px;
+    color: #57606a;
+}
+.chrome-html-canvas pre {
+    display: block;
+    font-family: monospace;
+    white-space: pre;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    background-color: #f6f8fa;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+.chrome-html-canvas code {
+    font-family: monospace;
+    font-size: 0.9em;
+    background-color: rgba(175, 184, 193, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+}
+.chrome-html-canvas pre code {
+    background-color: transparent;
+    padding: 0;
+}
+.chrome-html-canvas table {
+    border-collapse: separate;
+    text-indent: initial;
+    border-spacing: 2px;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+}
+.chrome-html-canvas th,
+.chrome-html-canvas td {
+    padding: 6px 12px;
+    border: 1px solid #d0d7de;
+}
+.chrome-html-canvas th {
+    font-weight: bold;
+    background-color: #f6f8fa;
+}
+.chrome-html-canvas a {
+    color: #1a0dab;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.chrome-html-canvas button {
+    appearance: auto;
+    border-radius: 4px;
+    border: 1px solid #767676;
+    background-color: #f0f0f0;
+    color: #000000;
+    padding: 3px 10px;
+    font-size: 13px;
+    cursor: default;
+}
+.chrome-html-canvas input[type="text"],
+.chrome-html-canvas input:not([type]) {
+    appearance: auto;
+    border-radius: 2px;
+    border: 1px solid #767676;
+    padding: 2px 6px;
+    font-size: 13px;
+    background-color: #ffffff;
+    color: #000000;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .float-in,
     .fade-in {
