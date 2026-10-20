@@ -381,7 +381,7 @@
         {
           "id": "human",
           "name": "human",
-          "description": "Removes AI writing patterns, inflated language, superficial phrasing and em dashes to restore a natural, varied human voice. Use when the user asks to humanize text, remove AI tells or make writing sound human.",
+          "description": "Comprehensive editorial specification based on Wikipedia's Signs of AI Writing (WP:AISIGNS) to eliminate LLM stylistic tells, structural cliches, synthetic commentary, uniform cadence, and formatting artifacts. Use whenever generating, rewriting, auditing, or polishing any text intended to read as authentic, authoritative human prose.",
           "summary": "Remove AI writing patterns",
           "source": "library",
           "category": "writing",
