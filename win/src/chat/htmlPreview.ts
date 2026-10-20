@@ -28,14 +28,14 @@ const ALLOWED_ATTRIBUTES = new Set([
 const SAFE_URL = /^(https?:|mailto:|data:image\/(png|jpe?g|gif|webp|bmp);base64,)/i;
 
 /** A style that fetches or scripts rather than styles. */
-const UNSAFE_STYLE = /url\s*\(|expression\s*\(|javascript:|@import/i;
+const UNSAFE_STYLE = /url\s*\(|expression\s*\(|(?:javascript|data|vbscript):|@import/i;
 
 function scopeCss(css: string): string {
   let cleanCss = css
     .replace(/@import\b[^;]*;?/gi, "")
     .replace(/url\s*\([^)]*\)/gi, "none")
     .replace(/expression\s*\([^)]*\)/gi, "")
-    .replace(/javascript:/gi, "");
+    .replace(/(?:javascript|data|vbscript):/gi, "");
 
   cleanCss = cleanCss.replace(/(^|[\s,}])(body|html)\b/gi, "$1:scope");
   return `@scope (.chrome-html-canvas) {\n${cleanCss}\n}`;
