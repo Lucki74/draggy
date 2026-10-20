@@ -1,41 +1,261 @@
 ---
 name: human
-description: Removes AI writing patterns, inflated language, superficial phrasing and em dashes to restore a natural, varied human voice. Use when the user asks to humanize text, remove AI tells or make writing sound human.
+description: Comprehensive editorial specification based on Wikipedia's Signs of AI Writing (WP:AISIGNS) to eliminate LLM stylistic tells, structural cliches, synthetic commentary, uniform cadence, and formatting artifacts. Use whenever generating, rewriting, auditing, or polishing any text intended to read as authentic, authoritative human prose.
 ---
 
 # Human
 
-Remove signs of AI-generated text and restore natural human rhythm, voice, and directness. Keep what the text says; change how it sounds.
+Enforce the full diagnostic and editorial standard derived from Wikipedia's **Signs of AI Writing** (`WP:AISIGNS`). Large language models produce recognizable prose because statistical next-token prediction and RLHF tuning favor safe, generalized, high-probability patterns. This causes **regression to the mean**: sharp, specific facts are smoothed into inflated platitudes, human agency is obscured behind abstract nouns, and sentences lock into repetitive syntactic formulas.
 
-## Core Rules
+Apply both the negative constraints (what to strip) and the positive mechanics (how to construct sentences) below to produce authentic, authoritative human writing.
 
-1. **Rewrite, do not shorten:** Keep the same paragraph count, arguments, facts, numbers, and scope as the original. If the original has four paragraphs, produce four paragraphs.
-2. **Preserve meaning and voice:** Match the intended register (formal, technical, or casual). If the user provides a writing sample, calibrate to their sentence length, punctuation habits, and vocabulary.
-3. **No em dashes:** The final rewrite must contain zero em dashes (—) or en dashes (–). Replace them with commas, periods, colons, parentheses, or restructured phrasing.
-4. **Be direct:** Output the rewritten text directly. Never include conversational preamble ("Sure, here is...", "Certainly!"), sign-offs ("I hope this helps!"), or intermediate commentary.
+---
 
-## Patterns to Eliminate
+## Part 1: Positive Mechanics of Human Prose
 
-- **Overused AI vocabulary:** Avoid words like *delve, testament, tapestry, landscape, pivotal, crucial, vibrant, foster, underscore, interplay, intricate, multifaceted, realm, beacon, enduring, showcase*. Use plain equivalents.
-- **Puffed-up significance:** Cut claims that an event "stands as a testament," "marks a pivotal moment," "sets the stage," or "reflects broader trends." State what happened plainly.
-- **Superficial -ing clauses:** Avoid tacking participial phrases onto the ends of sentences (*"...highlighting the importance of...", "...ensuring a seamless experience"*). Turn them into separate clauses or cut them.
-- **Copula avoidance:** Replace elaborate substitutes like *serves as, stands as, boasts, features* with simple copulas (*is, has, are*).
-- **Promotional hype:** Remove adjectives like *breathtaking, nestled, groundbreaking, stunning, rich cultural heritage*.
-- **Vague attributions:** Avoid *experts argue, observers cite, industry reports suggest*. Name the source or state the concrete fact directly.
-- **Negative parallelisms & tailing negations:** Avoid *not only... but also...* and clipped fragments tacked onto sentence ends (*"...no guessing," "...no wasted motion"*).
-- **Rule of three:** Do not mechanically bundle examples or adjectives into triplets.
-- **Formulaic structure:** Avoid canned "Challenges and Future Prospects" or "Looking ahead" summaries.
-- **Mechanical formatting:** Do not use bolded inline list headers (*- **Concept:** description*). Avoid emojis and title case in subheadings.
-- **Theatrical openers:** Remove fake-candid hooks like *Honestly?, Look, Here's the thing, The real question is*.
-- **Filler phrases:** Replace *in order to* (to), *due to the fact that* (because), *at this point in time* (now).
+Avoiding AI buzzwords is not enough; if you strip buzzwords without changing sentence architecture, the output reads like sterile textbook copy. Build prose around four human mechanics:
 
-## Human Qualities to Preserve
+1. **Concrete Specificity Over Abstract Commentary:** Replace every claim about *how important, complex, or impressive* something is with a verifiable detail (a date, a number, a physical mechanism, a named actor, or a concrete consequence).
+2. **Burstiness (Cadence and Length Variation):** LLMs default to sentences of 16 to 22 words and paragraphs of 3 to 4 sentences. Break this monotony deliberately. Write a 5-word declarative sentence. Follow it with a 32-word sentence that unpacks a technical mechanism across two subordinate clauses. Let a single sentence stand as its own paragraph when it lands a decisive point.
+3. **Human Agency in the Subject Slot:** Anchor clauses in people, teams, or concrete entities performing visible actions (`Subject -> Active Verb -> Concrete Object`). Do not let policies, eras, trends, or locations act as human agents.
+4. **Epistemic Directness:** State facts and well-supported conclusions plainly. Do not wrap statements in defensive throat-clearing (*"It is worth noting that while opinions vary..."*) or force artificial 50/50 symmetry onto settled topics.
 
-- **Specific, concrete detail:** Real names, dates, quotes, figures, and technical terms.
-- **Varied cadence:** Mix short, punchy statements with longer sentences that develop a thought naturally.
-- **Real opinions and uncertainty:** Allow mixed feelings, trade-offs, and natural perspective when the genre calls for it. Do not force artificial neutrality onto personal or opinion pieces.
-- **Technical precision:** In technical or academic prose, keep necessary specialized terms without dumbing them down.
+---
 
-## Output
+## Part 2: Meaning, Content, and Tone Tells
 
-Deliver the clean rewritten text immediately. If the user asked for specific change notes, follow the rewrite with a short bulleted list of 2 to 3 major edits.
+### 2.1 Undue Emphasis on Significance, Legacy, and Broader Trends
+
+Models compulsively inflate mundane subjects by claiming they represent a grand historical trajectory or societal shift. When writing about modest topics, models frequently attach a **pre-hedged significance claim**—acknowledging the subject is small before puffing it up anyway.
+
+- **Diagnostic triggers to eliminate:**
+  - *stands as / serves as a testament to*
+  - *plays a vital / pivotal / crucial / significant / integral / key role in*
+  - *underscores / highlights its enduring importance*
+  - *leaves a lasting / enduring legacy*
+  - *watershed moment / key turning point / milestone in the evolution of*
+  - *deeply rooted in / profound cultural heritage*
+  - *steadfast dedication / unwavering commitment*
+  - *solidifies its place / cements its status as*
+  - *continues to captivate / inspire audiences to this day*
+  - *While seemingly modest / Though not a household name, [Subject] nonetheless marks a pivotal...*
+- **Editorial rule:** Delete all assertions that a subject is important, historic, or influential. State what happened and what changed measurably.
+  - *AI Tell:* "While seemingly a local infrastructure update, the 1987 municipal zoning reform was a watershed moment that played a pivotal role in shaping the city's modern landscape, serving as a testament to civic foresight."
+  - *Human:* "The 1987 zoning reform abolished minimum parking requirements downtown. Within five years, developers converted 14 surface lots into six-story apartment buildings."
+
+### 2.2 Canned Emphasis on Notability and Media Coverage
+
+LLMs argue that a person, organization, or work is notable by asserting they have media coverage or an online following rather than stating their actual work.
+
+- **Diagnostic triggers to eliminate:**
+  - *maintains an active social media presence*
+  - *garnered significant / widespread media coverage from outlets such as...*
+  - *has been widely recognized for contributions to...*
+  - *established themselves as a prominent / leading voice in...*
+  - *profiled by major publications including...*
+- **Editorial rule:** Never state that a subject is famous, recognized, or covered by the press. Cite the specific work, discovery, office held, or primary event.
+
+### 2.3 Superficial Participial Analyses (The `-ing` Tail)
+
+The single most reliable structural tell of LLM writing is tacking a present-participle (`-ing`) phrase onto the end of a factual clause to manufacture fake analytical depth. As `WP:AISIGNS` notes, a person can highlight or emphasize an idea, but a fact, object, or event cannot—these tails inject unattributed opinions from a disembodied narrator.
+
+- **Diagnostic triggers (especially following a comma in the second half of a sentence):**
+  - *, highlighting...* / *, underscoring...* / *, emphasizing...*
+  - *, reflecting...* / *, showcasing...* / *, illustrating...*
+  - *, ensuring...* / *, demonstrating...* / *, symbolizing...*
+  - *, contributing to...* / *, aligning with...* / *, fostering...*
+  - *, paving the way for...* / *, solidifying...* / *, reinforcing...*
+- **Editorial rule:** Sever the `-ing` clause immediately. If the downstream effect is factually real and necessary, write it as a finite clause with a concrete subject and active verb, or explain *how* the mechanism works.
+  - *AI Tell:* "The compiler caches intermediate AST nodes on disk, reducing cold-build latency by 38% and underscoring the engineering team's focus on developer velocity."
+  - *Human:* "The compiler caches intermediate AST nodes on disk, which cuts cold-build latency by 38% on repositories over 100,000 lines."
+
+### 2.4 Promotional, Brochure, and Subtle-Positivity Bias
+
+Even when avoiding explicit superlatives (*"the best"*), RLHF-tuned models default to upbeat public-relations copy, particularly when describing towns, architecture, companies, universities, cultural traditions, or products.
+
+- **Diagnostic triggers to eliminate:**
+  - *rich cultural heritage / rich history / rich tapestry*
+  - *breathtaking / stunning natural beauty / picturesque / scenic*
+  - *must-visit / must-see / hidden gem*
+  - *nestled in the heart of / vibrant community / bustling / thriving*
+  - *beacon of / hub of innovation / at the forefront of*
+  - *seamlessly blends / harmoniously combines / dynamic intersection of*
+  - *cutting-edge / state-of-the-art / next-generation / world-class / robust*
+- **Editorial rule:** Strip all travel-brochure and marketing modifiers. Describe physical layout, economics, history, or technical specifications neutrally, and include friction, trade-offs, or limitations where relevant.
+  - *AI Tell:* "Nestled in the heart of the valley, the town boasts a rich cultural heritage that seamlessly blends historic charm with vibrant modern living."
+  - *Human:* "The town sits in the Shenandoah Valley along Route 11. Half the storefronts on Main Street date to the 1880s, and the former brick textile mill now houses a two-year community college."
+
+### 2.5 Fuzzy Sociological Connections
+
+When LLMs do not know the exact causal link between two concepts, they bridge them with vague academic filler.
+
+- **Diagnostic triggers to eliminate:**
+  - *is particularly / widely associated with*
+  - *is closely linked to / deeply intertwined with*
+  - *bridges the gap between X and Y*
+  - *explores themes of identity, memory, and the human condition*
+  - *situated at the nexus / crossroads / intersection of*
+- **Editorial rule:** Name the exact causal or compositional link. Instead of saying a book *"explores themes of grief and resilience,"* state what happens in the plot: *"follows a retired marine machinist rebuilding his brother's fishing boat after the 2011 tsunami."*
+
+### 2.6 Weasel Attributions and Source Over-Extrapolation
+
+Models manufacture authority by attributing claims to unnamed collectives, or by citing a specific real source for a broad platitude the source never made.
+
+- **Diagnostic triggers to eliminate:**
+  - *Studies show / Research indicates / Data suggests*
+  - *Experts say / Industry reports suggest / Analysts note*
+  - *Observers have cited / Critics argue / Proponents maintain*
+  - *It has been described as / Is widely regarded as*
+- **Editorial rule:** Every attribution must name the exact person, study, or institution, date it where relevant, and restrict the claim strictly to what that source proved. If no specific source exists, state the verifiable fact directly or delete the sentence.
+
+### 2.7 Outline-Like Conclusions ("Challenges and Future Prospects")
+
+LLMs routinely close articles, sections, or essays with a formulaic wrap-up that balances "current challenges" against a "promising future," or summarizes what the reader just read.
+
+- **Diagnostic triggers to eliminate:**
+  - *In summary, / In conclusion, / To sum up, / Overall, / Ultimately,*
+  - *"Despite its many advantages, [Subject] faces several key challenges, including..."*
+  - *"Looking ahead, the future of [Subject] remains bright/promising as..."*
+  - *"As [Subject] continues to evolve, striking a balance between X and Y will be essential."*
+- **Editorial rule:** Never write a summary conclusion or a symmetrical "Challenges and Future Outlook" closer. End the text on your final substantive fact, technical detail, or concrete observation.
+
+### 2.8 Didactic Throat-Clearing and Editorializing Asides
+
+Models frequently announce that an upcoming sentence is important before delivering it.
+
+- **Diagnostic triggers to eliminate:**
+  - *It is important to note / remember / consider / recognize that*
+  - *It is worth mentioning / noting that*
+  - *Crucially, / Notably, / Significantly, / Importantly, / Interestingly,*
+  - *No discussion of X would be complete without mentioning Y*
+  - *Here's the thing: / Let's unpack this: / At its core,*
+- **Editorial rule:** Cut the preamble. Start the sentence with the subject of the main clause.
+
+---
+
+## Part 3: Syntax, Grammar, and Lexical Tells
+
+### 3.1 High-Density AI Vocabulary List
+
+Corpus analyses confirm that LLMs overuse specific words at 10x to 100x their baseline frequency in human prose. Treat the following words as hard-banned unless quoting an external source verbatim:
+
+- **Verbs:** *delve, underscore, showcase, foster, garner, catalyze, resonate, embark, navigate (abstract), spearhead, bolster, harness, leverage, cultivate, illuminate, unravel, elevate, empower, revolutionize, streamline, intertwine.*
+- **Nouns:** *tapestry, testament, realm, landscape (abstract), paradigm, synergy, myriad, plethora, nuance, beacon, cornerstone, nexus, labyrinth, symphony (abstract), pinnacle, catalyst, bedrock.*
+- **Adjectives & Adverbs:** *pivotal, crucial, vital, meticulous, meticulously, intricate, multifaceted, poised, overarching, burgeoning, seamless, seamlessly, relentless, groundbreaking, transformative, indelible, paramount, bespoke, holistic.*
+
+### 3.2 Negative Parallelisms (Contrastive Negation)
+
+Contrastive negation is the hardest rhetorical tic for an LLM to suppress. Models rely on it to simulate profundity or punchiness.
+
+- **All five subtypes are banned for rhetorical emphasis:**
+  1. **Not just X, but Y:** *"It's not just a text editor; it's a complete writing environment."*
+  2. **Not only X, but (also) Y:** *"The ruling not only reverses precedent, but also reshapes..."*
+  3. **Not X, but Y:** *"The bottleneck is not compute, but memory bandwidth."*
+  4. **Y rather than X:** *"The team focused on stability rather than raw speed."*
+  5. **Triplet / Staccato Negation:** *"No configuration. No dependencies. Just pure C."*
+  6. **Two-Sentence False Pivot:** *"She trained as a classical violinist. Her career in acoustics, however, took a very different path."*
+- **Editorial rule:** State what something *is* or *does* directly in the affirmative. Use negation only when correcting an explicit misconception raised by the reader.
+  - *AI Tell:* "This database isn't about storing rows; it's about modeling time-series state changes at scale."
+  - *Human:* "This database stores immutable time-series events and reconstructs state at any timestamp by replaying the log."
+
+### 3.3 Copulative Avoidance (`is` / `has` Aversion)
+
+Models avoid plain forms of *to be* and *to have*, swapping in ornate verbs that sound stiff and promotional.
+
+- **Diagnostic triggers -> Human replacement:**
+  - *serves as / stands as / acts as / functions as* -> **is / are**
+  - *represents / marks / constitutes* -> **is / are**
+  - *boasts / features / sports / houses / harbors / possesses* -> **has / have**
+- **Editorial rule:** Use `is`, `are`, `was`, `were`, `has`, and `have` whenever stating identity, role, or possession.
+
+### 3.4 The Rule of Three and False Ranges
+
+- **Triadic compulsion:** LLMs reflexively group adjectives, nouns, verbs, and examples into threes (*"fast, scalable, and secure"*, *"from farmers, artisans, and merchants"*). Break triplets into a single exact word, a two-item pair, or an exhaustively specific four-item list.
+- **False ranges (`from X to Y`):** Models write *"offering features ranging from automated billing to dark mode"* or *"affecting everyone from students to retirees"* where the endpoints do not form a real continuous scale. Replace with a plain conjunction (*"offers automated billing and a dark mode"*) or use `from X to Y` strictly for literal quantitative/geographic spans (*"from 40 Hz to 18 kHz"*).
+
+### 3.5 Elegant Variation (Synonym Cycling)
+
+Because language models penalize immediate token repetition, they cycle through awkward synonyms or epithets to refer to the same subject across consecutive sentences (*"Postgres... the relational database... the open-source powerhouse... the system"*).
+
+- **Editorial rule:** Repeat the exact noun or use a simple pronoun (*it, they, he, she*). Never invent journalistic epithets (*the Mountain View giant*, *the burgeoning startup*).
+
+### 3.6 Dropped Human Actors and Nominalization Bloat
+
+LLMs frequently put inanimate nouns or locations in the subject slot to perform human actions, and turn crisp verbs into clunky noun phrases.
+
+- **Diagnostic triggers:**
+  - *"The 1990s saw the introduction of..."* / *"The streets witnessed protests..."*
+  - *"The investigation looked into..."* / *"The policy aimed to reduce..."*
+  - *"facilitate the implementation of"* / *"conduct an analysis of"*
+- **Editorial rule:** Name the human actors in the subject slot and turn nominalizations back into active verbs.
+  - *AI Tell:* "The 2022 audit saw the implementation of stricter access controls across all production clusters."
+  - *Human:* "After the 2022 audit, the security team restricted production cluster access to hardware-key sign-ins."
+
+### 3.7 Overloaded Opening Appositives and Anaphora
+
+- **Opening appositives:** Never start a biography or section with a stuffed noun phrase before the subject (*"A pioneering computer scientist and outspoken advocate for open standards, Radia Perlman..."*). Put the name first: *"Radia Perlman designed the Spanning Tree Protocol in 1985 while working at Digital Equipment Corporation."*
+- **Anaphoric repetition:** Do not start consecutive sentences or paragraphs with identical syntactic frames (*"When teams scale...", "When systems fail...", "When budgets tighten..."*).
+
+### 3.8 Mechanical Conjunctive Transitions
+
+LLMs over-index on heavy sentence-initial transitions: *Moreover,*, *Furthermore,*, *Additionally,*, *In addition,*, *Consequently,*, *Nevertheless,*, *Nonetheless,*, *Conversely,*, *Specifically,*, *Essentially,*, *Indeed,*.
+
+- **Editorial rule:** Delete 90% of sentence-initial conjunctive adverbs. Let the end of sentence A lead naturally into the beginning of sentence B. When a contrast or addition marker is needed, use *But*, *And*, *So*, *Yet*, or *Still*.
+
+---
+
+## Part 4: Formatting, Punctuation, and Meta-Artifacts
+
+1. **Heading Hygiene:**
+   - Always use **sentence case** (`## Architecture of the storage engine`), never Title Case (`## Architecture Of The Storage Engine`).
+   - Never use **colon-subtitle headings** (`## The Storage Engine: A Deep Dive into Performance`).
+   - Never stack headings (`## H2` immediately followed by `### H3`) without prose in between.
+2. **Prose Over `**Bold:**` Bullet Lists:**
+   - Do not break standard explanations into bulleted lists where every item begins with a bolded label and a colon (`- **Latency:** The system reduces...`). Write connected paragraphs. Reserve lists for genuinely discrete items, steps, or reference specs.
+3. **Boldface and Emoji Restraint:**
+   - Do not bold random phrases inside paragraphs to simulate skimmability.
+   - Never use emojis (`🚀`, `💡`, `✅`, `🧠`) in headings, bullets, or body text unless explicitly requested.
+4. **Punctuation Discipline:**
+   - **Em dashes (`—`):** Models use em dashes as an all-purpose clause splicer. Replace them with commas, parentheses, colons, or periods. Never exceed one em dash per 1,000 words, and never use two in the same paragraph.
+   - **Quotation marks:** Use standard straight quotes (`"` and `'`) consistently; do not mix curly and straight typographic marks.
+5. **Zero Conversational or Meta Wrapper:**
+   - Never start with *"Certainly!"*, *"Here is the revised version:"*, or *"Great question!"*
+   - Never end with *"I hope this helps!"* or *"Let me know if you would like any changes."*
+   - Never include meta-disclaimers about knowledge cutoffs or source constraints.
+
+---
+
+## Part 5: Diagnostic Replacement Table
+
+| AI Pattern | Example of AI Tell | Clean Human Rewrite |
+| :--- | :--- | :--- |
+| **Participial `-ing` tail** | "...cut latency by 20%, highlighting the efficiency of the new cache." | "...cut latency by 20% by pinning hot keys in L2 cache." |
+| **Negative parallelism** | "It's not just a linter; it's a guardrail for your entire codebase." | "The linter blocks commits that violate type-safety or import rules." |
+| **Copulative avoidance** | "The building serves as the regional headquarters and boasts 40 labs." | "The building is the regional headquarters and has 40 labs." |
+| **Significance puffery** | "The treaty stands as a testament to diplomacy and plays a vital role..." | "The treaty ended the 14-month border blockade and reopened the rail line." |
+| **False range + Triplet** | "...users ranging from students to executives with fast, easy, and secure tools." | "...gives individual developers and enterprise teams encrypted local storage." |
+| **Weasel attribution** | "Observers have cited the release as a turning point, though critics note risks." | "Ars Technica praised the release's memory safety, while Debian maintainers objected to the new license." |
+
+---
+
+## Part 6: Full Paragraph Teardown (Before vs. After)
+
+**AI Draft (Exhibits 9 distinct `WP:AISIGNS` tells):**
+> A renowned systems architect and passionate advocate for open-source software, Elena Rostova has played a pivotal role in the evolution of distributed storage. Her flagship project, VelaDB, isn't just another key-value store—it's a groundbreaking paradigm shift that seamlessly blends high throughput with rock-solid durability. Featuring a lock-free storage engine, VelaDB boasts support for workloads ranging from edge IoT sensors to massive cloud data warehouses, underscoring Rostova's unwavering commitment to engineering excellence. Moreover, while some industry observers have cited the steep learning curve of its query language, the future of VelaDB remains bright as it continues to foster a vibrant community of developers.
+
+**Human Rewrite (Concrete, bursty, zero synthetic commentary):**
+> Elena Rostova wrote the first version of VelaDB in 2019 after hitting write-amplification bottlenecks in RocksDB at CERN. VelaDB replaces traditional compaction trees with an append-only ring buffer on raw NVMe drives. That design sustains 1.4 million writes per second on a single node without garbage-collection pauses, which is why teams run it both on 2-gigabyte industrial gateways and on multi-terabyte telemetry clusters. The custom query syntax still trips up newcomers expecting standard SQL, and the project lacks built-in cross-region replication. Even so, 140 external contributors have merged patches over the past year.
+
+---
+
+## Part 7: Pre-Output Verification Checklist
+
+Before emitting your response, run this mandatory 7-point audit and rewrite any offending sentence:
+
+1. **Tail Check:** Scan the second half of every sentence for `, [verb]ing` (*highlighting, underscoring, reflecting, ensuring, showcasing*). Delete or convert to a finite clause.
+2. **Negation Check:** Search for `not just`, `not only`, `rather than`, `isn't about`, and `no X, no Y`. Rewrite in the direct affirmative.
+3. **Copula Check:** Search for `serves as`, `stands as`, `acts as`, `boasts`, `features`, and `harbors`. Replace with `is`, `are`, `was`, `were`, `has`, or `have`.
+4. **Lexicon & Puffery Check:** Scan for banned vocabulary (*delve, tapestry, testament, underscore, pivotal, vital, crucial, foster, realm, landscape, seamlessly, vibrant*) and remove all claims of "legacy" or "importance."
+5. **Triplet & Range Check:** Break up `A, B, and C` adjective/noun triplets and eliminate non-numeric `from X to Y` ranges.
+6. **Cadence Check:** Check sentence and paragraph lengths. If three consecutive sentences are roughly the same length (15-22 words) or start with the same syntax, split one and combine another.
+7. **Formatting Check:** Ensure headings use sentence case without colons, em dashes are capped at one per 1,000 words, and `**Bold:**` bullet lists are converted to prose paragraphs where appropriate.
