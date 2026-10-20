@@ -1,6 +1,5 @@
 import React from "react";
 import ChatScreen from "../ChatScreen";
-import ChatHistory from "../ChatHistory";
 import TalkScreen from "../TalkScreen";
 import Explorer from "../files/Explorer";
 import { OpenFileContext } from "../chat/openFileContext";
@@ -38,7 +37,6 @@ export interface MainColumnProps {
     projects: Workspace[];
     active: Workspace;
     canvasPath: string | null;
-    visibleSessions: ChatSession[];
     currentChatId: string | null;
     currentSession?: ChatSession;
     openedAt: number;
@@ -51,9 +49,6 @@ export interface MainColumnProps {
     onSetTreeOpen: (open: boolean) => void;
     onSelectWorkspace: (id: string) => void;
     onNewProject: () => void;
-    onSelectChat: (id: string) => void;
-    onDeleteChat: (e: React.MouseEvent, id: string) => void;
-    onExportChat?: (e: React.MouseEvent, id: string) => void;
     onOpenProjectMemory: () => void;
     onSelectFile: (path: string) => void;
     onSendMessage: (content: string, attachments?: Attachment[]) => void;
@@ -98,7 +93,6 @@ export function MainColumn({
     projects,
     active,
     canvasPath,
-    visibleSessions,
     currentChatId,
     currentSession,
     openedAt,
@@ -111,9 +105,6 @@ export function MainColumn({
     onSetTreeOpen,
     onSelectWorkspace,
     onNewProject,
-    onSelectChat,
-    onDeleteChat,
-    onExportChat,
     onOpenProjectMemory,
     onSelectFile,
     onSendMessage,
@@ -167,15 +158,6 @@ export function MainColumn({
                     onOpenFolder={onNewProject}
                     onSelectProject={onSelectWorkspace}
                     t={t}
-                />
-            ) : viewMode === "history" ? (
-                <ChatHistory
-                    sessions={visibleSessions}
-                    onSelectChat={onSelectChat}
-                    onDeleteChat={onDeleteChat}
-                    onExportChat={mode === "chat" ? onExportChat : undefined}
-                    settings={settings}
-                    surface={mode}
                 />
             ) : viewMode === "files" ? (
                 <Explorer
