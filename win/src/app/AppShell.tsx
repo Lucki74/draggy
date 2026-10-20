@@ -24,7 +24,6 @@ import { listInstalledModels, warmModel } from "../llama";
 import { useEngineLoaded } from "./useEngineLoaded";
 import { isRemote } from "../ai/providers";
 import { KEEP_ALIVE } from "../agent/agentLoop";
-import { chatToMarkdown, exportFilename } from "../chat/export";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
@@ -78,7 +77,7 @@ import { useImageEngine } from "../images/useImageEngine";
 import { fillComposer } from "../chat/mentions";
 import { CrashNotice } from "../CrashNotice";
 
-export type ViewMode = "chat" | "history" | "files" | "talk" | "settings";
+export type ViewMode = "chat" | "files" | "talk" | "settings";
 
 interface AppShellProps {
   model: string;
@@ -362,28 +361,6 @@ export default function AppShell({
     proceedChatRef.current = null;
     runs.send(chatId, t("planProceedPrompt"));
   }, [active.permissionMode, runs, t]);
-
-  const handleExportChat = useCallback(
-    async (event: React.MouseEvent, chatId: string) => {
-      event.stopPropagation();
-
-      const chat = store.getSession(chatId);
-      if (!chat || !window.electronAPI) return;
-
-      const markdown = chatToMarkdown(chat, { assistantName: model || "Assistant" });
-      const result = await window.electronAPI.createFile(
-        exportFilename(chat),
-        markdown,
-      );
-
-      if (result?.success && result.filepath) {
-        window.electronAPI.revealCreatedFile(result.filepath);
-      } else {
-        store.setStorageWarning(result?.error || t("chatExportFailed"));
-      }
-    },
-    [model, t, store],
-  );
 
   const handleDeleteChat = useCallback(
     (e: React.MouseEvent, chatId: string) => {
@@ -860,17 +837,6 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleShortcuts);
   }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode]);
 
-  // Ctrl+H toggles chat history view for quick lookup across all sessions.
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "h") return;
-      e.preventDefault();
-      setViewMode((cur) => (cur === "history" ? "chat" : "history"));
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {
     const handleClosePane = (e: KeyboardEvent) => {
@@ -918,17 +884,6 @@ export default function AppShell({
         onSelect: () => {
           setPaletteOpen(false);
           handleSwitchMode(mode === "chat" ? "code" : "chat");
-        },
-      },
-      {
-        id: "action-history",
-        label: mode === "code" ? t("sessions") : t("chatHistory"),
-        category: t("paletteSectionActions"),
-        icon: "clock",
-        shortcut: "Ctrl+H",
-        onSelect: () => {
-          setPaletteOpen(false);
-          setViewMode("history");
         },
       },
       ...(imageEngine.ready && mode === "chat"
@@ -1277,7 +1232,6 @@ export default function AppShell({
           projects={projects}
           active={active}
           canvasPath={canvasPath}
-          visibleSessions={visibleSessions}
           currentChatId={currentChatId}
           currentSession={currentSession}
           openedAt={openedAt}
@@ -1290,9 +1244,6 @@ export default function AppShell({
           onSetTreeOpen={setTreeOpen}
           onSelectWorkspace={handleSelectWorkspace}
           onNewProject={handleNewProject}
-          onSelectChat={selectChat}
-          onDeleteChat={handleDeleteChat}
-          onExportChat={handleExportChat}
           onOpenProjectMemory={() => void openProjectMemory()}
           onSelectFile={handleOpenFile}
           onSendMessage={(content, attachments) =>
