@@ -138,6 +138,7 @@ protocol.registerSchemesAsPrivileged([
       secure: true,
       supportFetchAPI: true,
       corsEnabled: true,
+      stream: true,
       bypassCSP: true,
     },
   },

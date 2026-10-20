@@ -18,7 +18,10 @@ use crate::shards::basename;
 const MAX_REDIRECTS: u32 = 20;
 
 /// The headers every model file carries, so a page in isolation may still read it.
-const RESOURCE_HEADERS: [(&str, &str); 2] = [
+const RESOURCE_HEADERS: [(&str, &str); 5] = [
+    ("Access-Control-Allow-Origin", "*"),
+    ("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS"),
+    ("Access-Control-Allow-Headers", "*"),
     ("Cross-Origin-Resource-Policy", "cross-origin"),
     ("Cross-Origin-Embedder-Policy", "credentialless"),
 ];
