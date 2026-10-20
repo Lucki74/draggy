@@ -186,13 +186,14 @@ describe("FilePreview live generation mode (isWriting)", () => {
     expect(container.querySelector(".ember-caret")).toBeTruthy();
   });
 
-  it("renders streaming Markdown document with sheet layout and caret", () => {
+  it("renders streaming Markdown document with native markdown layout and caret", () => {
     const partialMd = "# Live Spec\n\n- Feature 1\n- Feature 2";
     const { container } = render(<FilePreview filename="spec.md" content={partialMd} isWriting />);
 
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("Feature 1")).toBeTruthy();
     expect(container.querySelector(".ember-caret")).toBeTruthy();
+    expect(container.querySelector(".bg-\\[\\#e9e9ec\\]")).toBeNull();
   });
 
   it("renders empty streaming spreadsheet with active cell highlight instead of preview unavailable", () => {

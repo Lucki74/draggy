@@ -131,14 +131,9 @@ export function FilePreview({
 
   const isSheet = hasExt && (ext === "xlsx" || ext === "xls" || ext === "csv");
   const isPptx = hasExt && (ext === "pptx" || ext === "ppt");
-  const isDoc =
-    hasExt &&
-    (ext === "md" ||
-      ext === "markdown" ||
-      ext === "mdx" ||
-      ext === "docx" ||
-      ext === "doc" ||
-      ext === "pdf");
+  const isMarkdown = hasExt && (ext === "md" || ext === "markdown" || ext === "mdx");
+  const isWord = hasExt && (ext === "docx" || ext === "doc" || ext === "pdf");
+  const isDoc = isMarkdown || isWord;
   const isWebPage = hasExt && (ext === "html" || ext === "htm");
 
   // A document the model wrote as HTML is shown as that HTML. Handing it to the
@@ -396,7 +391,7 @@ export function FilePreview({
     );
   }
 
-  if (isDoc) {
+  if (isWord) {
     return (
       <div
         ref={containerRef}
@@ -423,6 +418,29 @@ export function FilePreview({
               </ReactMarkdown>
             )}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isMarkdown) {
+    return (
+      <div
+        ref={containerRef}
+        onScroll={handleContainerScroll}
+        onWheel={handleContainerWheel}
+        className={`p-4 bg-[var(--bg-base)] text-[var(--text-main)] overflow-y-auto ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-72"} text-sm leading-relaxed markdown-body max-w-none`}
+      >
+        {content.trim().length === 0 && isWriting ? (
+          <span className="ember-caret" aria-hidden="true" />
+        ) : (
+          <ReactMarkdown
+            remarkPlugins={DOCUMENT_REMARK_PLUGINS}
+            rehypePlugins={docRehypePlugins as never}
+            components={MARKDOWN_COMPONENTS}
+          >
+            {content}
+          </ReactMarkdown>
         )}
       </div>
     );
