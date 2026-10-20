@@ -39,7 +39,6 @@ export function ShortcutsSheet({ open, onClose, t }: ShortcutsSheetProps) {
       items: [
         { label: t("newDiscussion"), keys: [`${mod}+N`] },
         { label: `${t("chatMode")} / ${t("codeMode")}`, keys: [`${mod}+Shift+X`] },
-        { label: t("chatHistory"), keys: [`${mod}+H`] },
         { label: t("nextSession"), keys: [`${mod}+Tab`] },
         { label: t("previousSession"), keys: [`${mod}+Shift+Tab`] },
         { label: t("viewMode"), keys: [`${mod}+O`] },
