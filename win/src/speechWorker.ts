@@ -42,23 +42,36 @@ async function detectDevice(): Promise<"webgpu" | "wasm"> {
   }
 }
 
-/**
- * The pipeline loads its processor only when the model's file list names one. Moonshine reads the
- * sampling rate from it, so a missing processor fails the first transcription with a null error.
- */
+/** The pipeline loads its processor only when the model's file list names one.
+ * Moonshine reads sample rate from it, while Whisper needs mel spectrogram features. */
 async function ensureProcessor(instance: { processor?: unknown }, model: string): Promise<void> {
   if (instance.processor) return;
   try {
     const { AutoProcessor } = await import("@huggingface/transformers");
     instance.processor = await AutoProcessor.from_pretrained(model);
   } catch {
-    // Moonshine takes the raw waveform, so a callable that wraps it is all the pipeline needs.
-    const { Tensor } = await import("@huggingface/transformers");
-    const processor = async (audio: Float32Array) => ({
-      input_values: new Tensor("float32", audio, [1, audio.length]),
-    });
-    processor.feature_extractor = { config: { sampling_rate: SAMPLE_RATE } };
-    instance.processor = processor;
+    if (model.includes("whisper")) {
+      const { WhisperFeatureExtractor } = await import("@huggingface/transformers");
+      const extractor = new WhisperFeatureExtractor({
+        feature_size: 80,
+        sampling_rate: SAMPLE_RATE,
+        hop_length: 160,
+        chunk_length: 30,
+        n_fft: 400,
+        n_samples: 480000,
+        nb_max_frames: 3000,
+      });
+      (extractor as unknown as { feature_extractor: unknown }).feature_extractor = extractor;
+      instance.processor = extractor;
+    } else {
+      // Moonshine takes the raw waveform, so a callable that wraps it is all the pipeline needs.
+      const { Tensor } = await import("@huggingface/transformers");
+      const processor = async (audio: Float32Array) => ({
+        input_values: new Tensor("float32", audio, [1, audio.length]),
+      });
+      processor.feature_extractor = { config: { sampling_rate: SAMPLE_RATE } };
+      instance.processor = processor;
+    }
   }
 }
 
@@ -109,9 +122,9 @@ async function load(request: InitRequest): Promise<void> {
     },
   );
 
+  loadedModel = request.model;
   await ensureProcessor(instance as unknown as { processor?: unknown }, request.model);
   transcriber = instance as unknown as Transcriber;
-  loadedModel = request.model;
   await transcriber(new Float32Array(SAMPLE_RATE), isWhisper() ? { return_timestamps: false } : {});
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const BARS = 18;
+const BARS = 12;
 const BAR_WIDTH = 2;
 const GAP = 3;
 const HEIGHT = 18;
@@ -53,7 +53,7 @@ export function MicWave({ analyser }: { analyser: AnalyserNode }) {
       ref={canvas}
       aria-hidden="true"
       style={{ width: WIDTH, height: HEIGHT }}
-      className="me-1 shrink-0 text-text-secondary"
+      className="ms-2 me-1 shrink-0 text-text-secondary"
     />
   );
 }

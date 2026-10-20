@@ -211,9 +211,12 @@ export function useChatSession({
             setMicDetail("");
             try {
                 const audio = await recorder.stop();
-                const text = await transcribe(audio, (progress) => {
-                    setMicState("loading");
-                    setMicDetail(`${Math.round(progress.percent)}%`);
+                const text = await transcribe(audio, {
+                    language: settings.language,
+                    onProgress: (progress) => {
+                        setMicState("loading");
+                        setMicDetail(`${Math.round(progress.percent)}%`);
+                    },
                 });
                 if (text) {
                     setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));

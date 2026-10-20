@@ -94,9 +94,9 @@ function teeToFile(upstream, target) {
 
 /** Answers one draggy://models/ request. */
 async function serveModelFile(relative, { root, origin, fetchImpl = fetch }) {
-  if (!relative) return new Response("Bad request", { status: 400 });
+  if (!relative) return new Response("Bad request", { status: 400, headers: RESOURCE_HEADERS });
   const target = cachedPath(root, relative);
-  if (!target) return new Response("Bad request", { status: 400 });
+  if (!target) return new Response("Bad request", { status: 400, headers: RESOURCE_HEADERS });
 
   const name = path.basename(relative);
   if (fs.existsSync(target)) {
@@ -109,11 +109,17 @@ async function serveModelFile(relative, { root, origin, fetchImpl = fetch }) {
   }
 
   log.info("engine.models", "fetch started", { file: name });
-  const upstream = await fetchImpl(`${origin}/${relative}`);
+  let upstream;
+  try {
+    upstream = await fetchImpl(`${origin}/${relative}`);
+  } catch (error) {
+    log.fail("engine.models", "fetch unreachable", error, { file: name });
+    return new Response("Upstream unreachable", { status: 502, headers: RESOURCE_HEADERS });
+  }
   log.info("engine.models", "fetch connected",{ file: name, status: upstream.status, bytes: Number(upstream.headers?.get?.("content-length")) || null });
   if (!upstream.ok || !upstream.body) {
     log.fail("engine.models", "fetch refused", null, { file: name, status: upstream.status });
-    return new Response(upstream.statusText, { status: upstream.status || 502 });
+    return new Response(upstream.statusText || "Fetch refused", { status: upstream.status || 502, headers: RESOURCE_HEADERS });
   }
 
   // fetch hands over the decoded body, so a compressed response's content-length is smaller than
