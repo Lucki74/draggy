@@ -44,7 +44,8 @@ describe("the image card", () => {
 
     render(<ImageCard step={step({ prompt: "a fox", status: "generating", requestId: "r1", startedAt: Date.now() })} t={t} />);
     expect(screen.getByRole("status").textContent).toBe("Drawing…");
-    expect(screen.getByRole("progressbar")).toBeTruthy();
+    // The pulsing placeholder alone says it is working; no bar rides on the picture.
+    expect(screen.queryByRole("progressbar")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     expect(cancel).toHaveBeenCalledWith("r1");
