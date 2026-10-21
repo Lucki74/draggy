@@ -332,9 +332,8 @@ const STAGE_KEYS = {
   ready: "loadingStageReady",
 } as const;
 
-// Shows elapsed seconds while loading so large models do not look frozen.
+// Shows how far the load has got in percent; the time each stage took goes to the log.
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [stage, setStage] = useState<{ stage: "reading" | "placing" | "prefilling" | "ready"; percent?: number } | null>(null);
 
@@ -343,13 +342,6 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
     if (!step.model) return;
     return window.electronAPI?.gguf?.onStage?.(setStage);
   }, [step.model]);
-
-  useEffect(() => {
-    if (step.startedAt === undefined) return;
-    const startedAt = step.startedAt;
-    const timer = setInterval(() => setElapsedMs(Math.max(0, Date.now() - startedAt)), 100);
-    return () => clearInterval(timer);
-  }, [step.startedAt]);
 
   useEffect(() => {
     if (!step.retry) return;
@@ -366,7 +358,6 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
       ? t(stage ? STAGE_KEYS[stage.stage] : "loadingModel")
           .replace("{model}", displayModelName(step.model))
           .replace("{percent}", String(stage?.percent ?? 0))
-          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
       : step.content;
 
   return (

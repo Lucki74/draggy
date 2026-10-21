@@ -1127,7 +1127,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       pushStep({
         id: loadStepId,
         type: "loading",
-        content: host.t("loadingModel").replace("{model}", model).replace("{seconds}", "0.0"),
+        content: host.t("loadingModel").replace("{model}", model).replace("{percent}", "0"),
         isComplete: false,
         model,
         startedAt: Date.now(),

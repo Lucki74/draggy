@@ -9,6 +9,7 @@ const mmproj = require("./mmproj.cjs");
 const draftModel = require("./draftModel.cjs");
 const draftStats = require("./draftStats.cjs");
 const cpuTopology = require("./cpuTopology.cjs");
+const { createLoadProgress } = require("./loadProgress.cjs");
 const { parseGgufHeader } = require("./ggufParser.cjs");
 const { log: defaultLog, noteStat } = require("./logger.cjs");
 const { createRing } = require("./ringBuffer.cjs");
@@ -390,11 +391,31 @@ function onEngineStage(sink) {
   stageSink = typeof sink === "function" ? sink : null;
 }
 
+let loadProgress = null;
+/** Turns the engine's stages into percents, with the time each stage took going to the log. */
+function trackLoad(stage, { modelPath, userDataDir, logger }) {
+  if (stage.stage === "reading") {
+    loadProgress?.stop();
+    let sizeBytes = 0;
+    try {
+      sizeBytes = fs.statSync(modelPath).size;
+    } catch (error) {
+      logger.warn("llama.load", `model size unreadable: ${error.name}`);
+    }
+    loadProgress = createLoadProgress({ modelPath, sizeBytes, userDataDir, logger, emit: (next) => stageSink?.(next) });
+  }
+  if (!loadProgress) {
+    stageSink?.(stage);
+    return;
+  }
+  loadProgress.handle(stage);
+}
+
 /** Reads one line of the engine's output for what it says about speed: how many layers reached the
  * GPU, and how many drafted tokens were accepted. */
 function watchEngineLine(line, { modelPath, userDataDir, drafting, logger, moe }) {
   const stage = stageSink && parseEngineStage(line);
-  if (stage) stageSink(stage);
+  if (stage) trackLoad(stage, { modelPath, userDataDir, logger });
   const offload = /offloaded (\d+)\/(\d+) layers to GPU/i.exec(line);
   if (offload) {
     activeOffload = { layers: Number(offload[1]), total: Number(offload[2]) };
