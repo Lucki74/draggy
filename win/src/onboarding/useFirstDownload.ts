@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadModel, type BootBridge } from "../boot/bootSequence";
-import { estimateRemaining } from "../settings/useModelManager";
+import { createSpeedMeter } from "../downloadSpeed";
 
 /** The engine and the first model, downloading while the user carries on through the setup. Held
  * at the setup's root so a step change never interrupts it, and it never starts on its own. */
@@ -171,19 +171,14 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
       const controller = new AbortController();
       controllerRef.current = controller;
       setModel({ ...IDLE_MODEL, reference, phase: "queued" });
-      let first: { time: number; completed: number } | null = null;
+      const meter = createSpeedMeter();
 
       downloadModel(
         api,
         reference,
         (progress) => {
           if (controller.signal.aborted || !progress) return;
-          if (!first && progress.completed > 0) first = { time: Date.now(), completed: progress.completed };
-          const remaining =
-            progress.remainingSeconds ??
-            estimateRemaining({ phase: "downloading", ...progress }, first);
-          const elapsed = first ? (Date.now() - first.time) / 1000 : 0;
-          const rate = first && elapsed > 1 ? (progress.completed - first.completed) / elapsed : 0;
+          const measured = meter.sample(progress.completed, progress.total);
           setModel((current) => ({
             ...current,
             filename: progress.label,
@@ -191,8 +186,8 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
             percent: progress.percent,
             completed: progress.completed,
             total: progress.total || current.total,
-            remainingSeconds: remaining,
-            bytesPerSecond: Math.max(0, rate),
+            remainingSeconds: measured.remainingSeconds,
+            bytesPerSecond: measured.bytesPerSecond ?? 0,
           }));
         },
         controller.signal,
