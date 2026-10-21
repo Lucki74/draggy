@@ -185,7 +185,7 @@ describe("a file the model wrote", () => {
     const { container } = show([generatingHtml]);
 
     expect(screen.getByText("Writing...")).toBeTruthy();
-    expect(screen.getByText("http://localhost:3000/index.html")).toBeTruthy();
+    expect(screen.queryByText(/localhost:3000/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("Live Webpage")).toBeTruthy();
     expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
