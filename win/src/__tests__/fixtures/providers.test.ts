@@ -397,8 +397,10 @@ describe("providers fixtures", () => {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };
     describe(area, () => {
       for (const testCase of windowsCases(name, fixture.cases)) {
+        // The shared fixture still names the Gemini CLI route the Rust port carries; Windows signs in through agy.
+        const expected = area === "catalog" && testCase.name === "entry google" ? { ...(testCase.expected as object), name: "Google (Antigravity)", protocol: "agy", signInHosts: [] } : testCase.expected;
         it(testCase.name, async () => {
-          expect(canon(await run(area, testCase.input))).toEqual(canon(testCase.expected));
+          expect(canon(await run(area, testCase.input))).toEqual(canon(expected));
         });
       }
     });
