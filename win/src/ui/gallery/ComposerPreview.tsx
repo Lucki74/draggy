@@ -1,3 +1,4 @@
+import { commandRanges } from "../../chat/slashCommands";
 import { useState } from "react";
 import { Composer, type ComposerProps, type WorkContext } from "../../chat/Composer";
 import { translations } from "../../translations";
@@ -102,6 +103,7 @@ export function ComposerPreview({
         runSlashCommand,
         setSlashIndex: noop,
         setCaret: noop,
+        chipRanges: commandRanges(input, { surface: "code" }),
         onPaste: noop,
         onDrop: noop,
         processFiles: async () => {},

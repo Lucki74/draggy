@@ -37,6 +37,7 @@ import type { SettingsTab } from "../settings/pages";
 import {
     clampSlashIndex,
     matchSlashCommands,
+    commandRanges,
     replaceSlashToken,
     slashTokenAt,
 } from "./slashCommands";
@@ -386,6 +387,7 @@ export function useChatSession({
         setFileErrors(rejected);
     };
 
+    const chipRanges = useMemo(() => commandRanges(input, { surface, skills }), [input, surface, skills]);
     const slashQuery = slashTokenAt(input, Math.min(caret ?? input.length, input.length))?.query ?? null;
     const slashMatches = matchSlashCommands(input, { surface, skills, caret: caret ?? undefined });
 
@@ -556,6 +558,7 @@ export function useChatSession({
         activeSlashIndex,
         setSlashIndex,
         setCaret,
+        chipRanges,
         modelInfo,
         modelProvider,
         thinkingUnavailable,

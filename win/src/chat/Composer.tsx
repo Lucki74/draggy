@@ -7,7 +7,7 @@ import { ProviderIcon } from "../providers/ProviderIcon";
 import { displayModelName, modelLabel } from "../llama";
 import { isRemote } from "../ai/providers";
 import { useSlowModel } from "./useSlowModel";
-import { parseSlashArgument } from "./slashCommands";
+import { chipSegments, parseSlashArgument } from "./slashCommands";
 import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
@@ -98,6 +98,8 @@ export interface ComposerProps {
     runSlashCommand: (id: string) => number | void;
     setSlashIndex: React.Dispatch<React.SetStateAction<number>>;
     setCaret: (position: number) => void;
+    /** Stretches of the text that run a command, drawn as chips behind the field. */
+    chipRanges: Array<[number, number]>;
     onPaste: (e: React.ClipboardEvent) => void;
     onDrop: (e: React.DragEvent) => void;
     processFiles: (files: File[]) => Promise<void>;
@@ -184,6 +186,7 @@ export function Composer({
     runSlashCommand,
     setSlashIndex,
     setCaret,
+    chipRanges,
     onPaste,
     onDrop,
     processFiles,
@@ -220,6 +223,8 @@ export function Composer({
         setMention((current) => (current?.start === next?.start && current?.query === next?.query ? current : next));
         if (next?.query !== mention?.query) setMentionIndex(0);
     };
+
+    const chipLayerRef = useRef<HTMLDivElement>(null);
 
     const pickSlash = (id: string) => {
         const caret = runSlashCommand(id);
@@ -532,6 +537,28 @@ export function Composer({
                         )}
                     </div>
 
+                    <div className="relative">
+                    {chipRanges.length > 0 && (
+                        <div
+                            ref={chipLayerRef}
+                            aria-hidden="true"
+                            data-testid="command-chips"
+                            className="absolute inset-0 px-4 pt-3.5 pb-1 text-[15px] leading-6 whitespace-pre-wrap break-words overflow-y-auto pointer-events-none text-transparent"
+                            style={{ scrollbarColor: "transparent transparent" }}
+                        >
+                            {chipSegments(input, chipRanges).map((part, index) =>
+                                part.chip ? (
+                                    <mark key={index} className="rounded-xs bg-[var(--accent-soft)] text-transparent">
+                                        {part.text}
+                                    </mark>
+                                ) : (
+                                    <span key={index}>{part.text}</span>
+                                ),
+                            )}
+                            {/* A last newline needs a line of its own, as it has in the field. */}
+                            {input.endsWith("\n") ? "\u200b" : null}
+                        </div>
+                    )}
                     <textarea
                         ref={inputRef}
                         value={input}
@@ -544,6 +571,9 @@ export function Composer({
                         onSelect={(e) => {
                             setCaret(e.currentTarget.selectionStart);
                             trackMention(e.currentTarget);
+                        }}
+                        onScroll={(e) => {
+                            if (chipLayerRef.current) chipLayerRef.current.scrollTop = e.currentTarget.scrollTop;
                         }}
                         onBlur={() => setMention(null)}
                         onPaste={onPaste}
@@ -603,6 +633,7 @@ export function Composer({
                         rows={1}
                         style={{ minHeight: variant === "home" ? "72px" : "48px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
                     />
+                    </div>
 
                     {(notice || fileErrors.length > 0 || attachedFiles.length > 0) && (
                         <div className="px-3 pb-1.5 flex flex-wrap gap-1.5">

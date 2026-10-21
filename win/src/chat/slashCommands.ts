@@ -1,3 +1,4 @@
+import { skillCommandMatches } from "../skills/skills";
 import type { InstalledSkill } from "../types";
 
 /** The slash commands. `label` is a translation key, so the menu reads in the user's language while
@@ -68,6 +69,36 @@ export function replaceSlashToken(text: string, token: SlashToken, id: string): 
   const tail = spaced ? text.slice(token.end) : ` ${text.slice(token.end)}`;
 
   return { text: head + tail, caret: head.length + 1 };
+}
+
+/** The stretches of a message that run a command, for the chip drawn behind them: a skill anywhere,
+ * a built-in command only as the first word. */
+export function commandRanges(
+  text: string,
+  options: { surface?: "chat" | "code"; skills?: InstalledSkill[] } = {},
+): Array<[number, number]> {
+  const ranges: Array<[number, number]> = skillCommandMatches(text, options.skills ?? []).map((one) => [one.start, one.end]);
+
+  const lead = /^\/([a-z-]+)(?=\s|$)/i.exec(text);
+  const surface = options.surface ?? "chat";
+  const builtIn = lead && SLASH_COMMANDS.find((command) => command.id === lead[1].toLowerCase() && (!command.only || command.only === surface));
+  if (builtIn && !ranges.some(([start]) => start === 0)) ranges.unshift([0, lead![0].length]);
+
+  return ranges.sort((a, b) => a[0] - b[0]);
+}
+
+/** The text cut at the edges of the ranges, each part marked as a chip or not. */
+export function chipSegments(text: string, ranges: Array<[number, number]>): Array<{ text: string; chip: boolean }> {
+  const parts: Array<{ text: string; chip: boolean }> = [];
+  let at = 0;
+  for (const [start, end] of ranges) {
+    if (start < at) continue;
+    if (start > at) parts.push({ text: text.slice(at, start), chip: false });
+    parts.push({ text: text.slice(start, end), chip: true });
+    at = end;
+  }
+  if (at < text.length) parts.push({ text: text.slice(at), chip: false });
+  return parts;
 }
 
 /** Skills as commands, after the built-in ones. A skill named like a built-in command is left out,

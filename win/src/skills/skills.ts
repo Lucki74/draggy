@@ -88,23 +88,33 @@ export function skillInvocation(
 /** Code spans and fences hold text to show, so a command inside one is left alone. */
 const CODE_SPAN = /```[\s\S]*?(?:```|$)|`[^`\n]*`/g;
 
-/** Every skill command in a message, wherever it sits: "use /pdf then /docx on this". Only a word on its
- * own after a space counts, so URLs, paths ("/dev/null") and code spans never run a skill. */
+/** Where each skill command sits in a message: "use /pdf then /docx on this". Only a word on its own
+ * after a space counts, so URLs, paths ("/dev/null") and code spans never run a skill. */
+export function skillCommandMatches(text: string, skills: InstalledSkill[]): Array<{ skill: InstalledSkill; start: number; end: number }> {
+  const masked = String(text || "").replace(CODE_SPAN, (span) => " ".repeat(span.length));
+  const out: Array<{ skill: InstalledSkill; start: number; end: number }> = [];
+
+  for (const match of masked.matchAll(/(^|\s)\/([a-z0-9][a-z0-9-]*)(?=$|\s|[,;:!?)]|\.(?:\s|$))/gi)) {
+    const skill = skills.find((one) => one.id.toLowerCase() === match[2].toLowerCase());
+    if (!skill) continue;
+    const start = (match.index ?? 0) + match[1].length;
+    out.push({ skill, start, end: start + match[2].length + 1 });
+  }
+  return out;
+}
+
+/** Every skill command in a message, once each in the order typed, and the message without them. */
 export function skillInvocations(
   text: string,
   skills: InstalledSkill[],
 ): { skills: InstalledSkill[]; request: string } | null {
   const source = String(text || "");
-  const masked = source.replace(CODE_SPAN, (span) => " ".repeat(span.length));
   const found: InstalledSkill[] = [];
   const cuts: Array<[number, number]> = [];
 
-  for (const match of masked.matchAll(/(^|\s)\/([a-z0-9][a-z0-9-]*)(?=$|\s|[,;:!?)]|\.(?:\s|$))/gi)) {
-    const skill = skills.find((one) => one.id.toLowerCase() === match[2].toLowerCase());
-    if (!skill) continue;
+  for (const { skill, start: at, end } of skillCommandMatches(source, skills)) {
     if (!found.includes(skill)) found.push(skill);
-    let start = (match.index ?? 0) + match[1].length;
-    const end = start + match[2].length + 1;
+    let start = at;
     // "with /pdf." leaves "with.", not "with .".
     if (/[,;:!?).]/.test(source[end] ?? "") && source[start - 1] === " ") start -= 1;
     cuts.push([start, end]);

@@ -275,6 +275,7 @@ export default function ChatScreen({
       runSlashCommand={session.runSlashCommand}
       setSlashIndex={session.setSlashIndex}
       setCaret={session.setCaret}
+      chipRanges={session.chipRanges}
       onPaste={handlePaste}
       onDrop={handleDrop}
       processFiles={session.processFiles}
