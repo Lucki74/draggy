@@ -1187,6 +1187,8 @@ declare global {
       readCreatedFile: (filepath: string) => Promise<{
         success: boolean;
         text?: string;
+        /** The whole file as base64, sent for Word files so they can be drawn as pages. */
+        data?: string;
         truncated?: boolean;
         binary?: boolean;
         error?: string;

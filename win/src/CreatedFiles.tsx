@@ -5,6 +5,7 @@ import { formatSize, groupFiles, kindOf, matchesQuery } from "./fileList";
 import type { FileKind } from "./fileList";
 import type { AppSettings, CreatedFile } from "./types";
 import { FilePreview } from "./chat/FilePreview";
+import { WordPreview } from "./chat/WordPreview";
 import { swallowed } from "./logger";
 
 /** Everything the model wrote, read from the folder rather than a list in the app: a file deleted
@@ -28,6 +29,7 @@ const PICTURE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 
 interface Preview {
   text: string;
+  data?: string;
   truncated: boolean;
   binary: boolean;
 }
@@ -47,6 +49,8 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [brokenPicture, setBrokenPicture] = useState<string | null>(null);
+  const [wordFailed, setWordFailed] = useState(false);
+  const failWord = useCallback(() => setWordFailed(true), []);
 
   const load = useCallback(async () => {
     try {
@@ -101,6 +105,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
     setOpenPath(file.path);
     setPreview(null);
     setBrokenPicture(null);
+    setWordFailed(false);
     if (PICTURE_EXTENSIONS.has(file.extension)) return;
 
     const outcome = await window.electronAPI?.readCreatedFile(file.path);
@@ -111,6 +116,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
 
     setPreview({
       text: outcome.text ?? "",
+      data: outcome.data,
       truncated: Boolean(outcome.truncated),
       binary: Boolean(outcome.binary),
     });
@@ -253,6 +259,8 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                           )
                         ) : preview === null ? (
                           <p className="p-4 text-[13px] text-text-secondary">{t("loading")}</p>
+                        ) : preview.data && !wordFailed ? (
+                          <WordPreview base64={preview.data} onFail={failWord} />
                         ) : preview.binary ? (
                           <p className="p-4 text-[13px] text-text-secondary">{t("previewUnavailable")}</p>
                         ) : (

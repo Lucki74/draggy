@@ -2756,9 +2756,12 @@ ipc.handle("read-created-file", async (event, filepath) => {
     const buffer = fs.readFileSync(resolved);
     const text = buffer.subarray(0, PREVIEW_LIMIT).toString("utf8");
 
+    // A Word file is drawn from its bytes, so the renderer gets them whole when they are not huge.
+    const wordBytes = path.extname(resolved).toLowerCase() === ".docx" && stats.size <= 20 * 1024 * 1024;
     return {
       success: true,
       text,
+      ...(wordBytes ? { data: buffer.toString("base64") } : {}),
       truncated: stats.size > PREVIEW_LIMIT,
       // A NUL byte in the first kilobyte means this is not text to show.
       binary: buffer.subarray(0, 1024).includes(0),
