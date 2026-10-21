@@ -18,12 +18,6 @@ use draggy_providers::codex::binary as codex_binary;
 use draggy_providers::gateway::{
     AccountCall, AccountFailure, AccountRuntime, AccountSink, Gateway, GatewayRequest, Sleeper,
 };
-use draggy_providers::gemini::install as gemini_install;
-use draggy_providers::gemini::mcp_http::{
-    McpEndpoint, McpRequest, McpServer, Opened, PendingCall, ready,
-};
-use draggy_providers::gemini::process::RunFiles;
-use draggy_providers::gemini::{self, process as gemini_process};
 use draggy_providers::http::{ByteStream, HttpClient, HttpRequest, HttpResponse, TransportError};
 use draggy_providers::install_fs::{
     Download, FileView, InstallFs, Progress, SingleFlight, sha256_hex,
@@ -295,13 +289,11 @@ fn failure_json(failure: &AccountFailure) -> Value {
     value
 }
 
-fn gemini_or_claude_constant(area: &str, name: &str) -> Value {
-    let gemini_area = area.contains("gemini");
+fn claude_constant(name: &str) -> Value {
     match name {
         "ARGS" => json!(codex::process::ARGS),
         "FEATURES_OFF" => json!(codex::process::FEATURES_OFF),
         "CATALOG_NAME" => json!(codex::process::CATALOG_NAME),
-        "FLAGS" if gemini_area => json!(gemini_process::FLAGS),
         "FLAGS" => json!(claude::process::FLAGS),
         "QUIET" => json!(
             claude::process::QUIET
@@ -309,13 +301,8 @@ fn gemini_or_claude_constant(area: &str, name: &str) -> Value {
                 .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
                 .collect::<BTreeMap<String, String>>()
         ),
-        "TOOL_TIMEOUT_MS" if gemini_area => json!(gemini_process::TOOL_TIMEOUT_MS),
         "TOOL_TIMEOUT_MS" => json!(claude::process::TOOL_TIMEOUT_MS),
-        "CLIENT" => gemini_process::client_handshake(),
-        "NODE_FLAGS" => json!(gemini_process::NODE_FLAGS),
-        "VERSION" if gemini_area => json!(gemini::install::VERSION),
         "VERSION" => json!(claude::binary::VERSION),
-        "EXPECTED_BYTES" => json!(gemini::install::EXPECTED_BYTES),
         _ => Value::Null,
     }
 }
@@ -354,8 +341,6 @@ fn run_pure(file: &str, input: &Value) -> Value {
                     present(input.get("error")),
                     present(input.get("limits")),
                 ))
-            } else if file.contains("gemini") {
-                failure_json(&gemini::adapter::turn_failure(present(input.get("error"))))
             } else {
                 failure_json(&claude::adapter::turn_failure(
                     &text(input, "text"),
@@ -370,10 +355,6 @@ fn run_pure(file: &str, input: &Value) -> Value {
         "resetsAtOf" => {
             codex::adapter::resets_at_of(present(input.get("limits"))).unwrap_or(Value::Null)
         }
-        "toPrompt" => Value::Array(gemini::adapter::to_prompt(
-            &messages(&input["history"]),
-            present(input.get("input")),
-        )),
         "assetFor" => {
             let asset = if file.contains("codex") {
                 codex::binary::asset_for(&text(input, "platformName"), &text(input, "arch"))
@@ -394,10 +375,8 @@ fn run_pure(file: &str, input: &Value) -> Value {
             let app = text(input, "appData");
             json!(if file.contains("claude") {
                 claude::binary::install_dir(&app)
-            } else if file.contains("codex") {
-                codex::binary::install_dir(&app)
             } else {
-                gemini::install::install_dir(&app)
+                codex::binary::install_dir(&app)
             })
         }
         "configToml" => {
@@ -455,208 +434,9 @@ fn run_pure(file: &str, input: &Value) -> Value {
             };
             json!(claude::process::session_args(&session))
         }
-        "neutralPaths" => {
-            let program_data = input
-                .get("env")
-                .and_then(|env| opt_text(env, "ProgramData"));
-            let uid = input.get("uid").and_then(Value::as_u64).unwrap_or(0) as u32;
-            let paths = gemini_process::neutral_paths(
-                &text(input, "instanceId"),
-                &text(input, "platformName"),
-                program_data.as_deref(),
-                uid,
-            );
-            json!({ "link": paths.link, "cwd": paths.cwd })
-        }
-        "settingsFor" => {
-            let tools: Vec<String> = input
-                .get("tools")
-                .and_then(Value::as_array)
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let model = opt_text(input, "model");
-            let mcp = opt_text(input, "mcpUrl");
-            gemini_process::settings_for(&tools, model.as_deref(), mcp.as_deref())
-        }
-        "geminiEnv" => {
-            let files = present(input.get("files")).map(|f| RunFiles {
-                settings: text(f, "settings"),
-                system: text(f, "system"),
-                system_defaults: text(f, "systemDefaults"),
-                prompt: text(f, "prompt"),
-            });
-            match gemini_process::gemini_env(
-                &text(input, "appData"),
-                &text(input, "instanceId"),
-                &pairs(input.get("parentEnv")),
-                &text(input, "link"),
-                files.as_ref(),
-                flag(input, "noBrowser"),
-            ) {
-                Ok(built) => json!({ "env": built.env, "home": built.home }),
-                Err(error) => json!({ "error": error.to_string() }),
-            }
-        }
-        "constants" => gemini_or_claude_constant(file, &text(input, "name")),
+        "constants" => claude_constant(&text(input, "name")),
         other => json!({ "unknownDriver": other }),
     }
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// MCP tool server.
-
-struct Echo;
-
-impl McpEndpoint for Echo {
-    fn tools(&self) -> Value {
-        json!([{ "name": "echo", "description": "Echoes", "inputSchema": { "type": "object", "properties": { "x": { "type": "string" } } } }])
-    }
-
-    fn call(&self, name: Option<&str>, arguments: &Value) -> Box<dyn PendingCall> {
-        if name == Some("boom") {
-            return ready(Err("boom".to_owned()));
-        }
-        // The reference's template prints a missing name as "undefined".
-        let name = name.unwrap_or("undefined");
-        let x = arguments.get("x").and_then(Value::as_str).unwrap_or("");
-        ready(Ok(
-            json!({ "content": [{ "type": "text", "text": format!("{name}:{x}") }] }),
-        ))
-    }
-}
-
-/// A call the driver settles by hand, and that records whether the client went away while it was still running.
-struct Gated {
-    result: Rc<RefCell<Option<Result<Value, String>>>>,
-    closed: Rc<Cell<bool>>,
-}
-
-struct GatedCall {
-    result: Rc<RefCell<Option<Result<Value, String>>>>,
-    closed: Rc<Cell<bool>>,
-}
-
-impl PendingCall for GatedCall {
-    fn poll(&mut self) -> Option<Result<Value, String>> {
-        self.result.borrow_mut().take()
-    }
-
-    fn closed(&mut self) {
-        self.closed.set(true);
-    }
-}
-
-impl McpEndpoint for Gated {
-    fn tools(&self) -> Value {
-        json!([])
-    }
-
-    fn call(&self, _name: Option<&str>, _arguments: &Value) -> Box<dyn PendingCall> {
-        Box::new(GatedCall {
-            result: Rc::clone(&self.result),
-            closed: Rc::clone(&self.closed),
-        })
-    }
-}
-
-fn run_mcp(input: &Value) -> Value {
-    const HOST: &str = "127.0.0.1:4000";
-    let mut server = McpServer::new("draggy", "1", HOST);
-    server.register("/mcp/fixture", Box::new(Echo));
-    let request = McpRequest {
-        method: text(input, "method"),
-        path: text(input, "path"),
-        host: HOST.to_owned(),
-        origin: opt_text(input, "origin"),
-        body: opt_text(input, "body").unwrap_or_default(),
-    };
-    let reply = match server.open(&request) {
-        Opened::Reply(reply) => reply,
-        // A call's answer is written on the tick that finds it settled; the call here settles at once.
-        Opened::Events(mut stream) => {
-            let frames = stream.advance(0);
-            let head = stream.head();
-            let text = frames.concat();
-            return json!({ "status": head.status, "contentType": head.content_type, "body": sse_body(&text) });
-        }
-    };
-    let body = match (reply.body, reply.content_type) {
-        (None, _) => Value::Null,
-        (Some(text), "application/json") => serde_json::from_str(&text).unwrap_or(Value::Null),
-        (Some(text), _) => sse_body(&text),
-    };
-    json!({ "status": reply.status, "contentType": reply.content_type, "body": body })
-}
-
-/// One SSE frame as the fixtures record it: its event and data, or the text when it is not an event.
-fn sse_body(text: &str) -> Value {
-    match text
-        .strip_prefix("event: ")
-        .and_then(|rest| rest.split_once("\ndata: "))
-    {
-        Some((event, data)) => {
-            json!({ "event": event, "data": serde_json::from_str::<Value>(data.trim_end_matches("\n\n")).unwrap_or(Value::Null) })
-        }
-        None => json!(text),
-    }
-}
-
-/// A call through the stream: the input's steps move the clock (`advance`), settle the call, or drop the client. The
-/// frames written are recorded in order, as the reference's client reads them.
-fn run_mcp_stream(input: &Value) -> Value {
-    const HOST: &str = "127.0.0.1:4000";
-    let result = Rc::new(RefCell::new(None));
-    let closed = Rc::new(Cell::new(false));
-    let mut server = McpServer::new("draggy", "1", HOST);
-    server.register(
-        "/mcp/fixture",
-        Box::new(Gated {
-            result: Rc::clone(&result),
-            closed: Rc::clone(&closed),
-        }),
-    );
-    let request_in = &input["request"];
-    let request = McpRequest {
-        method: text(request_in, "method"),
-        path: text(request_in, "path"),
-        host: HOST.to_owned(),
-        origin: opt_text(request_in, "origin"),
-        body: opt_text(request_in, "body").unwrap_or_default(),
-    };
-    let mut stream = match server.open(&request) {
-        Opened::Events(stream) => stream,
-        Opened::Reply(reply) => {
-            return json!({ "status": reply.status, "contentType": reply.content_type, "frames": [], "closedSignalled": false });
-        }
-    };
-    let mut frames: Vec<String> = Vec::new();
-    for step in input["steps"].as_array().cloned().unwrap_or_default() {
-        if let Some(ms) = step.get("advance").and_then(Value::as_u64) {
-            frames.extend(stream.advance(ms));
-        }
-        if let Some(settle) = step.get("settle") {
-            let answer = match settle.get("error").and_then(Value::as_str) {
-                Some(message) => Err(message.to_owned()),
-                None => Ok(settle.get("result").cloned().unwrap_or(Value::Null)),
-            };
-            *result.borrow_mut() = Some(answer);
-            frames.extend(stream.advance(0));
-        }
-        if step.get("close").is_some() {
-            stream.closed();
-        }
-    }
-    let head = stream.head();
-    json!({
-        "status": head.status,
-        "contentType": head.content_type,
-        "frames": frames,
-        "closedSignalled": closed.get(),
-    })
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -987,11 +767,8 @@ fn run_gateway(input: &Value) -> Value {
 fn run(file: &str, input: &Value) -> Value {
     match text(input, "fn").as_str() {
         "gatewayRoutes" => run_gateway(input),
-        "mcpHttp" => run_mcp(input),
-        "mcpStream" => run_mcp_stream(input),
         "claudeInstall" => run_claude_install(input),
         "codexInstall" => run_codex_install(input),
-        "geminiInstall" => run_gemini_install(input),
         "supervisor" => run_supervisor(input),
         _ => run_pure(file, input),
     }
@@ -1200,32 +977,6 @@ impl codex_binary::Unpack for Unpacker {
     }
 }
 
-/// npm as a fake: it writes the entry point when it succeeds, and answers with the given code and stderr.
-struct FakeNpm {
-    code: Option<i32>,
-    stderr: String,
-}
-
-impl gemini_install::Npm for FakeNpm {
-    fn run_ci(
-        &mut self,
-        cwd: &str,
-        _args: &[&str],
-        fs: &mut dyn InstallFs,
-    ) -> gemini_install::NpmResult {
-        if self.code == Some(0) {
-            fs.write_file(
-                &format!("{cwd}/node_modules/@google/gemini-cli/bundle/gemini.js"),
-                b"console.log(1)",
-            );
-        }
-        gemini_install::NpmResult {
-            code: self.code,
-            stderr: self.stderr.clone(),
-        }
-    }
-}
-
 fn text_list(input: &Value, key: &str) -> Vec<String> {
     input[key]
         .as_array()
@@ -1370,35 +1121,6 @@ fn run_codex_install(input: &Value) -> Value {
         Err(error) => (Value::Null, json!(error.0)),
     };
     json!({ "result": result, "files": listing(&folder, &|_| false), "progress": progress, "error": error })
-}
-
-fn run_gemini_install(input: &Value) -> Value {
-    let mut folder = seeded(input);
-    let mut npm = FakeNpm {
-        code: Some(input["npmCode"].as_i64().unwrap_or(0) as i32),
-        stderr: text(input, "stderr"),
-    };
-    let flight = SingleFlight::default();
-    let lock = [("package.json", "{}"), ("package-lock.json", "{}")];
-    let outcome = gemini_install::ensure(
-        &flight,
-        APP,
-        input["npm"].as_bool().unwrap_or(false),
-        &lock,
-        &mut npm,
-        &mut folder,
-    );
-    let (result, error) = match outcome {
-        Ok(path) => (
-            path.as_deref().map(relative).unwrap_or(Value::Null),
-            Value::Null,
-        ),
-        Err(error) => (Value::Null, json!(error.0)),
-    };
-    let lock_copies = |rel: &str| {
-        rel == "gemini/cli/0.61.0/package.json" || rel == "gemini/cli/0.61.0/package-lock.json"
-    };
-    json!({ "result": result, "files": listing(&folder, &lock_copies), "error": error })
 }
 
 // ---------------------------------------------------------------------------------------------------------------

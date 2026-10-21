@@ -10,7 +10,6 @@ pub mod codex;
 pub mod discovery;
 pub mod errors;
 pub mod gateway;
-pub mod gemini;
 pub mod http;
 pub mod install_fs;
 pub mod js;
