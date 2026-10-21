@@ -10,7 +10,7 @@ import {
 import { isCodeFile, prismLanguageOf } from "../canvas/drafts";
 import { isHtmlContent, sanitizeHtml } from "./htmlPreview";
 import { rehypeCaret } from "./streamReveal";
-import { EmberCaret, Icon } from "../ui";
+import { EmberCaret } from "../ui";
 
 const LINE_HEIGHT = 20;
 const OVERSCAN = 30;

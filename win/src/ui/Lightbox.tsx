@@ -118,7 +118,7 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
     >
       <div
         ref={stage}
-        className={`relative flex-1 min-h-0 overflow-hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`relative flex flex-1 min-h-0 items-center justify-center overflow-hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -156,10 +156,10 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
             width: natural.width || undefined,
             height: natural.height || undefined,
             maxWidth: "none",
-            transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.scale})`,
+            transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
             visibility: natural.width ? "visible" : "hidden",
           }}
-          className="absolute left-1/2 top-1/2 rounded-sm shadow-2xl"
+          className="max-w-none shrink-0 rounded-sm shadow-2xl"
         />
       </div>
 
