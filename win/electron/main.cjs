@@ -70,6 +70,7 @@ const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
 const { createAgyAdapter } = require("./providers/adapters/agy.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
+const { classifyPageFailure } = require("./pageFailure.cjs");
 const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
 const browserInput = require("./browserInput.cjs");
@@ -1829,8 +1830,9 @@ ipc.handle("get-page-content", async (event, url) => {
     return JSON.parse(result);
   } catch (e) {
     win.destroy();
-    log.fail("files", "page content read failed", e);
-    throw e;
+    const failure = classifyPageFailure(e);
+    log.warn("read-url", `page read failed: ${failure.code}`);
+    return { title: "", text: "", blocked: "unreachable", reason: failure.reason, url };
   }
 });
 

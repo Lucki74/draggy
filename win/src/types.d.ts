@@ -1121,8 +1121,8 @@ declare global {
         title: string;
         text: string;
         /** Set when the page could not be read rather than had no content. */
-        blocked?: "human-verification" | "refused";
-        /** Why a refused address was refused, worded for the model. */
+        blocked?: "human-verification" | "refused" | "unreachable";
+        /** Why a refused or unreachable address failed, worded for the model. */
         reason?: string;
         url?: string;
       }>;
