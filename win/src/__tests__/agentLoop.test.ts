@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { llamaIsBusy } from "../llama";
+import { buildResumeMessage } from "../agent/resume";
 import { resetTailNotesForTests, runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import { draggyRef } from "../ai/providers";
 import type { AgentHost, ApprovalRequest, OutOfContextInfo } from "../agent/agentLoop";
@@ -113,7 +114,7 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
       chunks.push({ choices: [{ delta: { tool_calls: group }, finish_reason: null }] });
     }
     chunks.push({
-      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      choices: [{ delta: {}, finish_reason: extra.finish_reason ?? "tool_calls" }],
       usage: { prompt_tokens: 120, completion_tokens: 40 },
       timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
       ...extra,
@@ -2542,6 +2543,57 @@ describe("live streaming file creation", () => {
     expect(fileSteps[0].isComplete).toBe(true);
     expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
     expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("keeps a file cut by the context and rewrites it as one file on resume", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          toolCallChunks: [[{ index: 0, id: "call_cut", function: { name: "create_file", arguments: '{"filename": "big.txt", "content": "first half' } }]],
+          final: { finish_reason: "length" },
+        },
+      ],
+      ["tools"],
+    );
+
+    const cut = await run([userMessage("write big.txt")], undefined, host).promise;
+    const cutSteps = cut.steps.filter((s) => s.type === "create_file");
+    expect(cutSteps).toHaveLength(1);
+    expect(cutSteps[0]).toMatchObject({ cut: true, isComplete: true, filename: "big.txt" });
+    const message = buildResumeMessage(cut.steps) ?? "";
+    expect(message).toContain("big.txt");
+    expect(message).toContain("first half");
+    expect(message).toContain("same name");
+
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/big.txt" });
+    installFetch(
+      [
+        { toolCallChunks: [[{ index: 0, id: "call_full", function: { name: "create_file", arguments: '{"filename": "big.txt", "content": "first half and second half"}' } }]] },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+    (window.electronAPI as Record<string, unknown>).createFile = createFile;
+
+    const resumed = await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("write big.txt")],
+        isContinuation: true,
+        seed: { content: cut.content, textContent: cut.textContent, steps: cut.steps },
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect(createFile).toHaveBeenCalledTimes(1);
+    expect(createFile).toHaveBeenCalledWith("big.txt", "first half and second half");
+    const files = resumed.steps.filter((s) => s.type === "create_file");
+    expect(files).toHaveLength(1);
+    expect(files[0].filepath).toBe("C:/out/big.txt");
   });
 
   it("streams file creation in text mode and reuses the in-progress step", async () => {

@@ -38,6 +38,13 @@ function lineFor(step: SearchStep): Line | null {
 
   switch (step.type) {
     case "create_file":
+      if (step.cut) {
+        // Nothing was saved, and a reply that goes on in the chat would leave the file unfinished.
+        return {
+          priority: 0,
+          text: `Was cut off while writing the file ${step.filename ?? ""}; nothing was saved. What was written so far ends: ${tail(step.fileContent ?? "", 300)} Write the whole file again from the start with create_file under the same name, in one call. Do not put its content in the reply.`,
+        };
+      }
       // The single most important thing to report: it is on disk already.
       return {
         priority: 0,

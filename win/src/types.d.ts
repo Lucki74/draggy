@@ -387,6 +387,8 @@ export interface SearchStep {
   filepath?: string;
   filename?: string;
   fileContent?: string;
+  /** On a "create_file" step: the context ran out mid-file, so nothing was saved. */
+  cut?: boolean;
   libraryHits?: SearchStepLibraryHit[];
   language?: string;
   stdout?: string;

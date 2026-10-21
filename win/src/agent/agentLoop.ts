@@ -1361,6 +1361,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             if (sFn || sContent !== undefined) {
               const displayFn = sFn || "";
               if (fileStepId === null) {
+                // The model is writing the file again after a cut, so the cut card gives way to it.
+                for (const old of steps.filter((entry) => entry.cut)) dropStep(old.id);
                 fileStepId = generateId();
                 if (thinkStepId) patchStep(thinkStepId, { isComplete: true });
                 pushStep({
@@ -1597,7 +1599,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       if (!hasToolCall) {
         if (fileStepId !== null) {
-          dropStep(fileStepId);
+          const partial = steps.find((entry) => entry.id === fileStepId);
+          // A file cut mid-way is kept, so a resume can say what was lost instead of losing it silently.
+          if (outOfContext && partial?.fileContent) {
+            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename ?? ""}**` });
+          } else {
+            dropStep(fileStepId);
+          }
           fileStepId = null;
           syncSteps();
         }
