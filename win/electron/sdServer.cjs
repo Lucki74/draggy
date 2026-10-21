@@ -418,7 +418,8 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
         await info.freeChatModel?.();
         const totalVram = memory.totalVramGB || 0;
         const freeAfter = (memory.freeVramGB || 0) + (memory.loadedLlmGB || 0);
-        plan = totalVram >= needGB || freeAfter >= needGB ? "gpu" : "offload";
+        // The decode needs about 3 GB beyond the weights; without it a 1024 px image fails in the VAE, so tile.
+        plan = totalVram >= needGB + 3 || freeAfter >= needGB + 3 ? "gpu" : "offload";
         evicted = true;
         tookChatMemory = true;
       }
