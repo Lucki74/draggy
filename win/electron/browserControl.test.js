@@ -466,4 +466,63 @@ describe("the agent overlay", () => {
     d.window.eval(control.hideOverlayScript());
     expect(hosts(d)).toHaveLength(0);
   });
+
+  it("glides from where the cursor stopped, taking longer for a longer way", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({ x: 100, y: 100 }));
+    const cursor = d.window.__draggyAgentRoot.querySelector(".cursor");
+    d.window.eval(control.overlayScript({ x: 110, y: 100 }));
+    const near = parseInt(/transform (\d+)ms/.exec(cursor.style.transition)[1], 10);
+    d.window.eval(control.overlayScript({ x: 900, y: 600 }));
+    const far = parseInt(/transform (\d+)ms/.exec(cursor.style.transition)[1], 10);
+    expect(far).toBeGreaterThan(near);
+    expect(far).toBeLessThanOrEqual(450);
+    expect(cursor.style.transform).toContain("900px");
+  });
+
+  it("slides a new cursor in from up and left, or rests it when the page was reloaded", () => {
+    const slide = dom();
+    slide.window.eval(control.overlayScript({ x: 200, y: 200 }));
+    expect(slide.window.__draggyAgentLast).toEqual({ x: 200, y: 200 });
+    expect(slide.window.__draggyAgentRoot.querySelector(".cursor").style.opacity).toBe("1");
+
+    const rest = dom();
+    rest.window.eval(control.overlayScript({ x: 200, y: 200, rest: true }));
+    expect(rest.window.__draggyAgentRoot.querySelector(".cursor").style.transform).toContain("200px");
+  });
+
+  it("keeps the cursor and frame between steps when called without a point", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({ x: 50, y: 60 }));
+    d.window.eval(control.overlayScript({}));
+    expect(hosts(d)).toHaveLength(1);
+    expect(d.window.__draggyAgentRoot.querySelector(".cursor").style.transform).toContain("50px");
+  });
+
+  it("ripples where a click lands, one ripple per click, and never on a plain move", () => {
+    const d = dom();
+    const ripples = () => d.window.__draggyAgentRoot.querySelectorAll(".ripple");
+    d.window.eval(control.overlayScript({ x: 10, y: 20 }));
+    expect(ripples()).toHaveLength(0);
+    d.window.eval(control.overlayScript({ x: 10, y: 20, click: true }));
+    d.window.eval(control.overlayScript({ x: 10, y: 20, click: true }));
+    expect(ripples()).toHaveLength(2);
+    expect(ripples()[0].style.getPropertyValue("--at")).toBe("translate(10px,20px)");
+  });
+
+  it("takes the frame colour from the accent, and falls back when it is not a hex colour", () => {
+    const d = dom();
+    const wrap = () => d.window.__draggyAgentRoot.querySelector(".wrap");
+    d.window.eval(control.overlayScript({ color: "#0072b2" }));
+    expect(wrap().style.getPropertyValue("--c")).toBe("#0072b2");
+    d.window.eval(control.overlayScript({ color: "red;}</style><script>" }));
+    expect(wrap().style.getPropertyValue("--c")).toBe("#d55e00");
+  });
+
+  it("holds the frame still, since an animated shadow keeps the page repainting", () => {
+    const d = dom();
+    d.window.eval(control.overlayScript({}));
+    const css = d.window.__draggyAgentRoot.querySelector("style").textContent;
+    expect(/\.border\{[^}]*animation/.test(css)).toBe(false);
+  });
 });

@@ -54,6 +54,8 @@ export interface TaskHost {
   onGrant: (grant: Grant) => void;
   /** A turn that ended on its own, for a conversation nobody may be watching. */
   onFinished?: (chatId: string) => void;
+  /** Every turn is over, so nothing is still driving the Browser pane. */
+  onIdle?: () => void;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -626,6 +628,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         runs.delete(chatId);
         setLiveTurn(chatId, null);
         notify();
+        if (runs.size === 0) host.onIdle?.();
 
         host.updateSession(chatId, (s) =>
           s.isGenerating ? { ...s, isGenerating: false } : s,
@@ -929,6 +932,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       runs.delete(chatId);
       setLiveTurn(chatId, null);
       notify();
+      if (runs.size === 0) host.onIdle?.();
     }
 
     folds.get(chatId)?.controller.abort();
@@ -941,7 +945,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     for (const chatId of runs.keys()) refuseWaiting(chatId);
     for (const controller of runs.values()) controller.abort();
     for (const chatId of runs.keys()) setLiveTurn(chatId, null);
+    const hadRuns = runs.size > 0;
     runs.clear();
+    if (hadRuns) host.onIdle?.();
     for (const fold of folds.values()) fold.controller.abort();
     folds.clear();
     notify();

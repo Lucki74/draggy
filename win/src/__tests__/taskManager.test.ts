@@ -469,6 +469,36 @@ describe("a turn waiting on the user", () => {
   });
 });
 
+describe("the end of every turn", () => {
+  it("says nothing is driving the pane only once the last turn is over", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle });
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 2].resolve(finished());
+    await vi.waitFor(() => expect(manager.isRunning("chat-1")).toBe(false));
+    expect(onIdle).not.toHaveBeenCalled();
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalledTimes(1));
+  });
+
+  it("says it when the user stops the only turn", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle });
+
+    manager.send("chat-1", "go");
+    manager.stop("chat-1");
+    pending[pending.length - 1].resolve(finished());
+
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalled());
+  });
+});
+
 describe("a turn waiting on a question", () => {
   const question = { id: "q-1", text: "Which one?", options: ["A", "B"], multiple: false };
   const ask = () => pending[pending.length - 1].host.requestAnswer!(question);

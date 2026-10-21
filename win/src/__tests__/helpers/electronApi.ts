@@ -200,6 +200,7 @@ export function installFakeElectronApi(): FakeApi {
     },
     browserAgent: {
       stop: async () => ({ success: true }),
+      release: async () => ({ success: true }),
       onState: () => () => {},
       onConsent: () => () => {},
       answerConsent: async () => ({ success: true }),

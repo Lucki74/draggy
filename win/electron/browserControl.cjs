@@ -289,9 +289,13 @@ function guardNavigation(contents, { isFetchableUrl, scope = "browser", enabled 
 
 const OVERLAY_ATTR = "data-draggy-agent-overlay";
 
-/** Lives in an isolated world, so page script cannot see or move it. Animates the cursor to a point. */
-const overlayScript = ({ x, y } = {}) => `
+const DEFAULT_OVERLAY_COLOR = "#d55e00";
+
+/** Isolated from the page. Draws the frame, glides the cursor from where it stopped, ripples on a click.
+ * `rest` puts a cursor new to the page straight on the point. */
+const overlayScript = ({ x, y, click = false, rest = false, color } = {}) => `
   (() => {
+    const color = ${JSON.stringify(/^#[0-9a-f]{6}$/i.test(color || "") ? color : DEFAULT_OVERLAY_COLOR)};
     let host = document.querySelector('[${OVERLAY_ATTR}]');
     if (!host) {
       host = document.createElement('div');
@@ -299,21 +303,53 @@ const overlayScript = ({ x, y } = {}) => `
       host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
       const root = host.attachShadow({ mode: 'closed' });
       window.__draggyAgentRoot = root;
+      window.__draggyAgentLast = null;
+      // The frame is static: an animated box-shadow keeps a page repainting and burns CPU.
       root.innerHTML = '<style>'
-        + '.border{position:absolute;inset:0;box-sizing:border-box;border:3px solid #6d5efc;box-shadow:inset 0 0 18px rgba(109,94,252,.45);}'
-        + '.cursor{position:absolute;left:0;top:0;width:18px;height:18px;margin:-2px 0 0 -2px;'
-        + 'transition:transform .35s cubic-bezier(.2,.8,.2,1);display:none;}'
-        + '.cursor svg{width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}'
-        + '</style><div class="border"></div>'
-        + '<div class="cursor"><svg viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="#6d5efc" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>';
+        + '.wrap{position:absolute;inset:0;}'
+        + '.border{position:absolute;inset:0;box-sizing:border-box;border:3px solid var(--c);'
+        + 'box-shadow:inset 0 0 18px color-mix(in srgb,var(--c) 45%,transparent);}'
+        + '.cursor{position:absolute;left:0;top:0;width:20px;height:20px;margin:-3px 0 0 -5px;opacity:0;will-change:transform;}'
+        + '.cursor svg{display:block;width:100%;height:100%;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45));}'
+        + '.ripple{position:absolute;left:0;top:0;width:30px;height:30px;margin:-15px 0 0 -15px;box-sizing:border-box;'
+        + 'border-radius:50%;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 25%,transparent);'
+        + 'opacity:0;animation:ripple .5s cubic-bezier(.2,.7,.3,1) forwards;}'
+        + '@keyframes ripple{0%{transform:var(--at) scale(.3);opacity:.9}100%{transform:var(--at) scale(1.5);opacity:0}}'
+        + '</style><div class="wrap"><div class="border"></div>'
+        + '<div class="cursor"><svg viewBox="0 0 24 24"><path d="M5.5 3.2v15.4l4.1-3.7 2.7 6.1 2.5-1.1-2.7-6h5.5z" '
+        + 'fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg></div></div>';
       (document.documentElement || document.body).appendChild(host);
     }
-    const cursor = window.__draggyAgentRoot.querySelector('.cursor');
+    const root = window.__draggyAgentRoot;
+    const wrap = root.querySelector('.wrap');
+    wrap.style.setProperty('--c', color);
+    const cursor = root.querySelector('.cursor');
     const x = ${Number.isFinite(x) ? Number(x) : "null"};
     const y = ${Number.isFinite(y) ? Number(y) : "null"};
     if (x !== null && y !== null) {
-      cursor.style.display = 'block';
-      cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+      const last = window.__draggyAgentLast;
+      const still = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      // A cursor new to the page slides in from up and left, one that was here glides from where it stopped.
+      const from = last || (${rest ? "true" : "false"} ? { x, y } : { x: x - 60, y: y - 40 });
+      const distance = Math.hypot(x - from.x, y - from.y);
+      if (!last) {
+        cursor.style.transition = 'none';
+        cursor.style.transform = 'translate(' + from.x + 'px,' + from.y + 'px)';
+        void cursor.getBoundingClientRect();
+      }
+      const ms = still ? 0 : Math.round(Math.min(450, 180 + distance * 0.35));
+      cursor.style.opacity = '1';
+      cursor.style.transition = ms ? 'transform ' + ms + 'ms cubic-bezier(.45,0,.2,1), opacity .15s' : 'none';
+      cursor.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      window.__draggyAgentLast = { x, y };
+      if (${click ? "true" : "false"}) {
+        const ripple = document.createElement('div');
+        const at = 'translate(' + x + 'px,' + y + 'px)';
+        ripple.className = 'ripple';
+        ripple.style.setProperty('--at', at);
+        wrap.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 650);
+      }
     }
     return true;
   })();

@@ -1498,6 +1498,7 @@ declare global {
 
       browserAgent: {
         stop: () => Promise<{ success: boolean }>;
+        release: () => Promise<{ success: boolean }>;
         onState: (callback: (state: { active: boolean; step: string | null }) => void) => Unsubscribe;
         onConsent: (callback: (ask: BrowserConsentAsk | null) => void) => Unsubscribe;
         answerConsent: (id: string, choice: "session" | "once" | "always" | "deny") => Promise<{ success: boolean }>;

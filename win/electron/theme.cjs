@@ -9,6 +9,29 @@ const FOREGROUNDS = { light: "#1a1e24", dark: "#e7eaed" };
 
 const THEMES = ["light", "dark", "system"];
 
+/** The accents in src/app/accent.ts, for native pieces that cannot read the page's CSS. */
+const ACCENT_COLORS = {
+  vermilion: "#d55e00",
+  blue: "#0072b2",
+  orange: "#e69f00",
+  green: "#009e73",
+  pink: "#cc79a7",
+  sky: "#56b4e9",
+  yellow: "#f0e442",
+};
+
+/** The accent colour in the saved settings JSON, vermilion when none is saved. */
+function accentColor(rawSettings) {
+  if (typeof rawSettings !== "string" || !rawSettings) return ACCENT_COLORS.vermilion;
+  try {
+    const accent = JSON.parse(rawSettings)?.accent;
+    return Object.hasOwn(ACCENT_COLORS, accent) ? ACCENT_COLORS[accent] : ACCENT_COLORS.vermilion;
+  } catch (error) {
+    log.warn("settings", "saved accent unreadable, using vermilion", { error: error?.name ?? null });
+    return ACCENT_COLORS.vermilion;
+  }
+}
+
 /** The theme in the saved settings JSON. No settings means a new install, which follows the system. */
 function themeSetting(rawSettings) {
   if (typeof rawSettings !== "string" || !rawSettings) return "system";
@@ -47,5 +70,5 @@ function overlayColors(setting, systemIsDark) {
   };
 }
 
-module.exports = { BACKGROUNDS, FOREGROUNDS, themeSetting, resolvedTheme, backgroundFor, overlayColors };
+module.exports = { ACCENT_COLORS, accentColor, BACKGROUNDS, FOREGROUNDS, themeSetting, resolvedTheme, backgroundFor, overlayColors };
 
