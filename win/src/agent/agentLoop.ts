@@ -58,6 +58,7 @@ import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import type { GatewayError, GatewayRetry } from "../ai/llamaStream";
+import { TransientError, isTransientStatus, withRetries } from "./retry";
 import {
   annotationsFor,
   availableTools,
@@ -1206,30 +1207,41 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         ...(nativeTools ? { tools: definitions } : {}),
       });
 
-      let response: Response;
-      try {
-        response = await loggedFetch(
-          chatEndpoint(model),
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: requestBody,
-            signal: loopController.signal,
-          },
-          correlationId,
-        );
-      } catch (error) {
-        // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
-        if (error instanceof TypeError) {
-          throw new Error(engineUnreachable({ markdown: true }), { cause: error });
-        }
-        throw error;
-      }
+      // A dropped connection or an engine that is still starting is tried again before the turn fails.
+      const response = await withRetries(
+        async () => {
+          let attempt: Response;
+          try {
+            attempt = await loggedFetch(
+              chatEndpoint(model),
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: requestBody,
+                signal: loopController.signal,
+              },
+              correlationId,
+            );
+          } catch (error) {
+            // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
+            if (error instanceof TypeError) {
+              throw new TransientError(engineUnreachable({ markdown: true }), null, { cause: error });
+            }
+            throw error;
+          }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(engineFailure(readFailure(errorText, response.statusText), { markdown: true }));
-      }
+          if (!attempt.ok) {
+            const message = engineFailure(readFailure(await attempt.text(), attempt.statusText), { markdown: true });
+            if (isTransientStatus(attempt.status)) throw new TransientError(message, attempt.status);
+            throw new Error(message);
+          }
+          return attempt;
+        },
+        {
+          signal: loopController.signal,
+          onRetry: (attempt, of, waitMs) => showRetry({ attempt, of, retryAfterMs: waitMs }),
+        },
+      );
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response");
