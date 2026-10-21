@@ -51,7 +51,7 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 
-import { buildResumeMessage, describeCompletedWork, joinContinuation } from "./resume";
+import { WORK_RECAP_HEADING, buildResumeMessage, describeCompletedWork, joinContinuation, stripWorkRecap } from "./resume";
 import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
@@ -212,7 +212,7 @@ export function toWireMessage(
     );
     if (work) content += `
 
-[Work done in this reply]
+${WORK_RECAP_HEADING}
 ${work}`;
   }
 
@@ -1021,7 +1021,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   /** Trimming is right for a fresh reply and wrong for a continued one: that space is the only
    * thing keeping the joined words apart. Runaway repetition loops are trimmed first. */
   const cleanText = (raw: string): string => {
-    const trimmed = detectRepetition(raw).trimmedText;
+    const trimmed = stripWorkRecap(detectRepetition(raw).trimmedText);
     const cleaned = cleanStream ? trimmed.trim() : stripToolSyntax(trimmed);
     if (!cleaned || !request.isContinuation) return cleaned;
     return /^\s/.test(raw) ? " " + cleaned : cleaned;

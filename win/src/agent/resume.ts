@@ -3,6 +3,26 @@ import type { SearchStep } from "../types";
 /** Rebuilds what a cut-off reply already did, from the steps, since tool results do not survive the
  * turn. Side effects are kept; repeating a write is not free. */
 
+/** The heading history puts above a past reply's recap; a model that copies it must not show it. */
+export const WORK_RECAP_HEADING = "[Work done in this reply]";
+
+/** Drops a copied recap heading and the bullet lines under it, which carry nothing for the reader. */
+export function stripWorkRecap(text: string): string {
+  if (!text.includes(WORK_RECAP_HEADING)) return text;
+  const kept: string[] = [];
+  let inRecap = false;
+  for (const line of text.split("\n")) {
+    if (line.trim() === WORK_RECAP_HEADING) {
+      inRecap = true;
+      continue;
+    }
+    if (inRecap && (/^\s*[-•*]\s/.test(line) || !line.trim())) continue;
+    inRecap = false;
+    kept.push(line);
+  }
+  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /** Total characters the recap may occupy. */
 export const RESUME_BUDGET = 2000;
 
