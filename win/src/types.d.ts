@@ -1085,6 +1085,8 @@ export interface AppSettings {
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
   /** The image model to draw with. Empty uses the first one installed. */
   imageModel: string;
+  /** The size images are drawn at, as width and height in pixels: "1024x1024". */
+  imageResolution: string;
 }
 
 declare global {
@@ -1651,7 +1653,7 @@ declare global {
 
       sd?: {
         status: () => Promise<ImageEngineStatus>;
-        configure: (options: { model: string }) => Promise<{ success: boolean }>;
+        configure: (options: { model: string; resolution?: string }) => Promise<{ success: boolean }>;
         setupEngine: () => Promise<{ success: boolean; runner?: string; kind?: string; error?: string }>;
         downloadRepo: (reference: string) => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
         cancelDownload: (id: string) => Promise<{ success: boolean }>;

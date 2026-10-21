@@ -192,7 +192,8 @@ describe("an installed image model", () => {
   it("is removed only after the confirmation names it", () => {
     const onRemove = vi.fn();
     render(<ImageModelRow entry={model({ name: "Z-Image", variant: "Q4" })} active onRemove={onRemove} t={t} />);
-    expect(screen.getByText("Image generation")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Image generation" })).toBeTruthy();
+    expect(screen.getByText("Images")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Remove Z-Image Q4/ }));
     expect(onRemove).not.toHaveBeenCalled();

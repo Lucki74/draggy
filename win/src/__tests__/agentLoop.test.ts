@@ -77,6 +77,7 @@ const SETTINGS = {
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",
+  imageResolution: "1024x1024",
 } as AppSettings;
 
 const ENVIRONMENT: ToolEnvironment = {

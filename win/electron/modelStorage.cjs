@@ -66,7 +66,7 @@ function listGgufModels(modelsDir) {
     const fullPath = path.join(modelsDir, file);
     try {
       const stat = fs.statSync(fullPath);
-      const header = ggufParser.parseGgufHeader(fullPath);
+      const header = ggufParser.parseGgufHeader(fullPath, true);
       const size = shard
         ? shardNames(file).reduce((sum, name) => sum + (present.has(name) ? fs.statSync(path.join(modelsDir, name)).size : 0), 0)
         : stat.size;

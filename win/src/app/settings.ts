@@ -55,6 +55,7 @@ export const defaultSettings: AppSettings = {
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",
+  imageResolution: "1024x1024",
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
@@ -193,9 +194,9 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   useEffect(() => {
     if (isSplashMode) return;
     window.electronAPI?.sd
-      ?.configure({ model: settings.imageModel })
+      ?.configure({ model: settings.imageModel, resolution: settings.imageResolution })
       .catch(swallowed("app", "the main process already logged this call"));
-  }, [settings.imageModel, isSplashMode]);
+  }, [settings.imageModel, settings.imageResolution, isSplashMode]);
 
   // Matching the system means following it while the app is open, not just reading it once.
   useEffect(() => {

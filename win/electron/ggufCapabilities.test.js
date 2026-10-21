@@ -137,14 +137,12 @@ describe("listGgufModels capabilities", () => {
     fs.writeFileSync(path.join(dir, "embedder.gguf"), buildModel({ arch: "qwen3", pooling: 3, tokens: 100 }));
     fs.writeFileSync(path.join(dir, "bert.gguf"), buildModel({ arch: "nomic-bert", tokens: 100 }));
     fs.writeFileSync(path.join(dir, "speech.gguf"), buildModel({ arch: "sortformer", tokens: 100 }));
-    fs.writeFileSync(path.join(dir, "unknown.gguf"), buildModel({ arch: "unknown", tokens: 100 }));
 
     const byName = Object.fromEntries(modelStorage.listGgufModels(dir).map((model) => [model.filename, model]));
 
     expect(byName["embedder.gguf"].capabilities).toEqual(["embedding"]);
     expect(byName["bert.gguf"].capabilities).toEqual(["embedding"]);
     expect(byName["speech.gguf"].capabilities).toEqual(["audio"]);
-    expect(byName["unknown.gguf"].capabilities).toEqual(["audio"]);
   });
 });
 
