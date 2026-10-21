@@ -75,7 +75,7 @@ jobs:
           N: ${{ needs.prepare.outputs.n }}
           NOTES: ${{ inputs.notes }}
         run: |
-          npm version "3.0.$N" --no-git-tag-version
+          npm version "3.0.$N" --no-git-tag-version --allow-same-version
           printf '%s\n' "$NOTES" > build/release-notes.md
 
       - run: npm run ${{ matrix.script }}
