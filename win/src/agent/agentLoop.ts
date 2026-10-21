@@ -50,7 +50,7 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 
-import { buildResumeMessage, joinContinuation } from "./resume";
+import { buildResumeMessage, describeCompletedWork, joinContinuation } from "./resume";
 import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
@@ -154,6 +154,12 @@ export function resetTailNotesForTests() {
   userTailNotes.clear();
 }
 
+/** Characters of earlier tool work kept per reply; the same text each turn keeps the cache prefix. */
+const HISTORY_WORK_BUDGET = 800;
+
+/** Steps that hold a result worth remembering; a bare "searching" label says nothing. */
+const HISTORY_WORK_STEPS = new Set<string>(["run_code", "create_file", "image", "results", "library", "reading", "loaded", "scanned"]);
+
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
  * Laguna wrote none at all; kept, it wrote 400 characters. */
 export function toWireMessage(
@@ -194,6 +200,18 @@ export function toWireMessage(
     } else {
       content += `\n\n[Attached Binary File: ${attachment.name}]`;
     }
+  }
+
+  // Tool results live only in the steps, so without this a later turn cannot see what a script printed or a search found.
+  if (message.role === "assistant") {
+    const work = describeCompletedWork(
+      (message.steps ?? []).filter((step) => HISTORY_WORK_STEPS.has(step.type)),
+      HISTORY_WORK_BUDGET,
+    );
+    if (work) content += `
+
+[Work done in this reply]
+${work}`;
   }
 
   const thinking =
