@@ -1062,8 +1062,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
      * removed and the text becomes the reply. */
     let textStepId: string | null = null;
 
-    const showText = (value: string) => {
-      if (!value.trim()) return;
+    // A continued reply is shown whole while it streams: the new words sit in the timeline above
+    // the old body, so on their own they would read before the text they carry on from (B2).
+    const showText = (raw: string) => {
+      if (!raw.trim()) return;
+      const value = request.isContinuation ? joinContinuation(fullFinalTextContent, raw) : raw;
 
       if (textStepId === null) {
         textStepId = generateId();

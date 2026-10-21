@@ -1328,6 +1328,20 @@ describe("carrying on a reply that was cut short", () => {
       .map((message) => message.content)
       .join("\n");
 
+  it("shows the continued text after the text already written, at every chunk", async () => {
+    const host = makeHost();
+    // The screen is refreshed at most every few milliseconds, so the clock jumps to let each chunk through.
+    let clock = 0;
+    const tick = vi.spyOn(performance, "now").mockImplementation(() => (clock += 1000));
+    const { promise } = continueWith([], host);
+    await promise;
+    tick.mockRestore();
+
+    const shown = host.recordedSteps.flatMap((steps) => steps.filter((step) => step.type === "text").map((step) => step.content));
+    expect(shown.length).toBeGreaterThan(0);
+    for (const content of shown) expect(content.startsWith("I have started the report")).toBe(true);
+  });
+
   it("tells the model about a file it already wrote", async () => {
     const { requests, promise } = continueWith([
       {

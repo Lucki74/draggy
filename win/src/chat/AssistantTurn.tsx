@@ -13,6 +13,7 @@ import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { normalizeMath, sanitizeContent } from "../utils";
+import { continuesBody } from "./continuation";
 import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
@@ -131,6 +132,8 @@ export function AssistantTurn({
     live && lastStep?.type === "text" && !lastStep.isComplete
       ? lastStep.id
       : null;
+  // A continued reply streams as one block in the timeline, so the old body would show twice.
+  const bodyInStep = Boolean(writingId) && continuesBody(text, lastStep?.content ?? "");
   const [proseId, setProseId] = useState<string | null>(null);
   if (writingId && writingId !== proseId) setProseId(writingId);
   const bodyKey =
@@ -279,7 +282,7 @@ export function AssistantTurn({
             ),
           ),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
-          !isFailed || hasGeneratedText ? (
+          (!isFailed || hasGeneratedText) && !bodyInStep ? (
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
