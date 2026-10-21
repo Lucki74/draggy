@@ -3,7 +3,7 @@ import { Icon } from "../ui/icons/Icon";
 import { Menu, type MenuEntry } from "../ui/Menu";
 
 const Dot = ({ color }: { color: string }) => (
-  <span aria-hidden className="h-4 w-4 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgba(128,128,128,0.35)]" style={{ backgroundColor: color }} />
+  <span aria-hidden className="block h-4 w-4 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgba(128,128,128,0.35)]" style={{ backgroundColor: color }} />
 );
 
 /** The seven accents in a dropdown: a rounded box holding the colour and its name, an arrow on the right. */
