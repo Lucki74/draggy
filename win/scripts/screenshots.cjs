@@ -174,7 +174,17 @@ async function send(win, text) {
 
 async function capture(win, name) {
   await sleep(700);
-  const image = await win.webContents.capturePage({ x: 0, y: 0, width: WIDTH, height: HEIGHT });
+  // A capture right after a reload or a hover can fail with a transient viz error; retry it.
+  let image;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      image = await win.webContents.capturePage({ x: 0, y: 0, width: WIDTH, height: HEIGHT });
+      break;
+    } catch (error) {
+      if (attempt === 4) throw error;
+      await sleep(1500);
+    }
+  }
   fs.writeFileSync(path.join(OUT, `${name}.png`), image.toPNG());
   const size = image.getSize();
   log(`saved ${name}.png (${size.width}x${size.height})`);
