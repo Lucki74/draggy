@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadModel, type BootBridge } from "../boot/bootSequence";
 import { createSpeedMeter } from "../downloadSpeed";
+import { pullImageModel } from "../images/pullImageModel";
 
 /** The engine and the first model, downloading while the user carries on through the setup. Held
  * at the setup's root so a step change never interrupts it, and it never starts on its own. */
@@ -24,10 +25,12 @@ export interface ModelDownload {
   error?: string;
 }
 
-/** Voice and document search, ticked on the Preferences step. */
+/** Voice, document search and image generation, ticked on the Preferences step. */
 export interface ExtraDownload {
   reference: string;
   label: string;
+  /** An image model goes to the image folder with its encoder and VAE; the rest are chat GGUFs. */
+  kind: "model" | "image";
   phase: "queued" | "downloading" | "done" | "error";
   percent: number;
 }
@@ -48,7 +51,7 @@ export interface FirstDownload {
   /** Settles once no engine setup is running, so Skip never starts a second one beside it. */
   engineIdle(): Promise<void>;
   /** Waits for the model, then runs one at a time: never beside the model, which matters most. */
-  queueExtra(reference: string, label: string): void;
+  queueExtra(reference: string, label: string, kind?: ExtraDownload["kind"]): void;
   /** Takes an extra out of the queue, or stops it and removes what it wrote. */
   dropExtra(reference: string): void;
 }
@@ -91,13 +94,12 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
     const controller = new AbortController();
     extraControllers.current.set(next.reference, controller);
     patchExtra(next.reference, { phase: "downloading" });
-    downloadModel(
-      api,
-      next.reference,
-      (progress) => {
-        if (progress && !controller.signal.aborted) patchExtra(next.reference, { percent: progress.percent });
-      },
-      controller.signal,
+    const onProgress = (progress: { percent: number } | null | undefined) => {
+      if (progress && !controller.signal.aborted) patchExtra(next.reference, { percent: progress.percent });
+    };
+    (next.kind === "image"
+      ? pullImageModel(next.reference, onProgress, controller.signal)
+      : downloadModel(api, next.reference, onProgress, controller.signal)
     )
       .then(
         () => {
@@ -252,12 +254,12 @@ export function useFirstDownload(api: BootBridge | undefined = window.electronAP
   const engineIdle = useCallback(() => engineRef.current ?? Promise.resolve(), []);
 
   const queueExtra = useCallback(
-    (reference: string, label: string) => {
+    (reference: string, label: string, kind: ExtraDownload["kind"] = "model") => {
       const existing = extrasRef.current.find((extra) => extra.reference === reference);
       if (existing && existing.phase !== "error") return;
       updateExtras((list) => [
         ...list.filter((extra) => extra.reference !== reference),
-        { reference, label, phase: "queued", percent: 0 },
+        { reference, label, kind, phase: "queued", percent: 0 },
       ]);
       pumpRef.current();
     },

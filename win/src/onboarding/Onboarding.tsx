@@ -13,7 +13,8 @@ import { writeLocalStorage } from "../utils";
 import { tierFor } from "../voice/talkModel";
 import { installedMatch, tierForEmbed } from "../embedModel";
 import { adoptInstalled, planFirstDownload, type FirstDownloadPlan } from "../boot/bootSequence";
-import type { AppSettings, OnboardingPath } from "../types";
+import { getRecommendedImageModel } from "../images/imageRecommendations";
+import type { AppSettings, OnboardingPath, SystemSpecs } from "../types";
 import { useProviders } from "../providers/useProviders";
 import { canContinue, nextStep, previousStep, stepsFor, type SetupPath, type StepId } from "./flow";
 import { localeToLanguage } from "./locale";
@@ -48,12 +49,23 @@ interface Surroundings {
   plan: FirstDownloadPlan;
   installed: string | null;
   installedFiles: string[];
+  /** Files of the image models already installed, for spotting the image rung on disk. */
+  imageFiles: string[];
   modelsDir: string;
 }
 
+const EXTRA_KINDS = ["voice", "library", "image"] as const;
+const EXTRA_LABELS = { voice: "onbExtraVoice", library: "onbExtraLibrary", image: "onbExtraImage" } as const;
+
 /** The extra each kind downloads on this machine, as its own feature would size it on first use. */
-function extraTiers(vram: number) {
-  return { voice: tierFor(vram), library: tierForEmbed(vram) };
+function extraTiers(specs: SystemSpecs | null | undefined) {
+  const vram = specs?.vram ?? 0;
+  const image = getRecommendedImageModel(vram, { platform: specs?.platform, arch: specs?.arch, ram: specs?.ram, cpuModel: specs?.cpu });
+  return {
+    voice: tierFor(vram),
+    library: tierForEmbed(vram),
+    image: { model: image.filename, reference: image.reference, label: image.label, downloadGB: image.sizeGB },
+  };
 }
 
 const CODES = languages.map((language) => language.code);
@@ -81,7 +93,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       return "chat";
     }
   });
-  const [extrasChosen, setExtrasChosen] = useState<Record<ExtraKind, boolean>>({ voice: false, library: false });
+  const [extrasChosen, setExtrasChosen] = useState<Record<ExtraKind, boolean>>({ voice: false, library: false, image: false });
   // Read before the first save, so only a language never chosen is guessed from the system.
   const [firstVisit] = useState(() => {
     try {
@@ -114,14 +126,18 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const loadSurroundings = useCallback(() => {
     if (!loadingRef.current) {
       loadingRef.current = (async () => {
-        const [plan, installed, status, listing] = await Promise.all([
+        const [plan, installed, status, listing, images] = await Promise.all([
           planFirstDownload(api ?? {}),
           api ? adoptInstalled(api, settings.modelName) : Promise.resolve(null),
           api?.gguf?.status().catch(swallowed("onboarding", "the main process already logged this call", null)),
           api?.gguf?.listModels().catch(() => []),
+          api?.sd?.status().catch(swallowed("onboarding", "the main process already logged this call", null)),
         ]);
         const installedFiles = (listing ?? []).map((entry) => entry.filename);
-        const loaded = { plan, installed, installedFiles, modelsDir: status?.modelsDir ?? "" };
+        const imageFiles = (images?.models ?? [])
+          .filter((entry) => entry.installed)
+          .flatMap((entry) => entry.files.map((file) => file.filename));
+        const loaded = { plan, installed, installedFiles, imageFiles, modelsDir: status?.modelsDir ?? "" };
         setSurroundings(loaded);
         setChoice(
           (current) =>
@@ -176,15 +192,19 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const goTo = useCallback((target: StepId) => setStep(target), []);
 
   const offers = useMemo((): Record<ExtraKind, ExtraOffer | null> => {
-    if (!surroundings) return { voice: null, library: null };
-    const tiers = extraTiers(surroundings.plan.specs?.vram ?? 0);
+    if (!surroundings) return { voice: null, library: null, image: null };
+    const tiers = extraTiers(surroundings.plan.specs);
     const offer = (tier: { model: string; reference: string; label: string; downloadGB: number }): ExtraOffer => ({
       label: tier.label,
       sizeBytes: tier.downloadGB * 1e9,
       // The chosen model can double as the voice one, and then there is nothing to fetch.
       installed: Boolean(installedMatch(tier.model, surroundings.installedFiles)) || tier.reference === choice?.reference,
     });
-    return { voice: offer(tiers.voice), library: offer(tiers.library) };
+    return {
+      voice: offer(tiers.voice),
+      library: offer(tiers.library),
+      image: { ...offer(tiers.image), installed: surroundings.imageFiles.includes(tiers.image.model) },
+    };
   }, [surroundings, choice]);
 
   const chooseMode = useCallback((next: AppMode) => {
@@ -198,10 +218,12 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
     // The engine still installs for the Library and voice; no model of Draggy's own is fetched.
     if (step === "provider" && path === "provider") download.withoutModel();
     if (step === "preferences" && surroundings) {
-      const tiers = extraTiers(surroundings.plan.specs?.vram ?? 0);
-      for (const kind of ["voice", "library"] as const) {
+      const tiers = extraTiers(surroundings.plan.specs);
+      for (const kind of EXTRA_KINDS) {
         const tier = tiers[kind];
-        if (extrasChosen[kind] && !offers[kind]?.installed) download.queueExtra(tier.reference, tier.label);
+        if (extrasChosen[kind] && !offers[kind]?.installed) {
+          download.queueExtra(tier.reference, tier.label, kind === "image" ? "image" : "model");
+        }
         else download.dropExtra(tier.reference);
       }
     }
@@ -291,9 +313,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       label: t("onbPrefsTitle"),
       value: [
         t(mode === "code" ? "codeMode" : "chatMode"),
-        ...(["voice", "library"] as const)
-          .filter((kind) => extrasChosen[kind] && !offers[kind]?.installed)
-          .map((kind) => t(kind === "voice" ? "onbExtraVoice" : "onbExtraLibrary")),
+        ...EXTRA_KINDS.filter((kind) => extrasChosen[kind] && !offers[kind]?.installed).map((kind) => t(EXTRA_LABELS[kind])),
       ].join(" · "),
       step: "preferences" as const,
     },

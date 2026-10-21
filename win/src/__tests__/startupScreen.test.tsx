@@ -106,20 +106,20 @@ describe("StartupScreen first-run model", () => {
   it("downloads the model sized to the card by its repository, then opens it by its file", async () => {
     const { resolveModelUrl, downloadModel } = installFreshMachine({
       url: "https://huggingface.co/x/resolve/main/m.gguf",
-      filename: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+      filename: "Qwen3.5-122B-A10B-UD-Q3_K_XL.gguf",
       size: 8_240_000_000,
     });
     const onReady = vi.fn();
     render(<StartupScreen modelName="" language="en" onReady={onReady} />);
 
     await waitFor(() => expect(onReady).toHaveBeenCalled(), { timeout: 6000 });
-    expect(resolveModelUrl).toHaveBeenCalledWith("mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M");
+    expect(resolveModelUrl).toHaveBeenCalledWith("unsloth/Qwen3.5-122B-A10B-GGUF:UD-Q3_K_XL");
     expect(downloadModel).toHaveBeenCalledWith({
       url: "https://huggingface.co/x/resolve/main/m.gguf",
-      filename: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+      filename: "Qwen3.5-122B-A10B-UD-Q3_K_XL.gguf",
       cid: expect.any(String),
     });
-    expect(onReady).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-Q4_K_M.gguf");
+    expect(onReady).toHaveBeenCalledWith("Qwen3.5-122B-A10B-UD-Q3_K_XL.gguf");
   });
 
   it("says the download failed when the model cannot be found, and starts nothing", async () => {
