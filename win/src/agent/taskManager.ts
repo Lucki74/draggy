@@ -138,6 +138,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let lastMeasurement: { chatId: string; key: string; measurement: ContextMeasurement } | null = null;
 
   const runs = new Map<string, AbortController>();
+  const lastTurn = new Map<string, string>();
   /** Folds in flight. `started` flips once there is actually something being folded, which is when
    * a turn waiting on it has anything worth saying. */
   interface Fold {
@@ -435,7 +436,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
       // Timed from here, so a fold the turn waited on is not counted as the turn.
       const startedAt = Date.now();
-      logRendererEvent("chat", "INFO", "turn sent", { chatId, model, messages: contextMessages.length, continuation: Boolean(options.isContinuation) }, correlationId);
+      // `after` lets `npm run logs:turn` follow a continue or retry back to the turn it came from.
+      const after = options.isContinuation || options.isRetry ? lastTurn.get(chatId) : undefined;
+      lastTurn.set(chatId, correlationId);
+      logRendererEvent("chat", "INFO", "turn sent", { chatId, model, messages: contextMessages.length, continuation: Boolean(options.isContinuation), retry: Boolean(options.isRetry), after }, correlationId);
 
       const result = await runAgentTurn(
         {

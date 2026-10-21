@@ -24,6 +24,19 @@ vi.mock("../agent/agentLoop", () => ({
     }),
 }));
 
+const sent = vi.hoisted(() => [] as { data: Record<string, unknown>; cid?: string }[]);
+
+vi.mock("../logger", async (original) => {
+  const real = await original<typeof import("../logger")>();
+  return {
+    ...real,
+    logRendererEvent: (scope: string, level: string, msg: string, data?: Record<string, unknown>, cid?: string) => {
+      if (msg === "turn sent") sent.push({ data: data ?? {}, cid });
+      return (real.logRendererEvent as (...args: unknown[]) => unknown)(scope, level, msg, data, cid);
+    },
+  };
+});
+
 const { createTaskManager } = await import("../agent/taskManager");
 import type { MetricRow } from "../types";
 import type { TaskHost } from "../agent/taskManager";
@@ -91,6 +104,22 @@ function seed(sessions: Map<string, ChatSession>, id: string): ChatSession {
 describe("the task manager", () => {
   beforeEach(() => {
     pending.length = 0;
+  });
+
+  it("names the turn a retry follows so the log can chain them", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    sent.length = 0;
+
+    manager.send("chat-1", "question");
+    pending[0].reject(new Error("boom"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    manager.regenerate("chat-1");
+
+    expect(sent).toHaveLength(2);
+    expect(sent[0].data.after).toBeUndefined();
+    expect(sent[1].data.retry).toBe(true);
+    expect(sent[1].data.after).toBe(sent[0].cid);
   });
 
   it("starts a conversation the first message arrives for", () => {
