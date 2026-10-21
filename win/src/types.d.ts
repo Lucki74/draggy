@@ -1695,6 +1695,8 @@ declare global {
           /** The file this event is for; downloads run side by side and share one channel. */
           label?: string;
         }) => void) => Unsubscribe;
+        /** Where a model load has got to. Only "prefilling" carries a percent; the engine prints none for the rest. */
+        onStage: (callback: (stage: { stage: "reading" | "placing" | "prefilling" | "ready"; percent?: number }) => void) => Unsubscribe;
       };
     };
   }

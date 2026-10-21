@@ -292,6 +292,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     downloadModel: (options) => ipcRenderer.invoke("gguf:download", options),
     cancelDownload: (filename) => ipcRenderer.invoke("gguf:cancel-download", filename),
     onProgress: (callback) => subscribe("gguf:progress", callback),
+    onStage: (callback) => subscribe("gguf:stage", callback),
   },
 
   sd: {

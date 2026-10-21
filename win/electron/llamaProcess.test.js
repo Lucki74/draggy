@@ -795,6 +795,26 @@ describe("llamaProcess generation speed", () => {
     expect(llamaProcess.draftFits("model.gguf", "model-draft.gguf", 0, false)).toBe(true);
   });
 
+  it("tells the load stages apart and gives a percent only for the prompt", () => {
+    const stage = llamaProcess.parseEngineStage;
+    expect(stage("srv    load_model: loading model 'C:/m/model.gguf'")).toEqual({ stage: "reading" });
+    expect(stage("srv    load_model: initializing, n_slots = 1")).toEqual({ stage: "placing" });
+    expect(stage("srv  llama_server: model loaded")).toEqual({ stage: "ready" });
+    expect(stage("slot print_timing: id 0 | task 3 | prompt processing, n_tokens = 512, progress = 0.17, t = 40 ms")).toEqual({
+      stage: "prefilling",
+      percent: 17,
+    });
+    expect(stage("load_tensors: offloaded 20/33 layers to GPU")).toBeNull();
+  });
+
+  it("hands a stage to the sink while reading the log", () => {
+    const seen = [];
+    llamaProcess.onEngineStage((s) => seen.push(s));
+    llamaProcess.watchEngineLine("srv  llama_server: model loaded", { modelPath: "m.gguf", drafting: false, logger: quiet, moe: false });
+    llamaProcess.onEngineStage(null);
+    expect(seen).toEqual([{ stage: "ready" }]);
+  });
+
   it("reads the GPU offload from the engine's load log", () => {
     const warn = vi.fn();
     llamaProcess.watchEngineLine("load_tensors: offloaded 20/33 layers to GPU", {

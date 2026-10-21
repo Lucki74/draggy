@@ -1089,6 +1089,7 @@ function broadcast(channel, payload) {
 
 app.whenReady().then(() => {
   if (!ownsInstance) return;
+  llamaProcess.onEngineStage((stage) => broadcast("gguf:stage", stage));
   startup.mark("ready");
   const adopted = adoptLegacyDataFolder();
 
