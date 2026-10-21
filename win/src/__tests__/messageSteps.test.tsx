@@ -71,20 +71,20 @@ describe("a provider being retried", () => {
 describe("a model being loaded", () => {
   const loading: SearchStep = { id: "l1", type: "loading", content: "", isComplete: false, model: "qwen3-8b", startedAt: Date.now() };
 
-  it("says which stage the engine is in, with a percent only for the prompt", async () => {
+  it("says which stage the engine is in, with a percent and no timer", async () => {
     let push: (stage: { stage: string; percent?: number }) => void = () => {};
     (window as unknown as { electronAPI?: unknown }).electronAPI = {
       gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
     };
     show([loading]);
 
-    act(() => push({ stage: "reading" }));
-    expect(screen.getByText(/from disk/)).toBeTruthy();
-    act(() => push({ stage: "placing" }));
-    expect(screen.getByText(/in memory/)).toBeTruthy();
-    expect(screen.queryByText(/%/)).toBeNull();
+    act(() => push({ stage: "reading", percent: 30 }));
+    expect(screen.getByText(/from disk 30%/)).toBeTruthy();
+    act(() => push({ stage: "placing", percent: 6 }));
+    expect(screen.getByText(/ready 6%/)).toBeTruthy();
+    expect(screen.queryByText(/d s/)).toBeNull();
     act(() => push({ stage: "prefilling", percent: 42 }));
-    expect(screen.getByText(/Reading the prompt 42%/)).toBeTruthy();
+    expect(screen.getByText(/Prefilling 42%/)).toBeTruthy();
     delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 });
