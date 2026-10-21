@@ -44,4 +44,12 @@ describe("the layer behind the field", () => {
     fireEvent.change(field, { target: { value: "/new hello" } });
     expect(screen.getByTestId("command-chips").querySelector("mark")?.textContent).toBe("/new");
   });
+
+  it("draws the command in the accent color so the layer does not hide it", () => {
+    render(<ComposerPreview />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "/new hello" } });
+    const mark = screen.getByTestId("command-chips").querySelector("mark");
+    expect(mark?.className).toContain("accent-ink");
+    expect(mark?.className).not.toContain("text-transparent");
+  });
 });

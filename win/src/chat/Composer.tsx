@@ -548,7 +548,7 @@ export function Composer({
                         >
                             {chipSegments(input, chipRanges).map((part, index) =>
                                 part.chip ? (
-                                    <mark key={index} className="rounded-xs bg-[var(--accent-soft)] text-transparent">
+                                    <mark key={index} className="rounded-xs bg-[var(--accent-soft)] text-[var(--accent-ink)]">
                                         {part.text}
                                     </mark>
                                 ) : (
