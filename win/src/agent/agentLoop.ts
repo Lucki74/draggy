@@ -3,6 +3,7 @@ import {
   beginLlamaWork,
   contextSizeFor,
   getModelInfo,
+  nextContextSize,
   gpuShareFor,
   hasCapability,
   isLoadedAt,
@@ -287,11 +288,19 @@ export interface AgentPatch {
   steps: SearchStep[];
 }
 
+/** The numbers behind a reply cut by the context limit, shown to the user and used to size the retry. */
+export interface OutOfContextInfo {
+  loaded: number;
+  modelMax: number | null;
+  used: number;
+  canGrow: boolean;
+}
+
 export interface AgentHost {
   t: (key: string) => string;
   onPatch: (patch: AgentPatch) => void;
   onSteps: (steps: SearchStep[]) => void;
-  onOutOfContext: (outOfContext: boolean) => void;
+  onOutOfContext: (outOfContext: boolean, info?: OutOfContextInfo) => void;
   onMetrics?: (metrics: GenerationMetrics | null) => void;
   /** Puts a call to the user and waits. Without it a turn that needs an answer has no one to ask,
    * and the call is refused rather than run unasked. */
@@ -1572,7 +1581,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       // A retry pass that reasons nothing must not wipe the thought the fallback reply is built from.
       if (currentThought.trim()) lastThought = currentThought;
-      host.onOutOfContext(outOfContext);
+      host.onOutOfContext(
+        outOfContext,
+        outOfContext
+          ? {
+              loaded: numCtx,
+              modelMax: info?.contextLength ?? null,
+              used: contextCheckpoint?.tokens ?? 0,
+              canGrow:
+                typeof settings.fixedContextSize !== "number" &&
+                nextContextSize(model, info?.contextLength ?? null) !== null,
+            }
+          : undefined,
+      );
 
       if (!hasToolCall) {
         if (fileStepId !== null) {

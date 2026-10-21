@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { contextSizeFor, forgetContextSize } from "../llama";
 import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, MessageVersion } from "../types";
 import type { Grant } from "../agent/permissions";
@@ -334,6 +335,29 @@ describe("the task manager", () => {
     expect(reply?.error).toBeUndefined();
     expect(pending.at(-1)?.request.isContinuation).toBe(true);
     expect(pending.at(-1)?.request.seed?.textContent).toBe("half an ans");
+  });
+
+  it("loads a larger window to continue a reply the context cut", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    const model = host.getModel() as string;
+    forgetContextSize(model);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      isOutOfContext: true,
+      outOfContextInfo: { loaded: 4096, modelMax: 32768, used: 4000, canGrow: true },
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "cut", textContent: "cut" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    expect(contextSizeFor(model, 100, 32768)).toBe(8192);
+    expect(sessions.get("chat-1")?.outOfContextInfo).toBeUndefined();
   });
 
   it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {

@@ -323,6 +323,21 @@ export function contextSizeFor(
   return size;
 }
 
+/** The next window above the one loaded, or null when the model cannot go higher. */
+export function nextContextSize(model: string, maxContext: number | null, from = 0): number | null {
+  if (isRemote(model)) return null;
+  const loaded = Math.max(from, loadedContextSizes.get(model) ?? 0);
+  const cap = windowCeiling(maxContext);
+  return CONTEXT_BUCKETS.find((bucket) => bucket > loaded && bucket <= cap) ?? null;
+}
+
+/** Raises the window the next turn loads at, so a cut reply can continue instead of being cut again. */
+export function growContext(model: string, maxContext: number | null, from = 0): number | null {
+  const next = nextContextSize(model, maxContext, from);
+  if (next !== null) loadedContextSizes.set(model, next);
+  return next;
+}
+
 /** The window a turn would ask for, without committing to it. For a look that must not grow the
  * tally, and with it force a reload later. */
 export function peekContextSize(

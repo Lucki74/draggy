@@ -12,6 +12,7 @@ import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } fr
 import { isBinary } from "../utils";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
 import type { ModelInfo } from "../llama";
+import { formatTokenCount } from "../agent/contextBreakdown";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
 import type { SettingsTab } from "../settings/pages";
@@ -522,14 +523,16 @@ export function Composer({
                         {chat.isOutOfContext && (
                             <div className="flex items-center gap-3 px-4 py-2 border-b border-rule bg-surface-tint text-[13px]">
                                 <Icon name="warning" size={16} className="flex-shrink-0 text-warn" />
-                                <p className="flex-1 min-w-0 text-text-primary">{t("outOfContextMessage")}</p>
-                                <button
-                                    type="button"
-                                    onClick={onContinueGeneration}
-                                    className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
-                                >
-                                    {t("continueGenerating")}
-                                </button>
+                                <p className="flex-1 min-w-0 text-text-primary">{outOfContextText(chat.outOfContextInfo, t)}</p>
+                                {(!chat.outOfContextInfo || chat.outOfContextInfo.canGrow) && (
+                                    <button
+                                        type="button"
+                                        onClick={onContinueGeneration}
+                                        className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
+                                    >
+                                        {t("continueGenerating")}
+                                    </button>
+                                )}
                                 <IconButton name="x" label={t("cancel")} size="sm" onClick={onDismissOutOfContext} />
                             </div>
                         )}
@@ -894,4 +897,18 @@ export function Composer({
             </div>
         </div>
     );
+}
+
+/** The same figures as the context wheel: what the model supports, what it was loaded with, what the reply used. */
+function outOfContextText(
+    info: { loaded: number; modelMax: number | null; used: number; canGrow: boolean } | undefined,
+    t: (key: string) => string,
+): string {
+    if (!info) return t("outOfContextMessage");
+    const fill = (text: string) =>
+        text
+            .replace("{max}", info.modelMax ? formatTokenCount(info.modelMax) : "?")
+            .replace("{loaded}", formatTokenCount(info.loaded))
+            .replace("{used}", formatTokenCount(info.used));
+    return fill(t(info.canGrow ? "outOfContextRoom" : "outOfContextLimit"));
 }

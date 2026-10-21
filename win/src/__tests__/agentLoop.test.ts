@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { llamaIsBusy } from "../llama";
 import { resetTailNotesForTests, runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import { draggyRef } from "../ai/providers";
-import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
+import type { AgentHost, ApprovalRequest, OutOfContextInfo } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
 import { parsePlan } from "../plan/plan";
 import { registerPlanTools } from "../tools/plan";
@@ -242,6 +242,7 @@ function makeHost() {
   const recordedSteps: SearchStep[][] = [];
   let metrics: TurnMetrics | null = null;
   let outOfContext = false;
+  let cutInfo: OutOfContextInfo | undefined;
 
   const host: AgentHost = {
     t: (key) => key,
@@ -254,8 +255,9 @@ function makeHost() {
       steps = next;
       recordedSteps.push(JSON.parse(JSON.stringify(next)));
     },
-    onOutOfContext: (flag) => {
+    onOutOfContext: (flag, info) => {
       outOfContext = flag;
+      cutInfo = info;
     },
     onMetrics: (next) => {
       metrics = next;
@@ -274,6 +276,9 @@ function makeHost() {
     },
     get outOfContext() {
       return outOfContext;
+    },
+    get cutInfo() {
+      return cutInfo;
     },
   };
 }
@@ -516,6 +521,16 @@ describe("a plain answer with no tools", () => {
 
     expect(result.outOfContext).toBe(true);
     expect(host.outOfContext).toBe(true);
+  });
+
+  it("reports the window it was loaded with when the reply is cut", async () => {
+    installFetch([{ content: ["truncated"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }], []);
+
+    const { host, promise } = run([userMessage("hi")]);
+    await promise;
+
+    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: true });
+    expect(host.cutInfo?.used).toBeGreaterThan(0);
   });
 });
 

@@ -1,4 +1,4 @@
-import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
@@ -12,7 +12,7 @@ import {
 } from "./compaction";
 import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
-import type { ContextMeasurement } from "./agentLoop";
+import type { ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
 import { defaultProjectPath, parseImageCommand } from "../images/imageCommand";
 import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
@@ -490,11 +490,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
               },
               { updatedAt: Date.now() },
             ),
-          onOutOfContext: (outOfContext: boolean) =>
+          onOutOfContext: (outOfContext: boolean, info?: OutOfContextInfo) =>
             host.updateSession(chatId, (s) =>
-              s.isOutOfContext === outOfContext
+              s.isOutOfContext === outOfContext && s.outOfContextInfo === info
                 ? s
-                : { ...s, isOutOfContext: outOfContext },
+                : { ...s, isOutOfContext: outOfContext, outOfContextInfo: info },
             ),
           onMetrics: (metrics: TurnMetrics | null) =>
             host.patchActiveMessage(chatId, { metrics }),
@@ -847,13 +847,20 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   function dismissOutOfContext(chatId: string) {
-    host.updateSession(chatId, (s) => ({ ...s, isOutOfContext: false }));
+    host.updateSession(chatId, (s) => ({ ...s, isOutOfContext: false, outOfContextInfo: undefined }));
   }
 
   function continueGeneration(chatId: string) {
     const session = host.getSession(chatId);
     if (!session) return;
 
+    // The same window would cut the reply again, so the next load goes one size up.
+    const cut = session.outOfContextInfo;
+    const model = host.getModel();
+    if (cut?.canGrow && model) {
+      const grown = growContext(model, cut.modelMax, cut.loaded);
+      logRendererEvent("chat", "INFO", "context grown to continue", { chatId, from: cut.loaded, to: grown, max: cut.modelMax });
+    }
     dismissOutOfContext(chatId);
     void run(chatId, session.messages, { isContinuation: true });
   }

@@ -856,6 +856,8 @@ export interface ChatSession {
   plan?: PlanItem[] | null;
   isGenerating: boolean;
   isOutOfContext?: boolean;
+  /** The window numbers when the reply was cut. Not stored: a restart keeps only the flag. */
+  outOfContextInfo?: { loaded: number; modelMax: number | null; used: number; canGrow: boolean };
   compaction?: CompactionState | null;
   /** Kept at the top of the sidebar. */
   pinned?: boolean;
