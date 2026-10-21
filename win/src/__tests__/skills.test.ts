@@ -31,7 +31,7 @@ const skill = (id: string, name: string, description: string): InstalledSkill =>
 });
 
 const WITH_SKILLS: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
   hasSkills: true,
@@ -342,7 +342,7 @@ describe("the tool that loads one", () => {
     ]);
 
     expect(
-      availableTools({ webMode: "auto", codeExecution: false, libraryReady: false }),
+      availableTools({ webMode: "on", codeExecution: false, libraryReady: false }),
     ).toEqual([]);
   });
 

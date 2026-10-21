@@ -58,7 +58,7 @@ export function ComposerPreview({
 }) {
     const t = (key: string) => translations[language][key] || translations.en[key] || key;
     const [input, setInput] = useState("");
-    const [settings, setSettings] = useState({ effort: "medium", webMode: "auto", language } as AppSettings);
+    const [settings, setSettings] = useState({ effort: "medium", webMode: "on", language } as AppSettings);
     const [mode, setMode] = useState<PermissionMode>("acceptEdits");
 
     const props = {

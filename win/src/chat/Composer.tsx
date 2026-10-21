@@ -30,9 +30,8 @@ import { EffortSlider } from "./EffortSlider";
 import { EFFORT_LABELS } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
-const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
+const WEB_MODE_ORDER: AppSettings["webMode"][] = ["on", "off"];
 const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
-    auto: "webAuto",
     on: "webOn",
     off: "webOff",
 };

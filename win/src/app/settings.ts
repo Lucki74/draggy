@@ -26,7 +26,7 @@ export const defaultSettings: AppSettings = {
   newChatStart: "defaults",
   slowModelThinking: false,
   colibriLossy: false,
-  webMode: "auto",
+  webMode: "on",
   browserActions: true,
   voiceName: "",
   voiceModel: "",
@@ -44,7 +44,7 @@ export const defaultSettings: AppSettings = {
   codeInstructions: [],
   codeEffort: EFFORT_DEFAULT,
   codeDefaultEffort: EFFORT_DEFAULT,
-  codeWebMode: "auto",
+  codeWebMode: "on",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "",
@@ -89,6 +89,13 @@ export function loadSettings(): AppSettings {
   if ("updateChannel" in parsed) {
     delete (parsed as { updateChannel?: unknown }).updateChannel;
     migrated = true;
+  }
+  // Web access is On or Off now. "auto" meant the model chose, which is what On does.
+  for (const key of ["webMode", "codeWebMode"] as const) {
+    if ((parsed[key] as string | undefined) === "auto") {
+      parsed[key] = "on";
+      migrated = true;
+    }
   }
   if (parsed.language && !VALID_LANGUAGES.has(parsed.language)) {
     parsed.language = "en";

@@ -50,7 +50,7 @@ const SETTINGS = {
   allowMaxInChat: false,
   slowModelThinking: false,
   colibriLossy: false,
-  webMode: "auto",
+  webMode: "on",
   voiceName: "",
   voiceModel: "",
   voiceEngine: "system",
@@ -66,7 +66,7 @@ const SETTINGS = {
   codeModel: "",
   codeInstructions: [],
   codeEffort: "medium",
-  codeWebMode: "auto",
+  codeWebMode: "on",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "nomic-embed-text",
@@ -79,7 +79,7 @@ const SETTINGS = {
 } as AppSettings;
 
 const ENVIRONMENT: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: true,
   libraryReady: true,
 };

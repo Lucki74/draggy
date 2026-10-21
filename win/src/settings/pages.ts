@@ -103,7 +103,6 @@ export const newChatStartOptions = (t: Translate) => [
 ];
 
 export const webOptions = (t: Translate) => [
-  { id: "auto" as const, label: t("webAuto") },
   { id: "on" as const, label: t("webOn") },
   { id: "off" as const, label: t("webOff") },
 ];

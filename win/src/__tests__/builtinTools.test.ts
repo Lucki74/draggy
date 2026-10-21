@@ -11,7 +11,7 @@ import type { ToolContext, ToolEnvironment } from "../tools/registry";
 import type { SearchStep } from "../types";
 
 const ALL_ON: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: true,
   libraryReady: true,
 };

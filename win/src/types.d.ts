@@ -1016,7 +1016,7 @@ export interface AppSettings {
   slowModelThinking: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
-  webMode: "auto" | "on" | "off";
+  webMode: "on" | "off";
   /** Lets the agent hover, drag, scroll, pick options, wait and click by position in the browser pane. */
   browserActions?: boolean;
   voiceName: string;
@@ -1043,7 +1043,7 @@ export interface AppSettings {
   codeEffort: EffortLevel;
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
-  codeWebMode: "auto" | "on" | "off";
+  codeWebMode: "on" | "off";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;

@@ -19,7 +19,7 @@ describe("the + menu", () => {
     }
     // Skills are reached with / in the message, not from this menu.
     for (const name of ["Code review", "PDF"]) expect(screen.queryByText(name)).toBeNull();
-    for (const name of ["Auto", "On", "Off"]) {
+    for (const name of ["On", "Off"]) {
       expect(screen.getByRole("menuitemradio", { name })).toBeTruthy();
     }
   });

@@ -8,7 +8,7 @@ import type { CommandResult, SearchStep } from "../types";
  * with the turn. */
 
 const CODE: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: true,
   libraryReady: false,
   hasFolder: true,

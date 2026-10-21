@@ -82,7 +82,7 @@ describe("a model being loaded", () => {
     expect(screen.getByText(/from disk 30%/)).toBeTruthy();
     act(() => push({ stage: "placing", percent: 6 }));
     expect(screen.getByText(/ready 6%/)).toBeTruthy();
-    expect(screen.queryByText(/d s/)).toBeNull();
+    expect(screen.queryByText(/\d+(\.\d)? s/)).toBeNull();
     act(() => push({ stage: "prefilling", percent: 42 }));
     expect(screen.getByText(/Prefilling 42%/)).toBeTruthy();
     delete (window as unknown as { electronAPI?: unknown }).electronAPI;
