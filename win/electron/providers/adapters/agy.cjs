@@ -293,12 +293,16 @@ function createAgyAdapter({
 
   async function status() {
     const state = readState();
-    return { signedIn: Boolean(state.enabled && state.signedIn) };
+    if (state.enabled && state.signedIn) return { signedIn: true };
+    // The old Gemini CLI route kept its login under <userData>/gemini; Antigravity needs a fresh one.
+    const hadOldRoute = !fs.existsSync(stateFile) && fs.existsSync(path.join(appData, "gemini"));
+    return hadOldRoute ? { signedIn: false, reauth: true } : { signedIn: false };
   }
 
   /** Forgets Draggy's side only: agy keeps its own login, which is signed out by running agy itself. */
   async function signOut() {
-    fs.rmSync(stateFile, { force: true });
+    // The warning stays accepted, and the file's presence ends the "sign in again" prompt.
+    writeState({ acknowledgedAt: readState().acknowledgedAt });
     listed = null;
     build = null;
   }

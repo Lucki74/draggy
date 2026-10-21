@@ -132,6 +132,16 @@ describe("the adapter", () => {
     await expect(adapter.stream({ body, modelId: "m", sse: sseMock(), signal: null })).rejects.toMatchObject({ failure: { kind: "account-signed-out" } });
   });
 
+  it("asks a user of the old Gemini CLI route to sign in again", async () => {
+    fs.mkdirSync(path.join(dir, "gemini", "acct-1"), { recursive: true });
+    const adapter = make({ spawn: fakeSpawn({ stdout: lines([INIT, SUCCESS]) }).spawn });
+    expect(await adapter.status()).toEqual({ signedIn: false, reauth: true });
+    await adapter.signIn("x");
+    expect(await adapter.status()).toEqual({ signedIn: true });
+    await adapter.signOut();
+    expect(await adapter.status()).toEqual({ signedIn: false });
+  });
+
   it("signs in only after a real turn succeeds, and streams text with usage", async () => {
     const { spawn, calls } = fakeSpawn({ stdout: lines([INIT, delta("hello "), delta("there"), SUCCESS]) });
     const adapter = make({ spawn });
