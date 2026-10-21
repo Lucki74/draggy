@@ -67,7 +67,7 @@ const { createTtsHandlers } = require("./tts/ipc.cjs");
 const { createConsent } = require("./tts/consent.cjs");
 const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
 const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
-const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
+const { createAgyAdapter } = require("./providers/adapters/agy.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
 const browserControl = require("./browserControl.cjs");
@@ -825,7 +825,7 @@ let onboardingPlan = "done";
 let providers = null;
 let codexAccounts = null;
 let claudeAccounts = null;
-let geminiAccounts = null;
+let agyAccounts = null;
 let searchKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
@@ -1164,12 +1164,25 @@ app.whenReady().then(() => {
     version: app.getVersion(),
     log: (line) => log.debug("claude", line),
   });
-  geminiAccounts = createGeminiCliAdapter({
+  agyAccounts = createAgyAdapter({
     appData: app.getPath("userData"),
-    version: app.getVersion(),
-    log: (line) => log.debug("gemini", line),
+    log: (line) => log.debug("agy", line),
+    // Google's FAQ calls third-party use a terms breach, so nothing runs until this is accepted.
+    confirm: async () => {
+      const { response } = await dialog.showMessageBox(mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined, {
+        type: "warning",
+        buttons: ["Use Antigravity CLI", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+        title: "Antigravity CLI",
+        message: "Use your Google account through the Antigravity CLI?",
+        detail:
+          "Google says headless mode is for direct scripting and CI, and that third-party software reaching Antigravity breaks its terms and can get the account suspended. A Gemini API key under Providers avoids this risk.",
+      });
+      return response === 0;
+    },
   });
-  const accounts = { codex: codexAccounts, claude: claudeAccounts, "gemini-cli": geminiAccounts };
+  const accounts = { codex: codexAccounts, claude: claudeAccounts, agy: agyAccounts };
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
@@ -1315,7 +1328,7 @@ app.on("before-quit", (event) => {
   const timed = (label, work) => Promise.resolve(work).finally(() => quit.mark(label));
 
   // The window writes its pending saves before storage closes under them.
-  Promise.allSettled([timed("window-flush", flushWindow(mainWindow, ipc)), timed("codex", codexAccounts?.stopAll()), timed("claude", claudeAccounts?.stopAll()), timed("gemini", geminiAccounts?.stopAll())]).then(() => {
+  Promise.allSettled([timed("window-flush", flushWindow(mainWindow, ipc)), timed("codex", codexAccounts?.stopAll()), timed("claude", claudeAccounts?.stopAll()), timed("agy", agyAccounts?.stopAll())]).then(() => {
     shutdown();
     quit.mark("shutdown");
     quit.finish();

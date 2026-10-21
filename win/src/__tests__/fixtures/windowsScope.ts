@@ -5,7 +5,7 @@ const NON_WINDOWS = /^(darwin|macos|mac|linux|aarch64-apple-darwin|x86_64-unknow
 /** Drivers for code that only served macOS and Linux, now gone from the Windows reference. */
 /** A release archive built for macOS or Ubuntu. */
 const OTHER_ARCHIVE = /-bin-(macos|ubuntu)-/;
-const REMOVED_OPS = new Set(["parseCpuList", "linuxTopology"]);
+const REMOVED_OPS = new Set(["parseCpuList", "linuxTopology", "geminiInstall"]);
 
 function namesOtherPlatform(value: unknown, key = ""): boolean {
   if (typeof value === "string") {

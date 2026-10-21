@@ -11,7 +11,6 @@ import path from "node:path";
 const require = createRequire(import.meta.url);
 const claudeBin = require("../../../electron/providers/claude/binary.cjs");
 const codexBin = require("../../../electron/providers/codex/binary.cjs");
-const geminiInstall = require("../../../electron/providers/gemini/install.cjs");
 
 const LOCK_FILES = new Set(["package.json", "package-lock.json"]);
 
@@ -109,29 +108,5 @@ export async function runCodexInstall(input: any): Promise<any> {
       error = messageOf(caught);
     }
     return { result: relativeTo(root, result), files: listFiles(root), progress, error };
-  });
-}
-
-export async function runGeminiInstall(input: any): Promise<any> {
-  return withRoot(input.existing ?? [], async (root) => {
-    let result: string | null = null;
-    let error: string | null = null;
-    try {
-      result = await geminiInstall.ensureGemini(root, {
-        pollMs: 1e9,
-        resolveNpm: () => (input.npm ? { file: "npm", prefixArgs: [] } : null),
-        run: async ({ cwd }: { cwd: string }) => {
-          if (input.npmCode !== undefined && input.npmCode !== 0) return { code: input.npmCode, stderr: input.stderr ?? "" };
-          const entry = path.join(cwd, "node_modules", "@google", "gemini-cli", "bundle", "gemini.js");
-          fs.mkdirSync(path.dirname(entry), { recursive: true });
-          fs.writeFileSync(entry, "console.log(1)");
-          return { code: 0, stderr: "" };
-        },
-      });
-    } catch (caught: any) {
-      error = messageOf(caught);
-    }
-    const files = listFiles(root).filter((file) => !/^gemini\/cli\/0\.61\.0\/package(-lock)?\.json$/.test(file.path));
-    return { result: relativeTo(root, result), files, error };
   });
 }

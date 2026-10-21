@@ -190,14 +190,14 @@ const CATALOG = [
   },
   {
     id: "google",
-    name: "Google",
+    name: "Google (Antigravity)",
     kind: "account",
-    protocol: "gemini-cli",
+    protocol: "agy",
     vendor: "google",
     auth: "account",
     baseUrl: "",
     keyUrl: "",
-    signInHosts: ["accounts.google.com"],
+    signInHosts: [],
     capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING], contextLength: 1048576 }],
     defaultModels: [],
   },
@@ -220,7 +220,7 @@ const CATALOG = [
 
 // Pairs a plan with its API-key twin, so the Add list asks which way (spec §7.1).
 const VENDORS = new Set(["openai", "anthropic", "google"]);
-const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "gemini-cli"]);
+const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "agy"]);
 const AUTHS = new Set(["bearer", "x-api-key", "x-goog-api-key", "account", "none"]);
 const CAPABILITIES = new Set([TOOLS, VISION, THINKING]);
 

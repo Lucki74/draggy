@@ -31,7 +31,7 @@ describe("the bundled catalog", () => {
     }
     expect(find("chatgpt")).toMatchObject({ kind: "account", protocol: "codex" });
     expect(find("claude")).toMatchObject({ kind: "account", protocol: "claude", signInHosts: ["claude.com"] });
-    expect(find("google")).toMatchObject({ kind: "account", protocol: "gemini-cli", signInHosts: ["accounts.google.com"] });
+    expect(find("google")).toMatchObject({ kind: "account", protocol: "agy", signInHosts: [] });
   });
 
   it("pairs each plan with exactly one API-key twin of the same vendor, and refuses an unknown vendor", () => {
