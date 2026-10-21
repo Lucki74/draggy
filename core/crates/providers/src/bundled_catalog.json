@@ -350,6 +350,119 @@
     "quirks": {}
   },
   {
+    "id": "ollama-cloud",
+    "name": "Ollama Cloud",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://ollama.com/v1",
+    "keyUrl": "https://ollama.com/settings/keys",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "embed",
+        "capabilities": []
+      },
+      {
+        "match": "vl|gemma3|llava|mistral-large-3|kimi-k2\\.5",
+        "capabilities": [
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "match": "gpt-oss|deepseek|qwen3|kimi|glm|minimax",
+        "capabilities": [
+          "tools",
+          "thinking"
+        ]
+      },
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "nebius",
+    "name": "Nebius",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.tokenfactory.nebius.com/v1",
+    "keyUrl": "https://tokenfactory.nebius.com",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "sambanova",
+    "name": "SambaNova",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.sambanova.ai/v1",
+    "keyUrl": "https://cloud.sambanova.ai/apis",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "siliconflow",
+    "name": "SiliconFlow",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.siliconflow.com/v1",
+    "keyUrl": "https://cloud.siliconflow.com/account/ak",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
+    "id": "novita",
+    "name": "Novita AI",
+    "kind": "cloud",
+    "protocol": "openai",
+    "baseUrl": "https://api.novita.ai/openai",
+    "keyUrl": "https://novita.ai/settings/key-management",
+    "auth": "bearer",
+    "capabilityPatterns": [
+      {
+        "match": "",
+        "capabilities": [
+          "tools"
+        ]
+      }
+    ],
+    "defaultModels": [],
+    "quirks": {}
+  },
+  {
     "id": "qwen",
     "name": "Qwen (DashScope)",
     "kind": "cloud",
