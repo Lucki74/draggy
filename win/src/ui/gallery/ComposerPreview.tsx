@@ -101,6 +101,7 @@ export function ComposerPreview({
         handleMicClick: noop,
         runSlashCommand,
         setSlashIndex: noop,
+        setCaret: noop,
         onPaste: noop,
         onDrop: noop,
         processFiles: async () => {},

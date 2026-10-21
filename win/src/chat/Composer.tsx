@@ -94,8 +94,10 @@ export interface ComposerProps {
     onProjectMemory?: () => void;
     removeFile: (index: number) => void;
     handleMicClick: () => void;
-    runSlashCommand: (id: string) => void;
+    /** Returns where the caret goes when the command was written into the text. */
+    runSlashCommand: (id: string) => number | void;
     setSlashIndex: React.Dispatch<React.SetStateAction<number>>;
+    setCaret: (position: number) => void;
     onPaste: (e: React.ClipboardEvent) => void;
     onDrop: (e: React.DragEvent) => void;
     processFiles: (files: File[]) => Promise<void>;
@@ -181,6 +183,7 @@ export function Composer({
     handleMicClick,
     runSlashCommand,
     setSlashIndex,
+    setCaret,
     onPaste,
     onDrop,
     processFiles,
@@ -216,6 +219,15 @@ export function Composer({
         const next = field.selectionStart === field.selectionEnd ? mentionAt(field.value, field.selectionStart) : null;
         setMention((current) => (current?.start === next?.start && current?.query === next?.query ? current : next));
         if (next?.query !== mention?.query) setMentionIndex(0);
+    };
+
+    const pickSlash = (id: string) => {
+        const caret = runSlashCommand(id);
+        if (typeof caret !== "number") return;
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.setSelectionRange(caret, caret);
+        });
     };
 
     const pickMention = (path: string) => {
@@ -453,7 +465,7 @@ export function Composer({
                                 aria-selected={index === activeSlashIndex}
                                 onMouseDown={(event) => {
                                     event.preventDefault();
-                                    runSlashCommand(command.id);
+                                    pickSlash(command.id);
                                 }}
                                 className={`w-full flex items-baseline gap-3 px-3 py-1.5 text-start text-[13px] ${
                                     index === activeSlashIndex ? "bg-surface-raised text-text-primary" : "text-text-secondary hover:bg-surface-raised"
@@ -526,9 +538,13 @@ export function Composer({
                         aria-label={t("messageModel")}
                         onChange={(e) => {
                             setInput(e.target.value);
+                            setCaret(e.target.selectionStart);
                             trackMention(e.target);
                         }}
-                        onSelect={(e) => trackMention(e.currentTarget)}
+                        onSelect={(e) => {
+                            setCaret(e.currentTarget.selectionStart);
+                            trackMention(e.currentTarget);
+                        }}
                         onBlur={() => setMention(null)}
                         onPaste={onPaste}
                         onDrop={onDrop}
@@ -564,12 +580,12 @@ export function Composer({
                                 }
                                 if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
                                     e.preventDefault();
-                                    runSlashCommand(slashMatches[activeSlashIndex].id);
+                                    pickSlash(slashMatches[activeSlashIndex].id);
                                     return;
                                 }
                                 if (e.key === "Escape") {
                                     e.preventDefault();
-                                    setInput("");
+                                    if (input.startsWith("/") && !/\s/.test(input)) setInput("");
                                     return;
                                 }
                             }

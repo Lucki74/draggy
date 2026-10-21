@@ -10,6 +10,7 @@ import {
   renderLoadedSkills,
   renderSkill,
   skillInvocation,
+  skillInvocations,
   skillsFor,
 } from "../skills/skills";
 import { matchSlashCommands } from "../chat/slashCommands";
@@ -178,6 +179,32 @@ describe("a skill started from the composer", () => {
     expect(skillInvocation("/dev/null is not a file", skills)).toBeNull();
     expect(skillInvocation("please /code-review this", skills)).toBeNull();
     expect(skillInvocation("/unknown thing", skills)).toBeNull();
+  });
+
+  it("finds several skill commands anywhere in a message, once each, in the order typed", () => {
+    const found = skillInvocations("first /docx then /code-review, and /docx again", skills);
+
+    expect(found?.skills.map((one) => one.id)).toEqual(["docx", "code-review"]);
+    expect(found?.request).toBe("first then, and again");
+  });
+
+  it("skips URLs, paths, code spans and fences", () => {
+    for (const text of [
+      "see https://example.com/docx now",
+      "open /dev/null or /docx/readme",
+      "run `/docx` as text",
+      "```\n/code-review\n```",
+      "a file named /docx.md",
+      "mail me@x.io/docx",
+    ]) {
+      expect(skillInvocations(text, skills)).toBeNull();
+    }
+  });
+
+  it("still finds a command beside a code span and before sentence punctuation", () => {
+    const found = skillInvocations("use `/docx` text but /code-review.", skills);
+
+    expect(found?.skills.map((one) => one.id)).toEqual(["code-review"]);
   });
 
   it("tells the model the skill is loaded, with the request, so no tool call is needed", () => {

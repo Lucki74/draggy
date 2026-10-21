@@ -26,10 +26,10 @@ import {
   describeSkills,
   loadSkills,
   loadedSkillIds,
-  renderInvokedSkill,
+  renderInvokedSkills,
   renderLoadedSkills,
   renderSkill,
-  skillInvocation,
+  skillInvocations,
 } from "../skills/skills";
 import type { LoadedSkill } from "../types";
 import { renderMemory } from "../project/memory";
@@ -362,6 +362,8 @@ export interface PreparedTurn {
   wire: WireMessage[];
   /** The skill this message started with a slash command, once it has loaded. */
   invokedSkill: { id: string; name: string } | null;
+  /** All of them, in the order typed; `invokedSkill` is the first. */
+  invokedSkills: Array<{ id: string; name: string }>;
 }
 
 export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
@@ -421,7 +423,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const lastMessage = messages[messages.length - 1];
   const invoked =
     !request.isContinuation && lastMessage?.role === "user"
-      ? skillInvocation(lastMessage.content, skills)
+      ? skillInvocations(lastMessage.content, skills)
       : null;
 
   // A skill loaded anywhere in the conversation stays loaded, as its text would if tool results
@@ -538,8 +540,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     }
   }
 
-  const invokedSkill =
-    invoked && loadedSkills.some((skill) => skill.id === invoked.skill.id) ? invoked.skill : null;
+  const invokedSkills = (invoked?.skills ?? []).filter((one) => loadedSkills.some((skill) => skill.id === one.id));
+  const invokedSkill = invokedSkills[0] ?? null;
 
   const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
 
@@ -563,7 +565,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
         userTailNotes.delete("draft");
         userTailNotes.set(key, tail!);
       } else {
-        const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkill(invokedSkill, invoked.request)}` : "";
+        const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkills(invokedSkills, invoked.request)}` : "";
         tail = `${skillPart}\n\n${currentTimeNote()}`;
         if (preservePastNotes) userTailNotes.set(key, tail);
       }
@@ -587,6 +589,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     promptParts,
     wire,
     invokedSkill: invokedSkill ? { id: invokedSkill.id, name: invokedSkill.name } : null,
+    invokedSkills: invokedSkills.map((one) => ({ id: one.id, name: one.name })),
   };
 }
 
@@ -945,7 +948,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     definitions,
     promptParts,
     wire,
-    invokedSkill,
+    invokedSkills,
   } = await prepareTurn(request);
   toolContext.vision = nativeVision;
   const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
@@ -954,7 +957,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
 
   // A slash command's skill shows where it loaded, as one the model asked for does.
-  if (invokedSkill) {
+  for (const invokedSkill of invokedSkills) {
     pushStep({
       id: generateId(),
       type: "skill",

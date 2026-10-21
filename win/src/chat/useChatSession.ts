@@ -37,7 +37,8 @@ import type { SettingsTab } from "../settings/pages";
 import {
     clampSlashIndex,
     matchSlashCommands,
-    slashQueryFor,
+    replaceSlashToken,
+    slashTokenAt,
 } from "./slashCommands";
 import { isBinary, writeLocalStorage } from "../utils";
 import { appendMention, FILL_EVENT, MENTION_EVENT } from "./mentions";
@@ -157,6 +158,8 @@ export function useChatSession({
     const [micDetail, setMicDetail] = useState("");
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
     const [slashIndex, setSlashIndex] = useState(0);
+    // Where the caret is in the field, so a /command typed mid-message opens the menu too.
+    const [caret, setCaret] = useState<number | null>(null);
     const [lastSlashQuery, setLastSlashQuery] = useState<string | null>(null);
     const recorderRef = useRef<Recorder | null>(null);
 
@@ -269,10 +272,17 @@ export function useChatSession({
         return true;
     };
 
-    const runSlashCommand = (id: string) => {
+    const runSlashCommand = (id: string): number | void => {
         if (id === "compact-limit" || id === "image" || skills.some((skill) => skill.id === id)) {
-            setInput(`/${id} `);
-            return;
+            const token = slashTokenAt(input, Math.min(caret ?? input.length, input.length));
+            if (!token) {
+                setInput(`/${id} `);
+                return;
+            }
+            const next = replaceSlashToken(input, token, id);
+            setInput(next.text);
+            setCaret(next.caret);
+            return next.caret;
         }
 
         setInput("");
@@ -376,8 +386,8 @@ export function useChatSession({
         setFileErrors(rejected);
     };
 
-    const slashQuery = slashQueryFor(input);
-    const slashMatches = matchSlashCommands(input, { surface, skills });
+    const slashQuery = slashTokenAt(input, Math.min(caret ?? input.length, input.length))?.query ?? null;
+    const slashMatches = matchSlashCommands(input, { surface, skills, caret: caret ?? undefined });
 
     if (lastSlashQuery !== slashQuery) {
         setLastSlashQuery(slashQuery);
@@ -545,6 +555,7 @@ export function useChatSession({
         slashMatches,
         activeSlashIndex,
         setSlashIndex,
+        setCaret,
         modelInfo,
         modelProvider,
         thinkingUnavailable,

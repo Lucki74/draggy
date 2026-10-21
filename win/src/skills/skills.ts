@@ -85,6 +85,48 @@ export function skillInvocation(
   return skill ? { skill, request: (match[2] ?? "").trim() } : null;
 }
 
+/** Code spans and fences hold text to show, so a command inside one is left alone. */
+const CODE_SPAN = /```[\s\S]*?(?:```|$)|`[^`\n]*`/g;
+
+/** Every skill command in a message, wherever it sits: "use /pdf then /docx on this". Only a word on its
+ * own after a space counts, so URLs, paths ("/dev/null") and code spans never run a skill. */
+export function skillInvocations(
+  text: string,
+  skills: InstalledSkill[],
+): { skills: InstalledSkill[]; request: string } | null {
+  const source = String(text || "");
+  const masked = source.replace(CODE_SPAN, (span) => " ".repeat(span.length));
+  const found: InstalledSkill[] = [];
+  const cuts: Array<[number, number]> = [];
+
+  for (const match of masked.matchAll(/(^|\s)\/([a-z0-9][a-z0-9-]*)(?=$|\s|[,;:!?)]|\.(?:\s|$))/gi)) {
+    const skill = skills.find((one) => one.id.toLowerCase() === match[2].toLowerCase());
+    if (!skill) continue;
+    if (!found.includes(skill)) found.push(skill);
+    let start = (match.index ?? 0) + match[1].length;
+    const end = start + match[2].length + 1;
+    // "with /pdf." leaves "with.", not "with .".
+    if (/[,;:!?).]/.test(source[end] ?? "") && source[start - 1] === " ") start -= 1;
+    cuts.push([start, end]);
+  }
+  if (found.length === 0) return null;
+
+  let request = source;
+  for (const [start, end] of [...cuts].reverse()) request = request.slice(0, start) + request.slice(end);
+  return { skills: found, request: request.replace(/[ \t]{2,}/g, " ").trim() };
+}
+
+/** The note for a message that started several skills, in the order they were typed. */
+export function renderInvokedSkills(skills: InstalledSkill[], request: string): string {
+  if (skills.length === 1) return renderInvokedSkill(skills[0], request);
+  const names = skills.map((skill) => `/${skill.id} (${skill.name})`).join(", ");
+  const task = request
+    ? `The rest of the message: ${request}`
+    : "It came with no further request, so ask what the user wants them applied to if that is not clear from the conversation.";
+
+  return `The user named these skills in this message: ${names}. Their instructions are loaded under LOADED SKILLS in your instructions, so there is no need to call use_skill for them. Apply them in that order. ${task}`;
+}
+
 /** What a slash command adds to the message it starts. The instructions themselves sit with the
  * other loaded skills in the system prompt. */
 export function renderInvokedSkill(skill: InstalledSkill, request: string): string {
@@ -114,7 +156,7 @@ export function loadedSkillIds(messages: Message[], skills: InstalledSkill[]): s
 
   for (const message of messages) {
     if (message.role === "user") {
-      note(skillInvocation(message.content, skills)?.skill.id);
+      for (const skill of skillInvocations(message.content, skills)?.skills ?? []) note(skill.id);
       continue;
     }
 
