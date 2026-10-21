@@ -104,6 +104,8 @@ import type {
   Message,
   PermissionMode,
   SearchStep,
+  UserQuestion,
+  UserReply,
 } from "../types";
 
 // Re-exported for the screens that warm the model with the same value.
@@ -306,6 +308,8 @@ export interface AgentHost {
   /** Puts a call to the user and waits. Without it a turn that needs an answer has no one to ask,
    * and the call is refused rather than run unasked. */
   requestApproval?: (request: ApprovalRequest) => Promise<ApprovalAnswer>;
+  /** The same for a question the model asks; null when the user dismisses it. */
+  requestAnswer?: (question: UserQuestion) => Promise<UserReply | null>;
   /** A permission the user wants kept for this workspace, not just this task. */
   onGrant?: (grant: Grant) => void;
   /** Where a plan the model writes goes, and where the live one comes from. */
@@ -764,6 +768,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       lastSeenPlan = items;
       host.onPlan?.(items);
     },
+    askUser: host.requestAnswer,
     pushStep,
     patchStep,
     findStep: (predicate) => steps.find(predicate),

@@ -23,6 +23,7 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "./permissions";
 import type {
   ApprovalAnswer,
+  UserReply,
   AppSettings,
   Attachment,
   ChatSession,
@@ -108,6 +109,8 @@ export interface TaskManager {
   dismissOutOfContext: (chatId: string) => void;
   /** The user's answer to a call that was waiting on them. */
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** The user's reply to a question the model asked, or null to dismiss it. */
+  answerQuestion: (questionId: string, reply: UserReply | null) => void;
   /** Folds the older conversation into notes now, rather than waiting for the limit. */
   compact: (chatId: string) => Promise<CompactOutcome>;
   /** Asks the model how many tokens the next turn would take, draft included. Null when that
@@ -165,7 +168,22 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     pending.answer(answer);
   }
 
+  const asking = new Map<string, { chatId: string; answer: (reply: UserReply | null) => void }>();
+
+  function answerQuestion(questionId: string, reply: UserReply | null) {
+    const pending = asking.get(questionId);
+    if (!pending) return;
+
+    asking.delete(questionId);
+    pending.answer(reply);
+  }
+
   function refuseWaiting(chatId: string) {
+    for (const [id, pending] of [...asking]) {
+      if (pending.chatId !== chatId) continue;
+      asking.delete(id);
+      pending.answer(null);
+    }
     for (const [id, pending] of [...waiting]) {
       if (pending.chatId !== chatId) continue;
       waiting.delete(id);
@@ -473,6 +491,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           getPlan: () => host.getSession(chatId)?.plan ?? null,
           onPlan: (items) =>
             host.updateSession(chatId, (session) => ({ ...session, plan: items })),
+          requestAnswer: (question) =>
+            new Promise<UserReply | null>((resolve) => {
+              asking.set(question.id, { chatId, answer: resolve });
+            }),
           requestApproval: (approval) =>
             new Promise<ApprovalAnswer>((resolve) => {
               waiting.set(approval.id, { chatId, answer: resolve });
@@ -938,6 +960,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     continueGeneration,
     dismissOutOfContext,
     answerApproval,
+    answerQuestion,
     compact: (chatId: string) => compactChat(chatId, true),
     measure,
     stop,

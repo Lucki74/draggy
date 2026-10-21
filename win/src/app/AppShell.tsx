@@ -17,6 +17,7 @@ import { loadProjectMemory } from "../project/load";
 import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { setUiLanguage, useTranslator } from "../i18n";
+import { AnswerQuestionContext } from "../chat/questionContext";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
@@ -1083,6 +1084,7 @@ export default function AppShell({
   ]);
 
   return (
+    <AnswerQuestionContext.Provider value={runs.answerQuestion}>
     <div className="w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 bg-surface-canvas text-text-primary">
       <CrashNotice t={t} onExport={() => openSettings("diagnostics")} />
       <TitleBar
@@ -1400,5 +1402,6 @@ export default function AppShell({
         t={t}
       />
     </div>
+    </AnswerQuestionContext.Provider>
   );
 }

@@ -432,7 +432,8 @@ AVAILABLE TOOLS
 21. move_file: {"from": "notes.md", "to": "docs/notes.md"} → moves the file
 22. delete_file: {"path": "old-notes.md"} → moves the file to the recycle bin
 23. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
-24. explore: {"question": "Where is the permission engine called from?"} → a short answer with the files it is in
+24. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
+25. explore: {"question": "Where is the permission engine called from?"} → a short answer with the files it is in
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>

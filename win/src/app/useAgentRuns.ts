@@ -5,6 +5,7 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "../agent/permissions";
 import type {
   ApprovalAnswer,
+  UserReply,
   AppSettings,
   Attachment,
   ChatSession,
@@ -52,6 +53,7 @@ export interface AgentRuns {
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  answerQuestion: (questionId: string, reply: UserReply | null) => void;
   /** Folds the older conversation into notes now. */
   compact: (chatId: string) => Promise<CompactOutcome>;
   /** What the model counts for the next turn of a conversation, draft included. */
@@ -100,6 +102,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
+      answerQuestion: manager.answerQuestion,
       compact: manager.compact,
       measure: manager.measure,
       stop: manager.stop,

@@ -469,6 +469,46 @@ describe("a turn waiting on the user", () => {
   });
 });
 
+describe("a turn waiting on a question", () => {
+  const question = { id: "q-1", text: "Which one?", options: ["A", "B"], multiple: false };
+  const ask = () => pending[pending.length - 1].host.requestAnswer!(question);
+
+  it("carries on with the reply the user gives", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", { choices: ["B"], text: "" });
+
+    expect(await answered).toEqual({ choices: ["B"], text: "" });
+  });
+
+  it("gets nothing back when the user skips", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", null);
+
+    expect(await answered).toBeNull();
+  });
+
+  it("is dismissed when the conversation is stopped", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.stop("chat-1");
+
+    expect(await answered).toBeNull();
+  });
+
+  it("ignores a reply to a question nobody asked", () => {
+    const manager = createTaskManager(createHost().host);
+    expect(() => manager.answerQuestion("nope", null)).not.toThrow();
+  });
+});
+
 describe("recording a finished turn for the statistics page", () => {
   beforeEach(() => {
     pending.length = 0;

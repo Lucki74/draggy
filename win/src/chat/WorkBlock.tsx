@@ -10,6 +10,7 @@ import { displayModelName } from "../llama";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
+import QuestionCard from "./QuestionCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import { OpenDiffContext } from "./openDiffContext";
@@ -478,6 +479,10 @@ export function WorkBlock({
         </div>
       </details>
     );
+  }
+
+  if (step.type === "question") {
+    return <QuestionCard key={step.id} step={step} t={t} />;
   }
 
   if (step.type === "approval") {

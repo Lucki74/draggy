@@ -362,6 +362,8 @@ export interface SearchStep {
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */
     | "approval"
+    /** A question the model put to the user, with the form to answer it. */
+    | "question"
     /** The model writing down what it is going to do. */
     | "plan"
     /** A skill's instructions loaded, by the model or by a slash command. */
@@ -412,6 +414,10 @@ export interface SearchStep {
   };
   /** What the user answered. Absent while the card is still waiting. */
   answer?: ApprovalAnswer;
+  /** On a "question" step: what the model asked. */
+  question?: UserQuestion;
+  /** On a "question" step: the reply, or "cancelled". Absent while the form is still waiting. */
+  reply?: UserReply | "cancelled";
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
@@ -543,6 +549,22 @@ export interface ImageResult {
 /** How far an approval goes: this call only, the rest of this task, or every time in this
  * workspace. "no" is a refusal of the call in front of the user. */
 export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
+
+/** A question the model asks the user: pick from the options, or write an answer. */
+export interface UserQuestion {
+  id: string;
+  text: string;
+  /** Empty means free text only. */
+  options: string[];
+  /** More than one option may be picked. */
+  multiple: boolean;
+}
+
+/** What the user sent back: the options picked and/or the words written. */
+export interface UserReply {
+  choices: string[];
+  text: string;
+}
 
 export interface TurnMetrics {
   promptTokens: number;
