@@ -2,7 +2,7 @@
 
 The Windows app is the Electron app in `win/`. The Linux and macOS apps are native and separate. All three share the Rust core in `core/` and the fixtures in `shared/fixtures/`.
 
-Build 5 removed the Gemini CLI account route from the Windows app, because Google stopped serving it to personal Pro, Ultra and free accounts on 18 June 2026. The Rust core and the shared fixtures dropped it too, and the `google` catalog entry now names the Antigravity (`agy`) protocol. The core has no `agy` adapter yet, so the Linux and macOS apps cannot sign in with Google until `win/electron/providers/adapters/agy.cjs` is ported.
+Build 5 removed the Gemini CLI account route from the Windows app, because Google stopped serving it to personal Pro, Ultra and free accounts on 18 June 2026. The Rust core and the shared fixtures dropped it too, and the `google` catalog entry now names the Antigravity (`agy`) protocol. The core now holds the pure logic of the `agy` adapter (`core/crates/providers/src/agy/`: prompt, arguments, event stream, failures). The Linux and macOS apps still need the host wiring (process spawning and the terms warning) before they can sign in with Google.
 
 ## Linux (`linux/`)
 
