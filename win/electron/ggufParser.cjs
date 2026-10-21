@@ -178,6 +178,10 @@ function parseGgufBuffer(buf) {
   // Which tokenizer the model speaks, so a draft model is only paired with one that shares it.
   const tokenizerModel = typeof meta["tokenizer.ggml.model"] === "string" ? meta["tokenizer.ggml.model"] : null;
   const tokenizerPre = typeof meta["tokenizer.ggml.pre"] === "string" ? meta["tokenizer.ggml.pre"] : null;
+  // A pooling type is written only by models that turn text into one vector, never by chat models.
+  const pooled = meta[arch + ".pooling_type"] !== undefined || /(^|-)bert|embedding/.test(arch);
+  // Vision projectors and speech models share the format but cannot hold a conversation.
+  const chat = arch !== "unknown" && !/^(clip|mmproj|sortformer|whisper|parakeet|wav2vec|conformer|fastconformer|bark|snac|dac|encodec|vits)/.test(arch);
   const vocabSize = counts["tokenizer.ggml.tokens"] || Number(meta[`${arch}.vocab_size`]) || null;
 
   return {
@@ -196,6 +200,8 @@ function parseGgufBuffer(buf) {
     tokenizerModel,
     tokenizerPre,
     vocabSize,
+    chat,
+    pooled,
     version,
   };
 }

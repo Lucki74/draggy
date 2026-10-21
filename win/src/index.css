@@ -21,6 +21,9 @@
     --color-action-bg: var(--action-bg);
     --color-action-fg: var(--action-fg);
     --color-focus: var(--focus);
+    --color-accent: var(--accent);
+    --color-accent-ink: var(--accent-ink);
+    --color-accent-soft: var(--accent-soft);
 
     --color-ok: var(--ok);
     --color-warn: var(--warn);
