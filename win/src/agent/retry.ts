@@ -16,6 +16,22 @@ export const isTransientStatus = (status: number): boolean => [408, 500, 502, 50
 /** Waits longer after each failure, up to 8 s, so a busy engine is not hammered. */
 export const backoffMs = (attempt: number): number => Math.min(8000, 500 * 2 ** (attempt - 1));
 
+/** Waits for a reply's first chunk, so a stream that dies before saying anything can be asked for again. */
+export async function openStream<T>(source: AsyncGenerator<T, void, unknown>): Promise<AsyncGenerator<T, void, unknown>> {
+  let first: IteratorResult<T, void>;
+  try {
+    first = await source.next();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new TransientError(error instanceof Error ? error.message : String(error), null, { cause: error });
+  }
+  return (async function* () {
+    if (first.done) return;
+    yield first.value;
+    yield* source;
+  })();
+}
+
 export interface RetryOptions {
   retries?: number;
   signal?: AbortSignal;

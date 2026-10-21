@@ -58,7 +58,7 @@ import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import type { GatewayError, GatewayRetry } from "../ai/llamaStream";
-import { TransientError, isTransientStatus, withRetries } from "./retry";
+import { TransientError, isTransientStatus, openStream, withRetries } from "./retry";
 import {
   annotationsFor,
   availableTools,
@@ -1208,7 +1208,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       });
 
       // A dropped connection or an engine that is still starting is tried again before the turn fails.
-      const response = await withRetries(
+      const stream = await withRetries(
         async () => {
           let attempt: Response;
           try {
@@ -1235,16 +1235,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             if (isTransientStatus(attempt.status)) throw new TransientError(message, attempt.status);
             throw new Error(message);
           }
-          return attempt;
+          const body = attempt.body?.getReader();
+          if (!body) throw new Error("No response");
+          // The first chunk is read here so a reply that drops before saying anything is asked for again.
+          return openStream(sseToLlamaChunks(body));
         },
         {
           signal: loopController.signal,
           onRetry: (attempt, of, waitMs) => showRetry({ attempt, of, retryAfterMs: waitMs }),
         },
       );
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response");
 
       let rawChunk = "";
       let thinkingText = "";
@@ -1279,7 +1279,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       };
 
       const readStream = async function* () {
-        for await (const chunk of sseToLlamaChunks(reader)) {
+        for await (const chunk of stream) {
           yield chunk as LlamaChunk;
         }
       };

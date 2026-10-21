@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MAX_RETRIES, TransientError, backoffMs, isTransientStatus, withRetries } from "../agent/retry";
+import { MAX_RETRIES, TransientError, backoffMs, isTransientStatus, openStream, withRetries } from "../agent/retry";
 
 // A reply that stalls or drops mid-way is tried again up to five times before the turn is given up on.
 
@@ -60,5 +60,44 @@ describe("what counts as transient", () => {
   it("waits longer each time, capped", () => {
     expect([1, 2, 3, 4, 5].map(backoffMs)).toEqual([500, 1000, 2000, 4000, 8000]);
     expect(backoffMs(9)).toBe(8000);
+  });
+});
+
+describe("a reply stream that dies before its first chunk", () => {
+  async function* chunks(...items: string[]) {
+    for (const item of items) yield item;
+  }
+  async function* dies() {
+    throw new TypeError("network error");
+    yield "never";
+  }
+  const collect = async (stream: AsyncGenerator<string, void, unknown>) => {
+    const out: string[] = [];
+    for await (const item of stream) out.push(item);
+    return out;
+  };
+
+  it("hands every chunk on, the first included", async () => {
+    expect(await collect(await openStream(chunks("a", "b", "c")))).toEqual(["a", "b", "c"]);
+    expect(await collect(await openStream(chunks()))).toEqual([]);
+  });
+
+  it("becomes a failure that is tried again, so a stall before any text costs a retry not the turn", async () => {
+    let tries = 0;
+    const text = await withRetries(
+      async () => collect(await openStream(++tries < 3 ? dies() : chunks("hello"))),
+      { sleep: now },
+    );
+
+    expect(text).toEqual(["hello"]);
+    expect(tries).toBe(3);
+  });
+
+  it("lets a stop through untouched", async () => {
+    async function* stopped() {
+      throw new DOMException("Aborted", "AbortError");
+      yield "never";
+    }
+    await expect(openStream(stopped())).rejects.toMatchObject({ name: "AbortError" });
   });
 });
