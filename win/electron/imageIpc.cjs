@@ -165,7 +165,7 @@ function register(ipc, deps) {
   /** An image model found by searching Hugging Face: it goes in the image folder, never beside chat models. */
   ipc.handle("sd:download-repo", wrap("engine.image",async (_event, raw) => {
     const reference = String(raw || "");
-    const resolved = await huggingface.resolveModelDownload(reference);
+    const resolved = await huggingface.resolveModelDownload(reference, { live: true });
     if (!resolved || resolved.parts) return { success: false, error: "That model cannot be downloaded as one file" };
     // A model Draggy knows comes with the encoder and VAE it needs, each checked against its pinned hash.
     const repo = String(reference || "").split(":")[0].toLowerCase();

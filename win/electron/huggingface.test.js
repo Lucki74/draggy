@@ -499,8 +499,14 @@ describe("model size lookups", () => {
 
   it("takes a curated variant's size from the repository, not the registry", async () => {
     mockTree([["Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", 4_921_000_123]]);
-    const size = await huggingface.fetchModelSize("llama3.1", "8b");
+    const size = await huggingface.fetchModelSize("llama3.1", "8b", { live: true });
     expect(size).toEqual({ success: true, bytes: 4_921_000_123 });
+  });
+
+  it("keeps the registry's size when the app has not asked for the live one", async () => {
+    mockTree([["Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", 4_921_000_123]]);
+    const size = await huggingface.fetchModelSize("llama3.1", "8b");
+    expect(size).toEqual({ success: true, bytes: 4920733696 });
   });
 
   it("returns error for unknown variant without crashing", async () => {

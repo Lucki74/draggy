@@ -1,7 +1,12 @@
 import { ACCENTS } from "../app/accent";
 import { Icon } from "../ui/icons/Icon";
+import { Menu, type MenuEntry } from "../ui/Menu";
 
-/** The seven accents as swatches. The mark shows the choice in more than colour. */
+const Dot = ({ color }: { color: string }) => (
+  <span aria-hidden className="h-4 w-4 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgba(128,128,128,0.35)]" style={{ backgroundColor: color }} />
+);
+
+/** The seven accents in a dropdown: a rounded box holding the colour and its name, an arrow on the right. */
 export function AccentPicker({
   value,
   onChange,
@@ -11,30 +16,30 @@ export function AccentPicker({
   onChange: (accent: string) => void;
   t: (key: string) => string;
 }) {
-  const current = ACCENTS.some((one) => one.id === value) ? value : ACCENTS[0].id;
+  const current = ACCENTS.find((one) => one.id === value) ?? ACCENTS[0];
+  const items: MenuEntry[] = ACCENTS.map((one) => ({
+    id: one.id,
+    label: t(`accent_${one.id}`),
+    icon: <Dot color={one.color} />,
+    checked: one.id === current.id,
+    onSelect: () => onChange(one.id),
+  }));
   return (
-    <div role="radiogroup" aria-label={t("accentColor")} className="flex flex-wrap gap-2">
-      {ACCENTS.map((one) => {
-        const label = t(`accent_${one.id}`);
-        const selected = one.id === current;
-        return (
-          <button
-            key={one.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={label}
-            title={label}
-            onClick={() => onChange(one.id)}
-            style={{ backgroundColor: one.color }}
-            className={`flex h-7 w-7 items-center justify-center rounded-full outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas ${
-              selected ? "shadow-[0_0_0_2px_var(--surface-canvas),0_0_0_4px_var(--text-primary)]" : "hover:shadow-[0_0_0_2px_var(--rule-control)]"
-            }`}
-          >
-            {selected && <Icon name="check" size={14} className="text-black mix-blend-difference" />}
-          </button>
-        );
-      })}
-    </div>
+    <Menu
+      label={t("accentColor")}
+      align="end"
+      items={items}
+      trigger={(props) => (
+        <button
+          {...props}
+          type="button"
+          className="flex h-8 min-w-40 items-center gap-2 rounded-lg border border-rule-control bg-surface-canvas px-2.5 text-sm text-text-primary outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <Dot color={current.color} />
+          <span className="flex-1 truncate text-start">{t(`accent_${current.id}`)}</span>
+          <Icon name="caret-down" size={14} className="text-text-secondary" />
+        </button>
+      )}
+    />
   );
 }

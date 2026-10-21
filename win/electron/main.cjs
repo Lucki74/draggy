@@ -2623,11 +2623,11 @@ ipc.handle("search-models", async (event, query) => {
 });
 
 ipc.handle("model-size", async (event, name, tag) => {
-  return huggingface.fetchModelSize(name, tag);
+  return huggingface.fetchModelSize(name, tag, { live: true });
 });
 
 ipc.handle("resolve-model-url", async (_event, reference, options) => {
-  return huggingface.resolveModelDownload(reference, options);
+  return huggingface.resolveModelDownload(reference, { ...options, live: true });
 });
 
 const createdFilesDir = () => path.join(app.getPath("userData"), "created_files");

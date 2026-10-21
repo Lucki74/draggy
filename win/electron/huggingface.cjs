@@ -722,14 +722,16 @@ async function searchHuggingFace(query = "") {
 }
 
 /** The size Hugging Face reports for a curated file right now. The registry's own byte counts are
- * rounded, so they only stand in when the repository cannot be reached. */
-async function liveBytes(repo, file, fallback) {
+ * rounded, so they only stand in when the repository cannot be reached. Only the app asks for it;
+ * the shared fixtures pin the registry's own numbers. */
+async function liveBytes(repo, file, fallback, live) {
+  if (!live) return fallback;
   const files = await fetchRepoGgufFiles(repo);
   return files.find((entry) => entry.path === file)?.size || fallback;
 }
 
 /** Looks up file size in bytes for a specific model variant. */
-async function fetchModelSize(name, tag = "latest") {
+async function fetchModelSize(name, tag = "latest", options = {}) {
   const ref = `${name}:${tag}`;
   if (sizeCache.has(ref)) return { success: true, bytes: sizeCache.get(ref) };
 
@@ -737,7 +739,7 @@ async function fetchModelSize(name, tag = "latest") {
   const curated = CURATED_MODELS.find((m) => m.name === name);
   if (curated?.variants?.[tag]) {
     const variant = curated.variants[tag];
-    const bytes = await liveBytes(variant.repo, variant.file, variant.bytes);
+    const bytes = await liveBytes(variant.repo, variant.file, variant.bytes, options?.live);
     sizeCache.set(ref, bytes);
     return { success: true, bytes };
   }
@@ -759,7 +761,7 @@ async function fetchModelSize(name, tag = "latest") {
 
 /** Resolves a model reference into a downloadable Hugging Face direct URL and filename. */
 async function resolveModelDownload(reference, options = {}) {
-  const { includeDraft = false } = options || {};
+  const { includeDraft = false, live = false } = options || {};
   const [name, tag = "latest"] = reference.split(":");
 
   // Check curated models first.
@@ -771,13 +773,13 @@ async function resolveModelDownload(reference, options = {}) {
       const primary = {
         url: `https://huggingface.co/${variant.repo}/resolve/main/${variant.file}?download=true`,
         filename: variant.file,
-        size: await liveBytes(variant.repo, variant.file, variant.bytes),
+        size: await liveBytes(variant.repo, variant.file, variant.bytes, live),
       };
       if (variant.draft) {
         const companion = {
           url: `https://huggingface.co/${variant.draft.repo}/resolve/main/${variant.draft.file}?download=true`,
           filename: draftCompanionName(variant.file),
-          size: await liveBytes(variant.draft.repo, variant.draft.file, variant.draft.bytes),
+          size: await liveBytes(variant.draft.repo, variant.draft.file, variant.draft.bytes, live),
         };
         primary.draft = companion;
         if (includeDraft) {

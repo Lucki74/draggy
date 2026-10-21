@@ -72,7 +72,7 @@
 
     /* Syntax: one restrained palette, ember for keywords so code reads as Draggy's own. */
     --syn-comment: #82878c;
-    --syn-keyword: #b23c00;
+    --syn-keyword: #ad4c00;
     --syn-string: #2b6e46;
     --syn-number: #8a5a00;
     --syn-function: #2b55a3;
@@ -80,10 +80,10 @@
     --syn-punct: #565b62;
 
     /* Ember ramp */
-    --ember-1: #f9ad26;
-    --ember-2: #e75c00;
-    --ember-3: #cd3000;
-    --ember-glow: rgba(231, 92, 0, 0.16);
+    --ember-1: #e49659;
+    --ember-2: #d55e00;
+    --ember-3: #a04700;
+    --ember-glow: rgba(213, 94, 0, 0.16);
 
     /* Geometry */
     --r-xs: 6px;
@@ -152,7 +152,7 @@ body.dark,
     --danger: #fa7f8e;
 
     --syn-comment: #767b81;
-    --syn-keyword: #fd962c;
+    --syn-keyword: #d96e1a;
     --syn-string: #8fd19e;
     --syn-number: #e5d183;
     --syn-function: #8ab4f8;
@@ -160,10 +160,10 @@ body.dark,
     --syn-punct: #a6abb2;
 
     /* Ember ramp */
-    --ember-1: #ffeeb5;
-    --ember-2: #fd962c;
-    --ember-3: #f15d1f;
-    --ember-glow: rgba(253, 150, 44, 0.22);
+    --ember-1: #f2cfb3;
+    --ember-2: #d55e00;
+    --ember-3: #a04700;
+    --ember-glow: rgba(213, 94, 0, 0.22);
 
     /* Shadows vanish on the dark canvas, so floating layers get a lighter edge instead. */
     --elev-1: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--rule-strong);

@@ -59,6 +59,12 @@ export function accentVars(id: string | undefined, dark: boolean) {
     "--accent-ink": toHex(readable(base, page, dark ? white : black)),
     "--accent-soft": toHex(mix(page, base, dark ? 0.2 : 0.14)),
     "--accent-hover": toHex(mix(base, dark ? white : black, 0.14)),
+    // The ember ramp (spark, caret, fuse, hearth) and keyword colour follow the accent.
+    "--ember-1": toHex(mix(base, white, dark ? 0.7 : 0.35)),
+    "--ember-2": toHex(base),
+    "--ember-3": toHex(mix(base, black, 0.25)),
+    "--ember-glow": `rgba(${base.map(Math.round).join(", ")}, ${dark ? 0.22 : 0.16})`,
+    "--syn-keyword": toHex(readable(base, page, dark ? white : black)),
   };
 }
 
