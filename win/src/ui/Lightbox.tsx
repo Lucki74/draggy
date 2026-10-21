@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { uiText } from "../i18n";
 import { Icon } from "./icons/Icon";
 import { clampPan, fitScale, wheelFactor, zoomAt, type Size, type View } from "./imageView";
@@ -110,7 +111,8 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
 
   const percent = Math.round(view.scale * 1000) / 10;
 
-  return (
+  // In the body, so no transformed ancestor in the chat can shrink the full-screen box to its own size.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -185,7 +187,8 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
           <Icon name="x" size={16} />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 export default Lightbox;

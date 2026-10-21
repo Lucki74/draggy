@@ -10,7 +10,7 @@ const rect = { width: 800, height: 600, left: 0, top: 0, right: 800, bottom: 600
 function open(onClose = vi.fn()) {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
   const view = render(<Lightbox open src="x.png" alt="a picture" onClose={onClose} />);
-  const img = view.container.querySelector("img") as HTMLImageElement;
+  const img = document.body.querySelector("img") as HTMLImageElement;
   Object.defineProperty(img, "naturalWidth", { value: 2000 });
   Object.defineProperty(img, "naturalHeight", { value: 1000 });
   fireEvent.load(img);
@@ -40,17 +40,17 @@ describe("the image viewer", () => {
   });
 
   it("shows actual size on 1 and toggles on double-click", () => {
-    const { view } = open();
+    open();
     fireEvent.keyDown(window, { key: "1" });
     expect(screen.getByLabelText("Toggle fit and actual size").textContent).toBe("100%");
 
-    fireEvent.doubleClick(view.container.querySelector(".cursor-grab") as HTMLElement);
+    fireEvent.doubleClick(document.body.querySelector(".cursor-grab") as HTMLElement);
     expect(screen.getByLabelText("Toggle fit and actual size").textContent).toBe("40%");
   });
 
   it("zooms with the wheel and closes on Escape", () => {
-    const { onClose, view } = open();
-    fireEvent.wheel(view.container.querySelector(".cursor-grab") as HTMLElement, { deltaY: -200, clientX: 400, clientY: 300 });
+    const { onClose } = open();
+    fireEvent.wheel(document.body.querySelector(".cursor-grab") as HTMLElement, { deltaY: -200, clientX: 400, clientY: 300 });
     expect(Number.parseFloat(screen.getByLabelText("Toggle fit and actual size").textContent ?? "0")).toBeGreaterThan(40);
 
     fireEvent.keyDown(window, { key: "Escape" });
