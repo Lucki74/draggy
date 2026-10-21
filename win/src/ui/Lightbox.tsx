@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { uiText } from "../i18n";
 import { Icon } from "./icons/Icon";
 import { clampPan, fitScale, wheelFactor, zoomAt, type Size, type View } from "./imageView";
 
@@ -164,23 +165,23 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
       </div>
 
       <div className="absolute top-3 end-3 flex items-center gap-1.5 bg-surface-base/90 backdrop-blur-xs rounded-pill px-2 py-1 shadow-md border border-rule">
-        <button type="button" onClick={() => zoomBy(1 / KEY_STEP)} aria-label="Zoom out" title="Zoom out (-)" className={buttonClass}>
+        <button type="button" onClick={() => zoomBy(1 / KEY_STEP)} aria-label={uiText("zoomOut")} title={`${uiText("zoomOut")} (-)`} className={buttonClass}>
           <span aria-hidden="true" className="text-base leading-none">−</span>
         </button>
-        <button type="button" onClick={() => zoomBy(KEY_STEP)} aria-label="Zoom in" title="Zoom in (+)" className={buttonClass}>
+        <button type="button" onClick={() => zoomBy(KEY_STEP)} aria-label={uiText("zoomIn")} title={`${uiText("zoomIn")} (+)`} className={buttonClass}>
           <Icon name="plus" size={16} />
         </button>
         <button
           type="button"
           onClick={() => (Math.abs(view.scale - 1) < 0.001 ? fit() : actualSize())}
-          aria-label="Toggle fit and actual size"
-          title="Fit (0) or actual size (1)"
+          aria-label={uiText("lightboxFit")}
+          title={uiText("lightboxFitHint")}
           className="px-2 text-xs font-mono text-text-secondary hover:text-text-primary cursor-pointer"
         >
           {percent}%
         </button>
         <div className="h-4 w-px bg-rule mx-0.5" />
-        <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className={buttonClass}>
+        <button type="button" onClick={onClose} aria-label={uiText("closeDialog")} title={`${uiText("closeDialog")} (Esc)`} className={buttonClass}>
           <Icon name="x" size={16} />
         </button>
       </div>

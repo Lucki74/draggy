@@ -16,7 +16,7 @@ import { planProgress, type PlanItem } from "../plan/plan";
 import { loadProjectMemory } from "../project/load";
 import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
-import { useTranslator } from "../i18n";
+import { setUiLanguage, useTranslator } from "../i18n";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
@@ -105,6 +105,7 @@ export default function AppShell({
   openSettingsOn,
 }: AppShellProps) {
   const t = useTranslator(settings.language);
+  setUiLanguage(settings.language);
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());

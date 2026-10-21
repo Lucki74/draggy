@@ -5,6 +5,7 @@ import { Dialog } from "../ui/Dialog";
 import type { MenuEntry } from "../ui/Menu";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import type { StatusKind } from "../ui/StatusDot";
+import { localDescription } from "../extensions/descriptions";
 import { ExtensionList, ExtensionRow } from "../extensions/ExtensionRow";
 import { fill } from "../onboarding/text";
 import { ConfirmDialog, Toggle } from "./Controls";
@@ -340,7 +341,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
                 name={entry.name}
                 status={statusOf(current.enabled, live, busy === entry.id, missing, t)}
                 meta={entry.package}
-                description={entry.description}
+                description={entry.source === "registry" ? entry.description : localDescription(t, "mcp", entry.id, entry.description)}
                 note={
                   <>
                     {entry.caution && <p className="mt-1.5 text-[12px] leading-4 text-warn">{entry.caution}</p>}
