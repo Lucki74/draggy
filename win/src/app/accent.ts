@@ -65,6 +65,10 @@ export function accentVars(id: string | undefined, dark: boolean) {
     "--ember-3": toHex(mix(base, black, 0.25)),
     "--ember-glow": `rgba(${base.map(Math.round).join(", ")}, ${dark ? 0.22 : 0.16})`,
     "--syn-keyword": toHex(readable(base, page, dark ? white : black)),
+    // Focus rings and primary buttons, so the choice shows in the controls used most.
+    "--focus": toHex(readable(base, page, dark ? white : black)),
+    "--action-bg": toHex(base),
+    "--action-fg": toHex(text),
   };
 }
 

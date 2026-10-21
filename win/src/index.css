@@ -61,9 +61,9 @@
     --text-tertiary: #82878c;
 
     /* Actions and focus */
-    --action-bg: #1a1e24;
-    --action-fg: #ffffff;
-    --focus: #1a1e24;
+    --action-bg: #d55e00;
+    --action-fg: #000000;
+    --focus: #ad4c00;
 
     /* Status */
     --ok: #1a763f;
@@ -142,9 +142,9 @@ body.dark,
     --text-tertiary: #767b81;
 
     /* Actions and focus */
-    --action-bg: #e7eaed;
-    --action-fg: #0e1012;
-    --focus: #e7eaed;
+    --action-bg: #d55e00;
+    --action-fg: #000000;
+    --focus: #d96e1a;
 
     /* Status */
     --ok: #78d694;
@@ -240,7 +240,10 @@ body.browser-bar {
     border-radius: var(--r-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-secondary);
+    background-color: var(--accent);
+}
+::selection {
+    background-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 /* Reading text: hierarchy from weight and size, not rules or color. */
@@ -286,7 +289,7 @@ body.browser-bar {
     @apply my-6;
 }
 .markdown-body a {
-    color: var(--text-primary);
+    color: var(--accent-ink);
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
     text-underline-offset: 3px;

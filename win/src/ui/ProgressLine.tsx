@@ -20,7 +20,7 @@ export function ProgressLine({ progress, label, className = "" }: ProgressLinePr
       className={`progress-line relative h-[3px] w-full overflow-hidden rounded-pill bg-rule ${className}`}
     >
       {value !== undefined ? (
-        <div className="progress-line-fill h-full rounded-pill bg-text-primary" style={{ width: `${value * 100}%` }} />
+        <div className="progress-line-fill h-full rounded-pill bg-accent" style={{ width: `${value * 100}%` }} />
       ) : (
         <div className="progress-line-head" />
       )}
