@@ -329,9 +329,11 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
           {step === "appearance" && (
             <Appearance
               theme={settings.theme}
+              accent={settings.accent}
               fontSize={settings.fontSize}
               language={settings.language}
               onTheme={(theme) => onUpdateSettings({ theme })}
+              onAccent={(accent) => onUpdateSettings({ accent })}
               onFontSize={(fontSize) => onUpdateSettings({ fontSize })}
               onLanguage={(language) => onUpdateSettings({ language })}
               t={t}

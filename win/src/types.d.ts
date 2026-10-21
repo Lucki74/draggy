@@ -1000,6 +1000,8 @@ export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
+  /** One of the seven accents in src/app/accent.ts. */
+  accent: string;
   fontSize: "sm" | "base" | "lg";
   language: Language;
   modelName: string;

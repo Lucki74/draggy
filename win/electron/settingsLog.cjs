@@ -3,6 +3,7 @@
 
 const HARMLESS = new Set([
   "theme",
+  "accent",
   "fontSize",
   "language",
   "modelName",

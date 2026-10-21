@@ -110,11 +110,12 @@
     --chat-font-size: 15px;
     /* The voice orb: one flat colour, opposite the page it sits on. */
     --orb: #111111;
-    /* The website's accent, defined here first so the two palettes stay one. */
-    --accent: #b45309;
-    --accent-text: #ffffff;
-    --accent-ink: #92400e;
-    --accent-soft: #fef3c7;
+    /* The default accent; src/app/accent.ts sets the chosen one on the body. */
+    --accent: #d55e00;
+    --accent-text: #000000;
+    --accent-ink: #ad4c00;
+    --accent-soft: #f1e0d3;
+    --accent-hover: #b75100;
     /* Effort levels: white off, green low, blue medium, yellow high, orange max. */
     --effort-low: #16a34a;
     --effort-mid: #2563eb;
@@ -180,10 +181,11 @@ body.dark,
     --text-inverted: #ffffff;
     --hover-bg: #2a2a2a;
     --orb: #ffffff;
-    --accent: #fbbf24;
-    --accent-text: #111111;
-    --accent-ink: #fbbf24;
-    --accent-soft: #3a2a08;
+    --accent: #d55e00;
+    --accent-text: #000000;
+    --accent-ink: #d96e1a;
+    --accent-soft: #432b18;
+    --accent-hover: #db7524;
     --effort-low: #4ade80;
     --effort-mid: #60a5fa;
     --effort-high: #fbbf24;

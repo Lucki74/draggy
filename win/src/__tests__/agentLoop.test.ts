@@ -39,6 +39,7 @@ vi.mock("../llama", async (importOriginal) => {
 
 const SETTINGS = {
   theme: "light",
+  accent: "vermilion",
   fontSize: "base",
   language: "en",
   modelName: MODEL,

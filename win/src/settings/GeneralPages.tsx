@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
+import { AccentPicker } from "./AccentPicker";
 import { ProgressLine } from "../ui/ProgressLine";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
 import { buildLabel } from "../app/buildLabel";
@@ -36,6 +37,9 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             ]}
             onChange={(theme) => onUpdate({ theme })}
           />
+        </Row>
+        <Row label={t("accentColor")}>
+          <AccentPicker value={settings.accent} onChange={(accent) => onUpdate({ accent })} t={t} />
         </Row>
         <Row label={t("textSize")}>
           <Segmented

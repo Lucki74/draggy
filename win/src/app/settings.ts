@@ -3,6 +3,7 @@ import type { AppSettings } from "../types";
 import { SETTINGS_KEY, storageBackend } from "../storage";
 import { safeJsonParse, writeLocalStorage } from "../utils";
 import { swallowed } from "../logger";
+import { DEFAULT_ACCENT, applyAccent } from "./accent";
 import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
 
 /** Thinking modes before the five effort levels, and the key each one became. */
@@ -14,6 +15,7 @@ const LEGACY_EFFORT_KEYS = [
 export const defaultSettings: AppSettings = {
   // Only a new install gets this: anyone with saved settings keeps the theme they saved.
   theme: "system",
+  accent: DEFAULT_ACCENT,
   fontSize: "base",
   language: "en",
   // Empty means "not chosen yet": the startup screen adopts whatever is
@@ -201,12 +203,13 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
     const apply = () => {
       const theme = resolveTheme(settings.theme, query?.matches ?? true);
       document.body.classList.toggle("dark", theme === "dark");
+      applyAccent(settings.accent, theme === "dark");
     };
     apply();
     if (settings.theme !== "system" || !query) return;
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
-  }, [settings.theme]);
+  }, [settings.theme, settings.accent]);
 
   useEffect(() => {
     document.documentElement.lang = settings.language;
