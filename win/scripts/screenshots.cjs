@@ -381,7 +381,7 @@ async function run() {
   if (wanted("chat")) await scene("chat", async () => {
     await send(
       win,
-      "What should I look for in a graphics card for running AI models locally? Three short bullet points.",
+      "my sourdough starter smells like nail polish remover. is it dead or just hungry?",
     );
     await shoot(win, "app-chat");
   });
@@ -442,7 +442,7 @@ async function run() {
     await openWorkspace(win, "weather");
     await send(
       win,
-      "In src/format.ts, make formatTemperature round to one decimal place and add a °C suffix. Update the test to match. Only edit the files; do not run or install anything.",
+      "make formatTemperature round to 1 decimal and add °C, then fix the test. just edit the files, dont run anything",
     );
     // The redesigned app shows each edit as a diff in the reply, so there is no file tree to open.
     // The edit and its diff are the point of the scene, so bring them into view.
@@ -459,9 +459,9 @@ async function run() {
   if (wanted("history")) await scene("history", async () => {
     await openWorkspace(win, "default");
     await click(win, "New chat");
-    await send(win, "Explain what a context window is in two sentences.");
+    await send(win, "is \"per my last email\" rude? writing to my landlord about the deposit");
     await click(win, "New chat");
-    await send(win, "Give me three names for a weather app.");
+    await send(win, "name for a tiny weather app, my brother wants it to sound friendly");
     // The sidebar lists the chats and stays open, so there is no history button to press any more.
     await sleep(1200);
     await shoot(win, "app-history");
@@ -599,7 +599,7 @@ async function run() {
     await openWorkspace(win, "weather");
     await submit(
       win,
-      "Use run_command to run git log --oneline in this project, then tell me the latest commit message.",
+      "whats the latest commit message here? use git log --oneline",
     );
 
     await waitFor(
@@ -661,22 +661,11 @@ async function run() {
       win.contentView.children.find(
         (one) => one.webContents && one.webContents !== win.webContents && /^https?:/.test(one.webContents.getURL()),
       );
-    await inPage(win, () => window.open("https://superadblocktest.com/", "_blank"));
+    await inPage(win, () => window.open("https://en.wikipedia.org/wiki/Electron_(software)", "_blank"));
     const pane = await waitFor(() => paneView(), { timeout: 60_000, label: "the browser pane" });
-
-    // The page waits for its Start test button now rather than running on load.
-    await sleep(3000);
-    await pane.webContents.executeJavaScript(`(() => {
-      const start = [...document.querySelectorAll("a, button")].find((n) => /^start test$/i.test(n.textContent.trim()));
-      start?.click();
-    })()`);
-    log("waiting for the ad block test to finish");
     await waitFor(
-      () =>
-        pane.webContents
-          .executeJavaScript('Boolean(document.body && document.body.innerText.includes("Completed:"))')
-          .catch(() => false),
-      { timeout: 180_000, every: 1000, label: "the ad block test" },
+      () => pane.webContents.executeJavaScript('document.readyState === "complete"').catch(() => false),
+      { timeout: 60_000, every: 500, label: "the page" },
     );
     await sleep(2000);
 
