@@ -310,8 +310,7 @@ import { windowsCases } from "./windowsScope";
 describe("providers CLI and gateway fixtures", () => {
   const names = fs
     .readdirSync(FIXTURE_DIR)
-    // The Gemini CLI route is gone from Windows; the Rust port still runs its fixtures (NATIVE-STATUS.md).
-    .filter((file) => /^providers-(cli|gateway)-.*\.json$/.test(file) && !file.startsWith("providers-cli-gemini-"))
+    .filter((file) => /^providers-(cli|gateway)-.*\.json$/.test(file))
     .sort();
   for (const name of names) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };
