@@ -889,6 +889,24 @@ describe("what a workspace is allowed to do", () => {
   });
 });
 
+describe("what a chat was last left on", () => {
+  it("comes back with the conversation", () => {
+    const generation = { model: "qwen3:8b", effort: "high" };
+    storage.saveChat(session("a", [message("m1", "user", "hi")], { generation }));
+
+    expect(storage.loadChats()[0].generation).toEqual(generation);
+  });
+
+  it("is absent for a chat that never had one, and drops anything it does not know", () => {
+    storage.saveChat(session("b", [message("m1", "user", "hi")]));
+    storage.saveChat(session("c", [message("m1", "user", "hi")], { generation: { model: "m", effort: "low", secret: "x" } }));
+
+    const byId = Object.fromEntries(storage.loadChats().map((chat) => [chat.id, chat]));
+    expect(byId.b.generation).toBeUndefined();
+    expect(byId.c.generation).toEqual({ model: "m", effort: "low" });
+  });
+});
+
 describe("a plan the model is working through", () => {
   const plan = [
     { id: "step-1", text: "Read the config", status: "done" },

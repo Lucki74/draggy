@@ -6,7 +6,7 @@ import InstructionsEditor from "./InstructionsEditor";
 import LibraryPanel from "./LibraryPanel";
 import { selectableModels } from "../modelKinds";
 import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
-import { effortOptions, webOptions } from "./pages";
+import { effortOptions, newChatStartOptions, webOptions } from "./pages";
 import { allowedEfforts } from "../ai/effort";
 import { NEURAL_VOICES, isNeuralVoiceAvailable, resolveNeuralVoice } from "../voice/neuralVoice";
 import { previewVoice } from "../voice/preview";
@@ -89,6 +89,14 @@ export function ChatPreferencesPage({
             value={settings.defaultEffort}
             options={effortOptions(t, allowedEfforts("chat", settings.allowMaxInChat))}
             onChange={(defaultEffort) => onUpdate({ defaultEffort, effort: defaultEffort })}
+          />
+        </Row>
+        <Row label={t("newChatStart")} description={t("newChatStartHint")}>
+          <Segmented
+            label={t("newChatStart")}
+            value={settings.newChatStart}
+            options={newChatStartOptions(t)}
+            onChange={(newChatStart) => onUpdate({ newChatStart })}
           />
         </Row>
         <Row label={t("webAccess")}>

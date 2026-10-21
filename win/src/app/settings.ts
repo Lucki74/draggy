@@ -23,6 +23,7 @@ export const defaultSettings: AppSettings = {
   effort: EFFORT_DEFAULT,
   defaultEffort: EFFORT_DEFAULT,
   allowMaxInChat: true,
+  newChatStart: "defaults",
   slowModelThinking: false,
   colibriLossy: false,
   webMode: "auto",

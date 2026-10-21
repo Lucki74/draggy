@@ -76,6 +76,7 @@ function stripRuntimeFields(session: ChatSession) {
     updatedAt: session.updatedAt,
     workspaceId: session.workspaceId,
     plan: session.plan ?? null,
+    generation: session.generation ?? null,
     isOutOfContext: Boolean(session.isOutOfContext),
     messages: session.messages,
   };

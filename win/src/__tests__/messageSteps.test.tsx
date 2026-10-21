@@ -73,7 +73,7 @@ describe("a model being loaded", () => {
 
   it("says which stage the engine is in, with a percent only for the prompt", async () => {
     let push: (stage: { stage: string; percent?: number }) => void = () => {};
-    (window as any).electronAPI = {
+    (window as unknown as { electronAPI?: unknown }).electronAPI = {
       gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
     };
     show([loading]);
@@ -85,7 +85,7 @@ describe("a model being loaded", () => {
     expect(screen.queryByText(/%/)).toBeNull();
     act(() => push({ stage: "prefilling", percent: 42 }));
     expect(screen.getByText(/Reading the prompt 42%/)).toBeTruthy();
-    delete (window as any).electronAPI;
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 });
 

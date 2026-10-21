@@ -38,7 +38,7 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-end">
           {attachments.map((file, fIdx) =>
-            file.type.startsWith("image/") || (looksLikeImage(file) && file.content.startsWith("data:image")) ? (
+            file.type.startsWith("image/") || (looksLikeImage({ ...file, size: 0 }) && file.content.startsWith("data:image")) ? (
               <button
                 key={fIdx}
                 type="button"

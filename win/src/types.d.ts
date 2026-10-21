@@ -856,6 +856,8 @@ export interface ChatSession {
   workspaceId?: string;
   /** What the model is working through, if it wrote a plan. */
   plan?: PlanItem[] | null;
+  /** What the chat was last left on, restored when it is opened again. */
+  generation?: { model?: string; effort?: EffortLevel } | null;
   isGenerating: boolean;
   isOutOfContext?: boolean;
   /** The window numbers when the reply was cut. Not stored: a restart keeps only the flag. */
@@ -1006,6 +1008,8 @@ export interface AppSettings {
   effort: EffortLevel;
   /** The level new chats start at. */
   defaultEffort: EffortLevel;
+  /** Where a new chat's thinking level starts: the default level, or where the last chat was left. */
+  newChatStart: "defaults" | "last";
   /** Lets Chat use Max, the slowest level. Code always may. */
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */

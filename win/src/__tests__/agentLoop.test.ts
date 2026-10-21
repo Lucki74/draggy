@@ -45,6 +45,7 @@ const SETTINGS = {
   customInstructions: [],
   effort: "medium",
   defaultEffort: "medium",
+  newChatStart: "defaults",
   codeDefaultEffort: "medium",
   allowMaxInChat: false,
   slowModelThinking: false,

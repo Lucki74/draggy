@@ -97,6 +97,11 @@ export const searchProviderOptions = (t: Translate) =>
     label: t(`provider_${id.replace(/-/g, "_")}`),
   }));
 
+export const newChatStartOptions = (t: Translate) => [
+  { id: "defaults" as const, label: t("newChatStartDefaults") },
+  { id: "last" as const, label: t("newChatStartLast") },
+];
+
 export const webOptions = (t: Translate) => [
   { id: "auto" as const, label: t("webAuto") },
   { id: "on" as const, label: t("webOn") },
