@@ -26,6 +26,8 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; y: number; from: View } | null>(null);
   const fitted = useRef(true);
+  // A drag that moved the picture ends in a click on the stage, which must not close the viewer.
+  const moved = useRef(false);
 
   const boxSize = useCallback((): Size => {
     const rect = stage.current?.getBoundingClientRect();
@@ -117,13 +119,13 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
       role="dialog"
       aria-modal="true"
       aria-label={alt || "Image preview"}
-      className="fixed inset-0 z-[120] flex flex-col bg-black/85 backdrop-blur-xs fade-in select-none"
+      className="fixed inset-x-0 bottom-0 top-10 z-[120] flex flex-col bg-black/85 backdrop-blur-xs fade-in select-none"
     >
       <div
         ref={stage}
         className={`relative flex flex-1 min-h-0 items-center justify-center overflow-hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
         onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
+          if (e.target === e.currentTarget && !moved.current) onClose();
         }}
         onDoubleClick={() => {
           if (Math.abs(view.scale - 1) < 0.001) fit();
@@ -133,11 +135,13 @@ export function Lightbox({ open, src, alt, onClose }: LightboxProps) {
           if (e.button !== 0) return;
           e.currentTarget.setPointerCapture?.(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY, from: view };
+          moved.current = false;
           setDragging(true);
         }}
         onPointerMove={(e) => {
           const start = drag.current;
           if (!start) return;
+          if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 3) moved.current = true;
           setView(clampPan({ ...start.from, x: start.from.x + e.clientX - start.x, y: start.from.y + e.clientY - start.y }, natural, boxSize()));
         }}
         onPointerUp={() => {

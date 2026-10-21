@@ -56,4 +56,18 @@ describe("the image viewer", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("stays open when a drag ends on the stage", () => {
+    const { onClose } = open();
+    const stage = document.body.querySelector(".cursor-grab") as HTMLElement;
+    fireEvent.pointerDown(stage, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(stage, { clientX: 160, clientY: 120 });
+    fireEvent.pointerUp(stage);
+    fireEvent.click(stage);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerDown(stage, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(stage);
+    fireEvent.click(stage);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
