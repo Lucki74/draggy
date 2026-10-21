@@ -233,7 +233,6 @@ export default function ChatScreen({
       chat={chat}
       surface={surface}
       settings={settings}
-      skills={skills}
       unavailable={unavailable}
       input={session.input}
       setInput={session.setInput}

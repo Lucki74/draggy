@@ -22,7 +22,6 @@ import type {
     Attachment,
     ChatSession,
     EffortLevel,
-    InstalledSkill,
     PermissionMode,
     ProviderInstance,
 } from "../types";
@@ -48,7 +47,6 @@ function fitHeight(field: HTMLTextAreaElement) {
     field.scrollTop = prevScroll;
 }
 
-const MENU_SKILLS = 6;
 
 type OpenMenu = "permission" | "effort" | "model" | null;
 
@@ -57,7 +55,6 @@ export interface ComposerProps {
     chat: ChatSession;
     surface: "chat" | "code";
     settings: AppSettings;
-    skills: InstalledSkill[];
     unavailable?: string;
     input: string;
     setInput: React.Dispatch<React.SetStateAction<string>>;
@@ -145,7 +142,6 @@ export function Composer({
     chat,
     surface,
     settings,
-    skills,
     unavailable: downloading,
     input,
     setInput,
@@ -339,13 +335,11 @@ export function Composer({
         onSendMessage(sanitizedInput, attachedFiles);
         setInput("");
         localStorage.removeItem(`draft_${chat.id}`);
+        // Sent with this message; left in place they would ride along on the next one.
+        clearAttachments();
     };
 
     const webMode = toolsUnavailable ? "off" : settings.webMode;
-    // A short list; the slash menu and the Extensions page reach the rest.
-    const offeredSkills = skills
-        .filter((skill) => !skill.surface || skill.surface === "both" || skill.surface === surface)
-        .slice(0, MENU_SKILLS);
     const plusItems: MenuEntry[] = [
         {
             id: "attach",
@@ -365,18 +359,6 @@ export function Composer({
             icon: <Icon name="puzzle-piece" size={16} />,
             onSelect: () => onOpenSettings("extensions"),
         },
-        ...(offeredSkills.length > 0
-            ? [
-                  { type: "separator", id: "skills-sep" } as MenuEntry,
-                  { type: "heading", id: "skills", label: t("extensionSkills") } as MenuEntry,
-                  ...offeredSkills.map<MenuEntry>((skill) => ({
-                      id: `skill-${skill.id}`,
-                      label: skill.name,
-                      title: skill.summary ?? skill.description,
-                      onSelect: () => runSlashCommand(skill.id),
-                  })),
-              ]
-            : []),
         { type: "separator", id: "web-sep" },
         { type: "heading", id: "web", label: t("webAccess") },
         ...WEB_MODE_ORDER.map<MenuEntry>((mode) => ({
