@@ -66,6 +66,7 @@ export interface AssistantTurnProps {
   isGenerating: boolean;
   isLast: boolean;
   onRegenerate: (index: number) => void;
+  onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   copiedIndex: number | null;
   copyToClipboard: (text: string, idx: number) => void;
@@ -90,6 +91,7 @@ export function AssistantTurn({
   isGenerating,
   isLast,
   onRegenerate,
+  onResume,
   onSwitchVersion,
   copiedIndex,
   copyToClipboard,
@@ -322,14 +324,21 @@ export function AssistantTurn({
                 </ReactMarkdown>
               </div>
               {isLast && !isGenerating && (
-                <Button
-                  variant="secondary"
-                  size="dense"
-                  icon={<Icon name="arrow-clockwise" size={16} />}
-                  onClick={() => onRegenerate(idx)}
-                >
-                  {t("regenerateResponse")}
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="dense"
+                    icon={<Icon name="arrow-clockwise" size={16} />}
+                    onClick={() => (hasGeneratedText && onResume ? onResume() : onRegenerate(idx))}
+                  >
+                    {t("regenerateResponse")}
+                  </Button>
+                  {hasGeneratedText && onResume && (
+                    <Button variant="ghost" size="dense" onClick={() => onRegenerate(idx)}>
+                      {t("regenerateFromScratch")}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           ) : null,

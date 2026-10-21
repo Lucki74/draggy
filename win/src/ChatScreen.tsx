@@ -320,6 +320,7 @@ export default function ChatScreen({
             copiedIndex={copiedIndex}
             settings={settings}
             onRegenerate={onRegenerate}
+            onResume={onContinueGeneration}
             onSwitchVersion={onSwitchVersion}
             onEditMessage={onEditMessage}
             onApproval={onApproval}

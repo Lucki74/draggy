@@ -320,6 +320,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
       if (isContinuation) {
         msgs = [...contextMessages];
+        // Resuming a failed reply keeps its text but the failure no longer describes it.
+        const lastIdx = msgs.length - 1;
+        if (msgs[lastIdx]?.failed) {
+          const { failed: _failed, error: _error, ...resumed } = msgs[lastIdx];
+          msgs[lastIdx] = resumed;
+        }
       } else if (isRetry) {
         msgs = [...s.messages];
         const lastIdx = msgs.length - 1;

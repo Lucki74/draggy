@@ -164,7 +164,7 @@ export function TurnActions({
         onClick={() => copyToClipboard(text, idx)}
       />
       {isLast && !isFailed && (
-        <IconButton name="arrow-clockwise" size="sm" label={t("regenerateResponse")} onClick={() => onRegenerate(idx)} />
+        <IconButton name="arrow-clockwise" size="sm" label={t("regenerateFromScratch")} onClick={() => onRegenerate(idx)} />
       )}
       {showMetrics && metrics && (
         <div className="ms-2">

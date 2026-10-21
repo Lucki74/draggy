@@ -313,6 +313,29 @@ describe("the task manager", () => {
     expect(messages[1].versions?.[0]?.failed).toBe(true);
   });
 
+  it("resumes a failed reply from its partial text instead of wiping it", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "half an ans", textContent: "half an ans", failed: true, error: "engine stopped" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    const reply = sessions.get("chat-1")?.messages[1];
+    expect(reply?.textContent).toBe("half an ans");
+    expect(reply?.failed).toBeUndefined();
+    expect(reply?.error).toBeUndefined();
+    expect(pending.at(-1)?.request.isContinuation).toBe(true);
+    expect(pending.at(-1)?.request.seed?.textContent).toBe("half an ans");
+  });
+
   it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);
