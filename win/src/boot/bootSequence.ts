@@ -1,9 +1,9 @@
 import type { SystemSpecs } from "../types";
-import { getRecommendedDownload, ggufLadder, type ModelRecommendation } from "../modelRecommendations";
+import { getRecommendedDownload, ggufLadder, rungFits, type ModelRecommendation, type RuntimeTarget } from "../modelRecommendations";
 import { selectableModels } from "../modelKinds";
 import { describeInstalled, pullModel } from "../llama";
 import { isRemote } from "../ai/providers";
-import { describeFit, type ModelFit } from "../vram";
+import { describeFit, describeMemoryLoad, type ModelFit } from "../vram";
 
 /** The start of a new install, shared by the splash, the setup's Skip and its Ready screen. Each
  * step takes the bridge, so it runs the same wherever it is called from. */
@@ -112,34 +112,33 @@ export interface FirstDownloadPlan {
   freeBytes: number;
 }
 
-const byBudget = [...ggufLadder].sort((a, b) => a.vram - b.vram);
-
 function optionFor(rung: ModelRecommendation, specs: SystemSpecs | null, freeBytes: number): DownloadOption {
   const sizeBytes = Math.round(rung.sizeGB * 1e9);
+  const input = { modelBytes: sizeBytes, vramGB: specs?.vram || 0, ramGB: specs?.ram, unifiedMemory: specs?.unifiedMemory };
+  const fit = describeFit(input);
   return {
     reference: rung.model,
     label: rung.label,
     params: rung.params,
     sizeBytes,
-    fit: describeFit({ modelBytes: sizeBytes, vramGB: specs?.vram || 0, unifiedMemory: specs?.unifiedMemory }),
+    // An MoE runs from card and RAM together, so the card alone would call most of them red.
+    fit: rung.kind === "moe" ? { ...fit, tone: describeMemoryLoad(input).tone } : fit,
     fitsOnDisk: fitsOnDisk(freeBytes, sizeBytes),
   };
 }
 
-/** The splash's own choice, plus the rung either side of it. The one above is left out when it would not run. */
+/** The splash's own choice, the best rung under it that also fits, and the one above unless it would not run. */
 export function planFromSpecs(specs: SystemSpecs | null, freeBytes: number): FirstDownloadPlan {
-  const target = getRecommendedDownload(specs?.vram || 0, {
-    platform: specs?.platform,
-    arch: specs?.arch,
-    ram: specs?.ram,
-    cpuModel: specs?.cpu,
-  });
-  const index = byBudget.findIndex((rung) => rung.model === target.reference);
-  const rung = byBudget[index] ?? byBudget[0];
+  const vram = specs?.vram || 0;
+  const machine: RuntimeTarget = { platform: specs?.platform, arch: specs?.arch, ram: specs?.ram, cpuModel: specs?.cpu };
+  const target = getRecommendedDownload(vram, machine);
+  const index = Math.max(0, ggufLadder.findIndex((rung) => rung.model === target.reference));
 
-  const recommended = optionFor(rung, specs, freeBytes);
-  const lighter = index > 0 ? optionFor(byBudget[index - 1], specs, freeBytes) : undefined;
-  const above = index >= 0 && index < byBudget.length - 1 ? optionFor(byBudget[index + 1], specs, freeBytes) : undefined;
+  const recommended = optionFor(ggufLadder[index], specs, freeBytes);
+  const below = ggufLadder.slice(0, index).findLast((rung) => !rung.pending && rungFits(rung, vram, machine));
+  const lighter = below ? optionFor(below, specs, freeBytes) : undefined;
+  const next = ggufLadder.slice(index + 1).find((rung) => !rung.pending);
+  const above = next ? optionFor(next, specs, freeBytes) : undefined;
   const stronger = above && above.fit.tone !== "red" ? above : undefined;
 
   return { specs, recommended, lighter, stronger, freeBytes };

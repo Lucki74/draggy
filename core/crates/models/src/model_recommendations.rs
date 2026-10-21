@@ -2,14 +2,35 @@
 //! `modelRecommendations` name are aliases of this one ladder, so the port keeps only the ladder.
 
 use crate::js;
+use crate::vram::USABLE_VRAM_FRACTION;
 
 /// The GGUF engine has to read the whole model into RAM before the GPU can use any of it, so a machine short on
 /// system memory cannot run a model its VRAM alone would suggest.
 pub const USABLE_RAM_FRACTION: f64 = 0.8;
 /// No dedicated GPU still means a real machine with a real CPU, so the choice floors on a slice of RAM.
 pub const CPU_ONLY_RAM_FRACTION: f64 = 0.5;
+/// Dense rungs on a machine with no card stop here: past it the CPU answers too slowly, and an MoE does better.
+pub const CPU_ONLY_DENSE_CAP_GB: f64 = 8.0;
+/// Unified memory macOS lets the GPU wire, leaving the rest to the system.
+pub const USABLE_UNIFIED_RAM_FRACTION: f64 = 0.75;
 
-/// One rung: the memory it is for, the Hugging Face repository and quantisation it resolves to, and its download size in GB.
+/// A dense model lives on the card; an MoE keeps its experts in RAM and the rest on the card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Dense,
+    Moe,
+}
+
+impl Kind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dense => "dense",
+            Self::Moe => "moe",
+        }
+    }
+}
+
+/// One rung. `vram` is what a dense model needs, or the smallest card an MoE takes; `memory` is card and RAM together.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rung {
     pub vram: f64,
@@ -17,122 +38,275 @@ pub struct Rung {
     pub label: &'static str,
     pub params: &'static str,
     pub size_gb: f64,
+    pub kind: Kind,
+    pub memory: f64,
+    /// Needs a llama.cpp build upstream does not ship yet, so it is never picked.
+    pub pending: bool,
 }
 
-/// The ladder, ascending by memory. Each rung's download is no bigger than the memory it is for.
+const fn dense(
+    vram: f64,
+    model: &'static str,
+    label: &'static str,
+    params: &'static str,
+    size_gb: f64,
+) -> Rung {
+    Rung {
+        vram,
+        model,
+        label,
+        params,
+        size_gb,
+        kind: Kind::Dense,
+        memory: vram,
+        pending: false,
+    }
+}
+
+const fn moe(
+    vram: f64,
+    memory: f64,
+    model: &'static str,
+    label: &'static str,
+    params: &'static str,
+    size_gb: f64,
+    pending: bool,
+) -> Rung {
+    Rung {
+        vram,
+        model,
+        label,
+        params,
+        size_gb,
+        kind: Kind::Moe,
+        memory,
+        pending,
+    }
+}
+
+/// The ladder, ascending by quality, so the best rung that fits is the last one that does.
 pub const GGUF_LADDER: &[Rung] = &[
-    Rung {
-        vram: 1.0,
-        model: "unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M",
-        label: "Qwen 3.5 0.8B",
-        params: "0.8B",
-        size_gb: 0.53,
-    },
-    Rung {
-        vram: 2.0,
-        model: "unsloth/Qwen3.5-2B-GGUF:Q4_K_M",
-        label: "Qwen 3.5 2B",
-        params: "2B",
-        size_gb: 1.28,
-    },
-    Rung {
-        vram: 3.0,
-        model: "unsloth/Qwen3.5-4B-GGUF:Q4_K_M",
-        label: "Qwen 3.5 4B",
-        params: "4B",
-        size_gb: 2.74,
-    },
-    Rung {
-        vram: 4.0,
-        model: "unsloth/gemma-4-E2B-it-GGUF:Q4_K_M",
-        label: "Gemma 4 E2B",
-        params: "2B",
-        size_gb: 3.11,
-    },
-    Rung {
-        vram: 6.0,
-        model: "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",
-        label: "Gemma 4 E4B",
-        params: "4B",
-        size_gb: 4.98,
-    },
-    Rung {
-        vram: 8.0,
-        model: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
-        label: "Qwen 3.5 9B",
-        params: "9B",
-        size_gb: 5.68,
-    },
-    Rung {
-        vram: 10.0,
-        model: "unsloth/gemma-4-12b-it-GGUF:Q4_K_M",
-        label: "Gemma 4 12B",
-        params: "12B",
-        size_gb: 7.12,
-    },
-    Rung {
-        vram: 12.0,
-        model: "mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M",
-        label: "Ministral 3 14B",
-        params: "14B",
-        size_gb: 8.24,
-    },
-    Rung {
-        vram: 16.0,
-        model: "ggml-org/gpt-oss-20b-GGUF:MXFP4",
-        label: "GPT-OSS 20B",
-        params: "20B MoE",
-        size_gb: 12.11,
-    },
-    Rung {
-        vram: 20.0,
-        model: "unsloth/Qwen3.8-27B-GGUF:Q4_K_M",
-        label: "Qwen 3.8 27B",
-        params: "27B",
-        size_gb: 16.46,
-    },
-    Rung {
-        vram: 24.0,
-        model: "unsloth/gemma-4-31B-it-GGUF:Q4_K_M",
-        label: "Gemma 4 31B",
-        params: "31B",
-        size_gb: 18.32,
-    },
-    Rung {
-        vram: 32.0,
-        model: "unsloth/Qwen3.6-35B-A3B-GGUF:Q4_K_M",
-        label: "Qwen 3.6 35B",
-        params: "35B MoE",
-        size_gb: 22.13,
-    },
-    Rung {
-        vram: 40.0,
-        model: "unsloth/Qwen3.8-27B-GGUF:Q8_0",
-        label: "Qwen 3.8 27B Q8",
-        params: "27B",
-        size_gb: 29.05,
-    },
-    Rung {
-        vram: 48.0,
-        model: "unsloth/Qwen3.6-35B-A3B-GGUF:Q8_0",
-        label: "Qwen 3.6 35B Q8",
-        params: "35B MoE",
-        size_gb: 36.9,
-    },
-    Rung {
-        vram: 80.0,
-        model: "ggml-org/gpt-oss-120b-GGUF:MXFP4",
-        label: "GPT-OSS 120B",
-        params: "120B MoE",
-        size_gb: 63.39,
-    },
-    Rung {
-        vram: 96.0,
-        model: "unsloth/Qwen3.5-122B-A10B-GGUF:Q4_K_M",
-        label: "Qwen 3.5 122B",
-        params: "122B MoE",
-        size_gb: 76.54,
-    },
+    dense(
+        1.0,
+        "unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M",
+        "Qwen 3.5 0.8B",
+        "0.8B",
+        0.53,
+    ),
+    dense(
+        2.0,
+        "unsloth/Qwen3.5-2B-GGUF:Q4_K_M",
+        "Qwen 3.5 2B",
+        "2B",
+        1.28,
+    ),
+    dense(
+        3.5,
+        "unsloth/Qwen3.5-4B-GGUF:Q4_K_M",
+        "Qwen 3.5 4B",
+        "4B",
+        2.74,
+    ),
+    dense(
+        6.0,
+        "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",
+        "Gemma 4 E4B",
+        "4B",
+        4.98,
+    ),
+    dense(
+        7.5,
+        "unsloth/Qwen3.5-9B-GGUF:UD-Q4_K_XL",
+        "Qwen 3.5 9B",
+        "9B",
+        5.97,
+    ),
+    dense(
+        9.5,
+        "unsloth/gemma-4-12b-it-GGUF:UD-Q4_K_XL",
+        "Gemma 4 12B",
+        "12B",
+        7.37,
+    ),
+    dense(
+        11.0,
+        "mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M",
+        "Ministral 3 14B",
+        "14B",
+        8.24,
+    ),
+    moe(
+        0.0,
+        14.0,
+        "ggml-org/gpt-oss-20b-GGUF:MXFP4",
+        "GPT-OSS 20B",
+        "20B MoE",
+        12.11,
+        false,
+    ),
+    moe(
+        0.0,
+        19.0,
+        "unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL",
+        "Gemma 4 26B",
+        "26B MoE",
+        17.01,
+        false,
+    ),
+    moe(
+        0.0,
+        25.0,
+        "unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL",
+        "Qwen 3.6 35B",
+        "35B MoE",
+        22.36,
+        false,
+    ),
+    moe(
+        0.0,
+        30.0,
+        "unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q5_K_XL",
+        "Qwen 3.6 35B Q5",
+        "35B MoE",
+        26.59,
+        false,
+    ),
+    moe(
+        0.0,
+        33.0,
+        "unsloth/Qwen3.6-35B-A3B-GGUF:Q6_K",
+        "Qwen 3.6 35B Q6",
+        "35B MoE",
+        29.31,
+        false,
+    ),
+    moe(
+        0.0,
+        40.0,
+        "unsloth/Qwen3.6-35B-A3B-GGUF:Q8_0",
+        "Qwen 3.6 35B Q8",
+        "35B MoE",
+        36.9,
+        false,
+    ),
+    dense(
+        15.5,
+        "unsloth/Qwen3.8-27B-GGUF:UD-Q3_K_XL",
+        "Qwen 3.8 27B Q3",
+        "27B",
+        13.15,
+    ),
+    moe(
+        8.0,
+        61.0,
+        "unsloth/Qwen3.5-122B-A10B-GGUF:UD-Q3_K_XL",
+        "Qwen 3.5 122B Q3",
+        "122B MoE",
+        56.97,
+        false,
+    ),
+    moe(
+        8.0,
+        82.0,
+        "unsloth/Qwen3.5-122B-A10B-GGUF:UD-Q4_K_XL",
+        "Qwen 3.5 122B",
+        "122B MoE",
+        77.03,
+        false,
+    ),
+    dense(
+        20.0,
+        "unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL",
+        "Qwen 3.8 27B",
+        "27B",
+        17.56,
+    ),
+    dense(
+        23.0,
+        "unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_XL",
+        "Qwen 3.8 27B Q5",
+        "27B",
+        20.88,
+    ),
+    dense(
+        32.0,
+        "unsloth/Qwen3.8-27B-GGUF:Q8_0",
+        "Qwen 3.8 27B Q8",
+        "27B",
+        29.05,
+    ),
+    moe(
+        8.0,
+        94.0,
+        "unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL",
+        "Qwen 3.8 Flash-Next Q3",
+        "125B MoE",
+        89.99,
+        false,
+    ),
+    moe(
+        8.0,
+        116.0,
+        "unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q4_K_XL",
+        "Qwen 3.8 Flash-Next",
+        "125B MoE",
+        111.33,
+        false,
+    ),
+    moe(
+        10.0,
+        135.0,
+        "unsloth/DeepSeek-V4-Flash-GGUF:UD-Q3_K_XL",
+        "DeepSeek V4 Flash Q3",
+        "284B MoE",
+        129.45,
+        false,
+    ),
+    moe(
+        10.0,
+        162.0,
+        "unsloth/DeepSeek-V4-Flash-GGUF:UD-Q4_K_XL",
+        "DeepSeek V4 Flash",
+        "284B MoE",
+        155.1,
+        false,
+    ),
+    moe(
+        12.0,
+        210.0,
+        "unsloth/GLM-5.3-Flash-GGUF:UD-Q4_K_XL",
+        "GLM-5.3-Flash",
+        "320B MoE",
+        199.71,
+        false,
+    ),
+    moe(
+        12.0,
+        250.0,
+        "unsloth/GLM-5.3-Flash-GGUF:UD-Q5_K_XL",
+        "GLM-5.3-Flash Q5",
+        "320B MoE",
+        240.31,
+        false,
+    ),
+    moe(
+        16.0,
+        410.0,
+        "unsloth/DeepSeek-V4.1-Flash-1017-GGUF:UD-IQ3_XXS",
+        "DeepSeek V4.1 Flash Q3",
+        "552B MoE",
+        394.7,
+        true,
+    ),
+    moe(
+        16.0,
+        520.0,
+        "unsloth/DeepSeek-V4.1-Flash-1017-GGUF:UD-Q4_K_XL",
+        "DeepSeek V4.1 Flash",
+        "552B MoE",
+        500.7,
+        true,
+    ),
 ];
 
 /// What the choice is made from: the platform, architecture, RAM (GB) and CPU model. Unset fields are absent.
@@ -257,46 +431,71 @@ fn is_apple_silicon(target: &RuntimeTarget) -> bool {
     target.platform.as_deref() == Some("darwin") && target.arch.as_deref() == Some("arm64")
 }
 
-/// The memory the ladder is climbed against. A Mac with its memory known reads that, not the VRAM figure, since unified memory is the
-/// only pool there.
-fn effective_budget(vram: f64, target: &RuntimeTarget) -> f64 {
-    let safe_vram = if vram.is_finite() && vram > 0.0 {
+/// A reported RAM of zero, negative or NaN counts as not reported.
+fn known_ram(target: &RuntimeTarget) -> Option<f64> {
+    target.ram.filter(|ram| *ram > 0.0)
+}
+
+fn safe_vram(vram: f64) -> f64 {
+    if vram.is_finite() && vram > 0.0 {
         vram
     } else {
         0.0
-    };
-    // A reported RAM of zero, negative or NaN counts as not reported.
-    let ram = target.ram.filter(|ram| *ram > 0.0);
-    if is_apple_silicon(target) {
-        return ram.unwrap_or(safe_vram);
     }
-    let Some(ram) = ram else { return safe_vram };
-    let ceiling = ram * USABLE_RAM_FRACTION;
-    let floor = if safe_vram < 2.0 {
-        ram * CPU_ONLY_RAM_FRACTION
+}
+
+/// The whole unified pool on a Mac. Its real memory wins over the `vram` copy the specs report.
+fn unified_memory(vram: f64, target: &RuntimeTarget) -> f64 {
+    known_ram(target).unwrap_or(vram)
+}
+
+/// What a dense rung is held to: the card, floored on a slice of RAM when there is none, capped by RAM.
+fn dense_budget(vram: f64, ram: f64) -> f64 {
+    if ram <= 0.0 {
+        return vram;
+    }
+    let floor = if vram < 2.0 {
+        (ram * CPU_ONLY_RAM_FRACTION).min(CPU_ONLY_DENSE_CAP_GB)
     } else {
         0.0
     };
-    safe_vram.max(floor).min(ceiling)
+    vram.max(floor).min(ram * USABLE_RAM_FRACTION)
 }
 
-/// The highest rung the machine can afford, one higher on a Max or Ultra chip, whose wide memory bandwidth carries a bigger model.
-pub fn get_recommended_model(vram: f64, target: &RuntimeTarget) -> &'static str {
-    let budget = effective_budget(vram, target);
-    let mut climbing: Vec<&Rung> = GGUF_LADDER.iter().collect();
-    climbing.sort_by(|a, b| a.vram.total_cmp(&b.vram));
+/// Dense rungs need the card; an MoE needs card and RAM together, plus a card big enough for its active part.
+pub fn rung_fits(rung: &Rung, vram: f64, target: &RuntimeTarget) -> bool {
+    let vram = safe_vram(vram);
+    if is_apple_silicon(target) {
+        return rung.memory <= unified_memory(vram, target) * USABLE_UNIFIED_RAM_FRACTION;
+    }
+    let ram = known_ram(target).unwrap_or(0.0);
+    match rung.kind {
+        Kind::Dense => rung.vram <= dense_budget(vram, ram),
+        Kind::Moe => {
+            vram >= rung.vram
+                && rung.memory <= vram * USABLE_VRAM_FRACTION + ram * USABLE_RAM_FRACTION
+        }
+    }
+}
 
-    let Some(index) = climbing.iter().rposition(|rung| rung.vram <= budget) else {
-        return climbing[0].model;
+/// The best rung that fits, or the one above it on a Max or Ultra chip when all its memory can hold that.
+pub fn get_recommended_model(vram: f64, target: &RuntimeTarget) -> &'static str {
+    let Some(index) = GGUF_LADDER
+        .iter()
+        .rposition(|rung| !rung.pending && rung_fits(rung, vram, target))
+    else {
+        return GGUF_LADDER[0].model;
     };
-    // A wide-bandwidth Max or Ultra die pushes the same memory through a model a base or Pro chip only just manages.
-    let chip = if is_apple_silicon(target) {
-        chip_class_of(target.cpu_model.as_deref())
-    } else {
-        ChipClass::Base
-    };
-    let bump = usize::from(matches!(chip, ChipClass::Max | ChipClass::Ultra));
-    climbing[(index + bump).min(climbing.len() - 1)].model
+    let wide = is_apple_silicon(target)
+        && matches!(
+            chip_class_of(target.cpu_model.as_deref()),
+            ChipClass::Max | ChipClass::Ultra
+        );
+    let whole = unified_memory(safe_vram(vram), target);
+    match GGUF_LADDER.get(index + 1) {
+        Some(next) if wide && !next.pending && next.memory <= whole => next.model,
+        _ => GGUF_LADDER[index].model,
+    }
 }
 
 /// The rung a machine can carry, as something the downloader understands.
