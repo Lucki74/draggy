@@ -88,9 +88,9 @@ describe("modes", () => {
   });
 
   it("writes a change made in Code to Code's own fields", () => {
-    expect(patchForMode("code", { effort: "medium", webMode: "auto" })).toEqual({
+    expect(patchForMode("code", { effort: "medium", webMode: "on" })).toEqual({
       codeEffort: "medium",
-      codeWebMode: "auto",
+      codeWebMode: "on",
     });
     expect(patchForMode("code", { modelName: "x" })).toEqual({ codeModel: "x" });
     expect(patchForMode("code", { compactLimit: 20000 })).toEqual({ compactLimit: 20000 });

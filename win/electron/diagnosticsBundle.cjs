@@ -14,6 +14,7 @@ const DUMP_LIMIT = 3;
  * stays out until someone decides it is harmless. */
 const SETTINGS_ALLOWLIST = new Set([
   "theme",
+  "accent",
   "fontSize",
   "language",
   "modelName",

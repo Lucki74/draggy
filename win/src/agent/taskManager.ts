@@ -1,4 +1,4 @@
-import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
@@ -12,7 +12,7 @@ import {
 } from "./compaction";
 import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
-import type { ContextMeasurement } from "./agentLoop";
+import type { ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
 import { defaultProjectPath, parseImageCommand } from "../images/imageCommand";
 import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
@@ -23,6 +23,7 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "./permissions";
 import type {
   ApprovalAnswer,
+  UserReply,
   AppSettings,
   Attachment,
   ChatSession,
@@ -53,6 +54,8 @@ export interface TaskHost {
   onGrant: (grant: Grant) => void;
   /** A turn that ended on its own, for a conversation nobody may be watching. */
   onFinished?: (chatId: string) => void;
+  /** Every turn is over, so nothing is still driving the Browser pane. */
+  onIdle?: () => void;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -108,6 +111,8 @@ export interface TaskManager {
   dismissOutOfContext: (chatId: string) => void;
   /** The user's answer to a call that was waiting on them. */
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  /** The user's reply to a question the model asked, or null to dismiss it. */
+  answerQuestion: (questionId: string, reply: UserReply | null) => void;
   /** Folds the older conversation into notes now, rather than waiting for the limit. */
   compact: (chatId: string) => Promise<CompactOutcome>;
   /** Asks the model how many tokens the next turn would take, draft included. Null when that
@@ -138,6 +143,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let lastMeasurement: { chatId: string; key: string; measurement: ContextMeasurement } | null = null;
 
   const runs = new Map<string, AbortController>();
+  const lastTurn = new Map<string, string>();
   /** Folds in flight. `started` flips once there is actually something being folded, which is when
    * a turn waiting on it has anything worth saying. */
   interface Fold {
@@ -164,7 +170,22 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     pending.answer(answer);
   }
 
+  const asking = new Map<string, { chatId: string; answer: (reply: UserReply | null) => void }>();
+
+  function answerQuestion(questionId: string, reply: UserReply | null) {
+    const pending = asking.get(questionId);
+    if (!pending) return;
+
+    asking.delete(questionId);
+    pending.answer(reply);
+  }
+
   function refuseWaiting(chatId: string) {
+    for (const [id, pending] of [...asking]) {
+      if (pending.chatId !== chatId) continue;
+      asking.delete(id);
+      pending.answer(null);
+    }
     for (const [id, pending] of [...waiting]) {
       if (pending.chatId !== chatId) continue;
       waiting.delete(id);
@@ -319,6 +340,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
       if (isContinuation) {
         msgs = [...contextMessages];
+        // Resuming a failed reply keeps its text but the failure no longer describes it.
+        const lastIdx = msgs.length - 1;
+        if (msgs[lastIdx]?.failed) {
+          const { failed: _failed, error: _error, ...resumed } = msgs[lastIdx];
+          msgs[lastIdx] = resumed;
+        }
       } else if (isRetry) {
         msgs = [...s.messages];
         const lastIdx = msgs.length - 1;
@@ -435,7 +462,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
       // Timed from here, so a fold the turn waited on is not counted as the turn.
       const startedAt = Date.now();
-      logRendererEvent("chat", "INFO", "turn sent", { chatId, model, messages: contextMessages.length, continuation: Boolean(options.isContinuation) }, correlationId);
+      // `after` lets `npm run logs:turn` follow a continue or retry back to the turn it came from.
+      const after = options.isContinuation || options.isRetry ? lastTurn.get(chatId) : undefined;
+      lastTurn.set(chatId, correlationId);
+      logRendererEvent("chat", "INFO", "turn sent", { chatId, model, messages: contextMessages.length, continuation: Boolean(options.isContinuation), retry: Boolean(options.isRetry), after }, correlationId);
 
       const result = await runAgentTurn(
         {
@@ -463,6 +493,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           getPlan: () => host.getSession(chatId)?.plan ?? null,
           onPlan: (items) =>
             host.updateSession(chatId, (session) => ({ ...session, plan: items })),
+          requestAnswer: (question) =>
+            new Promise<UserReply | null>((resolve) => {
+              asking.set(question.id, { chatId, answer: resolve });
+            }),
           requestApproval: (approval) =>
             new Promise<ApprovalAnswer>((resolve) => {
               waiting.set(approval.id, { chatId, answer: resolve });
@@ -480,11 +514,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
               },
               { updatedAt: Date.now() },
             ),
-          onOutOfContext: (outOfContext: boolean) =>
+          onOutOfContext: (outOfContext: boolean, info?: OutOfContextInfo) =>
             host.updateSession(chatId, (s) =>
-              s.isOutOfContext === outOfContext
+              s.isOutOfContext === outOfContext && s.outOfContextInfo === info
                 ? s
-                : { ...s, isOutOfContext: outOfContext },
+                : { ...s, isOutOfContext: outOfContext, outOfContextInfo: info },
             ),
           onMetrics: (metrics: TurnMetrics | null) =>
             host.patchActiveMessage(chatId, { metrics }),
@@ -594,6 +628,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         runs.delete(chatId);
         setLiveTurn(chatId, null);
         notify();
+        if (runs.size === 0) host.onIdle?.();
 
         host.updateSession(chatId, (s) =>
           s.isGenerating ? { ...s, isGenerating: false } : s,
@@ -837,13 +872,20 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   function dismissOutOfContext(chatId: string) {
-    host.updateSession(chatId, (s) => ({ ...s, isOutOfContext: false }));
+    host.updateSession(chatId, (s) => ({ ...s, isOutOfContext: false, outOfContextInfo: undefined }));
   }
 
   function continueGeneration(chatId: string) {
     const session = host.getSession(chatId);
     if (!session) return;
 
+    // The same window would cut the reply again, so the next load goes one size up.
+    const cut = session.outOfContextInfo;
+    const model = host.getModel();
+    if (cut?.canGrow && model) {
+      const grown = growContext(model, cut.modelMax, cut.loaded);
+      logRendererEvent("chat", "INFO", "context grown to continue", { chatId, from: cut.loaded, to: grown, max: cut.modelMax });
+    }
     dismissOutOfContext(chatId);
     void run(chatId, session.messages, { isContinuation: true });
   }
@@ -890,6 +932,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       runs.delete(chatId);
       setLiveTurn(chatId, null);
       notify();
+      if (runs.size === 0) host.onIdle?.();
     }
 
     folds.get(chatId)?.controller.abort();
@@ -902,7 +945,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     for (const chatId of runs.keys()) refuseWaiting(chatId);
     for (const controller of runs.values()) controller.abort();
     for (const chatId of runs.keys()) setLiveTurn(chatId, null);
+    const hadRuns = runs.size > 0;
     runs.clear();
+    if (hadRuns) host.onIdle?.();
     for (const fold of folds.values()) fold.controller.abort();
     folds.clear();
     notify();
@@ -921,6 +966,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     continueGeneration,
     dismissOutOfContext,
     answerApproval,
+    answerQuestion,
     compact: (chatId: string) => compactChat(chatId, true),
     measure,
     stop,

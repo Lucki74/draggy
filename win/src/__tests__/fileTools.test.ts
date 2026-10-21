@@ -13,7 +13,7 @@ import type { SearchStep } from "../types";
  * every change is offered back with an undo. */
 
 const WITH_FOLDER: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
   hasFolder: true,
@@ -21,7 +21,7 @@ const WITH_FOLDER: ToolEnvironment = {
 };
 
 const WITHOUT_FOLDER: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
 };

@@ -1,4 +1,4 @@
-import type { AppSettings, SearchStep } from "../types";
+import type { AppSettings, SearchStep, UserQuestion, UserReply } from "../types";
 import type { ToolAnnotations } from "../agent/permissions";
 import type { PlanItem } from "../plan/plan";
 import { logRendererEvent } from "../logger";
@@ -65,6 +65,8 @@ export interface ToolContext {
   environment?: ToolEnvironment;
   /** Where a plan the model writes goes. */
   onPlan?: (items: PlanItem[]) => void;
+  /** Puts a question to the user and waits. Null means they dismissed it; missing means no one is there. */
+  askUser?: (question: UserQuestion) => Promise<UserReply | null>;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
   findStep?: (predicate: (step: SearchStep) => boolean) => SearchStep | undefined;

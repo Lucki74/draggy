@@ -12,13 +12,13 @@ import type { AppSettings } from "../types";
 
 const SETTINGS = {
   effort: "medium",
-  webMode: "auto",
+  webMode: "on",
   customInstructions: [],
 } as unknown as AppSettings;
 
 const MODE = { nativeTools: true, nativeThinking: true };
 
-const CHAT: ToolEnvironment = { webMode: "auto", codeExecution: false, libraryReady: false };
+const CHAT: ToolEnvironment = { webMode: "on", codeExecution: false, libraryReady: false };
 
 const CODE: ToolEnvironment = {
   ...CHAT,

@@ -44,7 +44,8 @@ describe("the image card", () => {
 
     render(<ImageCard step={step({ prompt: "a fox", status: "generating", requestId: "r1", startedAt: Date.now() })} t={t} />);
     expect(screen.getByRole("status").textContent).toBe("Drawing…");
-    expect(screen.getByRole("progressbar")).toBeTruthy();
+    // The pulsing placeholder alone says it is working; no bar rides on the picture.
+    expect(screen.queryByRole("progressbar")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     expect(cancel).toHaveBeenCalledWith("r1");
@@ -191,7 +192,8 @@ describe("an installed image model", () => {
   it("is removed only after the confirmation names it", () => {
     const onRemove = vi.fn();
     render(<ImageModelRow entry={model({ name: "Z-Image", variant: "Q4" })} active onRemove={onRemove} t={t} />);
-    expect(screen.getByText("Image generation")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Image generation" })).toBeTruthy();
+    expect(screen.getByText("Images")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Remove Z-Image Q4/ }));
     expect(onRemove).not.toHaveBeenCalled();

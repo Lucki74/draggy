@@ -10,6 +10,14 @@ describe("the bundled catalog", () => {
     for (const entry of catalog()) expect([entry.id, problemWith(entry)]).toEqual([entry.id, null]);
   });
 
+  it("reaches Ollama Cloud over its OpenAI-compatible address with a bearer key", () => {
+    const entry = find("ollama-cloud");
+
+    expect([entry.baseUrl, entry.protocol, entry.auth, entry.kind]).toEqual(["https://ollama.com/v1", "openai", "bearer", "cloud"]);
+    expect(capabilitiesFor(entry, "gpt-oss:120b").capabilities).toEqual(["tools", "thinking"]);
+    expect(capabilitiesFor(entry, "qwen3-vl:235b").capabilities).toEqual(["tools", "vision"]);
+  });
+
   it("has one entry per id", () => {
     const ids = catalog().map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -31,7 +39,7 @@ describe("the bundled catalog", () => {
     }
     expect(find("chatgpt")).toMatchObject({ kind: "account", protocol: "codex" });
     expect(find("claude")).toMatchObject({ kind: "account", protocol: "claude", signInHosts: ["claude.com"] });
-    expect(find("google")).toMatchObject({ kind: "account", protocol: "gemini-cli", signInHosts: ["accounts.google.com"] });
+    expect(find("google")).toMatchObject({ kind: "account", protocol: "agy", signInHosts: [] });
   });
 
   it("pairs each plan with exactly one API-key twin of the same vendor, and refuses an unknown vendor", () => {

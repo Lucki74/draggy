@@ -52,6 +52,7 @@ function writeWithTwoPointOh() {
     isOutOfContext: false,
     workspaceId: "project",
     plan: [{ id: "p1", text: "Do the thing", status: "doing" }],
+    generation: { model: "qwen3:8b", effort: "high" },
     messages: [
       { id: "m1", role: "user", content: "hello from 2.0" },
       {
@@ -106,6 +107,18 @@ describe("opening a 2.0 database with 1.2.7", () => {
     expect(chats).toHaveLength(1);
     expect(chats[0].title).toBe("Written by 2.0");
     expect(chats[0].messages.map((message) => message.content)).toEqual(["hello from 2.0", "hi"]);
+  });
+
+  it("keeps a chat's model and thinking level through a save by 1.2.7", () => {
+    writeWithTwoPointOh();
+
+    legacy.init(workdir);
+    const [chat] = legacy.loadChats();
+    legacy.saveChat({ ...chat, title: "Renamed by 1.2.7" });
+    legacy.close();
+
+    current.init(workdir);
+    expect(current.loadChats()[0].generation).toEqual({ model: "qwen3:8b", effort: "high" });
   });
 
   it("can still save, search and delete", () => {

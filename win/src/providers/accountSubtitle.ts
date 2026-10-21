@@ -12,6 +12,7 @@ function windowLabel(minutes: number | null, t: Translate): string | null {
 }
 
 export function accountSubtitle(status: AccountStatus | null, t: Translate): string {
+  if (status?.reauth) return t("signInAgainAntigravity");
   if (!status?.signedIn) return t("notSignedIn");
   const limits = (status.limits ?? []).map((limit: AccountLimit) =>
     [windowLabel(limit.window, t), `${Math.round(limit.usedPercent)}%`].filter(Boolean).join(" "),

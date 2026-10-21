@@ -109,7 +109,7 @@ export function Toggle({
       aria-label={label}
       disabled={disabled}
       className={`relative h-5 w-9 flex-shrink-0 rounded-pill outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base disabled:cursor-not-allowed disabled:opacity-40 ${
-        checked ? "bg-text-primary" : "bg-rule-control"
+        checked ? "bg-accent-ink" : "bg-rule-control"
       }`}
     >
       <span

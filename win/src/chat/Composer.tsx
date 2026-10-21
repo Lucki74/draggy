@@ -7,11 +7,12 @@ import { ProviderIcon } from "../providers/ProviderIcon";
 import { displayModelName, modelLabel } from "../llama";
 import { isRemote } from "../ai/providers";
 import { useSlowModel } from "./useSlowModel";
-import { parseSlashArgument } from "./slashCommands";
+import { chipSegments, parseSlashArgument } from "./slashCommands";
 import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
 import type { ModelInfo } from "../llama";
+import { formatTokenCount } from "../agent/contextBreakdown";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
 import type { SettingsTab } from "../settings/pages";
@@ -21,7 +22,6 @@ import type {
     Attachment,
     ChatSession,
     EffortLevel,
-    InstalledSkill,
     PermissionMode,
     ProviderInstance,
 } from "../types";
@@ -30,9 +30,8 @@ import { EffortSlider } from "./EffortSlider";
 import { EFFORT_LABELS } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
-const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
+const WEB_MODE_ORDER: AppSettings["webMode"][] = ["on", "off"];
 const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
-    auto: "webAuto",
     on: "webOn",
     off: "webOff",
 };
@@ -47,7 +46,6 @@ function fitHeight(field: HTMLTextAreaElement) {
     field.scrollTop = prevScroll;
 }
 
-const MENU_SKILLS = 6;
 
 type OpenMenu = "permission" | "effort" | "model" | null;
 
@@ -56,7 +54,6 @@ export interface ComposerProps {
     chat: ChatSession;
     surface: "chat" | "code";
     settings: AppSettings;
-    skills: InstalledSkill[];
     unavailable?: string;
     input: string;
     setInput: React.Dispatch<React.SetStateAction<string>>;
@@ -96,8 +93,12 @@ export interface ComposerProps {
     onProjectMemory?: () => void;
     removeFile: (index: number) => void;
     handleMicClick: () => void;
-    runSlashCommand: (id: string) => void;
+    /** Returns where the caret goes when the command was written into the text. */
+    runSlashCommand: (id: string) => number | void;
     setSlashIndex: React.Dispatch<React.SetStateAction<number>>;
+    setCaret: (position: number) => void;
+    /** Stretches of the text that run a command, drawn as chips behind the field. */
+    chipRanges: Array<[number, number]>;
     onPaste: (e: React.ClipboardEvent) => void;
     onDrop: (e: React.DragEvent) => void;
     processFiles: (files: File[]) => Promise<void>;
@@ -144,7 +145,6 @@ export function Composer({
     chat,
     surface,
     settings,
-    skills,
     unavailable: downloading,
     input,
     setInput,
@@ -184,6 +184,8 @@ export function Composer({
     handleMicClick,
     runSlashCommand,
     setSlashIndex,
+    setCaret,
+    chipRanges,
     onPaste,
     onDrop,
     processFiles,
@@ -219,6 +221,17 @@ export function Composer({
         const next = field.selectionStart === field.selectionEnd ? mentionAt(field.value, field.selectionStart) : null;
         setMention((current) => (current?.start === next?.start && current?.query === next?.query ? current : next));
         if (next?.query !== mention?.query) setMentionIndex(0);
+    };
+
+    const chipLayerRef = useRef<HTMLDivElement>(null);
+
+    const pickSlash = (id: string) => {
+        const caret = runSlashCommand(id);
+        if (typeof caret !== "number") return;
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.setSelectionRange(caret, caret);
+        });
     };
 
     const pickMention = (path: string) => {
@@ -338,13 +351,11 @@ export function Composer({
         onSendMessage(sanitizedInput, attachedFiles);
         setInput("");
         localStorage.removeItem(`draft_${chat.id}`);
+        // Sent with this message; left in place they would ride along on the next one.
+        clearAttachments();
     };
 
     const webMode = toolsUnavailable ? "off" : settings.webMode;
-    // A short list; the slash menu and the Extensions page reach the rest.
-    const offeredSkills = skills
-        .filter((skill) => !skill.surface || skill.surface === "both" || skill.surface === surface)
-        .slice(0, MENU_SKILLS);
     const plusItems: MenuEntry[] = [
         {
             id: "attach",
@@ -364,18 +375,6 @@ export function Composer({
             icon: <Icon name="puzzle-piece" size={16} />,
             onSelect: () => onOpenSettings("extensions"),
         },
-        ...(offeredSkills.length > 0
-            ? [
-                  { type: "separator", id: "skills-sep" } as MenuEntry,
-                  { type: "heading", id: "skills", label: t("extensionSkills") } as MenuEntry,
-                  ...offeredSkills.map<MenuEntry>((skill) => ({
-                      id: `skill-${skill.id}`,
-                      label: skill.name,
-                      title: skill.summary ?? skill.description,
-                      onSelect: () => runSlashCommand(skill.id),
-                  })),
-              ]
-            : []),
         { type: "separator", id: "web-sep" },
         { type: "heading", id: "web", label: t("webAccess") },
         ...WEB_MODE_ORDER.map<MenuEntry>((mode) => ({
@@ -470,7 +469,7 @@ export function Composer({
                                 aria-selected={index === activeSlashIndex}
                                 onMouseDown={(event) => {
                                     event.preventDefault();
-                                    runSlashCommand(command.id);
+                                    pickSlash(command.id);
                                 }}
                                 className={`w-full flex items-baseline gap-3 px-3 py-1.5 text-start text-[13px] ${
                                     index === activeSlashIndex ? "bg-surface-raised text-text-primary" : "text-text-secondary hover:bg-surface-raised"
@@ -522,28 +521,59 @@ export function Composer({
                         {chat.isOutOfContext && (
                             <div className="flex items-center gap-3 px-4 py-2 border-b border-rule bg-surface-tint text-[13px]">
                                 <Icon name="warning" size={16} className="flex-shrink-0 text-warn" />
-                                <p className="flex-1 min-w-0 text-text-primary">{t("outOfContextMessage")}</p>
-                                <button
-                                    type="button"
-                                    onClick={onContinueGeneration}
-                                    className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
-                                >
-                                    {t("continueGenerating")}
-                                </button>
+                                <p className="flex-1 min-w-0 text-text-primary">{outOfContextText(chat.outOfContextInfo, t)}</p>
+                                {(!chat.outOfContextInfo || chat.outOfContextInfo.canGrow) && (
+                                    <button
+                                        type="button"
+                                        onClick={onContinueGeneration}
+                                        className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
+                                    >
+                                        {t("continueGenerating")}
+                                    </button>
+                                )}
                                 <IconButton name="x" label={t("cancel")} size="sm" onClick={onDismissOutOfContext} />
                             </div>
                         )}
                     </div>
 
+                    <div className="relative">
+                    {chipRanges.length > 0 && (
+                        <div
+                            ref={chipLayerRef}
+                            aria-hidden="true"
+                            data-testid="command-chips"
+                            className="absolute inset-0 px-4 pt-3.5 pb-1 text-[15px] leading-6 whitespace-pre-wrap break-words overflow-y-auto pointer-events-none text-transparent"
+                            style={{ scrollbarColor: "transparent transparent" }}
+                        >
+                            {chipSegments(input, chipRanges).map((part, index) =>
+                                part.chip ? (
+                                    <mark key={index} className="rounded-xs bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+                                        {part.text}
+                                    </mark>
+                                ) : (
+                                    <span key={index}>{part.text}</span>
+                                ),
+                            )}
+                            {/* A last newline needs a line of its own, as it has in the field. */}
+                            {input.endsWith("\n") ? "\u200b" : null}
+                        </div>
+                    )}
                     <textarea
                         ref={inputRef}
                         value={input}
                         aria-label={t("messageModel")}
                         onChange={(e) => {
                             setInput(e.target.value);
+                            setCaret(e.target.selectionStart);
                             trackMention(e.target);
                         }}
-                        onSelect={(e) => trackMention(e.currentTarget)}
+                        onSelect={(e) => {
+                            setCaret(e.currentTarget.selectionStart);
+                            trackMention(e.currentTarget);
+                        }}
+                        onScroll={(e) => {
+                            if (chipLayerRef.current) chipLayerRef.current.scrollTop = e.currentTarget.scrollTop;
+                        }}
                         onBlur={() => setMention(null)}
                         onPaste={onPaste}
                         onDrop={onDrop}
@@ -579,12 +609,12 @@ export function Composer({
                                 }
                                 if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
                                     e.preventDefault();
-                                    runSlashCommand(slashMatches[activeSlashIndex].id);
+                                    pickSlash(slashMatches[activeSlashIndex].id);
                                     return;
                                 }
                                 if (e.key === "Escape") {
                                     e.preventDefault();
-                                    setInput("");
+                                    if (input.startsWith("/") && !/\s/.test(input)) setInput("");
                                     return;
                                 }
                             }
@@ -602,6 +632,7 @@ export function Composer({
                         rows={1}
                         style={{ minHeight: variant === "home" ? "72px" : "48px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
                     />
+                    </div>
 
                     {(notice || fileErrors.length > 0 || attachedFiles.length > 0) && (
                         <div className="px-3 pb-1.5 flex flex-wrap gap-1.5">
@@ -894,4 +925,18 @@ export function Composer({
             </div>
         </div>
     );
+}
+
+/** The same figures as the context wheel: what the model supports, what it was loaded with, what the reply used. */
+function outOfContextText(
+    info: { loaded: number; modelMax: number | null; used: number; canGrow: boolean } | undefined,
+    t: (key: string) => string,
+): string {
+    if (!info) return t("outOfContextMessage");
+    const fill = (text: string) =>
+        text
+            .replace("{max}", info.modelMax ? formatTokenCount(info.modelMax) : "?")
+            .replace("{loaded}", formatTokenCount(info.loaded))
+            .replace("{used}", formatTokenCount(info.used));
+    return fill(t(info.canGrow ? "outOfContextRoom" : "outOfContextLimit"));
 }

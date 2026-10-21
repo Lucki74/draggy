@@ -10,7 +10,7 @@ import {
 import { isCodeFile, prismLanguageOf } from "../canvas/drafts";
 import { isHtmlContent, sanitizeHtml } from "./htmlPreview";
 import { rehypeCaret } from "./streamReveal";
-import { EmberCaret, Icon } from "../ui";
+import { EmberCaret } from "../ui";
 
 const LINE_HEIGHT = 20;
 const OVERSCAN = 30;
@@ -460,38 +460,21 @@ export function FilePreview({
 
   if (isWebPage) {
     return (
-      <div className={`flex flex-col w-full overflow-hidden border border-rule rounded-md bg-[#f1f3f4] dark:bg-[#202124] ${fullHeight ? "h-full flex-1" : ""}`}>
-        {/* Google Chrome header */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f1f3f4] dark:bg-[#282a2d] border-b border-[#dadce0] dark:border-[#3c4043] select-none">
-          <div className="flex items-center gap-1.5 text-[#5f6368] dark:text-[#9aa0a6]">
-            <Icon name="arrow-left" size={13} className="opacity-60" />
-            <Icon name="arrow-right" size={13} className="opacity-40" />
-            <Icon name="arrow-clockwise" size={13} className="hover:opacity-100 cursor-default" />
-          </div>
-          <div className="flex items-center gap-1.5 flex-1 max-w-[420px] mx-auto px-3 py-1 rounded-full bg-white dark:bg-[#303134] border border-[#dadce0] dark:border-[#3c4043] text-[11px] font-sans text-[#3c4043] dark:text-[#bdc1c6] shadow-2xs min-w-0">
-            <Icon name="lock-simple" size={11} className="text-[#5f6368] dark:text-[#9aa0a6] shrink-0" />
-            <span className="truncate">http://localhost:3000/{filename}</span>
-          </div>
-          <div className="w-12" aria-hidden="true" />
-        </div>
-
-        {/* Google Chrome white canvas */}
-        <div
-          ref={containerRef}
-          onScroll={handleContainerScroll}
-          onWheel={handleContainerWheel}
-          className={`chrome-html-canvas p-6 bg-white text-[#1f1f1f] font-sans overflow-y-auto ${
-            fullHeight ? "flex-1 min-h-0" : "max-h-80"
-          } text-[14px] leading-normal`}
-        >
-          {asHtml !== null ? (
-            <div dangerouslySetInnerHTML={{ __html: asHtml }} />
-          ) : content.trim().length === 0 && isWriting ? (
-            <span className="ember-caret" aria-hidden="true" />
-          ) : (
-            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content, isWriting, true) }} />
-          )}
-        </div>
+      <div
+        ref={containerRef}
+        onScroll={handleContainerScroll}
+        onWheel={handleContainerWheel}
+        className={`chrome-html-canvas p-6 bg-white text-[#1f1f1f] font-sans overflow-y-auto ${
+          fullHeight ? "h-full flex-1 min-h-0" : "max-h-80"
+        } text-[14px] leading-normal`}
+      >
+        {asHtml !== null ? (
+          <div dangerouslySetInnerHTML={{ __html: asHtml }} />
+        ) : content.trim().length === 0 && isWriting ? (
+          <span className="ember-caret" aria-hidden="true" />
+        ) : (
+          <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content, isWriting, true) }} />
+        )}
       </div>
     );
   }

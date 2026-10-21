@@ -82,7 +82,6 @@ Hello! How can I help you today?"##;
 
 const FAST_PROMPT: &str = r##"Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself."##;
 
-const FORCE_SEARCH_PROMPT: &str = r##"The user has turned web search ON. Search the web before answering, even if you believe you already know the answer, and base your reply on what you find."##;
 
 const NO_BROWSING_PROMPT: &str = r##"Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched."##;
 
@@ -363,14 +362,8 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
 
     match settings.web_mode {
         WebMode::Off => parts.push(NO_BROWSING_PROMPT.to_string()),
-        WebMode::On => {
-            if !mode.native_tools {
-                parts.push(BROWSING_WORKFLOW_PROMPT.to_string());
-            }
-            parts.push(FORCE_SEARCH_PROMPT.to_string());
-        }
-        // Automatic mode: the model decides for itself whether a question needs the web.
-        WebMode::Auto => {
+        // On, and the old Auto, let the model decide whether a question needs the web.
+        WebMode::On | WebMode::Auto => {
             if !mode.native_tools {
                 parts.push(BROWSING_WORKFLOW_PROMPT.to_string());
             }

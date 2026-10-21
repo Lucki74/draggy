@@ -5,6 +5,7 @@ import { Dialog } from "../ui/Dialog";
 import { IconButton } from "../ui/IconButton";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { Toggle } from "../settings/Controls";
+import { localDescription } from "./descriptions";
 import { ExtensionList, ExtensionRow } from "./ExtensionRow";
 import type { InstalledSkill, LoadedSkill } from "../types";
 import { swallowed } from "../logger";
@@ -179,7 +180,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
                       leading={<Icon name="book-open" size={18} className="text-text-tertiary" />}
                       name={skill.name}
                       tag={side}
-                      description={skill.description}
+                      description={skill.source === "library" ? localDescription(t, "skill", skill.id, skill.description) : skill.description}
                       control={
                         <>
                           <button

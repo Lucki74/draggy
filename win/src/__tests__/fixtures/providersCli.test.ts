@@ -14,16 +14,11 @@ const envMod = require(`${P}/account/env.cjs`);
 const threadsMod = require(`${P}/account/threads.cjs`);
 const claude = require(`${P}/adapters/claude.cjs`);
 const codex = require(`${P}/adapters/codex.cjs`);
-const geminiCli = require(`${P}/adapters/geminiCli.cjs`);
 const claudeBin = require(`${P}/claude/binary.cjs`);
 const claudeProc = require(`${P}/claude/process.cjs`);
 const codexBin = require(`${P}/codex/binary.cjs`);
 const codexProc = require(`${P}/codex/process.cjs`);
-const geminiInstall = require(`${P}/gemini/install.cjs`);
-const geminiProc = require(`${P}/gemini/process.cjs`);
-const mcpHttp = require(`${P}/gemini/mcpHttp.cjs`);
-import { runMcpStream } from "./mcpStreamDriver";
-import { runClaudeInstall, runCodexInstall, runGeminiInstall } from "./installDriver";
+import { runClaudeInstall, runCodexInstall } from "./installDriver";
 import { runSupervisor } from "./supervisorDriver";
 const gateway = require(`${P}/gateway.cjs`);
 const { createRegistry } = require(`${P}/registry.cjs`);
@@ -261,41 +256,6 @@ async function runRoutes(input: any) {
   return out;
 }
 
-// ---------- mcp ----------
-async function runMcp(cases: any[]) {
-  const server = mcpHttp.createMcpServer({ name: "draggy", version: "1", keepAliveMs: 60_000 });
-  const tools = [{ name: "echo", description: "Echoes", inputSchema: { type: "object", properties: { x: { type: "string" } } } }];
-  const endpoint = await server.register({
-    tools: () => tools,
-    call: (name: string | undefined, args: any) => {
-      if (name === "boom") throw new Error("boom");
-      return { content: [{ type: "text", text: `${name}:${args.x ?? ""}` }] };
-    },
-  });
-  const base = endpoint.url.replace(/\/mcp\/[0-9a-f]+$/, "");
-  const route = endpoint.url.slice(base.length);
-  const out: any[] = [];
-  for (const c of cases) {
-    const res = await fetch(`${base}${c.path === "/mcp/fixture" ? route : c.path}`, {
-      method: c.method,
-      headers: { "content-type": "application/json", ...(c.origin ? { origin: c.origin } : {}) },
-      body: c.method === "POST" ? c.body : undefined,
-    });
-    const text = await res.text();
-    const ct = res.headers.get("content-type");
-    let body: any = null;
-    if (text && ct?.startsWith("application/json")) body = JSON.parse(text);
-    else if (text && ct?.startsWith("text/event-stream")) {
-      const match = /^event: (\w+)\ndata: (.*)\n\n$/s.exec(text);
-      body = match ? { event: match[1], data: JSON.parse(match[2]) } : text;
-    } else if (text) body = text;
-    out.push({ name: c.name, status: res.status, contentType: ct, body });
-  }
-  endpoint.close();
-  await server.stop();
-  return out;
-}
-
 
 /** One case through its driver: the reference's answer, normalised as the fixture files record it. */
 async function driveCase(file: string, input: any): Promise<any> {
@@ -313,47 +273,32 @@ async function driveCase(file: string, input: any): Promise<any> {
   if (f === "listedModels") return plain(claude.listedModels(input.listed));
   if (f === "turnFailure") {
     if (file.includes("codex")) return plain(codex.turnFailure(input.error, input.limits));
-    if (file.includes("gemini")) return plain(geminiCli.turnFailure(input.error));
     return plain(claude.turnFailure(input.text, input.limit));
   }
   if (f === "toItems") return plain(codex.toItems(input.message));
   if (f === "toInput") return plain(codex.toInput(input.message));
   if (f === "resetsAtOf") return plain(codex.resetsAtOf(input.limits));
-  if (f === "toPrompt") return plain(geminiCli.toPrompt(input.history, input.input));
   if (f === "assetFor") {
     if (file.includes("claude")) return plain(claudeBin.assetFor(input.platformName, input.arch, undefined, input.musl));
     return plain(codexBin.assetFor(input.platformName, input.arch));
   }
   if (f === "installDir") {
-    const mod = file.includes("claude") ? claudeBin : file.includes("codex") ? codexBin : geminiInstall;
+    const mod = file.includes("claude") ? claudeBin : codexBin;
     return mod.installDir(input.appData);
   }
   if (f === "configToml") return codexProc.configToml(input.catalogPath, { topLevel: input.topLevel, tables: input.tables });
   if (f === "workFolder") return claudeProc.workFolder(input.instanceId, { platformName: input.platformName, env: input.env, uid: input.uid });
   if (f === "sessionArgs") return claudeProc.sessionArgs(input);
-  if (f === "neutralPaths") return plain(geminiProc.neutralPaths(input.instanceId, { platformName: input.platformName, env: input.env, uid: input.uid }));
-  if (f === "settingsFor") return plain(geminiProc.settingsFor(input));
-  if (f === "geminiEnv") {
-    const { env, home } = geminiProc.geminiEnv(input);
-    return plain({ env, home });
-  }
-  if (f === "mcpHttp") {
-    const [out] = await runMcp([{ name: "case", ...input }]);
-    return { status: out.status, contentType: out.contentType, body: out.body };
-  }
-  if (f === "mcpStream") return runMcpStream(input);
   if (f === "claudeInstall") return runClaudeInstall(input);
   if (f === "codexInstall") return runCodexInstall(input);
-  if (f === "geminiInstall") return runGeminiInstall(input);
   if (f === "supervisor") return runSupervisor(input);
   if (f === "gatewayRoutes") return runRoutes(input);
   if (f === "constants") {
     const table: Record<string, any> = {
       ARGS: codexProc.ARGS, FEATURES_OFF: codexProc.FEATURES_OFF, CATALOG_NAME: codexProc.CATALOG_NAME,
-      FLAGS: file.includes("gemini") ? geminiProc.FLAGS : claudeProc.FLAGS,
-      QUIET: claudeProc.QUIET, TOOL_TIMEOUT_MS: file.includes("gemini") ? geminiProc.TOOL_TIMEOUT_MS : claudeProc.TOOL_TIMEOUT_MS,
-      CLIENT: geminiProc.CLIENT, NODE_FLAGS: geminiProc.NODE_FLAGS, VERSION: file.includes("gemini") ? geminiInstall.VERSION : claudeBin.VERSION,
-      EXPECTED_BYTES: geminiInstall.EXPECTED_BYTES,
+      FLAGS: claudeProc.FLAGS,
+      QUIET: claudeProc.QUIET, TOOL_TIMEOUT_MS: claudeProc.TOOL_TIMEOUT_MS,
+      VERSION: claudeBin.VERSION,
     };
     return plain(table[input.name]);
   }
@@ -365,7 +310,8 @@ import { windowsCases } from "./windowsScope";
 describe("providers CLI and gateway fixtures", () => {
   const names = fs
     .readdirSync(FIXTURE_DIR)
-    .filter((file) => /^providers-(cli|gateway)-.*\.json$/.test(file))
+    // The Gemini CLI route is gone from Windows; the Rust port still runs its fixtures (NATIVE-STATUS.md).
+    .filter((file) => /^providers-(cli|gateway)-.*\.json$/.test(file) && !file.startsWith("providers-cli-gemini-"))
     .sort();
   for (const name of names) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8")) as { cases: { name: string; input: any; expected: unknown }[] };

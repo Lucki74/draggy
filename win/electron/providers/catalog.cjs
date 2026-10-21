@@ -118,6 +118,27 @@ const CATALOG = [
   cloud("huggingface", "Hugging Face", "https://router.huggingface.co/v1", "https://huggingface.co/settings/tokens", {
     capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
   }),
+  // The direct cloud API takes plain model names, and /v1/models lists what the account can use.
+  cloud("ollama-cloud", "Ollama Cloud", "https://ollama.com/v1", "https://ollama.com/settings/keys", {
+    capabilityPatterns: [
+      { match: "embed", capabilities: [] },
+      { match: "vl|gemma3|llava|mistral-large-3|kimi-k2\\.5", capabilities: [TOOLS, VISION] },
+      { match: "gpt-oss|deepseek|qwen3|kimi|glm|minimax", capabilities: [TOOLS, THINKING] },
+      { match: "", capabilities: [TOOLS] },
+    ],
+  }),
+  cloud("nebius", "Nebius", "https://api.tokenfactory.nebius.com/v1", "https://tokenfactory.nebius.com", {
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
+  }),
+  cloud("sambanova", "SambaNova", "https://api.sambanova.ai/v1", "https://cloud.sambanova.ai/apis", {
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
+  }),
+  cloud("siliconflow", "SiliconFlow", "https://api.siliconflow.com/v1", "https://cloud.siliconflow.com/account/ak", {
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
+  }),
+  cloud("novita", "Novita AI", "https://api.novita.ai/openai", "https://novita.ai/settings/key-management", {
+    capabilityPatterns: [{ match: "", capabilities: [TOOLS] }],
+  }),
   cloud("qwen", "Qwen (DashScope)", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "https://modelstudio.console.alibabacloud.com", {
     capabilityPatterns: [
       { match: "vl", capabilities: [TOOLS, VISION] },
@@ -190,14 +211,14 @@ const CATALOG = [
   },
   {
     id: "google",
-    name: "Google",
+    name: "Google (Antigravity)",
     kind: "account",
-    protocol: "gemini-cli",
+    protocol: "agy",
     vendor: "google",
     auth: "account",
     baseUrl: "",
     keyUrl: "",
-    signInHosts: ["accounts.google.com"],
+    signInHosts: [],
     capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING], contextLength: 1048576 }],
     defaultModels: [],
   },
@@ -220,7 +241,7 @@ const CATALOG = [
 
 // Pairs a plan with its API-key twin, so the Add list asks which way (spec §7.1).
 const VENDORS = new Set(["openai", "anthropic", "google"]);
-const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "gemini-cli"]);
+const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "agy"]);
 const AUTHS = new Set(["bearer", "x-api-key", "x-goog-api-key", "account", "none"]);
 const CAPABILITIES = new Set([TOOLS, VISION, THINKING]);
 

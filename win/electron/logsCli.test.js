@@ -70,3 +70,31 @@ describe("logs cli", () => {
     expect(() => lines(["--turn"])).toThrow();
   });
 });
+
+describe("a turn with a continue and a retry", () => {
+  const chain = () =>
+    fs.writeFileSync(
+      path.join(dir, "events.jsonl"),
+      [
+        event({ ts: at(5000), seq: 1, proc: "renderer", scope: "chat", msg: "turn sent", cid: "a" }),
+        event({ ts: at(4900), seq: 2, scope: "agent", msg: "stopped on length", cid: "a" }),
+        event({ ts: at(4000), seq: 3, proc: "renderer", scope: "chat", msg: "turn sent", cid: "b", data: { after: "a", continuation: true } }),
+        event({ ts: at(3000), seq: 4, proc: "renderer", scope: "chat", msg: "turn sent", cid: "c", data: { after: "b", retry: true } }),
+        event({ ts: at(2000), seq: 5, proc: "renderer", scope: "chat", msg: "turn sent", cid: "other" }),
+      ].join("\n"),
+    );
+
+  it("follows the links from any turn in the chain, both ways", () => {
+    chain();
+    for (const start of ["a", "b", "c"]) {
+      const { out } = lines(["--turn", start]);
+      expect(out).toHaveLength(4);
+      expect(out.join("\n")).not.toContain("other");
+    }
+  });
+
+  it("leaves an unlinked turn alone", () => {
+    chain();
+    expect(lines(["--turn", "other"]).out).toHaveLength(1);
+  });
+});

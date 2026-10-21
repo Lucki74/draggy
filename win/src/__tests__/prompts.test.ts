@@ -8,14 +8,14 @@ import type { AppSettings } from "../types";
 
 const SETTINGS = {
   effort: "medium",
-  webMode: "auto",
+  webMode: "on",
   customInstructions: [],
 } as unknown as AppSettings;
 
 const MODE = { nativeTools: true, nativeThinking: true };
 
 const CHAT: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
 };

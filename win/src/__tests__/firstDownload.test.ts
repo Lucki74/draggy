@@ -172,4 +172,24 @@ describe("the optional downloads", () => {
     await waitFor(() => expect(api.gguf.cancelDownload).toHaveBeenCalledWith("Voice-GGUF-Q4.gguf"));
     expect(result.current.extras).toEqual([]);
   });
+
+  it("fetches an image model into the image folder, not as a chat model", async () => {
+    const { api, order, finish } = bridge();
+    const sd = {
+      onProgress: vi.fn(() => () => {}),
+      cancelDownload: vi.fn(async () => true),
+      downloadRepo: vi.fn(async () => ({ success: true })),
+    };
+    (api as unknown as { sd: typeof sd }).sd = sd;
+    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
+    act(() => result.current.queueExtra("org/Image-GGUF:Q4_K_M", "Image", "image"));
+    await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
+    expect(sd.downloadRepo).not.toHaveBeenCalled();
+
+    act(() => finish("Main-GGUF-Q4.gguf"));
+    await waitFor(() => expect(result.current.extras[0]?.phase).toBe("done"));
+    expect(sd.downloadRepo).toHaveBeenCalledWith("org/Image-GGUF:Q4_K_M");
+    expect(order).not.toContain("download Image-GGUF-Q4_K_M.gguf");
+  });
 });

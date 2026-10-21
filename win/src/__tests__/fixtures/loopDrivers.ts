@@ -56,7 +56,7 @@ export async function useSkillCase(input: Json): Promise<unknown> {
   };
   const args: Record<string, unknown> = { id: input.id };
   if (input.file !== undefined) args.file = input.file;
-  const environment: ToolEnvironment = { webMode: "auto", codeExecution: false, libraryReady: false, hasSkills: true };
+  const environment: ToolEnvironment = { webMode: "on", codeExecution: false, libraryReady: false, hasSkills: true };
 
   const result = await runTool("use_skill", args, context, environment);
   vi.unstubAllGlobals();

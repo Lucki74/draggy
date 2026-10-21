@@ -39,14 +39,15 @@ const intArray = (count) => Buffer.concat([u32(TYPE.INT32), u64(count), Buffer.a
 
 /** A GGUF file laid out like a real model: the architecture first, then a tokenizer whose word lists
  * are megabytes long, and only then the chat template. */
-function buildModel({ template, tokens = 150_000 }) {
+function buildModel({ template, tokens = 150_000, arch = "qwen3", pooling }) {
   const words = Array.from({ length: tokens }, (_, index) => `tok${index}`);
   const entries = [
-    entry("general.architecture", TYPE.STRING, text("qwen3")),
-    entry("qwen3.block_count", TYPE.UINT32, u32(32)),
+    entry("general.architecture", TYPE.STRING, text(arch)),
+    entry(`${arch}.block_count`, TYPE.UINT32, u32(32)),
     entry("tokenizer.ggml.tokens", TYPE.ARRAY, stringArray(words)),
     entry("tokenizer.ggml.token_type", TYPE.ARRAY, intArray(tokens)),
   ];
+  if (pooling !== undefined) entries.push(entry(`${arch}.pooling_type`, TYPE.UINT32, u32(pooling)));
   if (template !== undefined) entries.push(entry("tokenizer.chat_template", TYPE.STRING, text(template)));
 
   const header = Buffer.alloc(24);
@@ -129,6 +130,19 @@ describe("listGgufModels capabilities", () => {
     expect(byName["thinker.gguf"].capabilities).toEqual(["completion", "thinking"]);
     expect(byName["plain.gguf"].capabilities).toEqual(["completion"]);
     expect(byName["tooler.gguf"].capabilities).toEqual(["tools", "completion", "thinking"]);
+  });
+
+  it("lists an embedding model and a speech model without the ability to chat", () => {
+    const dir = tempDir();
+    fs.writeFileSync(path.join(dir, "embedder.gguf"), buildModel({ arch: "qwen3", pooling: 3, tokens: 100 }));
+    fs.writeFileSync(path.join(dir, "bert.gguf"), buildModel({ arch: "nomic-bert", tokens: 100 }));
+    fs.writeFileSync(path.join(dir, "speech.gguf"), buildModel({ arch: "sortformer", tokens: 100 }));
+
+    const byName = Object.fromEntries(modelStorage.listGgufModels(dir).map((model) => [model.filename, model]));
+
+    expect(byName["embedder.gguf"].capabilities).toEqual(["embedding"]);
+    expect(byName["bert.gguf"].capabilities).toEqual(["embedding"]);
+    expect(byName["speech.gguf"].capabilities).toEqual(["audio"]);
   });
 });
 

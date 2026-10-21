@@ -3,6 +3,8 @@ import {
   CONTEXT_BUCKETS,
   FALLBACK_CONTEXT_LENGTH,
   contextSizeFor,
+  growContext,
+  nextContextSize,
   displayModelName,
   formatContextCeiling,
   installedModelDisplayNames,
@@ -374,5 +376,21 @@ describe("who counts as engine work", () => {
     const unnamed = beginLlamaWork();
     expect(llamaIsBusy()).toBe(true);
     unnamed();
+  });
+});
+
+describe("growing the window to continue a cut reply", () => {
+  it("steps one bucket up and stops at the model's own maximum", () => {
+    forgetContextSize("grow-model");
+    contextSizeFor("grow-model", 100, 16384);
+    expect(growContext("grow-model", 16384)).toBe(8192);
+    expect(growContext("grow-model", 16384)).toBe(16384);
+    expect(nextContextSize("grow-model", 16384)).toBeNull();
+    expect(growContext("grow-model", 16384)).toBeNull();
+  });
+
+  it("starts from the size the engine reported when the tally is empty", () => {
+    forgetContextSize("grow-model-2");
+    expect(growContext("grow-model-2", 131072, 32768)).toBe(65536);
   });
 });

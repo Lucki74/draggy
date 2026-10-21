@@ -10,6 +10,7 @@ import { displayModelName } from "../llama";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
+import QuestionCard from "./QuestionCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import { OpenDiffContext } from "./openDiffContext";
@@ -325,17 +326,23 @@ function FileCard({
   );
 }
 
-// Shows elapsed seconds while loading so large models do not look frozen.
-function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
+const STAGE_KEYS = {
+  reading: "loadingStageReading",
+  placing: "loadingStagePlacing",
+  prefilling: "loadingStagePrefilling",
+  ready: "loadingStageReady",
+} as const;
 
+// Shows how far the load has got in percent; the time each stage took goes to the log.
+function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
+  const [now, setNow] = useState(() => Date.now());
+  const [stage, setStage] = useState<{ stage: "reading" | "placing" | "prefilling" | "ready"; percent?: number } | null>(null);
+
+  // The engine's own log says which part of the load it is in; only a prompt has a percent.
   useEffect(() => {
-    if (step.startedAt === undefined) return;
-    const startedAt = step.startedAt;
-    const timer = setInterval(() => setElapsedMs(Math.max(0, Date.now() - startedAt)), 100);
-    return () => clearInterval(timer);
-  }, [step.startedAt]);
+    if (!step.model) return;
+    return window.electronAPI?.gguf?.onStage?.(setStage);
+  }, [step.model]);
 
   useEffect(() => {
     if (!step.retry) return;
@@ -349,9 +356,9 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
         .replace("{attempt}", String(step.retry.attempt))
         .replace("{of}", String(step.retry.of))
     : step.model
-      ? t("loadingModel")
+      ? t(stage ? STAGE_KEYS[stage.stage] : "loadingModel")
           .replace("{model}", displayModelName(step.model))
-          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
+          .replace("{percent}", String(stage?.percent ?? 0))
       : step.content;
 
   return (
@@ -472,6 +479,10 @@ export function WorkBlock({
         </div>
       </details>
     );
+  }
+
+  if (step.type === "question") {
+    return <QuestionCard key={step.id} step={step} t={t} />;
   }
 
   if (step.type === "approval") {

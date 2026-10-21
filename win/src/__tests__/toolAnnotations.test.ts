@@ -22,9 +22,9 @@ describe("Tool annotations quality and directory compliance", () => {
     registerImageTools();
   });
 
-  it("registers all 38 tools", () => {
+  it("registers all 39 tools", () => {
     const tools = allTools();
-    expect(tools.length).toBe(38);
+    expect(tools.length).toBe(39);
   });
 
   it("declares all four hints as explicit booleans on every tool", () => {

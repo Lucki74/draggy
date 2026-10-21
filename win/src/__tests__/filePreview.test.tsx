@@ -213,11 +213,12 @@ describe("FilePreview live generation mode (isWriting)", () => {
     expect(container.querySelector(".ember-caret")).toBeTruthy();
   });
 
-  it("renders an html file in a Google Chrome frame with white canvas and omnibox", () => {
+  it("renders an html file on a white page with no browser bar around it", () => {
     const html = "<style>h1 { color: #0066cc; }</style><h1>Landing Page</h1><p>Welcome to our site.</p>";
     const { container } = render(<FilePreview filename="index.html" content={html} />);
 
-    expect(screen.getByText("http://localhost:3000/index.html")).toBeTruthy();
+    expect(screen.queryByText(/localhost:3000/)).toBeNull();
+    expect(container.querySelector("svg")).toBeNull();
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("Landing Page")).toBeTruthy();
 
@@ -237,7 +238,7 @@ describe("FilePreview live generation mode (isWriting)", () => {
     const partialHtml = "<h1>Streaming Site</h1><p>Loading content";
     const { container } = render(<FilePreview filename="app.html" content={partialHtml} isWriting />);
 
-    expect(screen.getByText("http://localhost:3000/app.html")).toBeTruthy();
+    expect(screen.queryByText(/localhost:3000/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
     expect(container.querySelector(".ember-caret")).toBeTruthy();

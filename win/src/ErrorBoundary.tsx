@@ -2,6 +2,7 @@ import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { Button, Icon } from "./ui";
 import { collectErrorDetails } from "./errorDetails";
+import { uiText } from "./i18n";
 import { currentScreen, flushLogs, logRendererError, logSwallow } from "./logger";
 
 interface Props {
@@ -51,10 +52,10 @@ export class ErrorBoundary extends Component<Props, State> {
         <div role="alert" className="p-4 my-4 rounded-md border border-rule-strong bg-surface-base text-text-primary space-y-3">
           <div className="flex items-center gap-2 text-danger">
             <Icon name="warning-circle" size={18} />
-            <span className="font-semibold text-sm">Something went wrong</span>
+            <span className="font-semibold text-sm">{uiText("errorTitle")}</span>
           </div>
           <p className="text-xs font-mono text-text-secondary overflow-x-auto max-h-32 p-2 rounded-sm bg-surface-canvas border border-rule break-all whitespace-pre-wrap">
-            {this.state.error?.message || "An unexpected error occurred."}
+            {this.state.error?.message || uiText("errorFallback")}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button
@@ -63,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               icon={<Icon name="arrow-clockwise" size={14} />}
             >
-              Reload
+              {uiText("errorReload")}
             </Button>
             <Button
               variant="ghost"
@@ -71,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.copyLog}
               icon={<Icon name={this.state.copied ? "check" : "copy"} size={14} />}
             >
-              {this.state.copied ? "Copied" : "Copy error details"}
+              {this.state.copied ? uiText("errorCopied") : uiText("errorCopy")}
             </Button>
             {typeof window !== "undefined" && window.electronAPI?.openLogs && (
               <Button
@@ -80,7 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={() => void window.electronAPI?.openLogs?.()}
                 icon={<Icon name="folder-simple" size={14} />}
               >
-                Open logs
+                {uiText("errorOpenLogs")}
               </Button>
             )}
           </div>

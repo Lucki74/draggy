@@ -5,7 +5,7 @@ import { allTools, registerTool, resetRegistry, runTool } from "../tools/registr
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
 
 const ENVIRONMENT: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
 };

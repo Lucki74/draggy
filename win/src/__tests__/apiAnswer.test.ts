@@ -7,7 +7,7 @@ import type { ApiCompletionRequest, AppSettings } from "../types";
  * outside caller is and is not trusted with. */
 
 const settings = {
-  webMode: "auto",
+  webMode: "on",
   libraryEnabled: true,
   customInstructions: ["The user's own preference"],
 } as unknown as AppSettings;

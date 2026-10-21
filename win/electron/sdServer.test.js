@@ -175,6 +175,16 @@ describe("sd-server lifecycle against a fake server", { timeout: 45_000 }, () =>
     expect(fs.existsSync(result.tmpPath)).toBe(true);
   });
 
+  it("relaunches in safe mode after a crash", async () => {
+    const argsFile = path.join(dir, "args-safe.json");
+    const fake = fakeBinary();
+    const marker = path.join(dir, "crashed-safe");
+    useFake({ binaryPath: fake.binaryPath, argsPrefix: fake.prefix, env: { FAKE_SD_MODE: "crash-once", FAKE_SD_MARKER: marker, FAKE_SD_ARGS: argsFile } });
+    await sdServer.generate("req-safe", { prompt: "x" });
+    const args = JSON.parse(fs.readFileSync(argsFile, "utf8"));
+    expect(args).toEqual(expect.arrayContaining(["--vae-tiling", "--diffusion-fa", "--offload-to-cpu"]));
+  });
+
   it("gives up after a second crash instead of looping", async () => {
     const fake = fakeBinary();
     useFake({ binaryPath: fake.binaryPath, argsPrefix: fake.prefix, env: { FAKE_SD_MODE: "crash-always" } });
