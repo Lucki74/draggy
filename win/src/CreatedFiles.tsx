@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Icon, IconButton, type IconName } from "./ui";
+import { Button, Icon, IconButton, Lightbox, type IconName } from "./ui";
 import { translations } from "./translations";
 import { formatSize, groupFiles, kindOf, matchesQuery } from "./fileList";
 import type { FileKind } from "./fileList";
@@ -49,6 +49,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [brokenPicture, setBrokenPicture] = useState<string | null>(null);
+  const [zoomedPicture, setZoomedPicture] = useState<string | null>(null);
   const [wordFailed, setWordFailed] = useState(false);
   const failWord = useCallback(() => setWordFailed(true), []);
 
@@ -244,6 +245,12 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                       </div>
                     </div>
 
+                    <Lightbox
+                      open={zoomedPicture === file.path}
+                      src={`draggy://images/${encodeURIComponent(file.name)}`}
+                      alt={file.name}
+                      onClose={() => setZoomedPicture(null)}
+                    />
                     {isOpen && (
                       <div className="mb-3 rounded-sm border border-rule bg-surface-base max-h-80 overflow-auto">
                         {PICTURE_EXTENSIONS.has(file.extension) ? (
@@ -253,7 +260,8 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                             <img
                               src={`draggy://images/${encodeURIComponent(file.name)}`}
                               alt={file.name}
-                              className="block max-w-full mx-auto"
+                              className="block max-w-full mx-auto cursor-zoom-in"
+                              onClick={() => setZoomedPicture(file.path)}
                               onError={() => setBrokenPicture(file.path)}
                             />
                           )
