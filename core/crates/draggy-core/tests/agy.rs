@@ -68,7 +68,11 @@ fn config(binary: String, work: &std::path::Path) -> SessionConfig {
 async fn signing_in_proves_the_account_and_lists_models() {
     let dir = tempfile::tempdir().unwrap();
     let binary = script(dir.path(), OK);
-    unsafe { std::env::set_var("DRAGGY_AGY_PATH", &binary) };
+    // Only this test reads the variable, so nothing else races on it.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("DRAGGY_AGY_PATH", &binary)
+    };
     let account = AgyAccount::new(dir.path().join("state").to_string_lossy().into_owned());
     assert!(matches!(
         account.sign_in(false).await,
@@ -88,12 +92,7 @@ async fn a_chat_turn_streams_the_cli_text() {
     let binary = script(dir.path(), OK);
     let session = Session::new(config(binary, &dir.path().join("cwd"))).unwrap();
     let outcome = session
-        .send(
-            "hi".to_owned(),
-            Arc::new(Quiet),
-            None,
-            Arc::new(CancelToken::new()),
-        )
+        .send("hi".to_owned(), Arc::new(Quiet), None, CancelToken::new())
         .await
         .unwrap();
     assert_eq!(outcome.content, "hello");
@@ -105,12 +104,7 @@ async fn a_cli_that_skips_permissions_is_refused() {
     let binary = script(dir.path(), UNSAFE);
     let session = Session::new(config(binary, &dir.path().join("cwd"))).unwrap();
     let outcome = session
-        .send(
-            "hi".to_owned(),
-            Arc::new(Quiet),
-            None,
-            Arc::new(CancelToken::new()),
-        )
+        .send("hi".to_owned(), Arc::new(Quiet), None, CancelToken::new())
         .await;
     let shown = match outcome {
         Ok(out) => out.content,
