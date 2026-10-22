@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use draggy_core::McpManager;
 use draggy_linux::secrets::{KeyringStore, SecretStore};
+use draggy_linux::servers::PlainValues;
 use draggy_linux::settings::Settings;
 
 /// The name under which the model server's key is stored.
@@ -13,6 +14,8 @@ pub const SERVER_KEY: &str = "model-server";
 pub struct AppState {
     pub settings: RefCell<Settings>,
     pub secrets: Arc<dyn SecretStore>,
+    /// The non-secret values of MCP server inputs. `None` when there is no home directory.
+    pub plain: Option<PlainValues>,
     mcp: RefCell<Option<Arc<McpManager>>>,
 }
 
@@ -27,6 +30,7 @@ impl AppState {
         Self {
             settings: RefCell::new(Settings::default()),
             secrets: Arc::new(KeyringStore),
+            plain: PlainValues::in_config_dir(),
             mcp: RefCell::new(None),
         }
     }
