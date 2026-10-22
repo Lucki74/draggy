@@ -17,10 +17,11 @@ Works:
 - Markdown in replies: headings, bold, italic, inline code, bullet and numbered lists, quotes, http and https links, and code blocks with a copy button. User messages and tables show as plain text.
 - A paperclip button in the composer adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 - A Servers page lists the MCP catalogue with search and cautions, and starts or stops each server. Running servers feed their tools to chat sessions. CI compiles it, but nobody has run it on a desktop yet.
+- A gear button on each server with inputs opens its settings: one field per environment variable or argument, secrets masked. Secrets go to the keyring and the rest to `~/.config/draggy/servers.json`. Start passes them to the core and names a required input that is empty.
 
 Missing:
 
-- Web calls, and settings for a server (environment variables and arguments). The Servers page starts each catalogue server with defaults.
+- Web calls.
 - Model and engine management.
 - Documents and web panes.
 - A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
