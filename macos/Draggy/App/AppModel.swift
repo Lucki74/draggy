@@ -90,6 +90,10 @@ final class AppModel {
         static let commands = "allowCommands"
         static let permission = "permissionMode"
         static let apiKey = "provider-api-key"
+        static let braveKey = "brave-search-key"
+        static let web = "webEnabled"
+        static let searchProvider = "searchProvider"
+        static let searxng = "searxngURL"
     }
 
     private let defaults: UserDefaults
@@ -143,6 +147,29 @@ final class AppModel {
         }
     }
 
+    /// Lets the model search the web and read pages.
+    var webEnabled: Bool {
+        didSet {
+            defaults.set(webEnabled, forKey: Key.web)
+            session = nil
+        }
+    }
+
+    /// The id of a search engine, or empty for automatic.
+    var searchProvider: String {
+        didSet {
+            defaults.set(searchProvider, forKey: Key.searchProvider)
+            session = nil
+        }
+    }
+
+    var searxngURL: String {
+        didSet {
+            defaults.set(searxngURL, forKey: Key.searxng)
+            session = nil
+        }
+    }
+
     var permission: PermissionChoice {
         didSet {
             defaults.set(permission.rawValue, forKey: Key.permission)
@@ -169,6 +196,9 @@ final class AppModel {
         modelName = defaults.string(forKey: Key.model) ?? ""
         folderPath = defaults.string(forKey: Key.folder) ?? ""
         allowCommands = defaults.bool(forKey: Key.commands)
+        webEnabled = defaults.bool(forKey: Key.web)
+        searchProvider = defaults.string(forKey: Key.searchProvider) ?? ""
+        searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
@@ -190,6 +220,31 @@ final class AppModel {
         } catch {
             errorMessage = String(localized: "The key could not be saved to the Keychain.")
         }
+    }
+
+    func hasBraveKey() -> Bool {
+        ((try? secrets.secret(for: Key.braveKey)) ?? nil) != nil
+    }
+
+    /// An empty key removes the stored one.
+    func saveBraveKey(_ key: String) {
+        do {
+            try secrets.setSecret(key.isEmpty ? nil : key, for: Key.braveKey)
+            session = nil
+        } catch {
+            errorMessage = String(localized: "The key could not be saved to the Keychain.")
+        }
+    }
+
+    /// The web settings for a session, or `nil` while the web is off.
+    private func webConfig() -> WebConfigRecord? {
+        guard webEnabled else { return nil }
+        let brave = (try? secrets.secret(for: Key.braveKey)) ?? nil
+        return WebConfigRecord(
+            provider: searchProvider,
+            searxngUrl: searxngURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            braveApiKey: brave ?? ""
+        )
     }
 
     func newConversation() {
@@ -290,7 +345,8 @@ final class AppModel {
             contextTokens: nil,
             loopLimit: nil,
             allowCommands: allowCommands && folder != nil,
-            permissionMode: permission.record
+            permissionMode: permission.record,
+            web: webConfig()
         )
         let created: Session
         if let manager = mcp.manager {
