@@ -694,6 +694,7 @@ dependencies = [
 name = "draggy-core"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "draggy-agent",
  "draggy-api",
  "draggy-diagnostics",
