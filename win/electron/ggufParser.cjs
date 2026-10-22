@@ -114,7 +114,7 @@ function readScalar(buf, offset, type) {
 }
 
 /** Parses header key-value pairs from a memory buffer without reading tensor data. */
-function parseGgufBuffer(buf) {
+function parseGgufBuffer(buf, withKind = false) {
   if (!buf || buf.length < 24) return null;
   if (buf.readUInt32LE(0) !== GGUF_MAGIC) {
     log.warn("engine.gguf", "not a gguf header", { offset: 0, field: "magic" });
@@ -178,6 +178,10 @@ function parseGgufBuffer(buf) {
   // Which tokenizer the model speaks, so a draft model is only paired with one that shares it.
   const tokenizerModel = typeof meta["tokenizer.ggml.model"] === "string" ? meta["tokenizer.ggml.model"] : null;
   const tokenizerPre = typeof meta["tokenizer.ggml.pre"] === "string" ? meta["tokenizer.ggml.pre"] : null;
+  // A pooling type is written only by models that turn text into one vector, never by chat models.
+  const pooled = meta[arch + ".pooling_type"] !== undefined || /(^|-)bert|embedding/.test(arch);
+  // Vision projectors and speech models share the format but cannot hold a conversation.
+  const chat = !/^(clip|mmproj|sortformer|whisper|parakeet|wav2vec|conformer|fastconformer|bark|snac|dac|encodec|vits)/.test(arch);
   const vocabSize = counts["tokenizer.ggml.tokens"] || Number(meta[`${arch}.vocab_size`]) || null;
 
   return {
@@ -196,12 +200,13 @@ function parseGgufBuffer(buf) {
     tokenizerModel,
     tokenizerPre,
     vocabSize,
+    ...(withKind ? { chat, pooled } : {}),
     version,
   };
 }
 
 /** Reads the initial bytes of a GGUF file from disk and parses its header metadata. */
-function parseGgufHeader(filePath) {
+function parseGgufHeader(filePath, withKind = false) {
   let fd = null;
   let field = "open";
   let position = 0;
@@ -218,7 +223,7 @@ function parseGgufHeader(filePath) {
     position = readBytes;
 
     field = "header walk";
-    return parseGgufBuffer(buf);
+    return parseGgufBuffer(buf, withKind);
   } catch (error) {
     log.debug("engine.gguf", "header read failed", { offset: position, field, code: error?.code ?? null });
     return null;

@@ -42,11 +42,11 @@ const FAMILIES = [
   { id: "flux2-klein-9b", test: /flux[-_. ]?2.*klein.*9b/, main: "diffusion", parts: { llm: "qwen3-8b", vae: "flux2-vae" }, serverArgs: ["--diffusion-fa"], defaults: size(1024, 4, 1), base: size(1024, 20, 4) },
   { id: "flux2-klein-4b", test: /flux[-_. ]?2.*klein/, main: "diffusion", parts: { llm: "qwen3-4b", vae: "flux2-vae" }, serverArgs: ["--diffusion-fa"], defaults: size(1024, 4, 1), base: size(1024, 20, 4) },
   { id: "flux2-dev", test: /flux[-_. ]?2/, main: "diffusion", parts: { llm: "mistral-small-24b", vae: "flux2-vae" }, serverArgs: ["--diffusion-fa"], defaults: size(1024, 28, 4) },
-  { id: "chroma-radiance", test: /chroma.*radiance/, main: "diffusion", parts: { t5xxl: "t5xxl" }, serverArgs: ["--clip-on-cpu"], defaults: size(1024, 26, 4) },
-  { id: "chroma", test: /chroma/, main: "diffusion", parts: { t5xxl: "t5xxl", vae: "flux-vae" }, serverArgs: ["--clip-on-cpu"], defaults: size(1024, 26, 4) },
-  { id: "flux", test: /flux|kontext/, main: "diffusion", parts: { clip_l: "clip-l", t5xxl: "t5xxl", vae: "flux-vae" }, serverArgs: ["--clip-on-cpu"], defaults: size(1024, 20, 1), schnell: size(1024, 4, 1) },
+  { id: "chroma-radiance", test: /chroma.*radiance/, main: "diffusion", parts: { t5xxl: "t5xxl" }, defaults: size(1024, 26, 4) },
+  { id: "chroma", test: /chroma/, main: "diffusion", parts: { t5xxl: "t5xxl", vae: "flux-vae" }, defaults: size(1024, 26, 4) },
+  { id: "flux", test: /flux|kontext/, main: "diffusion", parts: { clip_l: "clip-l", t5xxl: "t5xxl", vae: "flux-vae" }, defaults: size(1024, 20, 1), schnell: size(1024, 4, 1) },
   // A checkpoint with its encoders built in loads alone, like any Stable Diffusion file.
-  { id: "sd3", test: /(^|[^a-z0-9])sd[-_ ]?3|stable[-_ ]?diffusion[-_ ]?3/, unless: /incl[-_]?clips/, main: "model", parts: { clip_l: "clip-l", clip_g: "clip-g", t5xxl: "t5xxl" }, serverArgs: ["--clip-on-cpu"], defaults: size(1024, 28, 4.5) },
+  { id: "sd3", test: /(^|[^a-z0-9])sd[-_ ]?3|stable[-_ ]?diffusion[-_ ]?3/, unless: /incl[-_]?clips/, main: "model", parts: { clip_l: "clip-l", clip_g: "clip-g", t5xxl: "t5xxl" }, defaults: size(1024, 28, 4.5) },
 ];
 
 const SDXL = /sdxl|[-_ ]xl[-_ .]|xl[-_]?base|pony|illustrious|noob|animagine|juggernaut/;

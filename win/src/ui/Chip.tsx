@@ -1,4 +1,5 @@
 import React from "react";
+import { uiText } from "../i18n";
 import { Icon } from "./icons/Icon";
 
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -59,7 +60,7 @@ export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(function Chip
                 <span
                     role="button"
                     tabIndex={0}
-                    aria-label="Remove"
+                    aria-label={uiText("remove")}
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete(e);

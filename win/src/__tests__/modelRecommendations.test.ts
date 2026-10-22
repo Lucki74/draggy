@@ -4,10 +4,13 @@ import {
   getRecommendedDownload,
   getRecommendedModel,
   ggufLadder,
+  CPU_ONLY_DENSE_CAP_GB,
   ladderFor,
   mlxLadder,
   modelRecommendations,
+  rungFits,
   supportsMlx,
+  USABLE_UNIFIED_RAM_FRACTION,
 } from "../modelRecommendations";
 
 const MAC = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3" };
@@ -17,13 +20,13 @@ const ladders = [
   { name: "mlx", ladder: mlxLadder, target: MAC },
 ];
 
+const labelOf = (model: string) => ggufLadder.find((entry) => entry.model === model)?.label;
+const indexOf = (model: string) => ggufLadder.findIndex((entry) => entry.model === model);
+
 describe.each(ladders)("sizing the first-launch model ($name)", ({ ladder, target }) => {
-  const climbing = [...ladder].sort((a, b) => a.vram - b.vram);
-  const smallest = climbing[0];
+  const smallest = ladder[0];
 
   it("gives a machine with no usable graphics memory the smallest model", () => {
-    // The fallback used to name a 0.6B model, twice the size of the 360M at
-    // the bottom, handed to the machine least able to run it.
     expect(getRecommendedModel(0, target)).toBe(smallest.model);
   });
 
@@ -36,39 +39,27 @@ describe.each(ladders)("sizing the first-launch model ($name)", ({ ladder, targe
     expect(getRecommendedModel(-1, target)).toBe(smallest.model);
   });
 
-  it("takes the highest rung the card can afford", () => {
-    for (const entry of climbing) {
-      expect(getRecommendedModel(entry.vram, target), `${entry.vram} GB`).toBe(
-        entry.model,
-      );
-    }
-  });
-
-  it("never recommends a rung the card cannot afford", () => {
+  it("never recommends a rung the machine cannot run", () => {
     for (let vram = 0; vram <= 128; vram += 0.25) {
-      const chosen = getRecommendedModel(vram, target);
-      const rung = climbing.find((entry) => entry.model === chosen);
-      if (chosen === smallest.model) continue;
-      expect(rung, chosen).toBeDefined();
-      expect(rung!.vram, `${vram} GB chose ${chosen}`).toBeLessThanOrEqual(vram);
+      const chosen = ladder.find((entry) => entry.model === getRecommendedModel(vram, target))!;
+      if (chosen === smallest) continue;
+      expect(rungFits(chosen, vram, target), `${vram} GB chose ${chosen.label}`).toBe(true);
     }
   });
 
-  it("only ever climbs as the card gets bigger", () => {
+  it("only ever climbs as the memory grows", () => {
     let previous = -1;
-    for (let vram = 0; vram <= 128; vram += 0.25) {
-      const rung = climbing.findIndex(
-        (entry) => entry.model === getRecommendedModel(vram, target),
-      );
-      expect(rung).toBeGreaterThanOrEqual(previous);
+    for (let vram = 0; vram <= 600; vram += 0.25) {
+      const rung = indexOf(getRecommendedModel(vram, target));
+      expect(rung, `${vram} GB`).toBeGreaterThanOrEqual(previous);
       previous = rung;
     }
   });
 
-  it("never asks a bigger card for a smaller model", () => {
-    // A rung that steps down in size is a ladder somebody has edited wrongly.
-    for (let index = 1; index < climbing.length; index++) {
-      expect(climbing[index].vram).toBeGreaterThan(climbing[index - 1].vram);
+  it("never picks a rung that waits on upstream llama.cpp", () => {
+    for (let vram = 0; vram <= 1024; vram += 8) {
+      const chosen = ladder[indexOf(getRecommendedModel(vram, { ...target, ram: vram }))];
+      expect(chosen.pending, chosen.label).toBe(false);
     }
   });
 });
@@ -104,30 +95,52 @@ describe("choosing between the two ladders", () => {
 });
 
 describe("RAM alongside VRAM, on a PC", () => {
-  const gguf = [...ggufLadder].sort((a, b) => a.vram - b.vram);
+  it("reads the card alone when no RAM is reported", () => {
+    expect(labelOf(getRecommendedModel(7.5, {}))).toBe("Qwen 3.5 9B");
+  });
 
-  it("still ignores RAM when none is reported", () => {
-    // Every test above calls with no `ram` at all; this just names that on purpose.
-    expect(getRecommendedModel(gguf[3].vram, {})).toBe(gguf[3].model);
+  it("gives an 8 GB card with 32 GB of RAM a 35B MoE rather than a dense 9B", () => {
+    // The experts sit in RAM and only the active part and context need the card.
+    expect(labelOf(getRecommendedModel(8, { ram: 32 }))).toMatch(/^Qwen 3\.6 35B/);
+  });
+
+  it("matches the setups the ladder was written for", () => {
+    const setups: [number, number, string][] = [
+      [4, 16, "GPT-OSS 20B"],
+      [8, 16, "Gemma 4 26B"],
+      [12, 32, "Qwen 3.6 35B Q6"],
+      [16, 32, "Qwen 3.8 27B Q3"],
+      [12, 64, "Qwen 3.5 122B Q3"],
+      [24, 64, "Qwen 3.8 27B Q5"],
+      [24, 96, "Qwen 3.8 Flash-Next Q3"],
+      [24, 192, "DeepSeek V4 Flash"],
+      [32, 256, "GLM-5.3-Flash"],
+    ];
+    for (const [vram, ram, label] of setups) {
+      expect(labelOf(getRecommendedModel(vram, { ram })), `${vram} GB card, ${ram} GB RAM`).toBe(label);
+    }
+  });
+
+  it("keeps a big MoE off a card too small for its active part", () => {
+    // 256 GB of RAM holds a 122B, but a 4 GB card cannot carry its 10B active weights and context.
+    expect(labelOf(getRecommendedModel(4, { ram: 256 }))).toBe("Qwen 3.6 35B Q8");
   });
 
   it("caps a big card at what little RAM can actually hold", () => {
-    // The engine has to read the whole model into RAM before the GPU touches it, so a
-    // 24 GB card in an 8 GB machine cannot really run what the card alone suggests.
     const uncapped = getRecommendedModel(24, {});
     const capped = getRecommendedModel(24, { ram: 8 });
-    const climbing = [...gguf];
-
-    expect(capped).not.toBe(uncapped);
-    expect(climbing.findIndex((entry) => entry.model === capped)).toBeLessThan(
-      climbing.findIndex((entry) => entry.model === uncapped),
-    );
+    expect(indexOf(capped)).toBeLessThan(indexOf(uncapped));
   });
 
   it("does not strand integrated graphics on the smallest model when RAM is generous", () => {
-    // No dedicated GPU used to mean the 0.8B floor no matter what, even next to 32 GB of RAM.
-    const chosen = getRecommendedModel(0, { ram: 32 });
-    expect(chosen).not.toBe(gguf[0].model);
+    expect(labelOf(getRecommendedModel(0, { ram: 32 }))).toBe("Qwen 3.6 35B");
+  });
+
+  it("keeps dense models small on the CPU", () => {
+    for (let ram = 1; ram <= 64; ram += 1) {
+      const chosen = ggufLadder[indexOf(getRecommendedModel(0, { ram }))];
+      if (chosen.kind === "dense") expect(chosen.vram, `${ram} GB`).toBeLessThanOrEqual(CPU_ONLY_DENSE_CAP_GB);
+    }
   });
 
   it("never lets a RAM floor exceed a RAM ceiling", () => {
@@ -153,18 +166,17 @@ describe("chip class on Apple Silicon", () => {
 
   it("reads unified memory itself rather than the pre-reduced VRAM copy", () => {
     const base = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3" };
-    const raw16 = mlxLadder.find((entry) => entry.vram === 16)!;
+    const pool = 16 * USABLE_UNIFIED_RAM_FRACTION;
+    const best = mlxLadder.findLast((entry) => !entry.pending && entry.memory <= pool)!;
 
     // The old, already-reduced number would have missed this rung entirely.
-    expect(getRecommendedModel(5, { ...base, ram: 16, cpuModel: "Apple M1" })).toBe(
-      raw16.model,
-    );
+    expect(getRecommendedModel(5, { ...base, ram: 16, cpuModel: "Apple M1" })).toBe(best.model);
   });
 
   it("takes a wide-bandwidth Max or Ultra chip one rung above a base or Pro one", () => {
     const base = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3", ram: 32 };
-    const climbing = [...mlxLadder].sort((a, b) => a.vram - b.vram);
-    const atThirtyTwo = climbing.findIndex((entry) => entry.vram === 32);
+    const climbing = mlxLadder;
+    const atThirtyTwo = climbing.findLastIndex((entry) => entry.memory <= 32 * USABLE_UNIFIED_RAM_FRACTION);
 
     expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2" })).toBe(
       climbing[atThirtyTwo].model,
@@ -180,8 +192,15 @@ describe("chip class on Apple Silicon", () => {
     );
   });
 
+  it("skips the bump when the rung above needs more than all the memory", () => {
+    const mac = { platform: "darwin", arch: "arm64", ram: 24 };
+    expect(getRecommendedModel(0, { ...mac, cpuModel: "Apple M2 Max" })).toBe(
+      getRecommendedModel(0, { ...mac, cpuModel: "Apple M2" }),
+    );
+  });
+
   it("never bumps past the top of the ladder", () => {
-    const top = [...mlxLadder].sort((a, b) => a.vram - b.vram).at(-1)!;
+    const top = mlxLadder.findLast((entry) => !entry.pending)!;
     const chosen = getRecommendedModel(0, {
       platform: "darwin",
       arch: "arm64",
@@ -223,7 +242,7 @@ describe("recommended download for automatic setup", () => {
       const download = getRecommendedDownload(vram);
       expect(download.model).toBeTruthy();
       expect(download.label).toBeTruthy();
-      expect(download.reference).toMatch(/^[\w.-]+\/[\w.-]+:\w+$/);
+      expect(download.reference).toMatch(/^[\w.-]+\/[\w.-]+:[\w-]+$/);
       expect(download.size).toBeGreaterThan(100_000_000);
     }
   });
@@ -246,14 +265,19 @@ describe("recommended download for automatic setup", () => {
   });
 
   it("never offers weights bigger than the memory the rung is for", () => {
-    for (const entry of ggufLadder) expect(entry.sizeGB, entry.label).toBeLessThanOrEqual(entry.vram);
+    for (const entry of ggufLadder) {
+      expect(entry.sizeGB, entry.label).toBeLessThanOrEqual(entry.memory);
+      if (entry.kind === "dense") expect(entry.sizeGB, entry.label).toBeLessThanOrEqual(entry.vram);
+    }
   });
 
-  it("climbs in size with the memory", () => {
-    const climbing = [...ggufLadder].sort((a, b) => a.vram - b.vram);
-    for (let index = 1; index < climbing.length; index++) {
-      expect(climbing[index].sizeGB, climbing[index].label).toBeGreaterThan(climbing[index - 1].sizeGB);
+  it("climbs in size through each model's quantisations", () => {
+    // Quality order puts a bigger quant of the same weights above a smaller one.
+    const repos = new Map<string, number>();
+    for (const entry of ggufLadder) {
+      const repo = entry.model.split(":")[0];
+      expect(entry.sizeGB, entry.label).toBeGreaterThan(repos.get(repo) ?? 0);
+      repos.set(repo, entry.sizeGB);
     }
   });
 });
-

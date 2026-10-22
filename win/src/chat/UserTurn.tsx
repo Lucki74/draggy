@@ -4,6 +4,7 @@ import { normalizeMath, sanitizeContent } from "../utils";
 import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import { copyAsMarkdown } from "./copyMarkdown";
 import { Button, Icon, IconButton, Lightbox } from "../ui";
+import { looksLikeImage } from "./attachments";
 import type { Attachment, Message } from "../types";
 
 export interface UserTurnProps {
@@ -37,7 +38,7 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-end">
           {attachments.map((file, fIdx) =>
-            file.type.startsWith("image/") ? (
+            file.type.startsWith("image/") || (looksLikeImage({ ...file, size: 0 }) && file.content.startsWith("data:image")) ? (
               <button
                 key={fIdx}
                 type="button"

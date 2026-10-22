@@ -10,28 +10,18 @@ afterEach(cleanup);
 const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Add context" }));
 
 describe("the + menu", () => {
-  it("offers files, a folder, skills for this surface, extensions and web access", () => {
+  it("offers files, a folder, extensions and web access but no skills", () => {
     render(<ComposerPreview />);
     openMenu();
 
-    for (const name of ["Add files", "Add folder", "Code review", "PDF", "Extensions"]) {
+    for (const name of ["Add files", "Add folder", "Extensions"]) {
       expect(screen.getByRole("menuitem", { name })).toBeTruthy();
     }
-    for (const name of ["Auto", "On", "Off"]) {
+    // Skills are reached with / in the message, not from this menu.
+    for (const name of ["Code review", "PDF"]) expect(screen.queryByText(name)).toBeNull();
+    for (const name of ["On", "Off"]) {
       expect(screen.getByRole("menuitemradio", { name })).toBeTruthy();
     }
-    // The preview is Code mode, so a chat-only skill stays out.
-    expect(screen.queryByText("Essay outline")).toBeNull();
-  });
-
-  it("drafts the skill's command when one is picked", () => {
-    const runSlashCommand = vi.fn();
-    render(<ComposerPreview runSlashCommand={runSlashCommand} />);
-    openMenu();
-
-    fireEvent.click(screen.getByText("Code review"));
-
-    expect(runSlashCommand).toHaveBeenCalledWith("review");
   });
 
   it("sends a folder and extensions to their settings pages", () => {
@@ -45,10 +35,4 @@ describe("the + menu", () => {
     expect(onOpenSettings.mock.calls).toEqual([["library"], ["extensions"]]);
   });
 
-  it("leaves the skills heading out when there are none", () => {
-    render(<ComposerPreview skills={[]} />);
-    openMenu();
-
-    expect(screen.queryByText("Skills")).toBeNull();
-  });
 });

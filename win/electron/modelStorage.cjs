@@ -66,7 +66,7 @@ function listGgufModels(modelsDir) {
     const fullPath = path.join(modelsDir, file);
     try {
       const stat = fs.statSync(fullPath);
-      const header = ggufParser.parseGgufHeader(fullPath);
+      const header = ggufParser.parseGgufHeader(fullPath, true);
       const size = shard
         ? shardNames(file).reduce((sum, name) => sum + (present.has(name) ? fs.statSync(path.join(modelsDir, name)).size : 0), 0)
         : stat.size;
@@ -79,10 +79,14 @@ function listGgufModels(modelsDir) {
         contextLength: header?.contextLength || null,
         blockCount: header?.blockCount || null,
         fileType: header?.fileType || null,
-        // The template cannot say whether images can be read; a projector beside the model can.
-        capabilities: mmproj.findCompanion(modelsDir, file)
-          ? [...capabilitiesOf(fullPath, stat), "vision"]
-          : capabilitiesOf(fullPath, stat),
+        // Embedding and speech models cannot chat; for the rest a projector beside the model adds vision.
+        capabilities: header?.pooled
+          ? ["embedding"]
+          : header && !header.chat
+            ? ["audio"]
+            : mmproj.findCompanion(modelsDir, file)
+              ? [...capabilitiesOf(fullPath, stat), "vision"]
+              : capabilitiesOf(fullPath, stat),
       });
       log.debug("engine.models", "model found", { file, arch: header?.architecture || "unknown", bytes: stat.size });
     } catch (error) {

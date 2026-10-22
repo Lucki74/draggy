@@ -2,6 +2,7 @@ import { Group, Row, Segmented, Select } from "../../settings/Controls";
 import { languages } from "../../translations";
 import { THEME_PALETTES, type Palette } from "../palettes";
 import type { AppSettings, Language } from "../../types";
+import { AccentPicker } from "../../settings/AccentPicker";
 import StepHeader from "./StepHeader";
 
 type Theme = AppSettings["theme"];
@@ -44,17 +45,21 @@ function SystemMiniature() {
 
 export default function Appearance({
   theme,
+  accent,
   fontSize,
   language,
   onTheme,
+  onAccent,
   onFontSize,
   onLanguage,
   t,
 }: {
   theme: Theme;
+  accent: string;
   fontSize: AppSettings["fontSize"];
   language: Language;
   onTheme: (theme: Theme) => void;
+  onAccent: (accent: string) => void;
   onFontSize: (fontSize: AppSettings["fontSize"]) => void;
   onLanguage: (language: Language) => void;
   t: (key: string) => string;
@@ -99,6 +104,9 @@ export default function Appearance({
       </div>
 
       <Group>
+        <Row label={t("accentColor")}>
+          <AccentPicker value={accent} onChange={onAccent} t={t} />
+        </Row>
         <Row label={t("language")}>
           <Select
             label={t("language")}

@@ -67,9 +67,10 @@ const { createTtsHandlers } = require("./tts/ipc.cjs");
 const { createConsent } = require("./tts/consent.cjs");
 const { createCodexAdapter } = require("./providers/adapters/codex.cjs");
 const { createClaudeAdapter } = require("./providers/adapters/claude.cjs");
-const { createGeminiCliAdapter } = require("./providers/adapters/geminiCli.cjs");
+const { createAgyAdapter } = require("./providers/adapters/agy.cjs");
 const { createSearchKey } = require("./searchKey.cjs");
 const urlPolicy = require("./urlPolicy.cjs");
+const { classifyPageFailure } = require("./pageFailure.cjs");
 const browserControl = require("./browserControl.cjs");
 const browserSnapshot = require("./browserSnapshot.cjs");
 const browserInput = require("./browserInput.cjs");
@@ -597,7 +598,6 @@ const paneDriver = browserControl.createDriver({
     if (mainWindow && !mainWindow.isDestroyed()) sendTo(mainWindow, "browser-pane-open");
   },
   onStatus: (status) => {
-    if (!status.active) void hideAgentOverlay();
     if (mainWindow && !mainWindow.isDestroyed()) sendTo(mainWindow, "browser-agent-state", status);
   },
 });
@@ -619,9 +619,9 @@ function preparePaneView(view) {
       enabled: () => paneDriver.active(),
     }),
   );
-  // A new page has lost the overlay, so it is painted again while the agent is still on it.
+  // A new page has lost the overlay, so it is painted again while the frame is held.
   view.webContents.on("dom-ready", () => {
-    if (paneDriver.active()) void showAgentOverlay(view.webContents);
+    if (overlayHeld) void showAgentOverlay(view.webContents, lastOverlayPoint ? { ...lastOverlayPoint, rest: true } : undefined);
   });
   // A link asking for a new window replaces the page for the user, so no windows stack up. While the
   // agent drives it opens a tab instead, which the agent can see and switch to.
@@ -794,6 +794,8 @@ let bootModel = null;
 /** The saved theme, kept so native pieces and new windows follow it. Read from the database before
  * any window exists, because localStorage cannot be read from here. */
 let themeSetting = "system";
+/** The saved accent, which colours the frame the agent puts round the Browser pane. */
+let overlayColor = themes.ACCENT_COLORS.vermilion;
 
 function syncTitleBarTheme() {
   const bg = windowBackground();
@@ -809,6 +811,7 @@ function syncTitleBarTheme() {
 }
 
 function applyThemeSetting(rawSettings) {
+  overlayColor = themes.accentColor(rawSettings);
   const setting = themes.themeSetting(rawSettings);
   if (setting === themeSetting && nativeTheme.themeSource === setting) return;
   themeSetting = setting;
@@ -825,7 +828,7 @@ let onboardingPlan = "done";
 let providers = null;
 let codexAccounts = null;
 let claudeAccounts = null;
-let geminiAccounts = null;
+let agyAccounts = null;
 let searchKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
@@ -1089,6 +1092,7 @@ function broadcast(channel, payload) {
 
 app.whenReady().then(() => {
   if (!ownsInstance) return;
+  llamaProcess.onEngineStage((stage) => broadcast("gguf:stage", stage));
   startup.mark("ready");
   const adopted = adoptLegacyDataFolder();
 
@@ -1164,12 +1168,25 @@ app.whenReady().then(() => {
     version: app.getVersion(),
     log: (line) => log.debug("claude", line),
   });
-  geminiAccounts = createGeminiCliAdapter({
+  agyAccounts = createAgyAdapter({
     appData: app.getPath("userData"),
-    version: app.getVersion(),
-    log: (line) => log.debug("gemini", line),
+    log: (line) => log.debug("agy", line),
+    // Google's FAQ calls third-party use a terms breach, so nothing runs until this is accepted.
+    confirm: async () => {
+      const { response } = await dialog.showMessageBox(mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined, {
+        type: "warning",
+        buttons: ["Use Antigravity CLI", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+        title: "Antigravity CLI",
+        message: "Use your Google account through the Antigravity CLI?",
+        detail:
+          "Google says headless mode is for direct scripting and CI, and that third-party software reaching Antigravity breaks its terms and can get the account suspended. A Gemini API key under Providers avoids this risk.",
+      });
+      return response === 0;
+    },
   });
-  const accounts = { codex: codexAccounts, claude: claudeAccounts, "gemini-cli": geminiAccounts };
+  const accounts = { codex: codexAccounts, claude: claudeAccounts, agy: agyAccounts };
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
@@ -1315,7 +1332,7 @@ app.on("before-quit", (event) => {
   const timed = (label, work) => Promise.resolve(work).finally(() => quit.mark(label));
 
   // The window writes its pending saves before storage closes under them.
-  Promise.allSettled([timed("window-flush", flushWindow(mainWindow, ipc)), timed("codex", codexAccounts?.stopAll()), timed("claude", claudeAccounts?.stopAll()), timed("gemini", geminiAccounts?.stopAll())]).then(() => {
+  Promise.allSettled([timed("window-flush", flushWindow(mainWindow, ipc)), timed("codex", codexAccounts?.stopAll()), timed("claude", claudeAccounts?.stopAll()), timed("agy", agyAccounts?.stopAll())]).then(() => {
     shutdown();
     quit.mark("shutdown");
     quit.finish();
@@ -1815,25 +1832,36 @@ ipc.handle("get-page-content", async (event, url) => {
     return JSON.parse(result);
   } catch (e) {
     win.destroy();
-    log.fail("files", "page content read failed", e);
-    throw e;
+    const failure = classifyPageFailure(e);
+    log.warn("read-url", `page read failed: ${failure.code}`);
+    return { title: "", text: "", blocked: "unreachable", reason: failure.reason, url };
   }
 });
 
 const AGENT_WORLD = 1000;
 
+/** The frame stays on between steps and until the run ends, with the cursor resting where it last was. */
+let overlayHeld = false;
+let lastOverlayPoint = null;
+
 /** Paints the "agent is controlling this page" border, and moves the cursor when given a point.
  * Runs in an isolated world, so the page cannot see or reach it. */
 async function showAgentOverlay(contents, point) {
   if (contents.isDestroyed()) return;
+  overlayHeld = true;
+  if (Number.isFinite(point?.x) && Number.isFinite(point?.y)) lastOverlayPoint = { x: point.x, y: point.y };
   try {
-    await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [{ code: browserControl.overlayScript(point) }]);
+    await contents.executeJavaScriptInIsolatedWorld(AGENT_WORLD, [
+      { code: browserControl.overlayScript({ ...point, color: overlayColor }) },
+    ]);
   } catch (e) {
     log.swallow("window.browser.control", "agent overlay failed", e);
   }
 }
 
 async function hideAgentOverlay() {
+  overlayHeld = false;
+  lastOverlayPoint = null;
   const contents = browserPane?.view?.webContents;
   if (!contents || contents.isDestroyed()) return;
   try {
@@ -2271,6 +2299,7 @@ ipc.handle("browser-click", async (event, target, options) => {
     await showAgentOverlay(contents, point);
     await sleep(400);
     if (step.stopped()) return browserControl.failure("user_took_over");
+    void showAgentOverlay(contents, { ...point, click: true });
     if (ref || byPoint) await input.clickAt(point.x, point.y, opts, step.stopped);
     else await browserControl.clickAt(contents, point.x, point.y, sleep, step.stopped);
     return {};
@@ -2424,6 +2453,14 @@ ipc.handle("browser-close", async () => {
 ipc.handle("browser-agent:stop", (event) => {
   if (!fromMainWindow(event)) return { success: false };
   paneDriver.takeOver();
+  void hideAgentOverlay();
+  return { success: true };
+});
+
+// The run that was driving the pane is over, so the frame comes off.
+ipc.handle("browser-agent:release", (event) => {
+  if (!fromMainWindow(event)) return { success: false };
+  void hideAgentOverlay();
   return { success: true };
 });
 
@@ -2586,11 +2623,11 @@ ipc.handle("search-models", async (event, query) => {
 });
 
 ipc.handle("model-size", async (event, name, tag) => {
-  return huggingface.fetchModelSize(name, tag);
+  return huggingface.fetchModelSize(name, tag, { live: true });
 });
 
 ipc.handle("resolve-model-url", async (_event, reference, options) => {
-  return huggingface.resolveModelDownload(reference, options);
+  return huggingface.resolveModelDownload(reference, { ...options, live: true });
 });
 
 const createdFilesDir = () => path.join(app.getPath("userData"), "created_files");
@@ -2742,9 +2779,12 @@ ipc.handle("read-created-file", async (event, filepath) => {
     const buffer = fs.readFileSync(resolved);
     const text = buffer.subarray(0, PREVIEW_LIMIT).toString("utf8");
 
+    // A Word file is drawn from its bytes, so the renderer gets them whole when they are not huge.
+    const wordBytes = path.extname(resolved).toLowerCase() === ".docx" && stats.size <= 20 * 1024 * 1024;
     return {
       success: true,
       text,
+      ...(wordBytes ? { data: buffer.toString("base64") } : {}),
       truncated: stats.size > PREVIEW_LIMIT,
       // A NUL byte in the first kilobyte means this is not text to show.
       binary: buffer.subarray(0, 1024).includes(0),

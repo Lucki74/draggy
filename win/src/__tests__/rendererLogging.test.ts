@@ -20,6 +20,7 @@ const FETCH_ALLOWED = new Map([
   ["chat/ImageCard.tsx", "reads an in-memory blob or data URL; loggedFetch would put the payload in the log line"],
   ["voice/supertonicWorker.ts", "worker: no access to the renderer logger"],
   ["voice/vadWorker.ts", "worker: no access to the renderer logger"],
+  ["speechWorker.ts", "worker: no access to the renderer logger"],
 ]);
 
 function codeLines(file: string): Array<{ no: number; text: string }> {

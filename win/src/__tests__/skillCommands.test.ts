@@ -34,6 +34,16 @@ const shelf: InstalledSkill[] = [
     enabled: true,
   },
   {
+    id: "pdf",
+    name: "pdf",
+    description: "Reads PDF files.",
+    path: "C:\\library\\pdf",
+    source: "library",
+    category: "documents",
+    surface: "chat",
+    enabled: true,
+  },
+  {
     id: "dockerfile",
     name: "dockerfile",
     description: "Containerises applications.",
@@ -100,6 +110,15 @@ describe("a skill's slash command", () => {
     expect(lastUser(turn)).toContain("/docx a packing list for a hike");
     expect(lastUser(turn)).toContain("The request that came with it: a packing list for a hike");
     expect(turn.invokedSkill).toEqual({ id: "docx", name: "docx" });
+  });
+
+  it("loads every skill named anywhere in the message, in the order typed", async () => {
+    const turn = await prepareTurn(input("read the file with /pdf then write it up with /docx. See https://x.io/docx and /dev/null"));
+
+    expect(read.mock.calls.map((call) => call[1])).toEqual(["pdf", "docx"]);
+    expect(turn.invokedSkills.map((one) => one.id)).toEqual(["pdf", "docx"]);
+    expect(lastUser(turn)).toContain("/pdf (pdf), /docx (docx)");
+    expect(lastUser(turn)).toContain("The rest of the message: read the file with then write it up with. See https://x.io/docx and /dev/null");
   });
 
   it("does nothing for a message that only mentions a skill", async () => {
@@ -186,7 +205,7 @@ describe("a skill that has been loaded", () => {
       { id: "docx", name: "docx", chars: expect.any(Number) },
     ]);
     expect(turn.promptParts.loadedSkillChars).toBeGreaterThan(turn.promptParts.loadedSkills![0].chars);
-    expect(turn.promptParts.skillCount).toBe(1);
+    expect(turn.promptParts.skillCount).toBe(2);
     expect(turn.promptParts.toolCount).toBeGreaterThanOrEqual(0);
     expect(turn.promptParts.systemChars).toBeLessThan(turn.wire[0].content.length - turn.promptParts.loadedSkillChars!);
   });

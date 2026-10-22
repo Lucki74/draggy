@@ -15,6 +15,7 @@ export interface MessageItemProps {
   isGenerating: boolean;
   isLast: boolean;
   onRegenerate: (index: number) => void;
+  onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   copiedIndex: number | null;
   copyToClipboard: (text: string, idx: number) => void;
@@ -33,6 +34,7 @@ const MessageItem = memo(
     isGenerating,
     isLast,
     onRegenerate,
+    onResume,
     onSwitchVersion,
     copiedIndex,
     copyToClipboard,
@@ -90,6 +92,7 @@ const MessageItem = memo(
               isGenerating={isGenerating}
               isLast={isLast}
               onRegenerate={onRegenerate}
+              onResume={onResume}
               onSwitchVersion={onSwitchVersion}
               copiedIndex={copiedIndex}
               copyToClipboard={copyToClipboard}

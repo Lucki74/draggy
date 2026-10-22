@@ -15,7 +15,7 @@ import {
 import type { ToolContext, ToolEnvironment, ToolSpec } from "../tools/registry";
 
 const ALL_ON: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: true,
   libraryReady: true,
 };

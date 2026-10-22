@@ -12,6 +12,7 @@ export interface TranscriptProps {
   copiedIndex: number | null;
   settings: AppSettings;
   onRegenerate: (index: number) => void;
+  onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   onEditMessage: (messageIndex: number, newContent: string) => void;
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
@@ -26,6 +27,7 @@ export function Transcript({
   copiedIndex,
   settings,
   onRegenerate,
+  onResume,
   onSwitchVersion,
   onEditMessage,
   onApproval,
@@ -224,6 +226,7 @@ export function Transcript({
                 isGenerating={chat.isGenerating}
                 isLast={idx === chat.messages.length - 1}
                 onRegenerate={onRegenerate}
+                onResume={onResume}
                 onSwitchVersion={onSwitchVersion}
                 copiedIndex={copiedIndex}
                 copyToClipboard={copyToClipboard}

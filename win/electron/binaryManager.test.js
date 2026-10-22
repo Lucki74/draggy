@@ -48,6 +48,24 @@ describe("binaryManager", () => {
     }
   });
 
+  it("logs the user-data binary once, and below INFO, however often it is resolved", async () => {
+    const logger = require("./logger.cjs");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-bin-log-"));
+    const files = logger.init({ getPath: () => tmpDir, getName: () => "Draggy", getVersion: () => "0" });
+    const binName = platform.IS_WINDOWS ? "llama-server.exe" : "llama-server";
+    const targetDir = path.join(tmpDir, "bin", "llama");
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.writeFileSync(path.join(targetDir, binName), "dummy-binary");
+    try {
+      for (let i = 0; i < 5; i++) binaryManager.findLlamaBinary(tmpDir);
+      await logger.flush();
+      expect(fs.readFileSync(files.appFile, "utf8").toLowerCase()).not.toContain("llama-server in user data");
+    } finally {
+      await logger.closeStreams();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("returns null when binary cannot be found", () => {
     const emptyDir = path.join(os.tmpdir(), `draggy-empty-${Date.now()}`);
     const origLocal = process.env.LOCALAPPDATA;

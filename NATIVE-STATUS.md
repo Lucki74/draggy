@@ -2,6 +2,8 @@
 
 The Windows app is the Electron app in `win/`. The Linux and macOS apps are native and separate. All three share the Rust core in `core/` and the fixtures in `shared/fixtures/`.
 
+Build 5 removed the Gemini CLI account route from the Windows app, because Google stopped serving it to personal Pro, Ultra and free accounts on 18 June 2026. The Rust core (`core/crates/providers/src/gemini/`, the `gemini-cli` catalog protocol) and the shared `providers-cli-gemini-*` fixtures still carry it, so the Linux and macOS apps would still offer a route that returns 403. They need the same change, and the Windows fixture runner skips those files until then.
+
 ## Linux (`linux/`)
 
 Works:

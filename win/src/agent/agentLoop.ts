@@ -3,8 +3,10 @@ import {
   beginLlamaWork,
   contextSizeFor,
   getModelInfo,
+  nextContextSize,
   gpuShareFor,
   hasCapability,
+  isExtendingContext,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -25,10 +27,10 @@ import {
   describeSkills,
   loadSkills,
   loadedSkillIds,
-  renderInvokedSkill,
+  renderInvokedSkills,
   renderLoadedSkills,
   renderSkill,
-  skillInvocation,
+  skillInvocations,
 } from "../skills/skills";
 import type { LoadedSkill } from "../types";
 import { renderMemory } from "../project/memory";
@@ -50,13 +52,14 @@ import {
   stripToolSyntax,
 } from "../toolParsing";
 
-import { buildResumeMessage, joinContinuation } from "./resume";
+import { WORK_RECAP_HEADING, buildResumeMessage, describeCompletedWork, joinContinuation, stripWorkRecap } from "./resume";
 import { detectRepetition } from "./repetition";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
 import { failureOf, readFailure, sseToLlamaChunks, toLlamaMessages } from "../ai/llamaStream";
 import type { GatewayError, GatewayRetry } from "../ai/llamaStream";
+import { TransientError, isTransientStatus, openStream, withRetries } from "./retry";
 import {
   annotationsFor,
   availableTools,
@@ -102,6 +105,8 @@ import type {
   Message,
   PermissionMode,
   SearchStep,
+  UserQuestion,
+  UserReply,
 } from "../types";
 
 // Re-exported for the screens that warm the model with the same value.
@@ -154,6 +159,12 @@ export function resetTailNotesForTests() {
   userTailNotes.clear();
 }
 
+/** Characters of earlier tool work kept per reply; the same text each turn keeps the cache prefix. */
+const HISTORY_WORK_BUDGET = 800;
+
+/** Steps that hold a result worth remembering; a bare "searching" label says nothing. */
+const HISTORY_WORK_STEPS = new Set<string>(["run_code", "create_file", "image", "results", "library", "reading", "loaded", "scanned"]);
+
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
  * Laguna wrote none at all; kept, it wrote 400 characters. */
 export function toWireMessage(
@@ -194,6 +205,18 @@ export function toWireMessage(
     } else {
       content += `\n\n[Attached Binary File: ${attachment.name}]`;
     }
+  }
+
+  // Tool results live only in the steps, so without this a later turn cannot see what a script printed or a search found.
+  if (message.role === "assistant") {
+    const work = describeCompletedWork(
+      (message.steps ?? []).filter((step) => HISTORY_WORK_STEPS.has(step.type)),
+      HISTORY_WORK_BUDGET,
+    );
+    if (work) content += `
+
+${WORK_RECAP_HEADING}
+${work}`;
   }
 
   const thinking =
@@ -269,15 +292,25 @@ export interface AgentPatch {
   steps: SearchStep[];
 }
 
+/** The numbers behind a reply cut by the context limit, shown to the user and used to size the retry. */
+export interface OutOfContextInfo {
+  loaded: number;
+  modelMax: number | null;
+  used: number;
+  canGrow: boolean;
+}
+
 export interface AgentHost {
   t: (key: string) => string;
   onPatch: (patch: AgentPatch) => void;
   onSteps: (steps: SearchStep[]) => void;
-  onOutOfContext: (outOfContext: boolean) => void;
+  onOutOfContext: (outOfContext: boolean, info?: OutOfContextInfo) => void;
   onMetrics?: (metrics: GenerationMetrics | null) => void;
   /** Puts a call to the user and waits. Without it a turn that needs an answer has no one to ask,
    * and the call is refused rather than run unasked. */
   requestApproval?: (request: ApprovalRequest) => Promise<ApprovalAnswer>;
+  /** The same for a question the model asks; null when the user dismisses it. */
+  requestAnswer?: (question: UserQuestion) => Promise<UserReply | null>;
   /** A permission the user wants kept for this workspace, not just this task. */
   onGrant?: (grant: Grant) => void;
   /** Where a plan the model writes goes, and where the live one comes from. */
@@ -335,6 +368,8 @@ export interface PreparedTurn {
   wire: WireMessage[];
   /** The skill this message started with a slash command, once it has loaded. */
   invokedSkill: { id: string; name: string } | null;
+  /** All of them, in the order typed; `invokedSkill` is the first. */
+  invokedSkills: Array<{ id: string; name: string }>;
 }
 
 export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
@@ -394,7 +429,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const lastMessage = messages[messages.length - 1];
   const invoked =
     !request.isContinuation && lastMessage?.role === "user"
-      ? skillInvocation(lastMessage.content, skills)
+      ? skillInvocations(lastMessage.content, skills)
       : null;
 
   // A skill loaded anywhere in the conversation stays loaded, as its text would if tool results
@@ -511,8 +546,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     }
   }
 
-  const invokedSkill =
-    invoked && loadedSkills.some((skill) => skill.id === invoked.skill.id) ? invoked.skill : null;
+  const invokedSkills = (invoked?.skills ?? []).filter((one) => loadedSkills.some((skill) => skill.id === one.id));
+  const invokedSkill = invokedSkills[0] ?? null;
 
   const lastUserIndex = wire.map((entry) => entry.role).lastIndexOf("user");
 
@@ -536,7 +571,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
         userTailNotes.delete("draft");
         userTailNotes.set(key, tail!);
       } else {
-        const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkill(invokedSkill, invoked.request)}` : "";
+        const skillPart = invoked && invokedSkill ? `\n\n${renderInvokedSkills(invokedSkills, invoked.request)}` : "";
         tail = `${skillPart}\n\n${currentTimeNote()}`;
         if (preservePastNotes) userTailNotes.set(key, tail);
       }
@@ -560,6 +595,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     promptParts,
     wire,
     invokedSkill: invokedSkill ? { id: invokedSkill.id, name: invokedSkill.name } : null,
+    invokedSkills: invokedSkills.map((one) => ({ id: one.id, name: one.name })),
   };
 }
 
@@ -733,6 +769,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       lastSeenPlan = items;
       host.onPlan?.(items);
     },
+    askUser: host.requestAnswer,
     pushStep,
     patchStep,
     findStep: (predicate) => steps.find(predicate),
@@ -918,7 +955,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     definitions,
     promptParts,
     wire,
-    invokedSkill,
+    invokedSkills,
   } = await prepareTurn(request);
   toolContext.vision = nativeVision;
   const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
@@ -927,7 +964,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
 
   // A slash command's skill shows where it loaded, as one the model asked for does.
-  if (invokedSkill) {
+  for (const invokedSkill of invokedSkills) {
     pushStep({
       id: generateId(),
       type: "skill",
@@ -990,7 +1027,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   /** Trimming is right for a fresh reply and wrong for a continued one: that space is the only
    * thing keeping the joined words apart. Runaway repetition loops are trimmed first. */
   const cleanText = (raw: string): string => {
-    const trimmed = detectRepetition(raw).trimmedText;
+    const trimmed = stripWorkRecap(detectRepetition(raw).trimmedText);
     const cleaned = cleanStream ? trimmed.trim() : stripToolSyntax(trimmed);
     if (!cleaned || !request.isContinuation) return cleaned;
     return /^\s/.test(raw) ? " " + cleaned : cleaned;
@@ -1062,8 +1099,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
      * removed and the text becomes the reply. */
     let textStepId: string | null = null;
 
-    const showText = (value: string) => {
-      if (!value.trim()) return;
+    // A continued reply is shown whole while it streams: the new words sit in the timeline above
+    // the old body, so on their own they would read before the text they carry on from (B2).
+    const showText = (raw: string) => {
+      if (!raw.trim()) return;
+      const value = request.isContinuation ? joinContinuation(fullFinalTextContent, raw) : raw;
 
       if (textStepId === null) {
         textStepId = generateId();
@@ -1089,12 +1129,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     // show was the typing dots: 15 to 26 s for a 20 GB model on an 8 GB card.
     const loadStepId =
       (await isLoadedAt(model, numCtx)) === false ? generateId() : null;
+    // With the window on automatic, a reload at a bigger one is an extension, not a first load.
+    const extending =
+      loadStepId !== null && settings.fixedContextSize == null && (await isExtendingContext(model, numCtx));
     if (loadStepId !== null) {
       pushStep({
         id: loadStepId,
         type: "loading",
-        content: host.t("loadingModel").replace("{model}", model).replace("{seconds}", "0.0"),
+        content: host.t(extending ? "extendingContext" : "loadingModel").replace("{model}", model).replace("{percent}", "0"),
         isComplete: false,
+        extending,
         model,
         startedAt: Date.now(),
       });
@@ -1173,33 +1217,44 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         ...(nativeTools ? { tools: definitions } : {}),
       });
 
-      let response: Response;
-      try {
-        response = await loggedFetch(
-          chatEndpoint(model),
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: requestBody,
-            signal: loopController.signal,
-          },
-          correlationId,
-        );
-      } catch (error) {
-        // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
-        if (error instanceof TypeError) {
-          throw new Error(engineUnreachable({ markdown: true }), { cause: error });
-        }
-        throw error;
-      }
+      // A dropped connection or an engine that is still starting is tried again before the turn fails.
+      const stream = await withRetries(
+        async () => {
+          let attempt: Response;
+          try {
+            attempt = await loggedFetch(
+              chatEndpoint(model),
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: requestBody,
+                signal: loopController.signal,
+              },
+              correlationId,
+            );
+          } catch (error) {
+            // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
+            if (error instanceof TypeError) {
+              throw new TransientError(engineUnreachable({ markdown: true }), null, { cause: error });
+            }
+            throw error;
+          }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(engineFailure(readFailure(errorText, response.statusText), { markdown: true }));
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response");
+          if (!attempt.ok) {
+            const message = engineFailure(readFailure(await attempt.text(), attempt.statusText), { markdown: true });
+            if (isTransientStatus(attempt.status)) throw new TransientError(message, attempt.status);
+            throw new Error(message);
+          }
+          const body = attempt.body?.getReader();
+          if (!body) throw new Error("No response");
+          // The first chunk is read here so a reply that drops before saying anything is asked for again.
+          return openStream(sseToLlamaChunks(body));
+        },
+        {
+          signal: loopController.signal,
+          onRetry: (attempt, of, waitMs) => showRetry({ attempt, of, retryAfterMs: waitMs }),
+        },
+      );
 
       let rawChunk = "";
       let thinkingText = "";
@@ -1234,7 +1289,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       };
 
       const readStream = async function* () {
-        for await (const chunk of sseToLlamaChunks(reader)) {
+        for await (const chunk of stream) {
           yield chunk as LlamaChunk;
         }
       };
@@ -1331,6 +1386,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             if (sFn || sContent !== undefined) {
               const displayFn = sFn || "";
               if (fileStepId === null) {
+                // The model is writing the file again after a cut, so the cut card gives way to it.
+                for (const old of steps.filter((entry) => entry.cut)) dropStep(old.id);
                 fileStepId = generateId();
                 if (thinkStepId) patchStep(thinkStepId, { isComplete: true });
                 pushStep({
@@ -1551,11 +1608,29 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
       // A retry pass that reasons nothing must not wipe the thought the fallback reply is built from.
       if (currentThought.trim()) lastThought = currentThought;
-      host.onOutOfContext(outOfContext);
+      host.onOutOfContext(
+        outOfContext,
+        outOfContext
+          ? {
+              loaded: numCtx,
+              modelMax: info?.contextLength ?? null,
+              used: contextCheckpoint?.tokens ?? 0,
+              canGrow:
+                typeof settings.fixedContextSize !== "number" &&
+                nextContextSize(model, info?.contextLength ?? null) !== null,
+            }
+          : undefined,
+      );
 
       if (!hasToolCall) {
         if (fileStepId !== null) {
-          dropStep(fileStepId);
+          const partial = steps.find((entry) => entry.id === fileStepId);
+          // A file cut mid-way is kept, so a resume can say what was lost instead of losing it silently.
+          if (outOfContext && partial?.fileContent) {
+            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename ?? ""}**` });
+          } else {
+            dropStep(fileStepId);
+          }
           fileStepId = null;
           syncSteps();
         }

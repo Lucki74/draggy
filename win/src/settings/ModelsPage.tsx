@@ -27,6 +27,25 @@ interface ModelsPageProps {
   t: (key: string) => string;
 }
 
+/** Sizes an image can be drawn at, square then wide then tall, each a multiple of 64. */
+const IMAGE_RESOLUTIONS = [
+  [512, 512, "1:1"],
+  [768, 768, "1:1"],
+  [1024, 1024, "1:1"],
+  [1024, 576, "16:9"],
+  [1344, 768, "16:9"],
+  [1792, 1024, "16:9"],
+  [576, 1024, "9:16"],
+  [768, 1344, "9:16"],
+  [1024, 1792, "9:16"],
+] as const;
+
+const imageModelLabel = (entry: { name: string; variant?: string }) => {
+  const title = displayModelName(entry.name).replace(/^[a-z]/, (letter) => letter.toUpperCase());
+  const quantization = entry.variant || quantizationOf(entry.name);
+  return quantization ? `${title} ${quantization}` : title;
+};
+
 const ABILITY_LABELS: Record<string, string> = {
   tools: "capabilityTools",
   vision: "capabilityVision",
@@ -41,6 +60,9 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
   const displayNames = installedModelDisplayNames(manager.installed);
   const imageEngine = useImageEngine();
   const imageModels = imageEngine.models.filter((entry) => entry.installed);
+  // Automatic uses the first embedding model installed.
+  const embedModel =
+    settings.embedModel || manager.installed.find((entry) => isEmbeddingModel(entry.capabilities))?.name || "";
 
   const removeImageModel = async (id: string) => {
     await window.electronAPI?.sd?.deleteModel(id).catch(swallowed("settings", "the main process already logged this call"));
@@ -64,9 +86,11 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
           <Row label={t("noModelsFound")} />
         ) : (
           manager.installed.map((entry) => {
+            const locked = entry.name === chatModel || entry.name === codeModel;
             const usedBy = [
               entry.name === chatModel ? t("usedForChat") : null,
               entry.name === codeModel ? t("usedForCode") : null,
+              entry.name === embedModel ? t("usedForEmbedding") : null,
             ].filter((label): label is string => Boolean(label));
             const roles = cannotGenerate(entry.capabilities)
               ? []
@@ -89,6 +113,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
                 entry={entry}
                 displayName={displayNames.get(entry.name) || displayModelName(entry.name)}
                 usedBy={usedBy}
+                locked={locked}
                 roles={roles}
                 loaded={loaded}
                 onUnload={() => manager.unload(entry.name)}
@@ -149,6 +174,28 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
         </Row>
       </Group>
 
+      <Group title={t("capabilityImageGeneration")}>
+        <Row label={t("imageModel")}>
+          <Select
+            label={t("imageModel")}
+            value={settings.imageModel}
+            options={[
+              { id: "", label: t("automatic") },
+              ...imageModels.map((entry) => ({ id: entry.id, label: imageModelLabel(entry) })),
+            ]}
+            onChange={(imageModel) => onUpdate({ imageModel })}
+          />
+        </Row>
+        <Row label={t("imageResolution")}>
+          <Select
+            label={t("imageResolution")}
+            value={settings.imageResolution}
+            options={IMAGE_RESOLUTIONS.map(([width, height, ratio]) => ({ id: `${width}x${height}`, label: `${width} × ${height} (${ratio})` }))}
+            onChange={(imageResolution) => onUpdate({ imageResolution })}
+          />
+        </Row>
+      </Group>
+
       <Group title={t("contextGroup")}>
         <Row label={t("fixedContextSize")} description={t("fixedContextSizeHint")}>
           <Select
@@ -182,6 +229,7 @@ function InstalledRow({
   entry,
   displayName,
   usedBy,
+  locked,
   roles,
   loaded,
   onUnload,
@@ -191,6 +239,8 @@ function InstalledRow({
   entry: InstalledModel;
   displayName?: string;
   usedBy: string[];
+  /** Chat or Code runs it, so it cannot be removed. */
+  locked: boolean;
   roles: { label: string; apply: () => void }[];
   loaded: boolean;
   onUnload: () => Promise<void>;
@@ -258,9 +308,9 @@ function InstalledRow({
         <button
           type="button"
           onClick={() => setConfirmingRemove(true)}
-          disabled={usedBy.length > 0}
+          disabled={locked}
           aria-label={`${t("remove")} ${name}`}
-          title={usedBy.length > 0 ? t("inUse") : t("remove")}
+          title={locked ? t("inUse") : t("remove")}
           className="rounded-sm p-2 text-text-tertiary outline-none transition-colors hover:bg-surface-raised hover:text-danger focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
         >
           <Icon name="trash" size={16} />

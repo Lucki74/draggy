@@ -1,6 +1,7 @@
 import { Children, isValidElement, useMemo, useRef, useState } from "react";
 import { editTotals, summarizeWork } from "./workSummary";
 import { Icon, Spark } from "../ui";
+import { showsGroupMark } from "./indicator";
 import { useTranscriptView } from "./transcriptView";
 import type { SearchStep } from "../types";
 
@@ -45,7 +46,7 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
         onClick={() => setOpen((value) => !value)}
         className="group/work flex items-center gap-2 min-h-7 max-w-full text-start text-[13px] text-text-secondary hover:text-text-primary rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        {(running || summary.failed > 0) && (
+        {(showsGroupMark(steps, open) || (!running && summary.failed > 0)) && (
           <span className="flex w-4 justify-center flex-shrink-0">
             {running ? <Spark /> : <Icon name="warning-circle" size={16} className="text-danger" />}
           </span>

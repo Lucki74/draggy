@@ -7,6 +7,7 @@ const CAPABILITIES: { id: string; icon: IconName; label: string }[] = [
   { id: "tools", icon: "gear-six", label: "capabilityTools" },
   { id: "vision", icon: "eye", label: "capabilityVision" },
   { id: "thinking", icon: "brain", label: "capabilityThinking" },
+  { id: "image-generation", icon: "image", label: "capabilityImageGeneration" },
 ];
 
 /** What a model can do as small icons, each named on hover and to screen readers. */

@@ -338,6 +338,8 @@ export interface SearchStepLibraryHit {
 
 export interface SearchStep {
   id: string;
+  /** A loading step for a reload at a bigger window, which shows as one "Extending context" step. */
+  extending?: boolean;
   type:
     | "thinking"
     /** The GGUF engine loading the weights, gone again at the first token. */
@@ -362,6 +364,8 @@ export interface SearchStep {
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */
     | "approval"
+    /** A question the model put to the user, with the form to answer it. */
+    | "question"
     /** The model writing down what it is going to do. */
     | "plan"
     /** A skill's instructions loaded, by the model or by a slash command. */
@@ -387,6 +391,8 @@ export interface SearchStep {
   filepath?: string;
   filename?: string;
   fileContent?: string;
+  /** On a "create_file" step: the context ran out mid-file, so nothing was saved. */
+  cut?: boolean;
   libraryHits?: SearchStepLibraryHit[];
   language?: string;
   stdout?: string;
@@ -410,6 +416,10 @@ export interface SearchStep {
   };
   /** What the user answered. Absent while the card is still waiting. */
   answer?: ApprovalAnswer;
+  /** On a "question" step: what the model asked. */
+  question?: UserQuestion;
+  /** On a "question" step: the reply, or "cancelled". Absent while the form is still waiting. */
+  reply?: UserReply | "cancelled";
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
@@ -541,6 +551,22 @@ export interface ImageResult {
 /** How far an approval goes: this call only, the rest of this task, or every time in this
  * workspace. "no" is a refusal of the call in front of the user. */
 export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
+
+/** A question the model asks the user: pick from the options, or write an answer. */
+export interface UserQuestion {
+  id: string;
+  text: string;
+  /** Empty means free text only. */
+  options: string[];
+  /** More than one option may be picked. */
+  multiple: boolean;
+}
+
+/** What the user sent back: the options picked and/or the words written. */
+export interface UserReply {
+  choices: string[];
+  text: string;
+}
 
 export interface TurnMetrics {
   promptTokens: number;
@@ -854,8 +880,12 @@ export interface ChatSession {
   workspaceId?: string;
   /** What the model is working through, if it wrote a plan. */
   plan?: PlanItem[] | null;
+  /** What the chat was last left on, restored when it is opened again. */
+  generation?: { model?: string; effort?: EffortLevel } | null;
   isGenerating: boolean;
   isOutOfContext?: boolean;
+  /** The window numbers when the reply was cut. Not stored: a restart keeps only the flag. */
+  outOfContextInfo?: { loaded: number; modelMax: number | null; used: number; canGrow: boolean };
   compaction?: CompactionState | null;
   /** Kept at the top of the sidebar. */
   pinned?: boolean;
@@ -974,6 +1004,8 @@ export interface AccountStatus {
   limits?: AccountLimit[];
   cancelled?: boolean;
   error?: string | null;
+  /** Signed in before through a route that no longer exists, so the account needs the new sign-in. */
+  reauth?: boolean;
 }
 
 export type AccountProgress =
@@ -992,6 +1024,8 @@ export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
+  /** One of the seven accents in src/app/accent.ts. */
+  accent: string;
   fontSize: "sm" | "base" | "lg";
   language: Language;
   modelName: string;
@@ -1000,13 +1034,15 @@ export interface AppSettings {
   effort: EffortLevel;
   /** The level new chats start at. */
   defaultEffort: EffortLevel;
+  /** Where a new chat's thinking level starts: the default level, or where the last chat was left. */
+  newChatStart: "defaults" | "last";
   /** Lets Chat use Max, the slowest level. Code always may. */
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
   slowModelThinking: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
-  webMode: "auto" | "on" | "off";
+  webMode: "on" | "off";
   /** Lets the agent hover, drag, scroll, pick options, wait and click by position in the browser pane. */
   browserActions?: boolean;
   voiceName: string;
@@ -1033,7 +1069,7 @@ export interface AppSettings {
   codeEffort: EffortLevel;
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
-  codeWebMode: "auto" | "on" | "off";
+  codeWebMode: "on" | "off";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
@@ -1051,6 +1087,8 @@ export interface AppSettings {
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
   /** The image model to draw with. Empty uses the first one installed. */
   imageModel: string;
+  /** The size images are drawn at, as width and height in pixels: "1024x1024". */
+  imageResolution: string;
 }
 
 declare global {
@@ -1111,8 +1149,8 @@ declare global {
         title: string;
         text: string;
         /** Set when the page could not be read rather than had no content. */
-        blocked?: "human-verification" | "refused";
-        /** Why a refused address was refused, worded for the model. */
+        blocked?: "human-verification" | "refused" | "unreachable";
+        /** Why a refused or unreachable address failed, worded for the model. */
         reason?: string;
         url?: string;
       }>;
@@ -1177,6 +1215,8 @@ declare global {
       readCreatedFile: (filepath: string) => Promise<{
         success: boolean;
         text?: string;
+        /** The whole file as base64, sent for Word files so they can be drawn as pages. */
+        data?: string;
         truncated?: boolean;
         binary?: boolean;
         error?: string;
@@ -1462,6 +1502,7 @@ declare global {
 
       browserAgent: {
         stop: () => Promise<{ success: boolean }>;
+        release: () => Promise<{ success: boolean }>;
         onState: (callback: (state: { active: boolean; step: string | null }) => void) => Unsubscribe;
         onConsent: (callback: (ask: BrowserConsentAsk | null) => void) => Unsubscribe;
         answerConsent: (id: string, choice: "session" | "once" | "always" | "deny") => Promise<{ success: boolean }>;
@@ -1614,7 +1655,7 @@ declare global {
 
       sd?: {
         status: () => Promise<ImageEngineStatus>;
-        configure: (options: { model: string }) => Promise<{ success: boolean }>;
+        configure: (options: { model: string; resolution?: string }) => Promise<{ success: boolean }>;
         setupEngine: () => Promise<{ success: boolean; runner?: string; kind?: string; error?: string }>;
         downloadRepo: (reference: string) => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
         cancelDownload: (id: string) => Promise<{ success: boolean }>;
@@ -1689,6 +1730,8 @@ declare global {
           /** The file this event is for; downloads run side by side and share one channel. */
           label?: string;
         }) => void) => Unsubscribe;
+        /** Where a wait has got to. Every figure is one the engine reported; the disk step has none. */
+        onStage: (callback: (stage: { stage: "disk" | "loading" | "readying" | "reading"; percent?: number; tokensPerSecond?: number }) => void) => Unsubscribe;
       };
     };
   }

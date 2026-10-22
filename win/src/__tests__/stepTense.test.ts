@@ -161,6 +161,19 @@ describe("the web and browser tools", () => {
     expect(lifecycle().ended).toMatch(/^readSite /);
   });
 
+  it("says why a page could not be read", async () => {
+    vi.stubGlobal("window", {
+      electronAPI: {
+        readUrl: async () => ({ title: "", text: "", blocked: "unreachable", reason: "The site address could not be found." }),
+      },
+    });
+    const { context } = harness();
+
+    const result = await runTool("read_url", { url: "https://a.example" }, context, EVERYTHING);
+
+    expect(String(result)).toContain("could not be found");
+  });
+
   it("navigate", async () => {
     vi.stubGlobal("window", {
       electronAPI: {

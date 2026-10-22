@@ -10,12 +10,14 @@ import { displayModelName } from "../llama";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
+import QuestionCard from "./QuestionCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import { OpenDiffContext } from "./openDiffContext";
 import DiffBlock from "./DiffBlock";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
+import { loadLabel, type LoadStage } from "./loadLabel";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
@@ -325,17 +327,16 @@ function FileCard({
   );
 }
 
-// Shows elapsed seconds while loading so large models do not look frozen.
+// Shows the steps of a wait as the engine reports them: nothing here is estimated.
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const [stage, setStage] = useState<LoadStage | null>(null);
 
+  // The engine's own log says which part of the wait it is in.
   useEffect(() => {
-    if (step.startedAt === undefined) return;
-    const startedAt = step.startedAt;
-    const timer = setInterval(() => setElapsedMs(Math.max(0, Date.now() - startedAt)), 100);
-    return () => clearInterval(timer);
-  }, [step.startedAt]);
+    if (!step.model) return;
+    return window.electronAPI?.gguf?.onStage?.(setStage);
+  }, [step.model]);
 
   useEffect(() => {
     if (!step.retry) return;
@@ -349,9 +350,7 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
         .replace("{attempt}", String(step.retry.attempt))
         .replace("{of}", String(step.retry.of))
     : step.model
-      ? t("loadingModel")
-          .replace("{model}", displayModelName(step.model))
-          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
+      ? loadLabel(stage, { model: displayModelName(step.model), extending: step.extending, t })
       : step.content;
 
   return (
@@ -472,6 +471,10 @@ export function WorkBlock({
         </div>
       </details>
     );
+  }
+
+  if (step.type === "question") {
+    return <QuestionCard key={step.id} step={step} t={t} />;
   }
 
   if (step.type === "approval") {

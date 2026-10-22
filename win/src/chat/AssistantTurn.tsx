@@ -4,6 +4,7 @@ import StreamingMarkdown from "./StreamingMarkdown";
 import { copyAsMarkdown } from "./copyMarkdown";
 import BrowserConsentCard from "./BrowserConsentCard";
 import ThinkingRow from "./ThinkingRow";
+import { showsTailMark } from "./indicator";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { isWorkStep, touchedFiles } from "./workSummary";
@@ -13,6 +14,7 @@ import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { normalizeMath, sanitizeContent } from "../utils";
+import { continuesBody } from "./continuation";
 import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
@@ -65,6 +67,7 @@ export interface AssistantTurnProps {
   isGenerating: boolean;
   isLast: boolean;
   onRegenerate: (index: number) => void;
+  onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   copiedIndex: number | null;
   copyToClipboard: (text: string, idx: number) => void;
@@ -89,6 +92,7 @@ export function AssistantTurn({
   isGenerating,
   isLast,
   onRegenerate,
+  onResume,
   onSwitchVersion,
   copiedIndex,
   copyToClipboard,
@@ -131,6 +135,8 @@ export function AssistantTurn({
     live && lastStep?.type === "text" && !lastStep.isComplete
       ? lastStep.id
       : null;
+  // A continued reply streams as one block in the timeline, so the old body would show twice.
+  const bodyInStep = Boolean(writingId) && continuesBody(text, lastStep?.content ?? "");
   const [proseId, setProseId] = useState<string | null>(null);
   if (writingId && writingId !== proseId) setProseId(writingId);
   const bodyKey =
@@ -279,7 +285,7 @@ export function AssistantTurn({
             ),
           ),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
-          !isFailed || hasGeneratedText ? (
+          (!isFailed || hasGeneratedText) && !bodyInStep ? (
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
@@ -319,29 +325,31 @@ export function AssistantTurn({
                 </ReactMarkdown>
               </div>
               {isLast && !isGenerating && (
-                <Button
-                  variant="secondary"
-                  size="dense"
-                  icon={<Icon name="arrow-clockwise" size={16} />}
-                  onClick={() => onRegenerate(idx)}
-                >
-                  {t("regenerateResponse")}
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="dense"
+                    icon={<Icon name="arrow-clockwise" size={16} />}
+                    onClick={() => (hasGeneratedText && onResume ? onResume() : onRegenerate(idx))}
+                  >
+                    {t("regenerateResponse")}
+                  </Button>
+                  {hasGeneratedText && onResume && (
+                    <Button variant="ghost" size="dense" onClick={() => onRegenerate(idx)}>
+                      {t("regenerateFromScratch")}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           ) : null,
         ]}
 
-        {text === "" &&
-          !steps.some(
-            (s) => !s.isComplete && !(s.type === "thinking" && !s.content),
-          ) &&
-          isGenerating &&
-          isLast && (
-            <div className="flex items-center h-6">
-              <Spark label={t("working")} />
-            </div>
-          )}
+        {showsTailMark(steps, text, isGenerating, isLast) && (
+          <div className="flex items-center h-6">
+            <Spark label={t("working")} />
+          </div>
+        )}
       </div>
 
       {!isGenerating && files.length > 0 && (

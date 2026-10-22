@@ -163,17 +163,18 @@ describe("nothing downloads before the user chooses", () => {
     await toLocalStep();
     await waitFor(() => expect(continueButton().disabled).toBe(false));
     fireEvent.click(continueButton());
-    await waitFor(() => expect(order).toContain("download Ministral-3-14B-Instruct-2512-GGUF.gguf"));
+    await waitFor(() => expect(order).toContain("download Qwen3.5-122B-A10B-GGUF.gguf"));
 
     fireEvent.click(screen.getByRole("button", { name: en("onbBack") }));
     await screen.findByRole("heading", { name: en("onbModelTitle") });
-    fireEvent.click(await screen.findByRole("radio", { name: /Gemma 4 12B/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: new RegExp(en("onbLighter")) }));
     fireEvent.click(continueButton());
-    await waitFor(() => expect(order).toContain("download gemma-4-12b-it-GGUF.gguf"));
+    const isSecond = (entry: string) => entry.startsWith("download") && !entry.includes("Qwen3.5-122B");
+    await waitFor(() => expect(order.some(isSecond)).toBe(true));
 
-    const cancelled = order.indexOf("cancel Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    const cancelled = order.indexOf("cancel Qwen3.5-122B-A10B-GGUF.gguf");
     expect(cancelled).toBeGreaterThan(-1);
-    expect(cancelled).toBeLessThan(order.indexOf("download gemma-4-12b-it-GGUF.gguf"));
+    expect(cancelled).toBeLessThan(order.findIndex(isSecond));
   });
 });
 
@@ -196,7 +197,7 @@ describe("finishing", () => {
 
     fireEvent.click(start);
     await waitFor(() =>
-      expect(onFinish).toHaveBeenCalledWith("Ministral-3-14B-Instruct-2512-GGUF.gguf", expect.objectContaining({ path: "local" })),
+      expect(onFinish).toHaveBeenCalledWith("Qwen3.5-122B-A10B-GGUF.gguf", expect.objectContaining({ path: "local" })),
     );
     // Written by the app once the model is on disk, or a quit now would skip the setup next time.
     expect(api.onboarding.complete).not.toHaveBeenCalled();
@@ -226,8 +227,8 @@ describe("finishing", () => {
     await screen.findByRole("heading", { name: en("onbWelcomeTitle") });
     fireEvent.click(screen.getByRole("button", { name: en("onbSkip") }));
     const dialog = await screen.findByRole("dialog");
-    // The size arrives isolated, so an Arabic sentence cannot reorder "8.2 GB".
-    expect(within(dialog).getByText(/about ⁨8\.2 GB⁩/)).toBeTruthy();
+    // The size arrives isolated, so an Arabic sentence cannot reorder "57.0 GB".
+    expect(within(dialog).getByText(/about ⁨57\.0 GB⁩/)).toBeTruthy();
   });
 });
 
@@ -275,7 +276,7 @@ describe("from the setup into the app", () => {
     // No update check, app or engine, may be scheduled before the user has chosen.
     expect(configure).not.toHaveBeenCalled();
     await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
-    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    machine.finish("Qwen3.5-122B-A10B-GGUF.gguf");
     const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
     await waitFor(() => expect(start.disabled).toBe(false));
     fireEvent.click(start);
@@ -343,11 +344,38 @@ describe("the preferences step", () => {
     fireEvent.click(continueButton());
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
     await waitFor(() => expect(api.gguf.downloadModel).toHaveBeenCalled());
-    expect(order.filter((entry) => entry.startsWith("download"))).toEqual(["download Ministral-3-14B-Instruct-2512-GGUF.gguf"]);
+    expect(order.filter((entry) => entry.startsWith("download"))).toEqual(["download Qwen3.5-122B-A10B-GGUF.gguf"]);
 
-    finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    finish("Qwen3.5-122B-A10B-GGUF.gguf");
     // A 12 GB card gets Gemma 4 12B for voice.
     await waitFor(() => expect(order).toContain("download gemma-4-12b-it-GGUF.gguf"));
+  });
+
+  it("queues the image model the card and RAM can carry, into the image folder", async () => {
+    const { api, order, finish } = freshMachine();
+    Object.assign(api, {
+      sd: {
+        status: vi.fn(async () => ({ models: [] })),
+        onProgress: vi.fn(() => () => {}),
+        cancelDownload: vi.fn(async () => true),
+        downloadRepo: vi.fn(async (reference: string) => {
+          order.push(`image ${reference}`);
+          return { success: true };
+        }),
+      },
+    });
+    render(<Harness onFinish={() => {}} />);
+    await toPreferences();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: en("onbExtraImage") }));
+    fireEvent.click(continueButton());
+    await screen.findByRole("heading", { name: en("onbReadyTitle") });
+    await waitFor(() => expect(order).toContain("download Qwen3.5-122B-A10B-GGUF.gguf"));
+    expect(order.some((entry) => entry.startsWith("image"))).toBe(false);
+
+    finish("Qwen3.5-122B-A10B-GGUF.gguf");
+    // A 12 GB card with 64 GB of RAM holds Qwen-Image 2.1 at Q8.
+    await waitFor(() => expect(order).toContain("image unsloth/Qwen-Image-2.1-GGUF:Q8_0"));
   });
 });
 
@@ -371,7 +399,7 @@ describe("an extra still downloading at Start", () => {
     fireEvent.click(continueButton());
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
     await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
-    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    machine.finish("Qwen3.5-122B-A10B-GGUF.gguf");
     await waitFor(() => expect(machine.order).toContain("download gemma-4-12b-it-GGUF.gguf"));
 
     fireEvent.click(screen.getByRole("button", { name: en("onbStart") }));
@@ -416,15 +444,15 @@ describe("entering the app while the model downloads", () => {
     fireEvent.click(start);
 
     const composer = (await screen.findByPlaceholderText(en("onbStillDownloading"))) as HTMLTextAreaElement;
-    expect(screen.getByText("Ministral-3-14B-Instruct-2512-GGUF.gguf", { selector: "[aria-live] *" })).toBeTruthy();
+    expect(screen.getByText("Qwen3.5-122B-A10B-GGUF.gguf", { selector: "[aria-live] *" })).toBeTruthy();
     fireEvent.change(composer, { target: { value: "Hello" } });
     const send = composer.closest("form")!.querySelector("button[type=submit]") as HTMLButtonElement;
     expect(send.disabled).toBe(true);
     expect(machine.api.onboarding.complete).not.toHaveBeenCalled();
 
-    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    machine.finish("Qwen3.5-122B-A10B-GGUF.gguf");
     await waitFor(() => expect(screen.queryByPlaceholderText(en("onbStillDownloading"))).toBeNull());
-    expect(screen.queryByText("Ministral-3-14B-Instruct-2512-GGUF.gguf", { selector: "[aria-live] *" })).toBeNull();
+    expect(screen.queryByText("Qwen3.5-122B-A10B-GGUF.gguf", { selector: "[aria-live] *" })).toBeNull();
     expect((composer.closest("form")!.querySelector("button[type=submit]") as HTMLButtonElement).disabled).toBe(false);
     await waitFor(() => expect(machine.api.onboarding.complete).toHaveBeenCalledWith("local"));
   });
@@ -433,7 +461,7 @@ describe("entering the app while the model downloads", () => {
     const machine = freshApp();
     await toReady();
     await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
-    machine.finish("Ministral-3-14B-Instruct-2512-GGUF.gguf");
+    machine.finish("Qwen3.5-122B-A10B-GGUF.gguf");
     const chip = screen.getByRole("button", { name: en("onbPrompt2") }) as HTMLButtonElement;
     await waitFor(() => expect(chip.disabled).toBe(false));
     fireEvent.click(chip);

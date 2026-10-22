@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { collectErrorDetails } from "../errorDetails";
+import { uiText } from "../i18n";
 import { logRendererEvent, logSwallow, newCorrelationId } from "../logger";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
@@ -105,10 +106,10 @@ export function Toast({
       )}
       {failing && !action && (
         <Button variant="ghost" size="dense" onClick={() => void copyDetails()}>
-          {copied ? "Copied" : "Copy error details"}
+          {copied ? uiText("errorCopied") : uiText("errorCopy")}
         </Button>
       )}
-      {onClose && <IconButton name="x" label="Dismiss" size="sm" onClick={onClose} />}
+      {onClose && <IconButton name="x" label={uiText("dismiss")} size="sm" onClick={onClose} />}
     </div>
   );
 }

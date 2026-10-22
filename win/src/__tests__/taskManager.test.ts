@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { contextSizeFor, forgetContextSize } from "../llama";
 import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, MessageVersion } from "../types";
 import type { Grant } from "../agent/permissions";
@@ -23,6 +24,19 @@ vi.mock("../agent/agentLoop", () => ({
       pending.push({ request, host, resolve, reject });
     }),
 }));
+
+const sent = vi.hoisted(() => [] as { data: Record<string, unknown>; cid?: string }[]);
+
+vi.mock("../logger", async (original) => {
+  const real = await original<typeof import("../logger")>();
+  return {
+    ...real,
+    logRendererEvent: (scope: string, level: string, msg: string, data?: Record<string, unknown>, cid?: string) => {
+      if (msg === "turn sent") sent.push({ data: data ?? {}, cid });
+      return (real.logRendererEvent as (...args: unknown[]) => unknown)(scope, level, msg, data, cid);
+    },
+  };
+});
 
 const { createTaskManager } = await import("../agent/taskManager");
 import type { MetricRow } from "../types";
@@ -91,6 +105,22 @@ function seed(sessions: Map<string, ChatSession>, id: string): ChatSession {
 describe("the task manager", () => {
   beforeEach(() => {
     pending.length = 0;
+  });
+
+  it("names the turn a retry follows so the log can chain them", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    sent.length = 0;
+
+    manager.send("chat-1", "question");
+    pending[0].reject(new Error("boom"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    manager.regenerate("chat-1");
+
+    expect(sent).toHaveLength(2);
+    expect(sent[0].data.after).toBeUndefined();
+    expect(sent[1].data.retry).toBe(true);
+    expect(sent[1].data.after).toBe(sent[0].cid);
   });
 
   it("starts a conversation the first message arrives for", () => {
@@ -284,6 +314,52 @@ describe("the task manager", () => {
     expect(messages[1].versions?.[0]?.failed).toBe(true);
   });
 
+  it("resumes a failed reply from its partial text instead of wiping it", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "half an ans", textContent: "half an ans", failed: true, error: "engine stopped" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    const reply = sessions.get("chat-1")?.messages[1];
+    expect(reply?.textContent).toBe("half an ans");
+    expect(reply?.failed).toBeUndefined();
+    expect(reply?.error).toBeUndefined();
+    expect(pending.at(-1)?.request.isContinuation).toBe(true);
+    expect(pending.at(-1)?.request.seed?.textContent).toBe("half an ans");
+  });
+
+  it("loads a larger window to continue a reply the context cut", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    const model = host.getModel() as string;
+    forgetContextSize(model);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      isOutOfContext: true,
+      outOfContextInfo: { loaded: 4096, modelMax: 32768, used: 4000, canGrow: true },
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "cut", textContent: "cut" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    expect(contextSizeFor(model, 100, 32768)).toBe(8192);
+    expect(sessions.get("chat-1")?.outOfContextInfo).toBeUndefined();
+  });
+
   it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);
@@ -390,6 +466,76 @@ describe("a turn waiting on the user", () => {
     turn.host.onGrant!({ tool: "write_file", target: "C:\\projects" });
 
     expect(granted).toEqual([{ tool: "write_file", target: "C:\\projects" }]);
+  });
+});
+
+describe("the end of every turn", () => {
+  it("says nothing is driving the pane only once the last turn is over", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle });
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 2].resolve(finished());
+    await vi.waitFor(() => expect(manager.isRunning("chat-1")).toBe(false));
+    expect(onIdle).not.toHaveBeenCalled();
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalledTimes(1));
+  });
+
+  it("says it when the user stops the only turn", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle });
+
+    manager.send("chat-1", "go");
+    manager.stop("chat-1");
+    pending[pending.length - 1].resolve(finished());
+
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalled());
+  });
+});
+
+describe("a turn waiting on a question", () => {
+  const question = { id: "q-1", text: "Which one?", options: ["A", "B"], multiple: false };
+  const ask = () => pending[pending.length - 1].host.requestAnswer!(question);
+
+  it("carries on with the reply the user gives", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", { choices: ["B"], text: "" });
+
+    expect(await answered).toEqual({ choices: ["B"], text: "" });
+  });
+
+  it("gets nothing back when the user skips", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", null);
+
+    expect(await answered).toBeNull();
+  });
+
+  it("is dismissed when the conversation is stopped", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.stop("chat-1");
+
+    expect(await answered).toBeNull();
+  });
+
+  it("ignores a reply to a question nobody asked", () => {
+    const manager = createTaskManager(createHost().host);
+    expect(() => manager.answerQuestion("nope", null)).not.toThrow();
   });
 });
 

@@ -16,7 +16,8 @@ import { planProgress, type PlanItem } from "../plan/plan";
 import { loadProjectMemory } from "../project/load";
 import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
-import { useTranslator } from "../i18n";
+import { setUiLanguage, useTranslator } from "../i18n";
+import { AnswerQuestionContext } from "../chat/questionContext";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
@@ -73,6 +74,7 @@ import { writeLocalStorage } from "../utils";
 import type { AppSettings, Attachment, ChatSession, InstalledSkill, Message, Workspace } from "../types";
 import { nextView, type TranscriptView } from "../chat/transcriptView";
 import { skillsFor } from "../skills/skills";
+import { sameGeneration, startingEffort, useChatGeneration, type Generation } from "./useChatGeneration";
 import { useImageEngine } from "../images/useImageEngine";
 import { fillComposer } from "../chat/mentions";
 import { CrashNotice } from "../CrashNotice";
@@ -104,6 +106,7 @@ export default function AppShell({
   openSettingsOn,
 }: AppShellProps) {
   const t = useTranslator(settings.language);
+  setUiLanguage(settings.language);
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());
@@ -237,14 +240,31 @@ export default function AppShell({
     [onUpdateSettings],
   );
 
+  // The chat on screen, for the changes made while it is open: they are saved with it.
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+  const rememberGeneration = useCallback(
+    (change: Partial<Generation>) => {
+      if (!openChatId) return;
+      store.updateSession(openChatId, (session) => {
+        const next = { ...session.generation, ...change };
+        return sameGeneration(session.generation, next) ? session : { ...session, generation: next };
+      });
+    },
+    [store, openChatId],
+  );
+
   const patchFromComposer = useCallback(
-    (patch: Partial<AppSettings>) => updateSettings(patchForMode(mode, patch)),
-    [mode, updateSettings],
+    (patch: Partial<AppSettings>) => {
+      updateSettings(patchForMode(mode, patch));
+      if (patch.effort) rememberGeneration({ effort: patch.effort });
+    },
+    [mode, updateSettings, rememberGeneration],
   );
 
   const selectModelHere = useCallback(
     (name: string) => {
       logBreadcrumb("model:switch", { mode, model: name });
+      rememberGeneration({ model: name });
       if (mode === "chat") {
         onSelectModel(name);
         return;
@@ -253,7 +273,7 @@ export default function AppShell({
       updateSettings({ codeModel: name });
       if (!isRemote(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("app", "warming a model is best effort"));
     },
-    [mode, onSelectModel, updateSettings, settings.fixedContextSize],
+    [mode, onSelectModel, updateSettings, settings.fixedContextSize, rememberGeneration],
   );
 
   useEffect(() => {
@@ -440,11 +460,11 @@ export default function AppShell({
   const handleNewChat = useCallback(() => {
     setSelectedChatId(generateId());
     setViewMode("chat");
-    // A new chat starts at the default level, whatever the last one was moved to.
-    if (settings.effort !== settings.defaultEffort || settings.codeEffort !== settings.codeDefaultEffort) {
-      updateSettings({ effort: settings.defaultEffort, codeEffort: settings.codeDefaultEffort });
-    }
-  }, [settings.effort, settings.defaultEffort, settings.codeEffort, settings.codeDefaultEffort, updateSettings]);
+    // By the user's rule, a new chat starts at the default level or stays where the last one was moved to.
+    const effort = startingEffort(settings.newChatStart, settings.effort, settings.defaultEffort);
+    const codeEffort = startingEffort(settings.newChatStart, settings.codeEffort, settings.codeDefaultEffort);
+    if (settings.effort !== effort || settings.codeEffort !== codeEffort) updateSettings({ effort, codeEffort });
+  }, [settings.newChatStart, settings.effort, settings.defaultEffort, settings.codeEffort, settings.codeDefaultEffort, updateSettings]);
 
   // Global hotkeys for palette, shortcuts, sidebar, new session and settings.
   useEffect(() => {
@@ -628,6 +648,22 @@ export default function AppShell({
 
   const onUpdatesPage = viewMode === "settings" && settingsTab === "updates";
   const currentSession = visibleSessions.find((s) => s.id === currentChatId);
+  if (openChatId !== currentChatId) setOpenChatId(currentChatId);
+
+  useChatGeneration({
+    ready: store.hydrated && viewMode === "chat",
+    chatId: currentChatId,
+    session: currentSession,
+    mode,
+    allowMaxInChat: settings.allowMaxInChat,
+    effort: effectiveSettings.effort,
+    model: turnModel,
+    canUseModel: async (name) => isRemote(name) || (await listInstalledModels()).some((entry) => entry.name === name),
+    applyEffort: (effort) => updateSettings(patchForMode(mode, { effort })),
+    applyModel: (name) => (mode === "chat" ? onSelectModel(name) : updateSettings({ codeModel: name })),
+    save: (id, generation) =>
+      store.updateSession(id, (session) => (sameGeneration(session.generation, generation) ? session : { ...session, generation })),
+  });
 
   /** A finished spoken turn, kept in the chat Talk is a view of. The first one starts the chat. */
   const handleTalkTurn = useCallback(
@@ -1048,6 +1084,7 @@ export default function AppShell({
   ]);
 
   return (
+    <AnswerQuestionContext.Provider value={runs.answerQuestion}>
     <div className="w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 bg-surface-canvas text-text-primary">
       <CrashNotice t={t} onExport={() => openSettings("diagnostics")} />
       <TitleBar
@@ -1365,5 +1402,6 @@ export default function AppShell({
         t={t}
       />
     </div>
+    </AnswerQuestionContext.Provider>
   );
 }

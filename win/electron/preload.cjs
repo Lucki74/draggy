@@ -251,6 +251,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // The agent drives the Browser pane. The renderer hears which step it is on and can take the pane back.
   browserAgent: {
     stop: () => ipcRenderer.invoke("browser-agent:stop"),
+    release: () => ipcRenderer.invoke("browser-agent:release"),
     onState: (callback) => subscribe("browser-agent-state", callback),
     onConsent: (callback) => subscribe("browser-consent", callback),
     answerConsent: (id, choice) => ipcRenderer.invoke("browser-consent:answer", String(id), String(choice)),
@@ -292,6 +293,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     downloadModel: (options) => ipcRenderer.invoke("gguf:download", options),
     cancelDownload: (filename) => ipcRenderer.invoke("gguf:cancel-download", filename),
     onProgress: (callback) => subscribe("gguf:progress", callback),
+    onStage: (callback) => subscribe("gguf:stage", callback),
   },
 
   sd: {

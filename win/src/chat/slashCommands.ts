@@ -1,3 +1,4 @@
+import { skillCommandMatches } from "../skills/skills";
 import type { InstalledSkill } from "../types";
 
 /** The slash commands. `label` is a translation key, so the menu reads in the user's language while
@@ -38,6 +39,68 @@ export function slashQueryFor(input: string): string | null {
   return input.slice(1).toLowerCase();
 }
 
+/** The /word the caret is in or ends, anywhere in the message. It starts the text or follows a space,
+ * holds no second slash (that is a path) and sits outside backticks. `query` is what was typed up to
+ * the caret. */
+export interface SlashToken {
+  start: number;
+  end: number;
+  query: string;
+}
+
+export function slashTokenAt(text: string, caret: number): SlashToken | null {
+  const at = Math.min(Math.max(caret, 0), text.length);
+  let start = at;
+  while (start > 0 && !/\s/.test(text[start - 1])) start -= 1;
+  let end = at;
+  while (end < text.length && !/\s/.test(text[end])) end += 1;
+
+  if (!/^\/[^/`]*$/.test(text.slice(start, end))) return null;
+  if ((text.slice(0, start).match(/`/g) ?? []).length % 2 === 1) return null;
+
+  return { start, end, query: text.slice(start + 1, at).toLowerCase() };
+}
+
+/** The token swapped for a command, with a space after it unless one is already there. The caret goes
+ * past that space. */
+export function replaceSlashToken(text: string, token: SlashToken, id: string): { text: string; caret: number } {
+  const spaced = /\s/.test(text[token.end] ?? "");
+  const head = `${text.slice(0, token.start)}/${id}`;
+  const tail = spaced ? text.slice(token.end) : ` ${text.slice(token.end)}`;
+
+  return { text: head + tail, caret: head.length + 1 };
+}
+
+/** The stretches of a message that run a command, for the chip drawn behind them: a skill anywhere,
+ * a built-in command only as the first word. */
+export function commandRanges(
+  text: string,
+  options: { surface?: "chat" | "code"; skills?: InstalledSkill[] } = {},
+): Array<[number, number]> {
+  const ranges: Array<[number, number]> = skillCommandMatches(text, options.skills ?? []).map((one) => [one.start, one.end]);
+
+  const lead = /^\/([a-z-]+)(?=\s|$)/i.exec(text);
+  const surface = options.surface ?? "chat";
+  const builtIn = lead && SLASH_COMMANDS.find((command) => command.id === lead[1].toLowerCase() && (!command.only || command.only === surface));
+  if (builtIn && !ranges.some(([start]) => start === 0)) ranges.unshift([0, lead![0].length]);
+
+  return ranges.sort((a, b) => a[0] - b[0]);
+}
+
+/** The text cut at the edges of the ranges, each part marked as a chip or not. */
+export function chipSegments(text: string, ranges: Array<[number, number]>): Array<{ text: string; chip: boolean }> {
+  const parts: Array<{ text: string; chip: boolean }> = [];
+  let at = 0;
+  for (const [start, end] of ranges) {
+    if (start < at) continue;
+    if (start > at) parts.push({ text: text.slice(at, start), chip: false });
+    parts.push({ text: text.slice(start, end), chip: true });
+    at = end;
+  }
+  if (at < text.length) parts.push({ text: text.slice(at), chip: false });
+  return parts;
+}
+
 /** Skills as commands, after the built-in ones. A skill named like a built-in command is left out,
  * since typing it runs the command. */
 export function skillCommands(skills: InstalledSkill[]): SlashCommand[] {
@@ -56,16 +119,19 @@ export function skillCommands(skills: InstalledSkill[]): SlashCommand[] {
 
 export function matchSlashCommands(
   input: string,
-  options: { surface?: "chat" | "code"; skills?: InstalledSkill[] } = {},
+  options: { surface?: "chat" | "code"; skills?: InstalledSkill[]; caret?: number } = {},
 ): SlashCommand[] {
-  const query = slashQueryFor(input);
-  if (query === null) return [];
+  const token = slashTokenAt(input, options.caret ?? input.length);
+  if (!token) return [];
+  const { query } = token;
 
   const surface = options.surface ?? "chat";
 
-  const builtIn = SLASH_COMMANDS.filter(
-    (command) => (!command.only || command.only === surface) && command.id.startsWith(query),
-  );
+  // Only a skill makes sense inside a sentence; "/new" there would mean nothing.
+  const builtIn =
+    token.start > 0
+      ? []
+      : SLASH_COMMANDS.filter((command) => (!command.only || command.only === surface) && command.id.startsWith(query));
   const skills = skillCommands(options.skills ?? []).filter((command) =>
     command.id.toLowerCase().startsWith(query),
   );

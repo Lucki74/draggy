@@ -3,6 +3,7 @@ import type { AppSettings } from "../types";
 import { SETTINGS_KEY, storageBackend } from "../storage";
 import { safeJsonParse, writeLocalStorage } from "../utils";
 import { swallowed } from "../logger";
+import { DEFAULT_ACCENT, applyAccent } from "./accent";
 import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
 
 /** Thinking modes before the five effort levels, and the key each one became. */
@@ -14,6 +15,7 @@ const LEGACY_EFFORT_KEYS = [
 export const defaultSettings: AppSettings = {
   // Only a new install gets this: anyone with saved settings keeps the theme they saved.
   theme: "system",
+  accent: DEFAULT_ACCENT,
   fontSize: "base",
   language: "en",
   // Empty means "not chosen yet": the startup screen adopts whatever is
@@ -23,9 +25,10 @@ export const defaultSettings: AppSettings = {
   effort: EFFORT_DEFAULT,
   defaultEffort: EFFORT_DEFAULT,
   allowMaxInChat: true,
+  newChatStart: "defaults",
   slowModelThinking: false,
   colibriLossy: false,
-  webMode: "auto",
+  webMode: "on",
   browserActions: true,
   voiceName: "",
   voiceModel: "",
@@ -43,7 +46,7 @@ export const defaultSettings: AppSettings = {
   codeInstructions: [],
   codeEffort: EFFORT_DEFAULT,
   codeDefaultEffort: EFFORT_DEFAULT,
-  codeWebMode: "auto",
+  codeWebMode: "on",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "",
@@ -52,6 +55,7 @@ export const defaultSettings: AppSettings = {
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",
+  imageResolution: "1024x1024",
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
@@ -88,6 +92,13 @@ export function loadSettings(): AppSettings {
   if ("updateChannel" in parsed) {
     delete (parsed as { updateChannel?: unknown }).updateChannel;
     migrated = true;
+  }
+  // Web access is On or Off now. "auto" meant the model chose, which is what On does.
+  for (const key of ["webMode", "codeWebMode"] as const) {
+    if ((parsed[key] as string | undefined) === "auto") {
+      parsed[key] = "on";
+      migrated = true;
+    }
   }
   if (parsed.language && !VALID_LANGUAGES.has(parsed.language)) {
     parsed.language = "en";
@@ -183,9 +194,9 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   useEffect(() => {
     if (isSplashMode) return;
     window.electronAPI?.sd
-      ?.configure({ model: settings.imageModel })
+      ?.configure({ model: settings.imageModel, resolution: settings.imageResolution })
       .catch(swallowed("app", "the main process already logged this call"));
-  }, [settings.imageModel, isSplashMode]);
+  }, [settings.imageModel, settings.imageResolution, isSplashMode]);
 
   // Matching the system means following it while the app is open, not just reading it once.
   useEffect(() => {
@@ -193,12 +204,13 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
     const apply = () => {
       const theme = resolveTheme(settings.theme, query?.matches ?? true);
       document.body.classList.toggle("dark", theme === "dark");
+      applyAccent(settings.accent, theme === "dark");
     };
     apply();
     if (settings.theme !== "system" || !query) return;
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
-  }, [settings.theme]);
+  }, [settings.theme, settings.accent]);
 
   useEffect(() => {
     document.documentElement.lang = settings.language;

@@ -15,7 +15,7 @@ const global = {
   modelName: "qwen3:8b",
   customInstructions: ["be brief"],
   effort: "medium",
-  webMode: "auto",
+  webMode: "on",
   libraryEnabled: true,
   theme: "dark",
 } as unknown as AppSettings;

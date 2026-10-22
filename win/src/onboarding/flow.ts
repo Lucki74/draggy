@@ -22,7 +22,7 @@ export function stepsFor(path: SetupPath): StepId[] {
 /** A rung under ~2B parameters (budget under 3 GB): local still works, but a provider deserves a mention. */
 export function smallModelsOnly(reference: string): boolean {
   const rung = ggufLadder.find((entry) => entry.model === reference);
-  return rung !== undefined && rung.vram < 3;
+  return rung !== undefined && rung.kind === "dense" && rung.vram < 3;
 }
 
 export function nextStep(steps: StepId[], current: StepId): StepId {

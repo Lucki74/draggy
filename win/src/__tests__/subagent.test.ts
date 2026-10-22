@@ -56,7 +56,7 @@ describe("choosing who does the looking", () => {
 
 describe("what an exploration is allowed to do", () => {
   const PROJECT: ToolEnvironment = {
-    webMode: "auto",
+    webMode: "on",
     codeExecution: true,
     libraryReady: false,
     hasFolder: true,
@@ -116,7 +116,7 @@ describe("what an exploration is allowed to do", () => {
     registerExploreTools();
 
     expect(
-      availableTools({ webMode: "auto", codeExecution: false, libraryReady: false }),
+      availableTools({ webMode: "on", codeExecution: false, libraryReady: false }),
     ).toEqual([]);
   });
 });

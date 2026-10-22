@@ -42,6 +42,7 @@ const BY_KIND: Record<string, { slug: string; key: string }> = {
   "provider-unknown-error": { slug: "provider-unknown-error", key: "providerUnknownError" },
   "account-signed-out": { slug: "account-signed-out", key: "accountSignedOut" },
   "account-limit-reached": { slug: "account-limit-reached", key: "accountLimitReached" },
+  "account-access-denied": { slug: "account-access-denied", key: "accountAccessDenied" },
   "account-runtime-unavailable": { slug: "account-runtime-unavailable", key: "accountRuntimeUnavailable" },
 };
 

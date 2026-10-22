@@ -10,6 +10,7 @@ import BrowserBar from "./BrowserBar.tsx";
 import { translations } from "./translations";
 import { SETTINGS_KEY } from "./storage";
 import { safeJsonParse } from "./utils";
+import { applyAccent } from "./app/accent";
 import { resolveTheme } from "./app/settings";
 import type { AppSettings } from "./types";
 import { installGlobalHandlers } from "./logger";
@@ -31,7 +32,9 @@ function savedSettings(): Partial<AppSettings> {
 
 const settings = savedSettings();
 const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
-if (resolveTheme(settings.theme ?? "system", prefersDark) === "dark") document.body.classList.add("dark");
+const startDark = resolveTheme(settings.theme ?? "system", prefersDark) === "dark";
+if (startDark) document.body.classList.add("dark");
+applyAccent(settings.accent, startDark);
 
 function browserBarT(language: string) {
   return (key: string) => translations[language]?.[key] || translations.en[key] || key;

@@ -684,6 +684,7 @@ function deleteWorkspace(id) {
   for (const chat of chats) {
     removeChat.run(chat.id);
     removeSearch.run(chat.id);
+    db.prepare("DELETE FROM kv WHERE key = ?").run(GENERATION_KEY + chat.id);
   }
 
   db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
@@ -769,6 +770,29 @@ function searchBody(message) {
   return parts.join("\n").slice(0, 20000);
 }
 
+/** What a chat was last left on: the model and the thinking level. Anything else is dropped. */
+function packGeneration(value) {
+  if (!value || typeof value !== "object") return null;
+  const out = {};
+  if (typeof value.model === "string" && value.model) out.model = value.model;
+  if (typeof value.effort === "string" && value.effort) out.effort = value.effort;
+  return Object.keys(out).length > 0 ? JSON.stringify(out) : null;
+}
+
+// In kv, not a chats column: the schema is shared with the other apps, and 1.2.7 ignores a key it does not know.
+const GENERATION_KEY = "chat_generation:";
+
+function saveGeneration(chatId, value) {
+  const packed = packGeneration(value);
+  if (packed) setValue(GENERATION_KEY + chatId, packed);
+  else db.prepare("DELETE FROM kv WHERE key = ?").run(GENERATION_KEY + chatId);
+}
+
+function loadGeneration(chatId) {
+  const parsed = parseJson(getValue(GENERATION_KEY + chatId), null);
+  return parsed ? JSON.parse(packGeneration(parsed) ?? "null") : null;
+}
+
 function saveChat(session) {
   const transaction = () => {
     db.prepare(
@@ -792,6 +816,7 @@ function saveChat(session) {
         ? JSON.stringify(session.plan)
         : null,
     );
+    saveGeneration(session.id, session.generation);
 
     db.prepare("DELETE FROM messages WHERE chat_id = ?").run(session.id);
     db.prepare("DELETE FROM message_search WHERE chat_id = ?").run(session.id);
@@ -865,6 +890,7 @@ function parseCompaction(value) {
 }
 
 function hydrateChat(chatRow) {
+  const generation = loadGeneration(chatRow.id);
   const messageRows = db
     .prepare(
       "SELECT row_id, id, role, payload FROM messages WHERE chat_id = ? ORDER BY position ASC",
@@ -896,6 +922,8 @@ function hydrateChat(chatRow) {
     updatedAt: chatRow.updated_at,
     workspaceId: chatRow.workspace_id || DEFAULT_WORKSPACE_ID,
     plan: parseJson(chatRow.plan, null),
+    // Left out when absent: the shared storage fixtures compare whole chats.
+    ...(generation ? { generation } : {}),
     isOutOfContext: Boolean(chatRow.is_out_of_context),
     isGenerating: false,
     // Losing a summary costs one idle generation to rebuild, so an unparseable
@@ -936,12 +964,14 @@ function loadChatSummaries() {
 function deleteChat(id) {
   db.prepare("DELETE FROM chats WHERE id = ?").run(id);
   db.prepare("DELETE FROM message_search WHERE chat_id = ?").run(id);
+  db.prepare("DELETE FROM kv WHERE key = ?").run(GENERATION_KEY + id);
   collectGarbage();
   return { success: true };
 }
 
 function clearChats() {
   db.exec("DELETE FROM chats");
+  db.prepare("DELETE FROM kv WHERE key LIKE ?").run(GENERATION_KEY + "%");
   db.exec("DELETE FROM message_search");
   collectGarbage();
   return { success: true };
