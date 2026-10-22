@@ -43,7 +43,7 @@ Works (as written, not yet compiled):
 - Every conversation is saved to its own file in `~/Library/Application Support/Draggy/Conversations` after each turn. The sidebar lists them under History, newest first, and a right-click deletes one. Tool steps are saved with each reply. The window shows the latest at launch, and the core gets a conversation back through `Session.restore` when the next message is sent. The single file older builds wrote is moved in as one conversation.
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 - A `write_document` agent tool that saves .docx, .pptx and .xlsx files inside the project folder from HTML or Markdown, behind the permission prompt.
-- A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links, and starts or stops each server. Chat sessions use the same manager through `Session.withMcp`.
+- A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links, and starts or stops each server. Chat sessions use the same manager through `Session.withMcp`. A gear button opens a sheet with one field per environment variable or argument, secrets masked. Secrets go to the Keychain and the rest to user defaults. Start passes them to the core and names a required input that is empty.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
 - Rust core exports UniFFI `McpManager` and composite `Session.with_mcp` tool routing for MCP servers, ready for Swift app wiring.
 - A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
@@ -53,7 +53,6 @@ Works (as written, not yet compiled):
 Missing:
 
 - Image attachments. Numbered lists show as typed.
-- Settings for an MCP server (environment variables and arguments). The Servers tab starts each server with defaults.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
 - Signing, notarization, Sparkle and a release workflow.
 

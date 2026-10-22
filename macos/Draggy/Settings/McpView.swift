@@ -3,6 +3,7 @@ import SwiftUI
 
 struct McpView: View {
     @Bindable var mcp: McpModel
+    @State private var editing: McpServerRecord?
 
     var body: some View {
         Form {
@@ -32,6 +33,15 @@ struct McpView: View {
                             if let docs = URL(string: server.docs) {
                                 Link("Docs", destination: docs)
                             }
+                            if !server.inputs.isEmpty {
+                                Button {
+                                    editing = server
+                                } label: {
+                                    Label("Server settings", systemImage: "gearshape")
+                                        .labelStyle(.iconOnly)
+                                }
+                                .buttonStyle(.borderless)
+                            }
                             if mcp.manager != nil {
                                 Button(mcp.running.contains(server.id) ? "Stop" : "Start") {
                                     Task { await mcp.toggle(server.id) }
@@ -51,5 +61,61 @@ struct McpView: View {
         }
         .padding()
         .task { await mcp.reload() }
+        .sheet(item: $editing) { server in
+            McpSettingsSheet(server: server, mcp: mcp)
+        }
+    }
+}
+
+extension McpServerRecord: @retroactive Identifiable {}
+
+/// One field per input of a server. Secret fields are masked and kept in the Keychain.
+struct McpSettingsSheet: View {
+    let server: McpServerRecord
+    let mcp: McpModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var values: [String: String] = [:]
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(server.name).font(.headline)
+            Form {
+                ForEach(server.inputs, id: \.key) { input in
+                    let binding = Binding(
+                        get: { values[input.key] ?? "" },
+                        set: { values[input.key] = $0 }
+                    )
+                    if input.secret {
+                        SecureField(input.label, text: binding, prompt: input.required ? Text("Required") : nil)
+                    } else {
+                        TextField(input.label, text: binding, prompt: input.required ? Text("Required") : nil)
+                    }
+                }
+            }
+            Text("Secrets go to the Keychain.").font(.callout).foregroundStyle(.secondary)
+            if let error {
+                Text(error).font(.callout).foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding()
+        .frame(minWidth: 420)
+        .onAppear { values = mcp.savedValues(server: server.id, inputs: server.inputs) }
+    }
+
+    private func save() {
+        do {
+            try mcp.save(values, server: server.id, inputs: server.inputs)
+            dismiss()
+        } catch {
+            self.error = String(localized: "Settings of \(server.name) were not saved: \(error.localizedDescription)")
+        }
     }
 }
