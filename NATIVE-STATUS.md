@@ -19,9 +19,10 @@ Works:
 - A Servers page lists the MCP catalogue with search and cautions, and starts or stops each server. Running servers feed their tools to chat sessions. CI compiles it, but nobody has run it on a desktop yet.
 - A gear button on each server with inputs opens its settings: one field per environment variable or argument, secrets masked. Secrets go to the keyring and the rest to `~/.config/draggy/servers.json`. Start passes them to the core and names a required input that is empty.
 
+- A Web group in settings turns on `search_web` and `read_url`: search engine choice, a SearXNG address, and a Brave key kept in the keyring. Pages on private addresses are refused, also after redirects.
+
 Missing:
 
-- Web calls.
 - Model and engine management.
 - Documents and web panes.
 - A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
@@ -48,6 +49,7 @@ Works (as written, not yet compiled):
 - Rust core exports UniFFI `McpManager` and composite `Session.with_mcp` tool routing for MCP servers, ready for Swift app wiring.
 - A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
 - VoiceOver support in the chat: each message reads as one row with who spoke and what was said, and the attach button has a label. Nothing in the app animates yet, so Reduce Motion has nothing to change. Other pages rely on SwiftUI's default labels and have not been checked with VoiceOver.
+- A Web section in settings turns on `search_web` and `read_url`: search engine choice, a SearXNG address, and a Brave key kept in the Keychain. Pages on private addresses are refused, also after redirects.
 - A macOS CI workflow.
 
 Missing:

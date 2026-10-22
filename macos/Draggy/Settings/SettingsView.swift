@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var keyDraft = ""
+    @State private var braveDraft = ""
 
     var body: some View {
         Form {
@@ -63,6 +64,23 @@ struct SettingsView: View {
                 Toggle("Let the model run commands", isOn: $model.allowCommands)
                     .disabled(model.folderPath.isEmpty)
             }
+
+            Section("Web") {
+                Toggle("Let the model search the web", isOn: $model.webEnabled)
+                Picker("Search engine", selection: $model.searchProvider) {
+                    ForEach(SearchProviderChoice.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .disabled(!model.webEnabled)
+                TextField("SearXNG address", text: $model.searxngURL)
+                    .disabled(!model.webEnabled)
+                SecureField("Brave API key", text: $braveDraft, prompt: Text(model.hasBraveKey() ? String(localized: "Saved in the Keychain") : String(localized: "None")))
+                    .disabled(!model.webEnabled)
+                Button("Save Brave key") {
+                    model.saveBraveKey(braveDraft)
+                    braveDraft = ""
+                }
+                .disabled(!model.webEnabled || braveDraft.isEmpty)
+            }
         }
         .padding()
         .frame(width: 480)
@@ -109,6 +127,31 @@ struct SettingsView: View {
         panel.prompt = String(localized: "Choose")
         if panel.runModal() == .OK, let url = panel.url {
             model.folderPath = url.path
+        }
+    }
+}
+
+/// The search engines a user can pick, as the core names them. The empty id lets the core choose.
+enum SearchProviderChoice: String, CaseIterable, Identifiable {
+    case automatic = ""
+    case searxng
+    case brave
+    case duckduckgo
+    case startpage
+    case duckduckgoLite = "duckduckgo-lite"
+    case braveHTML = "brave-html"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: String(localized: "Automatic")
+        case .searxng: "SearXNG"
+        case .brave: "Brave API"
+        case .duckduckgo: "DuckDuckGo"
+        case .startpage: "Startpage"
+        case .duckduckgoLite: "DuckDuckGo Lite"
+        case .braveHTML: "Brave web"
         }
     }
 }
