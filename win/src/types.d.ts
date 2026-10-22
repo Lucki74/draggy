@@ -338,6 +338,8 @@ export interface SearchStepLibraryHit {
 
 export interface SearchStep {
   id: string;
+  /** A loading step for a reload at a bigger window, which shows as one "Extending context" step. */
+  extending?: boolean;
   type:
     | "thinking"
     /** The GGUF engine loading the weights, gone again at the first token. */
@@ -1728,8 +1730,8 @@ declare global {
           /** The file this event is for; downloads run side by side and share one channel. */
           label?: string;
         }) => void) => Unsubscribe;
-        /** Where a model load has got to. Only "prefilling" carries a percent; the engine prints none for the rest. */
-        onStage: (callback: (stage: { stage: "reading" | "placing" | "prefilling" | "ready"; percent?: number }) => void) => Unsubscribe;
+        /** Where a wait has got to. Every figure is one the engine reported; the disk step has none. */
+        onStage: (callback: (stage: { stage: "disk" | "loading" | "readying" | "reading"; percent?: number; tokensPerSecond?: number }) => void) => Unsubscribe;
       };
     };
   }

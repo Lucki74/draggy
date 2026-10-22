@@ -35,10 +35,11 @@ function buildEnv(overrides) {
 }
 
 /** Buffers pipe stream and splits into trimmed lines for log capture. */
-function attachOutputLogger(stream, prefix, loggerFn) {
+function attachOutputLogger(stream, prefix, loggerFn, onChunk) {
   if (!stream) return;
   let buffer = "";
   stream.on("data", (chunk) => {
+    onChunk?.(chunk.toString("utf8"));
     buffer += chunk.toString("utf8");
     const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() || "";
@@ -373,16 +374,27 @@ function draftFits(modelPath, draftPath, vramGB, moe) {
   return size(modelPath) + size(draftPath) * 1.25 <= usableGB;
 }
 
-/** Which step of a load a line of engine output marks. Only the prompt has a real fraction; reading
- * and placing the weights print none, so they carry no percent. */
+/** Which step of a wait a line of engine output marks. The load percent comes from the engine's own
+ * progress dots (see `countLoadDots`), and the prompt carries how many tokens it has read so far. */
 function parseEngineStage(line) {
   const text = String(line || "");
-  if (/srv\s+load_model: loading model/i.test(text)) return { stage: "reading" };
-  if (/srv\s+load_model: initializing, n_slots/i.test(text)) return { stage: "placing" };
-  if (/llama_server: model loaded/i.test(text)) return { stage: "ready" };
-  const prefill = /prompt processing, n_tokens = \d+, progress = ([0-9.]+)/i.exec(text);
-  if (prefill) return { stage: "prefilling", percent: Math.min(100, Math.round(Number(prefill[1]) * 100)) };
+  if (/srv\s+load_model: loading model/i.test(text)) return { stage: "disk" };
+  if (/llama_server: model loaded/i.test(text)) return { stage: "readying" };
+  const prefill = /prompt processing, n_tokens = (\d+), progress = ([0-9.]+)/i.exec(text);
+  if (prefill) {
+    return { stage: "reading", tokens: Number(prefill[1]), percent: Math.min(100, Math.round(Number(prefill[2]) * 100)) };
+  }
   return null;
+}
+
+/** How many progress dots a chunk of engine output holds. The engine prints one dot for each percent of
+ * the weights it has loaded, with no line break until the end, so lines never show them in time. */
+function countLoadDots(chunk) {
+  let dots = 0;
+  for (const piece of String(chunk || "").split(/\r?\n/)) {
+    if (/^\.+$/.test(piece.trim())) dots += piece.trim().length;
+  }
+  return dots;
 }
 
 let stageSink = null;
@@ -392,30 +404,32 @@ function onEngineStage(sink) {
 }
 
 let loadProgress = null;
-/** Turns the engine's stages into percents, with the time each stage took going to the log. */
-function trackLoad(stage, { modelPath, userDataDir, logger }) {
-  if (stage.stage === "reading") {
+let loadDots = 0;
+/** Turns the engine's stages into the steps a prompt shows. */
+function trackLoad(stage) {
+  if (stage.stage === "disk") {
+    loadDots = 0;
     loadProgress?.stop();
-    let sizeBytes = 0;
-    try {
-      sizeBytes = fs.statSync(modelPath).size;
-    } catch (error) {
-      logger.warn("llama.load", `model size unreadable: ${error.name}`);
-    }
-    loadProgress = createLoadProgress({ modelPath, sizeBytes, userDataDir, logger, emit: (next) => stageSink?.(next) });
+    loadProgress = createLoadProgress({ emit: (next) => stageSink?.(next) });
   }
-  if (!loadProgress) {
-    stageSink?.(stage);
-    return;
-  }
+  if (!loadProgress) loadProgress = createLoadProgress({ emit: (next) => stageSink?.(next) });
   loadProgress.handle(stage);
+}
+
+/** Counts the dots in a chunk of engine output and shows the load percent they add up to. */
+function watchEngineChunk(chunk) {
+  if (!stageSink || !loadProgress) return;
+  const dots = countLoadDots(chunk);
+  if (!dots) return;
+  loadDots = Math.min(100, loadDots + dots);
+  loadProgress.handle({ stage: "loading", percent: loadDots });
 }
 
 /** Reads one line of the engine's output for what it says about speed: how many layers reached the
  * GPU, and how many drafted tokens were accepted. */
 function watchEngineLine(line, { modelPath, userDataDir, drafting, logger, moe }) {
   const stage = stageSink && parseEngineStage(line);
-  if (stage) trackLoad(stage, { modelPath, userDataDir, logger });
+  if (stage) trackLoad(stage);
   const offload = /offloaded (\d+)\/(\d+) layers to GPU/i.exec(line);
   if (offload) {
     activeOffload = { layers: Number(offload[1]), total: Number(offload[2]) };
@@ -699,7 +713,7 @@ async function launchServer(options) {
       recent.push(line);
       if (recent.length > 40) recent.shift();
       ring.push(line);
-    });
+    }, watchEngineChunk);
 
     // Still ours to report on only if nobody stopped or replaced it; an exit while it is still the active
     // process is the engine failing on its own.
@@ -875,6 +889,8 @@ module.exports = {
   determineKvCache,
   draftFits,
   watchEngineLine,
+  watchEngineChunk,
+  countLoadDots,
   parseEngineStage,
   onEngineStage,
   batchSizes,
