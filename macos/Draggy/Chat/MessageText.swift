@@ -13,6 +13,7 @@ enum MessageText {
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
     private static let quote = try? NSRegularExpression(pattern: "^>\\s?(.*)$")
     private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
+    private static let numbered = try? NSRegularExpression(pattern: "(\s*)(\d{1,3})[.)]\s+(.*)$")
     private static let tableSeparator = try? NSRegularExpression(pattern: "^\\s*\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
     private static let columnWidth: CGFloat = 160
 
@@ -145,6 +146,11 @@ enum MessageText {
         if let match = bullet?.firstMatch(in: row, range: whole) {
             let indent = (row as NSString).substring(with: match.range(at: 1))
             return styled(indent + "\u{2022} " + (row as NSString).substring(with: match.range(at: 2)), font: body)
+        }
+        if let match = numbered?.firstMatch(in: row, range: whole) {
+            let ns = row as NSString
+            return styled(ns.substring(with: match.range(at: 1)) + ns.substring(with: match.range(at: 2)) + ". "
+                + ns.substring(with: match.range(at: 3)), font: body)
         }
         return styled(row, font: body)
     }

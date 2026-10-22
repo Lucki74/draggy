@@ -57,7 +57,7 @@ Works (as written, not yet compiled):
 
 Missing:
 
-- Image attachments. Numbered lists show as typed.
+- Image attachments.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
 - Developer ID signing, notarization and Sparkle. A release workflow exists but signs ad hoc; the rest needs an Apple Developer account.
 
