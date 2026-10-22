@@ -11,6 +11,8 @@ use draggy_agent::skills::{
 use draggy_agent::tool_channel::{FunctionDefinition, ToolDefinition};
 use serde_json::{Value, json};
 
+use crate::error::CoreError;
+
 const MANIFEST: &str = "SKILL.md";
 /// The most bytes read from a skill file.
 const FILE_LIMIT: u64 = 256 * 1024;
@@ -169,6 +171,84 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<String>) {
     }
 }
 
+/// An installed skill, as a settings page lists it.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct SkillRecord {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+}
+
+/// The skills in `dir`, by id. An empty or missing folder gives none.
+#[uniffi::export]
+pub fn list_skills(dir: String) -> Vec<SkillRecord> {
+    SkillStore::new(dir)
+        .list()
+        .into_iter()
+        .map(|skill| SkillRecord {
+            id: skill.id,
+            name: skill.name,
+            description: skill.description,
+        })
+        .collect()
+}
+
+/// Copies a skill folder, which must hold a `SKILL.md`, into `dir`. Returns its id. A skill with that id is replaced.
+#[uniffi::export]
+pub fn install_skill(dir: String, source: String) -> Result<String, CoreError> {
+    let source = PathBuf::from(source);
+    if !source.join(MANIFEST).is_file() {
+        return Err(CoreError::Invalid {
+            message: "The folder has no SKILL.md.".to_owned(),
+        });
+    }
+    let id = source
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| !name.starts_with('.'))
+        .ok_or_else(|| CoreError::Invalid {
+            message: "The folder has no usable name.".to_owned(),
+        })?;
+    let target = PathBuf::from(&dir).join(&id);
+    if target == source {
+        return Ok(id);
+    }
+    let failed = |error: std::io::Error| CoreError::Internal {
+        message: error.to_string(),
+    };
+    if target.exists() {
+        fs::remove_dir_all(&target).map_err(failed)?;
+    }
+    copy_tree(&source, &target).map_err(failed)?;
+    Ok(id)
+}
+
+/// Deletes the skill folder `id` from `dir`.
+#[uniffi::export]
+pub fn remove_skill(dir: String, id: String) -> Result<(), CoreError> {
+    let store = SkillStore::new(dir);
+    let folder = store.folder(&id).ok_or_else(|| CoreError::Invalid {
+        message: format!("There is no skill called {id}."),
+    })?;
+    fs::remove_dir_all(folder).map_err(|error| CoreError::Internal {
+        message: error.to_string(),
+    })
+}
+
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else if entry.file_type()?.is_file() {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
 #[derive(Default)]
 struct Meta {
     name: Option<String>,
@@ -242,6 +322,21 @@ mod tests {
             SkillLookup::Found { file, .. } => assert_eq!(file.unwrap().content, "tip"),
             SkillLookup::Missing { error } => panic!("{error:?}"),
         }
+    }
+
+    #[test]
+    fn a_skill_installs_and_goes_away() {
+        let (_dir, store) = shelf();
+        let target = tempfile::tempdir().unwrap();
+        let source = store.dir.join("pdf-notes");
+        let dir = target.path().to_string_lossy().into_owned();
+        let id = install_skill(dir.clone(), source.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(id, "pdf-notes");
+        assert_eq!(list_skills(dir.clone()).len(), 1);
+        assert!(target.path().join("pdf-notes/ref/tips.md").is_file());
+        remove_skill(dir.clone(), id).unwrap();
+        assert!(list_skills(dir).is_empty());
+        assert!(install_skill("x".into(), target.path().to_string_lossy().into_owned()).is_err());
     }
 
     #[test]

@@ -99,8 +99,7 @@ impl Settings {
             permission_mode: Some(PermissionModeRecord::Ask),
             web: None,
             agy: None,
-            skills_dir: crate::models::data_dir()
-                .map(|dir| dir.join("skills").to_string_lossy().into_owned()),
+            skills_dir: crate::models::skills_dir().map(|dir| dir.to_string_lossy().into_owned()),
         })
     }
 }

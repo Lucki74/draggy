@@ -86,6 +86,7 @@ impl DraggyWindow {
         window.attach_models();
         window.attach_google();
         window.attach_browser();
+        window.attach_skills();
         window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
@@ -124,6 +125,16 @@ impl DraggyWindow {
             }
         });
         self.imp().pages.add_named(&page, Some("servers"));
+    }
+
+    fn attach_skills(&self) {
+        let weak = self.downgrade();
+        let page = crate::skills_view::build(move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("skills"));
     }
 
     fn attach_browser(&self) {

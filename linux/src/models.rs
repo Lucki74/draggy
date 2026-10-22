@@ -58,6 +58,11 @@ pub fn data_dir() -> Option<PathBuf> {
     Some(base.join("draggy"))
 }
 
+/// The folder that holds installed skills.
+pub fn skills_dir() -> Option<PathBuf> {
+    data_dir().map(|dir| dir.join("skills"))
+}
+
 /// The folder that holds downloaded model files.
 pub fn models_dir() -> Option<PathBuf> {
     data_dir().map(|dir| dir.join("models"))
