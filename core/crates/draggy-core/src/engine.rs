@@ -57,10 +57,8 @@ fn resident_bytes(pid: u32) -> Option<u64> {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let out = std::process::Command::new("ps")
-            .args(["-o", "rss=", "-p", &pid.to_string()])
-            .output()
-            .ok()?;
+        let args = ["-o", "rss=", "-p", &pid.to_string()].map(String::from);
+        let out = draggy_tools::spawn::output_blocking("ps", &args).ok()?;
         let kib: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
         Some(kib * 1024)
     }

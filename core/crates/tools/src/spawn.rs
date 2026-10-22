@@ -528,6 +528,43 @@ fn signal_name(_exit: &ExitStatus) -> Option<String> {
     None
 }
 
+pub use std::process::Child as StdChild;
+
+/// Starts a hidden child with piped output and no input, for callers that read it on their own threads.
+pub fn spawn_piped_blocking(
+    binary: &Path,
+    args: &[String],
+    cwd: Option<&Path>,
+) -> io::Result<StdChild> {
+    let mut command = std::process::Command::new(binary);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    if let Some(cwd) = cwd {
+        command.current_dir(cwd);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command.spawn()
+}
+
+/// Runs a short command to the end on the calling thread and returns its output.
+pub fn output_blocking(program: &str, args: &[String]) -> io::Result<std::process::Output> {
+    let mut command = std::process::Command::new(program);
+    command.args(args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command.output()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
