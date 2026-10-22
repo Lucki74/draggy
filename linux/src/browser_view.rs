@@ -79,7 +79,7 @@ pub fn build(notify: impl Fn(&str) + 'static) -> gtk::Widget {
                 .downcast::<webkit6::NavigationPolicyDecision>()
                 .ok()
                 .and_then(|d| d.navigation_action())
-                .and_then(|mut a| a.request())
+                .and_then(|a| a.request())
                 .and_then(|r| r.uri())
             else {
                 return false;
