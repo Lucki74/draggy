@@ -71,20 +71,36 @@ describe("a provider being retried", () => {
 describe("a model being loaded", () => {
   const loading: SearchStep = { id: "l1", type: "loading", content: "", isComplete: false, model: "qwen3-8b", startedAt: Date.now() };
 
-  it("says which stage the engine is in, with a percent and no timer", async () => {
-    let push: (stage: { stage: string; percent?: number }) => void = () => {};
+  it("shows each step the engine reports, and no timer", async () => {
+    let push: (stage: { stage: string; percent?: number; tokensPerSecond?: number }) => void = () => {};
     (window as unknown as { electronAPI?: unknown }).electronAPI = {
       gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
     };
     show([loading]);
 
-    act(() => push({ stage: "reading", percent: 30 }));
-    expect(screen.getByText(/from disk 30%/)).toBeTruthy();
-    act(() => push({ stage: "placing", percent: 6 }));
-    expect(screen.getByText(/ready 6%/)).toBeTruthy();
+    expect(screen.getByText(/from disk\.\.\./)).toBeTruthy();
+    act(() => push({ stage: "loading", percent: 30 }));
+    expect(screen.getByText(/into RAM 30%/)).toBeTruthy();
+    act(() => push({ stage: "reading", percent: 42, tokensPerSecond: 910 }));
+    expect(screen.getByText(/Reading 42% \(910 tok\/s\)/)).toBeTruthy();
+    act(() => push({ stage: "readying" }));
+    expect(screen.getByText(/is readying/)).toBeTruthy();
     expect(screen.queryByText(/\d+(\.\d)? s/)).toBeNull();
-    act(() => push({ stage: "prefilling", percent: 42 }));
-    expect(screen.getByText(/Prefilling 42%/)).toBeTruthy();
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  });
+
+  it("shows only an extending step, with the overall percent, when the window grows", async () => {
+    let push: (stage: { stage: string; percent?: number }) => void = () => {};
+    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+      gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
+    };
+    show([{ ...loading, extending: true }]);
+
+    act(() => push({ stage: "loading", percent: 60 }));
+    expect(screen.getByText("Extending context 30%...")).toBeTruthy();
+    act(() => push({ stage: "reading", percent: 50 }));
+    expect(screen.getByText("Extending context 75%...")).toBeTruthy();
+    expect(screen.queryByText(/RAM|Reading/)).toBeNull();
     delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 });

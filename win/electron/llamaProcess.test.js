@@ -795,16 +795,23 @@ describe("llamaProcess generation speed", () => {
     expect(llamaProcess.draftFits("model.gguf", "model-draft.gguf", 0, false)).toBe(true);
   });
 
-  it("tells the load stages apart and gives a percent only for the prompt", () => {
+  it("tells the wait's stages apart and carries only the engine's own numbers", () => {
     const stage = llamaProcess.parseEngineStage;
-    expect(stage("srv    load_model: loading model 'C:/m/model.gguf'")).toEqual({ stage: "reading" });
-    expect(stage("srv    load_model: initializing, n_slots = 1")).toEqual({ stage: "placing" });
-    expect(stage("srv  llama_server: model loaded")).toEqual({ stage: "ready" });
+    expect(stage("srv    load_model: loading model 'C:/m/model.gguf'")).toEqual({ stage: "disk" });
+    expect(stage("srv    load_model: initializing, n_slots = 1")).toBeNull();
+    expect(stage("srv  llama_server: model loaded")).toEqual({ stage: "readying" });
     expect(stage("slot print_timing: id 0 | task 3 | prompt processing, n_tokens = 512, progress = 0.17, t = 40 ms")).toEqual({
-      stage: "prefilling",
+      stage: "reading",
+      tokens: 512,
       percent: 17,
     });
     expect(stage("load_tensors: offloaded 20/33 layers to GPU")).toBeNull();
+  });
+
+  it("counts the progress dots the engine prints while it loads the weights", () => {
+    expect(llamaProcess.countLoadDots("....")).toBe(4);
+    expect(llamaProcess.countLoadDots("load_tensors: done\n.....\n")).toBe(5);
+    expect(llamaProcess.countLoadDots("llama_model_loader: loaded 3.5.2")).toBe(0);
   });
 
   it("hands a stage to the sink while reading the log", () => {
@@ -812,7 +819,7 @@ describe("llamaProcess generation speed", () => {
     llamaProcess.onEngineStage((s) => seen.push(s));
     llamaProcess.watchEngineLine("srv  llama_server: model loaded", { modelPath: "m.gguf", drafting: false, logger: quiet, moe: false });
     llamaProcess.onEngineStage(null);
-    expect(seen).toEqual([{ stage: "ready" }]);
+    expect(seen).toEqual([{ stage: "readying" }]);
   });
 
   it("reads the GPU offload from the engine's load log", () => {

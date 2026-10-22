@@ -6,6 +6,7 @@ import {
   nextContextSize,
   gpuShareFor,
   hasCapability,
+  isExtendingContext,
   isLoadedAt,
   mergeMetrics,
   needsTextModeTools,
@@ -1128,12 +1129,16 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     // show was the typing dots: 15 to 26 s for a 20 GB model on an 8 GB card.
     const loadStepId =
       (await isLoadedAt(model, numCtx)) === false ? generateId() : null;
+    // With the window on automatic, a reload at a bigger one is an extension, not a first load.
+    const extending =
+      loadStepId !== null && settings.fixedContextSize == null && (await isExtendingContext(model, numCtx));
     if (loadStepId !== null) {
       pushStep({
         id: loadStepId,
         type: "loading",
-        content: host.t("loadingModel").replace("{model}", model).replace("{percent}", "0"),
+        content: host.t(extending ? "extendingContext" : "loadingModel").replace("{model}", model).replace("{percent}", "0"),
         isComplete: false,
+        extending,
         model,
         startedAt: Date.now(),
       });

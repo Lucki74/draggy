@@ -6,6 +6,9 @@ export interface SpeechLibrary {
   AutoProcessor: { from_pretrained(model: string): Promise<unknown> };
   WhisperFeatureExtractor: new (config: Record<string, unknown>) => unknown;
   Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown;
+  PreTrainedTokenizer?: new (tokenizerJson: unknown, tokenizerConfig: unknown) => unknown;
+  /** Reads one JSON file of a model through the host the pipeline downloads from. */
+  loadJson?: (model: string, file: string) => Promise<unknown>;
 }
 
 export type SpeechStage = "download" | "tokenizer" | "processor" | "warm-up" | "transcribe";
@@ -27,6 +30,19 @@ export async function atStage<T>(stage: SpeechStage, run: () => Promise<T>): Pro
   } catch (error) {
     throw error instanceof SpeechStageError ? error : new SpeechStageError(stage, error);
   }
+}
+
+/**
+ * AutoTokenizer lists the tokenizer files by a range request the draggy://models/ host does not
+ * answer, gets none, and fails reading tokenizer_class of nothing. The two files are read directly.
+ */
+async function loadTokenizer(model: string, lib: SpeechLibrary): Promise<unknown> {
+  if (!lib.loadJson || !lib.PreTrainedTokenizer) return lib.AutoTokenizer.from_pretrained(model);
+  const [tokenizerJson, tokenizerConfig] = await Promise.all([
+    lib.loadJson(model, "tokenizer.json"),
+    lib.loadJson(model, "tokenizer_config.json"),
+  ]);
+  return new lib.PreTrainedTokenizer(tokenizerJson, tokenizerConfig ?? {});
 }
 
 async function loadProcessor(model: string, lib: SpeechLibrary): Promise<unknown> {
@@ -66,7 +82,7 @@ export async function completePipeline(
   lib: SpeechLibrary,
 ): Promise<void> {
   if (!instance.tokenizer) {
-    instance.tokenizer = await atStage("tokenizer", () => lib.AutoTokenizer.from_pretrained(model));
+    instance.tokenizer = await atStage("tokenizer", () => loadTokenizer(model, lib));
   }
   if (!instance.processor) {
     instance.processor = await atStage("processor", () => loadProcessor(model, lib));

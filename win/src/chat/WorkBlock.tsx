@@ -17,6 +17,7 @@ import { OpenDiffContext } from "./openDiffContext";
 import DiffBlock from "./DiffBlock";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
+import { loadLabel, type LoadStage } from "./loadLabel";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
@@ -326,19 +327,12 @@ function FileCard({
   );
 }
 
-const STAGE_KEYS = {
-  reading: "loadingStageReading",
-  placing: "loadingStagePlacing",
-  prefilling: "loadingStagePrefilling",
-  ready: "loadingStageReady",
-} as const;
-
-// Shows how far the load has got in percent; the time each stage took goes to the log.
+// Shows the steps of a wait as the engine reports them: nothing here is estimated.
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
   const [now, setNow] = useState(() => Date.now());
-  const [stage, setStage] = useState<{ stage: "reading" | "placing" | "prefilling" | "ready"; percent?: number } | null>(null);
+  const [stage, setStage] = useState<LoadStage | null>(null);
 
-  // The engine's own log says which part of the load it is in; only a prompt has a percent.
+  // The engine's own log says which part of the wait it is in.
   useEffect(() => {
     if (!step.model) return;
     return window.electronAPI?.gguf?.onStage?.(setStage);
@@ -356,9 +350,7 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
         .replace("{attempt}", String(step.retry.attempt))
         .replace("{of}", String(step.retry.of))
     : step.model
-      ? t(stage ? STAGE_KEYS[stage.stage] : "loadingModel")
-          .replace("{model}", displayModelName(step.model))
-          .replace("{percent}", String(stage?.percent ?? 0))
+      ? loadLabel(stage, { model: displayModelName(step.model), extending: step.extending, t })
       : step.content;
 
   return (
