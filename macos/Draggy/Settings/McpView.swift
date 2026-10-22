@@ -8,9 +8,14 @@ struct McpView: View {
         Form {
             Section {
                 TextField("Search", text: $mcp.query)
-                Text("Servers listed here cannot be turned on yet.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                if mcp.manager == nil {
+                    Text("The server manager could not start, so servers cannot be turned on.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                if let error = mcp.lastError {
+                    Text(error).font(.callout).foregroundStyle(.red)
+                }
             }
             Section("Catalogue") {
                 if mcp.servers.isEmpty {
@@ -27,6 +32,12 @@ struct McpView: View {
                             if let docs = URL(string: server.docs) {
                                 Link("Docs", destination: docs)
                             }
+                            if mcp.manager != nil {
+                                Button(mcp.running.contains(server.id) ? "Stop" : "Start") {
+                                    Task { await mcp.toggle(server.id) }
+                                }
+                                .disabled(mcp.busy.contains(server.id))
+                            }
                         }
                         Text(server.description).foregroundStyle(.secondary)
                         if let caution = server.caution {
@@ -39,5 +50,6 @@ struct McpView: View {
             }
         }
         .padding()
+        .task { await mcp.reload() }
     }
 }

@@ -97,7 +97,7 @@ final class AppModel {
     let engine: EngineModel
     let models: ModelsModel
     let updates = UpdateModel()
-    let mcp = McpModel()
+    let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
     private var session: Session?
     private var cancel: CancelToken?
@@ -292,7 +292,12 @@ final class AppModel {
             allowCommands: allowCommands && folder != nil,
             permissionMode: permission.record
         )
-        let created = try Session(config: config)
+        let created: Session
+        if let manager = mcp.manager {
+            created = try Session.withMcp(config: config, mcp: manager)
+        } else {
+            created = try Session(config: config)
+        }
         // The reply being filled is not finished yet, so only the exchanges before this send go to the core.
         let earlier = Transcript(restoring: transcript.savedMessages)
         let records = earlier.lines.enumerated().map { index, line in
