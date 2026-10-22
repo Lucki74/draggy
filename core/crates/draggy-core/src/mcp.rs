@@ -29,6 +29,20 @@ pub struct McpServerRecord {
     pub remote: bool,
     /// The page that documents the server.
     pub docs: String,
+    /// The values the user fills in before the server starts.
+    pub inputs: Vec<McpInputRecord>,
+}
+
+/// One value a server needs: an environment variable or a command argument.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct McpInputRecord {
+    pub key: String,
+    pub label: String,
+    pub required: bool,
+    /// The value is a credential, so the field is masked.
+    pub secret: bool,
+    /// `true` for an environment variable, `false` for an argument.
+    pub is_env: bool,
 }
 
 /// The settings for an MCP server: command arguments, environment variables, or remote URL.
@@ -115,15 +129,39 @@ impl From<&ServerState> for McpServerStateRecord {
 pub fn mcp_catalogue(query: String) -> Vec<McpServerRecord> {
     search_catalogue(&query)
         .into_iter()
-        .map(|entry| McpServerRecord {
-            name: entry.name.unwrap_or_else(|| entry.id.clone()),
-            id: entry.id,
-            description: entry.description,
-            caution: entry.caution.filter(|text| !text.is_empty()),
-            remote: entry.remote.unwrap_or(false),
-            docs: entry.docs.unwrap_or_default(),
+        .map(|entry| {
+            let inputs = entry_inputs(&entry);
+            McpServerRecord {
+                name: entry.name.unwrap_or_else(|| entry.id.clone()),
+                id: entry.id,
+                description: entry.description,
+                caution: entry.caution.filter(|text| !text.is_empty()),
+                remote: entry.remote.unwrap_or(false),
+                docs: entry.docs.unwrap_or_default(),
+                inputs,
+            }
         })
         .collect()
+}
+
+/// The environment variables and arguments a catalogue entry asks the user for.
+fn entry_inputs(entry: &draggy_mcp::catalogue::Entry) -> Vec<McpInputRecord> {
+    let label = |label: &Option<String>, key: &str| label.clone().unwrap_or_else(|| key.to_owned());
+    let env = entry.env.iter().flatten().map(|var| McpInputRecord {
+        key: var.key.clone(),
+        label: label(&var.label, &var.key),
+        required: var.required == Some(true),
+        secret: var.secret == Some(true),
+        is_env: true,
+    });
+    let arguments = entry.arguments.iter().flatten().map(|arg| McpInputRecord {
+        key: arg.key.clone(),
+        label: label(&arg.label, &arg.key),
+        required: arg.required == Some(true),
+        secret: false,
+        is_env: false,
+    });
+    env.chain(arguments).collect()
 }
 
 /// Manages running MCP servers: starts them, stops them, and offers their state to the shell.

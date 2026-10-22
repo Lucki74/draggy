@@ -30,8 +30,8 @@ pub use installer::{
     EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
 };
 pub use mcp::{
-    McpManager, McpServerConfigRecord, McpServerRecord, McpServerStateRecord, McpToolRecord,
-    mcp_catalogue,
+    McpInputRecord, McpManager, McpServerConfigRecord, McpServerRecord, McpServerStateRecord,
+    McpToolRecord, mcp_catalogue,
 };
 pub use models::{
     DownloadObserver, DownloadProgressRecord, InstalledModelRecord, LibraryModelRecord,
