@@ -1,0 +1,422 @@
+[
+  {
+    "file": "human/email-01.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 330,
+    "source": "Elinore Pruitt Stewart, Letters of a Woman Homesteader, Project Gutenberg ebook #16623 (https://www.gutenberg.org/ebooks/16623)"
+  },
+  {
+    "file": "human/email-02.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 231,
+    "source": "Mark Twain, Mark Twain's Letters, Volume 1 (1853-1866), Project Gutenberg ebook #3193 (https://www.gutenberg.org/ebooks/3193)"
+  },
+  {
+    "file": "human/email-03.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 328,
+    "source": "George Horace Lorimer, Letters from a Self-Made Merchant to His Son, Project Gutenberg ebook #21959 (https://www.gutenberg.org/ebooks/21959)"
+  },
+  {
+    "file": "human/email-04.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 174,
+    "source": "Lord Chesterfield, Letters to His Son, Project Gutenberg ebook #3361 (https://www.gutenberg.org/ebooks/3361)"
+  },
+  {
+    "file": "human/email-05.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 338,
+    "source": "Abraham Lincoln, The Papers and Writings of Abraham Lincoln, Project Gutenberg ebook #3253 (https://www.gutenberg.org/ebooks/3253)"
+  },
+  {
+    "file": "human/email-06.txt",
+    "side": "human",
+    "genre": "email",
+    "words": 153,
+    "source": "Jane Austen (letters, in Austen-Leigh family record), Jane Austen, Her Life and Letters: A Family Record, Project Gutenberg ebook #22536 (https://www.gutenberg.org/ebooks/22536)"
+  },
+  {
+    "file": "human/essay-01.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 294,
+    "source": "Ralph Waldo Emerson, Essays, First Series, Project Gutenberg ebook #2944 (https://www.gutenberg.org/ebooks/2944)"
+  },
+  {
+    "file": "human/essay-02.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 258,
+    "source": "Henry David Thoreau, Walden, Project Gutenberg ebook #205 (https://www.gutenberg.org/ebooks/205)"
+  },
+  {
+    "file": "human/essay-03.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 193,
+    "source": "Robert Louis Stevenson, Virginibus Puerisque, and Other Papers, Project Gutenberg ebook #386 (https://www.gutenberg.org/ebooks/386)"
+  },
+  {
+    "file": "human/essay-04.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 208,
+    "source": "Mark Twain, Europe and Elsewhere, Project Gutenberg ebook #68604 (https://www.gutenberg.org/ebooks/68604)"
+  },
+  {
+    "file": "human/essay-05.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 161,
+    "source": "Francis Bacon, The Essays or Counsels, Civil and Moral, Project Gutenberg ebook #575 (https://www.gutenberg.org/ebooks/575)"
+  },
+  {
+    "file": "human/essay-06.txt",
+    "side": "human",
+    "genre": "essay",
+    "words": 185,
+    "source": "G. K. Chesterton, Heretics, Project Gutenberg ebook #470 (https://www.gutenberg.org/ebooks/470)"
+  },
+  {
+    "file": "human/social-01.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 186,
+    "source": "Samuel Pepys, The Diary of Samuel Pepys, Project Gutenberg ebook #4200 (https://www.gutenberg.org/ebooks/4200)"
+  },
+  {
+    "file": "human/social-02.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 159,
+    "source": "Ambrose Bierce, The Devil's Dictionary, Project Gutenberg ebook #972 (https://www.gutenberg.org/ebooks/972)"
+  },
+  {
+    "file": "human/social-03.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 201,
+    "source": "George and Weedon Grossmith, The Diary of a Nobody, Project Gutenberg ebook #1026 (https://www.gutenberg.org/ebooks/1026)"
+  },
+  {
+    "file": "human/social-04.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 208,
+    "source": "Dorothy Wordsworth, Journals of Dorothy Wordsworth, Vol. 1, Project Gutenberg ebook #42856 (https://www.gutenberg.org/ebooks/42856)"
+  },
+  {
+    "file": "human/social-05.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 340,
+    "source": "Benjamin Franklin, Franklin's Way to Wealth; or, Poor Richard Improved, Project Gutenberg ebook #43855 (https://www.gutenberg.org/ebooks/43855)"
+  },
+  {
+    "file": "human/social-06.txt",
+    "side": "human",
+    "genre": "social",
+    "words": 205,
+    "source": "John Evelyn, The Diary of John Evelyn, Vol. 1, Project Gutenberg ebook #41218 (https://www.gutenberg.org/ebooks/41218)"
+  },
+  {
+    "file": "human/academic-01.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 231,
+    "source": "Charles Darwin, On the Origin of Species, Project Gutenberg ebook #1228 (https://www.gutenberg.org/ebooks/1228)"
+  },
+  {
+    "file": "human/academic-02.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 164,
+    "source": "William James, Pragmatism, Project Gutenberg ebook #5116 (https://www.gutenberg.org/ebooks/5116)"
+  },
+  {
+    "file": "human/academic-03.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 293,
+    "source": "John Stuart Mill, On Liberty, Project Gutenberg ebook #34901 (https://www.gutenberg.org/ebooks/34901)"
+  },
+  {
+    "file": "human/academic-04.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 204,
+    "source": "Thomas Henry Huxley, Lay Sermons, Addresses and Reviews, Project Gutenberg ebook #16729 (https://www.gutenberg.org/ebooks/16729)"
+  },
+  {
+    "file": "human/academic-05.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 200,
+    "source": "Thorstein Veblen, The Theory of the Leisure Class, Project Gutenberg ebook #833 (https://www.gutenberg.org/ebooks/833)"
+  },
+  {
+    "file": "human/academic-06.txt",
+    "side": "human",
+    "genre": "academic",
+    "words": 335,
+    "source": "Adam Smith, An Inquiry into the Nature and Causes of the Wealth of Nations, Project Gutenberg ebook #3300 (https://www.gutenberg.org/ebooks/3300)"
+  },
+  {
+    "file": "human/fiction-01.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 163,
+    "source": "Jane Austen, Pride and Prejudice, Project Gutenberg ebook #1342 (https://www.gutenberg.org/ebooks/1342)"
+  },
+  {
+    "file": "human/fiction-02.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 302,
+    "source": "Arthur Conan Doyle, A Study in Scarlet, Project Gutenberg ebook #244 (https://www.gutenberg.org/ebooks/244)"
+  },
+  {
+    "file": "human/fiction-03.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 189,
+    "source": "Mark Twain, The Adventures of Tom Sawyer, Project Gutenberg ebook #74 (https://www.gutenberg.org/ebooks/74)"
+  },
+  {
+    "file": "human/fiction-04.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 237,
+    "source": "H. G. Wells, The Time Machine, Project Gutenberg ebook #35 (https://www.gutenberg.org/ebooks/35)"
+  },
+  {
+    "file": "human/fiction-05.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 169,
+    "source": "Jack London, The Call of the Wild, Project Gutenberg ebook #215 (https://www.gutenberg.org/ebooks/215)"
+  },
+  {
+    "file": "human/fiction-06.txt",
+    "side": "human",
+    "genre": "fiction",
+    "words": 216,
+    "source": "Joseph Conrad, Heart of Darkness, Project Gutenberg ebook #219 (https://www.gutenberg.org/ebooks/219)"
+  },
+  {
+    "file": "ai/email-01.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 210,
+    "source": "generated by claude-sonnet-5-5 in default voice, request to reschedule a quarterly review meeting"
+  },
+  {
+    "file": "ai/email-02.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 212,
+    "source": "generated by claude-sonnet-5-5 in default voice, follow-up after a job interview"
+  },
+  {
+    "file": "ai/email-03.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 217,
+    "source": "generated by claude-sonnet-5-5 in default voice, complaint to a landlord about a broken heater"
+  },
+  {
+    "file": "ai/email-04.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 228,
+    "source": "generated by claude-sonnet-5-5 in default voice, notice to a client about a project delay"
+  },
+  {
+    "file": "ai/email-05.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 191,
+    "source": "generated by claude-sonnet-5-5 in default voice, welcome message to a new team member"
+  },
+  {
+    "file": "ai/email-06.txt",
+    "side": "ai",
+    "genre": "email",
+    "words": 194,
+    "source": "generated by claude-sonnet-5-5 in default voice, refund request for a delayed order"
+  },
+  {
+    "file": "ai/essay-01.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 231,
+    "source": "generated by claude-sonnet-5-5 in default voice, the effects of remote work on workplace culture"
+  },
+  {
+    "file": "ai/essay-02.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 228,
+    "source": "generated by claude-sonnet-5-5 in default voice, urban gardening"
+  },
+  {
+    "file": "ai/essay-03.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 216,
+    "source": "generated by claude-sonnet-5-5 in default voice, why reading fiction still matters"
+  },
+  {
+    "file": "ai/essay-04.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 212,
+    "source": "generated by claude-sonnet-5-5 in default voice, the importance of sleep"
+  },
+  {
+    "file": "ai/essay-05.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 208,
+    "source": "generated by claude-sonnet-5-5 in default voice, the role of public libraries"
+  },
+  {
+    "file": "ai/essay-06.txt",
+    "side": "ai",
+    "genre": "essay",
+    "words": 219,
+    "source": "generated by claude-sonnet-5-5 in default voice, the value of learning a second language"
+  },
+  {
+    "file": "ai/social-01.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 192,
+    "source": "generated by claude-sonnet-5-5 in default voice, LinkedIn post announcing a product launch"
+  },
+  {
+    "file": "ai/social-02.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 197,
+    "source": "generated by claude-sonnet-5-5 in default voice, Instagram caption after a hike"
+  },
+  {
+    "file": "ai/social-03.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 181,
+    "source": "generated by claude-sonnet-5-5 in default voice, Twitter/X thread about productivity"
+  },
+  {
+    "file": "ai/social-04.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 179,
+    "source": "generated by claude-sonnet-5-5 in default voice, Facebook post about a neighborhood cleanup"
+  },
+  {
+    "file": "ai/social-05.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 202,
+    "source": "generated by claude-sonnet-5-5 in default voice, LinkedIn post about lessons learned from a layoff"
+  },
+  {
+    "file": "ai/social-06.txt",
+    "side": "ai",
+    "genre": "social",
+    "words": 197,
+    "source": "generated by claude-sonnet-5-5 in default voice, Reddit post about a first sourdough loaf"
+  },
+  {
+    "file": "ai/academic-01.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 218,
+    "source": "generated by claude-sonnet-5-5 in default voice, sleep deprivation and working memory"
+  },
+  {
+    "file": "ai/academic-02.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 195,
+    "source": "generated by claude-sonnet-5-5 in default voice, urban heat islands"
+  },
+  {
+    "file": "ai/academic-03.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 190,
+    "source": "generated by claude-sonnet-5-5 in default voice, microplastics in freshwater ecosystems"
+  },
+  {
+    "file": "ai/academic-04.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 189,
+    "source": "generated by claude-sonnet-5-5 in default voice, remote instruction and student engagement"
+  },
+  {
+    "file": "ai/academic-05.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 180,
+    "source": "generated by claude-sonnet-5-5 in default voice, gut microbiome and mental health"
+  },
+  {
+    "file": "ai/academic-06.txt",
+    "side": "ai",
+    "genre": "academic",
+    "words": 177,
+    "source": "generated by claude-sonnet-5-5 in default voice, coastal erosion and shoreline management"
+  },
+  {
+    "file": "ai/fiction-01.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 218,
+    "source": "generated by claude-sonnet-5-5 in default voice, a lighthouse keeper's last night"
+  },
+  {
+    "file": "ai/fiction-02.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 220,
+    "source": "generated by claude-sonnet-5-5 in default voice, a detective at a quiet crime scene"
+  },
+  {
+    "file": "ai/fiction-03.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 199,
+    "source": "generated by claude-sonnet-5-5 in default voice, a reunion between estranged sisters at a train station"
+  },
+  {
+    "file": "ai/fiction-04.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 212,
+    "source": "generated by claude-sonnet-5-5 in default voice, a space station crew discovering a signal"
+  },
+  {
+    "file": "ai/fiction-05.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 201,
+    "source": "generated by claude-sonnet-5-5 in default voice, a girl and her grandmother in a kitchen"
+  },
+  {
+    "file": "ai/fiction-06.txt",
+    "side": "ai",
+    "genre": "fiction",
+    "words": 206,
+    "source": "generated by claude-sonnet-5-5 in default voice, a traveler arriving in a mountain village in winter"
+  }
+]

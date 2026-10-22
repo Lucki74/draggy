@@ -448,6 +448,132 @@
       ]
     },
     {
+      "id": "human-academic-register",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Formal academic prose without machine tells",
+      "tags": [
+        "academic",
+        "paper",
+        "thesis",
+        "formal",
+        "human"
+      ]
+    },
+    {
+      "id": "human-detector-report",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Measure how machine-like a text looks",
+      "tags": [
+        "measure",
+        "metrics",
+        "ai detection",
+        "report",
+        "audit"
+      ]
+    },
+    {
+      "id": "human-email",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Write emails that sound like a person sent them",
+      "tags": [
+        "email",
+        "reply",
+        "work",
+        "tone",
+        "human"
+      ]
+    },
+    {
+      "id": "human-essay",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Essays and articles with an uneven human shape",
+      "tags": [
+        "essay",
+        "article",
+        "long form",
+        "writing",
+        "human"
+      ]
+    },
+    {
+      "id": "human-fiction-voice",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Fiction prose with a voice, not a template",
+      "tags": [
+        "fiction",
+        "story",
+        "narrative",
+        "dialogue",
+        "voice"
+      ]
+    },
+    {
+      "id": "human-rewrite-minimal",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Light edit that removes only clear AI patterns",
+      "tags": [
+        "edit",
+        "minimal",
+        "cleanup",
+        "rewrite",
+        "ai tells"
+      ]
+    },
+    {
+      "id": "human-social",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Social posts that do not sound generated",
+      "tags": [
+        "social",
+        "post",
+        "linkedin",
+        "twitter",
+        "human"
+      ]
+    },
+    {
+      "id": "human-translate-natural",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Translations that read like native writing",
+      "tags": [
+        "translate",
+        "natural",
+        "localize",
+        "language",
+        "human"
+      ]
+    },
+    {
+      "id": "human-voice-profile",
+      "category": "writing",
+      "surface": "both",
+      "on": false,
+      "summary": "Build a reusable profile of your writing voice",
+      "tags": [
+        "voice",
+        "style",
+        "profile",
+        "writing",
+        "sample"
+      ]
+    },
+    {
       "id": "invoice",
       "category": "documents",
       "surface": "chat",
