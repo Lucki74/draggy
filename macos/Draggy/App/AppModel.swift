@@ -103,6 +103,7 @@ final class AppModel {
     let engine: EngineModel
     let models: ModelsModel
     let updates = UpdateModel()
+    let skills = SkillsModel()
     let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
     let agy = AgyModel()
@@ -390,12 +391,6 @@ final class AppModel {
         conversations = library.list()
     }
 
-    /// Where installed skills live: one folder each, with a `SKILL.md`.
-    private static var skillsDirectory: String {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Draggy/skills").path
-    }
-
     private func currentSession() throws -> Session {
         if let session { return session }
         // The key is read only here, while the request is being set up.
@@ -426,7 +421,7 @@ final class AppModel {
             permissionMode: permission.record,
             web: webConfig(),
             agy: nil,
-            skillsDir: Self.skillsDirectory
+            skillsDir: SkillsModel.standardDirectory
         )
         let created: Session
         if let manager = mcp.manager {
