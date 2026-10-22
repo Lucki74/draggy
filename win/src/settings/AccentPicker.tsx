@@ -29,14 +29,15 @@ export function AccentPicker({
       label={t("accentColor")}
       align="end"
       items={items}
+      className="min-w-32!"
       trigger={(props) => (
         <button
           {...props}
           type="button"
-          className="flex h-8 min-w-40 items-center gap-2 rounded-lg border border-rule-control bg-surface-canvas px-2.5 text-sm text-text-primary outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-focus"
+          className="flex h-8 items-center gap-2 rounded-lg border border-rule-control bg-surface-canvas px-2.5 text-sm text-text-primary outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-focus"
         >
           <Dot color={current.color} />
-          <span className="flex-1 truncate text-start">{t(`accent_${current.id}`)}</span>
+          <span className="truncate text-start">{t(`accent_${current.id}`)}</span>
           <Icon name="caret-down" size={14} className="text-text-secondary" />
         </button>
       )}
