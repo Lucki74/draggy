@@ -5,6 +5,7 @@ pub mod conversations;
 pub mod markdown;
 pub mod runtime;
 pub mod secrets;
+pub mod servers;
 pub mod settings;
 
 /// The D-Bus name and desktop file id of the app.

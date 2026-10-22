@@ -82,6 +82,7 @@ impl DraggyWindow {
         let window: Self = glib::Object::builder().property("application", app).build();
         window.install_actions();
         window.attach_chat();
+        window.attach_servers();
         window.install_history();
         window.refresh_history();
         window
@@ -109,6 +110,16 @@ impl DraggyWindow {
                 });
             },
         );
+    }
+
+    fn attach_servers(&self) {
+        let weak = self.downgrade();
+        let page = crate::servers_view::build(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("servers"));
     }
 
     fn install_actions(&self) {
