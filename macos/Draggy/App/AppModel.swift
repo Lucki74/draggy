@@ -120,6 +120,8 @@ final class AppModel {
     private(set) var pendingApproval: ApprovalRecord?
 
     var draft = ""
+    /// Pictures waiting to go with the next message.
+    private(set) var pendingImages: [ImageRecord] = []
 
     var baseURL: String {
         didSet {
@@ -296,9 +298,37 @@ final class AppModel {
         conversations = library.list()
     }
 
-    /// Adds the text of a document to the message being written.
+    private static let imageTypes = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                                     "gif": "image/gif", "webp": "image/webp"]
+    private static let imageLimit = 10_000_000
+
+    func removeImage(at index: Int) {
+        guard pendingImages.indices.contains(index) else { return }
+        pendingImages.remove(at: index)
+    }
+
+    /// Adds a picture to the next message.
+    private func attachImage(_ url: URL, mime: String) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url) else {
+            errorMessage = String(localized: "The file could not be read.")
+            return
+        }
+        guard data.count <= Self.imageLimit else {
+            errorMessage = String(localized: "The picture is larger than 10 MB.")
+            return
+        }
+        pendingImages.append(ImageRecord(name: url.lastPathComponent, mime: mime, data: data))
+    }
+
+    /// Adds a picture to the next message, or the text of a document to the message being written.
     func attach(_ url: URL) async {
         errorMessage = nil
+        if let mime = Self.imageTypes[url.pathExtension.lowercased()] {
+            attachImage(url, mime: mime)
+            return
+        }
         do {
             let text = try await readDocument(path: url.path)
             draft = Attachment.append(text, named: url.lastPathComponent, to: draft)
@@ -324,6 +354,8 @@ final class AppModel {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isRunning else { return }
         draft = ""
+        let images = pendingImages
+        pendingImages = []
         errorMessage = nil
         isRunning = true
         defer {
@@ -331,7 +363,7 @@ final class AppModel {
             pendingApproval = nil
         }
 
-        transcript.addUser(text)
+        transcript.addUser(([text] + images.map { "[\($0.name)]" }).joined(separator: "\n"))
         transcript.beginReply()
         let token = CancelToken()
         cancel = token
@@ -344,7 +376,8 @@ final class AppModel {
 
         do {
             let session = try currentSession()
-            let outcome = try await session.send(text: text, observer: sink, approvals: broker, cancel: token)
+            let outcome = try await session.sendWithImages(
+                text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
             transcript.setSteps(outcome.steps.map(transcriptStep))
         } catch let error as CoreError {

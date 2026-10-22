@@ -6,8 +6,8 @@ use std::sync::mpsc;
 
 use async_channel::Sender;
 use draggy_core::{
-    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, MessageRecord,
-    MetricsRecord, Session, StepRecord, TurnEventRecord, TurnObserver, TurnOutcome,
+    ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, ImageRecord,
+    MessageRecord, MetricsRecord, Session, StepRecord, TurnEventRecord, TurnObserver, TurnOutcome,
 };
 
 use crate::conversations::SavedMessage;
@@ -238,6 +238,7 @@ impl ApprovalHandler for Approvals {
 pub fn start_turn(
     session: Arc<Session>,
     text: String,
+    images: Vec<ImageRecord>,
     tx: Sender<ChatMessage>,
 ) -> Arc<CancelToken> {
     let cancel = CancelToken::new();
@@ -245,7 +246,9 @@ pub fn start_turn(
     runtime().spawn(async move {
         let observer: Arc<dyn TurnObserver> = Arc::new(Observer(tx.clone()));
         let approvals: Arc<dyn ApprovalHandler> = Arc::new(Approvals(tx.clone()));
-        let result = session.send(text, observer, Some(approvals), cancel).await;
+        let result = session
+            .send_with_images(text, images, observer, Some(approvals), cancel)
+            .await;
         drop(tx.send(ChatMessage::Finished(result)).await);
     });
     token
@@ -502,7 +505,7 @@ mod tests {
         })
         .expect("a session");
         let (tx, rx) = async_channel::unbounded();
-        let _cancel = start_turn(session, "hello".to_owned(), tx);
+        let _cancel = start_turn(session, "hello".to_owned(), Vec::new(), tx);
         loop {
             match rx.recv_blocking().expect("the turn reports") {
                 ChatMessage::Finished(result) => {

@@ -16,6 +16,7 @@ Works:
 - Saved conversations: each turn is saved. The sidebar's History list shows them newest first, and a click opens one. The + button starts a new conversation, and the trash button deletes one after a confirmation.
 - Markdown in replies: headings, bold, italic, inline code, bullet and numbered lists, quotes, http and https links, and code blocks with a copy button. User messages and tables show as plain text.
 - A paperclip button in the composer adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
+- The same button takes pictures (png, jpeg, gif, webp up to 10 MB). A toast confirms each one, and they go to the model with the next message through the core's `send_with_images`.
 - A Servers page lists the MCP catalogue with search and cautions, and starts or stops each server. Running servers feed their tools to chat sessions. CI compiles it, but nobody has run it on a desktop yet.
 - A gear button on each server with inputs opens its settings: one field per environment variable or argument, secrets masked. Secrets go to the keyring and the rest to `~/.config/draggy/servers.json`. Start passes them to the core and names a required input that is empty.
 
@@ -45,6 +46,7 @@ Works (as written, not yet compiled):
 - A project folder, a permission mode, an option to allow commands, and an approval sheet for the core's questions.
 - Every conversation is saved to its own file in `~/Library/Application Support/Draggy/Conversations` after each turn. The sidebar lists them under History, newest first, and a right-click deletes one. Tool steps are saved with each reply. The window shows the latest at launch, and the core gets a conversation back through `Session.restore` when the next message is sent. The single file older builds wrote is moved in as one conversation.
 - A paperclip button in the composer that adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
+- The paperclip also takes pictures (png, jpeg, gif, webp up to 10 MB). They go to the model as image parts through the core's `send_with_images`, shown as chips above the field. A model that cannot see images is told so in the message.
 - A `write_document` agent tool that saves .docx, .pptx and .xlsx files inside the project folder from HTML or Markdown, behind the permission prompt.
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links, and starts or stops each server. Chat sessions use the same manager through `Session.withMcp`. A gear button opens a sheet with one field per environment variable or argument, secrets masked. Secrets go to the Keychain and the rest to user defaults. Start passes them to the core and names a required input that is empty.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
@@ -57,7 +59,6 @@ Works (as written, not yet compiled):
 
 Missing:
 
-- Image attachments.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
 - Developer ID signing, notarization and Sparkle. A release workflow exists but signs ad hoc; the rest needs an Apple Developer account.
 

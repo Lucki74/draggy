@@ -9,7 +9,9 @@ use adw::subclass::prelude::*;
 use gtk::{gdk, gio, glib};
 
 use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
-use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session, read_document};
+use draggy_core::{
+    ApprovalChoice, ApprovalRecord, CancelToken, ImageRecord, Session, read_document,
+};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
     to_saved, with_document,
@@ -65,6 +67,8 @@ mod imp {
         /// A saved conversation shown but not yet restored into a session. The next message resumes it.
         pub pending: RefCell<Option<Conversation>>,
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
+        /// Pictures waiting to go with the next message.
+        pub images: RefCell<Vec<ImageRecord>>,
         /// Runs when the saved conversations change, so the sidebar list can refresh.
         pub changed: RefCell<Option<Rc<dyn Fn()>>>,
     }
@@ -135,6 +139,19 @@ glib::wrapper! {
     pub struct DraggyChat(ObjectSubclass<imp::DraggyChat>)
         @extends gtk::Box, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
+}
+
+const MAX_PICTURE: usize = 10_000_000;
+
+/// The image type for a picture file, or `None` for anything else.
+fn picture_type(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension()?.to_str()?.to_lowercase().as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        _ => None,
+    }
 }
 
 impl DraggyChat {
@@ -310,14 +327,16 @@ impl DraggyChat {
     /// Asks for a Word, PowerPoint, Excel or PDF file and reads it into the message being typed.
     fn choose_document(&self) {
         let filter = gtk::FileFilter::new();
-        filter.set_name(Some("Word, PowerPoint, Excel and PDF"));
-        for suffix in ["docx", "pptx", "xlsx", "pdf"] {
+        filter.set_name(Some("Documents and pictures"));
+        for suffix in [
+            "docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp",
+        ] {
             filter.add_suffix(suffix);
         }
         let filters = gio::ListStore::new::<gtk::FileFilter>();
         filters.append(&filter);
         let dialog = gtk::FileDialog::new();
-        dialog.set_title("Attach a document");
+        dialog.set_title("Attach a document or picture");
         dialog.set_filters(Some(&filters));
         let window = self.root().and_downcast::<gtk::Window>();
         let chat = self.clone();
@@ -325,8 +344,34 @@ impl DraggyChat {
             let Some(path) = result.ok().and_then(|file| file.path()) else {
                 return;
             };
-            chat.attach_document(path);
+            match picture_type(&path) {
+                Some(mime) => chat.attach_picture(&path, mime),
+                None => chat.attach_document(path),
+            }
         });
+    }
+
+    /// Keeps a picture for the next message.
+    fn attach_picture(&self, path: &std::path::Path, mime: &str) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        match std::fs::read(path) {
+            Ok(data) if data.len() > MAX_PICTURE => self.toast("The picture is larger than 10 MB."),
+            Ok(data) => {
+                let mut images = self.imp().images.borrow_mut();
+                images.push(ImageRecord {
+                    name: name.clone(),
+                    mime: mime.to_owned(),
+                    data,
+                });
+                let count = images.len();
+                drop(images);
+                self.toast(&format!("Added {name} ({count} waiting)"));
+            }
+            Err(_) => self.toast("The file could not be read."),
+        }
     }
 
     /// Reads the document on the runtime and adds its text to the composer, so the user sees it before sending.
@@ -382,7 +427,8 @@ impl DraggyChat {
                 return;
             };
             chat.imp().input.buffer().set_text("");
-            chat.run_turn(session, text);
+            let images = chat.imp().images.take();
+            chat.run_turn(session, text, images);
         });
     }
 
@@ -472,9 +518,12 @@ impl DraggyChat {
         }
     }
 
-    fn run_turn(&self, session: Arc<Session>, text: String) {
+    fn run_turn(&self, session: Arc<Session>, text: String, images: Vec<ImageRecord>) {
         let imp = self.imp();
-        imp.log.borrow_mut().begin_turn(&text);
+        let shown = images.iter().fold(text.clone(), |shown, image| {
+            format!("{shown}\n[{}]", image.name)
+        });
+        imp.log.borrow_mut().begin_turn(&shown);
         {
             let log = imp.log.borrow();
             let entries = log.entries();
@@ -488,7 +537,7 @@ impl DraggyChat {
         self.scroll_to_end();
 
         let (tx, rx) = async_channel::unbounded();
-        *imp.cancel.borrow_mut() = Some(start_turn(session, text, tx));
+        *imp.cancel.borrow_mut() = Some(start_turn(session, text, images, tx));
         let chat = self.clone();
         glib::spawn_future_local(async move {
             while let Ok(message) = rx.recv().await {
