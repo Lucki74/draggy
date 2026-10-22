@@ -82,7 +82,6 @@ Hello! How can I help you today?"##;
 
 const FAST_PROMPT: &str = r##"Answer immediately. Do not reason step by step, do not write out a plan, do not narrate what you are about to do, and do not emit <think> tags or any other scratchpad. Begin with the answer itself."##;
 
-
 const NO_BROWSING_PROMPT: &str = r##"Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched."##;
 
 const NATIVE_TOOL_PROMPT: &str = r##"Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning. When you say you will use a tool, call it in the same reply; never end a reply by describing what you are about to do."##;

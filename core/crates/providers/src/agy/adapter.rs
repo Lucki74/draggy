@@ -148,7 +148,10 @@ pub enum AgyEvent {
     /// Answer text.
     Delta(String),
     /// A tool agy ran on its own, which Draggy does not offer.
-    Tool { name: String, failed: bool },
+    Tool {
+        name: String,
+        failed: bool,
+    },
     /// A line that is not an event, by its length.
     Stray(usize),
     Result(Value),
@@ -335,7 +338,8 @@ mod tests {
         let canceled = result_failure(&json!({"status":"CANCELED"})).unwrap();
         assert_eq!(canceled.kind, ErrorKind::UnknownError);
         let denied =
-            result_failure(&json!({"status":"FAILED","error":{"code":403,"message":"no"}})).unwrap();
+            result_failure(&json!({"status":"FAILED","error":{"code":403,"message":"no"}}))
+                .unwrap();
         assert_eq!(denied.kind, ErrorKind::AccountAccessDenied);
         let bare = result_failure(&json!({"status":"FAILED"})).unwrap();
         assert_eq!(bare.message.as_deref(), Some("The run ended as FAILED."));
