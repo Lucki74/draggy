@@ -18,6 +18,7 @@ use draggy_linux::chat::{
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
+use draggy_linux::preview;
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 
@@ -723,6 +724,41 @@ fn markup_label(markup: &str, class: &str) -> gtk::Label {
         .build()
 }
 
+/// Opens the model's HTML in a window that runs no scripts and follows no links.
+fn show_preview(button: &gtk::Button, html: &str) {
+    use webkit6::prelude::*;
+    let view = webkit6::WebView::new();
+    if let Some(settings) = webkit6::prelude::WebViewExt::settings(&view) {
+        settings.set_enable_javascript(false);
+    }
+    view.connect_decide_policy(|_, decision, kind| {
+        if kind == webkit6::PolicyDecisionType::NavigationAction {
+            let is_load = decision
+                .clone()
+                .downcast::<webkit6::NavigationPolicyDecision>()
+                .ok()
+                .and_then(|d| d.navigation_action())
+                .and_then(|a| a.request())
+                .and_then(|r| r.uri())
+                .is_some_and(|uri| uri.as_str() != "about:blank");
+            if is_load {
+                decision.ignore();
+                return true;
+            }
+        }
+        false
+    });
+    view.load_html(html, None);
+    let window = adw::Window::builder()
+        .title("Preview")
+        .default_width(720)
+        .default_height(520)
+        .content(&view)
+        .build();
+    window.set_transient_for(button.root().and_downcast::<gtk::Window>().as_ref());
+    window.present();
+}
+
 /// A code block with its language and a button that copies the code. A long line scrolls sideways.
 fn code_block(language: &str, code: &str) -> gtk::Box {
     let frame = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -746,6 +782,16 @@ fn code_block(language: &str, code: &str) -> gtk::Box {
     let text = code.to_owned();
     copy.connect_clicked(move |button| button.clipboard().set_text(&text));
     header.append(&name);
+    if preview::is_html(language) {
+        let show = gtk::Button::builder()
+            .icon_name("view-reveal-symbolic")
+            .tooltip_text("Preview")
+            .css_classes(["flat"])
+            .build();
+        let html = preview::page(code);
+        show.connect_clicked(move |button| show_preview(button, &html));
+        header.append(&show);
+    }
     header.append(&copy);
     let scroller = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Automatic)

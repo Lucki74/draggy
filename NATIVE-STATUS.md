@@ -18,6 +18,7 @@ Works:
 - A paperclip button in the composer adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
 - The same button takes pictures (png, jpeg, gif, webp up to 10 MB). A toast confirms each one, and they go to the model with the next message through the core's `send_with_images`.
 - Skills: the core lists the folders under `~/.local/share/draggy/skills` that hold a `SKILL.md` and gives the model a `use_skill` tool. A Skills page adds a skill from a folder that holds a `SKILL.md` and removes one. CI compiles it, but nobody has run it on a desktop yet.
+- HTML previews: an html code block in a reply has a Preview button that opens it in a window with scripts off, a policy that blocks every request and links ignored. The pure part is unit tested; CI compiles the window.
 - A Servers page lists the MCP catalogue with search and cautions, and starts or stops each server. Running servers feed their tools to chat sessions. CI compiles it, but nobody has run it on a desktop yet.
 - A gear button on each server with inputs opens its settings: one field per environment variable or argument, secrets masked. Secrets go to the keyring and the rest to `~/.config/draggy/servers.json`. Start passes them to the core and names a required input that is empty.
 
