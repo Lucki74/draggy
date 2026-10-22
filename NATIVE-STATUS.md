@@ -20,10 +20,11 @@ Works:
 - A gear button on each server with inputs opens its settings: one field per environment variable or argument, secrets masked. Secrets go to the keyring and the rest to `~/.config/draggy/servers.json`. Start passes them to the core and names a required input that is empty.
 
 - A Web group in settings turns on `search_web` and `read_url`: search engine choice, a SearXNG address, and a Brave key kept in the keyring. Pages on private addresses are refused, also after redirects.
+- A Models page installs the llama.cpp engine, searches and downloads models with progress and cancel, lists and deletes downloaded files, and starts or stops the local server on the picked model. CI compiles it, but nobody has run it on a desktop yet.
+- While a model loads, the page shows its steps with measured numbers only: "Getting <model> from disk...", "Loading <model> into RAM x%..." (the share of the file held in memory), "Reading x% (n tok/s)..." (the server's prompt progress and the speed between two reports), "<model> is readying..." and "Extending context x%..." when a running model restarts with a larger window. Percentages move in steps of 3.
 
 Missing:
 
-- Model and engine management.
 - Documents and web panes.
 - A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
 - Widget tests beyond two small ones that run under xvfb. The turn logic is tested without one.
@@ -46,6 +47,7 @@ Works (as written, not yet compiled):
 - A `write_document` agent tool that saves .docx, .pptx and .xlsx files inside the project folder from HTML or Markdown, behind the permission prompt.
 - A Servers tab in settings that lists the MCP server catalogue with search, cautions and documentation links, and starts or stops each server. Chat sessions use the same manager through `Session.withMcp`. A gear button opens a sheet with one field per environment variable or argument, secrets masked. Secrets go to the Keychain and the rest to user defaults. Start passes them to the core and names a required input that is empty.
 - Interface text in English, French, Spanish and Chinese through a string catalog. A test checks that every key has all three translations and the same format placeholders. Text that comes from the core, such as tool step names, stays in English.
+- The settings engine row shows the same load steps as the Linux Models page, in four languages.
 - Rust core exports UniFFI `McpManager` and composite `Session.with_mcp` tool routing for MCP servers, ready for Swift app wiring.
 - A Browser page with a WebKit view, an address bar and back, forward and reload. It keeps its cookies in a store separate from the app. Addresses pass the core's URL policy: only http and https load, and local servers are open to the user.
 - VoiceOver support in the chat: each message reads as one row with who spoke and what was said, and the attach button has a label. Nothing in the app animates yet, so Reduce Motion has nothing to change. Other pages rely on SwiftUI's default labels and have not been checked with VoiceOver.

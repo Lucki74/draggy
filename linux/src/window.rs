@@ -83,6 +83,7 @@ impl DraggyWindow {
         window.install_actions();
         window.attach_chat();
         window.attach_servers();
+        window.attach_models();
         window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
@@ -123,11 +124,24 @@ impl DraggyWindow {
         self.imp().pages.add_named(&page, Some("servers"));
     }
 
-    /// Stops the MCP servers when the window closes, so no child process outlives the app.
+    fn attach_models(&self) {
+        let weak = self.downgrade();
+        let page = crate::models_view::build(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("models"));
+    }
+
+    /// Stops the MCP servers and the local engine when the window closes, so no child process outlives the app.
     fn stop_servers_on_close(&self) {
         self.connect_close_request(|window| {
             if let Some(mcp) = window.imp().state.mcp() {
                 draggy_linux::runtime::runtime().block_on(mcp.stop_all());
+            }
+            if let Some(engine) = window.imp().state.engine_if_started() {
+                draggy_linux::runtime::runtime().block_on(engine.stop());
             }
             glib::Propagation::Proceed
         });

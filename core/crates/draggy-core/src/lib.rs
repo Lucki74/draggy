@@ -10,6 +10,7 @@ pub mod documents;
 pub mod engine;
 pub mod error;
 pub mod installer;
+pub mod load_stage;
 pub mod mcp;
 pub mod mcp_tools;
 pub mod model;
@@ -30,6 +31,7 @@ pub use error::CoreError;
 pub use installer::{
     EngineInstaller, InstallObserver, InstallProgressRecord, InstalledEngineRecord,
 };
+pub use load_stage::{LoadObserver, LoadStageKind, LoadStageRecord};
 pub use mcp::{
     McpInputRecord, McpManager, McpServerConfigRecord, McpServerRecord, McpServerStateRecord,
     McpToolRecord, mcp_catalogue,

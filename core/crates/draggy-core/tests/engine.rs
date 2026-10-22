@@ -17,7 +17,7 @@ fn a_new_engine_is_not_running() {
 #[tokio::test]
 async fn starting_without_a_model_is_refused() {
     let result = engine()
-        .start("llama-server".into(), "  ".into(), None, 0.0)
+        .start("llama-server".into(), "  ".into(), None, 0.0, None)
         .await;
     assert!(matches!(result, Err(CoreError::Invalid { .. })));
 }
@@ -34,6 +34,7 @@ async fn a_missing_program_is_an_engine_error() {
             model.to_string_lossy().into_owned(),
             None,
             0.0,
+            None,
         )
         .await;
     assert!(
