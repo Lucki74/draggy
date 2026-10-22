@@ -83,6 +83,7 @@ impl DraggyWindow {
         window.install_actions();
         window.attach_chat();
         window.attach_servers();
+        window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
         window
@@ -120,6 +121,16 @@ impl DraggyWindow {
             }
         });
         self.imp().pages.add_named(&page, Some("servers"));
+    }
+
+    /// Stops the MCP servers when the window closes, so no child process outlives the app.
+    fn stop_servers_on_close(&self) {
+        self.connect_close_request(|window| {
+            if let Some(mcp) = window.imp().state.mcp() {
+                draggy_linux::runtime::runtime().block_on(mcp.stop_all());
+            }
+            glib::Propagation::Proceed
+        });
     }
 
     fn install_actions(&self) {
