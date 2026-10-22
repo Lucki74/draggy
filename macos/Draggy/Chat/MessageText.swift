@@ -13,7 +13,7 @@ enum MessageText {
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
     private static let quote = try? NSRegularExpression(pattern: "^>\\s?(.*)$")
     private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
-    private static let numbered = try? NSRegularExpression(pattern: "(\s*)(\d{1,3})[.)]\s+(.*)$")
+    private static let numbered = try? NSRegularExpression(pattern: "^(\\s*)(\\d{1,3})[.)]\\s+(.*)$")
     private static let tableSeparator = try? NSRegularExpression(pattern: "^\\s*\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
     private static let columnWidth: CGFloat = 160
 
