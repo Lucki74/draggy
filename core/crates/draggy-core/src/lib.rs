@@ -20,6 +20,7 @@ pub mod net;
 pub mod observer;
 pub mod records;
 pub mod session;
+pub mod skills;
 pub mod tools;
 pub mod update;
 pub mod web;

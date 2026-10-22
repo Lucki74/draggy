@@ -19,7 +19,6 @@ use draggy_agent::permissions::ToolAnnotations;
 use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{PromptEnvironment, PromptProfile, PromptSettings, WebMode};
 use draggy_agent::resume::SearchStep;
-use draggy_agent::skills::{LoadedSkill, SkillReader};
 use draggy_agent::task_manager::{Attachment, CancelSignal, Message};
 use draggy_agent::tool_channel::ToolDefinition;
 use draggy_mcp::child_process::StdioLauncher;
@@ -36,6 +35,7 @@ use crate::mcp_tools::McpTools;
 use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
+use crate::skills::{self, SkillStore};
 use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, SessionConfig, TurnOutcome,
 };
@@ -70,14 +70,6 @@ impl MessageRefs for Refs {
             id: message.id.clone(),
             hash: content_hash(message.content.as_bytes()),
         }
-    }
-}
-
-struct NoSkills;
-
-impl SkillReader for NoSkills {
-    fn read(&mut self, _workspace_id: &str, _id: &str) -> Option<LoadedSkill> {
-        None
     }
 }
 
@@ -245,10 +237,18 @@ struct CompositeTools {
     files: Box<dyn ToolRuntime>,
     mcp: Option<McpTools<ReqwestHttp, StdioLauncher>>,
     web: Option<WebTools>,
+    skills: Option<SkillStore>,
 }
 
 impl ToolRuntime for CompositeTools {
     fn annotations(&self, name: &str) -> ToolAnnotations {
+        if skills::owns(name) {
+            return ToolAnnotations {
+                read_only: true,
+                idempotent: true,
+                ..ToolAnnotations::default()
+            };
+        }
         if let Some(web) = self.web.as_ref().filter(|_| web_tools::owns(name)) {
             return web.annotations(name);
         }
@@ -259,6 +259,9 @@ impl ToolRuntime for CompositeTools {
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        if let Some(store) = self.skills.as_mut().filter(|_| skills::owns(name)) {
+            return skills::run(store, args, ctx);
+        }
         if let Some(web) = self.web.as_mut().filter(|_| web_tools::owns(name)) {
             return web.run(name, args, ctx);
         }
@@ -297,6 +300,12 @@ impl Session {
         }))
     }
 
+    /// The skills folder, when this session offers skills.
+    fn skill_store(&self) -> Option<SkillStore> {
+        let dir = self.config.skills_dir.as_deref()?.trim();
+        (self.config.agy.is_none() && !dir.is_empty()).then(|| SkillStore::new(dir))
+    }
+
     fn request(
         &self,
         messages: Vec<Message>,
@@ -316,6 +325,13 @@ impl Session {
             tools.extend(web_tools::definitions());
         }
         tools.extend(extra_tools.iter().cloned());
+        let shelf = self
+            .skill_store()
+            .map(|store| store.list())
+            .unwrap_or_default();
+        if !shelf.is_empty() {
+            tools.extend(skills::definitions());
+        }
         TurnRequest {
             profile: ModelProfile {
                 model: self.config.model.clone(),
@@ -343,12 +359,12 @@ impl Session {
                 project_root: self.config.folder.clone(),
                 code_execution: commands,
                 library_ready: false,
-                has_skills: false,
+                has_skills: !shelf.is_empty(),
             },
             tools,
             prompt_tools: Vec::new(),
             memory: None,
-            skills: Vec::new(),
+            skills: shelf,
             date,
             now,
             messages,
@@ -449,6 +465,7 @@ impl Session {
             files,
             mcp: mcp_tools,
             web: web_tools,
+            skills: self.skill_store(),
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
@@ -456,7 +473,8 @@ impl Session {
             cancel: cancel.signal().clone(),
             kept: Vec::new(),
         };
-        let (mut refs, mut skills, mut ids) = (Refs, NoSkills, Counter::default());
+        let (mut refs, mut ids) = (Refs, Counter::default());
+        let mut shelf = SkillStore::new(self.config.skills_dir.clone().unwrap_or_default());
         let clock = WallClock;
 
         let result = run_turn(
@@ -465,7 +483,7 @@ impl Session {
             Ports {
                 model,
                 engine: &mut engine,
-                skills: &mut skills,
+                skills: &mut shelf,
                 tools: &mut composite,
                 host: &mut host,
                 observer: &mut bridge,

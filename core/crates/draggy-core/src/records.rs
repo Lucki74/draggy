@@ -208,6 +208,9 @@ pub struct SessionConfig {
     /// Answers through the Antigravity CLI instead of a model server. The file, web and MCP tools are then off.
     #[uniffi(default = None)]
     pub agy: Option<AgyConfigRecord>,
+    /// A folder of skills, one subfolder each with a `SKILL.md`. Leave it out to offer none.
+    #[uniffi(default = None)]
+    pub skills_dir: Option<String>,
 }
 
 /// Where the Antigravity CLI is and which model it should use. Get it from `AgyAccount::config`.

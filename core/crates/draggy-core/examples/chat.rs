@@ -94,6 +94,7 @@ fn main() -> Result<(), String> {
         permission_mode: None,
         web: None,
         agy: None,
+        skills_dir: None,
     })
     .map_err(|error| error.to_string())?;
 

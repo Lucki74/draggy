@@ -133,6 +133,7 @@ fn config(url: &str, folder: Option<&std::path::Path>) -> SessionConfig {
         permission_mode: None,
         web: None,
         agy: None,
+        skills_dir: None,
     }
 }
 
@@ -146,6 +147,7 @@ fn command_config(
         permission_mode: mode,
         web: None,
         agy: None,
+        skills_dir: None,
         ..config(url, Some(folder))
     }
 }

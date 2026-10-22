@@ -99,6 +99,7 @@ impl Settings {
             permission_mode: Some(PermissionModeRecord::Ask),
             web: None,
             agy: None,
+            skills_dir: None,
         })
     }
 }
