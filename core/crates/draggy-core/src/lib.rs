@@ -21,6 +21,7 @@ pub mod session;
 pub mod tools;
 pub mod update;
 pub mod web;
+pub mod web_tools;
 
 pub use cancel::CancelToken;
 pub use documents::read_document;
@@ -40,7 +41,7 @@ pub use models::{
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
     ApprovalChoice, ApprovalRecord, LiveRecord, MessageRecord, MetricsRecord, PermissionModeRecord,
-    SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
+    SessionConfig, StepRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
 pub use session::Session;
 pub use update::{UpdateChecker, UpdateRecord};

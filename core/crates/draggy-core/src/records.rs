@@ -202,6 +202,18 @@ pub struct SessionConfig {
     pub allow_commands: bool,
     /// How tool calls are decided. Leave it out to ask before anything that is not a read.
     pub permission_mode: Option<PermissionModeRecord>,
+    /// Gives the model `search_web` and `read_url`. Leave it out to keep the web off.
+    #[uniffi(default = None)]
+    pub web: Option<WebConfigRecord>,
+}
+
+/// How the web tools search. An empty provider means "auto"; the scrapers need no setting.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
+pub struct WebConfigRecord {
+    /// One of `searxng`, `brave`, `duckduckgo`, `startpage`, `duckduckgo-lite`, `brave-html`, or empty for auto.
+    pub provider: String,
+    pub searxng_url: String,
+    pub brave_api_key: String,
 }
 
 /// How tool calls are decided, as the shell names them.

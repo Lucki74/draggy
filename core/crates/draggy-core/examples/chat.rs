@@ -92,6 +92,7 @@ fn main() -> Result<(), String> {
         loop_limit: None,
         allow_commands: false,
         permission_mode: None,
+        web: None,
     })
     .map_err(|error| error.to_string())?;
 
