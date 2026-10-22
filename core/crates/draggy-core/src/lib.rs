@@ -5,6 +5,7 @@
 //! - records are flat values; the only shared objects are the opaque `Session` and `CancelToken` handles;
 //! - cancelling goes through `CancelToken`, which stops the turn and the tools it is running.
 
+pub mod agy_host;
 pub mod cancel;
 pub mod documents;
 pub mod engine;
@@ -24,6 +25,7 @@ pub mod update;
 pub mod web;
 pub mod web_tools;
 
+pub use agy_host::{AgyAccount, AgyStatus, agy_terms_warning};
 pub use cancel::CancelToken;
 pub use documents::read_document;
 pub use engine::{EngineHost, EngineInfo, EngineState, LocalEngine};
@@ -42,8 +44,8 @@ pub use models::{
 };
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
-    ApprovalChoice, ApprovalRecord, LiveRecord, MessageRecord, MetricsRecord, PermissionModeRecord,
-    SessionConfig, StepRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
+    AgyConfigRecord, ApprovalChoice, ApprovalRecord, LiveRecord, MessageRecord, MetricsRecord,
+    PermissionModeRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
 pub use session::Session;
 pub use update::{UpdateChecker, UpdateRecord};

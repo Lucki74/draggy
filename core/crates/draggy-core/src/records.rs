@@ -205,6 +205,19 @@ pub struct SessionConfig {
     /// Gives the model `search_web` and `read_url`. Leave it out to keep the web off.
     #[uniffi(default = None)]
     pub web: Option<WebConfigRecord>,
+    /// Answers through the Antigravity CLI instead of a model server. The file, web and MCP tools are then off.
+    #[uniffi(default = None)]
+    pub agy: Option<AgyConfigRecord>,
+}
+
+/// Where the Antigravity CLI is and which model it should use. Get it from `AgyAccount::config`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct AgyConfigRecord {
+    pub binary: String,
+    /// The slug to pass as `--model`. Empty keeps the CLI's own choice.
+    pub model: String,
+    /// The folder the CLI runs in, apart from the user's files.
+    pub work_dir: String,
 }
 
 /// How the web tools search. An empty provider means "auto"; the scrapers need no setting.

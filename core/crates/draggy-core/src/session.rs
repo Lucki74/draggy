@@ -1,10 +1,12 @@
 //! A conversation with a model. The shell holds the `Session` handle, calls `send` and reads events through its
 //! observer. The turn itself runs on a thread of its own, so the caller's thread is never blocked on the network.
 
+use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use draggy_agent::agent_loop::ModelClient;
 use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::ToolContext;
 use draggy_agent::agent_loop::{
@@ -26,6 +28,7 @@ use draggy_tools::files::content_hash;
 use draggy_web::search::SearchConfig;
 use serde_json::Value;
 
+use crate::agy_host::AgyModel;
 use crate::cancel::CancelToken;
 use crate::error::CoreError;
 use crate::mcp::McpManager;
@@ -256,9 +259,21 @@ impl ToolRuntime for CompositeTools {
 }
 
 impl Session {
-    fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
+    fn create(
+        mut config: SessionConfig,
+        mut mcp: Option<Arc<McpManager>>,
+    ) -> Result<Arc<Self>, CoreError> {
+        if config.agy.is_some() {
+            // The CLI runs its own tools, which Draggy does not offer, so none of ours are exposed to it.
+            config.folder = None;
+            config.web = None;
+            config.allow_commands = false;
+            mcp = None;
+        }
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
-        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
+        if config.agy.is_none()
+            && (config.base_url.trim().is_empty() || config.model.trim().is_empty())
+        {
             return Err(CoreError::Invalid {
                 message: "A session needs a server address and a model.".to_owned(),
             });
@@ -389,11 +404,22 @@ impl Session {
             _ => None,
         };
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
-        let mut model = OpenAiModel::new(
-            Arc::clone(&self.net),
-            &self.config.base_url,
-            self.config.api_key.as_deref(),
-        );
+        let mut openai;
+        let mut agy;
+        let model: &mut dyn ModelClient = match &self.config.agy {
+            Some(config) => {
+                agy = AgyModel::new(&config.binary, PathBuf::from(&config.work_dir));
+                &mut agy
+            }
+            None => {
+                openai = OpenAiModel::new(
+                    Arc::clone(&self.net),
+                    &self.config.base_url,
+                    self.config.api_key.as_deref(),
+                );
+                &mut openai
+            }
+        };
         let mut engine = RunningServer {
             window: self.config.context_tokens.unwrap_or(8192),
         };
@@ -419,7 +445,7 @@ impl Session {
             &request,
             &mut tail_notes,
             Ports {
-                model: &mut model,
+                model,
                 engine: &mut engine,
                 skills: &mut skills,
                 tools: &mut composite,
