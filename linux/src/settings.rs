@@ -1,7 +1,7 @@
 //! What the user typed in the settings: where the model server is, which model, which folder. Held in memory only.
 //! The API key is not part of this value; it lives in the Secret Service (see `secrets`).
 
-use draggy_core::{PermissionModeRecord, SessionConfig, WebConfigRecord};
+use draggy_core::{AgyConfigRecord, PermissionModeRecord, SessionConfig, WebConfigRecord};
 
 /// The values the settings page edits.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -15,6 +15,8 @@ pub struct Settings {
     /// The id of a search engine, or empty for automatic.
     pub search_provider: String,
     pub searxng_url: String,
+    /// Set while chat goes through the Antigravity CLI. The server settings are then not needed.
+    pub agy: Option<AgyConfigRecord>,
 }
 
 /// Why the settings cannot start a session yet. The text is worded for the user.
@@ -60,6 +62,20 @@ impl Settings {
 
     /// The session configuration these settings describe, or the reason there is none.
     pub fn session_config(&self, api_key: Option<String>) -> Result<SessionConfig, SettingsError> {
+        if let Some(agy) = &self.agy {
+            return Ok(SessionConfig {
+                base_url: String::new(),
+                model: String::new(),
+                api_key: None,
+                folder: None,
+                context_tokens: None,
+                loop_limit: None,
+                allow_commands: false,
+                permission_mode: Some(PermissionModeRecord::Ask),
+                web: None,
+                agy: Some(agy.clone()),
+            });
+        }
         let server = self.server_url.trim().trim_end_matches('/');
         if server.is_empty() {
             return Err(SettingsError::NoServer);
