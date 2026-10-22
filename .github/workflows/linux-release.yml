@@ -3,6 +3,9 @@ name: Linux package
 # Builds the .deb for the native Linux app and keeps it as a workflow artifact. Run it by hand; it publishes nothing.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/linux-release.yml"
 
 permissions:
   contents: read
