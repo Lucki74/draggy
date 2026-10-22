@@ -86,27 +86,26 @@ async fn signing_in_proves_the_account_and_lists_models() {
     assert!(out.acknowledged && !out.signed_in);
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn a_chat_turn_streams_the_cli_text() {
+/// The session owns a runtime, so it must be made and dropped outside an async context.
+fn turn(script_text: &str) -> Result<draggy_core::TurnOutcome, CoreError> {
     let dir = tempfile::tempdir().unwrap();
-    let binary = script(dir.path(), OK);
+    let binary = script(dir.path(), script_text);
     let session = Session::new(config(binary, &dir.path().join("cwd"))).unwrap();
-    let outcome = session
-        .send("hi".to_owned(), Arc::new(Quiet), None, CancelToken::new())
-        .await
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
         .unwrap();
-    assert_eq!(outcome.content, "hello");
+    runtime.block_on(session.send("hi".to_owned(), Arc::new(Quiet), None, CancelToken::new()))
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn a_cli_that_skips_permissions_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
-    let binary = script(dir.path(), UNSAFE);
-    let session = Session::new(config(binary, &dir.path().join("cwd"))).unwrap();
-    let outcome = session
-        .send("hi".to_owned(), Arc::new(Quiet), None, CancelToken::new())
-        .await;
-    let shown = match outcome {
+#[test]
+fn a_chat_turn_streams_the_cli_text() {
+    assert_eq!(turn(OK).unwrap().content, "hello");
+}
+
+#[test]
+fn a_cli_that_skips_permissions_is_refused() {
+    let shown = match turn(UNSAFE) {
         Ok(out) => out.content,
         Err(error) => error.to_string(),
     };
