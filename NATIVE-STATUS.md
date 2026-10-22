@@ -16,10 +16,11 @@ Works:
 - Saved conversations: each turn is saved. The sidebar's History list shows them newest first, and a click opens one. The + button starts a new conversation, and the trash button deletes one after a confirmation.
 - Markdown in replies: headings, bold, italic, inline code, bullet and numbered lists, quotes, http and https links, and code blocks with a copy button. User messages and tables show as plain text.
 - A paperclip button in the composer adds the text of a Word, PowerPoint, Excel or PDF file to the message, read by the core's `read_document`.
+- A Servers page lists the MCP catalogue with search and cautions, and starts or stops each server. Running servers feed their tools to chat sessions. CI compiles it, but nobody has run it on a desktop yet.
 
 Missing:
 
-- Core calls beyond a chat turn: web, and an MCP servers page. Chat sessions already carry the core's `McpManager`, but nothing starts a server yet. The Linux CI job compiles and tests this wiring.
+- Web calls, and settings for a server (environment variables and arguments). The Servers page starts each catalogue server with defaults.
 - Model and engine management.
 - Documents and web panes.
 - Packaging, a signed release and a release workflow.
