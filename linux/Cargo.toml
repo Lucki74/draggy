@@ -50,3 +50,19 @@ assets = [
     ["data/com.draggy.Draggy.metainfo.xml", "usr/share/metainfo/", "644"],
     ["data/icons/hicolor/512x512/apps/com.draggy.Draggy.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
 ]
+
+[package.metadata.generate-rpm]
+name = "draggy"
+summary = "Local chat with tools and a built-in browser"
+license = "Apache-2.0"
+assets = [
+    { source = "target/release/draggy", dest = "/usr/bin/draggy", mode = "755" },
+    { source = "data/com.draggy.Draggy.desktop", dest = "/usr/share/applications/com.draggy.Draggy.desktop", mode = "644" },
+    { source = "data/com.draggy.Draggy.metainfo.xml", dest = "/usr/share/metainfo/com.draggy.Draggy.metainfo.xml", mode = "644" },
+    { source = "data/icons/hicolor/512x512/apps/com.draggy.Draggy.png", dest = "/usr/share/icons/hicolor/512x512/apps/com.draggy.Draggy.png", mode = "644" },
+]
+
+[package.metadata.generate-rpm.requires]
+gtk4 = "*"
+libadwaita = "*"
+"webkitgtk6.0" = "*"
