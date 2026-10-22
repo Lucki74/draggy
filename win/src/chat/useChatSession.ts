@@ -11,11 +11,9 @@ import {
     getModelInfo,
     needsTextModeTools,
     onModelInfoChange,
-    warmModel,
     windowCeiling,
 } from "../llama";
 import { isRemote } from "../ai/providers";
-import { KEEP_ALIVE } from "../agent/agentLoop";
 import type { ContextMeasurement } from "../agent/agentLoop";
 import {
     MIN_COMPACT_LIMIT,
@@ -444,7 +442,7 @@ export function useChatSession({
         const controller = new AbortController();
         const timer = setTimeout(
             () => {
-                onMeasureContext(input, attachedFiles, { signal: controller.signal, allowLoad: drafting })
+                onMeasureContext(input, attachedFiles, { signal: controller.signal, allowLoad: false })
                     .then((value) => {
                         if (!value || controller.signal.aborted) return;
                         setMeasured({ key: measureKey, historyKey, drafted: drafting, value });
@@ -461,26 +459,6 @@ export function useChatSession({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [measureKey, chat.isGenerating, onMeasureContext]);
-
-    const warmedForModelRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!input.trim()) {
-            warmedForModelRef.current = null;
-            return;
-        }
-        if (!model || warmedForModelRef.current === model || isRemote(model)) return;
-        warmedForModelRef.current = model;
-
-        if (onMeasureContext) {
-            void onMeasureContext(input, attachedFiles, {
-                signal: new AbortController().signal,
-                allowLoad: true,
-            }).catch(swallowed("chat", "best effort, the screen works without it"));
-        } else {
-            warmModel(model, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("chat", "warming a model is best effort"));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [input, model]);
 
     const current = measured?.key === measureKey ? measured : null;
     const lastTotal = lastMetrics ? lastMetrics.promptTokens + lastMetrics.responseTokens : null;
