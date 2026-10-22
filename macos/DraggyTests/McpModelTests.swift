@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class McpModelTests: XCTestCase {
     private func server(_ id: String) -> McpServerRecord {
-        McpServerRecord(id: id, name: id, description: "", caution: nil, remote: false, docs: "")
+        McpServerRecord(id: id, name: id, description: "", caution: nil, remote: false, docs: "", inputs: [])
     }
 
     func testListsTheCatalogueAtStart() {
