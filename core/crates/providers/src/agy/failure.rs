@@ -50,7 +50,10 @@ pub fn parse_google_error(source: &str) -> GoogleError {
         });
     let code = error
         .and_then(|e| e.get("code"))
-        .and_then(|c| c.as_u64().or_else(|| c.as_str().and_then(|s| s.trim().parse().ok())))
+        .and_then(|c| {
+            c.as_u64()
+                .or_else(|| c.as_str().and_then(|s| s.trim().parse().ok()))
+        })
         .filter(|c| *c > 0 && *c <= u64::from(u16::MAX));
     let from_text = pattern(&CODE, r"\b(40[0-9]|429|50[0-9])\b")
         .captures(source)
@@ -58,7 +61,12 @@ pub fn parse_google_error(source: &str) -> GoogleError {
     let status = code.map(|c| c as u16).or(from_text).unwrap_or(0);
     let reason = detail_reason
         .map(str::to_owned)
-        .or_else(|| error.and_then(|e| e.get("status")).and_then(Value::as_str).map(str::to_owned))
+        .or_else(|| {
+            error
+                .and_then(|e| e.get("status"))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
         .unwrap_or_default();
     let message = match error {
         Some(e) => e
@@ -71,7 +79,10 @@ pub fn parse_google_error(source: &str) -> GoogleError {
     GoogleError {
         status,
         reason: truncate(&reason, 64),
-        message: truncate(&message.split_whitespace().collect::<Vec<_>>().join(" "), MAX_MESSAGE),
+        message: truncate(
+            &message.split_whitespace().collect::<Vec<_>>().join(" "),
+            MAX_MESSAGE,
+        ),
     }
 }
 
@@ -109,7 +120,10 @@ pub fn google_failure(input: &str) -> ProviderError {
         &RETIRED,
         r"(?i)no longer (supported|available|served)|stop(ped)? serving|has been (retired|discontinued)|migrate to antigravity",
     );
-    if status == 403 || pattern(&DENIED, r"(?i)PERMISSION_DENIED").is_match(&reason) || retired.is_match(&text) {
+    if status == 403
+        || pattern(&DENIED, r"(?i)PERMISSION_DENIED").is_match(&reason)
+        || retired.is_match(&text)
+    {
         return failure(
             ErrorKind::AccountAccessDenied,
             if status == 0 { 403 } else { status },
@@ -117,12 +131,20 @@ pub fn google_failure(input: &str) -> ProviderError {
         );
     }
     if status == 401
-        || pattern(&SIGNED_OUT, r"(?i)UNAUTHENTICATED|sign ?in|log ?in|credential").is_match(&text)
+        || pattern(
+            &SIGNED_OUT,
+            r"(?i)UNAUTHENTICATED|sign ?in|log ?in|credential",
+        )
+        .is_match(&text)
     {
         return failure(ErrorKind::AccountSignedOut, status, &shown);
     }
     if status == 429
-        || pattern(&LIMIT, r"(?i)RESOURCE_EXHAUSTED|quota|usage limit|limit reached").is_match(&text)
+        || pattern(
+            &LIMIT,
+            r"(?i)RESOURCE_EXHAUSTED|quota|usage limit|limit reached",
+        )
+        .is_match(&text)
     {
         return failure(ErrorKind::AccountLimitReached, status, &shown);
     }
@@ -138,7 +160,9 @@ mod tests {
 
     #[test]
     fn a_403_is_an_account_matter() {
-        let f = google_failure(r#"{"error":{"code":403,"message":"Forbidden","status":"PERMISSION_DENIED"}}"#);
+        let f = google_failure(
+            r#"{"error":{"code":403,"message":"Forbidden","status":"PERMISSION_DENIED"}}"#,
+        );
         assert_eq!(f.kind, ErrorKind::AccountAccessDenied);
         assert_eq!(f.status, Some(403));
         assert_eq!(f.message.as_deref(), Some("Forbidden"));
@@ -153,10 +177,22 @@ mod tests {
 
     #[test]
     fn kinds_follow_the_status_and_the_wording() {
-        assert_eq!(google_failure("HTTP 401 please sign in").kind, ErrorKind::AccountSignedOut);
-        assert_eq!(google_failure(r#"{"error":{"code":429,"message":"quota"}}"#).kind, ErrorKind::AccountLimitReached);
-        assert_eq!(google_failure("503 model overloaded").kind, ErrorKind::RateLimited);
-        assert_eq!(google_failure("something odd").kind, ErrorKind::UnknownError);
+        assert_eq!(
+            google_failure("HTTP 401 please sign in").kind,
+            ErrorKind::AccountSignedOut
+        );
+        assert_eq!(
+            google_failure(r#"{"error":{"code":429,"message":"quota"}}"#).kind,
+            ErrorKind::AccountLimitReached
+        );
+        assert_eq!(
+            google_failure("503 model overloaded").kind,
+            ErrorKind::RateLimited
+        );
+        assert_eq!(
+            google_failure("something odd").kind,
+            ErrorKind::UnknownError
+        );
     }
 
     #[test]

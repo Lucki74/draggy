@@ -3,8 +3,8 @@
 //! Network and storage are traits, so the crate never opens a socket or a database on its own.
 
 pub mod account;
-pub mod agy;
 pub mod adapters;
+pub mod agy;
 pub mod catalog;
 pub mod claude;
 pub mod codex;
