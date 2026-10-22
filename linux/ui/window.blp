@@ -81,6 +81,15 @@ template $DraggyWindow: Adw.ApplicationWindow {
               }
 
               Gtk.ListBoxRow {
+                name: "models";
+
+                Gtk.Label {
+                  label: "Models";
+                  xalign: 0;
+                }
+              }
+
+              Gtk.ListBoxRow {
                 name: "servers";
 
                 Gtk.Label {

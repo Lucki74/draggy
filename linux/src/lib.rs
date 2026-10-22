@@ -3,6 +3,7 @@
 pub mod chat;
 pub mod conversations;
 pub mod markdown;
+pub mod models;
 pub mod runtime;
 pub mod secrets;
 pub mod servers;

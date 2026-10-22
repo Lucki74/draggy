@@ -41,7 +41,7 @@ struct SettingsView: View {
                         Button("Start") { Task { await model.engine.start() } }
                             .disabled(model.engine.isBusy || model.engine.binaryPath.isEmpty || model.engine.modelPath.isEmpty)
                     }
-                    Text(status(model.engine.phase)).foregroundStyle(.secondary).lineLimit(2)
+                    Text(model.engine.loadStage ?? status(model.engine.phase)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
 

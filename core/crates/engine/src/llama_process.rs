@@ -58,9 +58,17 @@ pub struct Host {
     pub inherited_env: Vec<(String, String)>,
 }
 
+/// Hears a load as it happens: the process id once spawned, then every line the server prints.
+pub trait LoadWatch: Send + Sync + std::fmt::Debug {
+    fn spawned(&self, pid: u32);
+    fn line(&self, line: &str);
+}
+
 /// One request to start a model: where its engine and model are, and how the launch is to be sized.
 #[derive(Debug, Clone)]
 pub struct StartRequest {
+    /// Told how the load goes. None for a caller that only waits.
+    pub load_watch: Option<Arc<dyn LoadWatch>>,
     pub binary: PathBuf,
     pub model: PathBuf,
     /// The window the caller asks for; None lets the running model's window stand.
@@ -84,6 +92,7 @@ impl StartRequest {
     /// A request with the reference's defaults: speculation on, no GPU layer count, no forced window.
     pub fn new(binary: impl Into<PathBuf>, model: impl Into<PathBuf>) -> Self {
         Self {
+            load_watch: None,
             binary: binary.into(),
             model: model.into(),
             context: None,
@@ -186,6 +195,7 @@ struct Watch {
     user_data: Option<PathBuf>,
     drafting: bool,
     moe: bool,
+    load: Option<Arc<dyn LoadWatch>>,
 }
 
 /// One spawned server. Its state is shared with the tasks that read its output and watch its exit.
@@ -857,8 +867,12 @@ where
                 user_data: request.user_data.clone(),
                 drafting: plan.draft_in_use,
                 moe: traits.moe,
+                load: request.load_watch.clone(),
             },
         };
+        if let (Some(load), Some(pid)) = (&request.load_watch, run.pid) {
+            load.spawned(pid);
+        }
         state.process = Some(run.clone());
         state.model = Some(model.clone());
         state.port = port;
@@ -1053,6 +1067,9 @@ fn handle_line<P, C, R>(inner: &Inner<P, C, R>, run: &Run, stream: Stream, line:
         line,
         "server output"
     );
+    if let Some(load) = &run.watch.load {
+        load.line(line);
+    }
     if stream == Stream::Err {
         let mut recent = lock(&run.recent);
         recent.push_back(line.to_owned());

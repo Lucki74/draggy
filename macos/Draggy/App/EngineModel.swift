@@ -18,6 +18,20 @@ private final class InstallSink: InstallObserver, @unchecked Sendable {
     }
 }
 
+/// Forwards the steps of a model load to the main actor. The core calls it from the load's own thread.
+private final class LoadSink: LoadObserver, @unchecked Sendable {
+    private let show: @MainActor @Sendable (LoadStageRecord) -> Void
+
+    init(show: @escaping @MainActor @Sendable (LoadStageRecord) -> Void) {
+        self.show = show
+    }
+
+    func onStage(stage: LoadStageRecord) {
+        let show = show
+        Task { @MainActor in show(stage) }
+    }
+}
+
 /// Runs the local llama-server for the chat: which program and model file, and whether it is up.
 @MainActor
 @Observable
@@ -44,6 +58,8 @@ final class EngineModel {
     /// The engine download, as a percentage. Nil when none is running.
     private(set) var installPercent: Double?
     private(set) var installError: String?
+    /// The current step of a model load, with numbers measured from the engine. Nil outside a load.
+    private(set) var loadStage: String?
 
     var binaryPath: String {
         didSet { defaults.set(binaryPath, forKey: Key.binary) }
@@ -92,13 +108,17 @@ final class EngineModel {
     func start() async {
         guard !isBusy, !binaryPath.isEmpty, !modelPath.isEmpty else { return }
         phase = .starting
+        loadStage = nil
+        defer { loadStage = nil }
         let engine = currentEngine()
+        let sink = LoadSink { [weak self] stage in self?.loadStage = Self.loadText(stage) }
         do {
             let info = try await engine.start(
                 binary: binaryPath,
                 model: modelPath,
                 contextTokens: nil,
-                gpuMemoryGb: Self.gpuMemoryGB()
+                gpuMemoryGb: Self.gpuMemoryGB(),
+                observer: sink
             )
             phase = .running(info.model)
             onReady(info)
@@ -134,6 +154,29 @@ final class EngineModel {
             _ = done.wait(timeout: .now() + 3)
         }
         return created
+    }
+
+    /// The words for one load step. A step with no measured number shows none.
+    static func loadText(_ stage: LoadStageRecord) -> String {
+        let model = stage.model
+        let percent = stage.percent.map { Int($0) }
+        switch stage.kind {
+        case .disk:
+            return String(localized: "Getting \(model) from disk\u{2026}")
+        case .ram:
+            guard let percent else { return String(localized: "Loading \(model) into RAM\u{2026}") }
+            return String(localized: "Loading \(model) into RAM \(percent)%\u{2026}")
+        case .extending:
+            guard let percent else { return String(localized: "Extending context\u{2026}") }
+            return String(localized: "Extending context \(percent)%\u{2026}")
+        case .reading:
+            let shown = percent ?? 0
+            guard let rate = stage.tokensPerSecond else { return String(localized: "Reading \(shown)%\u{2026}") }
+            let speed = Int(rate.rounded())
+            return String(localized: "Reading \(shown)% (\(speed) tok/s)\u{2026}")
+        case .readying:
+            return String(localized: "\(model) is readying\u{2026}")
+        }
     }
 
     /// Unified memory the GPU may use, in GiB.
