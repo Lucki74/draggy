@@ -27,7 +27,7 @@ Works:
 Missing:
 
 - HTML previews of model output and ad blocking in the Browser page.
-- A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
+- A signed, published release. A manual workflow builds an unsigned `.deb` and `.rpm`. Signing needs package keys. Flatpak is not started.
 - Widget tests beyond two small ones that run under xvfb. The turn logic is tested without one.
 
 Not verified on this branch's author machine (Windows): building and running the app. See `docs/linux.md` for the commands CI runs.
@@ -59,6 +59,6 @@ Missing:
 
 - Image attachments. Numbered lists show as typed.
 - Ad blocking and download prompts in the Browser page, and HTML previews of model output.
-- Signing, notarization, Sparkle and a release workflow.
+- Developer ID signing, notarization and Sparkle. A release workflow exists but signs ad hoc; the rest needs an Apple Developer account.
 
 Not verified: none of the Swift has been compiled, since the author's machine runs Windows. See `docs/macos.md` for the likely failure points. The first macOS CI run is the first real check.
