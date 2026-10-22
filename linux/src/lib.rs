@@ -1,9 +1,9 @@
 //! Draggy for Linux. The widgets are in the binary; this library holds what can be checked without a display.
 
+pub mod browser;
 pub mod chat;
 pub mod conversations;
 pub mod markdown;
-pub mod browser;
 pub mod models;
 pub mod runtime;
 pub mod secrets;
