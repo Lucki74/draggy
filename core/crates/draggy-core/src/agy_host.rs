@@ -4,7 +4,6 @@
 
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
@@ -17,6 +16,7 @@ use draggy_providers::agy::adapter::{
     exit_failure, judge_build, locate_agy, parse_models, permission_refused, result_failure,
     to_prompt, turn_args, usage_of,
 };
+use draggy_tools::spawn::{StdChild as Child, spawn_piped_blocking};
 use serde_json::{Value, json};
 
 use crate::error::CoreError;
@@ -31,15 +31,6 @@ pub fn agy_terms_warning() -> String {
     TERMS_WARNING.to_owned()
 }
 
-#[cfg(windows)]
-fn quiet(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
-    command.creation_flags(0x0800_0000);
-}
-
-#[cfg(not(windows))]
-fn quiet(_command: &mut Command) {}
-
 fn find_agy(forced: Option<&str>) -> Option<PathBuf> {
     let search = std::env::var("PATH").unwrap_or_default();
     let env_forced = std::env::var("DRAGGY_AGY_PATH").ok();
@@ -52,17 +43,7 @@ fn find_agy(forced: Option<&str>) -> Option<PathBuf> {
 }
 
 fn spawn(binary: &Path, args: &[String], cwd: Option<&Path>) -> std::io::Result<Child> {
-    let mut command = Command::new(binary);
-    command
-        .args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    if let Some(cwd) = cwd {
-        command.current_dir(cwd);
-    }
-    quiet(&mut command);
-    command.spawn()
+    spawn_piped_blocking(binary, args, cwd)
 }
 
 fn drain(mut pipe: impl Read + Send + 'static) -> Arc<Mutex<String>> {
