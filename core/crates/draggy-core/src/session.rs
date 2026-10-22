@@ -23,6 +23,7 @@ use draggy_agent::tool_channel::ToolDefinition;
 use draggy_mcp::child_process::StdioLauncher;
 use draggy_mcp::reqwest_net::ReqwestHttp;
 use draggy_tools::files::content_hash;
+use draggy_web::search::SearchConfig;
 use serde_json::Value;
 
 use crate::cancel::CancelToken;
@@ -34,6 +35,7 @@ use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
 use crate::records::{ApprovalChoice, ApprovalRecord, MessageRecord, SessionConfig, TurnOutcome};
 use crate::tools::{FileTools, NoTools, definitions};
+use crate::web_tools::{self, WebTools};
 
 struct WallClock;
 
@@ -228,10 +230,14 @@ fn stamp() -> (String, String) {
 struct CompositeTools {
     files: Box<dyn ToolRuntime>,
     mcp: Option<McpTools<ReqwestHttp, StdioLauncher>>,
+    web: Option<WebTools>,
 }
 
 impl ToolRuntime for CompositeTools {
     fn annotations(&self, name: &str) -> ToolAnnotations {
+        if let Some(web) = self.web.as_ref().filter(|_| web_tools::owns(name)) {
+            return web.annotations(name);
+        }
         if let Some(mcp) = self.mcp.as_ref().filter(|m| m.owns(name)) {
             return mcp.annotations(name);
         }
@@ -239,6 +245,9 @@ impl ToolRuntime for CompositeTools {
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        if let Some(web) = self.web.as_mut().filter(|_| web_tools::owns(name)) {
+            return web.run(name, args, ctx);
+        }
         if let Some(mcp) = self.mcp.as_mut().filter(|m| m.owns(name)) {
             return mcp.run(name, args, ctx);
         }
@@ -267,6 +276,7 @@ impl Session {
         messages: Vec<Message>,
         grants: Vec<Grant>,
         extra_tools: &[ToolDefinition],
+        web: bool,
     ) -> TurnRequest {
         let has_folder = self.config.folder.is_some();
         let commands = has_folder && self.config.allow_commands;
@@ -276,6 +286,9 @@ impl Session {
         } else {
             Vec::new()
         };
+        if web {
+            tools.extend(web_tools::definitions());
+        }
         tools.extend(extra_tools.iter().cloned());
         TurnRequest {
             profile: ModelProfile {
@@ -294,7 +307,7 @@ impl Session {
             settings: PromptSettings {
                 effort: Effort::Medium,
                 allow_max_in_chat: false,
-                web_mode: WebMode::Off,
+                web_mode: if web { WebMode::On } else { WebMode::Off },
                 custom_instructions: Vec::new(),
             },
             environment: PromptEnvironment {
@@ -363,7 +376,19 @@ impl Session {
             .as_ref()
             .map(|tools| tools.definitions())
             .unwrap_or(&[]);
-        let request = self.request(messages, grants, extra_tools);
+        let web_tools = match (&self.config.web, &handle) {
+            (Some(web), Some(handle)) => WebTools::new(
+                handle.clone(),
+                SearchConfig {
+                    search_provider: web.provider.clone(),
+                    searxng_url: web.searxng_url.trim().trim_end_matches('/').to_owned(),
+                    brave_api_key: web.brave_api_key.trim().to_owned(),
+                },
+            )
+            .ok(),
+            _ => None,
+        };
+        let request = self.request(messages, grants, extra_tools, web_tools.is_some());
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
             &self.config.base_url,
@@ -379,6 +404,7 @@ impl Session {
         let mut composite = CompositeTools {
             files,
             mcp: mcp_tools,
+            web: web_tools,
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {

@@ -10,7 +10,7 @@ use std::time::Duration;
 use draggy_core::{
     ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, McpManager,
     McpServerConfigRecord, MessageRecord, PermissionModeRecord, Session, SessionConfig,
-    TurnEventRecord, TurnObserver, TurnOutcome,
+    TurnEventRecord, TurnObserver, TurnOutcome, WebConfigRecord,
 };
 use serde_json::{Value, json};
 
@@ -131,6 +131,7 @@ fn config(url: &str, folder: Option<&std::path::Path>) -> SessionConfig {
         loop_limit: Some(6),
         allow_commands: false,
         permission_mode: None,
+        web: None,
     }
 }
 
@@ -142,6 +143,7 @@ fn command_config(
     SessionConfig {
         allow_commands: true,
         permission_mode: mode,
+        web: None,
         ..config(url, Some(folder))
     }
 }
@@ -366,6 +368,55 @@ fn a_file_outside_the_folder_is_refused() {
     let second = bodies[1]["messages"].to_string();
     assert!(second.contains("TOOL RESULT (read_file)"), "{second}");
     assert!(!second.contains("private words"), "{second}");
+}
+
+#[test]
+fn the_web_tools_are_offered_only_when_the_web_is_on() {
+    let server = serve(vec![text_reply(&["a"]), text_reply(&["b"])]);
+    let recorder = Arc::new(Recorder::default());
+    let off = Session::new(config(&server.url, None)).expect("session");
+    run(&off, "hi", &recorder);
+    let on = Session::new(SessionConfig {
+        web: Some(WebConfigRecord::default()),
+        ..config(&server.url, None)
+    })
+    .expect("session");
+    run(&on, "hi", &recorder);
+
+    let bodies = server.bodies.lock().expect("bodies");
+    assert!(bodies[0]["tools"].is_null(), "{}", bodies[0]);
+    let names: Vec<String> = bodies[1]["tools"]
+        .as_array()
+        .expect("tools")
+        .iter()
+        .map(|tool| tool["function"]["name"].as_str().unwrap_or("").to_owned())
+        .collect();
+    assert_eq!(names, ["search_web", "read_url"]);
+}
+
+#[test]
+fn read_url_refuses_a_local_address_and_says_why() {
+    let server = serve(vec![
+        tool_reply("read_url", r#"{"url": "http://127.0.0.1:1/secret"}"#),
+        text_reply(&["No."]),
+    ]);
+    let session = Session::new(SessionConfig {
+        web: Some(WebConfigRecord::default()),
+        ..config(&server.url, None)
+    })
+    .expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let outcome = run(&session, "Read it", &recorder);
+
+    assert_eq!(outcome.tool_calls.get("read_url"), Some(&1));
+    let bodies = server.bodies.lock().expect("bodies");
+    let second = bodies[1]["messages"].to_string();
+    assert!(second.contains("TOOL RESULT (read_url)"), "{second}");
+    assert!(
+        second.contains("Refused") || second.contains("local"),
+        "{second}"
+    );
 }
 
 #[test]

@@ -12,5 +12,6 @@
 pub mod connectivity;
 pub mod http;
 mod js;
+pub mod page;
 pub mod policy;
 pub mod search;
