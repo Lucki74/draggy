@@ -410,7 +410,11 @@ impl DraggyChat {
                 return None;
             }
         };
-        let session = match Session::new(config) {
+        let created = match state.mcp() {
+            Some(mcp) => Session::with_mcp(config, mcp),
+            None => Session::new(config),
+        };
+        let session = match created {
             Ok(session) => session,
             Err(error) => {
                 self.toast(&error.to_string());

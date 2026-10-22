@@ -19,7 +19,7 @@ Works:
 
 Missing:
 
-- Core calls beyond a chat turn (documents, web, MCP).
+- Core calls beyond a chat turn: web, and an MCP servers page. Chat sessions already carry the core's `McpManager`, but nothing starts a server yet, and this wiring is not compiled on the author's Windows machine.
 - Model and engine management.
 - Documents and web panes.
 - Packaging, a signed release and a release workflow.
