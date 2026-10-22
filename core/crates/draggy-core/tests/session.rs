@@ -132,6 +132,7 @@ fn config(url: &str, folder: Option<&std::path::Path>) -> SessionConfig {
         allow_commands: false,
         permission_mode: None,
         web: None,
+        agy: None,
     }
 }
 
@@ -144,6 +145,7 @@ fn command_config(
         allow_commands: true,
         permission_mode: mode,
         web: None,
+        agy: None,
         ..config(url, Some(folder))
     }
 }

@@ -93,6 +93,7 @@ fn main() -> Result<(), String> {
         allow_commands: false,
         permission_mode: None,
         web: None,
+        agy: None,
     })
     .map_err(|error| error.to_string())?;
 

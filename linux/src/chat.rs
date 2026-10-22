@@ -498,6 +498,7 @@ mod tests {
             allow_commands: false,
             permission_mode: None,
             web: None,
+            agy: None,
         })
         .expect("a session");
         let (tx, rx) = async_channel::unbounded();

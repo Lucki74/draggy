@@ -82,6 +82,7 @@ impl Settings {
             allow_commands: self.allow_commands && !folder.is_empty(),
             permission_mode: Some(PermissionModeRecord::Ask),
             web: None,
+            agy: None,
         })
     }
 }
