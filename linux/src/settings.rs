@@ -1,7 +1,7 @@
 //! What the user typed in the settings: where the model server is, which model, which folder. Held in memory only.
 //! The API key is not part of this value; it lives in the Secret Service (see `secrets`).
 
-use draggy_core::{PermissionModeRecord, SessionConfig};
+use draggy_core::{PermissionModeRecord, SessionConfig, WebConfigRecord};
 
 /// The values the settings page edits.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -10,6 +10,11 @@ pub struct Settings {
     pub model: String,
     pub folder: String,
     pub allow_commands: bool,
+    /// Offers the model `search_web` and `read_url`.
+    pub web: bool,
+    /// The id of a search engine, or empty for automatic.
+    pub search_provider: String,
+    pub searxng_url: String,
 }
 
 /// Why the settings cannot start a session yet. The text is worded for the user.
@@ -32,7 +37,27 @@ impl std::fmt::Display for SettingsError {
 
 impl std::error::Error for SettingsError {}
 
+/// The search engines the settings offer, in the order of the list. The first is "automatic".
+pub const PROVIDERS: [&str; 7] = [
+    "",
+    "searxng",
+    "brave",
+    "duckduckgo",
+    "startpage",
+    "duckduckgo-lite",
+    "brave-html",
+];
+
 impl Settings {
+    /// The web settings for a session, or `None` while the web is off.
+    pub fn web_config(&self, brave_key: Option<String>) -> Option<WebConfigRecord> {
+        self.web.then(|| WebConfigRecord {
+            provider: self.search_provider.clone(),
+            searxng_url: self.searxng_url.trim().to_owned(),
+            brave_api_key: brave_key.unwrap_or_default(),
+        })
+    }
+
     /// The session configuration these settings describe, or the reason there is none.
     pub fn session_config(&self, api_key: Option<String>) -> Result<SessionConfig, SettingsError> {
         let server = self.server_url.trim().trim_end_matches('/');
@@ -56,6 +81,7 @@ impl Settings {
             loop_limit: None,
             allow_commands: self.allow_commands && !folder.is_empty(),
             permission_mode: Some(PermissionModeRecord::Ask),
+            web: None,
         })
     }
 }
@@ -70,6 +96,7 @@ mod tests {
             model: " qwen ".into(),
             folder: "/home/me/project".into(),
             allow_commands: true,
+            ..Settings::default()
         }
     }
 
@@ -113,5 +140,21 @@ mod tests {
             ..filled()
         };
         assert_eq!(no_model.session_config(None), Err(SettingsError::NoModel));
+    }
+
+    #[test]
+    fn the_web_is_off_until_asked_for() {
+        assert!(filled().web_config(Some("k".into())).is_none());
+        let on = Settings {
+            web: true,
+            search_provider: "brave".into(),
+            searxng_url: " http://127.0.0.1:8888 ".into(),
+            ..filled()
+        };
+        let web = on.web_config(Some("k".into())).expect("web");
+        assert_eq!(web.provider, "brave");
+        assert_eq!(web.searxng_url, "http://127.0.0.1:8888");
+        assert_eq!(web.brave_api_key, "k");
+        assert_eq!(on.web_config(None).expect("web").brave_api_key, "");
     }
 }

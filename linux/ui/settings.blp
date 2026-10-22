@@ -63,5 +63,31 @@ template $DraggySettings: Adw.PreferencesDialog {
         subtitle: "The model can ask to run shell commands in the folder. You approve each one.";
       }
     }
+
+    Adw.PreferencesGroup {
+      title: "Web";
+      description: "Lets the model search the web and read pages. Pages on your own network are never opened.";
+
+      Adw.SwitchRow web {
+        title: "Allow web search";
+      }
+
+      Adw.ComboRow provider {
+        title: "Search engine";
+        model: StringList {
+          strings ["Automatic", "SearXNG", "Brave API", "DuckDuckGo", "Startpage", "DuckDuckGo Lite", "Brave web"]
+        };
+      }
+
+      Adw.EntryRow searxng {
+        title: "SearXNG address";
+        input-purpose: url;
+      }
+
+      Adw.PasswordEntryRow brave_key {
+        title: "Brave API key";
+        show-apply-button: true;
+      }
+    }
   }
 }

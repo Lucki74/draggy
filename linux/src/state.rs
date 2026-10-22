@@ -10,6 +10,8 @@ use draggy_linux::settings::Settings;
 
 /// The name under which the model server's key is stored.
 pub const SERVER_KEY: &str = "model-server";
+/// The name under which the Brave search key is stored.
+pub const BRAVE_KEY: &str = "brave-search";
 
 pub struct AppState {
     pub settings: RefCell<Settings>,

@@ -8,7 +8,7 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gdk, gio, glib};
 
-use crate::state::{AppState, SERVER_KEY};
+use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session, read_document};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
@@ -403,8 +403,22 @@ impl DraggyChat {
             .ok()
             .and_then(Result::ok)
             .flatten();
+        let brave = if settings.web {
+            let secrets = Arc::clone(&state.secrets);
+            runtime()
+                .spawn(async move { secrets.get(BRAVE_KEY).await })
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .flatten()
+        } else {
+            None
+        };
         let config = match settings.session_config(key) {
-            Ok(config) => config,
+            Ok(mut config) => {
+                config.web = settings.web_config(brave);
+                config
+            }
             Err(error) => {
                 self.toast(&error.to_string());
                 return None;
