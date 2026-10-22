@@ -900,3 +900,35 @@ fn a_session_with_mcp_offers_server_tools_and_runs_them() {
     let second_pass_messages = bodies[1]["messages"].to_string();
     assert!(second_pass_messages.contains("mcp says banana"));
 }
+
+#[test]
+fn a_picture_goes_to_the_model_as_an_image_part() {
+    let server = serve(vec![text_reply(&["Seen"])]);
+    let session = Session::new(config(&server.url, None)).expect("session");
+    let observer: Arc<dyn TurnObserver> = Arc::new(Recorder::default());
+    let image = draggy_core::ImageRecord {
+        name: "dot.png".to_owned(),
+        mime: "image/png".to_owned(),
+        data: vec![0x89, b'P', b'N', b'G'],
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .enable_time()
+        .build()
+        .expect("runtime");
+
+    let outcome = runtime
+        .block_on(Arc::clone(&session).send_with_images(
+            "What is this".to_owned(),
+            vec![image],
+            observer,
+            None,
+            CancelToken::new(),
+        ))
+        .expect("turn");
+
+    assert_eq!(outcome.text_content, "Seen");
+    let bodies = server.bodies.lock().expect("bodies");
+    let sent = bodies[0].to_string();
+    assert!(sent.contains("data:image/png;base64,iVBORw=="), "{sent}");
+}

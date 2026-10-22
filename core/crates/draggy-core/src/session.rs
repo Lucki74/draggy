@@ -20,7 +20,7 @@ use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{PromptEnvironment, PromptProfile, PromptSettings, WebMode};
 use draggy_agent::resume::SearchStep;
 use draggy_agent::skills::{LoadedSkill, SkillReader};
-use draggy_agent::task_manager::{CancelSignal, Message};
+use draggy_agent::task_manager::{Attachment, CancelSignal, Message};
 use draggy_agent::tool_channel::ToolDefinition;
 use draggy_mcp::child_process::StdioLauncher;
 use draggy_mcp::reqwest_net::ReqwestHttp;
@@ -36,7 +36,9 @@ use crate::mcp_tools::McpTools;
 use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
-use crate::records::{ApprovalChoice, ApprovalRecord, MessageRecord, SessionConfig, TurnOutcome};
+use crate::records::{
+    ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, SessionConfig, TurnOutcome,
+};
 use crate::tools::{FileTools, NoTools, definitions};
 use crate::web_tools::{self, WebTools};
 
@@ -201,6 +203,15 @@ fn message(id: String, role: &str, content: &str) -> Message {
     }
 }
 
+fn attachment(image: &ImageRecord) -> Attachment {
+    use base64::Engine as _;
+    Attachment {
+        name: image.name.clone(),
+        kind: image.mime.clone(),
+        content: base64::engine::general_purpose::STANDARD.encode(&image.data),
+    }
+}
+
 /// `2026-10-14` and `12:30`, in UTC. The shell can pass its own formatted values once it has a locale to offer.
 fn stamp() -> (String, String) {
     let seconds = SystemTime::now()
@@ -312,7 +323,9 @@ impl Session {
                 probed: true,
                 has_thinking: false,
                 thinking_allowed: true,
-                native_vision: false,
+                // Pictures go to the model only when the user attached some, and never to the agy route.
+                native_vision: self.config.agy.is_none()
+                    && messages.iter().any(|m| m.attachments.is_some()),
                 prompt_profile: PromptProfile::Compact,
                 loop_limit: self.config.loop_limit.map_or(75, |limit| limit as usize),
                 max_context: None,
@@ -357,6 +370,7 @@ impl Session {
     pub(crate) fn run_blocking(
         &self,
         text: &str,
+        images: &[ImageRecord],
         observer: Arc<dyn TurnObserver>,
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: &CancelToken,
@@ -366,7 +380,11 @@ impl Session {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             state.next_message += 1;
             let id = format!("m{}", state.next_message);
-            state.messages.push(message(id, "user", text));
+            let mut sent = message(id, "user", text);
+            if !images.is_empty() {
+                sent.attachments = Some(images.iter().map(attachment).collect());
+            }
+            state.messages.push(sent);
             (
                 state.messages.clone(),
                 state.tail_notes.clone(),
@@ -550,14 +568,33 @@ impl Session {
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: Arc<CancelToken>,
     ) -> Result<TurnOutcome, CoreError> {
+        self.send_with_images(text, Vec::new(), observer, approvals, cancel)
+            .await
+    }
+
+    /// Like `send`, with pictures. A model that cannot see them is told so in the message instead.
+    pub async fn send_with_images(
+        self: Arc<Self>,
+        text: String,
+        images: Vec<ImageRecord>,
+        observer: Arc<dyn TurnObserver>,
+        approvals: Option<Arc<dyn ApprovalHandler>>,
+        cancel: Arc<CancelToken>,
+    ) -> Result<TurnOutcome, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
         let session = Arc::clone(&self);
         let handle = tokio::runtime::Handle::current();
         std::thread::Builder::new()
             .name("draggy-turn".to_owned())
             .spawn(move || {
-                let outcome =
-                    session.run_blocking(&text, observer, approvals, &cancel, Some(handle));
+                let outcome = session.run_blocking(
+                    &text,
+                    &images,
+                    observer,
+                    approvals,
+                    &cancel,
+                    Some(handle),
+                );
                 // The receiver is gone when the shell dropped the call; nothing is waiting for the outcome.
                 drop(reply.send(outcome));
             })
