@@ -3,6 +3,7 @@ import ContextWheel from "./ContextWheel";
 import PermissionPicker from "./PermissionPicker";
 import ModelChoices from "../providers/ModelChoices";
 import RemoteFilesNotice from "../providers/RemoteFilesNotice";
+import StarNotice from "./StarNotice";
 import { ProviderIcon } from "../providers/ProviderIcon";
 import { displayModelName, modelLabel } from "../llama";
 import { isRemote } from "../ai/providers";
@@ -518,6 +519,7 @@ export function Composer({
                             inProject={surface === "code" && Boolean(onProjectMemory)}
                             t={t}
                         />
+                        <StarNotice generating={chat.isGenerating} t={t} />
                         {chat.isOutOfContext && (
                             <div className="flex items-center gap-3 px-4 py-2 border-b border-rule bg-surface-tint text-[13px]">
                                 <Icon name="warning" size={16} className="flex-shrink-0 text-warn" />
