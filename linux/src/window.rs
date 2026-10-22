@@ -84,6 +84,7 @@ impl DraggyWindow {
         window.attach_chat();
         window.attach_servers();
         window.attach_models();
+        window.attach_browser();
         window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
@@ -122,6 +123,16 @@ impl DraggyWindow {
             }
         });
         self.imp().pages.add_named(&page, Some("servers"));
+    }
+
+    fn attach_browser(&self) {
+        let weak = self.downgrade();
+        let page = crate::browser_view::build(move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("browser"));
     }
 
     fn attach_models(&self) {

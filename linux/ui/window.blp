@@ -90,6 +90,15 @@ template $DraggyWindow: Adw.ApplicationWindow {
               }
 
               Gtk.ListBoxRow {
+                name: "browser";
+
+                Gtk.Label {
+                  label: "Browser";
+                  xalign: 0;
+                }
+              }
+
+              Gtk.ListBoxRow {
                 name: "servers";
 
                 Gtk.Label {
