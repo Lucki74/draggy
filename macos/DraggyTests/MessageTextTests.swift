@@ -5,9 +5,7 @@ import XCTest
 @MainActor
 final class MessageTextTests: XCTestCase {
     func testNumberedListsKeepTheirNumbersAndDrawInlineMarks() {
-        XCTAssertEqual(MessageText.message("1) **one**
-2. two").string, "1. one
-2. two")
+        XCTAssertEqual(MessageText.message("1) **one**\n2. two").string, "1. one\n2. two")
     }
 
     func testFenceMarkersAreDroppedAndCodeIsMonospaced() {
