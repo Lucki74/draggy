@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var keyDraft = ""
     @State private var braveDraft = ""
+    @State private var askingAgy = false
 
     var body: some View {
         Form {
@@ -81,9 +82,42 @@ struct SettingsView: View {
                 }
                 .disabled(!model.webEnabled || braveDraft.isEmpty)
             }
+
+            Section("Google") {
+                LabeledContent("Antigravity CLI") {
+                    Text(model.agy.status.signedIn ? String(localized: "Signed in") : String(localized: "Not signed in"))
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    if model.agy.status.signedIn {
+                        Button("Sign out") { model.signOutAgy() }
+                    } else {
+                        Button("Sign in") { askingAgy = true }
+                            .disabled(model.agy.isBusy)
+                    }
+                    Button("List models") { Task { await model.agy.listModels() } }
+                        .disabled(!model.agy.status.signedIn || model.agy.isBusy)
+                }
+                Toggle("Chat through Antigravity", isOn: $model.agyEnabled)
+                    .disabled(!model.agy.status.signedIn)
+                TextField("Antigravity model", text: $model.agyModel)
+                    .disabled(!model.agy.status.signedIn)
+                if !model.agy.modelNames.isEmpty {
+                    Text(model.agy.modelNames.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                }
+                if let error = model.agy.errorMessage {
+                    Text(error).font(.callout).foregroundStyle(.red)
+                }
+            }
         }
         .padding()
         .frame(width: 480)
+        .alert("Before you sign in", isPresented: $askingAgy) {
+            Button("Cancel", role: .cancel) {}
+            Button("I accept the risk", role: .destructive) { Task { await model.agy.signIn() } }
+        } message: {
+            Text(AgyModel.termsWarning)
+        }
     }
 
     private func pathRow(

@@ -94,6 +94,8 @@ final class AppModel {
         static let web = "webEnabled"
         static let searchProvider = "searchProvider"
         static let searxng = "searxngURL"
+        static let agyOn = "agyOn"
+        static let agyModel = "agyModel"
     }
 
     private let defaults: UserDefaults
@@ -103,6 +105,7 @@ final class AppModel {
     let updates = UpdateModel()
     let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
+    let agy = AgyModel()
     private var session: Session?
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
@@ -170,6 +173,21 @@ final class AppModel {
         }
     }
 
+    /// Sends chat through the Antigravity CLI. Needs a signed-in account.
+    var agyEnabled: Bool {
+        didSet {
+            defaults.set(agyEnabled, forKey: Key.agyOn)
+            session = nil
+        }
+    }
+
+    var agyModel: String {
+        didSet {
+            defaults.set(agyModel, forKey: Key.agyModel)
+            session = nil
+        }
+    }
+
     var permission: PermissionChoice {
         didSet {
             defaults.set(permission.rawValue, forKey: Key.permission)
@@ -200,6 +218,8 @@ final class AppModel {
         searchProvider = defaults.string(forKey: Key.searchProvider) ?? ""
         searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
+        agyEnabled = defaults.bool(forKey: Key.agyOn)
+        agyModel = defaults.string(forKey: Key.agyModel) ?? ""
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -207,6 +227,11 @@ final class AppModel {
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
         }
+    }
+
+    func signOutAgy() {
+        agy.signOut()
+        agyEnabled = false
     }
 
     func hasAPIKey() -> Bool {
@@ -337,7 +362,21 @@ final class AppModel {
         // The key is read only here, while the request is being set up.
         let key = (try? secrets.secret(for: Key.apiKey)) ?? nil
         let folder = folderPath.isEmpty ? nil : folderPath
-        let config = SessionConfig(
+        let agyRoute = agyEnabled ? agy.config(model: agyModel) : nil
+        let config = agyRoute.map {
+            SessionConfig(
+                baseUrl: "",
+                model: "",
+                apiKey: nil,
+                folder: nil,
+                contextTokens: nil,
+                loopLimit: nil,
+                allowCommands: false,
+                permissionMode: PermissionChoice.ask.record,
+                web: nil,
+                agy: $0
+            )
+        } ?? SessionConfig(
             baseUrl: baseURL,
             model: modelName,
             apiKey: key,
@@ -346,7 +385,8 @@ final class AppModel {
             loopLimit: nil,
             allowCommands: allowCommands && folder != nil,
             permissionMode: permission.record,
-            web: webConfig()
+            web: webConfig(),
+            agy: nil
         )
         let created: Session
         if let manager = mcp.manager {
