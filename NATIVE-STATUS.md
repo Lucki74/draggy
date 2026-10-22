@@ -22,10 +22,11 @@ Works:
 - A Web group in settings turns on `search_web` and `read_url`: search engine choice, a SearXNG address, and a Brave key kept in the keyring. Pages on private addresses are refused, also after redirects.
 - A Models page installs the llama.cpp engine, searches and downloads models with progress and cancel, lists and deletes downloaded files, and starts or stops the local server on the picked model. CI compiles it, but nobody has run it on a desktop yet.
 - While a model loads, the page shows its steps with measured numbers only: "Getting <model> from disk...", "Loading <model> into RAM x%..." (the share of the file held in memory), "Reading x% (n tok/s)..." (the server's prompt progress and the speed between two reports), "<model> is readying..." and "Extending context x%..." when a running model restarts with a larger window. Percentages move in steps of 3.
+- A Browser page on WebKitGTK with an address bar and back, forward and reload. Only http and https load, also for links and redirects, and local servers stay open. CI compiles it, but nobody has run it on a desktop yet.
 
 Missing:
 
-- Documents and web panes.
+- HTML previews of model output and ad blocking in the Browser page.
 - A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
 - Widget tests beyond two small ones that run under xvfb. The turn logic is tested without one.
 
