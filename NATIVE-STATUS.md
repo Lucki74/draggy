@@ -23,7 +23,7 @@ Missing:
 - Web calls, and settings for a server (environment variables and arguments). The Servers page starts each catalogue server with defaults.
 - Model and engine management.
 - Documents and web panes.
-- Packaging, a signed release and a release workflow.
+- A signed, published release. A manual workflow builds an unsigned `.deb`; `.rpm` and Flatpak are not started.
 - Widget tests beyond two small ones that run under xvfb. The turn logic is tested without one.
 
 Not verified on this branch's author machine (Windows): building and running the app. See `docs/linux.md` for the commands CI runs.
