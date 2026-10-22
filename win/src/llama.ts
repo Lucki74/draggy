@@ -467,6 +467,20 @@ export async function isLoadedAt(
   }
 }
 
+/** Whether the engine holds this model at a smaller window, so loading it at `contextSize` is an extension. */
+export async function isExtendingContext(model: string, contextSize: number): Promise<boolean> {
+  if (isRemote(model) || typeof window === "undefined") return false;
+  try {
+    const status = await window.electronAPI?.gguf?.status();
+    if (!status?.running || !status.model) return false;
+    const target = bareModelName(model);
+    const same = status.model === target || status.model === model || servedFileName(status.model) === target;
+    return same && status.contextSize < contextSize;
+  } catch {
+    return false;
+  }
+}
+
 const NS_PER_MS = 1e6;
 
 export function readMetrics(

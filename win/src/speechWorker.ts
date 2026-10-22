@@ -92,7 +92,16 @@ async function load(request: InitRequest): Promise<void> {
   ));
 
   loadedModel = request.model;
-  await completePipeline(instance as unknown as { tokenizer?: unknown; processor?: unknown }, request.model, lib as unknown as SpeechLibrary);
+  const speechLib = {
+    ...(lib as unknown as SpeechLibrary),
+    loadJson: async (model: string, file: string) => {
+      const path = env.remotePathTemplate.replace("{model}", model).replace("{revision}", "main");
+      const response = await fetch(`${env.remoteHost}${path}${file}`);
+      if (!response.ok) throw new Error(`${file} could not be read (${response.status})`);
+      return response.json();
+    },
+  } as SpeechLibrary;
+  await completePipeline(instance as unknown as { tokenizer?: unknown; processor?: unknown }, request.model, speechLib);
   transcriber = instance as unknown as Transcriber;
   const warm = transcriber;
   await atStage("warm-up", () => warm(new Float32Array(SAMPLE_RATE), isWhisper() ? { return_timestamps: false } : {}));

@@ -68,3 +68,34 @@ describe("naming the step that failed", () => {
     expect((failure as SpeechStageError).stage).toBe("warm-up");
   });
 });
+
+describe("reading the tokenizer files directly", () => {
+  it("builds the tokenizer from the two files when the library can read them", async () => {
+    const built: unknown[][] = [];
+    const lib = library({
+      loadJson: vi.fn(async (_model: string, file: string) => ({ file })),
+      PreTrainedTokenizer: class {
+        constructor(...args: unknown[]) {
+          built.push(args);
+        }
+      } as unknown as SpeechLibrary["PreTrainedTokenizer"],
+    });
+    const instance: { tokenizer?: unknown; processor?: unknown } = {};
+
+    await completePipeline(instance, "onnx-community/whisper-base", lib);
+
+    expect(built).toEqual([[{ file: "tokenizer.json" }, { file: "tokenizer_config.json" }]]);
+    expect(lib.AutoTokenizer.from_pretrained).not.toHaveBeenCalled();
+  });
+
+  it("names the tokenizer step when a file cannot be read", async () => {
+    const lib = library({
+      loadJson: vi.fn(async () => Promise.reject(new Error("tokenizer.json could not be read (404)"))),
+      PreTrainedTokenizer: class {} as unknown as SpeechLibrary["PreTrainedTokenizer"],
+    });
+
+    const failure = await completePipeline({}, "m", lib).catch((error: unknown) => error);
+
+    expect((failure as SpeechStageError).stage).toBe("tokenizer");
+  });
+});
