@@ -6,6 +6,7 @@ use std::sync::Arc;
 use adw::prelude::*;
 use draggy_core::{AgyAccount, AgyStatus, agy_terms_warning};
 use draggy_linux::runtime::runtime;
+use gtk::glib;
 
 use crate::state::AppState;
 
@@ -144,7 +145,7 @@ fn ask_then_sign_in(ui: &Rc<Ui>, button: &gtk::Button) {
     let ui = ui.clone();
     let parent = button.clone();
     glib::spawn_future_local(async move {
-        if dialog.choose_future(&parent).await != "accept" {
+        if dialog.choose_future(Some(&parent)).await != "accept" {
             return;
         }
         ui.sign_in.set_sensitive(false);
