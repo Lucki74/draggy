@@ -447,6 +447,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       environment,
       memory,
       skills,
+      model,
     ),
     loadedSection,
   ]

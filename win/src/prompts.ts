@@ -256,18 +256,31 @@ export function currentTimeNote(): string {
   return `[Current time: ${new Date().toLocaleTimeString()}]`;
 }
 
+/** Who is answering, in the words the user asked for. The model id comes from the user's own files
+ * and servers, so it is cut to one short line before it reaches the prompt. */
+export function modelIdentityNote(model: string | undefined): string {
+  const name = (model ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!name) return "";
+  return `<model_identity>
+The model answering is ${name}. When asked who or what you are, say it in one sentence, in the user's language: "I'm ${name}, running on the Draggy harness developed by lucki74." Never claim to be another model, and never say Draggy trained you.
+</model_identity>`;
+}
+
 export function buildSystemPrompt(
   settings: AppSettings,
   mode: PromptMode,
   environment: ToolEnvironment,
   memory?: ProjectMemory | null,
   skills: InstalledSkill[] = [],
+  model?: string,
 ) {
   const inProject = Boolean(environment.hasFolder && environment.projectRoot);
   const parts = [
     inProject ? CODE_BASE_PROMPT : BASE_PROMPT,
     `Today's date: ${new Date().toLocaleDateString()}`,
   ];
+  const identity = modelIdentityNote(model);
+  if (identity) parts.push(identity);
 
   if (mode.nativeTools) {
     parts.push(NATIVE_TOOL_PROMPT);

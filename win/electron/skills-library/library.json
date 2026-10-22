@@ -11,6 +11,310 @@
   ],
   "skills": [
     {
+      "id": "accessibility",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Audit and fix accessibility",
+      "tags": [
+        "a11y",
+        "wcag",
+        "aria",
+        "contrast",
+        "keyboard"
+      ]
+    },
+    {
+      "id": "add-feature",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Build a feature end to end",
+      "tags": [
+        "feature",
+        "implement",
+        "codebase",
+        "plan"
+      ]
+    },
+    {
+      "id": "api-design",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Design or review an API",
+      "tags": [
+        "api",
+        "rest",
+        "endpoints",
+        "schema",
+        "openapi"
+      ]
+    },
+    {
+      "id": "blog-post",
+      "category": "writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a blog post or article",
+      "tags": [
+        "blog",
+        "article",
+        "seo",
+        "draft"
+      ]
+    },
+    {
+      "id": "brainstorm",
+      "category": "planning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Brainstorm ideas",
+      "tags": [
+        "ideas",
+        "options",
+        "creative",
+        "ideation"
+      ]
+    },
+    {
+      "id": "browser-tasks",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Work through an interactive page",
+      "tags": [
+        "browser",
+        "web",
+        "forms",
+        "click",
+        "automation"
+      ]
+    },
+    {
+      "id": "budget-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make a budget",
+      "tags": [
+        "budget",
+        "money",
+        "expenses",
+        "savings"
+      ]
+    },
+    {
+      "id": "changelog",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Write release notes",
+      "tags": [
+        "release notes",
+        "changes",
+        "versions",
+        "commits"
+      ]
+    },
+    {
+      "id": "ci-workflow",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Set up or fix CI",
+      "tags": [
+        "ci",
+        "github actions",
+        "pipeline",
+        "workflow"
+      ]
+    },
+    {
+      "id": "code-review",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Review changes for bugs",
+      "tags": [
+        "review",
+        "diff",
+        "bugs",
+        "quality"
+      ]
+    },
+    {
+      "id": "commit-message",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Write a commit message",
+      "tags": [
+        "git",
+        "commit",
+        "message",
+        "diff"
+      ]
+    },
+    {
+      "id": "compare-options",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Compare options and pick one",
+      "tags": [
+        "compare",
+        "decision",
+        "pros cons",
+        "choose"
+      ]
+    },
+    {
+      "id": "cover-letter",
+      "category": "writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a cover letter",
+      "tags": [
+        "job",
+        "application",
+        "letter",
+        "career"
+      ]
+    },
+    {
+      "id": "csv-cleaner",
+      "category": "data",
+      "surface": "both",
+      "on": false,
+      "summary": "Clean up messy data",
+      "tags": [
+        "csv",
+        "cleanup",
+        "duplicates",
+        "data"
+      ]
+    },
+    {
+      "id": "data-analysis",
+      "category": "data",
+      "surface": "both",
+      "on": true,
+      "summary": "Analyse a dataset",
+      "tags": [
+        "data",
+        "statistics",
+        "charts",
+        "insights"
+      ]
+    },
+    {
+      "id": "database-migration",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a safe migration",
+      "tags": [
+        "database",
+        "migration",
+        "schema",
+        "sql"
+      ]
+    },
+    {
+      "id": "debugging",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Find the cause of a bug",
+      "tags": [
+        "bug",
+        "error",
+        "stack trace",
+        "root cause"
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Upgrade dependencies safely",
+      "tags": [
+        "dependencies",
+        "upgrade",
+        "npm",
+        "versions"
+      ]
+    },
+    {
+      "id": "dockerfile",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Containerise a project",
+      "tags": [
+        "docker",
+        "container",
+        "image",
+        "build"
+      ]
+    },
+    {
+      "id": "document-qa",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Answer from your documents",
+      "tags": [
+        "documents",
+        "questions",
+        "answers",
+        "files"
+      ]
+    },
+    {
+      "id": "documentation",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Write or update docs",
+      "tags": [
+        "docs",
+        "readme",
+        "guide",
+        "api docs"
+      ]
+    },
+    {
+      "id": "docx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a Word document",
+      "tags": [
+        "word",
+        "docx",
+        "document",
+        "report"
+      ]
+    },
+    {
+      "id": "draggy-help",
+      "category": "authoring",
+      "surface": "both",
+      "on": true,
+      "locked": true,
+      "summary": "Fix Draggy problems from the official wiki",
+      "tags": [
+        "draggy",
+        "help",
+        "wiki",
+        "troubleshooting",
+        "support"
+      ]
+    },
+    {
       "id": "email-writer",
       "category": "writing",
       "surface": "chat",
@@ -24,16 +328,109 @@
       ]
     },
     {
-      "id": "proofreader",
-      "category": "writing",
+      "id": "explain-codebase",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Explain how a project works",
+      "tags": [
+        "codebase",
+        "architecture",
+        "onboarding",
+        "overview"
+      ]
+    },
+    {
+      "id": "explain-concept",
+      "category": "learning",
       "surface": "chat",
       "on": true,
-      "summary": "Fix spelling and grammar",
+      "summary": "Explain a concept simply",
       "tags": [
-        "proofread",
-        "grammar",
-        "spelling",
-        "typos"
+        "explain",
+        "teach",
+        "concept",
+        "simple"
+      ]
+    },
+    {
+      "id": "fact-check",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Check whether a claim is true",
+      "tags": [
+        "facts",
+        "claims",
+        "sources",
+        "verify"
+      ]
+    },
+    {
+      "id": "flashcards",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make flashcards",
+      "tags": [
+        "study",
+        "memory",
+        "cards",
+        "review"
+      ]
+    },
+    {
+      "id": "formal-letter",
+      "category": "documents",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a formal letter",
+      "tags": [
+        "letter",
+        "formal",
+        "complaint",
+        "official"
+      ]
+    },
+    {
+      "id": "frontend-design",
+      "category": "code",
+      "surface": "both",
+      "on": false,
+      "summary": "Design and build web interfaces",
+      "tags": [
+        "ui",
+        "design",
+        "css",
+        "layout",
+        "web"
+      ]
+    },
+    {
+      "id": "git-helper",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Sort out a git problem",
+      "tags": [
+        "git",
+        "branch",
+        "merge",
+        "rebase",
+        "history"
+      ]
+    },
+    {
+      "id": "goal-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Turn a goal into a plan",
+      "tags": [
+        "goals",
+        "plan",
+        "milestones",
+        "habits"
       ]
     },
     {
@@ -51,42 +448,55 @@
       ]
     },
     {
-      "id": "summarizer",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Summarize text, pages or files",
-      "tags": [
-        "summary",
-        "tldr",
-        "condense",
-        "key points"
-      ]
-    },
-    {
-      "id": "translator",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Translate text",
-      "tags": [
-        "translate",
-        "language",
-        "localize",
-        "text"
-      ]
-    },
-    {
-      "id": "tone-rewriter",
-      "category": "writing",
+      "id": "invoice",
+      "category": "documents",
       "surface": "chat",
       "on": false,
-      "summary": "Rewrite in a different tone",
+      "summary": "Make an invoice or quote",
       "tags": [
-        "tone",
-        "rewrite",
-        "style",
-        "voice"
+        "invoice",
+        "billing",
+        "client",
+        "payment"
+      ]
+    },
+    {
+      "id": "language-tutor",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Practise a language",
+      "tags": [
+        "language",
+        "practice",
+        "vocabulary",
+        "grammar"
+      ]
+    },
+    {
+      "id": "literature-review",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Review research on a topic",
+      "tags": [
+        "papers",
+        "research",
+        "sources",
+        "academic"
+      ]
+    },
+    {
+      "id": "meal-planner",
+      "category": "planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan meals and shopping",
+      "tags": [
+        "meals",
+        "recipes",
+        "groceries",
+        "weekly plan"
       ]
     },
     {
@@ -103,16 +513,198 @@
       ]
     },
     {
-      "id": "blog-post",
+      "id": "news-brief",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Catch up on the latest news",
+      "tags": [
+        "news",
+        "briefing",
+        "headlines",
+        "summary"
+      ]
+    },
+    {
+      "id": "pdf",
+      "category": "documents",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a PDF",
+      "tags": [
+        "pdf",
+        "extract",
+        "merge",
+        "forms"
+      ]
+    },
+    {
+      "id": "performance",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Find and fix slow code",
+      "tags": [
+        "performance",
+        "speed",
+        "profiling",
+        "slow"
+      ]
+    },
+    {
+      "id": "pptx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a slide deck",
+      "tags": [
+        "slides",
+        "powerpoint",
+        "presentation",
+        "deck"
+      ]
+    },
+    {
+      "id": "project-plan",
+      "category": "planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a project",
+      "tags": [
+        "project",
+        "timeline",
+        "tasks",
+        "scope"
+      ]
+    },
+    {
+      "id": "proofreader",
+      "category": "writing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Fix spelling and grammar",
+      "tags": [
+        "proofread",
+        "grammar",
+        "spelling",
+        "typos"
+      ]
+    },
+    {
+      "id": "pull-request",
+      "category": "code",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a pull request",
+      "tags": [
+        "pull request",
+        "pr",
+        "description",
+        "review"
+      ]
+    },
+    {
+      "id": "quiz-me",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Quiz me on a topic",
+      "tags": [
+        "quiz",
+        "test",
+        "practice",
+        "questions"
+      ]
+    },
+    {
+      "id": "refactor",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Restructure code safely",
+      "tags": [
+        "refactor",
+        "cleanup",
+        "structure",
+        "code"
+      ]
+    },
+    {
+      "id": "regex-helper",
+      "category": "data",
+      "surface": "both",
+      "on": false,
+      "summary": "Build or explain a regex",
+      "tags": [
+        "regex",
+        "pattern",
+        "match",
+        "text"
+      ]
+    },
+    {
+      "id": "report",
+      "category": "documents",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a structured report",
+      "tags": [
+        "report",
+        "findings",
+        "structure",
+        "business"
+      ]
+    },
+    {
+      "id": "resume",
       "category": "writing",
       "surface": "chat",
       "on": false,
-      "summary": "Write a blog post or article",
+      "summary": "Write or improve a CV",
       "tags": [
-        "blog",
-        "article",
-        "seo",
-        "draft"
+        "resume",
+        "cv",
+        "career",
+        "job"
+      ]
+    },
+    {
+      "id": "security-review",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Audit code for vulnerabilities",
+      "tags": [
+        "security",
+        "vulnerabilities",
+        "audit",
+        "secrets"
+      ]
+    },
+    {
+      "id": "shell-script",
+      "category": "code",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a shell script",
+      "tags": [
+        "shell",
+        "bash",
+        "powershell",
+        "script"
+      ]
+    },
+    {
+      "id": "skill-creator",
+      "category": "authoring",
+      "surface": "both",
+      "on": true,
+      "summary": "Create a new skill",
+      "tags": [
+        "skills",
+        "authoring",
+        "template",
+        "meta"
       ]
     },
     {
@@ -142,381 +734,16 @@
       ]
     },
     {
-      "id": "cover-letter",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a cover letter",
-      "tags": [
-        "job",
-        "application",
-        "letter",
-        "career"
-      ]
-    },
-    {
-      "id": "resume",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write or improve a CV",
-      "tags": [
-        "resume",
-        "cv",
-        "career",
-        "job"
-      ]
-    },
-    {
-      "id": "story-writer",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a story",
-      "tags": [
-        "fiction",
-        "story",
-        "characters",
-        "plot"
-      ]
-    },
-    {
-      "id": "docx",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a Word document",
-      "tags": [
-        "word",
-        "docx",
-        "document",
-        "report"
-      ]
-    },
-    {
-      "id": "pptx",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a slide deck",
-      "tags": [
-        "slides",
-        "powerpoint",
-        "presentation",
-        "deck"
-      ]
-    },
-    {
-      "id": "xlsx",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a spreadsheet",
-      "tags": [
-        "excel",
-        "xlsx",
-        "workbook",
-        "spreadsheet"
-      ]
-    },
-    {
-      "id": "pdf",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a PDF",
-      "tags": [
-        "pdf",
-        "extract",
-        "merge",
-        "forms"
-      ]
-    },
-    {
-      "id": "report",
-      "category": "documents",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a structured report",
-      "tags": [
-        "report",
-        "findings",
-        "structure",
-        "business"
-      ]
-    },
-    {
-      "id": "formal-letter",
-      "category": "documents",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a formal letter",
-      "tags": [
-        "letter",
-        "formal",
-        "complaint",
-        "official"
-      ]
-    },
-    {
-      "id": "invoice",
-      "category": "documents",
-      "surface": "chat",
-      "on": false,
-      "summary": "Make an invoice or quote",
-      "tags": [
-        "invoice",
-        "billing",
-        "client",
-        "payment"
-      ]
-    },
-    {
-      "id": "web-research",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Research a question online",
-      "tags": [
-        "research",
-        "web",
-        "search",
-        "sources"
-      ]
-    },
-    {
-      "id": "fact-check",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Check whether a claim is true",
-      "tags": [
-        "facts",
-        "claims",
-        "sources",
-        "verify"
-      ]
-    },
-    {
-      "id": "compare-options",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Compare options and pick one",
-      "tags": [
-        "compare",
-        "decision",
-        "pros cons",
-        "choose"
-      ]
-    },
-    {
-      "id": "news-brief",
-      "category": "research",
-      "surface": "chat",
-      "on": false,
-      "summary": "Catch up on the latest news",
-      "tags": [
-        "news",
-        "briefing",
-        "headlines",
-        "summary"
-      ]
-    },
-    {
-      "id": "document-qa",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Answer from your documents",
-      "tags": [
-        "documents",
-        "questions",
-        "answers",
-        "files"
-      ]
-    },
-    {
-      "id": "literature-review",
-      "category": "research",
-      "surface": "chat",
-      "on": false,
-      "summary": "Review research on a topic",
-      "tags": [
-        "papers",
-        "research",
-        "sources",
-        "academic"
-      ]
-    },
-    {
-      "id": "browser-tasks",
-      "category": "research",
-      "surface": "chat",
-      "on": false,
-      "summary": "Work through an interactive page",
-      "tags": [
-        "browser",
-        "web",
-        "forms",
-        "click",
-        "automation"
-      ]
-    },
-    {
-      "id": "explain-concept",
-      "category": "learning",
-      "surface": "chat",
-      "on": true,
-      "summary": "Explain a concept simply",
-      "tags": [
-        "explain",
-        "teach",
-        "concept",
-        "simple"
-      ]
-    },
-    {
-      "id": "quiz-me",
-      "category": "learning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Quiz me on a topic",
-      "tags": [
-        "quiz",
-        "test",
-        "practice",
-        "questions"
-      ]
-    },
-    {
-      "id": "flashcards",
-      "category": "learning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Make flashcards",
-      "tags": [
-        "study",
-        "memory",
-        "cards",
-        "review"
-      ]
-    },
-    {
-      "id": "study-plan",
-      "category": "learning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan studying for an exam",
-      "tags": [
-        "study",
-        "exam",
-        "schedule",
-        "learning"
-      ]
-    },
-    {
-      "id": "language-tutor",
-      "category": "learning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Practise a language",
-      "tags": [
-        "language",
-        "practice",
-        "vocabulary",
-        "grammar"
-      ]
-    },
-    {
-      "id": "brainstorm",
-      "category": "planning",
-      "surface": "chat",
-      "on": true,
-      "summary": "Brainstorm ideas",
-      "tags": [
-        "ideas",
-        "options",
-        "creative",
-        "ideation"
-      ]
-    },
-    {
-      "id": "trip-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan a trip",
-      "tags": [
-        "travel",
-        "itinerary",
-        "trip",
-        "booking"
-      ]
-    },
-    {
-      "id": "meal-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan meals and shopping",
-      "tags": [
-        "meals",
-        "recipes",
-        "groceries",
-        "weekly plan"
-      ]
-    },
-    {
-      "id": "budget-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Make a budget",
-      "tags": [
-        "budget",
-        "money",
-        "expenses",
-        "savings"
-      ]
-    },
-    {
-      "id": "project-plan",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan a project",
-      "tags": [
-        "project",
-        "timeline",
-        "tasks",
-        "scope"
-      ]
-    },
-    {
-      "id": "goal-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Turn a goal into a plan",
-      "tags": [
-        "goals",
-        "plan",
-        "milestones",
-        "habits"
-      ]
-    },
-    {
-      "id": "data-analysis",
+      "id": "spreadsheet-formulas",
       "category": "data",
-      "surface": "both",
-      "on": true,
-      "summary": "Analyse a dataset",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write spreadsheet formulas",
       "tags": [
-        "data",
-        "statistics",
-        "charts",
-        "insights"
+        "spreadsheet",
+        "formulas",
+        "excel",
+        "sheets"
       ]
     },
     {
@@ -533,292 +760,81 @@
       ]
     },
     {
-      "id": "regex-helper",
-      "category": "data",
-      "surface": "both",
+      "id": "story-writer",
+      "category": "writing",
+      "surface": "chat",
       "on": false,
-      "summary": "Build or explain a regex",
+      "summary": "Write a story",
       "tags": [
-        "regex",
-        "pattern",
-        "match",
+        "fiction",
+        "story",
+        "characters",
+        "plot"
+      ]
+    },
+    {
+      "id": "study-plan",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan studying for an exam",
+      "tags": [
+        "study",
+        "exam",
+        "schedule",
+        "learning"
+      ]
+    },
+    {
+      "id": "summarizer",
+      "category": "writing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Summarize text, pages or files",
+      "tags": [
+        "summary",
+        "tldr",
+        "condense",
+        "key points"
+      ]
+    },
+    {
+      "id": "tone-rewriter",
+      "category": "writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Rewrite in a different tone",
+      "tags": [
+        "tone",
+        "rewrite",
+        "style",
+        "voice"
+      ]
+    },
+    {
+      "id": "translator",
+      "category": "writing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Translate text",
+      "tags": [
+        "translate",
+        "language",
+        "localize",
         "text"
       ]
     },
     {
-      "id": "csv-cleaner",
-      "category": "data",
-      "surface": "both",
-      "on": false,
-      "summary": "Clean up messy data",
-      "tags": [
-        "csv",
-        "cleanup",
-        "duplicates",
-        "data"
-      ]
-    },
-    {
-      "id": "spreadsheet-formulas",
-      "category": "data",
+      "id": "trip-planner",
+      "category": "planning",
       "surface": "chat",
       "on": false,
-      "summary": "Write spreadsheet formulas",
+      "summary": "Plan a trip",
       "tags": [
-        "spreadsheet",
-        "formulas",
-        "excel",
-        "sheets"
-      ]
-    },
-    {
-      "id": "code-review",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Review changes for bugs",
-      "tags": [
-        "review",
-        "diff",
-        "bugs",
-        "quality"
-      ]
-    },
-    {
-      "id": "debugging",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Find the cause of a bug",
-      "tags": [
-        "bug",
-        "error",
-        "stack trace",
-        "root cause"
-      ]
-    },
-    {
-      "id": "write-tests",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Add tests",
-      "tags": [
-        "tests",
-        "unit tests",
-        "coverage",
-        "tdd"
-      ]
-    },
-    {
-      "id": "commit-message",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Write a commit message",
-      "tags": [
-        "git",
-        "commit",
-        "message",
-        "diff"
-      ]
-    },
-    {
-      "id": "refactor",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Restructure code safely",
-      "tags": [
-        "refactor",
-        "cleanup",
-        "structure",
-        "code"
-      ]
-    },
-    {
-      "id": "explain-codebase",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Explain how a project works",
-      "tags": [
-        "codebase",
-        "architecture",
-        "onboarding",
-        "overview"
-      ]
-    },
-    {
-      "id": "add-feature",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Build a feature end to end",
-      "tags": [
-        "feature",
-        "implement",
-        "codebase",
-        "plan"
-      ]
-    },
-    {
-      "id": "security-review",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Audit code for vulnerabilities",
-      "tags": [
-        "security",
-        "vulnerabilities",
-        "audit",
-        "secrets"
-      ]
-    },
-    {
-      "id": "documentation",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Write or update docs",
-      "tags": [
-        "docs",
-        "readme",
-        "guide",
-        "api docs"
-      ]
-    },
-    {
-      "id": "git-helper",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Sort out a git problem",
-      "tags": [
-        "git",
-        "branch",
-        "merge",
-        "rebase",
-        "history"
-      ]
-    },
-    {
-      "id": "pull-request",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write a pull request",
-      "tags": [
-        "pull request",
-        "pr",
-        "description",
-        "review"
-      ]
-    },
-    {
-      "id": "changelog",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write release notes",
-      "tags": [
-        "release notes",
-        "changes",
-        "versions",
-        "commits"
-      ]
-    },
-    {
-      "id": "dependency-upgrade",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Upgrade dependencies safely",
-      "tags": [
-        "dependencies",
-        "upgrade",
-        "npm",
-        "versions"
-      ]
-    },
-    {
-      "id": "performance",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Find and fix slow code",
-      "tags": [
-        "performance",
-        "speed",
-        "profiling",
-        "slow"
-      ]
-    },
-    {
-      "id": "api-design",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Design or review an API",
-      "tags": [
-        "api",
-        "rest",
-        "endpoints",
-        "schema",
-        "openapi"
-      ]
-    },
-    {
-      "id": "database-migration",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write a safe migration",
-      "tags": [
-        "database",
-        "migration",
-        "schema",
-        "sql"
-      ]
-    },
-    {
-      "id": "accessibility",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Audit and fix accessibility",
-      "tags": [
-        "a11y",
-        "wcag",
-        "aria",
-        "contrast",
-        "keyboard"
-      ]
-    },
-    {
-      "id": "dockerfile",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Containerise a project",
-      "tags": [
-        "docker",
-        "container",
-        "image",
-        "build"
-      ]
-    },
-    {
-      "id": "ci-workflow",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Set up or fix CI",
-      "tags": [
-        "ci",
-        "github actions",
-        "pipeline",
-        "workflow"
+        "travel",
+        "itinerary",
+        "trip",
+        "booking"
       ]
     },
     {
@@ -835,43 +851,42 @@
       ]
     },
     {
-      "id": "shell-script",
-      "category": "code",
-      "surface": "both",
-      "on": false,
-      "summary": "Write a shell script",
-      "tags": [
-        "shell",
-        "bash",
-        "powershell",
-        "script"
-      ]
-    },
-    {
-      "id": "frontend-design",
-      "category": "code",
-      "surface": "both",
-      "on": false,
-      "summary": "Design and build web interfaces",
-      "tags": [
-        "ui",
-        "design",
-        "css",
-        "layout",
-        "web"
-      ]
-    },
-    {
-      "id": "skill-creator",
-      "category": "authoring",
-      "surface": "both",
+      "id": "web-research",
+      "category": "research",
+      "surface": "chat",
       "on": true,
-      "summary": "Create a new skill",
+      "summary": "Research a question online",
       "tags": [
-        "skills",
-        "authoring",
-        "template",
-        "meta"
+        "research",
+        "web",
+        "search",
+        "sources"
+      ]
+    },
+    {
+      "id": "write-tests",
+      "category": "code",
+      "surface": "code",
+      "on": true,
+      "summary": "Add tests",
+      "tags": [
+        "tests",
+        "unit tests",
+        "coverage",
+        "tdd"
+      ]
+    },
+    {
+      "id": "xlsx",
+      "category": "documents",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a spreadsheet",
+      "tags": [
+        "excel",
+        "xlsx",
+        "workbook",
+        "spreadsheet"
       ]
     }
   ]

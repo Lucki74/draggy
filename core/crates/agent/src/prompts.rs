@@ -277,6 +277,23 @@ pub struct SystemPromptInput<'a> {
     pub date: &'a str,
     pub memory: Option<&'a ProjectMemory>,
     pub skills: &'a [PromptSkill],
+    /// The id of the model answering, as the user's own files and servers name it.
+    pub model: Option<&'a str>,
+}
+
+/// `modelIdentityNote`: who is answering, cut to one short line.
+pub fn model_identity_note(model: Option<&str>) -> String {
+    let collapsed = model.unwrap_or_default().split_whitespace().collect::<Vec<_>>().join(" ");
+    let name: String = collapsed.chars().take(80).collect();
+    let name = name.trim();
+    if name.is_empty() {
+        return String::new();
+    }
+    format!(
+        "<model_identity>
+The model answering is {name}. When asked who or what you are, say it in one sentence, in the user's language: \"I'm {name}, running on the Draggy harness developed by lucki74.\" Never claim to be another model, and never say Draggy trained you.
+</model_identity>"
+    )
 }
 
 /// `buildSystemPrompt`: the full system prompt for one turn, sections joined by a blank line.
@@ -294,6 +311,10 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
         },
         format!("Today's date: {}", input.date),
     ];
+    let identity = model_identity_note(input.model);
+    if !identity.is_empty() {
+        parts.push(identity);
+    }
 
     if mode.native_tools {
         parts.push(NATIVE_TOOL_PROMPT.to_string());

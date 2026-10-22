@@ -271,6 +271,18 @@
           "enabled": true
         },
         {
+          "id": "draggy-help",
+          "name": "draggy-help",
+          "description": "Answers questions about how Draggy works and fixes problems with it by reading the official wiki at draggy.org/wiki. Use when the user hits an error, something in Draggy does not work, or they ask how to use a Draggy feature, setting, model, tool, skill or integration.",
+          "summary": "Fix Draggy problems from the official wiki",
+          "source": "library",
+          "category": "authoring",
+          "surface": "both",
+          "defaultOn": true,
+          "modelInvocable": true,
+          "enabled": true
+        },
+        {
           "id": "email-writer",
           "name": "email-writer",
           "description": "Drafts and replies to emails that get read and answered, with a clear subject, the point in the first lines and a tone that fits the reader. Use when the user says \"write an email\", \"reply to this email\", \"make this email shorter\" or \"make this more polite\".",
