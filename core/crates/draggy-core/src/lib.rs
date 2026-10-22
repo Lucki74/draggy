@@ -44,8 +44,9 @@ pub use models::{
 };
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
-    AgyConfigRecord, ApprovalChoice, ApprovalRecord, LiveRecord, MessageRecord, MetricsRecord,
-    PermissionModeRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
+    AgyConfigRecord, ApprovalChoice, ApprovalRecord, ImageRecord, LiveRecord, MessageRecord,
+    MetricsRecord, PermissionModeRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
+    WebConfigRecord,
 };
 pub use session::Session;
 pub use update::{UpdateChecker, UpdateRecord};

@@ -220,6 +220,14 @@ pub struct AgyConfigRecord {
     pub work_dir: String,
 }
 
+/// A picture sent with a message. `mime` is such as `image/png`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
+pub struct ImageRecord {
+    pub name: String,
+    pub mime: String,
+    pub data: Vec<u8>,
+}
+
 /// How the web tools search. An empty provider means "auto"; the scrapers need no setting.
 #[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
 pub struct WebConfigRecord {

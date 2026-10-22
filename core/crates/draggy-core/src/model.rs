@@ -12,8 +12,8 @@ use draggy_providers::adapters::common::{Connection, Stream};
 use draggy_providers::adapters::openai::{self, OpenAiDecoder};
 use draggy_providers::http::{ByteStream, HttpClient, HttpRequest, Method, read_text};
 use draggy_providers::types::{
-    ChatMessage, ChatRequest as ProviderRequest, Content, FinishReason, FunctionSpec, Options,
-    StreamEvent, ToolCall as ProviderCall, ToolCallFunction, ToolSpec,
+    ChatMessage, ChatRequest as ProviderRequest, Content, ContentPart, FinishReason, FunctionSpec,
+    ImageUrl, Options, StreamEvent, ToolCall as ProviderCall, ToolCallFunction, ToolSpec,
 };
 use serde_json::Value;
 
@@ -37,10 +37,41 @@ impl OpenAiModel {
     }
 }
 
+/// Plain text, or text followed by its pictures as data URLs.
+fn content_of(message: &WireMessage) -> Content {
+    if message.images.is_empty() {
+        return Content::Text(message.content.clone());
+    }
+    let mut parts = vec![ContentPart::Text {
+        text: message.content.clone(),
+    }];
+    for data in &message.images {
+        parts.push(ContentPart::ImageUrl {
+            image_url: ImageUrl {
+                url: format!("data:{};base64,{data}", image_mime(data)),
+            },
+        });
+    }
+    Content::Parts(parts)
+}
+
+/// The type of an image from the start of its base64, since the wire carries no type.
+fn image_mime(base64: &str) -> &'static str {
+    if base64.starts_with("iVBOR") {
+        "image/png"
+    } else if base64.starts_with("R0lGO") {
+        "image/gif"
+    } else if base64.starts_with("UklGR") {
+        "image/webp"
+    } else {
+        "image/jpeg"
+    }
+}
+
 fn message_of(message: &WireMessage) -> ChatMessage {
     ChatMessage {
         role: message.role.clone(),
-        content: Some(Content::Text(message.content.clone())),
+        content: Some(content_of(message)),
         tool_calls: message
             .tool_calls
             .iter()
@@ -59,7 +90,7 @@ fn message_of(message: &WireMessage) -> ChatMessage {
     }
 }
 
-/// The loop's request as the providers crate reads it. Images are not sent: the built-in text path carries none.
+/// The loop's request as the providers crate reads it.
 pub fn provider_request(request: &ChatRequest) -> ProviderRequest {
     ProviderRequest {
         messages: request.messages.iter().map(message_of).collect(),
