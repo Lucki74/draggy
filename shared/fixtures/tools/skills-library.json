@@ -9,7 +9,7 @@
         {
           "id": "accessibility",
           "name": "accessibility",
-          "description": "Audits and fixes web interfaces for accessibility (semantic HTML, keyboard use, focus, labels, contrast, ARIA used correctly, screen reader announcements) against WCAG 2.2 AA. Use when the user asks for an accessibility review, a11y fixes, or to make a component usable with a keyboard or screen reader.",
+          "description": "Audits and fixes web interfaces for accessibility against WCAG 2.2 AA, covering semantic HTML, keyboard use, focus, labels, contrast, correct ARIA and screen reader announcements. Use when the user asks for an accessibility review, a11y fixes, or to make a component work with a keyboard or screen reader.",
           "summary": "Audit and fix accessibility",
           "source": "library",
           "category": "code",
@@ -21,7 +21,7 @@
         {
           "id": "add-feature",
           "name": "add-feature",
-          "description": "Implements a new feature end to end in an existing project: understands the codebase, plans visible steps, follows existing patterns, writes the code and tests, and verifies it works. Use when the user asks to add, build or implement functionality in their project.",
+          "description": "Implements a new feature end to end in an existing project. Reads the codebase, plans visible steps, follows existing patterns, writes the code and tests, and verifies it works. Use when the user asks to add, build or implement functionality in their project.",
           "summary": "Build a feature end to end",
           "source": "library",
           "category": "code",
@@ -33,7 +33,7 @@
         {
           "id": "api-design",
           "name": "api-design",
-          "description": "Designs or reviews HTTP APIs (REST or JSON-RPC style) and GraphQL schemas: resources and naming, methods and status codes, errors, pagination, versioning, validation and consistency with the existing API. Use when the user is creating endpoints, designing an API, or wants an API reviewed.",
+          "description": "Designs or reviews HTTP APIs (REST or JSON-RPC style) and GraphQL schemas, covering resources and naming, methods and status codes, errors, pagination, versioning, validation and consistency with the existing API. Use when the user is creating endpoints, designing an API, or wants an API reviewed.",
           "summary": "Design or review an API",
           "source": "library",
           "category": "code",
@@ -57,7 +57,7 @@
         {
           "id": "brainstorm",
           "name": "brainstorm",
-          "description": "Generates many varied ideas for names, projects, gifts, content, solutions or strategies, then helps narrow them down with clear criteria. Use when the user asks for ideas, options, suggestions, names or a brainstorm.",
+          "description": "Generates many varied ideas for names, projects, gifts, content, solutions or strategies, then helps narrow them down against clear criteria. Use when the user asks for ideas, options, suggestions, names or a brainstorm.",
           "summary": "Brainstorm ideas",
           "source": "library",
           "category": "planning",
@@ -81,7 +81,7 @@
         {
           "id": "budget-planner",
           "name": "budget-planner",
-          "description": "Builds personal or household budgets from income and expenses, shows where money goes, suggests realistic savings and saves the budget as a spreadsheet. Use when the user wants to make a budget, track spending, save for something, or understand their finances.",
+          "description": "Builds personal or household budgets from income and expenses, shows where the money goes, suggests realistic savings and saves the budget as a spreadsheet. Use when the user wants to make a budget, track spending, save for something, or understand their finances.",
           "summary": "Make a budget",
           "source": "library",
           "category": "planning",
@@ -117,7 +117,7 @@
         {
           "id": "code-review",
           "name": "code-review",
-          "description": "Reviews uncommitted changes, a branch or given files for real bugs first (logic errors, edge cases, security, data loss), then maintainability, with specific, ranked findings. Use when the user asks for a code review, to check their changes, or whether something is ready to commit or merge.",
+          "description": "Reviews uncommitted changes, a branch or given files for real bugs first (logic errors, edge cases, security, data loss), then maintainability, with specific ranked findings. Use when the user asks for a code review, to check their changes, or whether something is ready to commit or merge.",
           "summary": "Review changes for bugs",
           "source": "library",
           "category": "code",
@@ -165,7 +165,7 @@
         {
           "id": "csv-cleaner",
           "name": "csv-cleaner",
-          "description": "Cleans messy tabular data: fixes headers, trims and normalises values, standardises dates and numbers, removes duplicates and flags invalid rows, reporting every change. Use when the user has a messy CSV, spreadsheet export or list that needs tidying before use.",
+          "description": "Cleans messy tabular data by fixing headers, trimming and normalising values, standardising dates and numbers, removing duplicates and flagging invalid rows, with a log of every change. Use when the user says \"clean this CSV\", \"tidy this spreadsheet export\", \"fix my data file\" or \"remove duplicates from this list\".",
           "summary": "Clean up messy data",
           "source": "library",
           "category": "data",
@@ -177,7 +177,7 @@
         {
           "id": "data-analysis",
           "name": "data-analysis",
-          "description": "Analyses tabular data such as CSV, spreadsheets and exports: cleans it, computes the right statistics exactly, finds patterns and explains what they mean without overclaiming. Use when the user shares data and asks for analysis, trends, totals, comparisons or insights.",
+          "description": "Analyses tabular data such as CSV files, spreadsheets and exports. Checks quality, computes statistics exactly, finds patterns and explains what they mean without overclaiming. Use when the user shares data and asks for analysis, trends, totals, comparisons, outliers or insights.",
           "summary": "Analyse a dataset",
           "source": "library",
           "category": "data",
@@ -189,7 +189,7 @@
         {
           "id": "database-migration",
           "name": "database-migration",
-          "description": "Plans and writes database schema migrations that are safe on existing data and running systems: expand-and-contract steps, backfills, indexes without locking, and a tested rollback. Use when the user needs to change a database schema, add or rename columns or tables, or migrate data.",
+          "description": "Plans and writes database schema migrations that are safe on existing data and running systems, using expand-and-contract steps, batched backfills, non-blocking indexes and a tested rollback. Use when the user needs to change a database schema, add or rename a column or table, change a column type, or migrate data.",
           "summary": "Write a safe migration",
           "source": "library",
           "category": "code",
@@ -201,7 +201,7 @@
         {
           "id": "debugging",
           "name": "debugging",
-          "description": "Finds the root cause of a bug or failing test systematically (reproduce, read the error, form and test hypotheses, fix the cause not the symptom, and prove it with a test). Use when something is broken, a test fails, there is an error or stack trace, or behaviour is unexpected.",
+          "description": "Finds the root cause of a bug or failing test systematically. Reproduces it, reads the evidence, tests hypotheses one at a time, fixes the cause instead of the symptom and proves the fix with a test. Use when something is broken, a test fails, there is an error or stack trace, or behaviour is unexpected.",
           "summary": "Find the cause of a bug",
           "source": "library",
           "category": "code",
@@ -213,7 +213,7 @@
         {
           "id": "dependency-upgrade",
           "name": "dependency-upgrade",
-          "description": "Upgrades project dependencies safely: finds outdated and vulnerable packages, reads changelogs for breaking changes, upgrades in small batches, fixes the code and runs the tests after each. Use when the user wants to update packages, fix vulnerable dependencies, or move to a new major version of a library or framework.",
+          "description": "Upgrades project dependencies safely. Finds outdated and vulnerable packages, reads changelogs for breaking changes, upgrades in small batches, fixes the code and runs the tests after each batch. Use when the user wants to update packages, fix vulnerable dependencies, or move to a new major version of a library or framework.",
           "summary": "Upgrade dependencies safely",
           "source": "library",
           "category": "code",
@@ -225,7 +225,7 @@
         {
           "id": "dockerfile",
           "name": "dockerfile",
-          "description": "Containerises applications with small, secure, cache-friendly Dockerfiles (multi-stage builds, pinned bases, non-root users, health checks) and a docker-compose file for local development when useful. Use when the user wants to dockerise a project, fix a Dockerfile, or speed up or slim down image builds.",
+          "description": "Containerises applications with small, secure, cache-friendly Dockerfiles (multi-stage builds, pinned bases, non-root users, health checks) and a compose file for local development when useful. Use when the user wants to dockerise a project, write or fix a Dockerfile, or speed up or slim down image builds.",
           "summary": "Containerise a project",
           "source": "library",
           "category": "code",
@@ -237,7 +237,7 @@
         {
           "id": "document-qa",
           "name": "document-qa",
-          "description": "Answers questions from the user's own indexed documents using search_library, quoting the passages and naming the files the answer came from. Use when the user asks about their notes, files, contracts, manuals or anything in folders they added to the library.",
+          "description": "Answers questions from the user's own indexed documents using search_library, quoting the passages and naming the files the answer came from. Use when the user asks \"what does my contract say about\", \"find it in my notes\", \"check my manual\" or anything about folders they added to the library.",
           "summary": "Answer from your documents",
           "source": "library",
           "category": "research",
@@ -249,7 +249,7 @@
         {
           "id": "documentation",
           "name": "documentation",
-          "description": "Writes or updates project documentation (README, usage guides, API docs, docstrings and code comments) that is accurate to the code and matches the project's style. Use when the user asks to document code, write a README, or update docs after a change.",
+          "description": "Writes or updates project documentation (README, usage guides, API docs, docstrings and code comments) that is accurate to the code and matches the project's style. Use when the user says \"document this\", \"write a README\", \"add docstrings\" or \"update the docs after this change\".",
           "summary": "Write or update docs",
           "source": "library",
           "category": "code",
@@ -261,7 +261,7 @@
         {
           "id": "docx",
           "name": "docx",
-          "description": "Creates Word documents (.docx) with create_file from structured HTML (for custom styling, tables, colors and fonts) or Markdown. Use whenever the user asks for a Word document, a .docx, or an editable document to download.",
+          "description": "Creates Word documents (.docx) with create_file from structured HTML, for custom styling, tables, colors and fonts, or from Markdown for simple text. Use when the user asks for a Word document, a .docx, or an editable document to download.",
           "summary": "Create a Word document",
           "source": "library",
           "category": "documents",
@@ -273,7 +273,7 @@
         {
           "id": "email-writer",
           "name": "email-writer",
-          "description": "Drafts and replies to emails that get read and answered: a clear subject, the point in the first lines, and a tone that fits the reader. Use when the user wants an email written, answered, shortened or made more polite.",
+          "description": "Drafts and replies to emails that get read and answered, with a clear subject, the point in the first lines and a tone that fits the reader. Use when the user says \"write an email\", \"reply to this email\", \"make this email shorter\" or \"make this more polite\".",
           "summary": "Write or reply to emails",
           "source": "library",
           "category": "writing",
@@ -285,7 +285,7 @@
         {
           "id": "explain-codebase",
           "name": "explain-codebase",
-          "description": "Gives a guided tour of an unfamiliar project: what it does, how it is organised, the main flows through the code, how to run and test it, and where to start for a given task. Use when the user is new to a codebase or asks how a project or part of it works.",
+          "description": "Gives a guided tour of an unfamiliar project covering what it does, how it is organised, the main flows through the code, how to run and test it, and where to start for a given task. Use when the user says \"explain this codebase\", \"how does this project work\", \"where do I start\" or \"how does this part work\".",
           "summary": "Explain how a project works",
           "source": "library",
           "category": "code",
@@ -297,7 +297,7 @@
         {
           "id": "explain-concept",
           "name": "explain-concept",
-          "description": "Explains a concept, idea or process at the right level for the learner, building from what they know with plain language, analogies, examples and a quick check of understanding. Use when the user asks what something is, how it works, or to explain it simply.",
+          "description": "Explains a concept, idea or process at the right level for the learner, building from what they know with plain language, analogies, examples and a quick check of understanding. Use when the user asks \"what is\", \"how does this work\", \"explain it simply\" or \"eli5\".",
           "summary": "Explain a concept simply",
           "source": "library",
           "category": "learning",
@@ -309,7 +309,7 @@
         {
           "id": "fact-check",
           "name": "fact-check",
-          "description": "Checks whether a claim, quote, statistic, image caption or viral post is true, using primary sources where possible, and gives a clear verdict with evidence. Use when the user asks whether something is true, wants something verified, or shares a suspicious claim.",
+          "description": "Checks whether a claim, quote, statistic, image caption or viral post is true, using primary sources where possible, and gives a clear verdict with evidence. Use when the user asks \"is this true\", \"can you verify this\", \"fact check this\" or shares a suspicious claim.",
           "summary": "Check whether a claim is true",
           "source": "library",
           "category": "research",
@@ -321,7 +321,7 @@
         {
           "id": "flashcards",
           "name": "flashcards",
-          "description": "Turns notes, chapters, vocabulary lists or a topic into effective flashcards (one fact per card, clear cues) and saves them as a spreadsheet ready to import into Anki or Quizlet. Use when the user asks for flashcards, study cards or Anki cards.",
+          "description": "Turns notes, chapters, vocabulary lists or a topic into flashcards with one fact per card and clear cues, saved as a CSV (or spreadsheet) ready to import into Anki or Quizlet. Use when the user asks for flashcards, study cards, Anki cards, or to turn notes into cards.",
           "summary": "Make flashcards",
           "source": "library",
           "category": "learning",
@@ -333,7 +333,7 @@
         {
           "id": "formal-letter",
           "name": "formal-letter",
-          "description": "Writes formal letters (complaints, requests, resignations, notices, letters to authorities or landlords) with the correct layout and firm, polite language, saved as Word or PDF. Use when the user needs an official or formal letter rather than an email.",
+          "description": "Writes formal letters (complaints, requests, resignations, notices, letters to authorities or landlords) with the correct layout and firm, polite wording, saved as Word or PDF. Use when the user needs an official or formal letter rather than an email, or asks for a complaint letter, resignation letter or letter to a landlord.",
           "summary": "Write a formal letter",
           "source": "library",
           "category": "documents",
@@ -345,7 +345,7 @@
         {
           "id": "frontend-design",
           "name": "frontend-design",
-          "description": "Architect and build high-end, human-crafted web interfaces in Draggy: eliminates AI aesthetic tropes, establishes editorial and engineering pedigree, and enforces strict typographic, spatial, and interaction standards.",
+          "description": "Designs and builds distinctive web interfaces in HTML, Tailwind, React, Vue, Svelte or Next.js: commits to one aesthetic direction, sets typography, depth and layout deliberately, and avoids templated AI looks. Use when the user asks to build, redesign or prototype a web page, landing page, dashboard or component, or says their UI looks generic.",
           "summary": "Design and build web interfaces",
           "source": "library",
           "category": "code",
@@ -357,7 +357,7 @@
         {
           "id": "git-helper",
           "name": "git-helper",
-          "description": "Helps with git beyond basic commits: resolving merge conflicts, rebasing, undoing mistakes, recovering lost work, cleaning history and understanding what happened, always with safe, explained commands. Use when the user has a git problem or asks how to do something in git.",
+          "description": "Helps with git beyond basic commits: resolving merge conflicts, rebasing, undoing mistakes, recovering lost work, cleaning history and understanding what happened, using safe, explained commands. Use when the user has a git problem, a merge conflict, lost commits, or asks how to do something in git.",
           "summary": "Sort out a git problem",
           "source": "library",
           "category": "code",
@@ -369,7 +369,7 @@
         {
           "id": "goal-planner",
           "name": "goal-planner",
-          "description": "Turns a personal or professional goal into specific milestones, weekly habits, obstacles planned for and a simple way to track progress. Use when the user wants to set goals, build a habit, plan a change or stay accountable.",
+          "description": "Turns a personal or professional goal into specific milestones, weekly habits, planned-for obstacles and a simple way to track progress. Use when the user wants to set goals, build a habit, plan a change, stay accountable, or asks how to reach something by a date.",
           "summary": "Turn a goal into a plan",
           "source": "library",
           "category": "planning",
@@ -429,7 +429,7 @@
         {
           "id": "meal-planner",
           "name": "meal-planner",
-          "description": "Plans meals for a week or more around diets, allergies, budget, cooking time and leftovers, with recipes outlines and a shopping list grouped by aisle. Use when the user wants a meal plan, weekly menu, batch cooking plan or shopping list.",
+          "description": "Plans meals for a week or more around diets, allergies, budget, cooking time and leftovers, with recipe outlines and a shopping list grouped by aisle. Use when the user wants a meal plan, weekly menu, batch cooking plan or shopping list, or asks what to cook this week.",
           "summary": "Plan meals and shopping",
           "source": "library",
           "category": "planning",
@@ -441,7 +441,7 @@
         {
           "id": "meeting-notes",
           "name": "meeting-notes",
-          "description": "Turns meeting transcripts, recordings' text or rough notes into clean minutes with decisions, action items with owners and dates, and open questions. Use when the user shares meeting notes or a transcript, or asks for minutes or a recap.",
+          "description": "Turns meeting transcripts, text from recordings or rough notes into clean minutes with decisions, action items with owners and dates, and open questions. Use when the user shares meeting notes or a transcript, or asks for minutes, a recap or action items from a meeting.",
           "summary": "Turn notes into minutes",
           "source": "library",
           "category": "writing",
@@ -465,7 +465,7 @@
         {
           "id": "pdf",
           "name": "pdf",
-          "description": "Creates polished PDF documents with create_file from styled HTML (for custom fonts, colors, tables and layouts) or Markdown. Use whenever the user asks for a PDF, a printable document, a handout or a report to send.",
+          "description": "Creates polished PDF documents with create_file from styled HTML (custom fonts, colors, tables and layouts) or Markdown. Use when the user asks for a PDF, a printable document, a handout or a report to send.",
           "summary": "Create a PDF",
           "source": "library",
           "category": "documents",
@@ -489,7 +489,7 @@
         {
           "id": "pptx",
           "name": "pptx",
-          "description": "Creates PowerPoint slide decks (.pptx) with create_file from styled HTML (with background colors, tables, and custom fonts) or Markdown. Use whenever the user asks for slides, a presentation, a deck or a .pptx file.",
+          "description": "Creates PowerPoint slide decks (.pptx) with create_file from styled HTML (background colors, tables, custom fonts) or from a Markdown outline. Use when the user asks for slides, a presentation, a deck, a pitch or a .pptx file.",
           "summary": "Create a slide deck",
           "source": "library",
           "category": "documents",
@@ -501,7 +501,7 @@
         {
           "id": "project-plan",
           "name": "project-plan",
-          "description": "Turns a goal into a project plan: scope, milestones, tasks with owners and estimates, dependencies, risks and a timeline, saved as a spreadsheet or document. Use when the user needs to plan a project, an event, a launch, a move or any multi-step undertaking.",
+          "description": "Turns a goal into a project plan with scope, milestones, tasks with owners and estimates, dependencies, risks and a timeline, saved as a spreadsheet or document. Use when the user needs to plan a project, an event, a launch, a move or any multi-step undertaking, or asks for a timeline or work breakdown.",
           "summary": "Plan a project",
           "source": "library",
           "category": "planning",
@@ -513,7 +513,7 @@
         {
           "id": "proofreader",
           "name": "proofreader",
-          "description": "Corrects spelling, grammar, punctuation and awkward phrasing while keeping the author's voice and meaning, then lists what changed. Use when the user asks to proofread, check, correct or polish a text.",
+          "description": "Corrects spelling, grammar, punctuation and awkward phrasing while keeping the author's voice and meaning, then lists what changed. Use when the user asks to proofread, check, correct, fix the grammar of or polish a text.",
           "summary": "Fix spelling and grammar",
           "source": "library",
           "category": "writing",
@@ -525,7 +525,7 @@
         {
           "id": "pull-request",
           "name": "pull-request",
-          "description": "Writes pull request descriptions from the branch's real diff and commits (summary, why, changes, testing, risks, screenshots to add) and can open the PR with the GitHub CLI. Use when the user asks for a PR description or to open a pull request.",
+          "description": "Writes pull request descriptions from the branch's real diff and commits (summary, changes, testing, risks, screenshots to add) and can open the PR with the GitHub CLI. Use when the user asks for a PR description, a PR title, or to open or create a pull request.",
           "summary": "Write a pull request",
           "source": "library",
           "category": "code",
@@ -537,7 +537,7 @@
         {
           "id": "quiz-me",
           "name": "quiz-me",
-          "description": "Runs an interactive quiz on any topic or on material the user provides, one question at a time, adapting difficulty and explaining every answer. Use when the user wants to be quizzed, tested, or to practise for an exam.",
+          "description": "Runs an interactive quiz on any topic or on material the user provides, one question at a time, adapting difficulty and explaining every answer. Use when the user wants to be quizzed, tested or to practise for an exam, or says \"quiz me on ...\".",
           "summary": "Quiz me on a topic",
           "source": "library",
           "category": "learning",
@@ -549,7 +549,7 @@
         {
           "id": "refactor",
           "name": "refactor",
-          "description": "Improves the structure of existing code without changing its behaviour, in small verified steps: extracting functions, removing duplication, clarifying names, simplifying conditionals. Use when the user asks to refactor, clean up, simplify, or restructure code.",
+          "description": "Improves the structure of existing code without changing its behaviour, in small verified steps: extracting functions, removing duplication, clarifying names, simplifying conditionals. Use when the user asks to refactor, clean up, simplify, restructure or tidy code.",
           "summary": "Restructure code safely",
           "source": "library",
           "category": "code",
@@ -585,7 +585,7 @@
         {
           "id": "resume",
           "name": "resume",
-          "description": "Builds and improves CVs and résumés: achievement-focused bullet points, a clear layout, tailoring to a target role, and a Word or PDF file. Use when the user wants a CV or résumé written, reviewed, tailored or turned into a document.",
+          "description": "Builds and improves CVs and résumés with achievement-focused bullet points, a clear layout, tailoring to a target role, and a Word or PDF file. Use when the user wants a CV or résumé written, reviewed, tailored to a job posting or turned into a document.",
           "summary": "Write or improve a CV",
           "source": "library",
           "category": "writing",
@@ -597,7 +597,7 @@
         {
           "id": "security-review",
           "name": "security-review",
-          "description": "Audits code or pending changes for security vulnerabilities (injection, broken access control, secrets, unsafe file and command handling, dependency risks) with evidence, severity and fixes. Use when the user asks for a security review, audit, or whether code is safe.",
+          "description": "Audits code or pending changes for security vulnerabilities (injection, broken access control, secrets, unsafe file and command handling, dependency risks) with evidence, severity and fixes. Use when the user asks for a security review, an audit, a vulnerability check, or whether code is safe.",
           "summary": "Audit code for vulnerabilities",
           "source": "library",
           "category": "code",
@@ -609,7 +609,7 @@
         {
           "id": "shell-script",
           "name": "shell-script",
-          "description": "Writes robust shell scripts for bash, PowerShell or cmd, with safe quoting, error handling, dry-run options and clear usage, and explains commands before anything destructive. Use when the user wants a script to automate a task, a one-liner explained, or a script fixed.",
+          "description": "Writes shell scripts for bash, PowerShell or cmd with safe quoting, error handling, dry-run options and clear usage, and explains commands before anything destructive. Use when the user wants a script to automate a task, a one-liner explained, or a broken script fixed.",
           "summary": "Write a shell script",
           "source": "library",
           "category": "code",
@@ -621,7 +621,7 @@
         {
           "id": "skill-creator",
           "name": "skill-creator",
-          "description": "Helps the user write a new skill in the SKILL.md format: a precise name and trigger description, clear step-by-step instructions, examples and optional bundled files, saved where Draggy will find it. Use when the user wants to create, improve or test a skill, or teach Draggy how they like a job done.",
+          "description": "Helps the user write a new Draggy skill in the SKILL.md contract: a precise name and trigger description, Goal, When to use, Steps, Gotchas and Output sections, optional bundled files, saved where Draggy will find it. Use when the user wants to create, improve or test a skill, or teach Draggy how they like a job done.",
           "summary": "Create a new skill",
           "source": "library",
           "category": "authoring",
@@ -633,7 +633,7 @@
         {
           "id": "social-post",
           "name": "social-post",
-          "description": "Writes posts for LinkedIn, X, Instagram, Mastodon, Bluesky and similar, fitted to each platform's length, style and hashtag habits, with a hook in the first line. Use when the user wants a social media post, thread or caption.",
+          "description": "Writes posts for LinkedIn, X, Instagram, Mastodon, Bluesky and Facebook, fitted to each platform's length, style and hashtag habits, with a hook in the first line. Use when the user wants a social media post, thread, caption or announcement.",
           "summary": "Write social media posts",
           "source": "library",
           "category": "writing",
@@ -645,7 +645,7 @@
         {
           "id": "speech-writer",
           "name": "speech-writer",
-          "description": "Writes speeches, toasts, presentations' spoken script and talks meant to be heard rather than read, timed to a target length. Use when the user needs a wedding toast, keynote, eulogy, pitch, team talk or any text to be spoken aloud.",
+          "description": "Writes speeches, toasts, spoken presentation scripts and talks meant to be heard rather than read, timed to a target length. Use when the user needs a wedding toast, keynote, eulogy, pitch, team talk, or says \"write a speech\" or \"something I can say out loud\".",
           "summary": "Write a speech or toast",
           "source": "library",
           "category": "writing",
@@ -657,7 +657,7 @@
         {
           "id": "spreadsheet-formulas",
           "name": "spreadsheet-formulas",
-          "description": "Writes and explains Excel, Google Sheets and LibreOffice formulas (lookups, conditional sums, dates, text, array formulas and pivot-style summaries) and fixes formula errors. Use when the user asks how to calculate something in a spreadsheet or has a formula that returns an error.",
+          "description": "Writes and explains Excel, Google Sheets and LibreOffice formulas (lookups, conditional sums, dates, text, array formulas and pivot-style summaries) and fixes formula errors. Use when the user asks how to calculate something in a spreadsheet, says a formula returns #N/A or #VALUE!, or wants a formula explained.",
           "summary": "Write spreadsheet formulas",
           "source": "library",
           "category": "data",
@@ -669,7 +669,7 @@
         {
           "id": "sql-helper",
           "name": "sql-helper",
-          "description": "Writes, explains, debugs and optimises SQL queries for PostgreSQL, MySQL, SQLite, SQL Server and others, with correct joins, grouping and safe parameterisation. Use when the user needs a SQL query, has a query error, or wants a query explained or made faster.",
+          "description": "Writes, explains, debugs and optimises SQL queries for PostgreSQL, MySQL, SQLite, SQL Server and others, with correct joins, grouping and safe parameterisation. Use when the user needs a SQL query, has a query error, wants a query explained, or asks why a query is slow.",
           "summary": "Write or fix SQL",
           "source": "library",
           "category": "data",
@@ -681,7 +681,7 @@
         {
           "id": "story-writer",
           "name": "story-writer",
-          "description": "Writes fiction: short stories, scenes, bedtime stories, fan fiction and creative prompts, with vivid characters, a real arc and the requested style and length. Use when the user asks for a story, a scene, a poem-like narrative or creative writing help.",
+          "description": "Writes fiction: short stories, scenes, bedtime stories, fan fiction and creative prompts, with vivid characters, a real arc and the requested style and length. Use when the user asks for a story, a scene, a poem-like narrative, or creative writing help.",
           "summary": "Write a story",
           "source": "library",
           "category": "writing",
@@ -705,7 +705,7 @@
         {
           "id": "summarizer",
           "name": "summarizer",
-          "description": "Condenses articles, documents, transcripts, threads and web pages into faithful summaries at the length the user needs, keeping key numbers, decisions and caveats. Use when the user asks for a summary, TL;DR, key points or the gist of something.",
+          "description": "Condenses articles, documents, transcripts, threads and web pages into faithful summaries at the length the user needs, keeping key numbers, decisions and caveats. Use when the user asks for a summary, TL;DR, key points, or the gist of something.",
           "summary": "Summarize text, pages or files",
           "source": "library",
           "category": "writing",
@@ -717,7 +717,7 @@
         {
           "id": "tone-rewriter",
           "name": "tone-rewriter",
-          "description": "Rewrites a text for a different tone, audience or length (more formal, friendlier, more confident, simpler, shorter) while keeping every fact and intent. Use when the user asks to make something sound different or fit a new reader.",
+          "description": "Rewrites a text for a different tone, audience or length (more formal, friendlier, more confident, simpler, shorter) while keeping every fact and intent. Use when the user asks to make something sound different, soften or tighten a message, or fit a new reader.",
           "summary": "Rewrite in a different tone",
           "source": "library",
           "category": "writing",
@@ -729,7 +729,7 @@
         {
           "id": "translator",
           "name": "translator",
-          "description": "Translates text between languages faithfully and naturally, keeping formatting, tone, names and technical terms, and flagging idioms or ambiguities. Use when the user asks to translate something or wants it in another language.",
+          "description": "Translates text between languages faithfully and naturally, keeping formatting, tone, names and technical terms, and flagging idioms or ambiguities. Use when the user asks to translate something, wants it in another language, or asks \"how do you say this in French\".",
           "summary": "Translate text",
           "source": "library",
           "category": "writing",
@@ -741,7 +741,7 @@
         {
           "id": "trip-planner",
           "name": "trip-planner",
-          "description": "Plans trips with a day-by-day itinerary, realistic travel times, bookings to make, a budget estimate and a packing list, saved as a printable PDF if wanted. Use when the user is planning a holiday, weekend away, business trip or route.",
+          "description": "Plans trips with a day-by-day itinerary, realistic travel times, bookings to make, a budget estimate and a packing list, saved as a printable PDF if wanted. Use when the user is planning a holiday, weekend away, business trip or route, or asks \"what should I do in\" a place.",
           "summary": "Plan a trip",
           "source": "library",
           "category": "planning",
@@ -753,7 +753,7 @@
         {
           "id": "type-errors",
           "name": "type-errors",
-          "description": "Fixes type errors and strengthens typing in TypeScript, Python (mypy, pyright) and similar, by finding the real mismatch rather than silencing it with any, casts or ignore comments. Use when the type checker fails, the user asks to add types, or to remove any and unsafe casts.",
+          "description": "Fixes type errors and strengthens typing in TypeScript, Python (mypy, pyright) and similar, by finding the real mismatch rather than silencing it with any, casts or ignore comments. Use when the type checker fails, the user asks to add types, or wants to remove any and unsafe casts.",
           "summary": "Fix type errors properly",
           "source": "library",
           "category": "code",
@@ -789,7 +789,7 @@
         {
           "id": "xlsx",
           "name": "xlsx",
-          "description": "Creates Excel spreadsheets (.xlsx) with create_file from styled HTML tables (with custom column widths, colors, borders and numbers) or clean CSV. Use whenever the user asks for a spreadsheet, an Excel file, a table to download, or data in .xlsx.",
+          "description": "Creates Excel spreadsheets (.xlsx) with create_file from styled HTML tables (with custom column widths, colors, borders and numbers) or clean CSV. Use when the user asks for a spreadsheet, an Excel file, a table to download, or data in .xlsx.",
           "summary": "Create a spreadsheet",
           "source": "library",
           "category": "documents",

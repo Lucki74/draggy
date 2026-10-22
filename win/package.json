@@ -27,7 +27,8 @@
     "browser:eval": "electron scripts/browser-eval.cjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "icons": "node scripts/make-icons.mjs",
-    "bench:engine": "node scripts/bench-engine.cjs"
+    "bench:engine": "node scripts/bench-engine.cjs",
+    "skills:lint": "node scripts/skills/lint.mjs"
   },
   "build": {
     "appId": "com.draggy.app",
