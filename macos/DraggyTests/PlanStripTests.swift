@@ -2,6 +2,7 @@ import DraggyCore
 import XCTest
 @testable import Draggy
 
+@MainActor
 final class PlanStripTests: XCTestCase {
     func testProgressCountsTheDoneSteps() {
         let steps = [

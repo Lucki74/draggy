@@ -56,6 +56,7 @@ fn config(binary: String, work: &std::path::Path) -> SessionConfig {
         allow_commands: false,
         permission_mode: None,
         web: None,
+        skills_dir: None,
         agy: Some(AgyConfigRecord {
             binary,
             model: String::new(),
