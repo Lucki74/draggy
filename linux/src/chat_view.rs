@@ -898,90 +898,77 @@ mod tests {
     use super::*;
     use draggy_core::TurnEventRecord;
 
-    fn ready() -> bool {
-        if adw::init().is_err() {
-            return false;
-        }
-        gtk::gio::resources_register_include!("draggy.gresource").expect("resources");
-        true
-    }
-
     #[test]
     fn the_page_builds_and_a_streamed_reply_shows_in_the_labels() {
-        // Needs a display (run under xvfb-run); with none there is nothing to check.
-        if !ready() {
-            return;
-        }
-        let chat: DraggyChat = glib::Object::new();
-        let mut log = Transcript::default();
-        log.begin_turn("hello");
-        let (_, parts) = entry_row(&log.entries()[1]);
-        assert_eq!(body_text(&parts), "…");
-        log.apply(&[TurnEventRecord::Patch {
-            content: String::new(),
-            text_content: "Hi there".to_owned(),
-            steps: Vec::new(),
-        }]);
-        fill(&parts, &log.entries()[1]);
-        assert_eq!(body_text(&parts), "Hi there");
-        assert!(!parts.steps.is_visible());
-        assert!(chat.imp().send.is_visible());
-        assert!(!chat.imp().stop.is_visible());
-        chat.set_busy(true);
-        assert!(!chat.imp().send.is_visible());
-        assert!(chat.imp().stop.is_visible());
+        crate::gtk_test::run(|| {
+            // Needs a display (run under xvfb-run); with none there is nothing to check.
+            let chat: DraggyChat = glib::Object::new();
+            let mut log = Transcript::default();
+            log.begin_turn("hello");
+            let (_, parts) = entry_row(&log.entries()[1]);
+            assert_eq!(body_text(&parts), "…");
+            log.apply(&[TurnEventRecord::Patch {
+                content: String::new(),
+                text_content: "Hi there".to_owned(),
+                steps: Vec::new(),
+            }]);
+            fill(&parts, &log.entries()[1]);
+            assert_eq!(body_text(&parts), "Hi there");
+            assert!(!parts.steps.is_visible());
+            assert!(chat.imp().send.is_visible());
+            assert!(!chat.imp().stop.is_visible());
+            chat.set_busy(true);
+            assert!(!chat.imp().send.is_visible());
+            assert!(chat.imp().stop.is_visible());
+        });
     }
 
     #[test]
     fn a_new_reply_row_for_the_user_is_right_aligned() {
-        if !ready() {
-            return;
-        }
-        let mut log = Transcript::default();
-        log.begin_turn("hello");
-        let (row, parts) = entry_row(&log.entries()[0]);
-        assert_eq!(row.halign(), gtk::Align::End);
-        assert_eq!(body_text(&parts), "hello");
+        crate::gtk_test::run(|| {
+            let mut log = Transcript::default();
+            log.begin_turn("hello");
+            let (row, parts) = entry_row(&log.entries()[0]);
+            assert_eq!(row.halign(), gtk::Align::End);
+            assert_eq!(body_text(&parts), "hello");
+        });
     }
 
     #[test]
     fn the_plan_strip_stays_hidden_until_there_is_a_plan() {
-        if !ready() {
-            return;
-        }
-        let chat: DraggyChat = glib::Object::new();
-        chat.refresh_plan();
-        assert!(!chat.imp().plan.is_visible());
-        assert!(chat.imp().plan_steps.first_child().is_none());
+        crate::gtk_test::run(|| {
+            let chat: DraggyChat = glib::Object::new();
+            chat.refresh_plan();
+            assert!(!chat.imp().plan.is_visible());
+            assert!(chat.imp().plan_steps.first_child().is_none());
+        });
     }
 
     #[test]
     fn the_read_aloud_toggle_starts_off() {
-        if !ready() {
-            return;
-        }
-        let chat: DraggyChat = glib::Object::new();
-        assert!(!chat.imp().speak.is_active());
-        // With the toggle off a finished reply is not read.
-        chat.read_aloud();
+        crate::gtk_test::run(|| {
+            let chat: DraggyChat = glib::Object::new();
+            assert!(!chat.imp().speak.is_active());
+            // With the toggle off a finished reply is not read.
+            chat.read_aloud();
+        });
     }
 
     #[test]
     fn a_code_block_shows_its_language_and_a_preview_button_only_for_html() {
-        if !ready() {
-            return;
-        }
-        let buttons = |language: &str| {
-            let block = code_block(language, "<p>hi</p>");
-            let mut count = 0;
-            let mut child = block.first_child();
-            while let Some(widget) = child {
-                count += widget_buttons(&widget);
-                child = widget.next_sibling();
-            }
-            count
-        };
-        assert!(buttons("html") > buttons("rust"));
+        crate::gtk_test::run(|| {
+            let buttons = |language: &str| {
+                let block = code_block(language, "<p>hi</p>");
+                let mut count = 0;
+                let mut child = block.first_child();
+                while let Some(widget) = child {
+                    count += widget_buttons(&widget);
+                    child = widget.next_sibling();
+                }
+                count
+            };
+            assert!(buttons("html") > buttons("rust"));
+        });
     }
 
     /// The buttons inside a widget, itself included.

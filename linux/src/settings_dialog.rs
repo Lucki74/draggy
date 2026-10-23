@@ -238,10 +238,10 @@ mod tests {
     #[test]
     fn the_dialog_builds_shows_the_state_and_writes_edits_back() {
         // Needs a display (run under xvfb-run); with none there is nothing to check.
-        if adw::init().is_err() {
-            return;
-        }
-        gio::resources_register_include!("draggy.gresource").expect("resources");
+        crate::gtk_test::run(dialog_body);
+    }
+
+    fn dialog_body() {
         let state = Rc::new(AppState::new());
         *state.settings.borrow_mut() = Settings {
             server_url: "http://127.0.0.1:8080".into(),
