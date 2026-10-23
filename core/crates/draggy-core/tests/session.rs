@@ -388,14 +388,16 @@ fn the_web_tools_are_offered_only_when_the_web_is_on() {
     run(&on, "hi", &recorder);
 
     let bodies = server.bodies.lock().expect("bodies");
-    assert!(bodies[0]["tools"].is_null(), "{}", bodies[0]);
-    let names: Vec<String> = bodies[1]["tools"]
-        .as_array()
-        .expect("tools")
-        .iter()
-        .map(|tool| tool["function"]["name"].as_str().unwrap_or("").to_owned())
-        .collect();
-    assert_eq!(names, ["search_web", "read_url"]);
+    let names_in = |body: &Value| -> Vec<String> {
+        body["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .map(|tool| tool["function"]["name"].as_str().unwrap_or("").to_owned())
+            .collect()
+    };
+    assert_eq!(names_in(&bodies[0]), ["update_plan"]);
+    assert_eq!(names_in(&bodies[1]), ["search_web", "read_url", "update_plan"]);
 }
 
 #[test]
@@ -855,7 +857,8 @@ fn a_session_with_mcp_runs_normally_when_no_mcp_servers_are_active() {
     assert_eq!(outcome.text_content, "Hello from session.");
 
     let bodies = server.bodies.lock().expect("bodies");
-    assert!(bodies[0]["tools"].as_array().is_none_or(|a| a.is_empty()));
+    let tools = bodies[0]["tools"].as_array().expect("tools");
+    assert_eq!(tools.len(), 1, "only update_plan is offered");
 }
 
 #[test]
@@ -933,4 +936,32 @@ fn a_picture_goes_to_the_model_as_an_image_part() {
     let bodies = server.bodies.lock().expect("bodies");
     let sent = bodies[0].to_string();
     assert!(sent.contains("data:image/png;base64,iVBORw=="), "{sent}");
+}
+
+#[test]
+fn the_plan_the_model_writes_is_kept_and_can_be_cleared() {
+    let server = serve(vec![
+        tool_reply("update_plan", r#"{"steps":"[x] Read it\n[>] Fix it\n[ ] Test it"}"#),
+        text_reply(&["Done"]),
+    ]);
+    let session = Session::new(config(&server.url, None)).expect("session");
+    assert!(session.plan().is_empty());
+
+    run(&session, "Fix the bug", &Arc::new(Recorder::default()));
+
+    let steps: Vec<(String, String)> = session
+        .plan()
+        .into_iter()
+        .map(|step| (step.text, step.status))
+        .collect();
+    assert_eq!(
+        steps,
+        [
+            ("Read it".to_owned(), "done".to_owned()),
+            ("Fix it".to_owned(), "doing".to_owned()),
+            ("Test it".to_owned(), "todo".to_owned()),
+        ]
+    );
+    session.clear_plan();
+    assert!(session.plan().is_empty());
 }

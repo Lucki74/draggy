@@ -35,9 +35,11 @@ use crate::mcp_tools::McpTools;
 use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
+use crate::plan;
 use crate::skills::{self, SkillStore};
 use crate::records::{
-    ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, SessionConfig, TurnOutcome,
+    ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
+    TurnOutcome,
 };
 use crate::tools::{FileTools, NoTools, definitions};
 use crate::web_tools::{self, WebTools};
@@ -112,6 +114,7 @@ struct Host {
     approvals: Option<Arc<dyn ApprovalHandler>>,
     cancel: CancelSignal,
     kept: Vec<Grant>,
+    plan: SharedPlan,
 }
 
 impl TurnHost for Host {
@@ -163,10 +166,12 @@ impl TurnHost for Host {
     }
 
     fn get_plan(&mut self) -> Option<Vec<draggy_agent::agent_loop::PlanItem>> {
-        None
+        self.plan.lock().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
-    fn on_plan(&mut self, _items: &[draggy_agent::agent_loop::PlanItem]) {}
+    fn on_plan(&mut self, items: &[draggy_agent::agent_loop::PlanItem]) {
+        *self.plan.lock().unwrap_or_else(PoisonError::into_inner) = Some(items.to_vec());
+    }
 }
 
 #[derive(Default)]
@@ -184,7 +189,12 @@ pub struct Session {
     net: Arc<Net>,
     mcp: Option<Arc<McpManager>>,
     state: Mutex<State>,
+    plan: SharedPlan,
 }
+
+/// The plan the model keeps, `None` until it writes one. Shared with the running turn so a shell can read it while
+/// the turn works.
+type SharedPlan = Arc<Mutex<Option<Vec<draggy_agent::agent_loop::PlanItem>>>>;
 
 fn message(id: String, role: &str, content: &str) -> Message {
     Message {
@@ -238,11 +248,12 @@ struct CompositeTools {
     mcp: Option<McpTools<ReqwestHttp, StdioLauncher>>,
     web: Option<WebTools>,
     skills: Option<SkillStore>,
+    plans: bool,
 }
 
 impl ToolRuntime for CompositeTools {
     fn annotations(&self, name: &str) -> ToolAnnotations {
-        if skills::owns(name) {
+        if skills::owns(name) || plan::owns(name) {
             return ToolAnnotations {
                 read_only: true,
                 idempotent: true,
@@ -259,6 +270,9 @@ impl ToolRuntime for CompositeTools {
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        if self.plans && plan::owns(name) {
+            return plan::run(args, ctx);
+        }
         if let Some(store) = self.skills.as_mut().filter(|_| skills::owns(name)) {
             return skills::run(store, args, ctx);
         }
@@ -297,6 +311,7 @@ impl Session {
             net: Arc::new(net),
             mcp,
             state: Mutex::new(State::default()),
+            plan: SharedPlan::default(),
         }))
     }
 
@@ -331,6 +346,9 @@ impl Session {
             .unwrap_or_default();
         if !shelf.is_empty() {
             tools.extend(skills::definitions());
+        }
+        if self.config.agy.is_none() {
+            tools.extend(plan::definitions());
         }
         TurnRequest {
             profile: ModelProfile {
@@ -466,12 +484,14 @@ impl Session {
             mcp: mcp_tools,
             web: web_tools,
             skills: self.skill_store(),
+            plans: self.config.agy.is_none(),
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
             approvals,
             cancel: cancel.signal().clone(),
             kept: Vec::new(),
+            plan: Arc::clone(&self.plan),
         };
         let (mut refs, mut ids) = (Refs, Counter::default());
         let mut shelf = SkillStore::new(self.config.skills_dir.clone().unwrap_or_default());
@@ -548,6 +568,23 @@ impl Session {
                 content: message.content.clone(),
             })
             .collect()
+    }
+
+    /// The plan the model keeps for this conversation, empty until it writes one. It updates while a turn runs.
+    pub fn plan(&self) -> Vec<PlanStepRecord> {
+        let plan = self.plan.lock().unwrap_or_else(PoisonError::into_inner);
+        plan.iter()
+            .flatten()
+            .map(|item| PlanStepRecord {
+                text: item.text.clone(),
+                status: plan::status_name(item).to_owned(),
+            })
+            .collect()
+    }
+
+    /// Empties the plan; the model is told at its next turn that the user cleared it.
+    pub fn clear_plan(&self) {
+        *self.plan.lock().unwrap_or_else(PoisonError::into_inner) = Some(Vec::new());
     }
 
     /// Replaces the conversation with saved messages, so the model sees them on the next turn. Grants and notes from

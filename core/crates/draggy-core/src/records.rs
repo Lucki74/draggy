@@ -223,6 +223,13 @@ pub struct AgyConfigRecord {
     pub work_dir: String,
 }
 
+/// One step of the plan the model keeps. `status` is `todo`, `doing` or `done`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct PlanStepRecord {
+    pub text: String,
+    pub status: String,
+}
+
 /// A picture sent with a message. `mime` is such as `image/png`.
 #[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
 pub struct ImageRecord {

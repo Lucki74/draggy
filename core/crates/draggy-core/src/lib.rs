@@ -19,6 +19,7 @@ pub mod model;
 pub mod models;
 pub mod net;
 pub mod observer;
+pub mod plan;
 pub mod records;
 pub mod session;
 pub mod skills;
@@ -47,7 +48,7 @@ pub use models::{
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
     AgyConfigRecord, ApprovalChoice, ApprovalRecord, ImageRecord, LiveRecord, MessageRecord,
-    MetricsRecord, PermissionModeRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
+    MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
     WebConfigRecord,
 };
 pub use session::Session;
