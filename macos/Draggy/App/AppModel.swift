@@ -108,6 +108,8 @@ final class AppModel {
     let browser = BrowserModel()
     let agy = AgyModel()
     private var session: Session?
+    /// The plan the model keeps for this conversation.
+    private(set) var plan: [PlanStepRecord] = []
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
 
@@ -278,6 +280,7 @@ final class AppModel {
     func newConversation() {
         guard !isRunning else { return }
         session = nil
+        plan = []
         transcript = Transcript()
         currentID = UUID()
         errorMessage = nil
@@ -346,6 +349,12 @@ final class AppModel {
         answerApproval(.no)
     }
 
+    /// Empties the plan; the model is told at its next turn.
+    func clearPlan() {
+        session?.clearPlan()
+        plan = []
+    }
+
     func answerApproval(_ choice: ApprovalChoice) {
         pendingApproval = nil
         broker?.resolve(choice)
@@ -373,6 +382,7 @@ final class AppModel {
             if let text = update.text { self.transcript.setReply(text) }
             if let steps = update.steps { self.transcript.setSteps(steps) }
             if let speed = update.speed { self.transcript.setSpeed(speed) }
+            self.plan = self.session?.plan() ?? []
         }
 
         do {
@@ -381,6 +391,7 @@ final class AppModel {
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
             transcript.setSteps(outcome.steps.map(transcriptStep))
+            plan = session.plan()
         } catch let error as CoreError {
             errorMessage = Self.message(for: error)
         } catch {

@@ -20,6 +20,9 @@ struct ChatView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
             }
+            if !model.plan.isEmpty {
+                PlanStrip(steps: model.plan) { model.clearPlan() }
+            }
             composer
         }
     }
