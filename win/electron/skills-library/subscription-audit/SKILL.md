@@ -7,7 +7,7 @@ description: Finds recurring charges in a statement export, lists them with year
 
 ## Goal
 
-Give the user a clear list of everything that charges them on a schedule, with the yearly cost, so they can decide what to keep. The user decides; the skill never cancels anything. It names no replacement services and gives no advice on products.
+Give the user a clear list of everything that charges them on a schedule, with the yearly cost, so they can decide what to keep. The user decides; the skill never cancels anything. It names no replacement services and gives no advice on products. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 

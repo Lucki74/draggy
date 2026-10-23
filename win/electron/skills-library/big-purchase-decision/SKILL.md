@@ -7,7 +7,7 @@ description: Lays out the full cost, trade-offs and open questions for a large p
 
 ## Goal
 
-Help the user see the whole cost and the alternatives so the decision is theirs and unhurried. The skill organizes facts and questions. It does not tell the user to buy or not, does not recommend products or lenders, and does not give financial advice.
+Help the user see the whole cost and the alternatives so the decision is theirs and unhurried. The skill organizes facts and questions. It does not tell the user to buy or not, does not recommend products or lenders, and does not give financial advice. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 

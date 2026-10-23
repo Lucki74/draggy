@@ -7,7 +7,7 @@ description: Chooses a small set of KPIs for the user's goals and writes each wi
 
 ## Goal
 
-Produce a one-page specification that a person or a tool can build from: a short list of measures, each defined so two people compute the same number. The skill specifies; it does not build the dashboard.
+Produce a one-page specification that a person or a tool can build from: a short list of measures, each defined so two people compute the same number. The skill specifies; it does not build the dashboard. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 

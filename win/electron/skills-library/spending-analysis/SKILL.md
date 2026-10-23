@@ -7,7 +7,7 @@ description: Analyses a transaction export for trends, repeat merchants and unus
 
 ## Goal
 
-Describe what the transactions say: where the money went, how it changed over time, and what stands out. The skill reports and asks. It does not judge the user's choices, recommend products, or give financial advice.
+Describe what the transactions say: where the money went, how it changed over time, and what stands out. The skill reports and asks. It does not judge the user's choices, recommend products, or give financial advice. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 

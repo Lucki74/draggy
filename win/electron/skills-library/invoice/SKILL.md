@@ -7,7 +7,7 @@ description: Prepares invoices and quotes with numbered line items, correct arit
 
 ## Goal
 
-A document the user can send as is: every required detail present or clearly marked as a placeholder, and totals that add up.
+A document the user can send as is: every required detail present or clearly marked as a placeholder, and totals that add up. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 

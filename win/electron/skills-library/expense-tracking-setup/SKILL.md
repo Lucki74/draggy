@@ -7,7 +7,7 @@ description: Designs a simple spending tracker around the user's habits, with ca
 
 ## Goal
 
-Build a tracking method small enough that the user will still use it in three months. The result is a short category list, a capture routine and a weekly check. The skill does not recommend specific apps or products.
+Build a tracking method small enough that the user will still use it in three months. The result is a short category list, a capture routine and a weekly check. The skill does not recommend specific apps or products. This is analysis and planning help, not investment, tax or legal advice, and it promises no returns. Tell the user to check decisions with a licensed advisor.
 
 ## When to use
 
