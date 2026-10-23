@@ -5,6 +5,7 @@
 //! - records are flat values; the only shared objects are the opaque `Session` and `CancelToken` handles;
 //! - cancelling goes through `CancelToken`, which stops the turn and the tools it is running.
 
+pub mod adblock;
 pub mod agy_host;
 pub mod cancel;
 pub mod documents;

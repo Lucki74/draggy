@@ -1,3 +1,4 @@
+import DraggyCore
 import SwiftUI
 import WebKit
 
@@ -55,11 +56,24 @@ private struct WebPage: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: browserStoreID)
+        blockAds(in: configuration.userContentController)
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
         commands.view = view
         return view
+    }
+
+    /// Compiles the shared ad and tracker rules and adds them. Pages load without them until the rules are ready.
+    private func blockAds(in controller: WKUserContentController) {
+        Task { @MainActor in
+            let store = WKContentRuleListStore.default()
+            if let list = try? await store?.compileContentRuleList(
+                forIdentifier: "draggy-adblock", encodedContentRuleList: adblockRules()
+            ) {
+                controller.add(list)
+            }
+        }
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
