@@ -130,7 +130,7 @@ struct TranscriptView: NSViewRepresentable {
 }
 
 /// A caption and a selectable TextKit 2 text view, laid out by hand from the top.
-private final class MessageCell: NSTableCellView {
+private final class MessageCell: NSTableCellView, NSTextViewDelegate {
     private let caption = NSTextField(labelWithString: "")
     private let text = NSTextView(usingTextLayoutManager: true)
     private var side: CGFloat = 16
@@ -142,6 +142,7 @@ private final class MessageCell: NSTableCellView {
         super.init(frame: frame)
         caption.font = NSFont.systemFont(ofSize: 11)
         caption.textColor = .secondaryLabelColor
+        text.delegate = self
         text.isEditable = false
         text.isSelectable = true
         text.drawsBackground = false
@@ -178,6 +179,12 @@ private final class MessageCell: NSTableCellView {
         caption.setAccessibilityElement(false)
         text.textStorage?.setAttributedString(MessageText.attributed(line))
         needsLayout = true
+    }
+
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        guard let preview = link as? HTMLPreview else { return false }
+        HTMLPreviewWindow.show(preview)
+        return true
     }
 
     override func layout() {

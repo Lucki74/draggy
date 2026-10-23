@@ -90,6 +90,13 @@ final class AppModel {
         static let commands = "allowCommands"
         static let permission = "permissionMode"
         static let apiKey = "provider-api-key"
+        static let braveKey = "brave-search-key"
+        static let web = "webEnabled"
+        static let searchProvider = "searchProvider"
+        static let searxng = "searxngURL"
+        static let agyOn = "agyOn"
+        static let speakReplies = "speakReplies"
+        static let agyModel = "agyModel"
     }
 
     private let defaults: UserDefaults
@@ -97,9 +104,13 @@ final class AppModel {
     let engine: EngineModel
     let models: ModelsModel
     let updates = UpdateModel()
-    let mcp = McpModel()
+    let skills = SkillsModel()
+    let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
+    let agy = AgyModel()
     private var session: Session?
+    /// The plan the model keeps for this conversation.
+    private(set) var plan: [PlanStepRecord] = []
     private var cancel: CancelToken?
     @ObservationIgnored private var broker: ApprovalBroker?
 
@@ -113,6 +124,8 @@ final class AppModel {
     private(set) var pendingApproval: ApprovalRecord?
 
     var draft = ""
+    /// Pictures waiting to go with the next message.
+    private(set) var pendingImages: [ImageRecord] = []
 
     var baseURL: String {
         didSet {
@@ -143,6 +156,54 @@ final class AppModel {
         }
     }
 
+    /// Lets the model search the web and read pages.
+    var webEnabled: Bool {
+        didSet {
+            defaults.set(webEnabled, forKey: Key.web)
+            session = nil
+        }
+    }
+
+    /// The id of a search engine, or empty for automatic.
+    var searchProvider: String {
+        didSet {
+            defaults.set(searchProvider, forKey: Key.searchProvider)
+            session = nil
+        }
+    }
+
+    var searxngURL: String {
+        didSet {
+            defaults.set(searxngURL, forKey: Key.searxng)
+            session = nil
+        }
+    }
+
+    /// Reads each finished reply aloud with the system voice.
+    var speakReplies: Bool {
+        didSet {
+            defaults.set(speakReplies, forKey: Key.speakReplies)
+            if !speakReplies { speaker.stop() }
+        }
+    }
+
+    @ObservationIgnored private let speaker = ReplySpeaker()
+
+    /// Sends chat through the Antigravity CLI. Needs a signed-in account.
+    var agyEnabled: Bool {
+        didSet {
+            defaults.set(agyEnabled, forKey: Key.agyOn)
+            session = nil
+        }
+    }
+
+    var agyModel: String {
+        didSet {
+            defaults.set(agyModel, forKey: Key.agyModel)
+            session = nil
+        }
+    }
+
     var permission: PermissionChoice {
         didSet {
             defaults.set(permission.rawValue, forKey: Key.permission)
@@ -169,7 +230,13 @@ final class AppModel {
         modelName = defaults.string(forKey: Key.model) ?? ""
         folderPath = defaults.string(forKey: Key.folder) ?? ""
         allowCommands = defaults.bool(forKey: Key.commands)
+        webEnabled = defaults.bool(forKey: Key.web)
+        searchProvider = defaults.string(forKey: Key.searchProvider) ?? ""
+        searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
+        agyEnabled = defaults.bool(forKey: Key.agyOn)
+        speakReplies = defaults.bool(forKey: Key.speakReplies)
+        agyModel = defaults.string(forKey: Key.agyModel) ?? ""
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -177,6 +244,11 @@ final class AppModel {
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
         }
+    }
+
+    func signOutAgy() {
+        agy.signOut()
+        agyEnabled = false
     }
 
     func hasAPIKey() -> Bool {
@@ -192,9 +264,35 @@ final class AppModel {
         }
     }
 
+    func hasBraveKey() -> Bool {
+        ((try? secrets.secret(for: Key.braveKey)) ?? nil) != nil
+    }
+
+    /// An empty key removes the stored one.
+    func saveBraveKey(_ key: String) {
+        do {
+            try secrets.setSecret(key.isEmpty ? nil : key, for: Key.braveKey)
+            session = nil
+        } catch {
+            errorMessage = String(localized: "The key could not be saved to the Keychain.")
+        }
+    }
+
+    /// The web settings for a session, or `nil` while the web is off.
+    private func webConfig() -> WebConfigRecord? {
+        guard webEnabled else { return nil }
+        let brave = (try? secrets.secret(for: Key.braveKey)) ?? nil
+        return WebConfigRecord(
+            provider: searchProvider,
+            searxngUrl: searxngURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            braveApiKey: brave ?? ""
+        )
+    }
+
     func newConversation() {
         guard !isRunning else { return }
         session = nil
+        plan = []
         transcript = Transcript()
         currentID = UUID()
         errorMessage = nil
@@ -216,9 +314,37 @@ final class AppModel {
         conversations = library.list()
     }
 
-    /// Adds the text of a document to the message being written.
+    private static let imageTypes = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                                     "gif": "image/gif", "webp": "image/webp"]
+    private static let imageLimit = 10_000_000
+
+    func removeImage(at index: Int) {
+        guard pendingImages.indices.contains(index) else { return }
+        pendingImages.remove(at: index)
+    }
+
+    /// Adds a picture to the next message.
+    private func attachImage(_ url: URL, mime: String) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url) else {
+            errorMessage = String(localized: "The file could not be read.")
+            return
+        }
+        guard data.count <= Self.imageLimit else {
+            errorMessage = String(localized: "The picture is larger than 10 MB.")
+            return
+        }
+        pendingImages.append(ImageRecord(name: url.lastPathComponent, mime: mime, data: data))
+    }
+
+    /// Adds a picture to the next message, or the text of a document to the message being written.
     func attach(_ url: URL) async {
         errorMessage = nil
+        if let mime = Self.imageTypes[url.pathExtension.lowercased()] {
+            attachImage(url, mime: mime)
+            return
+        }
         do {
             let text = try await readDocument(path: url.path)
             draft = Attachment.append(text, named: url.lastPathComponent, to: draft)
@@ -231,8 +357,15 @@ final class AppModel {
 
     /// Stops the turn. A question that is waiting for the user is answered with no, so the turn can end.
     func stop() {
+        speaker.stop()
         cancel?.cancel()
         answerApproval(.no)
+    }
+
+    /// Empties the plan; the model is told at its next turn.
+    func clearPlan() {
+        session?.clearPlan()
+        plan = []
     }
 
     func answerApproval(_ choice: ApprovalChoice) {
@@ -244,6 +377,8 @@ final class AppModel {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isRunning else { return }
         draft = ""
+        let images = pendingImages
+        pendingImages = []
         errorMessage = nil
         isRunning = true
         defer {
@@ -251,7 +386,7 @@ final class AppModel {
             pendingApproval = nil
         }
 
-        transcript.addUser(text)
+        transcript.addUser(([text] + images.map { "[\($0.name)]" }).joined(separator: "\n"))
         transcript.beginReply()
         let token = CancelToken()
         cancel = token
@@ -260,13 +395,17 @@ final class AppModel {
             if let text = update.text { self.transcript.setReply(text) }
             if let steps = update.steps { self.transcript.setSteps(steps) }
             if let speed = update.speed { self.transcript.setSpeed(speed) }
+            self.plan = self.session?.plan() ?? []
         }
 
         do {
             let session = try currentSession()
-            let outcome = try await session.send(text: text, observer: sink, approvals: broker, cancel: token)
+            let outcome = try await session.sendWithImages(
+                text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
+            if speakReplies { speaker.speak(outcome.textContent) }
             transcript.setSteps(outcome.steps.map(transcriptStep))
+            plan = session.plan()
         } catch let error as CoreError {
             errorMessage = Self.message(for: error)
         } catch {
@@ -282,7 +421,21 @@ final class AppModel {
         // The key is read only here, while the request is being set up.
         let key = (try? secrets.secret(for: Key.apiKey)) ?? nil
         let folder = folderPath.isEmpty ? nil : folderPath
-        let config = SessionConfig(
+        let agyRoute = agyEnabled ? agy.config(model: agyModel) : nil
+        let config = agyRoute.map {
+            SessionConfig(
+                baseUrl: "",
+                model: "",
+                apiKey: nil,
+                folder: nil,
+                contextTokens: nil,
+                loopLimit: nil,
+                allowCommands: false,
+                permissionMode: PermissionChoice.ask.record,
+                web: nil,
+                agy: $0
+            )
+        } ?? SessionConfig(
             baseUrl: baseURL,
             model: modelName,
             apiKey: key,
@@ -290,9 +443,17 @@ final class AppModel {
             contextTokens: nil,
             loopLimit: nil,
             allowCommands: allowCommands && folder != nil,
-            permissionMode: permission.record
+            permissionMode: permission.record,
+            web: webConfig(),
+            agy: nil,
+            skillsDir: SkillsModel.standardDirectory
         )
-        let created = try Session(config: config)
+        let created: Session
+        if let manager = mcp.manager {
+            created = try Session.withMcp(config: config, mcp: manager)
+        } else {
+            created = try Session(config: config)
+        }
         // The reply being filled is not finished yet, so only the exchanges before this send go to the core.
         let earlier = Transcript(restoring: transcript.savedMessages)
         let records = earlier.lines.enumerated().map { index, line in

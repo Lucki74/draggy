@@ -771,6 +771,8 @@ export interface InstalledSkill {
   defaultOn?: boolean;
   /** False when only a slash command may start it, never the model on its own. */
   modelInvocable?: boolean;
+  /** Always on: the user cannot switch it off. Present only when true. */
+  locked?: boolean;
 }
 
 export interface LoadedSkill extends InstalledSkill {

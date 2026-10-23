@@ -1,0 +1,33 @@
+name: Flatpak
+
+# Builds the Flatpak for the native Linux app and keeps it as a workflow artifact. Run it by hand; it publishes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flatpak:
+    name: Build the Flatpak
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+
+      - run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.gnome.Platform//48 org.gnome.Sdk//48 org.freedesktop.Sdk.Extension.rust-stable//24.08
+
+      - run: flatpak-builder --user --force-clean --repo=repo build-dir linux/flatpak/com.draggy.Draggy.yaml
+
+      - run: flatpak build-bundle repo draggy.flatpak com.draggy.Draggy
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: draggy-flatpak
+          path: draggy.flatpak

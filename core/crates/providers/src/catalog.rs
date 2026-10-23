@@ -17,7 +17,7 @@ const PROTOCOLS: [&str; 7] = [
     "gemini",
     "codex",
     "claude",
-    "gemini-cli",
+    "agy",
 ];
 const AUTHS: [&str; 5] = ["bearer", "x-api-key", "x-goog-api-key", "account", "none"];
 const CAPABILITIES: [&str; 3] = ["tools", "vision", "thinking"];

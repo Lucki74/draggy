@@ -1,476 +1,7553 @@
 {
   "categories": [
-    "writing",
-    "documents",
+    "writing-editing",
+    "human-voice",
+    "email-comms",
+    "creative-writing",
+    "documents-files",
+    "spreadsheets",
+    "data-analysis",
     "research",
     "learning",
-    "planning",
-    "data",
-    "code",
-    "authoring"
+    "languages",
+    "productivity-planning",
+    "business-strategy",
+    "marketing-seo",
+    "sales-crm",
+    "finance-business",
+    "personal-finance",
+    "career-hiring",
+    "life-admin-travel",
+    "design-visual",
+    "media-audio-video",
+    "software-planning",
+    "debugging-testing",
+    "code-review-quality",
+    "refactor-migration",
+    "frontend-ui",
+    "backend-apis-db",
+    "devops-cloud",
+    "security",
+    "git-workflow",
+    "browser-web-automation",
+    "meta-agent",
+    "ai-prompting"
   ],
   "skills": [
     {
-      "id": "email-writer",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Write or reply to emails"
+      "id": "a-b-test-plan",
+      "category": "marketing-seo",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan a marketing A/B test",
+      "tags": [
+        "ab-test",
+        "experiment",
+        "conversion",
+        "hypothesis"
+      ]
     },
     {
-      "id": "proofreader",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Fix spelling and grammar"
+      "id": "ab-test-reading",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Read the result of an A/B test",
+      "tags": [
+        "experiment",
+        "ab-test",
+        "significance",
+        "lift"
+      ]
     },
     {
-      "id": "human",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Remove AI writing patterns"
-    },
-    {
-      "id": "summarizer",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Summarize text, pages or files"
-    },
-    {
-      "id": "translator",
-      "category": "writing",
-      "surface": "chat",
-      "on": true,
-      "summary": "Translate text"
-    },
-    {
-      "id": "tone-rewriter",
-      "category": "writing",
+      "id": "abstract-writer",
+      "category": "writing-editing",
       "surface": "chat",
       "on": false,
-      "summary": "Rewrite in a different tone"
+      "summary": "Write structured abstracts and summaries",
+      "tags": [
+        "abstract",
+        "paper",
+        "summary",
+        "academic"
+      ]
     },
     {
-      "id": "meeting-notes",
-      "category": "writing",
+      "id": "acceptance-criteria",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Write testable acceptance criteria",
+      "tags": [
+        "acceptance",
+        "criteria",
+        "testing",
+        "user-stories"
+      ]
+    },
+    {
+      "id": "accessibility",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Audit and fix accessibility",
+      "tags": [
+        "a11y",
+        "wcag",
+        "aria",
+        "contrast",
+        "keyboard"
+      ]
+    },
+    {
+      "id": "account-research",
+      "category": "sales-crm",
       "surface": "chat",
+      "on": false,
+      "summary": "Brief on a target account before outreach",
+      "tags": [
+        "research",
+        "account",
+        "prospect",
+        "brief"
+      ]
+    },
+    {
+      "id": "ad-copy-variants",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write ad copy variants within platform limits",
+      "tags": [
+        "ads",
+        "copy",
+        "variants",
+        "paid"
+      ]
+    },
+    {
+      "id": "add-feature",
+      "category": "software-planning",
+      "surface": "code",
       "on": true,
-      "summary": "Turn notes into minutes"
+      "summary": "Build a feature end to end",
+      "tags": [
+        "feature",
+        "implement",
+        "codebase",
+        "plan"
+      ]
+    },
+    {
+      "id": "adr-writer",
+      "category": "software-planning",
+      "surface": "code",
+      "on": false,
+      "summary": "Record an architecture decision",
+      "tags": [
+        "adr",
+        "architecture",
+        "decision",
+        "documentation"
+      ]
+    },
+    {
+      "id": "agent-instructions-writer",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write instructions for a tool-using agent",
+      "tags": [
+        "agent",
+        "instructions",
+        "tools"
+      ]
+    },
+    {
+      "id": "agent-self-review",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": false,
+      "summary": "Review your own work before presenting it",
+      "tags": [
+        "review",
+        "quality",
+        "self-check"
+      ]
+    },
+    {
+      "id": "analogy-maker",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Explain an idea through an analogy",
+      "tags": [
+        "analogy",
+        "explanation",
+        "metaphor",
+        "understanding"
+      ]
+    },
+    {
+      "id": "animation-performance",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Fix janky animations",
+      "tags": [
+        "animation",
+        "css",
+        "jank",
+        "compositor",
+        "transitions"
+      ]
+    },
+    {
+      "id": "api-breaking-change-check",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Detect breaking changes in a public interface",
+      "tags": [
+        "api",
+        "compatibility",
+        "breaking-change",
+        "semver"
+      ]
+    },
+    {
+      "id": "api-design",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Design or review an API",
+      "tags": [
+        "api",
+        "rest",
+        "endpoints",
+        "schema",
+        "openapi"
+      ]
+    },
+    {
+      "id": "api-key-rotation",
+      "category": "security",
+      "surface": "both",
+      "on": false,
+      "summary": "Rotate a leaked or aging credential safely",
+      "tags": [
+        "rotation",
+        "credentials",
+        "incident",
+        "keys",
+        "revocation"
+      ]
+    },
+    {
+      "id": "apology-message",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Apology that owns the mistake",
+      "tags": [
+        "apology",
+        "accountability",
+        "client",
+        "email"
+      ]
+    },
+    {
+      "id": "appointment-prep",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare questions and papers for an appointment",
+      "tags": [
+        "appointment",
+        "preparation",
+        "questions",
+        "notes"
+      ]
+    },
+    {
+      "id": "archive-and-backup-folder",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Archive a folder and verify the copy",
+      "tags": [
+        "backup",
+        "archive",
+        "zip",
+        "verify"
+      ]
+    },
+    {
+      "id": "argument-strengthener",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Test and strengthen an argument",
+      "tags": [
+        "argument",
+        "logic",
+        "evidence",
+        "persuasion"
+      ]
+    },
+    {
+      "id": "array-formulas",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Use array and dynamic array formulas",
+      "tags": [
+        "array",
+        "filter",
+        "unique",
+        "formulas"
+      ]
+    },
+    {
+      "id": "ask-better-questions",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": false,
+      "summary": "Ask few questions that unblock the work",
+      "tags": [
+        "questions",
+        "clarification",
+        "requirements"
+      ]
+    },
+    {
+      "id": "assumption-test-plan",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Find and test the riskiest assumptions",
+      "tags": [
+        "assumptions",
+        "validation",
+        "experiments",
+        "risk"
+      ]
+    },
+    {
+      "id": "audience-research",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Research a content or ad audience",
+      "tags": [
+        "audience",
+        "research",
+        "questions",
+        "language"
+      ]
+    },
+    {
+      "id": "audio-cleanup-plan",
+      "category": "media-audio-video",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan an audio cleanup pass in order",
+      "tags": [
+        "audio",
+        "cleanup",
+        "noise",
+        "mixing"
+      ]
+    },
+    {
+      "id": "auth-flow-review",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Review authentication and sessions",
+      "tags": [
+        "auth",
+        "sessions",
+        "jwt",
+        "security",
+        "review"
+      ]
+    },
+    {
+      "id": "auth-session-review",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Review login, session and token handling",
+      "tags": [
+        "authentication",
+        "sessions",
+        "jwt",
+        "cookies",
+        "login"
+      ]
+    },
+    {
+      "id": "background-jobs",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Move slow work into background jobs",
+      "tags": [
+        "jobs",
+        "async",
+        "workers",
+        "retries",
+        "backend"
+      ]
+    },
+    {
+      "id": "backlink-outreach",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan and write link outreach emails",
+      "tags": [
+        "backlinks",
+        "outreach",
+        "seo",
+        "email"
+      ]
+    },
+    {
+      "id": "backup-and-restore",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan backups and prove restores work",
+      "tags": [
+        "backup",
+        "restore",
+        "retention",
+        "recovery",
+        "database"
+      ]
+    },
+    {
+      "id": "batch-rename",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Rename many files by a rule, safely",
+      "tags": [
+        "files",
+        "rename",
+        "batch",
+        "undo"
+      ]
+    },
+    {
+      "id": "bias-check",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Spot framing and slant in a text",
+      "tags": [
+        "bias",
+        "framing",
+        "media",
+        "critical-reading"
+      ]
+    },
+    {
+      "id": "big-purchase-decision",
+      "category": "personal-finance",
+      "surface": "chat",
+      "on": false,
+      "summary": "Think through a large purchase",
+      "tags": [
+        "purchase",
+        "decision",
+        "cost",
+        "tradeoffs"
+      ]
+    },
+    {
+      "id": "bill-calendar",
+      "category": "personal-finance",
+      "surface": "chat",
+      "on": false,
+      "summary": "Map bills onto a pay-period calendar",
+      "tags": [
+        "bills",
+        "calendar",
+        "due-dates",
+        "cash-timing"
+      ]
+    },
+    {
+      "id": "bisect-regression",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Find the commit that broke something",
+      "tags": [
+        "git",
+        "bisect",
+        "regression",
+        "history"
+      ]
+    },
+    {
+      "id": "blog-outline",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a blog post around search intent",
+      "tags": [
+        "blog",
+        "outline",
+        "content",
+        "structure"
+      ]
     },
     {
       "id": "blog-post",
-      "category": "writing",
+      "category": "writing-editing",
       "surface": "chat",
       "on": false,
-      "summary": "Write a blog post or article"
+      "summary": "Write a blog post or article",
+      "tags": [
+        "blog",
+        "article",
+        "seo",
+        "draft"
+      ]
     },
     {
-      "id": "social-post",
-      "category": "writing",
-      "surface": "chat",
+      "id": "blue-green-deploy",
+      "category": "devops-cloud",
+      "surface": "both",
       "on": false,
-      "summary": "Write social media posts"
+      "summary": "Plan zero downtime blue green or canary releases",
+      "tags": [
+        "blue-green",
+        "canary",
+        "zero-downtime",
+        "traffic",
+        "release"
+      ]
     },
     {
-      "id": "speech-writer",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a speech or toast"
-    },
-    {
-      "id": "cover-letter",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a cover letter"
-    },
-    {
-      "id": "resume",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write or improve a CV"
-    },
-    {
-      "id": "story-writer",
-      "category": "writing",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write a story"
-    },
-    {
-      "id": "docx",
-      "category": "documents",
+      "id": "brainstorm",
+      "category": "productivity-planning",
       "surface": "chat",
       "on": true,
-      "summary": "Create a Word document"
+      "summary": "Brainstorm ideas",
+      "tags": [
+        "ideas",
+        "options",
+        "creative",
+        "ideation"
+      ]
     },
     {
-      "id": "pptx",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a slide deck"
+      "id": "brainstorming",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Explore intent and options before building",
+      "tags": [
+        "brainstorming",
+        "discovery",
+        "options",
+        "requirements"
+      ]
     },
     {
-      "id": "xlsx",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a spreadsheet"
+      "id": "branch-strategy",
+      "category": "git-workflow",
+      "surface": "both",
+      "on": false,
+      "summary": "Pick and document a branching model",
+      "tags": [
+        "branching",
+        "trunk",
+        "gitflow",
+        "workflow",
+        "conventions"
+      ]
     },
     {
-      "id": "pdf",
-      "category": "documents",
-      "surface": "chat",
-      "on": true,
-      "summary": "Create a PDF"
-    },
-    {
-      "id": "report",
-      "category": "documents",
+      "id": "brand-guidelines-outline",
+      "category": "design-visual",
       "surface": "chat",
       "on": false,
-      "summary": "Write a structured report"
+      "summary": "Outline a brand guidelines document",
+      "tags": [
+        "brand",
+        "guidelines",
+        "identity",
+        "documentation"
+      ]
     },
     {
-      "id": "formal-letter",
-      "category": "documents",
+      "id": "brand-voice-guide",
+      "category": "marketing-seo",
       "surface": "chat",
       "on": false,
-      "summary": "Write a formal letter"
+      "summary": "Define a brand voice guide with examples",
+      "tags": [
+        "brand",
+        "voice",
+        "tone",
+        "style"
+      ]
     },
     {
-      "id": "invoice",
-      "category": "documents",
-      "surface": "chat",
+      "id": "break-even-analysis",
+      "category": "finance-business",
+      "surface": "both",
       "on": false,
-      "summary": "Make an invoice or quote"
+      "summary": "Find the volume where costs are covered",
+      "tags": [
+        "break-even",
+        "fixed-cost",
+        "volume",
+        "sensitivity"
+      ]
     },
     {
-      "id": "web-research",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Research a question online"
-    },
-    {
-      "id": "fact-check",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Check whether a claim is true"
-    },
-    {
-      "id": "compare-options",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Compare options and pick one"
-    },
-    {
-      "id": "news-brief",
-      "category": "research",
-      "surface": "chat",
+      "id": "browser-compat-check",
+      "category": "frontend-ui",
+      "surface": "both",
       "on": false,
-      "summary": "Catch up on the latest news"
-    },
-    {
-      "id": "document-qa",
-      "category": "research",
-      "surface": "chat",
-      "on": true,
-      "summary": "Answer from your documents"
-    },
-    {
-      "id": "literature-review",
-      "category": "research",
-      "surface": "chat",
-      "on": false,
-      "summary": "Review research on a topic"
+      "summary": "Check browser support for web features",
+      "tags": [
+        "browsers",
+        "compatibility",
+        "css",
+        "javascript",
+        "support"
+      ]
     },
     {
       "id": "browser-tasks",
+      "category": "browser-web-automation",
+      "surface": "chat",
+      "on": false,
+      "summary": "Work through an interactive page",
+      "tags": [
+        "browser",
+        "web",
+        "forms",
+        "click",
+        "automation"
+      ]
+    },
+    {
+      "id": "budget-planner",
+      "category": "personal-finance",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make a budget",
+      "tags": [
+        "budget",
+        "money",
+        "expenses",
+        "savings"
+      ]
+    },
+    {
+      "id": "budget-sheet",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Set up a personal or team budget sheet",
+      "tags": [
+        "budget",
+        "planning",
+        "actuals",
+        "finance"
+      ]
+    },
+    {
+      "id": "build-vs-buy-decision",
+      "category": "business-strategy",
+      "surface": "both",
+      "on": false,
+      "summary": "Decide whether to build, buy or partner",
+      "tags": [
+        "build",
+        "buy",
+        "vendor",
+        "decision"
+      ]
+    },
+    {
+      "id": "bundle-size-audit",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Find what bloats the JS bundle",
+      "tags": [
+        "bundle",
+        "webpack",
+        "vite",
+        "tree-shaking",
+        "performance"
+      ]
+    },
+    {
+      "id": "business-model-canvas",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Fill in a business model canvas",
+      "tags": [
+        "canvas",
+        "business-model",
+        "revenue",
+        "segments"
+      ]
+    },
+    {
+      "id": "caching-strategy",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Plan caching and invalidation",
+      "tags": [
+        "cache",
+        "invalidation",
+        "ttl",
+        "redis",
+        "performance"
+      ]
+    },
+    {
+      "id": "campaign-brief",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a marketing campaign brief",
+      "tags": [
+        "campaign",
+        "brief",
+        "planning",
+        "goals"
+      ]
+    },
+    {
+      "id": "candidate-scorecard",
+      "category": "career-hiring",
+      "surface": "both",
+      "on": false,
+      "summary": "Score candidates against the same criteria",
+      "tags": [
+        "scorecard",
+        "candidates",
+        "evaluation",
+        "hiring"
+      ]
+    },
+    {
+      "id": "career-plan",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Map a one to three year career direction",
+      "tags": [
+        "career",
+        "planning",
+        "skills",
+        "goals"
+      ]
+    },
+    {
+      "id": "case-study",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a customer case study from facts",
+      "tags": [
+        "case-study",
+        "customer",
+        "results",
+        "marketing"
+      ]
+    },
+    {
+      "id": "cash-flow-plan",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan weekly or monthly business cash flow",
+      "tags": [
+        "cash-flow",
+        "planning",
+        "timing",
+        "forecast"
+      ]
+    },
+    {
+      "id": "chain-of-thought-structure",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Structure multi-step reasoning in a prompt",
+      "tags": [
+        "reasoning",
+        "chaining",
+        "stages"
+      ]
+    },
+    {
+      "id": "changelog",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Write release notes",
+      "tags": [
+        "release notes",
+        "changes",
+        "versions",
+        "commits"
+      ]
+    },
+    {
+      "id": "character-profile",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a character with wants, flaws, voice",
+      "tags": [
+        "character",
+        "protagonist",
+        "fiction",
+        "profile"
+      ]
+    },
+    {
+      "id": "chart-picker",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Pick the right chart for the question",
+      "tags": [
+        "charts",
+        "visualisation",
+        "design",
+        "plot"
+      ]
+    },
+    {
+      "id": "cheat-sheet-maker",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make a compact cheat sheet",
+      "tags": [
+        "cheat-sheet",
+        "reference",
+        "summary",
+        "revision"
+      ]
+    },
+    {
+      "id": "checklist-builder",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a checklist for a repeat task",
+      "tags": [
+        "checklist",
+        "repeatable",
+        "steps",
+        "quality"
+      ]
+    },
+    {
+      "id": "children-story",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a story for a young child",
+      "tags": [
+        "children",
+        "bedtime",
+        "picture-book",
+        "story"
+      ]
+    },
+    {
+      "id": "ci-workflow",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Set up or fix CI",
+      "tags": [
+        "ci",
+        "github actions",
+        "pipeline",
+        "workflow"
+      ]
+    },
+    {
+      "id": "citation-chain",
       "category": "research",
       "surface": "chat",
       "on": false,
-      "summary": "Work through an interactive page"
+      "summary": "Walk a paper's citations both ways",
+      "tags": [
+        "citations",
+        "papers",
+        "literature",
+        "references"
+      ]
+    },
+    {
+      "id": "claim-tracing",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Trace a claim back to its origin",
+      "tags": [
+        "provenance",
+        "claims",
+        "statistics",
+        "origin"
+      ]
+    },
+    {
+      "id": "clarity-edit",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Edit prose for clarity without changing voice",
+      "tags": [
+        "clarity",
+        "editing",
+        "prose",
+        "revision"
+      ]
+    },
+    {
+      "id": "clip-selection",
+      "category": "media-audio-video",
+      "surface": "both",
+      "on": false,
+      "summary": "Pick short clips from a long recording",
+      "tags": [
+        "clips",
+        "shorts",
+        "highlights",
+        "transcript"
+      ]
+    },
+    {
+      "id": "code-owners-setup",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Set up CODEOWNERS review routing",
+      "tags": [
+        "codeowners",
+        "review",
+        "ownership",
+        "github",
+        "gitlab"
+      ]
+    },
+    {
+      "id": "code-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": true,
+      "summary": "Review changes for bugs",
+      "tags": [
+        "review",
+        "diff",
+        "bugs",
+        "quality"
+      ]
+    },
+    {
+      "id": "codemod-writer",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a script that rewrites code at scale",
+      "tags": [
+        "codemod",
+        "automation",
+        "ast",
+        "bulk-edit"
+      ]
+    },
+    {
+      "id": "cohort-analysis",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Build and read cohort retention tables",
+      "tags": [
+        "cohort",
+        "retention",
+        "users",
+        "tables"
+      ]
+    },
+    {
+      "id": "cold-outreach",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "First email to a stranger that gets read",
+      "tags": [
+        "outreach",
+        "cold-email",
+        "prospecting",
+        "first-contact"
+      ]
+    },
+    {
+      "id": "cold-outreach-email",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "First sales email to a stranger prospect",
+      "tags": [
+        "outbound",
+        "prospecting",
+        "email",
+        "sales"
+      ]
+    },
+    {
+      "id": "color-palette-builder",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Build a usable color palette with roles",
+      "tags": [
+        "color",
+        "palette",
+        "brand",
+        "tokens"
+      ]
+    },
+    {
+      "id": "commit-message",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": true,
+      "summary": "Write a commit message",
+      "tags": [
+        "git",
+        "commit",
+        "message",
+        "diff"
+      ]
+    },
+    {
+      "id": "compare-options",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": true,
+      "summary": "Compare options and pick one",
+      "tags": [
+        "compare",
+        "decision",
+        "pros cons",
+        "choose"
+      ]
+    },
+    {
+      "id": "compare-sources",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Compare what sources say on one point",
+      "tags": [
+        "sources",
+        "comparison",
+        "agreement",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "competitor-content-gap",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Find topics rivals cover that you do not",
+      "tags": [
+        "content-gap",
+        "competitors",
+        "topics",
+        "seo"
+      ]
+    },
+    {
+      "id": "competitor-matrix",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Compare competitors in a feature matrix",
+      "tags": [
+        "competitors",
+        "matrix",
+        "comparison",
+        "market"
+      ]
+    },
+    {
+      "id": "competitor-scan",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Map competitors from public sources",
+      "tags": [
+        "competitors",
+        "market",
+        "analysis",
+        "public-sources"
+      ]
+    },
+    {
+      "id": "complaint-letter",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Consumer complaint with a clear remedy",
+      "tags": [
+        "complaint",
+        "refund",
+        "consumer",
+        "customer-service"
+      ]
+    },
+    {
+      "id": "complexity-hotspots",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Locate the code that is hardest to change",
+      "tags": [
+        "complexity",
+        "hotspots",
+        "churn",
+        "metrics"
+      ]
+    },
+    {
+      "id": "component-library-audit",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Audit a shared component library",
+      "tags": [
+        "components",
+        "design-system",
+        "audit",
+        "consistency",
+        "library"
+      ]
+    },
+    {
+      "id": "concurrency-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Review code for shared state and ordering",
+      "tags": [
+        "concurrency",
+        "async",
+        "locks",
+        "review"
+      ]
+    },
+    {
+      "id": "conditional-formatting",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Highlight cells with rules that stay correct",
+      "tags": [
+        "formatting",
+        "highlight",
+        "rules",
+        "colour"
+      ]
+    },
+    {
+      "id": "config-and-secrets-loading",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Load config and secrets safely",
+      "tags": [
+        "config",
+        "secrets",
+        "environment",
+        "startup",
+        "security"
+      ]
+    },
+    {
+      "id": "container-size-diet",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Shrink and speed up container images",
+      "tags": [
+        "docker",
+        "image-size",
+        "layers",
+        "multi-stage",
+        "build-cache"
+      ]
+    },
+    {
+      "id": "content-calendar",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a content calendar for a period",
+      "tags": [
+        "calendar",
+        "content",
+        "schedule",
+        "planning"
+      ]
+    },
+    {
+      "id": "content-refresh-audit",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Decide which old posts to update or drop",
+      "tags": [
+        "content",
+        "refresh",
+        "audit",
+        "update"
+      ]
+    },
+    {
+      "id": "content-repurpose",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Repurpose one piece into several formats",
+      "tags": [
+        "repurpose",
+        "content",
+        "formats",
+        "reuse"
+      ]
+    },
+    {
+      "id": "context-handoff",
+      "category": "meta-agent",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a note so a fresh session can continue",
+      "tags": [
+        "handoff",
+        "context",
+        "continuity"
+      ]
+    },
+    {
+      "id": "contrast-check",
+      "category": "design-visual",
+      "surface": "code",
+      "on": false,
+      "summary": "Check color contrast against WCAG ratios",
+      "tags": [
+        "contrast",
+        "wcag",
+        "accessibility",
+        "color"
+      ]
+    },
+    {
+      "id": "conversation-practice",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Practise free conversation with gentle fixes",
+      "tags": [
+        "conversation",
+        "speaking",
+        "practice",
+        "fluency"
+      ]
+    },
+    {
+      "id": "cookie-banner-handling",
+      "category": "browser-web-automation",
+      "surface": "both",
+      "on": false,
+      "summary": "Handle cookie banners during automation",
+      "tags": [
+        "cookies",
+        "consent",
+        "banner",
+        "privacy"
+      ]
+    },
+    {
+      "id": "cors-config-review",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Review CORS rules for over-permissive origins",
+      "tags": [
+        "cors",
+        "origins",
+        "api",
+        "browser",
+        "credentials"
+      ]
+    },
+    {
+      "id": "cost-audit",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Find waste in cloud spend and rank savings",
+      "tags": [
+        "cost",
+        "cloud",
+        "finops",
+        "savings",
+        "audit"
+      ]
+    },
+    {
+      "id": "course-picker",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Pick a course that fits your goal",
+      "tags": [
+        "courses",
+        "choice",
+        "comparison",
+        "learning-path"
+      ]
+    },
+    {
+      "id": "cover-letter",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a cover letter",
+      "tags": [
+        "job",
+        "application",
+        "letter",
+        "career"
+      ]
+    },
+    {
+      "id": "crash-dump-reading",
+      "category": "debugging-testing",
+      "surface": "both",
+      "on": false,
+      "summary": "Read a crash report or stack trace",
+      "tags": [
+        "crash",
+        "stack-trace",
+        "symbols",
+        "debugging"
+      ]
+    },
+    {
+      "id": "crm-notes-cleanup",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Turn rough call notes into clean CRM entries",
+      "tags": [
+        "crm",
+        "notes",
+        "logging",
+        "hygiene"
+      ]
+    },
+    {
+      "id": "cron-job-design",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Make cron jobs safe, observable and idempotent",
+      "tags": [
+        "cron",
+        "scheduler",
+        "idempotent",
+        "jobs",
+        "locking"
+      ]
+    },
+    {
+      "id": "css-layout-debugging",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Debug broken CSS layouts",
+      "tags": [
+        "css",
+        "flexbox",
+        "grid",
+        "layout",
+        "debugging"
+      ]
+    },
+    {
+      "id": "csv-cleaner",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": true,
+      "summary": "Clean up messy data",
+      "tags": [
+        "csv",
+        "cleanup",
+        "duplicates",
+        "data"
+      ]
+    },
+    {
+      "id": "customer-persona",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a customer persona from evidence",
+      "tags": [
+        "persona",
+        "customer",
+        "research",
+        "audience"
+      ]
+    },
+    {
+      "id": "customer-success-checkin",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a check-in call with an existing customer",
+      "tags": [
+        "customer-success",
+        "checkin",
+        "retention",
+        "agenda"
+      ]
+    },
+    {
+      "id": "daily-plan",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a realistic plan for one day",
+      "tags": [
+        "daily",
+        "schedule",
+        "tasks",
+        "focus"
+      ]
+    },
+    {
+      "id": "dark-mode-theming",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Add dark mode and theme switching",
+      "tags": [
+        "dark-mode",
+        "theme",
+        "css",
+        "color-scheme",
+        "preferences"
+      ]
+    },
+    {
+      "id": "dashboard-sheet",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Build a one-page dashboard in a workbook",
+      "tags": [
+        "dashboard",
+        "charts",
+        "kpi",
+        "layout"
+      ]
+    },
+    {
+      "id": "dashboard-spec",
+      "category": "data-analysis",
+      "surface": "chat",
+      "on": false,
+      "summary": "Specify a dashboard before building it",
+      "tags": [
+        "dashboard",
+        "spec",
+        "reporting",
+        "requirements"
+      ]
+    },
+    {
+      "id": "data-analysis",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": true,
+      "summary": "Analyse a dataset",
+      "tags": [
+        "data",
+        "statistics",
+        "charts",
+        "insights"
+      ]
+    },
+    {
+      "id": "data-backfill",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Fill or fix existing data in controlled batches",
+      "tags": [
+        "backfill",
+        "data",
+        "batches",
+        "migration"
+      ]
+    },
+    {
+      "id": "data-dictionary",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a data dictionary for a dataset",
+      "tags": [
+        "documentation",
+        "schema",
+        "columns",
+        "metadata"
+      ]
+    },
+    {
+      "id": "data-quality-audit",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Score a dataset for quality problems",
+      "tags": [
+        "quality",
+        "audit",
+        "validation",
+        "profiling"
+      ]
+    },
+    {
+      "id": "data-validation-rules",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Add input rules and dropdowns to cells",
+      "tags": [
+        "validation",
+        "dropdown",
+        "input",
+        "forms"
+      ]
+    },
+    {
+      "id": "database-migration",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a safe migration",
+      "tags": [
+        "database",
+        "migration",
+        "schema",
+        "sql"
+      ]
+    },
+    {
+      "id": "dataset-finder",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Find public datasets for a question",
+      "tags": [
+        "datasets",
+        "open-data",
+        "licence",
+        "data-sources"
+      ]
+    },
+    {
+      "id": "dates-and-time-formulas",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Formulas for dates, times and durations",
+      "tags": [
+        "dates",
+        "time",
+        "formulas",
+        "durations"
+      ]
+    },
+    {
+      "id": "dead-code-finder",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Find code nothing calls and prove it is dead",
+      "tags": [
+        "dead-code",
+        "cleanup",
+        "unused",
+        "audit"
+      ]
+    },
+    {
+      "id": "dead-feature-removal",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Remove a feature completely and safely",
+      "tags": [
+        "removal",
+        "feature",
+        "cleanup",
+        "flags"
+      ]
+    },
+    {
+      "id": "deal-review",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Stress-test one open deal",
+      "tags": [
+        "deal",
+        "review",
+        "forecast",
+        "risk"
+      ]
+    },
+    {
+      "id": "debt-payoff-plan",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Compare payoff orders for your debts",
+      "tags": [
+        "debt",
+        "payoff",
+        "interest",
+        "plan"
+      ]
+    },
+    {
+      "id": "debugging",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": true,
+      "summary": "Find the cause of a bug",
+      "tags": [
+        "bug",
+        "error",
+        "stack trace",
+        "root cause"
+      ]
+    },
+    {
+      "id": "decision-journal",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Log a decision with reasons to review later",
+      "tags": [
+        "decision",
+        "journal",
+        "review",
+        "assumptions"
+      ]
+    },
+    {
+      "id": "decline-politely",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Say no without burning the bridge",
+      "tags": [
+        "decline",
+        "refusal",
+        "boundaries",
+        "email"
+      ]
+    },
+    {
+      "id": "dedupe-and-merge",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Match and merge duplicate records",
+      "tags": [
+        "dedupe",
+        "matching",
+        "merge",
+        "records"
+      ]
+    },
+    {
+      "id": "deep-research",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Multi-source cited research report",
+      "tags": [
+        "research",
+        "report",
+        "citations",
+        "sources"
+      ]
+    },
+    {
+      "id": "delegation-brief",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a brief to hand a task to someone",
+      "tags": [
+        "delegation",
+        "brief",
+        "handoff",
+        "outcome"
+      ]
+    },
+    {
+      "id": "demo-script",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Script a product demo around buyer problems",
+      "tags": [
+        "demo",
+        "script",
+        "presentation",
+        "pitch"
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Upgrade dependencies safely",
+      "tags": [
+        "dependencies",
+        "upgrade",
+        "npm",
+        "versions"
+      ]
+    },
+    {
+      "id": "dependency-vulnerability-triage",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Triage audit findings by real exposure",
+      "tags": [
+        "dependencies",
+        "cve",
+        "audit",
+        "triage",
+        "upgrade"
+      ]
+    },
+    {
+      "id": "deploy-checklist",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Release specific pre and post deploy list",
+      "tags": [
+        "deploy",
+        "checklist",
+        "release",
+        "preflight",
+        "verification"
+      ]
+    },
+    {
+      "id": "deprecation-rollout",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Retire an old API with warnings and a date",
+      "tags": [
+        "deprecation",
+        "api",
+        "timeline",
+        "communication"
+      ]
+    },
+    {
+      "id": "design-critique",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Give a structured design critique",
+      "tags": [
+        "critique",
+        "feedback",
+        "design",
+        "review"
+      ]
+    },
+    {
+      "id": "design-doc",
+      "category": "software-planning",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a technical design doc",
+      "tags": [
+        "design-doc",
+        "architecture",
+        "interfaces",
+        "rollout"
+      ]
+    },
+    {
+      "id": "design-tokens",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Build a design token system",
+      "tags": [
+        "tokens",
+        "css-variables",
+        "theme",
+        "design-system",
+        "colors"
+      ]
+    },
+    {
+      "id": "dialogue-polish",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make dialogue sound like different people",
+      "tags": [
+        "dialogue",
+        "voice",
+        "revision",
+        "fiction"
+      ]
+    },
+    {
+      "id": "diff-risk-triage",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Rank the files in a diff by review risk",
+      "tags": [
+        "triage",
+        "diff",
+        "risk",
+        "review"
+      ]
+    },
+    {
+      "id": "difficult-conversation-prep",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare for a hard talk at work",
+      "tags": [
+        "conversation",
+        "feedback",
+        "conflict",
+        "preparation"
+      ]
+    },
+    {
+      "id": "discovery-call-prep",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare questions and goals for a discovery call",
+      "tags": [
+        "discovery",
+        "call",
+        "questions",
+        "prep"
+      ]
+    },
+    {
+      "id": "docker-compose-setup",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Write a Compose file for local multi-service dev",
+      "tags": [
+        "docker",
+        "compose",
+        "local-dev",
+        "services",
+        "networking"
+      ]
+    },
+    {
+      "id": "dockerfile",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Containerise a project",
+      "tags": [
+        "docker",
+        "container",
+        "image",
+        "build"
+      ]
+    },
+    {
+      "id": "document-comparison",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Compare two document versions",
+      "tags": [
+        "diff",
+        "compare",
+        "versions",
+        "documents"
+      ]
+    },
+    {
+      "id": "document-organizer",
+      "category": "life-admin-travel",
+      "surface": "both",
+      "on": false,
+      "summary": "Organize household papers into a simple system",
+      "tags": [
+        "documents",
+        "filing",
+        "organization",
+        "records"
+      ]
+    },
+    {
+      "id": "document-qa",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": true,
+      "summary": "Answer from your documents",
+      "tags": [
+        "documents",
+        "questions",
+        "answers",
+        "files"
+      ]
+    },
+    {
+      "id": "documentation",
+      "category": "software-planning",
+      "surface": "code",
+      "on": true,
+      "summary": "Write or update docs",
+      "tags": [
+        "docs",
+        "readme",
+        "guide",
+        "api docs"
+      ]
+    },
+    {
+      "id": "docx",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a Word document",
+      "tags": [
+        "word",
+        "docx",
+        "document",
+        "report"
+      ]
+    },
+    {
+      "id": "docx-template-fill",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Fill a Word template with data",
+      "tags": [
+        "docx",
+        "template",
+        "merge",
+        "placeholders"
+      ]
+    },
+    {
+      "id": "draggy-help",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": true,
+      "locked": true,
+      "summary": "Fix Draggy problems from the official wiki",
+      "tags": [
+        "draggy",
+        "help",
+        "wiki",
+        "troubleshooting",
+        "support"
+      ]
+    },
+    {
+      "id": "duplicate-file-finder",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Find duplicate files by content hash",
+      "tags": [
+        "files",
+        "duplicates",
+        "hash",
+        "disk-space"
+      ]
+    },
+    {
+      "id": "e2e-test-plan",
+      "category": "debugging-testing",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan end to end tests for key user flows",
+      "tags": [
+        "e2e",
+        "test-plan",
+        "user-flows",
+        "qa"
+      ]
+    },
+    {
+      "id": "email-sequence-marketing",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a marketing email sequence",
+      "tags": [
+        "email",
+        "sequence",
+        "drip",
+        "nurture"
+      ]
+    },
+    {
+      "id": "email-triage",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Sort an inbox dump into act, reply, defer",
+      "tags": [
+        "inbox",
+        "triage",
+        "priority",
+        "email"
+      ]
+    },
+    {
+      "id": "email-writer",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": true,
+      "summary": "Write or reply to emails",
+      "tags": [
+        "email",
+        "reply",
+        "message",
+        "work"
+      ]
+    },
+    {
+      "id": "emergency-fund-plan",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Size and build a cash buffer",
+      "tags": [
+        "emergency-fund",
+        "buffer",
+        "savings",
+        "essentials"
+      ]
+    },
+    {
+      "id": "env-config-management",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Organise env vars and secrets per environment",
+      "tags": [
+        "config",
+        "env",
+        "secrets",
+        "environments",
+        "twelve-factor"
+      ]
+    },
+    {
+      "id": "errand-route-planner",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Order errands into an efficient route",
+      "tags": [
+        "errands",
+        "route",
+        "planning",
+        "time"
+      ]
+    },
+    {
+      "id": "error-handling-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Find swallowed, leaked and misreported errors",
+      "tags": [
+        "errors",
+        "exceptions",
+        "reliability",
+        "review"
+      ]
+    },
+    {
+      "id": "error-message-decoder",
+      "category": "debugging-testing",
+      "surface": "both",
+      "on": false,
+      "summary": "Turn an error message into a fix",
+      "tags": [
+        "errors",
+        "messages",
+        "troubleshooting",
+        "fix"
+      ]
+    },
+    {
+      "id": "error-response-design",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Design consistent API error responses",
+      "tags": [
+        "errors",
+        "http-status",
+        "api",
+        "responses",
+        "contract"
+      ]
+    },
+    {
+      "id": "escalation-message",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Escalate a stuck issue to a manager",
+      "tags": [
+        "escalation",
+        "blocker",
+        "manager",
+        "issue"
+      ]
+    },
+    {
+      "id": "essay-feedback",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Give feedback on a student essay",
+      "tags": [
+        "essay",
+        "feedback",
+        "writing",
+        "argument"
+      ]
+    },
+    {
+      "id": "estimate-work",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Estimate effort with ranges and assumptions",
+      "tags": [
+        "estimate",
+        "effort",
+        "range",
+        "assumptions"
+      ]
+    },
+    {
+      "id": "event-planner",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a small event step by step",
+      "tags": [
+        "event",
+        "party",
+        "planning",
+        "timeline"
+      ]
+    },
+    {
+      "id": "exam-prep",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan and run revision for an exam",
+      "tags": [
+        "exam",
+        "revision",
+        "plan",
+        "recall"
+      ]
+    },
+    {
+      "id": "expense-categorizer",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Sort a list of expenses into categories",
+      "tags": [
+        "expenses",
+        "categories",
+        "bookkeeping",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "expense-report-summary",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Summarise expenses for a period",
+      "tags": [
+        "expense-report",
+        "summary",
+        "spend",
+        "reconcile"
+      ]
+    },
+    {
+      "id": "expense-tracking-setup",
+      "category": "personal-finance",
+      "surface": "chat",
+      "on": false,
+      "summary": "Set up a simple way to track spending",
+      "tags": [
+        "tracking",
+        "expenses",
+        "setup",
+        "routine"
+      ]
+    },
+    {
+      "id": "expert-finder",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Find credible experts on a topic",
+      "tags": [
+        "experts",
+        "people",
+        "credibility",
+        "outreach"
+      ]
+    },
+    {
+      "id": "explain-codebase",
+      "category": "software-planning",
+      "surface": "code",
+      "on": true,
+      "summary": "Explain how a project works",
+      "tags": [
+        "codebase",
+        "architecture",
+        "onboarding",
+        "overview"
+      ]
     },
     {
       "id": "explain-concept",
       "category": "learning",
       "surface": "chat",
       "on": true,
-      "summary": "Explain a concept simply"
+      "summary": "Explain a concept simply",
+      "tags": [
+        "explain",
+        "teach",
+        "concept",
+        "simple"
+      ]
     },
     {
-      "id": "quiz-me",
+      "id": "exploratory-analysis",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "First-pass exploration of an unknown dataset",
+      "tags": [
+        "explore",
+        "profile",
+        "distribution",
+        "python"
+      ]
+    },
+    {
+      "id": "extract-function",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Pull a block of code into its own function",
+      "tags": [
+        "extract",
+        "function",
+        "refactor",
+        "readability"
+      ]
+    },
+    {
+      "id": "fact-check",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Check whether a claim is true",
+      "tags": [
+        "facts",
+        "claims",
+        "sources",
+        "verify"
+      ]
+    },
+    {
+      "id": "fact-sheet",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "One-page fact sheet with sources",
+      "tags": [
+        "facts",
+        "one-pager",
+        "summary",
+        "sources"
+      ]
+    },
+    {
+      "id": "false-friends",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Spot false friends between two languages",
+      "tags": [
+        "false-friends",
+        "cognates",
+        "vocabulary",
+        "contrast"
+      ]
+    },
+    {
+      "id": "fan-fiction-continuity",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Keep fan fiction true to the source",
+      "tags": [
+        "fan-fiction",
+        "canon",
+        "continuity",
+        "fiction"
+      ]
+    },
+    {
+      "id": "faq-builder",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build an FAQ from real questions",
+      "tags": [
+        "faq",
+        "support",
+        "questions",
+        "help"
+      ]
+    },
+    {
+      "id": "faq-schema-builder",
+      "category": "marketing-seo",
+      "surface": "both",
+      "on": false,
+      "summary": "Build FAQ content with valid schema markup",
+      "tags": [
+        "faq",
+        "schema",
+        "json-ld",
+        "seo"
+      ]
+    },
+    {
+      "id": "feature-prioritization",
+      "category": "business-strategy",
+      "surface": "both",
+      "on": false,
+      "summary": "Score features and pick what to build",
+      "tags": [
+        "features",
+        "prioritization",
+        "scoring",
+        "backlog"
+      ]
+    },
+    {
+      "id": "few-shot-builder",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build few-shot examples that teach a pattern",
+      "tags": [
+        "few-shot",
+        "examples",
+        "prompt"
+      ]
+    },
+    {
+      "id": "feynman-explain",
       "category": "learning",
       "surface": "chat",
       "on": false,
-      "summary": "Quiz me on a topic"
+      "summary": "Teach-back check that finds your gaps",
+      "tags": [
+        "feynman",
+        "teach-back",
+        "understanding",
+        "gaps"
+      ]
+    },
+    {
+      "id": "ffmpeg-recipes",
+      "category": "media-audio-video",
+      "surface": "code",
+      "on": false,
+      "summary": "Build and check ffmpeg commands safely",
+      "tags": [
+        "ffmpeg",
+        "convert",
+        "trim",
+        "command-line"
+      ]
+    },
+    {
+      "id": "file-organizer",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Sort a messy folder into a clean structure",
+      "tags": [
+        "files",
+        "folders",
+        "cleanup",
+        "organise"
+      ]
+    },
+    {
+      "id": "file-upload-handling",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Handle file uploads safely",
+      "tags": [
+        "uploads",
+        "files",
+        "storage",
+        "security",
+        "api"
+      ]
+    },
+    {
+      "id": "file-upload-security",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Make user file uploads safe to accept and serve",
+      "tags": [
+        "upload",
+        "files",
+        "storage",
+        "validation",
+        "malware"
+      ]
+    },
+    {
+      "id": "filename-convention",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a filename convention for a team",
+      "tags": [
+        "naming",
+        "convention",
+        "files",
+        "standards"
+      ]
+    },
+    {
+      "id": "financial-statement-reader",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Read a balance sheet or income statement",
+      "tags": [
+        "statements",
+        "balance-sheet",
+        "ratios",
+        "reading"
+      ]
+    },
+    {
+      "id": "find-skills",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": true,
+      "summary": "Match a task to an installed or catalogue skill",
+      "tags": [
+        "skills",
+        "search",
+        "catalogue",
+        "discovery"
+      ]
+    },
+    {
+      "id": "findings-writeup",
+      "category": "data-analysis",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write up analysis findings for a reader",
+      "tags": [
+        "report",
+        "writeup",
+        "insights",
+        "communication"
+      ]
+    },
+    {
+      "id": "flaky-test-fixer",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Find why a test passes sometimes and fix it",
+      "tags": [
+        "flaky",
+        "tests",
+        "ci",
+        "stability"
+      ]
+    },
+    {
+      "id": "flash-fiction",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a complete story in under 1,000 words",
+      "tags": [
+        "flash-fiction",
+        "short",
+        "word-limit",
+        "story"
+      ]
     },
     {
       "id": "flashcards",
       "category": "learning",
       "surface": "chat",
+      "on": true,
+      "summary": "Make flashcards",
+      "tags": [
+        "study",
+        "memory",
+        "cards",
+        "review"
+      ]
+    },
+    {
+      "id": "focus-session-plan",
+      "category": "productivity-planning",
+      "surface": "chat",
       "on": false,
-      "summary": "Make flashcards"
+      "summary": "Plan a focused work session",
+      "tags": [
+        "focus",
+        "session",
+        "timebox",
+        "start"
+      ]
+    },
+    {
+      "id": "follow-up-email",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Nudge someone who has not replied",
+      "tags": [
+        "follow-up",
+        "nudge",
+        "reminder",
+        "email"
+      ]
+    },
+    {
+      "id": "follow-up-sequence",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a multi-touch follow-up after a meeting",
+      "tags": [
+        "follow-up",
+        "cadence",
+        "sequence",
+        "outreach"
+      ]
+    },
+    {
+      "id": "forecast-basics",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Make a simple forecast with a range",
+      "tags": [
+        "forecast",
+        "baseline",
+        "backtest",
+        "planning"
+      ]
+    },
+    {
+      "id": "form-filler",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Fill a form from known data, flag the gaps",
+      "tags": [
+        "forms",
+        "pdf",
+        "fill",
+        "fields"
+      ]
+    },
+    {
+      "id": "form-validation-test",
+      "category": "browser-web-automation",
+      "surface": "code",
+      "on": false,
+      "summary": "Test form validation with edge inputs",
+      "tags": [
+        "forms",
+        "validation",
+        "testing",
+        "edge-cases"
+      ]
+    },
+    {
+      "id": "form-validation-ux",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Design forms with good validation",
+      "tags": [
+        "forms",
+        "validation",
+        "ux",
+        "errors",
+        "inputs"
+      ]
+    },
+    {
+      "id": "formal-letter",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a formal letter",
+      "tags": [
+        "letter",
+        "formal",
+        "complaint",
+        "official"
+      ]
+    },
+    {
+      "id": "formal-vs-informal",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Choose formal or informal register",
+      "tags": [
+        "formality",
+        "register",
+        "politeness",
+        "etiquette"
+      ]
+    },
+    {
+      "id": "forms-accessibility",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Make forms usable with assistive tech",
+      "tags": [
+        "accessibility",
+        "forms",
+        "aria",
+        "labels",
+        "screen-reader"
+      ]
+    },
+    {
+      "id": "framework-upgrade-plan",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Plan a major framework version upgrade",
+      "tags": [
+        "upgrade",
+        "framework",
+        "planning",
+        "versions"
+      ]
+    },
+    {
+      "id": "frontend-design",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Design and build web interfaces",
+      "tags": [
+        "ui",
+        "design",
+        "css",
+        "layout",
+        "web"
+      ]
+    },
+    {
+      "id": "funnel-analysis",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Measure drop-off between funnel steps",
+      "tags": [
+        "funnel",
+        "conversion",
+        "dropoff",
+        "product"
+      ]
+    },
+    {
+      "id": "gift-ideas",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Suggest gifts for a specific person",
+      "tags": [
+        "gifts",
+        "shopping",
+        "occasions",
+        "ideas"
+      ]
+    },
+    {
+      "id": "git-bisect-hunt",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Find the commit that broke something",
+      "tags": [
+        "bisect",
+        "regression",
+        "debugging",
+        "history",
+        "git"
+      ]
+    },
+    {
+      "id": "git-helper",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": true,
+      "summary": "Sort out a git problem",
+      "tags": [
+        "git",
+        "branch",
+        "merge",
+        "rebase",
+        "history"
+      ]
+    },
+    {
+      "id": "gitignore-audit",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Audit and fix .gitignore files",
+      "tags": [
+        "gitignore",
+        "tracked",
+        "secrets",
+        "cleanup",
+        "audit"
+      ]
+    },
+    {
+      "id": "glossary-builder",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a glossary from your material",
+      "tags": [
+        "glossary",
+        "terms",
+        "definitions",
+        "vocabulary"
+      ]
+    },
+    {
+      "id": "go-to-market-plan",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan how a product reaches its first buyers",
+      "tags": [
+        "launch",
+        "gtm",
+        "channels",
+        "customers"
+      ]
+    },
+    {
+      "id": "goal-planner",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Turn a goal into a plan",
+      "tags": [
+        "goals",
+        "plan",
+        "milestones",
+        "habits"
+      ]
+    },
+    {
+      "id": "grammar-explainer",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Explain a grammar point with examples",
+      "tags": [
+        "grammar",
+        "rules",
+        "examples",
+        "drills"
+      ]
+    },
+    {
+      "id": "graphql-schema-review",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Review a GraphQL schema",
+      "tags": [
+        "graphql",
+        "schema",
+        "resolvers",
+        "api",
+        "review"
+      ]
+    },
+    {
+      "id": "grill-me",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Interview you on a plan until gaps close",
+      "tags": [
+        "interview",
+        "plan",
+        "questions",
+        "decisions"
+      ]
+    },
+    {
+      "id": "habit-tracker-design",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a habit tracker that stays simple",
+      "tags": [
+        "habit",
+        "tracker",
+        "routine",
+        "cues"
+      ]
+    },
+    {
+      "id": "handoff-doc",
+      "category": "productivity-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a handoff note for work in progress",
+      "tags": [
+        "handoff",
+        "transition",
+        "documentation",
+        "continuity"
+      ]
+    },
+    {
+      "id": "headline-writer",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write accurate headlines and titles",
+      "tags": [
+        "headline",
+        "title",
+        "copy",
+        "seo"
+      ]
+    },
+    {
+      "id": "health-checks",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Design liveness, readiness and dependency checks",
+      "tags": [
+        "health",
+        "readiness",
+        "liveness",
+        "probes",
+        "endpoints"
+      ]
+    },
+    {
+      "id": "home-maintenance-schedule",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Set a yearly home upkeep schedule",
+      "tags": [
+        "home",
+        "maintenance",
+        "schedule",
+        "seasonal"
+      ]
+    },
+    {
+      "id": "how-to-guide",
+      "category": "writing-editing",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a step-by-step how-to guide",
+      "tags": [
+        "how-to",
+        "tutorial",
+        "steps",
+        "guide"
+      ]
+    },
+    {
+      "id": "human",
+      "category": "human-voice",
+      "surface": "chat",
+      "on": true,
+      "summary": "Remove AI writing patterns",
+      "tags": [
+        "humanize",
+        "ai detection",
+        "voice",
+        "rewrite",
+        "natural"
+      ]
+    },
+    {
+      "id": "human-academic-register",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Formal academic prose without machine tells",
+      "tags": [
+        "academic",
+        "paper",
+        "thesis",
+        "formal",
+        "human"
+      ]
+    },
+    {
+      "id": "human-detector-report",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Measure how machine-like a text looks",
+      "tags": [
+        "measure",
+        "metrics",
+        "ai detection",
+        "report",
+        "audit"
+      ]
+    },
+    {
+      "id": "human-email",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Write emails that sound like a person sent them",
+      "tags": [
+        "email",
+        "reply",
+        "work",
+        "tone",
+        "human"
+      ]
+    },
+    {
+      "id": "human-essay",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Essays and articles with an uneven human shape",
+      "tags": [
+        "essay",
+        "article",
+        "long form",
+        "writing",
+        "human"
+      ]
+    },
+    {
+      "id": "human-fiction-voice",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Fiction prose with a voice, not a template",
+      "tags": [
+        "fiction",
+        "story",
+        "narrative",
+        "dialogue",
+        "voice"
+      ]
+    },
+    {
+      "id": "human-rewrite-minimal",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Light edit that removes only clear AI patterns",
+      "tags": [
+        "edit",
+        "minimal",
+        "cleanup",
+        "rewrite",
+        "ai tells"
+      ]
+    },
+    {
+      "id": "human-social",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Social posts that do not sound generated",
+      "tags": [
+        "social",
+        "post",
+        "linkedin",
+        "twitter",
+        "human"
+      ]
+    },
+    {
+      "id": "human-translate-natural",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Translations that read like native writing",
+      "tags": [
+        "translate",
+        "natural",
+        "localize",
+        "language",
+        "human"
+      ]
+    },
+    {
+      "id": "human-voice-profile",
+      "category": "human-voice",
+      "surface": "both",
+      "on": false,
+      "summary": "Build a reusable profile of your writing voice",
+      "tags": [
+        "voice",
+        "style",
+        "profile",
+        "writing",
+        "sample"
+      ]
+    },
+    {
+      "id": "i18n-readiness",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Prepare a UI for translation",
+      "tags": [
+        "i18n",
+        "localization",
+        "strings",
+        "locale",
+        "rtl"
+      ]
+    },
+    {
+      "id": "idempotency-keys",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Make API writes safe to retry",
+      "tags": [
+        "idempotency",
+        "retries",
+        "api",
+        "duplicates",
+        "reliability"
+      ]
+    },
+    {
+      "id": "idioms-explainer",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Explain idioms and set phrases",
+      "tags": [
+        "idioms",
+        "expressions",
+        "meaning",
+        "register"
+      ]
+    },
+    {
+      "id": "image-prompt-writer",
+      "category": "design-visual",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write prompts for image generation",
+      "tags": [
+        "image",
+        "prompt",
+        "generation",
+        "art-direction"
+      ]
+    },
+    {
+      "id": "import-from-csv",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Import a CSV into a sheet without damage",
+      "tags": [
+        "csv",
+        "import",
+        "encoding",
+        "columns"
+      ]
+    },
+    {
+      "id": "inbox-triage-plan",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Clear a backlog of messages by category",
+      "tags": [
+        "inbox",
+        "backlog",
+        "triage",
+        "routine"
+      ]
+    },
+    {
+      "id": "incident-response",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Run a live outage from triage to recovery",
+      "tags": [
+        "incident",
+        "outage",
+        "triage",
+        "mitigation",
+        "oncall"
+      ]
+    },
+    {
+      "id": "index-design",
+      "category": "backend-apis-db",
+      "surface": "both",
+      "on": false,
+      "summary": "Design database indexes",
+      "tags": [
+        "index",
+        "sql",
+        "performance",
+        "database",
+        "queries"
+      ]
+    },
+    {
+      "id": "infographic-outline",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan an infographic from data and message",
+      "tags": [
+        "infographic",
+        "data",
+        "layout",
+        "storytelling"
+      ]
+    },
+    {
+      "id": "input-validation-audit",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Check every entry point validates input",
+      "tags": [
+        "validation",
+        "input",
+        "sanitisation",
+        "api",
+        "parsing"
+      ]
+    },
+    {
+      "id": "integration-test-setup",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Set up tests that touch real components",
+      "tags": [
+        "integration",
+        "tests",
+        "setup",
+        "database"
+      ]
+    },
+    {
+      "id": "interactive-rebase-cleanup",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Tidy branch history before review",
+      "tags": [
+        "rebase",
+        "squash",
+        "history",
+        "fixup",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "internal-linking-plan",
+      "category": "marketing-seo",
+      "surface": "both",
+      "on": false,
+      "summary": "Plan internal links across a site",
+      "tags": [
+        "internal-links",
+        "site-structure",
+        "seo",
+        "anchors"
+      ]
+    },
+    {
+      "id": "interview-prep",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare for a specific job interview",
+      "tags": [
+        "interview",
+        "preparation",
+        "questions",
+        "practice"
+      ]
+    },
+    {
+      "id": "interview-prep-research",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Research a person or company before a meeting",
+      "tags": [
+        "briefing",
+        "interview",
+        "company",
+        "preparation"
+      ]
+    },
+    {
+      "id": "interview-question-flow",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design an interview question flow",
+      "tags": [
+        "interview",
+        "questions",
+        "guest",
+        "podcast"
+      ]
+    },
+    {
+      "id": "interview-question-set",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a structured interview question set",
+      "tags": [
+        "interview",
+        "questions",
+        "structured",
+        "hiring"
+      ]
+    },
+    {
+      "id": "interview-questions",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare interview questions for a source",
+      "tags": [
+        "interview",
+        "questions",
+        "research",
+        "journalism"
+      ]
+    },
+    {
+      "id": "intro-email",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Introduce two people with consent and context",
+      "tags": [
+        "introduction",
+        "networking",
+        "connect",
+        "email"
+      ]
+    },
+    {
+      "id": "invoice",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make an invoice or quote",
+      "tags": [
+        "invoice",
+        "billing",
+        "client",
+        "payment"
+      ]
+    },
+    {
+      "id": "invoice-followup",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Chase an unpaid invoice politely",
+      "tags": [
+        "invoice",
+        "reminder",
+        "overdue",
+        "collections"
+      ]
+    },
+    {
+      "id": "jailbreak-resistant-prompt-review",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Defensive review of a prompt's weak points",
+      "tags": [
+        "safety",
+        "review",
+        "defensive"
+      ]
+    },
+    {
+      "id": "job-description-writer",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a clear job description",
+      "tags": [
+        "job-description",
+        "hiring",
+        "recruiting",
+        "role"
+      ]
+    },
+    {
+      "id": "job-posting-analysis",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Decode what a job posting really asks for",
+      "tags": [
+        "job-posting",
+        "analysis",
+        "requirements",
+        "fit"
+      ]
+    },
+    {
+      "id": "job-search-tracker",
+      "category": "career-hiring",
+      "surface": "both",
+      "on": false,
+      "summary": "Set up a tracker for a job search",
+      "tags": [
+        "tracker",
+        "applications",
+        "follow-up",
+        "organization"
+      ]
+    },
+    {
+      "id": "jobs-to-be-done",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Frame customer needs as jobs to be done",
+      "tags": [
+        "jtbd",
+        "customer",
+        "needs",
+        "research"
+      ]
+    },
+    {
+      "id": "join-keys-check",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Check keys before joining tables",
+      "tags": [
+        "join",
+        "keys",
+        "merge",
+        "rows"
+      ]
+    },
+    {
+      "id": "joke-and-humor-writer",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write jokes that fit the audience",
+      "tags": [
+        "humor",
+        "jokes",
+        "comedy",
+        "audience"
+      ]
+    },
+    {
+      "id": "keyboard-navigation-test",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Test a UI with the keyboard only",
+      "tags": [
+        "keyboard",
+        "focus",
+        "accessibility",
+        "tab-order",
+        "testing"
+      ]
+    },
+    {
+      "id": "keyword-research-plan",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan keyword research for a site or topic",
+      "tags": [
+        "keywords",
+        "seo",
+        "research",
+        "intent"
+      ]
+    },
+    {
+      "id": "kpi-dashboard-spec",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Define the KPIs a business dashboard needs",
+      "tags": [
+        "kpi",
+        "metrics",
+        "dashboard",
+        "definitions"
+      ]
+    },
+    {
+      "id": "kubernetes-manifest-review",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Review K8s manifests for safety and reliability",
+      "tags": [
+        "kubernetes",
+        "manifests",
+        "review",
+        "helm",
+        "reliability"
+      ]
+    },
+    {
+      "id": "landing-page-copy",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write landing page copy from a brief",
+      "tags": [
+        "landing-page",
+        "copywriting",
+        "conversion",
+        "cta"
+      ]
+    },
+    {
+      "id": "language-exchange-messages",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write messages for a language partner",
+      "tags": [
+        "exchange",
+        "messages",
+        "partner",
+        "chat"
+      ]
+    },
+    {
+      "id": "language-immersion-plan",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan daily immersion in a language",
+      "tags": [
+        "immersion",
+        "routine",
+        "plan",
+        "habit"
+      ]
+    },
+    {
+      "id": "language-tutor",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Practise a language",
+      "tags": [
+        "language",
+        "practice",
+        "vocabulary",
+        "grammar"
+      ]
+    },
+    {
+      "id": "large-file-history-cleanup",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Purge large files from repo history",
+      "tags": [
+        "history",
+        "large-files",
+        "filter",
+        "secrets",
+        "size"
+      ]
+    },
+    {
+      "id": "lead-qualification",
+      "category": "sales-crm",
+      "surface": "both",
+      "on": false,
+      "summary": "Score a lead against your own criteria",
+      "tags": [
+        "qualification",
+        "lead",
+        "scoring",
+        "fit"
+      ]
+    },
+    {
+      "id": "learn-from-error",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Learn from a wrong answer",
+      "tags": [
+        "mistakes",
+        "errors",
+        "feedback",
+        "drills"
+      ]
+    },
+    {
+      "id": "learning-journal",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Keep a short learning journal",
+      "tags": [
+        "journal",
+        "reflection",
+        "progress",
+        "habit"
+      ]
+    },
+    {
+      "id": "least-privilege-iam",
+      "category": "security",
+      "surface": "both",
+      "on": false,
+      "summary": "Trim cloud and app permissions to what is needed",
+      "tags": [
+        "iam",
+        "permissions",
+        "least-privilege",
+        "roles",
+        "cloud"
+      ]
+    },
+    {
+      "id": "lecture-notes-cleanup",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Clean up raw lecture notes",
+      "tags": [
+        "notes",
+        "lecture",
+        "cleanup",
+        "structure"
+      ]
+    },
+    {
+      "id": "link-checker",
+      "category": "browser-web-automation",
+      "surface": "both",
+      "on": false,
+      "summary": "Find broken links on a page or small site",
+      "tags": [
+        "links",
+        "broken",
+        "crawl",
+        "seo"
+      ]
+    },
+    {
+      "id": "linkedin-post",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a LinkedIn post from a point of view",
+      "tags": [
+        "linkedin",
+        "post",
+        "social",
+        "writing"
+      ]
+    },
+    {
+      "id": "linkedin-profile-review",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Review a professional profile for clarity",
+      "tags": [
+        "linkedin",
+        "profile",
+        "headline",
+        "personal-brand"
+      ]
+    },
+    {
+      "id": "lint-config-tuning",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Tune lint rules to fit the codebase",
+      "tags": [
+        "lint",
+        "config",
+        "static-analysis",
+        "tooling"
+      ]
+    },
+    {
+      "id": "literature-review",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Review research on a topic",
+      "tags": [
+        "papers",
+        "research",
+        "sources",
+        "academic"
+      ]
+    },
+    {
+      "id": "llm-output-grader",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Grade model outputs against a rubric",
+      "tags": [
+        "grading",
+        "rubric",
+        "evaluation"
+      ]
+    },
+    {
+      "id": "loading-and-empty-states",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Design loading, empty and error states",
+      "tags": [
+        "loading",
+        "empty-state",
+        "skeleton",
+        "errors",
+        "ux"
+      ]
+    },
+    {
+      "id": "local-guide-research",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Research a place before visiting",
+      "tags": [
+        "destination",
+        "research",
+        "local",
+        "travel"
+      ]
+    },
+    {
+      "id": "localization-check",
+      "category": "languages",
+      "surface": "both",
+      "on": false,
+      "summary": "Check translated text reads natively",
+      "tags": [
+        "localization",
+        "translation",
+        "locale",
+        "review"
+      ]
+    },
+    {
+      "id": "log-aggregation",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Structure and ship logs so they are searchable",
+      "tags": [
+        "logging",
+        "observability",
+        "structured",
+        "correlation",
+        "retention"
+      ]
+    },
+    {
+      "id": "log-triage",
+      "category": "debugging-testing",
+      "surface": "both",
+      "on": false,
+      "summary": "Find the signal in a large log",
+      "tags": [
+        "logs",
+        "triage",
+        "timeline",
+        "errors"
+      ]
+    },
+    {
+      "id": "logging-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Review log statements for signal and safety",
+      "tags": [
+        "logging",
+        "observability",
+        "privacy",
+        "review"
+      ]
+    },
+    {
+      "id": "login-flow-test",
+      "category": "browser-web-automation",
+      "surface": "code",
+      "on": false,
+      "summary": "Test a sign-in flow without entering secrets",
+      "tags": [
+        "login",
+        "testing",
+        "auth",
+        "flow"
+      ]
+    },
+    {
+      "id": "logo-brief",
+      "category": "design-visual",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a design brief for a logo",
+      "tags": [
+        "logo",
+        "brief",
+        "brand",
+        "identity"
+      ]
+    },
+    {
+      "id": "long-task-checkpoints",
+      "category": "meta-agent",
+      "surface": "chat",
+      "on": false,
+      "summary": "Set checkpoints during long multi-step work",
+      "tags": [
+        "checkpoints",
+        "long tasks",
+        "resume"
+      ]
+    },
+    {
+      "id": "lookup-formulas",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Pick and write the right lookup formula",
+      "tags": [
+        "lookup",
+        "xlookup",
+        "vlookup",
+        "formulas"
+      ]
+    },
+    {
+      "id": "magic-system-design",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a magic system with costs and limits",
+      "tags": [
+        "magic",
+        "fantasy",
+        "rules",
+        "worldbuilding"
+      ]
+    },
+    {
+      "id": "markdown-to-docx",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Convert Markdown to a styled Word file",
+      "tags": [
+        "markdown",
+        "docx",
+        "convert",
+        "word"
+      ]
+    },
+    {
+      "id": "market-entry-outline",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline entering a new market or region",
+      "tags": [
+        "market",
+        "entry",
+        "expansion",
+        "risk"
+      ]
+    },
+    {
+      "id": "market-sizing-sources",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Find sound inputs for market size",
+      "tags": [
+        "market-size",
+        "tam",
+        "estimates",
+        "sources"
+      ]
+    },
+    {
+      "id": "math-step-by-step",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Solve a maths problem with reasons",
+      "tags": [
+        "maths",
+        "steps",
+        "problem-solving",
+        "verification"
+      ]
+    },
+    {
+      "id": "mcp-builder",
+      "category": "meta-agent",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design and scaffold an MCP server",
+      "tags": [
+        "mcp",
+        "server",
+        "tools",
+        "scaffold"
+      ]
+    },
+    {
+      "id": "meal-planner",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan meals and shopping",
+      "tags": [
+        "meals",
+        "recipes",
+        "groceries",
+        "weekly plan"
+      ]
+    },
+    {
+      "id": "meeting-agenda",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft a timed agenda with a purpose",
+      "tags": [
+        "meeting",
+        "agenda",
+        "timing",
+        "decisions"
+      ]
+    },
+    {
+      "id": "meeting-notes",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Turn notes into minutes",
+      "tags": [
+        "meeting",
+        "minutes",
+        "actions",
+        "notes"
+      ]
+    },
+    {
+      "id": "meeting-pack-assembly",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Assemble a meeting pack from many files",
+      "tags": [
+        "meeting",
+        "pack",
+        "pdf",
+        "agenda"
+      ]
+    },
+    {
+      "id": "meeting-request",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Ask for a meeting with a clear purpose",
+      "tags": [
+        "meeting",
+        "scheduling",
+        "calendar",
+        "request"
+      ]
+    },
+    {
+      "id": "memory-leak-hunt",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Find what keeps memory growing",
+      "tags": [
+        "memory",
+        "leak",
+        "profiling",
+        "heap"
+      ]
+    },
+    {
+      "id": "memory-palace",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a memory palace for a list",
+      "tags": [
+        "memory",
+        "mnemonic",
+        "palace",
+        "recall"
+      ]
+    },
+    {
+      "id": "merge-and-split-pdf",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Merge, split and reorder PDF pages",
+      "tags": [
+        "pdf",
+        "merge",
+        "split",
+        "pages"
+      ]
+    },
+    {
+      "id": "merge-conflict-resolution",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Resolve merge conflicts without losing work",
+      "tags": [
+        "merge",
+        "conflict",
+        "rebase",
+        "resolve",
+        "git"
+      ]
+    },
+    {
+      "id": "meta-tags-writer",
+      "category": "marketing-seo",
+      "surface": "both",
+      "on": false,
+      "summary": "Write title tags and meta descriptions",
+      "tags": [
+        "meta",
+        "title",
+        "snippet",
+        "seo"
+      ]
+    },
+    {
+      "id": "metric-definition",
+      "category": "data-analysis",
+      "surface": "chat",
+      "on": false,
+      "summary": "Define a metric so it can be computed",
+      "tags": [
+        "metrics",
+        "definition",
+        "kpi",
+        "spec"
+      ]
+    },
+    {
+      "id": "mind-map-outline",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Turn a topic into a mind map outline",
+      "tags": [
+        "mind-map",
+        "outline",
+        "structure",
+        "visual"
+      ]
+    },
+    {
+      "id": "missing-data-handling",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Handle missing values with a stated rule",
+      "tags": [
+        "missing",
+        "nulls",
+        "imputation",
+        "cleaning"
+      ]
+    },
+    {
+      "id": "mock-and-stub-design",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Choose fakes, stubs and mocks well",
+      "tags": [
+        "mocks",
+        "stubs",
+        "fakes",
+        "tests"
+      ]
+    },
+    {
+      "id": "model-comparison-brief",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Brief for choosing between AI models",
+      "tags": [
+        "models",
+        "comparison",
+        "selection"
+      ]
+    },
+    {
+      "id": "money-habits-check",
+      "category": "personal-finance",
+      "surface": "chat",
+      "on": false,
+      "summary": "Reflect on money habits and set small goals",
+      "tags": [
+        "habits",
+        "reflection",
+        "goals",
+        "behaviour"
+      ]
+    },
+    {
+      "id": "monitoring-alerts",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Design alerts that page on real user pain",
+      "tags": [
+        "monitoring",
+        "alerts",
+        "slo",
+        "metrics",
+        "oncall"
+      ]
+    },
+    {
+      "id": "monolith-split",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Find seams and split a monolith into modules",
+      "tags": [
+        "monolith",
+        "modules",
+        "boundaries",
+        "architecture"
+      ]
+    },
+    {
+      "id": "month-end-checklist",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Checklist to close the books each month",
+      "tags": [
+        "month-end",
+        "close",
+        "bookkeeping",
+        "checklist"
+      ]
+    },
+    {
+      "id": "monthly-budget-review",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Review last month against your budget",
+      "tags": [
+        "budget",
+        "review",
+        "monthly",
+        "spending"
+      ]
+    },
+    {
+      "id": "moodboard-brief",
+      "category": "design-visual",
+      "surface": "chat",
+      "on": false,
+      "summary": "Define a moodboard before collecting images",
+      "tags": [
+        "moodboard",
+        "references",
+        "direction",
+        "visual"
+      ]
+    },
+    {
+      "id": "move-checklist",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a house or flat move",
+      "tags": [
+        "moving",
+        "checklist",
+        "relocation",
+        "home"
+      ]
+    },
+    {
+      "id": "multi-page-extract",
+      "category": "browser-web-automation",
+      "surface": "both",
+      "on": false,
+      "summary": "Extract the same fields across many pages",
+      "tags": [
+        "extract",
+        "pagination",
+        "scrape",
+        "data"
+      ]
+    },
+    {
+      "id": "music-brief",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Brief music for a video or project",
+      "tags": [
+        "music",
+        "brief",
+        "licence",
+        "soundtrack"
+      ]
+    },
+    {
+      "id": "mutation-check",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Check that tests catch real bugs",
+      "tags": [
+        "mutation",
+        "tests",
+        "quality",
+        "verification"
+      ]
+    },
+    {
+      "id": "naming-generator",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Generate names for people, places, things",
+      "tags": [
+        "names",
+        "naming",
+        "characters",
+        "places"
+      ]
+    },
+    {
+      "id": "naming-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Review identifiers for clarity and consistency",
+      "tags": [
+        "naming",
+        "readability",
+        "review",
+        "consistency"
+      ]
+    },
+    {
+      "id": "negotiation-email",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Counter an offer or price by email",
+      "tags": [
+        "negotiation",
+        "offer",
+        "price",
+        "counter"
+      ]
+    },
+    {
+      "id": "net-worth-snapshot",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "List what you own and owe",
+      "tags": [
+        "net-worth",
+        "assets",
+        "debts",
+        "snapshot"
+      ]
+    },
+    {
+      "id": "networking-message",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a short note to a new contact",
+      "tags": [
+        "networking",
+        "outreach",
+        "message",
+        "contacts"
+      ]
+    },
+    {
+      "id": "news-brief",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Catch up on the latest news",
+      "tags": [
+        "news",
+        "briefing",
+        "headlines",
+        "summary"
+      ]
+    },
+    {
+      "id": "newsletter",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a newsletter issue",
+      "tags": [
+        "newsletter",
+        "email",
+        "audience",
+        "issue"
+      ]
+    },
+    {
+      "id": "nginx-config",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Write and debug nginx reverse proxy config",
+      "tags": [
+        "nginx",
+        "reverse-proxy",
+        "tls",
+        "config",
+        "web-server"
+      ]
+    },
+    {
+      "id": "note-taking-system",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Set up a note system that fits you",
+      "tags": [
+        "notes",
+        "method",
+        "template",
+        "organisation"
+      ]
+    },
+    {
+      "id": "objection-handling",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Answer a buyer objection without pushing",
+      "tags": [
+        "objection",
+        "rebuttal",
+        "negotiation",
+        "sales"
+      ]
+    },
+    {
+      "id": "ocr-cleanup",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Fix OCR errors in scanned text",
+      "tags": [
+        "ocr",
+        "scan",
+        "text",
+        "proofreading"
+      ]
+    },
+    {
+      "id": "okr-drafter",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft objectives and measurable key results",
+      "tags": [
+        "okr",
+        "objectives",
+        "key-results",
+        "goals"
+      ]
+    },
+    {
+      "id": "one-pager",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Condense a plan into a one-page brief",
+      "tags": [
+        "one-pager",
+        "brief",
+        "summary",
+        "executive"
+      ]
+    },
+    {
+      "id": "openapi-spec-writer",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Write or fix an OpenAPI spec",
+      "tags": [
+        "openapi",
+        "swagger",
+        "docs",
+        "schema",
+        "api"
+      ]
+    },
+    {
+      "id": "opening-lines",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Craft and test first lines and openings",
+      "tags": [
+        "opening",
+        "first-line",
+        "hook",
+        "fiction"
+      ]
+    },
+    {
+      "id": "orm-n-plus-one",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Find and fix N+1 queries",
+      "tags": [
+        "orm",
+        "n-plus-one",
+        "queries",
+        "performance",
+        "database"
+      ]
+    },
+    {
+      "id": "outlier-detection",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Find and judge unusual values",
+      "tags": [
+        "outliers",
+        "anomaly",
+        "iqr",
+        "robust"
+      ]
+    },
+    {
+      "id": "outline-builder",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a working outline before drafting",
+      "tags": [
+        "outline",
+        "structure",
+        "planning",
+        "draft"
+      ]
+    },
+    {
+      "id": "owasp-checklist",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Walk a web app through the OWASP Top 10",
+      "tags": [
+        "owasp",
+        "checklist",
+        "web",
+        "audit",
+        "launch"
+      ]
+    },
+    {
+      "id": "packing-list",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a packing list for a trip",
+      "tags": [
+        "packing",
+        "travel",
+        "checklist",
+        "luggage"
+      ]
+    },
+    {
+      "id": "page-screenshot-audit",
+      "category": "browser-web-automation",
+      "surface": "both",
+      "on": false,
+      "summary": "Capture and review pages across screen sizes",
+      "tags": [
+        "screenshot",
+        "visual",
+        "responsive",
+        "audit"
+      ]
+    },
+    {
+      "id": "pagination-design",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Choose and implement API pagination",
+      "tags": [
+        "pagination",
+        "cursor",
+        "offset",
+        "api",
+        "sorting"
+      ]
+    },
+    {
+      "id": "partnership-pitch",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft a pitch for a business partnership",
+      "tags": [
+        "partnership",
+        "pitch",
+        "collaboration",
+        "outreach"
+      ]
+    },
+    {
+      "id": "password-storage-review",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Check password hashing and reset handling",
+      "tags": [
+        "passwords",
+        "hashing",
+        "argon2",
+        "bcrypt",
+        "migration"
+      ]
+    },
+    {
+      "id": "pdf",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a PDF",
+      "tags": [
+        "pdf",
+        "extract",
+        "merge",
+        "forms"
+      ]
+    },
+    {
+      "id": "pdf-to-text-cleanup",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Turn extracted PDF text into clean prose",
+      "tags": [
+        "pdf",
+        "text",
+        "cleanup",
+        "extraction"
+      ]
+    },
+    {
+      "id": "performance",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Find and fix slow code",
+      "tags": [
+        "performance",
+        "speed",
+        "profiling",
+        "slow"
+      ]
+    },
+    {
+      "id": "performance-review-draft",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft a fair performance review",
+      "tags": [
+        "performance",
+        "review",
+        "feedback",
+        "manager"
+      ]
+    },
+    {
+      "id": "persona-prompt",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a persona prompt that stays consistent",
+      "tags": [
+        "persona",
+        "voice",
+        "character"
+      ]
+    },
+    {
+      "id": "pipeline-hygiene",
+      "category": "sales-crm",
+      "surface": "both",
+      "on": false,
+      "summary": "Find stale and mislabeled deals in a pipeline",
+      "tags": [
+        "pipeline",
+        "crm",
+        "audit",
+        "stale"
+      ]
+    },
+    {
+      "id": "pitch-deck-outline",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a pitch deck slide by slide",
+      "tags": [
+        "pitch",
+        "deck",
+        "slides",
+        "story"
+      ]
+    },
+    {
+      "id": "pivot-table-design",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Design a pivot table that answers a question",
+      "tags": [
+        "pivot",
+        "summary",
+        "excel",
+        "sheets"
+      ]
+    },
+    {
+      "id": "plain-language-rewrite",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Rewrite for a general reader",
+      "tags": [
+        "plain-language",
+        "readability",
+        "simplify",
+        "audience"
+      ]
+    },
+    {
+      "id": "plan-then-execute",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": false,
+      "summary": "Agree a short plan, then carry it out",
+      "tags": [
+        "planning",
+        "execution",
+        "approval"
+      ]
+    },
+    {
+      "id": "plot-outline",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a plot with turns and stakes",
+      "tags": [
+        "plot",
+        "outline",
+        "structure",
+        "novel"
+      ]
+    },
+    {
+      "id": "podcast-outline",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a podcast episode with segments",
+      "tags": [
+        "podcast",
+        "episode",
+        "outline",
+        "audio"
+      ]
+    },
+    {
+      "id": "poetry-draft",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft a poem from an image or feeling",
+      "tags": [
+        "poetry",
+        "poem",
+        "verse",
+        "form"
+      ]
+    },
+    {
+      "id": "positioning-statement",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a positioning statement",
+      "tags": [
+        "positioning",
+        "brand",
+        "differentiation",
+        "message"
+      ]
+    },
+    {
+      "id": "poster-layout",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Lay out a poster with clear hierarchy",
+      "tags": [
+        "poster",
+        "layout",
+        "print",
+        "hierarchy"
+      ]
+    },
+    {
+      "id": "postmortem-writer",
+      "category": "devops-cloud",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a blameless incident review",
+      "tags": [
+        "postmortem",
+        "incident",
+        "review",
+        "blameless",
+        "actions"
+      ]
+    },
+    {
+      "id": "pptx",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a slide deck",
+      "tags": [
+        "slides",
+        "powerpoint",
+        "presentation",
+        "deck"
+      ]
+    },
+    {
+      "id": "pr-self-review",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Review your own diff before asking others",
+      "tags": [
+        "review",
+        "diff",
+        "pull-request",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "practice-problems",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write graded practice problems with answers",
+      "tags": [
+        "practice",
+        "problems",
+        "exercises",
+        "difficulty"
+      ]
+    },
+    {
+      "id": "pre-mortem",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Imagine failure to find risks early",
+      "tags": [
+        "risk",
+        "premortem",
+        "plan",
+        "prevention"
+      ]
+    },
+    {
+      "id": "presentation-speaker-notes",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Write speaker notes that fit the time",
+      "tags": [
+        "slides",
+        "notes",
+        "speaking",
+        "pptx"
+      ]
+    },
+    {
+      "id": "press-release",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a factual press release",
+      "tags": [
+        "press",
+        "announcement",
+        "pr",
+        "news"
+      ]
+    },
+    {
+      "id": "price-comparison",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Compare prices and total cost of options",
+      "tags": [
+        "prices",
+        "comparison",
+        "shopping",
+        "cost"
+      ]
+    },
+    {
+      "id": "price-watch-check",
+      "category": "browser-web-automation",
+      "surface": "chat",
+      "on": false,
+      "summary": "Check a product price and record it",
+      "tags": [
+        "price",
+        "stock",
+        "monitor",
+        "product"
+      ]
+    },
+    {
+      "id": "pricing-margin-calc",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Check price against cost and target margin",
+      "tags": [
+        "pricing",
+        "margin",
+        "markup",
+        "cost"
+      ]
+    },
+    {
+      "id": "pricing-strategy-options",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Lay out pricing models and trade-offs",
+      "tags": [
+        "pricing",
+        "strategy",
+        "revenue",
+        "tiers"
+      ]
+    },
+    {
+      "id": "primary-source-hunt",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Locate the primary source for a topic",
+      "tags": [
+        "primary-source",
+        "originals",
+        "documents",
+        "archives"
+      ]
+    },
+    {
+      "id": "priority-matrix",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Sort tasks by urgency and impact",
+      "tags": [
+        "priorities",
+        "matrix",
+        "impact",
+        "effort"
+      ]
+    },
+    {
+      "id": "process-documenter",
+      "category": "productivity-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Document how a process works step by step",
+      "tags": [
+        "process",
+        "sop",
+        "documentation",
+        "workflow"
+      ]
+    },
+    {
+      "id": "product-comparison-research",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Research products before a buying choice",
+      "tags": [
+        "products",
+        "comparison",
+        "buying",
+        "reviews"
+      ]
+    },
+    {
+      "id": "product-description",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write product descriptions that inform",
+      "tags": [
+        "product",
+        "ecommerce",
+        "copy",
+        "description"
+      ]
+    },
+    {
+      "id": "product-roadmap-outline",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a roadmap by outcomes and horizons",
+      "tags": [
+        "roadmap",
+        "product",
+        "planning",
+        "outcomes"
+      ]
+    },
+    {
+      "id": "project-based-learning",
+      "category": "learning",
+      "surface": "both",
+      "on": false,
+      "summary": "Learn a skill by building a project",
+      "tags": [
+        "project",
+        "practice",
+        "building",
+        "skills"
+      ]
+    },
+    {
+      "id": "project-plan",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Plan a project",
+      "tags": [
+        "project",
+        "timeline",
+        "tasks",
+        "scope"
+      ]
+    },
+    {
+      "id": "prompt-ab-test",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Compare two prompts fairly on the same cases",
+      "tags": [
+        "ab test",
+        "comparison",
+        "evaluation"
+      ]
+    },
+    {
+      "id": "prompt-eval-set",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a test set to score a prompt",
+      "tags": [
+        "evaluation",
+        "test set",
+        "rubric"
+      ]
+    },
+    {
+      "id": "prompt-injection-defense",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Harden an LLM app against prompt injection",
+      "tags": [
+        "security",
+        "injection",
+        "defense"
+      ]
+    },
+    {
+      "id": "prompt-rewriter",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Rewrite a weak prompt to be clear and testable",
+      "tags": [
+        "prompt",
+        "rewrite",
+        "clarity"
+      ]
+    },
+    {
+      "id": "pronunciation-guide",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Explain how to pronounce words and sounds",
+      "tags": [
+        "pronunciation",
+        "sounds",
+        "accent",
+        "stress"
+      ]
+    },
+    {
+      "id": "proofreader",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Fix spelling and grammar",
+      "tags": [
+        "proofread",
+        "grammar",
+        "spelling",
+        "typos"
+      ]
+    },
+    {
+      "id": "property-based-tests",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Write tests from properties, not examples",
+      "tags": [
+        "property-testing",
+        "fuzz",
+        "invariants",
+        "tests"
+      ]
+    },
+    {
+      "id": "pull-request",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": true,
+      "summary": "Write a pull request",
+      "tags": [
+        "pull request",
+        "pr",
+        "description",
+        "review"
+      ]
+    },
+    {
+      "id": "query-plan-reader",
+      "category": "backend-apis-db",
+      "surface": "both",
+      "on": false,
+      "summary": "Read a query plan and fix the slow part",
+      "tags": [
+        "sql",
+        "explain",
+        "query-plan",
+        "performance",
+        "database"
+      ]
+    },
+    {
+      "id": "queue-consumer-design",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Design a reliable queue consumer",
+      "tags": [
+        "queues",
+        "consumers",
+        "retries",
+        "messaging",
+        "reliability"
+      ]
+    },
+    {
+      "id": "quiz-me",
+      "category": "learning",
+      "surface": "chat",
+      "on": true,
+      "summary": "Quiz me on a topic",
+      "tags": [
+        "quiz",
+        "test",
+        "practice",
+        "questions"
+      ]
+    },
+    {
+      "id": "quote-builder",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a clear price quote",
+      "tags": [
+        "quote",
+        "estimate",
+        "pricing",
+        "client"
+      ]
+    },
+    {
+      "id": "quote-verification",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Verify a quote and its attribution",
+      "tags": [
+        "quotes",
+        "attribution",
+        "verification",
+        "misquotes"
+      ]
+    },
+    {
+      "id": "race-condition-finder",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Track down timing and concurrency bugs",
+      "tags": [
+        "concurrency",
+        "race",
+        "async",
+        "timing"
+      ]
+    },
+    {
+      "id": "rag-prompt-design",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design the prompt for document-grounded answers",
+      "tags": [
+        "rag",
+        "retrieval",
+        "citations"
+      ]
+    },
+    {
+      "id": "rate-limiting",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Add rate limiting to an API",
+      "tags": [
+        "rate-limit",
+        "throttling",
+        "abuse",
+        "api",
+        "redis"
+      ]
+    },
+    {
+      "id": "react-component-design",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Design clean React components",
+      "tags": [
+        "react",
+        "components",
+        "props",
+        "state",
+        "frontend"
+      ]
+    },
+    {
+      "id": "readability-pass",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Make code easier to read without changing it",
+      "tags": [
+        "readability",
+        "comments",
+        "clarity",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "reading-comprehension",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Read a hard text with the user",
+      "tags": [
+        "reading",
+        "comprehension",
+        "text",
+        "questions"
+      ]
+    },
+    {
+      "id": "reading-graded-text",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a short text at your level",
+      "tags": [
+        "reading",
+        "graded",
+        "level",
+        "comprehension"
+      ]
+    },
+    {
+      "id": "readme-writer",
+      "category": "writing-editing",
+      "surface": "code",
+      "on": true,
+      "summary": "Write a README that gets people started",
+      "tags": [
+        "readme",
+        "docs",
+        "onboarding",
+        "project"
+      ]
+    },
+    {
+      "id": "receipts-organizer",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Organise receipts and records for later",
+      "tags": [
+        "receipts",
+        "records",
+        "files",
+        "organizing"
+      ]
+    },
+    {
+      "id": "receivables-aging-review",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Review who owes you and for how long",
+      "tags": [
+        "receivables",
+        "aging",
+        "invoices",
+        "collections"
+      ]
+    },
+    {
+      "id": "recover-lost-commits",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Recover lost commits and branches",
+      "tags": [
+        "reflog",
+        "recover",
+        "reset",
+        "stash",
+        "undo"
+      ]
+    },
+    {
+      "id": "refactor",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": true,
+      "summary": "Restructure code safely",
+      "tags": [
+        "refactor",
+        "cleanup",
+        "structure",
+        "code"
+      ]
+    },
+    {
+      "id": "reference-request",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Ask someone to be your reference",
+      "tags": [
+        "reference",
+        "request",
+        "email",
+        "recommendation"
+      ]
+    },
+    {
+      "id": "regex-helper",
+      "category": "backend-apis-db",
+      "surface": "both",
+      "on": false,
+      "summary": "Build or explain a regex",
+      "tags": [
+        "regex",
+        "pattern",
+        "match",
+        "text"
+      ]
+    },
+    {
+      "id": "regression-basics",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Fit and interpret a simple regression",
+      "tags": [
+        "regression",
+        "model",
+        "coefficients",
+        "python"
+      ]
+    },
+    {
+      "id": "release-notes-for-users",
+      "category": "writing-editing",
+      "surface": "both",
+      "on": false,
+      "summary": "Write release notes users understand",
+      "tags": [
+        "release-notes",
+        "users",
+        "changes",
+        "announcement"
+      ]
+    },
+    {
+      "id": "release-pipeline",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Automate versioned builds and promotion to prod",
+      "tags": [
+        "release",
+        "pipeline",
+        "versioning",
+        "promotion",
+        "artifacts"
+      ]
+    },
+    {
+      "id": "release-tagging",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Tag releases with versions and notes",
+      "tags": [
+        "tag",
+        "release",
+        "semver",
+        "version",
+        "git"
+      ]
+    },
+    {
+      "id": "rename-across-codebase",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Rename a symbol everywhere it is used",
+      "tags": [
+        "rename",
+        "search",
+        "imports",
+        "refactor"
+      ]
+    },
+    {
+      "id": "renewal-email",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a renewal notice and nudge",
+      "tags": [
+        "renewal",
+        "email",
+        "retention",
+        "account"
+      ]
+    },
+    {
+      "id": "report",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Write a structured report",
+      "tags": [
+        "report",
+        "findings",
+        "structure",
+        "business"
+      ]
+    },
+    {
+      "id": "repro-case-minimizer",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Shrink a failing case to its smallest form",
+      "tags": [
+        "repro",
+        "minimal",
+        "bug-report",
+        "isolation"
+      ]
+    },
+    {
+      "id": "responsive-audit",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Audit a page across screen sizes",
+      "tags": [
+        "responsive",
+        "mobile",
+        "breakpoints",
+        "viewport",
+        "audit"
+      ]
+    },
+    {
+      "id": "rest-endpoint-builder",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Build a REST endpoint end to end",
+      "tags": [
+        "rest",
+        "endpoint",
+        "handler",
+        "validation",
+        "backend"
+      ]
+    },
+    {
+      "id": "resume",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write or improve a CV",
+      "tags": [
+        "resume",
+        "cv",
+        "career",
+        "job"
+      ]
+    },
+    {
+      "id": "resume-tailor",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Tailor a resume to a job posting honestly",
+      "tags": [
+        "resume",
+        "tailoring",
+        "job-posting",
+        "keywords"
+      ]
+    },
+    {
+      "id": "retrospective",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Facilitate a team retro with actions",
+      "tags": [
+        "retro",
+        "team",
+        "actions",
+        "improvement"
+      ]
+    },
+    {
+      "id": "review-checklist-by-language",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Language-specific review checks for a diff",
+      "tags": [
+        "checklist",
+        "language",
+        "review",
+        "idioms"
+      ]
+    },
+    {
+      "id": "review-feedback-response",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Respond to review comments and apply them",
+      "tags": [
+        "review",
+        "feedback",
+        "pull-request",
+        "comments"
+      ]
+    },
+    {
+      "id": "risk-register",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "List project risks with owners and responses",
+      "tags": [
+        "risk",
+        "mitigation",
+        "planning",
+        "register"
+      ]
+    },
+    {
+      "id": "rollback-plan",
+      "category": "refactor-migration",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a tested way back before a risky change",
+      "tags": [
+        "rollback",
+        "release",
+        "risk",
+        "recovery"
+      ]
+    },
+    {
+      "id": "rollback-runbook",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Write and test a rollback plan for a service",
+      "tags": [
+        "rollback",
+        "runbook",
+        "recovery",
+        "release",
+        "migrations"
+      ]
+    },
+    {
+      "id": "runway-calculator",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Estimate months of cash left",
+      "tags": [
+        "runway",
+        "burn",
+        "cash",
+        "startup"
+      ]
+    },
+    {
+      "id": "safe-refactor",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Change structure with tests around each edit",
+      "tags": [
+        "refactor",
+        "safety",
+        "tests",
+        "structure"
+      ]
+    },
+    {
+      "id": "salary-research-plan",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan research on pay for a role",
+      "tags": [
+        "salary",
+        "research",
+        "compensation",
+        "negotiation"
+      ]
+    },
+    {
+      "id": "sales-proposal-outline",
+      "category": "sales-crm",
+      "surface": "chat",
+      "on": false,
+      "summary": "Outline a sales proposal around buyer goals",
+      "tags": [
+        "proposal",
+        "outline",
+        "deal",
+        "document"
+      ]
+    },
+    {
+      "id": "sampling-plan",
+      "category": "data-analysis",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a sample and its size",
+      "tags": [
+        "sampling",
+        "sample-size",
+        "bias",
+        "margin"
+      ]
+    },
+    {
+      "id": "savings-goal-plan",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Turn a savings goal into monthly steps",
+      "tags": [
+        "savings",
+        "goal",
+        "monthly",
+        "target"
+      ]
+    },
+    {
+      "id": "scenario-phrasebook",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Phrasebook for a real situation",
+      "tags": [
+        "phrasebook",
+        "travel",
+        "scenario",
+        "phrases"
+      ]
+    },
+    {
+      "id": "scenario-planning",
+      "category": "finance-business",
+      "surface": "both",
+      "on": false,
+      "summary": "Model best, base and worst cases",
+      "tags": [
+        "scenarios",
+        "what-if",
+        "planning",
+        "assumptions"
+      ]
+    },
+    {
+      "id": "scene-writer",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write one scene with a goal and a turn",
+      "tags": [
+        "scene",
+        "fiction",
+        "drafting",
+        "prose"
+      ]
+    },
+    {
+      "id": "schema-design",
+      "category": "backend-apis-db",
+      "surface": "both",
+      "on": false,
+      "summary": "Design a database schema",
+      "tags": [
+        "schema",
+        "database",
+        "modeling",
+        "constraints",
+        "keys"
+      ]
+    },
+    {
+      "id": "scope-cutter",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Cut scope to a shippable first version",
+      "tags": [
+        "scope",
+        "mvp",
+        "prioritisation",
+        "cuts"
+      ]
+    },
+    {
+      "id": "scrape-table-to-csv",
+      "category": "browser-web-automation",
+      "surface": "both",
+      "on": false,
+      "summary": "Extract a web table into a CSV file",
+      "tags": [
+        "scrape",
+        "table",
+        "csv",
+        "extract"
+      ]
+    },
+    {
+      "id": "scratchpad-notes",
+      "category": "meta-agent",
+      "surface": "chat",
+      "on": false,
+      "summary": "Keep working notes in a scratch file",
+      "tags": [
+        "notes",
+        "memory",
+        "scratch"
+      ]
+    },
+    {
+      "id": "screen-recording-script",
+      "category": "media-audio-video",
+      "surface": "both",
+      "on": false,
+      "summary": "Script a screen recording demo",
+      "tags": [
+        "screen-recording",
+        "demo",
+        "tutorial",
+        "script"
+      ]
+    },
+    {
+      "id": "screenplay-format",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Format a scene as a screenplay",
+      "tags": [
+        "screenplay",
+        "script",
+        "format",
+        "film"
+      ]
+    },
+    {
+      "id": "search-intent-mapping",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Map keywords to search intent and page type",
+      "tags": [
+        "intent",
+        "keywords",
+        "seo",
+        "mapping"
+      ]
+    },
+    {
+      "id": "search-strategy-builder",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a systematic search strategy",
+      "tags": [
+        "search",
+        "strategy",
+        "systematic",
+        "keywords"
+      ]
+    },
+    {
+      "id": "secrets-scan",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Find leaked keys and credentials in a repo",
+      "tags": [
+        "secrets",
+        "leaks",
+        "git-history",
+        "scanning",
+        "pre-commit"
+      ]
+    },
+    {
+      "id": "security-headers",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Audit and set HTTP security response headers",
+      "tags": [
+        "headers",
+        "hsts",
+        "http",
+        "hardening",
+        "web"
+      ]
+    },
+    {
+      "id": "security-logging",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Log security events without logging secrets",
+      "tags": [
+        "logging",
+        "audit",
+        "detection",
+        "events",
+        "privacy"
+      ]
+    },
+    {
+      "id": "security-review",
+      "category": "security",
+      "surface": "code",
+      "on": true,
+      "summary": "Audit code for vulnerabilities",
+      "tags": [
+        "security",
+        "vulnerabilities",
+        "audit",
+        "secrets"
+      ]
+    },
+    {
+      "id": "seo-audit-page",
+      "category": "marketing-seo",
+      "surface": "both",
+      "on": false,
+      "summary": "Audit one page for on-page SEO",
+      "tags": [
+        "seo",
+        "audit",
+        "on-page",
+        "fixes"
+      ]
+    },
+    {
+      "id": "seo-content-brief",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write an SEO brief for a writer",
+      "tags": [
+        "brief",
+        "seo",
+        "writer",
+        "article"
+      ]
+    },
+    {
+      "id": "seo-technical-html",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Fix technical SEO in page markup",
+      "tags": [
+        "seo",
+        "html",
+        "meta",
+        "structured-data",
+        "crawling"
+      ]
+    },
+    {
+      "id": "session-summary",
+      "category": "meta-agent",
+      "surface": "chat",
+      "on": false,
+      "summary": "Summarise what a session did and left open",
+      "tags": [
+        "summary",
+        "recap",
+        "report"
+      ]
+    },
+    {
+      "id": "sheet-audit",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Audit a workbook for errors and fragility",
+      "tags": [
+        "audit",
+        "errors",
+        "review",
+        "formulas"
+      ]
+    },
+    {
+      "id": "shell-script",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a shell script",
+      "tags": [
+        "shell",
+        "bash",
+        "powershell",
+        "script"
+      ]
+    },
+    {
+      "id": "short-story-critique",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Critique a short story with specific fixes",
+      "tags": [
+        "critique",
+        "feedback",
+        "short-story",
+        "revision"
+      ]
+    },
+    {
+      "id": "shorten-text",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Cut text to a target length",
+      "tags": [
+        "shorten",
+        "cut",
+        "word-count",
+        "concise"
+      ]
+    },
+    {
+      "id": "shot-list",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Make a shot list for a shoot",
+      "tags": [
+        "shot-list",
+        "shoot",
+        "planning",
+        "production"
+      ]
+    },
+    {
+      "id": "show-notes",
+      "category": "media-audio-video",
+      "surface": "both",
+      "on": false,
+      "summary": "Write show notes from a transcript",
+      "tags": [
+        "show-notes",
+        "podcast",
+        "timestamps",
+        "summary"
+      ]
+    },
+    {
+      "id": "side-income-tracker",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Track side income and its costs",
+      "tags": [
+        "side-income",
+        "tracking",
+        "freelance",
+        "records"
+      ]
+    },
+    {
+      "id": "site-smoke-test",
+      "category": "browser-web-automation",
+      "surface": "code",
+      "on": false,
+      "summary": "Run a quick smoke test on a site",
+      "tags": [
+        "smoke-test",
+        "deploy",
+        "qa",
+        "checks"
+      ]
+    },
+    {
+      "id": "skill-creator",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": true,
+      "summary": "Create a new skill",
+      "tags": [
+        "skills",
+        "authoring",
+        "template",
+        "meta"
+      ]
+    },
+    {
+      "id": "skill-roadmap",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Roadmap from beginner to a target skill",
+      "tags": [
+        "roadmap",
+        "skills",
+        "milestones",
+        "planning"
+      ]
+    },
+    {
+      "id": "slack-message-writer",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Short chat messages that get answers",
+      "tags": [
+        "slack",
+        "chat",
+        "message",
+        "teams"
+      ]
+    },
+    {
+      "id": "slide-design-review",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Review slides for clarity and design",
+      "tags": [
+        "slides",
+        "deck",
+        "review",
+        "presentation"
+      ]
+    },
+    {
+      "id": "slide-outline",
+      "category": "documents-files",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan a deck: one message per slide",
+      "tags": [
+        "slides",
+        "outline",
+        "presentation",
+        "structure"
+      ]
+    },
+    {
+      "id": "snapshot-test-review",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Review snapshot diffs before accepting them",
+      "tags": [
+        "snapshot",
+        "tests",
+        "review",
+        "regression"
+      ]
+    },
+    {
+      "id": "social-graphic-spec",
+      "category": "design-visual",
+      "surface": "chat",
+      "on": false,
+      "summary": "Spec social graphics per platform",
+      "tags": [
+        "social",
+        "graphics",
+        "sizes",
+        "safe-zone"
+      ]
+    },
+    {
+      "id": "social-post",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write social media posts",
+      "tags": [
+        "social media",
+        "post",
+        "linkedin",
+        "twitter"
+      ]
+    },
+    {
+      "id": "socratic-tutor",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Guide with questions, not answers",
+      "tags": [
+        "socratic",
+        "tutoring",
+        "questions",
+        "reasoning"
+      ]
+    },
+    {
+      "id": "song-lyrics",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write lyrics with hook, verse, chorus",
+      "tags": [
+        "lyrics",
+        "song",
+        "chorus",
+        "music"
+      ]
+    },
+    {
+      "id": "source-evaluation",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Rate how far a source can be trusted",
+      "tags": [
+        "sources",
+        "credibility",
+        "evaluation",
+        "trust"
+      ]
+    },
+    {
+      "id": "spaced-repetition-schedule",
+      "category": "learning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan review dates for what you learn",
+      "tags": [
+        "spaced-repetition",
+        "review",
+        "schedule",
+        "memory"
+      ]
+    },
+    {
+      "id": "spec-writing",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a clear spec for a feature or change",
+      "tags": [
+        "spec",
+        "requirements",
+        "scope",
+        "behaviour"
+      ]
+    },
+    {
+      "id": "speech-writer",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a speech or toast",
+      "tags": [
+        "speech",
+        "toast",
+        "talk",
+        "script"
+      ]
+    },
+    {
+      "id": "spending-analysis",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Find patterns in your transactions",
+      "tags": [
+        "spending",
+        "analysis",
+        "transactions",
+        "trends"
+      ]
+    },
+    {
+      "id": "spreadsheet-formulas",
+      "category": "spreadsheets",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write spreadsheet formulas",
+      "tags": [
+        "spreadsheet",
+        "formulas",
+        "excel",
+        "sheets"
+      ]
+    },
+    {
+      "id": "sql-helper",
+      "category": "backend-apis-db",
+      "surface": "both",
+      "on": true,
+      "summary": "Write or fix SQL",
+      "tags": [
+        "sql",
+        "queries",
+        "joins",
+        "database"
+      ]
+    },
+    {
+      "id": "sql-injection-check",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Find and fix injectable queries",
+      "tags": [
+        "sql-injection",
+        "queries",
+        "orm",
+        "parameters",
+        "database"
+      ]
+    },
+    {
+      "id": "ssh-hardening-setup",
+      "category": "devops-cloud",
+      "surface": "both",
+      "on": false,
+      "summary": "Set up SSH keys and harden server access",
+      "tags": [
+        "ssh",
+        "hardening",
+        "keys",
+        "server",
+        "access"
+      ]
+    },
+    {
+      "id": "ssrf-check",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Find and block server-side request forgery",
+      "tags": [
+        "ssrf",
+        "urls",
+        "webhooks",
+        "network",
+        "metadata"
+      ]
+    },
+    {
+      "id": "stacked-prs",
+      "category": "git-workflow",
+      "surface": "code",
+      "on": false,
+      "summary": "Split work into stacked pull requests",
+      "tags": [
+        "stacked",
+        "pull-request",
+        "rebase",
+        "review",
+        "split"
+      ]
+    },
+    {
+      "id": "stakeholder-map",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Map stakeholders by influence and interest",
+      "tags": [
+        "stakeholders",
+        "influence",
+        "buy-in",
+        "communication"
+      ]
+    },
+    {
+      "id": "standup-update",
+      "category": "productivity-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a short standup update",
+      "tags": [
+        "standup",
+        "update",
+        "team",
+        "blockers"
+      ]
+    },
+    {
+      "id": "star-story-builder",
+      "category": "career-hiring",
+      "surface": "chat",
+      "on": false,
+      "summary": "Shape work stories for behavioural questions",
+      "tags": [
+        "star",
+        "stories",
+        "behavioural",
+        "interview"
+      ]
+    },
+    {
+      "id": "state-management-review",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Review frontend state handling",
+      "tags": [
+        "state",
+        "redux",
+        "context",
+        "stores",
+        "frontend"
+      ]
+    },
+    {
+      "id": "statistics-explainer",
+      "category": "data-analysis",
+      "surface": "chat",
+      "on": false,
+      "summary": "Explain a statistic in plain words",
+      "tags": [
+        "statistics",
+        "explain",
+        "teaching",
+        "concepts"
+      ]
+    },
+    {
+      "id": "stats-claim-check",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Check whether a statistic holds up",
+      "tags": [
+        "statistics",
+        "numbers",
+        "verification",
+        "data-literacy"
+      ]
+    },
+    {
+      "id": "status-update",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Progress report a busy reader can scan",
+      "tags": [
+        "status",
+        "progress",
+        "report",
+        "stakeholders"
+      ]
+    },
+    {
+      "id": "story-structure-for-nonfiction",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Give nonfiction a narrative spine",
+      "tags": [
+        "narrative",
+        "nonfiction",
+        "essay",
+        "structure"
+      ]
+    },
+    {
+      "id": "story-writer",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a story",
+      "tags": [
+        "fiction",
+        "story",
+        "characters",
+        "plot"
+      ]
+    },
+    {
+      "id": "storyboard",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Storyboard a video as a shot-by-shot table",
+      "tags": [
+        "storyboard",
+        "video",
+        "shots",
+        "planning"
+      ]
+    },
+    {
+      "id": "strangler-migration",
+      "category": "refactor-migration",
+      "surface": "code",
+      "on": false,
+      "summary": "Replace a system piece by piece behind a seam",
+      "tags": [
+        "migration",
+        "strangler",
+        "incremental",
+        "legacy"
+      ]
+    },
+    {
+      "id": "strategy-memo",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a decision memo with a recommendation",
+      "tags": [
+        "memo",
+        "strategy",
+        "recommendation",
+        "decision"
+      ]
+    },
+    {
+      "id": "structured-output-prompt",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prompt a model for reliable JSON or fixed output",
+      "tags": [
+        "json",
+        "schema",
+        "structured output"
+      ]
     },
     {
       "id": "study-plan",
       "category": "learning",
       "surface": "chat",
-      "on": false,
-      "summary": "Plan studying for an exam"
+      "on": true,
+      "summary": "Plan studying for an exam",
+      "tags": [
+        "study",
+        "exam",
+        "schedule",
+        "learning"
+      ]
     },
     {
-      "id": "language-tutor",
-      "category": "learning",
+      "id": "style-guide-builder",
+      "category": "design-visual",
+      "surface": "code",
+      "on": false,
+      "summary": "Derive a UI style guide from existing files",
+      "tags": [
+        "style-guide",
+        "tokens",
+        "ui",
+        "documentation"
+      ]
+    },
+    {
+      "id": "style-guide-enforcer",
+      "category": "writing-editing",
+      "surface": "both",
+      "on": false,
+      "summary": "Check text against a style guide",
+      "tags": [
+        "style-guide",
+        "consistency",
+        "editing",
+        "house-style"
+      ]
+    },
+    {
+      "id": "subscription-audit",
+      "category": "personal-finance",
+      "surface": "both",
+      "on": false,
+      "summary": "Find and rank recurring charges",
+      "tags": [
+        "subscriptions",
+        "recurring",
+        "audit",
+        "savings"
+      ]
+    },
+    {
+      "id": "subtitle-study",
+      "category": "languages",
       "surface": "chat",
       "on": false,
-      "summary": "Practise a language"
+      "summary": "Study a language from subtitles",
+      "tags": [
+        "subtitles",
+        "listening",
+        "video",
+        "study-sheet"
+      ]
     },
     {
-      "id": "brainstorm",
-      "category": "planning",
+      "id": "subtitle-timing",
+      "category": "media-audio-video",
+      "surface": "code",
+      "on": false,
+      "summary": "Time and format subtitles for readability",
+      "tags": [
+        "subtitles",
+        "srt",
+        "vtt",
+        "captions"
+      ]
+    },
+    {
+      "id": "summarize-paper",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Summarize a research paper accurately",
+      "tags": [
+        "papers",
+        "summary",
+        "studies",
+        "academic"
+      ]
+    },
+    {
+      "id": "summarizer",
+      "category": "writing-editing",
       "surface": "chat",
       "on": true,
-      "summary": "Brainstorm ideas"
+      "summary": "Summarize text, pages or files",
+      "tags": [
+        "summary",
+        "tldr",
+        "condense",
+        "key points"
+      ]
+    },
+    {
+      "id": "supply-chain-check",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Vet packages and build pipeline for tampering",
+      "tags": [
+        "supply-chain",
+        "packages",
+        "lockfile",
+        "provenance",
+        "ci"
+      ]
+    },
+    {
+      "id": "survey-analysis",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Analyse survey responses with care",
+      "tags": [
+        "survey",
+        "responses",
+        "likert",
+        "sampling"
+      ]
+    },
+    {
+      "id": "svg-icon-sketch",
+      "category": "design-visual",
+      "surface": "code",
+      "on": false,
+      "summary": "Hand-write a clean SVG icon",
+      "tags": [
+        "svg",
+        "icon",
+        "vector",
+        "glyph"
+      ]
+    },
+    {
+      "id": "svg-icon-system",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Set up a consistent SVG icon system",
+      "tags": [
+        "svg",
+        "icons",
+        "currentcolor",
+        "sprites",
+        "components"
+      ]
+    },
+    {
+      "id": "swot-analysis",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Run a SWOT that leads to choices",
+      "tags": [
+        "swot",
+        "analysis",
+        "strategy",
+        "position"
+      ]
+    },
+    {
+      "id": "system-prompt-designer",
+      "category": "ai-prompting",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a system prompt for an assistant",
+      "tags": [
+        "system prompt",
+        "assistant",
+        "design"
+      ]
+    },
+    {
+      "id": "systematic-debugging",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": true,
+      "summary": "Reproduce, isolate, prove, fix the root cause",
+      "tags": [
+        "debugging",
+        "root-cause",
+        "hypothesis",
+        "repro"
+      ]
+    },
+    {
+      "id": "table-extraction",
+      "category": "documents-files",
+      "surface": "both",
+      "on": false,
+      "summary": "Pull tables out of documents into CSV",
+      "tags": [
+        "tables",
+        "csv",
+        "pdf",
+        "extraction"
+      ]
+    },
+    {
+      "id": "tabletop-adventure",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Prepare a tabletop RPG adventure",
+      "tags": [
+        "rpg",
+        "tabletop",
+        "adventure",
+        "game-master"
+      ]
+    },
+    {
+      "id": "tailwind-cleanup",
+      "category": "frontend-ui",
+      "surface": "code",
+      "on": false,
+      "summary": "Clean up Tailwind class sprawl",
+      "tags": [
+        "tailwind",
+        "css",
+        "utilities",
+        "refactor",
+        "config"
+      ]
+    },
+    {
+      "id": "task-breakdown",
+      "category": "software-planning",
+      "surface": "both",
+      "on": false,
+      "summary": "Split a goal into small verifiable tasks",
+      "tags": [
+        "tasks",
+        "breakdown",
+        "dependencies",
+        "tickets"
+      ]
+    },
+    {
+      "id": "task-decomposer",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": false,
+      "summary": "Split a large task into checkable steps",
+      "tags": [
+        "planning",
+        "decomposition",
+        "steps"
+      ]
+    },
+    {
+      "id": "tdd",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Red, green, refactor in small steps",
+      "tags": [
+        "tdd",
+        "testing",
+        "red-green",
+        "refactor"
+      ]
+    },
+    {
+      "id": "tech-debt-ledger",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Record and rank technical debt items",
+      "tags": [
+        "tech-debt",
+        "ledger",
+        "prioritisation",
+        "maintenance"
+      ]
+    },
+    {
+      "id": "tech-spike",
+      "category": "software-planning",
+      "surface": "code",
+      "on": false,
+      "summary": "Run a time-boxed technical investigation",
+      "tags": [
+        "spike",
+        "feasibility",
+        "experiment",
+        "research"
+      ]
+    },
+    {
+      "id": "technical-blog",
+      "category": "writing-editing",
+      "surface": "both",
+      "on": false,
+      "summary": "Write a technical blog post with working code",
+      "tags": [
+        "blog",
+        "technical",
+        "code",
+        "tutorial"
+      ]
+    },
+    {
+      "id": "terraform-review",
+      "category": "devops-cloud",
+      "surface": "code",
+      "on": false,
+      "summary": "Review Terraform plans and modules before apply",
+      "tags": [
+        "terraform",
+        "iac",
+        "plan",
+        "state",
+        "review"
+      ]
+    },
+    {
+      "id": "test-coverage-gaps",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Find untested behaviour that matters",
+      "tags": [
+        "coverage",
+        "tests",
+        "risk",
+        "gaps"
+      ]
+    },
+    {
+      "id": "test-data-builder",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Build clear, minimal test data",
+      "tags": [
+        "fixtures",
+        "test-data",
+        "builders",
+        "tests"
+      ]
+    },
+    {
+      "id": "test-failure-triage",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": false,
+      "summary": "Sort a red test run into causes",
+      "tags": [
+        "tests",
+        "triage",
+        "ci",
+        "failures"
+      ]
+    },
+    {
+      "id": "text-cleanup-formulas",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Clean and split text with formulas",
+      "tags": [
+        "text",
+        "cleanup",
+        "split",
+        "formulas"
+      ]
+    },
+    {
+      "id": "text-simplifier",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Simplify a text for a learner",
+      "tags": [
+        "simplify",
+        "level",
+        "reading",
+        "rewrite"
+      ]
+    },
+    {
+      "id": "thank-you-note",
+      "category": "email-comms",
+      "surface": "chat",
+      "on": false,
+      "summary": "Thank-you note with a real detail",
+      "tags": [
+        "thanks",
+        "gratitude",
+        "interview",
+        "note"
+      ]
+    },
+    {
+      "id": "threat-model",
+      "category": "security",
+      "surface": "both",
+      "on": false,
+      "summary": "Map assets, trust boundaries and likely attacks",
+      "tags": [
+        "threat-model",
+        "design",
+        "stride",
+        "trust-boundary",
+        "risk"
+      ]
+    },
+    {
+      "id": "thumbnail-brief",
+      "category": "design-visual",
+      "surface": "chat",
+      "on": false,
+      "summary": "Brief a video or article thumbnail",
+      "tags": [
+        "thumbnail",
+        "youtube",
+        "cover",
+        "click"
+      ]
+    },
+    {
+      "id": "time-blocking",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Block time on a calendar for real work",
+      "tags": [
+        "calendar",
+        "blocks",
+        "schedule",
+        "deep-work"
+      ]
+    },
+    {
+      "id": "time-series-trend",
+      "category": "data-analysis",
+      "surface": "both",
+      "on": false,
+      "summary": "Separate trend, season and noise",
+      "tags": [
+        "time-series",
+        "trend",
+        "seasonality",
+        "decompose"
+      ]
+    },
+    {
+      "id": "timeline-builder",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a sourced timeline of events",
+      "tags": [
+        "timeline",
+        "chronology",
+        "events",
+        "sources"
+      ]
+    },
+    {
+      "id": "toast-writer",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a short toast for a celebration",
+      "tags": [
+        "toast",
+        "speech",
+        "wedding",
+        "celebration"
+      ]
+    },
+    {
+      "id": "tone-rewriter",
+      "category": "writing-editing",
+      "surface": "chat",
+      "on": true,
+      "summary": "Rewrite in a different tone",
+      "tags": [
+        "tone",
+        "rewrite",
+        "style",
+        "voice"
+      ]
+    },
+    {
+      "id": "tool-choice-guide",
+      "category": "meta-agent",
+      "surface": "both",
+      "on": false,
+      "summary": "Pick the right tool for each step",
+      "tags": [
+        "tools",
+        "efficiency",
+        "choice"
+      ]
+    },
+    {
+      "id": "tracker-sheet",
+      "category": "spreadsheets",
+      "surface": "both",
+      "on": false,
+      "summary": "Design a tracker sheet for tasks or items",
+      "tags": [
+        "tracker",
+        "status",
+        "tasks",
+        "table"
+      ]
+    },
+    {
+      "id": "transaction-boundaries",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Set correct transaction boundaries",
+      "tags": [
+        "transactions",
+        "database",
+        "atomicity",
+        "locking",
+        "consistency"
+      ]
+    },
+    {
+      "id": "transcript-cleanup",
+      "category": "media-audio-video",
+      "surface": "both",
+      "on": false,
+      "summary": "Clean a raw transcript without changing meaning",
+      "tags": [
+        "transcript",
+        "cleanup",
+        "speakers",
+        "editing"
+      ]
+    },
+    {
+      "id": "translator",
+      "category": "languages",
+      "surface": "chat",
+      "on": true,
+      "summary": "Translate text",
+      "tags": [
+        "translate",
+        "language",
+        "localize",
+        "text"
+      ]
+    },
+    {
+      "id": "travel-itinerary-checker",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Check a trip plan for timing gaps",
+      "tags": [
+        "itinerary",
+        "travel",
+        "schedule",
+        "review"
+      ]
+    },
+    {
+      "id": "trend-scan",
+      "category": "research",
+      "surface": "chat",
+      "on": false,
+      "summary": "Scan a topic for real trends",
+      "tags": [
+        "trends",
+        "landscape",
+        "signals",
+        "analysis"
+      ]
+    },
+    {
+      "id": "trip-budget",
+      "category": "life-admin-travel",
+      "surface": "chat",
+      "on": false,
+      "summary": "Estimate and track a trip budget",
+      "tags": [
+        "travel",
+        "budget",
+        "costs",
+        "tracking"
+      ]
     },
     {
       "id": "trip-planner",
-      "category": "planning",
+      "category": "life-admin-travel",
       "surface": "chat",
       "on": false,
-      "summary": "Plan a trip"
-    },
-    {
-      "id": "meal-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan meals and shopping"
-    },
-    {
-      "id": "budget-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Make a budget"
-    },
-    {
-      "id": "project-plan",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Plan a project"
-    },
-    {
-      "id": "goal-planner",
-      "category": "planning",
-      "surface": "chat",
-      "on": false,
-      "summary": "Turn a goal into a plan"
-    },
-    {
-      "id": "data-analysis",
-      "category": "data",
-      "surface": "both",
-      "on": true,
-      "summary": "Analyse a dataset"
-    },
-    {
-      "id": "sql-helper",
-      "category": "data",
-      "surface": "both",
-      "on": true,
-      "summary": "Write or fix SQL"
-    },
-    {
-      "id": "regex-helper",
-      "category": "data",
-      "surface": "both",
-      "on": false,
-      "summary": "Build or explain a regex"
-    },
-    {
-      "id": "csv-cleaner",
-      "category": "data",
-      "surface": "both",
-      "on": false,
-      "summary": "Clean up messy data"
-    },
-    {
-      "id": "spreadsheet-formulas",
-      "category": "data",
-      "surface": "chat",
-      "on": false,
-      "summary": "Write spreadsheet formulas"
-    },
-    {
-      "id": "code-review",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Review changes for bugs"
-    },
-    {
-      "id": "debugging",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Find the cause of a bug"
-    },
-    {
-      "id": "write-tests",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Add tests"
-    },
-    {
-      "id": "commit-message",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Write a commit message"
-    },
-    {
-      "id": "refactor",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Restructure code safely"
-    },
-    {
-      "id": "explain-codebase",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Explain how a project works"
-    },
-    {
-      "id": "add-feature",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Build a feature end to end"
-    },
-    {
-      "id": "security-review",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Audit code for vulnerabilities"
-    },
-    {
-      "id": "documentation",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Write or update docs"
-    },
-    {
-      "id": "git-helper",
-      "category": "code",
-      "surface": "code",
-      "on": true,
-      "summary": "Sort out a git problem"
-    },
-    {
-      "id": "pull-request",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write a pull request"
-    },
-    {
-      "id": "changelog",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write release notes"
-    },
-    {
-      "id": "dependency-upgrade",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Upgrade dependencies safely"
-    },
-    {
-      "id": "performance",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Find and fix slow code"
-    },
-    {
-      "id": "api-design",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Design or review an API"
-    },
-    {
-      "id": "database-migration",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Write a safe migration"
-    },
-    {
-      "id": "accessibility",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Audit and fix accessibility"
-    },
-    {
-      "id": "dockerfile",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Containerise a project"
-    },
-    {
-      "id": "ci-workflow",
-      "category": "code",
-      "surface": "code",
-      "on": false,
-      "summary": "Set up or fix CI"
+      "summary": "Plan a trip",
+      "tags": [
+        "travel",
+        "itinerary",
+        "trip",
+        "booking"
+      ]
     },
     {
       "id": "type-errors",
-      "category": "code",
+      "category": "debugging-testing",
       "surface": "code",
       "on": false,
-      "summary": "Fix type errors properly"
+      "summary": "Fix type errors properly",
+      "tags": [
+        "typescript",
+        "types",
+        "compiler",
+        "errors"
+      ]
     },
     {
-      "id": "shell-script",
-      "category": "code",
+      "id": "typography-pairing",
+      "category": "design-visual",
       "surface": "both",
       "on": false,
-      "summary": "Write a shell script"
+      "summary": "Pick and pair fonts with a type scale",
+      "tags": [
+        "typography",
+        "fonts",
+        "type-scale",
+        "pairing"
+      ]
     },
     {
-      "id": "frontend-design",
-      "category": "code",
+      "id": "unit-economics",
+      "category": "finance-business",
       "surface": "both",
       "on": false,
-      "summary": "Design and build web interfaces"
+      "summary": "Work out what one customer or unit earns",
+      "tags": [
+        "unit-economics",
+        "margin",
+        "customer",
+        "cost"
+      ]
     },
     {
-      "id": "skill-creator",
-      "category": "authoring",
+      "id": "utm-tracking-plan",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan UTM naming and campaign tracking",
+      "tags": [
+        "utm",
+        "tracking",
+        "analytics",
+        "campaigns"
+      ]
+    },
+    {
+      "id": "value-proposition",
+      "category": "business-strategy",
+      "surface": "chat",
+      "on": false,
+      "summary": "Draft a clear value proposition",
+      "tags": [
+        "value",
+        "proposition",
+        "customer",
+        "message"
+      ]
+    },
+    {
+      "id": "vendor-comparison",
+      "category": "finance-business",
+      "surface": "chat",
+      "on": false,
+      "summary": "Compare suppliers on cost and risk",
+      "tags": [
+        "vendor",
+        "comparison",
+        "quotes",
+        "procurement"
+      ]
+    },
+    {
+      "id": "verb-conjugation-drill",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Drill verb conjugations",
+      "tags": [
+        "verbs",
+        "conjugation",
+        "drill",
+        "grammar"
+      ]
+    },
+    {
+      "id": "verification-before-completion",
+      "category": "code-review-quality",
+      "surface": "code",
+      "on": false,
+      "summary": "Prove work meets its acceptance conditions",
+      "tags": [
+        "verification",
+        "evidence",
+        "acceptance",
+        "done"
+      ]
+    },
+    {
+      "id": "verify-before-done",
+      "category": "meta-agent",
       "surface": "both",
       "on": true,
-      "summary": "Create a new skill"
+      "summary": "Prove the work meets the request first",
+      "tags": [
+        "verification",
+        "testing",
+        "done"
+      ]
+    },
+    {
+      "id": "video-edit-plan",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Plan an edit pass before cutting",
+      "tags": [
+        "editing",
+        "video",
+        "plan",
+        "pacing"
+      ]
+    },
+    {
+      "id": "video-script",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a video script with hook and structure",
+      "tags": [
+        "video",
+        "script",
+        "hook",
+        "youtube"
+      ]
+    },
+    {
+      "id": "video-script-short",
+      "category": "marketing-seo",
+      "surface": "chat",
+      "on": false,
+      "summary": "Script a short video with hook and shots",
+      "tags": [
+        "video",
+        "script",
+        "short-form",
+        "hook"
+      ]
+    },
+    {
+      "id": "villain-design",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design an antagonist with a case",
+      "tags": [
+        "villain",
+        "antagonist",
+        "character",
+        "conflict"
+      ]
+    },
+    {
+      "id": "vocabulary-builder",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Build a vocabulary list that sticks",
+      "tags": [
+        "vocabulary",
+        "words",
+        "review",
+        "learning"
+      ]
+    },
+    {
+      "id": "voiceover-script",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write narration that sounds spoken",
+      "tags": [
+        "voiceover",
+        "narration",
+        "script",
+        "pacing"
+      ]
+    },
+    {
+      "id": "web-form-fill-safe",
+      "category": "browser-web-automation",
+      "surface": "chat",
+      "on": false,
+      "summary": "Fill web forms safely with confirmation",
+      "tags": [
+        "forms",
+        "browser",
+        "fill",
+        "confirmation"
+      ]
+    },
+    {
+      "id": "web-performance-budget",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Set and enforce a page weight budget",
+      "tags": [
+        "performance",
+        "budget",
+        "load-time",
+        "assets",
+        "ci"
+      ]
+    },
+    {
+      "id": "web-research",
+      "category": "research",
+      "surface": "chat",
+      "on": true,
+      "summary": "Research a question online",
+      "tags": [
+        "research",
+        "web",
+        "search",
+        "sources"
+      ]
+    },
+    {
+      "id": "web-research-session",
+      "category": "browser-web-automation",
+      "surface": "chat",
+      "on": false,
+      "summary": "Browser research with a source log",
+      "tags": [
+        "research",
+        "sources",
+        "browsing",
+        "notes"
+      ]
+    },
+    {
+      "id": "web-vitals-fix",
+      "category": "frontend-ui",
+      "surface": "both",
+      "on": false,
+      "summary": "Fix Core Web Vitals issues",
+      "tags": [
+        "web-vitals",
+        "lcp",
+        "cls",
+        "inp",
+        "performance"
+      ]
+    },
+    {
+      "id": "webapp-testing",
+      "category": "debugging-testing",
+      "surface": "both",
+      "on": false,
+      "summary": "Test a local web app with the browser tools",
+      "tags": [
+        "web",
+        "browser",
+        "testing",
+        "qa",
+        "console"
+      ]
+    },
+    {
+      "id": "webhook-handler",
+      "category": "backend-apis-db",
+      "surface": "code",
+      "on": false,
+      "summary": "Receive webhooks safely",
+      "tags": [
+        "webhooks",
+        "signatures",
+        "events",
+        "security",
+        "integration"
+      ]
+    },
+    {
+      "id": "weekly-review",
+      "category": "productivity-planning",
+      "surface": "chat",
+      "on": false,
+      "summary": "Run a weekly review and set next week",
+      "tags": [
+        "review",
+        "weekly",
+        "priorities",
+        "reflection"
+      ]
+    },
+    {
+      "id": "win-loss-review",
+      "category": "sales-crm",
+      "surface": "both",
+      "on": false,
+      "summary": "Learn from closed deals, won and lost",
+      "tags": [
+        "win-loss",
+        "retrospective",
+        "analysis",
+        "deals"
+      ]
+    },
+    {
+      "id": "wireframe-sketch",
+      "category": "design-visual",
+      "surface": "both",
+      "on": false,
+      "summary": "Sketch low-fidelity wireframes in text or SVG",
+      "tags": [
+        "wireframe",
+        "layout",
+        "ux",
+        "sketch"
+      ]
+    },
+    {
+      "id": "worldbuilding",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Design a setting that supports the story",
+      "tags": [
+        "worldbuilding",
+        "setting",
+        "lore",
+        "fiction"
+      ]
+    },
+    {
+      "id": "write-tests",
+      "category": "debugging-testing",
+      "surface": "code",
+      "on": true,
+      "summary": "Add tests",
+      "tags": [
+        "tests",
+        "unit tests",
+        "coverage",
+        "tdd"
+      ]
+    },
+    {
+      "id": "writing-correction",
+      "category": "languages",
+      "surface": "chat",
+      "on": false,
+      "summary": "Correct writing and explain each fix",
+      "tags": [
+        "writing",
+        "correction",
+        "feedback",
+        "errors"
+      ]
+    },
+    {
+      "id": "writing-plans",
+      "category": "software-planning",
+      "surface": "code",
+      "on": true,
+      "summary": "Turn a spec into a checkpointed build plan",
+      "tags": [
+        "planning",
+        "implementation",
+        "checkpoints",
+        "spec"
+      ]
+    },
+    {
+      "id": "writing-prompt-generator",
+      "category": "creative-writing",
+      "surface": "chat",
+      "on": false,
+      "summary": "Generate prompts with a hook and constraint",
+      "tags": [
+        "prompts",
+        "ideas",
+        "writers-block",
+        "practice"
+      ]
+    },
+    {
+      "id": "xlsx",
+      "category": "spreadsheets",
+      "surface": "chat",
+      "on": true,
+      "summary": "Create a spreadsheet",
+      "tags": [
+        "excel",
+        "xlsx",
+        "workbook",
+        "spreadsheet"
+      ]
+    },
+    {
+      "id": "xss-csp-review",
+      "category": "security",
+      "surface": "code",
+      "on": false,
+      "summary": "Find cross-site scripting and tighten CSP",
+      "tags": [
+        "xss",
+        "csp",
+        "html",
+        "escaping",
+        "frontend"
+      ]
+    },
+    {
+      "id": "youtube-description",
+      "category": "media-audio-video",
+      "surface": "chat",
+      "on": false,
+      "summary": "Write a video description with chapters",
+      "tags": [
+        "youtube",
+        "description",
+        "chapters",
+        "title"
+      ]
     }
   ]
 }

@@ -8,16 +8,20 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gdk, gio, glib};
 
-use crate::state::{AppState, SERVER_KEY};
-use draggy_core::{ApprovalChoice, ApprovalRecord, CancelToken, Session, read_document};
+use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
+use draggy_core::{
+    ApprovalChoice, ApprovalRecord, CancelToken, ImageRecord, Session, read_document,
+};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
     to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
+use draggy_linux::preview;
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
+use draggy_linux::speech;
 
 type Toast = Rc<dyn Fn(&str)>;
 
@@ -50,6 +54,16 @@ mod imp {
         #[template_child]
         pub transcript: TemplateChild<gtk::Box>,
         #[template_child]
+        pub plan: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub plan_title: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub plan_clear: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub plan_steps: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub speak: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
         pub input: TemplateChild<gtk::TextView>,
         #[template_child]
         pub attach: TemplateChild<gtk::Button>,
@@ -65,6 +79,8 @@ mod imp {
         /// A saved conversation shown but not yet restored into a session. The next message resumes it.
         pub pending: RefCell<Option<Conversation>>,
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
+        /// Pictures waiting to go with the next message.
+        pub images: RefCell<Vec<ImageRecord>>,
         /// Runs when the saved conversations change, so the sidebar list can refresh.
         pub changed: RefCell<Option<Rc<dyn Fn()>>>,
     }
@@ -104,6 +120,25 @@ mod imp {
             });
 
             let weak = chat.downgrade();
+            self.speak.connect_toggled(move |button| {
+                if !button.is_active() {
+                    speech::stop();
+                } else if let Some(chat) = weak.upgrade()
+                    && !speech::available()
+                {
+                    button.set_active(false);
+                    chat.toast("Install speech-dispatcher to hear replies.");
+                }
+            });
+
+            let weak = chat.downgrade();
+            self.plan_clear.connect_clicked(move |_| {
+                if let Some(chat) = weak.upgrade() {
+                    chat.clear_plan();
+                }
+            });
+
+            let weak = chat.downgrade();
             self.attach.connect_clicked(move |_| {
                 if let Some(chat) = weak.upgrade() {
                     chat.choose_document();
@@ -135,6 +170,19 @@ glib::wrapper! {
     pub struct DraggyChat(ObjectSubclass<imp::DraggyChat>)
         @extends gtk::Box, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
+}
+
+const MAX_PICTURE: usize = 10_000_000;
+
+/// The image type for a picture file, or `None` for anything else.
+fn picture_type(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension()?.to_str()?.to_lowercase().as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        _ => None,
+    }
 }
 
 impl DraggyChat {
@@ -224,6 +272,7 @@ impl DraggyChat {
         let imp = self.imp();
         *imp.live.borrow_mut() = None;
         *imp.pending.borrow_mut() = None;
+        self.refresh_plan();
     }
 
     fn notify_changed(&self) {
@@ -310,14 +359,16 @@ impl DraggyChat {
     /// Asks for a Word, PowerPoint, Excel or PDF file and reads it into the message being typed.
     fn choose_document(&self) {
         let filter = gtk::FileFilter::new();
-        filter.set_name(Some("Word, PowerPoint, Excel and PDF"));
-        for suffix in ["docx", "pptx", "xlsx", "pdf"] {
+        filter.set_name(Some("Documents and pictures"));
+        for suffix in [
+            "docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp",
+        ] {
             filter.add_suffix(suffix);
         }
         let filters = gio::ListStore::new::<gtk::FileFilter>();
         filters.append(&filter);
         let dialog = gtk::FileDialog::new();
-        dialog.set_title("Attach a document");
+        dialog.set_title("Attach a document or picture");
         dialog.set_filters(Some(&filters));
         let window = self.root().and_downcast::<gtk::Window>();
         let chat = self.clone();
@@ -325,8 +376,34 @@ impl DraggyChat {
             let Some(path) = result.ok().and_then(|file| file.path()) else {
                 return;
             };
-            chat.attach_document(path);
+            match picture_type(&path) {
+                Some(mime) => chat.attach_picture(&path, mime),
+                None => chat.attach_document(path),
+            }
         });
+    }
+
+    /// Keeps a picture for the next message.
+    fn attach_picture(&self, path: &std::path::Path, mime: &str) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        match std::fs::read(path) {
+            Ok(data) if data.len() > MAX_PICTURE => self.toast("The picture is larger than 10 MB."),
+            Ok(data) => {
+                let mut images = self.imp().images.borrow_mut();
+                images.push(ImageRecord {
+                    name: name.clone(),
+                    mime: mime.to_owned(),
+                    data,
+                });
+                let count = images.len();
+                drop(images);
+                self.toast(&format!("Added {name} ({count} waiting)"));
+            }
+            Err(_) => self.toast("The file could not be read."),
+        }
     }
 
     /// Reads the document on the runtime and adds its text to the composer, so the user sees it before sending.
@@ -382,7 +459,8 @@ impl DraggyChat {
                 return;
             };
             chat.imp().input.buffer().set_text("");
-            chat.run_turn(session, text);
+            let images = chat.imp().images.take();
+            chat.run_turn(session, text, images);
         });
     }
 
@@ -403,14 +481,32 @@ impl DraggyChat {
             .ok()
             .and_then(Result::ok)
             .flatten();
+        let brave = if settings.web {
+            let secrets = Arc::clone(&state.secrets);
+            runtime()
+                .spawn(async move { secrets.get(BRAVE_KEY).await })
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .flatten()
+        } else {
+            None
+        };
         let config = match settings.session_config(key) {
-            Ok(config) => config,
+            Ok(mut config) => {
+                config.web = settings.web_config(brave);
+                config
+            }
             Err(error) => {
                 self.toast(&error.to_string());
                 return None;
             }
         };
-        let session = match Session::new(config) {
+        let created = match state.mcp() {
+            Some(mcp) => Session::with_mcp(config, mcp),
+            None => Session::new(config),
+        };
+        let session = match created {
             Ok(session) => session,
             Err(error) => {
                 self.toast(&error.to_string());
@@ -445,6 +541,55 @@ impl DraggyChat {
         Some(session)
     }
 
+    /// Shows the session's plan above the composer, or hides the strip while there is none.
+    fn refresh_plan(&self) {
+        let imp = self.imp();
+        let steps = match imp.live.borrow().as_ref() {
+            Some(live) => live.session.plan(),
+            None => Vec::new(),
+        };
+        while let Some(child) = imp.plan_steps.first_child() {
+            imp.plan_steps.remove(&child);
+        }
+        imp.plan.set_visible(!steps.is_empty());
+        let done = steps.iter().filter(|step| step.status == "done").count();
+        imp.plan_title
+            .set_label(&format!("Plan · {done} of {}", steps.len()));
+        for step in &steps {
+            let mark = match step.status.as_str() {
+                "done" => "✓",
+                "doing" => "▶",
+                _ => "○",
+            };
+            let label = gtk::Label::new(Some(&format!("{mark}  {}", step.text)));
+            label.set_xalign(0.0);
+            label.set_wrap(true);
+            if step.status == "done" {
+                label.add_css_class("dim-label");
+            }
+            imp.plan_steps.append(&label);
+        }
+    }
+
+    /// Reads the finished reply aloud while the speaker button is on.
+    fn read_aloud(&self) {
+        let imp = self.imp();
+        if !imp.speak.is_active() {
+            return;
+        }
+        let text = imp.log.borrow().entries().last().map(|e| e.text.clone());
+        if let Some(text) = text {
+            speech::speak(&text);
+        }
+    }
+
+    fn clear_plan(&self) {
+        if let Some(live) = self.imp().live.borrow().as_ref() {
+            live.session.clear_plan();
+        }
+        self.refresh_plan();
+    }
+
     fn clear_transcript(&self) {
         let imp = self.imp();
         *imp.log.borrow_mut() = Transcript::default();
@@ -454,9 +599,12 @@ impl DraggyChat {
         }
     }
 
-    fn run_turn(&self, session: Arc<Session>, text: String) {
+    fn run_turn(&self, session: Arc<Session>, text: String, images: Vec<ImageRecord>) {
         let imp = self.imp();
-        imp.log.borrow_mut().begin_turn(&text);
+        let shown = images.iter().fold(text.clone(), |shown, image| {
+            format!("{shown}\n[{}]", image.name)
+        });
+        imp.log.borrow_mut().begin_turn(&shown);
         {
             let log = imp.log.borrow();
             let entries = log.entries();
@@ -470,7 +618,7 @@ impl DraggyChat {
         self.scroll_to_end();
 
         let (tx, rx) = async_channel::unbounded();
-        *imp.cancel.borrow_mut() = Some(start_turn(session, text, tx));
+        *imp.cancel.borrow_mut() = Some(start_turn(session, text, images, tx));
         let chat = self.clone();
         glib::spawn_future_local(async move {
             while let Ok(message) = rx.recv().await {
@@ -478,6 +626,7 @@ impl DraggyChat {
                     ChatMessage::Events(events) => {
                         chat.imp().log.borrow_mut().apply(&events);
                         chat.refresh_reply();
+                        chat.refresh_plan();
                     }
                     ChatMessage::Approval { request, reply } => {
                         chat.ask_approval(request, reply);
@@ -485,6 +634,8 @@ impl DraggyChat {
                     ChatMessage::Finished(result) => {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
+                        chat.refresh_plan();
+                        chat.read_aloud();
                         chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);
@@ -656,6 +807,41 @@ fn markup_label(markup: &str, class: &str) -> gtk::Label {
         .build()
 }
 
+/// Opens the model's HTML in a window that runs no scripts and follows no links.
+fn show_preview(button: &gtk::Button, html: &str) {
+    use webkit6::prelude::*;
+    let view = webkit6::WebView::new();
+    if let Some(settings) = webkit6::prelude::WebViewExt::settings(&view) {
+        settings.set_enable_javascript(false);
+    }
+    view.connect_decide_policy(|_, decision, kind| {
+        if kind == webkit6::PolicyDecisionType::NavigationAction {
+            let is_load = decision
+                .clone()
+                .downcast::<webkit6::NavigationPolicyDecision>()
+                .ok()
+                .and_then(|d| d.navigation_action())
+                .and_then(|a| a.request())
+                .and_then(|r| r.uri())
+                .is_some_and(|uri| uri.as_str() != "about:blank");
+            if is_load {
+                decision.ignore();
+                return true;
+            }
+        }
+        false
+    });
+    view.load_html(html, None);
+    let window = adw::Window::builder()
+        .title("Preview")
+        .default_width(720)
+        .default_height(520)
+        .content(&view)
+        .build();
+    window.set_transient_for(button.root().and_downcast::<gtk::Window>().as_ref());
+    window.present();
+}
+
 /// A code block with its language and a button that copies the code. A long line scrolls sideways.
 fn code_block(language: &str, code: &str) -> gtk::Box {
     let frame = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -679,6 +865,16 @@ fn code_block(language: &str, code: &str) -> gtk::Box {
     let text = code.to_owned();
     copy.connect_clicked(move |button| button.clipboard().set_text(&text));
     header.append(&name);
+    if preview::is_html(language) {
+        let show = gtk::Button::builder()
+            .icon_name("view-reveal-symbolic")
+            .tooltip_text("Preview")
+            .css_classes(["flat"])
+            .build();
+        let html = preview::page(code);
+        show.connect_clicked(move |button| show_preview(button, &html));
+        header.append(&show);
+    }
     header.append(&copy);
     let scroller = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Automatic)
@@ -702,50 +898,88 @@ mod tests {
     use super::*;
     use draggy_core::TurnEventRecord;
 
-    fn ready() -> bool {
-        if adw::init().is_err() {
-            return false;
-        }
-        gtk::gio::resources_register_include!("draggy.gresource").expect("resources");
-        true
-    }
-
     #[test]
     fn the_page_builds_and_a_streamed_reply_shows_in_the_labels() {
-        // Needs a display (run under xvfb-run); with none there is nothing to check.
-        if !ready() {
-            return;
-        }
-        let chat: DraggyChat = glib::Object::new();
-        let mut log = Transcript::default();
-        log.begin_turn("hello");
-        let (_, parts) = entry_row(&log.entries()[1]);
-        assert_eq!(body_text(&parts), "…");
-        log.apply(&[TurnEventRecord::Patch {
-            content: String::new(),
-            text_content: "Hi there".to_owned(),
-            steps: Vec::new(),
-        }]);
-        fill(&parts, &log.entries()[1]);
-        assert_eq!(body_text(&parts), "Hi there");
-        assert!(!parts.steps.is_visible());
-        assert!(chat.imp().send.is_visible());
-        assert!(!chat.imp().stop.is_visible());
-        chat.set_busy(true);
-        assert!(!chat.imp().send.is_visible());
-        assert!(chat.imp().stop.is_visible());
+        crate::gtk_test::run(|| {
+            // Needs a display (run under xvfb-run); with none there is nothing to check.
+            let chat: DraggyChat = glib::Object::new();
+            let mut log = Transcript::default();
+            log.begin_turn("hello");
+            let (_, parts) = entry_row(&log.entries()[1]);
+            assert_eq!(body_text(&parts), "…");
+            log.apply(&[TurnEventRecord::Patch {
+                content: String::new(),
+                text_content: "Hi there".to_owned(),
+                steps: Vec::new(),
+            }]);
+            fill(&parts, &log.entries()[1]);
+            assert_eq!(body_text(&parts), "Hi there");
+            assert!(!parts.steps.is_visible());
+            assert!(chat.imp().send.is_visible());
+            assert!(!chat.imp().stop.is_visible());
+            chat.set_busy(true);
+            assert!(!chat.imp().send.is_visible());
+            assert!(chat.imp().stop.is_visible());
+        });
     }
 
     #[test]
     fn a_new_reply_row_for_the_user_is_right_aligned() {
-        if !ready() {
-            return;
+        crate::gtk_test::run(|| {
+            let mut log = Transcript::default();
+            log.begin_turn("hello");
+            let (row, parts) = entry_row(&log.entries()[0]);
+            assert_eq!(row.halign(), gtk::Align::End);
+            assert_eq!(body_text(&parts), "hello");
+        });
+    }
+
+    #[test]
+    fn the_plan_strip_stays_hidden_until_there_is_a_plan() {
+        crate::gtk_test::run(|| {
+            let chat: DraggyChat = glib::Object::new();
+            chat.refresh_plan();
+            assert!(!chat.imp().plan.is_visible());
+            assert!(chat.imp().plan_steps.first_child().is_none());
+        });
+    }
+
+    #[test]
+    fn the_read_aloud_toggle_starts_off() {
+        crate::gtk_test::run(|| {
+            let chat: DraggyChat = glib::Object::new();
+            assert!(!chat.imp().speak.is_active());
+            // With the toggle off a finished reply is not read.
+            chat.read_aloud();
+        });
+    }
+
+    #[test]
+    fn a_code_block_shows_its_language_and_a_preview_button_only_for_html() {
+        crate::gtk_test::run(|| {
+            let buttons = |language: &str| {
+                let block = code_block(language, "<p>hi</p>");
+                let mut count = 0;
+                let mut child = block.first_child();
+                while let Some(widget) = child {
+                    count += widget_buttons(&widget);
+                    child = widget.next_sibling();
+                }
+                count
+            };
+            assert!(buttons("html") > buttons("rust"));
+        });
+    }
+
+    /// The buttons inside a widget, itself included.
+    fn widget_buttons(widget: &gtk::Widget) -> usize {
+        let mut count = usize::from(widget.is::<gtk::Button>());
+        let mut child = widget.first_child();
+        while let Some(inner) = child {
+            count += widget_buttons(&inner);
+            child = inner.next_sibling();
         }
-        let mut log = Transcript::default();
-        log.begin_turn("hello");
-        let (row, parts) = entry_row(&log.entries()[0]);
-        assert_eq!(row.halign(), gtk::Align::End);
-        assert_eq!(body_text(&parts), "hello");
+        count
     }
 
     /// The text of a body that holds one label, such as a plain message or a single paragraph.

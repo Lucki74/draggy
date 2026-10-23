@@ -169,6 +169,8 @@ function readSkillFolder(folder, source, catalogue) {
     surface: SURFACES.has(entry?.surface) ? entry.surface : "both",
     // What the user writes is meant to be used; the library waits to be asked, bar its defaults.
     defaultOn: source === "library" ? Boolean(entry?.on) : true,
+    // Only the library can lock a skill on. Kept off the listing: the switch simply does nothing.
+    locked: source === "library" && entry?.locked === true,
     modelInvocable: !parsed.disableModelInvocation,
   };
 }
@@ -205,9 +207,10 @@ function listSkills(projectRoot, overrides = {}) {
   for (const skill of [...library, ...mine, ...theirs]) byId.set(skill.id, skill);
 
   const skills = [...byId.values()]
-    .map((skill) => {
+    .map(({ locked, ...skill }) => {
       const flipped = overrides?.[skill.id];
-      return { ...skill, enabled: typeof flipped === "boolean" ? flipped : skill.defaultOn };
+      const enabled = locked || (typeof flipped === "boolean" ? flipped : skill.defaultOn);
+      return locked ? { ...skill, locked: true, enabled } : { ...skill, enabled };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   noteState(skills);

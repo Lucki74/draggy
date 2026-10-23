@@ -707,16 +707,14 @@
   },
   {
     "id": "google",
-    "name": "Google",
+    "name": "Google (Antigravity)",
     "kind": "account",
-    "protocol": "gemini-cli",
+    "protocol": "agy",
     "vendor": "google",
     "auth": "account",
     "baseUrl": "",
     "keyUrl": "",
-    "signInHosts": [
-      "accounts.google.com"
-    ],
+    "signInHosts": [],
     "capabilityPatterns": [
       {
         "match": "",

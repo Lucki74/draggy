@@ -246,4 +246,6 @@ pub enum ErrorKind {
     AccountSignedOut,
     #[serde(rename = "account-limit-reached")]
     AccountLimitReached,
+    #[serde(rename = "account-access-denied")]
+    AccountAccessDenied,
 }

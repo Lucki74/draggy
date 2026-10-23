@@ -1,10 +1,12 @@
 //! A conversation with a model. The shell holds the `Session` handle, calls `send` and reads events through its
 //! observer. The turn itself runs on a thread of its own, so the caller's thread is never blocked on the network.
 
+use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use draggy_agent::agent_loop::ModelClient;
 use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::ToolContext;
 use draggy_agent::agent_loop::{
@@ -17,14 +19,15 @@ use draggy_agent::permissions::ToolAnnotations;
 use draggy_agent::permissions::{Grant, PermissionMode};
 use draggy_agent::prompts::{PromptEnvironment, PromptProfile, PromptSettings, WebMode};
 use draggy_agent::resume::SearchStep;
-use draggy_agent::skills::{LoadedSkill, SkillReader};
-use draggy_agent::task_manager::{CancelSignal, Message};
+use draggy_agent::task_manager::{Attachment, CancelSignal, Message};
 use draggy_agent::tool_channel::ToolDefinition;
 use draggy_mcp::child_process::StdioLauncher;
 use draggy_mcp::reqwest_net::ReqwestHttp;
 use draggy_tools::files::content_hash;
+use draggy_web::search::SearchConfig;
 use serde_json::Value;
 
+use crate::agy_host::AgyModel;
 use crate::cancel::CancelToken;
 use crate::error::CoreError;
 use crate::mcp::McpManager;
@@ -32,8 +35,14 @@ use crate::mcp_tools::McpTools;
 use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
-use crate::records::{ApprovalChoice, ApprovalRecord, MessageRecord, SessionConfig, TurnOutcome};
+use crate::plan;
+use crate::records::{
+    ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
+    TurnOutcome,
+};
+use crate::skills::{self, SkillStore};
 use crate::tools::{FileTools, NoTools, definitions};
+use crate::web_tools::{self, WebTools};
 
 struct WallClock;
 
@@ -63,14 +72,6 @@ impl MessageRefs for Refs {
             id: message.id.clone(),
             hash: content_hash(message.content.as_bytes()),
         }
-    }
-}
-
-struct NoSkills;
-
-impl SkillReader for NoSkills {
-    fn read(&mut self, _workspace_id: &str, _id: &str) -> Option<LoadedSkill> {
-        None
     }
 }
 
@@ -113,6 +114,7 @@ struct Host {
     approvals: Option<Arc<dyn ApprovalHandler>>,
     cancel: CancelSignal,
     kept: Vec<Grant>,
+    plan: SharedPlan,
 }
 
 impl TurnHost for Host {
@@ -164,10 +166,15 @@ impl TurnHost for Host {
     }
 
     fn get_plan(&mut self) -> Option<Vec<draggy_agent::agent_loop::PlanItem>> {
-        None
+        self.plan
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
-    fn on_plan(&mut self, _items: &[draggy_agent::agent_loop::PlanItem]) {}
+    fn on_plan(&mut self, items: &[draggy_agent::agent_loop::PlanItem]) {
+        *self.plan.lock().unwrap_or_else(PoisonError::into_inner) = Some(items.to_vec());
+    }
 }
 
 #[derive(Default)]
@@ -185,7 +192,12 @@ pub struct Session {
     net: Arc<Net>,
     mcp: Option<Arc<McpManager>>,
     state: Mutex<State>,
+    plan: SharedPlan,
 }
+
+/// The plan the model keeps, `None` until it writes one. Shared with the running turn so a shell can read it while
+/// the turn works.
+type SharedPlan = Arc<Mutex<Option<Vec<draggy_agent::agent_loop::PlanItem>>>>;
 
 fn message(id: String, role: &str, content: &str) -> Message {
     Message {
@@ -193,6 +205,15 @@ fn message(id: String, role: &str, content: &str) -> Message {
         role: role.to_owned(),
         content: content.to_owned(),
         ..Message::default()
+    }
+}
+
+fn attachment(image: &ImageRecord) -> Attachment {
+    use base64::Engine as _;
+    Attachment {
+        name: image.name.clone(),
+        kind: image.mime.clone(),
+        content: base64::engine::general_purpose::STANDARD.encode(&image.data),
     }
 }
 
@@ -228,10 +249,23 @@ fn stamp() -> (String, String) {
 struct CompositeTools {
     files: Box<dyn ToolRuntime>,
     mcp: Option<McpTools<ReqwestHttp, StdioLauncher>>,
+    web: Option<WebTools>,
+    skills: Option<SkillStore>,
+    plans: bool,
 }
 
 impl ToolRuntime for CompositeTools {
     fn annotations(&self, name: &str) -> ToolAnnotations {
+        if skills::owns(name) || plan::owns(name) {
+            return ToolAnnotations {
+                read_only: true,
+                idempotent: true,
+                ..ToolAnnotations::default()
+            };
+        }
+        if let Some(web) = self.web.as_ref().filter(|_| web_tools::owns(name)) {
+            return web.annotations(name);
+        }
         if let Some(mcp) = self.mcp.as_ref().filter(|m| m.owns(name)) {
             return mcp.annotations(name);
         }
@@ -239,6 +273,15 @@ impl ToolRuntime for CompositeTools {
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+        if self.plans && plan::owns(name) {
+            return plan::run(args, ctx);
+        }
+        if let Some(store) = self.skills.as_mut().filter(|_| skills::owns(name)) {
+            return skills::run(store, args, ctx);
+        }
+        if let Some(web) = self.web.as_mut().filter(|_| web_tools::owns(name)) {
+            return web.run(name, args, ctx);
+        }
         if let Some(mcp) = self.mcp.as_mut().filter(|m| m.owns(name)) {
             return mcp.run(name, args, ctx);
         }
@@ -247,9 +290,21 @@ impl ToolRuntime for CompositeTools {
 }
 
 impl Session {
-    fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
+    fn create(
+        mut config: SessionConfig,
+        mut mcp: Option<Arc<McpManager>>,
+    ) -> Result<Arc<Self>, CoreError> {
+        if config.agy.is_some() {
+            // The CLI runs its own tools, which Draggy does not offer, so none of ours are exposed to it.
+            config.folder = None;
+            config.web = None;
+            config.allow_commands = false;
+            mcp = None;
+        }
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
-        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
+        if config.agy.is_none()
+            && (config.base_url.trim().is_empty() || config.model.trim().is_empty())
+        {
             return Err(CoreError::Invalid {
                 message: "A session needs a server address and a model.".to_owned(),
             });
@@ -259,7 +314,14 @@ impl Session {
             net: Arc::new(net),
             mcp,
             state: Mutex::new(State::default()),
+            plan: SharedPlan::default(),
         }))
+    }
+
+    /// The skills folder, when this session offers skills.
+    fn skill_store(&self) -> Option<SkillStore> {
+        let dir = self.config.skills_dir.as_deref()?.trim();
+        (self.config.agy.is_none() && !dir.is_empty()).then(|| SkillStore::new(dir))
     }
 
     fn request(
@@ -267,6 +329,7 @@ impl Session {
         messages: Vec<Message>,
         grants: Vec<Grant>,
         extra_tools: &[ToolDefinition],
+        web: bool,
     ) -> TurnRequest {
         let has_folder = self.config.folder.is_some();
         let commands = has_folder && self.config.allow_commands;
@@ -276,7 +339,20 @@ impl Session {
         } else {
             Vec::new()
         };
+        if web {
+            tools.extend(web_tools::definitions());
+        }
         tools.extend(extra_tools.iter().cloned());
+        let shelf = self
+            .skill_store()
+            .map(|store| store.list())
+            .unwrap_or_default();
+        if !shelf.is_empty() {
+            tools.extend(skills::definitions());
+        }
+        if self.config.agy.is_none() {
+            tools.extend(plan::definitions());
+        }
         TurnRequest {
             profile: ModelProfile {
                 model: self.config.model.clone(),
@@ -284,7 +360,9 @@ impl Session {
                 probed: true,
                 has_thinking: false,
                 thinking_allowed: true,
-                native_vision: false,
+                // Pictures go to the model only when the user attached some, and never to the agy route.
+                native_vision: self.config.agy.is_none()
+                    && messages.iter().any(|m| m.attachments.is_some()),
                 prompt_profile: PromptProfile::Compact,
                 loop_limit: self.config.loop_limit.map_or(75, |limit| limit as usize),
                 max_context: None,
@@ -294,7 +372,7 @@ impl Session {
             settings: PromptSettings {
                 effort: Effort::Medium,
                 allow_max_in_chat: false,
-                web_mode: WebMode::Off,
+                web_mode: if web { WebMode::On } else { WebMode::Off },
                 custom_instructions: Vec::new(),
             },
             environment: PromptEnvironment {
@@ -302,12 +380,12 @@ impl Session {
                 project_root: self.config.folder.clone(),
                 code_execution: commands,
                 library_ready: false,
-                has_skills: false,
+                has_skills: !shelf.is_empty(),
             },
             tools,
             prompt_tools: Vec::new(),
             memory: None,
-            skills: Vec::new(),
+            skills: shelf,
             date,
             now,
             messages,
@@ -329,6 +407,7 @@ impl Session {
     pub(crate) fn run_blocking(
         &self,
         text: &str,
+        images: &[ImageRecord],
         observer: Arc<dyn TurnObserver>,
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: &CancelToken,
@@ -338,7 +417,11 @@ impl Session {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             state.next_message += 1;
             let id = format!("m{}", state.next_message);
-            state.messages.push(message(id, "user", text));
+            let mut sent = message(id, "user", text);
+            if !images.is_empty() {
+                sent.attachments = Some(images.iter().map(attachment).collect());
+            }
+            state.messages.push(sent);
             (
                 state.messages.clone(),
                 state.tail_notes.clone(),
@@ -363,12 +446,35 @@ impl Session {
             .as_ref()
             .map(|tools| tools.definitions())
             .unwrap_or(&[]);
-        let request = self.request(messages, grants, extra_tools);
-        let mut model = OpenAiModel::new(
-            Arc::clone(&self.net),
-            &self.config.base_url,
-            self.config.api_key.as_deref(),
-        );
+        let web_tools = match (&self.config.web, &handle) {
+            (Some(web), Some(handle)) => WebTools::new(
+                handle.clone(),
+                SearchConfig {
+                    search_provider: web.provider.clone(),
+                    searxng_url: web.searxng_url.trim().trim_end_matches('/').to_owned(),
+                    brave_api_key: web.brave_api_key.trim().to_owned(),
+                },
+            )
+            .ok(),
+            _ => None,
+        };
+        let request = self.request(messages, grants, extra_tools, web_tools.is_some());
+        let mut openai;
+        let mut agy;
+        let model: &mut dyn ModelClient = match &self.config.agy {
+            Some(config) => {
+                agy = AgyModel::new(&config.binary, PathBuf::from(&config.work_dir));
+                &mut agy
+            }
+            None => {
+                openai = OpenAiModel::new(
+                    Arc::clone(&self.net),
+                    &self.config.base_url,
+                    self.config.api_key.as_deref(),
+                );
+                &mut openai
+            }
+        };
         let mut engine = RunningServer {
             window: self.config.context_tokens.unwrap_or(8192),
         };
@@ -379,23 +485,28 @@ impl Session {
         let mut composite = CompositeTools {
             files,
             mcp: mcp_tools,
+            web: web_tools,
+            skills: self.skill_store(),
+            plans: self.config.agy.is_none(),
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
             approvals,
             cancel: cancel.signal().clone(),
             kept: Vec::new(),
+            plan: Arc::clone(&self.plan),
         };
-        let (mut refs, mut skills, mut ids) = (Refs, NoSkills, Counter::default());
+        let (mut refs, mut ids) = (Refs, Counter::default());
+        let mut shelf = SkillStore::new(self.config.skills_dir.clone().unwrap_or_default());
         let clock = WallClock;
 
         let result = run_turn(
             &request,
             &mut tail_notes,
             Ports {
-                model: &mut model,
+                model,
                 engine: &mut engine,
-                skills: &mut skills,
+                skills: &mut shelf,
                 tools: &mut composite,
                 host: &mut host,
                 observer: &mut bridge,
@@ -462,6 +573,23 @@ impl Session {
             .collect()
     }
 
+    /// The plan the model keeps for this conversation, empty until it writes one. It updates while a turn runs.
+    pub fn plan(&self) -> Vec<PlanStepRecord> {
+        let plan = self.plan.lock().unwrap_or_else(PoisonError::into_inner);
+        plan.iter()
+            .flatten()
+            .map(|item| PlanStepRecord {
+                text: item.text.clone(),
+                status: plan::status_name(item).to_owned(),
+            })
+            .collect()
+    }
+
+    /// Empties the plan; the model is told at its next turn that the user cleared it.
+    pub fn clear_plan(&self) {
+        *self.plan.lock().unwrap_or_else(PoisonError::into_inner) = Some(Vec::new());
+    }
+
     /// Replaces the conversation with saved messages, so the model sees them on the next turn. Grants and notes from
     /// the earlier conversation are dropped. Only `user` and `assistant` messages are accepted.
     pub fn restore(&self, saved: Vec<MessageRecord>) -> Result<(), CoreError> {
@@ -498,14 +626,33 @@ impl Session {
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: Arc<CancelToken>,
     ) -> Result<TurnOutcome, CoreError> {
+        self.send_with_images(text, Vec::new(), observer, approvals, cancel)
+            .await
+    }
+
+    /// Like `send`, with pictures. A model that cannot see them is told so in the message instead.
+    pub async fn send_with_images(
+        self: Arc<Self>,
+        text: String,
+        images: Vec<ImageRecord>,
+        observer: Arc<dyn TurnObserver>,
+        approvals: Option<Arc<dyn ApprovalHandler>>,
+        cancel: Arc<CancelToken>,
+    ) -> Result<TurnOutcome, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
         let session = Arc::clone(&self);
         let handle = tokio::runtime::Handle::current();
         std::thread::Builder::new()
             .name("draggy-turn".to_owned())
             .spawn(move || {
-                let outcome =
-                    session.run_blocking(&text, observer, approvals, &cancel, Some(handle));
+                let outcome = session.run_blocking(
+                    &text,
+                    &images,
+                    observer,
+                    approvals,
+                    &cancel,
+                    Some(handle),
+                );
                 // The receiver is gone when the shell dropped the call; nothing is waiting for the outcome.
                 drop(reply.send(outcome));
             })

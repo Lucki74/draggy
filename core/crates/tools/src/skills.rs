@@ -75,6 +75,9 @@ pub struct Skill {
     pub category: Value,
     pub surface: Surface,
     pub default_on: bool,
+    /// A library skill the user cannot switch off. Listed only when true.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
     pub model_invocable: bool,
     pub enabled: bool,
 }
@@ -320,6 +323,7 @@ struct CatalogueEntry {
     category: Value,
     surface: Surface,
     on: bool,
+    locked: bool,
 }
 
 /// `Boolean(value)` for a JSON value: null, false, zero and empty text are false; everything else is true.
@@ -384,6 +388,7 @@ fn read_catalogue(library: Option<&Path>) -> HashMap<String, CatalogueEntry> {
                     .and_then(Surface::parse)
                     .unwrap_or(Surface::Both),
                 on: js_truthy(entry.get("on")),
+                locked: entry.get("locked").and_then(Value::as_bool) == Some(true),
             },
         );
     }
@@ -455,6 +460,7 @@ fn read_skill_folder(
         } else {
             true
         },
+        locked: source == Source::Library && entry.is_some_and(|entry| entry.locked),
         model_invocable: !parsed.disable_model_invocation,
         id,
         enabled: false,
@@ -640,10 +646,11 @@ impl Skills {
         let mut skills: Vec<Skill> = order
             .into_iter()
             .map(|mut skill| {
-                skill.enabled = overrides
-                    .get(&skill.id)
-                    .copied()
-                    .unwrap_or(skill.default_on);
+                skill.enabled = skill.locked
+                    || overrides
+                        .get(&skill.id)
+                        .copied()
+                        .unwrap_or(skill.default_on);
                 skill
             })
             .collect();
@@ -852,6 +859,7 @@ mod tests {
             category: Value::Null,
             surface: Surface::Both,
             default_on: true,
+            locked: false,
             model_invocable: true,
             enabled: true,
         };

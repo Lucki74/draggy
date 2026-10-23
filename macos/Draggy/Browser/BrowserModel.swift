@@ -52,6 +52,11 @@ final class BrowserModel {
         self.canGoForward = canGoForward
     }
 
+    /// A download that stopped shows why.
+    func reportFailure(_ reason: String) {
+        errorMessage = reason
+    }
+
     /// Whether the web view may follow a link. A refused link shows its reason.
     func permits(_ url: URL) -> Bool {
         let reason = refusal(url.absoluteString)

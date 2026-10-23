@@ -1,11 +1,16 @@
 //! Draggy for Linux. The widgets are in the binary; this library holds what can be checked without a display.
 
+pub mod browser;
 pub mod chat;
 pub mod conversations;
 pub mod markdown;
+pub mod models;
+pub mod preview;
 pub mod runtime;
 pub mod secrets;
+pub mod servers;
 pub mod settings;
+pub mod speech;
 
 /// The D-Bus name and desktop file id of the app.
 pub const APP_ID: &str = "com.draggy.Draggy";

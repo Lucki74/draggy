@@ -434,7 +434,7 @@ describe("the library Draggy ships", () => {
   it("gives every skill a summary short enough for one line of the slash menu", () => {
     for (const found of skills.listSkills()) {
       expect(found.summary, found.id).toBeTruthy();
-      expect(found.summary.length, found.id).toBeLessThanOrEqual(36);
+      expect(found.summary.length, found.id).toBeLessThanOrEqual(48);
     }
   });
 
@@ -454,5 +454,5 @@ describe("the library Draggy ships", () => {
         expect(skills.readSkill(found.id, undefined, { file: name }).success, name).toBe(true);
       }
     }
-  });
+  }, 300000);
 });

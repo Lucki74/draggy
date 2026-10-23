@@ -401,6 +401,11 @@ fn run_search_log(input: &Value) -> Value {
 
 /// Runs a body and returns what it logged. The TypeScript runner records the same lines by hooking the logger.
 fn capture<T>(body: impl FnOnce() -> T) -> (T, Vec<Value>) {
+    // A global subscriber that asks for every callsite keeps a call made on a thread without one from caching "never" for the rest.
+    static GLOBAL: std::sync::Once = std::sync::Once::new();
+    GLOBAL.call_once(|| {
+        tracing::subscriber::set_global_default(Logged::default()).ok();
+    });
     let logged = Logged::default();
     let value = tracing::subscriber::with_default(logged.clone(), body);
     (value, logged.take())
@@ -417,6 +422,10 @@ impl Logged {
 }
 
 impl Subscriber for Logged {
+    fn register_callsite(&self, _: &'static Metadata<'static>) -> tracing::subscriber::Interest {
+        tracing::subscriber::Interest::sometimes()
+    }
+
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
         metadata.target().starts_with("net")
     }
