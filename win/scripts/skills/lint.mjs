@@ -33,7 +33,7 @@ const TELLS = /—|\bnot just\b|\bnot only\b|important to note|worth noting|\bAd
 const SECTIONS = ["goal", "when to use", "steps", "gotchas", "output"];
 
 export function parseFrontmatter(text) {
-  const src = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  const src = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
   if (!src.startsWith("---\n")) return null;
   const end = src.indexOf("\n---", 4);
   if (end < 0) return null;

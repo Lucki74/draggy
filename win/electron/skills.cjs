@@ -209,7 +209,8 @@ function listSkills(projectRoot, overrides = {}) {
   const skills = [...byId.values()]
     .map(({ locked, ...skill }) => {
       const flipped = overrides?.[skill.id];
-      return { ...skill, enabled: locked || (typeof flipped === "boolean" ? flipped : skill.defaultOn) };
+      const enabled = locked || (typeof flipped === "boolean" ? flipped : skill.defaultOn);
+      return locked ? { ...skill, locked: true, enabled } : { ...skill, enabled };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   noteState(skills);

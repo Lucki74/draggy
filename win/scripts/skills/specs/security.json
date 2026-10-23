@@ -1,0 +1,518 @@
+{
+ "category": "security",
+ "skills": [
+  {
+   "id": "threat-model",
+   "summary": "Map assets, trust boundaries and likely attacks",
+   "job": "Build a lightweight threat model of a feature or system and list ranked mitigations",
+   "triggers": [
+    "threat model this feature",
+    "what could go wrong security wise with this design",
+    "where are the trust boundaries in my app"
+   ],
+   "gotchas": [
+    "A threat list with fifty equal items is ignored",
+    "Models drawn from the diagram on a slide miss the admin tools, cron jobs and debug endpoints that exist in the code",
+    "Authorisation is the most common gap"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "create_file",
+    "explore"
+   ],
+   "surface": "both",
+   "tags": [
+    "threat-model",
+    "design",
+    "stride",
+    "trust-boundary",
+    "risk"
+   ]
+  },
+  {
+   "id": "dependency-vulnerability-triage",
+   "summary": "Triage audit findings by real exposure",
+   "job": "Triage dependency vulnerability reports by whether the code reaches the flaw, then plan upgrades",
+   "triggers": [
+    "npm audit shows lots of vulnerabilities",
+    "which of these CVEs actually matter",
+    "help me fix dependabot alerts"
+   ],
+   "gotchas": [
+    "Running `npm audit fix --force` can install major versions with breaking changes",
+    "A critical score on a dev only build tool is often lower real risk than a medium one in a request handler",
+    "Lockfile edits by hand drift from the manifest"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "search_web",
+    "read_url",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "dependencies",
+    "cve",
+    "audit",
+    "triage",
+    "upgrade"
+   ]
+  },
+  {
+   "id": "secrets-scan",
+   "summary": "Find leaked keys and credentials in a repo",
+   "job": "Find hardcoded secrets in code, config and git history, and set up prevention",
+   "triggers": [
+    "scan my repo for leaked secrets",
+    "did I commit an api key",
+    "set up a pre-commit check for secrets"
+   ],
+   "gotchas": [
+    "Rewriting git history without rotating the key leaves the secret valid",
+    "High entropy strings include hashes, ids and build outputs",
+    "Secrets also hide in Docker images, CI logs, issue comments, notebooks and compiled front-end bundles"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "list_directory",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "secrets",
+    "leaks",
+    "git-history",
+    "scanning",
+    "pre-commit"
+   ]
+  },
+  {
+   "id": "auth-session-review",
+   "summary": "Review login, session and token handling",
+   "job": "Review authentication, session and token handling for weaknesses in an existing implementation",
+   "triggers": [
+    "review my login code",
+    "is my jwt handling safe",
+    "check how sessions work in this app"
+   ],
+   "gotchas": [
+    "JWTs cannot be revoked by default",
+    "Accepting `alg",
+    "Login that says which of user or password was wrong, or reset that says the email is unknown, enables account enumeratio"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "explore"
+   ],
+   "surface": "code",
+   "tags": [
+    "authentication",
+    "sessions",
+    "jwt",
+    "cookies",
+    "login"
+   ]
+  },
+  {
+   "id": "input-validation-audit",
+   "summary": "Check every entry point validates input",
+   "job": "Audit entry points for missing validation, unsafe parsing and output encoding gaps",
+   "triggers": [
+    "audit input validation in this api",
+    "are we validating user input properly",
+    "find places that trust user data"
+   ],
+   "gotchas": [
+    "Blocklists of bad characters are bypassed by encoding tricks",
+    "Validating before decoding, or decoding twice, lets encoded payloads slip past the check",
+    "JSON parsers accept duplicate keys and large numbers differently, so two layers can disagree about the value"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "explore",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "validation",
+    "input",
+    "sanitisation",
+    "api",
+    "parsing"
+   ]
+  },
+  {
+   "id": "sql-injection-check",
+   "summary": "Find and fix injectable queries",
+   "job": "Find SQL and query-language injection risks in code and replace string building with parameters",
+   "triggers": [
+    "check my code for sql injection",
+    "is this query safe",
+    "how do I fix string concatenated queries"
+   ],
+   "gotchas": [
+    "Escaping functions are brittle and depend on character sets",
+    "Stored values are untrusted too",
+    "ORMs are not immune"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "sql-injection",
+    "queries",
+    "orm",
+    "parameters",
+    "database"
+   ]
+  },
+  {
+   "id": "xss-csp-review",
+   "summary": "Find cross-site scripting and tighten CSP",
+   "job": "Find cross-site scripting sinks in a web app and design a Content Security Policy that holds",
+   "triggers": [
+    "check my app for xss",
+    "write a content security policy",
+    "is it safe to render this user html"
+   ],
+   "gotchas": [
+    "A CSP with `'unsafe-inline'` or `'unsafe-eval'` for scripts gives little protection",
+    "Encoding must match the context",
+    "Sanitising on input and trusting it everywhere later breaks when the same data feeds a different context"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "read_url"
+   ],
+   "surface": "code",
+   "tags": [
+    "xss",
+    "csp",
+    "html",
+    "escaping",
+    "frontend"
+   ]
+  },
+  {
+   "id": "cors-config-review",
+   "summary": "Review CORS rules for over-permissive origins",
+   "job": "Review CORS configuration to allow the needed origins and block dangerous combinations",
+   "triggers": [
+    "check my cors settings",
+    "cors error in the browser, how do I fix it safely",
+    "is allowing all origins ok"
+   ],
+   "gotchas": [
+    "CORS does not stop requests reaching the server",
+    "Reflecting any `Origin` with credentials allowed lets any site read a logged-in user's data",
+    "A regex like `example"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "browser_navigate"
+   ],
+   "surface": "code",
+   "tags": [
+    "cors",
+    "origins",
+    "api",
+    "browser",
+    "credentials"
+   ]
+  },
+  {
+   "id": "password-storage-review",
+   "summary": "Check password hashing and reset handling",
+   "job": "Review how passwords are hashed, stored and checked, and plan a safe migration to a stronger scheme",
+   "triggers": [
+    "how should I store passwords",
+    "review our password hashing",
+    "migrate from md5 to a better hash"
+   ],
+   "gotchas": [
+    "Adding a salt to SHA-256 does not make it a password hash",
+    "Cost settings copied from an old tutorial are too low for current hardware",
+    "A site-wide secret (pepper) helps only if it lives outside the database, for example in a secrets manager"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "read_url",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "passwords",
+    "hashing",
+    "argon2",
+    "bcrypt",
+    "migration"
+   ]
+  },
+  {
+   "id": "security-headers",
+   "summary": "Audit and set HTTP security response headers",
+   "job": "Audit HTTP response headers and set a safe baseline for a web app or API",
+   "triggers": [
+    "check my security headers",
+    "add hsts and other headers",
+    "what headers should my site send"
+   ],
+   "gotchas": [
+    "HSTS with a long age on a domain that still has an HTTP-only subdomain locks users out for months",
+    "Headers set by both the app and the proxy appear twice, and browsers may take the stricter or ignore both",
+    "Error pages, redirects and static assets often miss headers that the main app adds"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "read_url"
+   ],
+   "surface": "code",
+   "tags": [
+    "headers",
+    "hsts",
+    "http",
+    "hardening",
+    "web"
+   ]
+  },
+  {
+   "id": "supply-chain-check",
+   "summary": "Vet packages and build pipeline for tampering",
+   "job": "Vet third party packages and the build pipeline for takeover, typosquat and tampering risk",
+   "triggers": [
+    "is this npm package safe to add",
+    "check my dependencies for malicious packages",
+    "harden our build against supply chain attacks"
+   ],
+   "gotchas": [
+    "Download counts are easy to inflate and prove nothing about safety",
+    "A trusted package can be compromised by a maintainer account takeover",
+    "The repository on the registry page may differ from the published tarball"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "read_url",
+    "search_web",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "supply-chain",
+    "packages",
+    "lockfile",
+    "provenance",
+    "ci"
+   ]
+  },
+  {
+   "id": "api-key-rotation",
+   "summary": "Rotate a leaked or aging credential safely",
+   "job": "Rotate a credential without downtime: find every use, issue the new one, switch, revoke the old one, verify",
+   "triggers": [
+    "i leaked an api key, what now",
+    "rotate our database password",
+    "set up regular key rotation"
+   ],
+   "gotchas": [
+    "Revoking first and deploying after causes the outage that rotation should avoid",
+    "Forgotten consumers (cron hosts, old staging, a teammate's script) fail silently after revocation",
+    "Deleting the key from git is not rotation"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "edit_file",
+    "update_plan"
+   ],
+   "surface": "both",
+   "tags": [
+    "rotation",
+    "credentials",
+    "incident",
+    "keys",
+    "revocation"
+   ]
+  },
+  {
+   "id": "least-privilege-iam",
+   "summary": "Trim cloud and app permissions to what is needed",
+   "job": "Review IAM roles, policies and application permissions and reduce them to what each identity needs",
+   "triggers": [
+    "review our iam policies",
+    "this role has too many permissions",
+    "write a minimal policy for this service"
+   ],
+   "gotchas": [
+    "Removing a permission that a rare job uses (monthly report, disaster recovery) breaks it months later",
+    "`PassRole` or the ability to edit policies lets an identity grant itself more",
+    "Resource wildcards inside an allowed action, such as all buckets, can be broader than the action list suggests"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "read_url",
+    "edit_file"
+   ],
+   "surface": "both",
+   "tags": [
+    "iam",
+    "permissions",
+    "least-privilege",
+    "roles",
+    "cloud"
+   ]
+  },
+  {
+   "id": "file-upload-security",
+   "summary": "Make user file uploads safe to accept and serve",
+   "job": "Review or build an upload feature that validates content, limits size, stores safely and serves without risk",
+   "triggers": [
+    "make file uploads secure",
+    "review my upload endpoint",
+    "users can upload avatars, what could go wrong"
+   ],
+   "gotchas": [
+    "The `Content-Type` header and the extension are chosen by the client",
+    "SVG is XML that can carry script",
+    "Image libraries have had parsing bugs"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "upload",
+    "files",
+    "storage",
+    "validation",
+    "malware"
+   ]
+  },
+  {
+   "id": "security-logging",
+   "summary": "Log security events without logging secrets",
+   "job": "Define which security events to log, with what fields, and make sure logs help detect abuse without leaking data",
+   "triggers": [
+    "what security events should we log",
+    "add audit logging",
+    "we need to detect brute force attempts"
+   ],
+   "gotchas": [
+    "Logging the failed username field often captures a password typed into it",
+    "Logs that anyone with app access can edit are useless as evidence after a compromise",
+    "Too much logging buries the signal and costs money"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "logging",
+    "audit",
+    "detection",
+    "events",
+    "privacy"
+   ]
+  },
+  {
+   "id": "ssrf-check",
+   "summary": "Find and block server-side request forgery",
+   "job": "Find places where the server fetches user-supplied URLs and add allow lists and network controls",
+   "triggers": [
+    "check for ssrf",
+    "my app fetches a url from the user, is that safe",
+    "block access to internal addresses from webhooks"
+   ],
+   "gotchas": [
+    "Checking the hostname string is not enough",
+    "Validating the URL and then fetching it lets DNS return a different address on the second lookup",
+    "A redirect from an allowed host to an internal one defeats a check done only on the first URL"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "ssrf",
+    "urls",
+    "webhooks",
+    "network",
+    "metadata"
+   ]
+  },
+  {
+   "id": "owasp-checklist",
+   "summary": "Walk a web app through the OWASP Top 10",
+   "job": "Walk a web application or API through the OWASP Top 10 categories with concrete checks for this codebase",
+   "triggers": [
+    "run through the owasp top 10 on my app",
+    "security checklist before launch",
+    "audit my api against owasp"
+   ],
+   "gotchas": [
+    "A checklist pass does not mean the app is secure",
+    "Category names and order differ between editions",
+    "Skimming ten endpoints finds the pattern; skipping the unusual ones (exports, admin, imports) misses the bug"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "read_url",
+    "explore",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "owasp",
+    "checklist",
+    "web",
+    "audit",
+    "launch"
+   ]
+  }
+ ]
+}

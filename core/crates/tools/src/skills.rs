@@ -75,8 +75,8 @@ pub struct Skill {
     pub category: Value,
     pub surface: Surface,
     pub default_on: bool,
-    /// A library skill the user cannot switch off. Not part of the listing.
-    #[serde(skip)]
+    /// A library skill the user cannot switch off. Listed only when true.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
     pub model_invocable: bool,
     pub enabled: bool,

@@ -100,7 +100,7 @@ describe("the skills list", () => {
       description: "Corrects spelling and grammar.",
       path: "C:\\draggy\\skills-library\\proofreader",
       source: "library",
-      category: "writing",
+      category: "writing-editing",
       surface: "chat",
       enabled: true,
     },
@@ -110,7 +110,7 @@ describe("the skills list", () => {
       description: "Containerises applications.",
       path: "C:\\draggy\\skills-library\\dockerfile",
       source: "library",
-      category: "code",
+      category: "software-planning",
       surface: "code",
       enabled: false,
     },
@@ -149,7 +149,7 @@ describe("the skills list", () => {
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
 
-    expect(headings).toEqual(["This project", "Your skills", "Writing", "Code"]);
+    expect(headings).toEqual(["This project", "Your skills", "Writing and editing", "Software planning"]);
     expect(screen.getByText("3 of 4 switched on")).toBeTruthy();
   });
 

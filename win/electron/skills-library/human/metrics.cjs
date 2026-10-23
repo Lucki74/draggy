@@ -42,4 +42,5 @@ function measure(text) {
   };
 }
 if (typeof module !== "undefined") module.exports = { measure };
-if (typeof TEXT === "string") console.log(JSON.stringify(measure(TEXT), null, 1));
+/* global TEXT */
+if (typeof TEXT === "string") process.stdout.write(JSON.stringify(measure(TEXT), null, 1) + "\n");
