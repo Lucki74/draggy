@@ -20,7 +20,8 @@ final class HTMLPreviewTests: XCTestCase {
 
     func testAClosedHTMLBlockGetsAPreviewLink() {
         let text = MessageText.message("```html\n<p>hi</p>\n```\nafter")
-        let link = text.attribute(.link, at: 0, effectiveRange: nil)
+        let at = (text.string as NSString).range(of: "Preview").location
+        let link = text.attribute(.link, at: at, effectiveRange: nil)
         XCTAssertEqual((link as? HTMLPreview)?.html, "<p>hi</p>")
     }
 

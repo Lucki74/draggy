@@ -96,13 +96,13 @@ fn fill(list: &gtk::ListBox, notify: &Notify) {
         remove.set_tooltip_text(Some("Remove"));
         remove.add_css_class("flat");
         row.add_suffix(&remove);
-        let (list, notify, dir, id) = (list.clone(), notify.clone(), dir.clone(), skill.id);
+        let (shelf, notify, dir, id) = (list.clone(), notify.clone(), dir.clone(), skill.id);
         remove.connect_clicked(move |_| {
             match remove_skill(dir.clone(), id.clone()) {
                 Ok(()) => notify("Skill removed"),
                 Err(error) => notify(&error.to_string()),
             }
-            fill(&list, &notify);
+            fill(&shelf, &notify);
         });
         list.append(&row);
     }
