@@ -944,6 +944,57 @@ mod tests {
         assert_eq!(body_text(&parts), "hello");
     }
 
+    #[test]
+    fn the_plan_strip_stays_hidden_until_there_is_a_plan() {
+        if !ready() {
+            return;
+        }
+        let chat: DraggyChat = glib::Object::new();
+        chat.refresh_plan();
+        assert!(!chat.imp().plan.is_visible());
+        assert!(chat.imp().plan_steps.first_child().is_none());
+    }
+
+    #[test]
+    fn the_read_aloud_toggle_starts_off() {
+        if !ready() {
+            return;
+        }
+        let chat: DraggyChat = glib::Object::new();
+        assert!(!chat.imp().speak.is_active());
+        // With the toggle off a finished reply is not read.
+        chat.read_aloud();
+    }
+
+    #[test]
+    fn a_code_block_shows_its_language_and_a_preview_button_only_for_html() {
+        if !ready() {
+            return;
+        }
+        let buttons = |language: &str| {
+            let block = code_block(language, "<p>hi</p>");
+            let mut count = 0;
+            let mut child = block.first_child();
+            while let Some(widget) = child {
+                count += widget_buttons(&widget);
+                child = widget.next_sibling();
+            }
+            count
+        };
+        assert!(buttons("html") > buttons("rust"));
+    }
+
+    /// The buttons inside a widget, itself included.
+    fn widget_buttons(widget: &gtk::Widget) -> usize {
+        let mut count = usize::from(widget.is::<gtk::Button>());
+        let mut child = widget.first_child();
+        while let Some(inner) = child {
+            count += widget_buttons(&inner);
+            child = inner.next_sibling();
+        }
+        count
+    }
+
     /// The text of a body that holds one label, such as a plain message or a single paragraph.
     fn body_text(parts: &ReplyParts) -> String {
         parts
