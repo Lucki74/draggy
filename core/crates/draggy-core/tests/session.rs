@@ -397,7 +397,10 @@ fn the_web_tools_are_offered_only_when_the_web_is_on() {
             .collect()
     };
     assert_eq!(names_in(&bodies[0]), ["update_plan"]);
-    assert_eq!(names_in(&bodies[1]), ["search_web", "read_url", "update_plan"]);
+    assert_eq!(
+        names_in(&bodies[1]),
+        ["search_web", "read_url", "update_plan"]
+    );
 }
 
 #[test]
@@ -941,7 +944,10 @@ fn a_picture_goes_to_the_model_as_an_image_part() {
 #[test]
 fn the_plan_the_model_writes_is_kept_and_can_be_cleared() {
     let server = serve(vec![
-        tool_reply("update_plan", r#"{"steps":"[x] Read it\n[>] Fix it\n[ ] Test it"}"#),
+        tool_reply(
+            "update_plan",
+            r#"{"steps":"[x] Read it\n[>] Fix it\n[ ] Test it"}"#,
+        ),
         text_reply(&["Done"]),
     ]);
     let session = Session::new(config(&server.url, None)).expect("session");

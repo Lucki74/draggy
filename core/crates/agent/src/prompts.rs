@@ -283,7 +283,11 @@ pub struct SystemPromptInput<'a> {
 
 /// `modelIdentityNote`: who is answering, cut to one short line.
 pub fn model_identity_note(model: Option<&str>) -> String {
-    let collapsed = model.unwrap_or_default().split_whitespace().collect::<Vec<_>>().join(" ");
+    let collapsed = model
+        .unwrap_or_default()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let name: String = collapsed.chars().take(80).collect();
     let name = name.trim();
     if name.is_empty() {
