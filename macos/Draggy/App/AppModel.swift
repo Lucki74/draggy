@@ -95,6 +95,7 @@ final class AppModel {
         static let searchProvider = "searchProvider"
         static let searxng = "searxngURL"
         static let agyOn = "agyOn"
+        static let speakReplies = "speakReplies"
         static let agyModel = "agyModel"
     }
 
@@ -178,6 +179,16 @@ final class AppModel {
         }
     }
 
+    /// Reads each finished reply aloud with the system voice.
+    var speakReplies: Bool {
+        didSet {
+            defaults.set(speakReplies, forKey: Key.speakReplies)
+            if !speakReplies { speaker.stop() }
+        }
+    }
+
+    @ObservationIgnored private let speaker = ReplySpeaker()
+
     /// Sends chat through the Antigravity CLI. Needs a signed-in account.
     var agyEnabled: Bool {
         didSet {
@@ -224,6 +235,7 @@ final class AppModel {
         searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
         agyEnabled = defaults.bool(forKey: Key.agyOn)
+        speakReplies = defaults.bool(forKey: Key.speakReplies)
         agyModel = defaults.string(forKey: Key.agyModel) ?? ""
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
@@ -345,6 +357,7 @@ final class AppModel {
 
     /// Stops the turn. A question that is waiting for the user is answered with no, so the turn can end.
     func stop() {
+        speaker.stop()
         cancel?.cancel()
         answerApproval(.no)
     }
@@ -390,6 +403,7 @@ final class AppModel {
             let outcome = try await session.sendWithImages(
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
+            if speakReplies { speaker.speak(outcome.textContent) }
             transcript.setSteps(outcome.steps.map(transcriptStep))
             plan = session.plan()
         } catch let error as CoreError {

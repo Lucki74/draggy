@@ -73,6 +73,10 @@ struct ChatView: View {
                 .accessibilityLabel("Attach a file")
                 .accessibilityHint("Add the text of a Word, PowerPoint, Excel or PDF file")
                 .disabled(model.isRunning)
+            Toggle(isOn: $model.speakReplies) { Image(systemName: "speaker.wave.2") }
+                .toggleStyle(.button)
+                .help("Read replies aloud")
+                .accessibilityLabel("Read replies aloud")
             TextField("Message", text: $model.draft, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.roundedBorder)
