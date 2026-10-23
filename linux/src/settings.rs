@@ -74,6 +74,7 @@ impl Settings {
                 permission_mode: Some(PermissionModeRecord::Ask),
                 web: None,
                 agy: Some(agy.clone()),
+                skills_dir: None,
             });
         }
         let server = self.server_url.trim().trim_end_matches('/');
