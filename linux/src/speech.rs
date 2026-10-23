@@ -52,6 +52,22 @@ pub fn speak(markdown: &str) -> bool {
         .is_ok()
 }
 
+/// Reads the reply and returns when it has been read to the end. False when speech-dispatcher is not installed.
+pub fn speak_wait(markdown: &str) -> bool {
+    stop();
+    let text = spoken(markdown);
+    if text.is_empty() {
+        return true;
+    }
+    Command::new("spd-say")
+        .args(["-w", "--"])
+        .arg(text)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+}
+
 /// Cuts off what is being read.
 pub fn stop() {
     let _ = Command::new("spd-say")
