@@ -120,6 +120,11 @@ final class AppModel {
     private(set) var transcript: Transcript
     private(set) var isRunning = false
     private(set) var errorMessage: String?
+    var talkPhase = TalkPhase.off
+    var lastReply = ""
+    @ObservationIgnored let listener = SpeechListener()
+
+    func report(_ message: String?) { errorMessage = message }
     /// The tool call that is waiting for the user's answer.
     private(set) var pendingApproval: ApprovalRecord?
 
@@ -187,7 +192,7 @@ final class AppModel {
         }
     }
 
-    @ObservationIgnored private let speaker = ReplySpeaker()
+    @ObservationIgnored let speaker = ReplySpeaker()
 
     /// Sends chat through the Antigravity CLI. Needs a signed-in account.
     var agyEnabled: Bool {
@@ -380,6 +385,7 @@ final class AppModel {
         let images = pendingImages
         pendingImages = []
         errorMessage = nil
+        lastReply = ""
         isRunning = true
         defer {
             isRunning = false
@@ -403,7 +409,8 @@ final class AppModel {
             let outcome = try await session.sendWithImages(
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
-            if speakReplies { speaker.speak(outcome.textContent) }
+            lastReply = outcome.textContent
+            if speakReplies, talkPhase == .off { speaker.speak(outcome.textContent) }
             transcript.setSteps(outcome.steps.map(transcriptStep))
             plan = session.plan()
         } catch let error as CoreError {

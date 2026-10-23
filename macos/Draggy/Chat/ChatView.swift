@@ -73,6 +73,15 @@ struct ChatView: View {
                 .accessibilityLabel("Attach a file")
                 .accessibilityHint("Add the text of a Word, PowerPoint, Excel or PDF file")
                 .disabled(model.isRunning)
+            Button { model.toggleTalk() } label: {
+                Image(systemName: model.isTalking ? "mic.fill" : "mic")
+            }
+            .help("Talk")
+            .accessibilityLabel("Talk")
+            .disabled(model.isRunning && !model.isTalking)
+            if model.isTalking {
+                Text(model.talkPhase.label).font(.caption).foregroundStyle(.secondary)
+            }
             Toggle(isOn: $model.speakReplies) { Image(systemName: "speaker.wave.2") }
                 .toggleStyle(.button)
                 .help("Read replies aloud")
