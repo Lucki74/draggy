@@ -10,6 +10,7 @@ pub mod runtime;
 pub mod secrets;
 pub mod servers;
 pub mod settings;
+pub mod speech;
 
 /// The D-Bus name and desktop file id of the app.
 pub const APP_ID: &str = "com.draggy.Draggy";

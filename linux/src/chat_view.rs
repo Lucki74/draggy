@@ -21,6 +21,7 @@ use draggy_linux::markdown::{self, Block};
 use draggy_linux::preview;
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
+use draggy_linux::speech;
 
 type Toast = Rc<dyn Fn(&str)>;
 
@@ -60,6 +61,8 @@ mod imp {
         pub plan_clear: TemplateChild<gtk::Button>,
         #[template_child]
         pub plan_steps: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub speak: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub input: TemplateChild<gtk::TextView>,
         #[template_child]
@@ -113,6 +116,18 @@ mod imp {
             self.stop.connect_clicked(move |_| {
                 if let Some(chat) = weak.upgrade() {
                     chat.stop_turn();
+                }
+            });
+
+            let weak = chat.downgrade();
+            self.speak.connect_toggled(move |button| {
+                if !button.is_active() {
+                    speech::stop();
+                } else if let Some(chat) = weak.upgrade()
+                    && !speech::available()
+                {
+                    button.set_active(false);
+                    chat.toast("Install speech-dispatcher to hear replies.");
                 }
             });
 
@@ -556,6 +571,18 @@ impl DraggyChat {
         }
     }
 
+    /// Reads the finished reply aloud while the speaker button is on.
+    fn read_aloud(&self) {
+        let imp = self.imp();
+        if !imp.speak.is_active() {
+            return;
+        }
+        let text = imp.log.borrow().entries().last().map(|e| e.text.clone());
+        if let Some(text) = text {
+            speech::speak(&text);
+        }
+    }
+
     fn clear_plan(&self) {
         if let Some(live) = self.imp().live.borrow().as_ref() {
             live.session.clear_plan();
@@ -608,6 +635,7 @@ impl DraggyChat {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
                         chat.refresh_plan();
+                        chat.read_aloud();
                         chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);
