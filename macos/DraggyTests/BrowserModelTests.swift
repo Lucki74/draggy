@@ -40,4 +40,10 @@ final class BrowserModelTests: XCTestCase {
         XCTAssertFalse(model.permits(URL(string: "file:///tmp/x")!))
         XCTAssertEqual(model.errorMessage, "no")
     }
+
+    func testAFailedDownloadShowsWhy() {
+        let model = BrowserModel { _ in "" }
+        model.reportFailure("disk full")
+        XCTAssertEqual(model.errorMessage, "disk full")
+    }
 }

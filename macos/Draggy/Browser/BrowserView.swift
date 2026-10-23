@@ -83,9 +83,10 @@ private struct WebPage: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
         let browser: BrowserModel
         var requested: URL?
+        private var saved: URL?
 
         init(browser: BrowserModel) { self.browser = browser }
 
@@ -93,7 +94,43 @@ private struct WebPage: NSViewRepresentable {
             _ webView: WKWebView, decidePolicyFor action: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
             guard let url = action.request.url else { return .cancel }
-            return browser.permits(url) ? .allow : .cancel
+            guard browser.permits(url) else { return .cancel }
+            return action.shouldPerformDownload ? .download : .allow
+        }
+
+        /// A response the view cannot show is a file: it is downloaded instead of dropped.
+        func webView(
+            _ webView: WKWebView, decidePolicyFor response: WKNavigationResponse
+        ) async -> WKNavigationResponsePolicy {
+            response.canShowMIMEType ? .allow : .download
+        }
+
+        func webView(_ webView: WKWebView, navigationAction _: WKNavigationAction, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse _: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        /// Asks where to save the file. Cancelling the panel cancels the download.
+        func download(
+            _ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String
+        ) async -> URL? {
+            saved = nil
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = suggestedFilename
+            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+            saved = url
+            return url
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            if let saved { NSWorkspace.shared.activateFileViewerSelecting([saved]) }
+        }
+
+        func download(_ download: WKDownload, didFailWithError error: Error, resumeData _: Data?) {
+            browser.reportFailure(error.localizedDescription)
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation _: WKNavigation!) { report(webView) }
