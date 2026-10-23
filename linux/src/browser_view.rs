@@ -9,10 +9,17 @@ use webkit6::{PolicyDecisionType, WebView};
 
 /// Loads the shared ad and tracker rules into the view. Pages load without them until the rules are compiled.
 fn block_ads(view: &WebView) {
-    let Some(manager) = view.user_content_manager() else { return };
-    let store = webkit6::UserContentFilterStore::new(&gtk::glib::user_cache_dir().join("draggy/adblock").to_string_lossy());
+    let Some(manager) = view.user_content_manager() else {
+        return;
+    };
+    let store = webkit6::UserContentFilterStore::new(
+        &gtk::glib::user_cache_dir()
+            .join("draggy/adblock")
+            .to_string_lossy(),
+    );
     gtk::glib::spawn_future_local(async move {
-        let rules = gtk::glib::Bytes::from_owned(draggy_core::adblock::adblock_rules().into_bytes());
+        let rules =
+            gtk::glib::Bytes::from_owned(draggy_core::adblock::adblock_rules().into_bytes());
         if let Ok(filter) = store.save_future("draggy-adblock", &rules).await {
             manager.add_filter(&filter);
         }

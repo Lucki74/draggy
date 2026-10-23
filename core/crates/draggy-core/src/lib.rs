@@ -48,8 +48,8 @@ pub use models::{
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
     AgyConfigRecord, ApprovalChoice, ApprovalRecord, ImageRecord, LiveRecord, MessageRecord,
-    MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord, TurnEventRecord, TurnOutcome,
-    WebConfigRecord,
+    MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord,
+    TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
 pub use session::Session;
 pub use skills::{SkillRecord, install_skill, list_skills, remove_skill};

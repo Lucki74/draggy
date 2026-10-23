@@ -23,7 +23,8 @@ pub fn definitions() -> Vec<ToolDefinition> {
         kind: "function".to_owned(),
         function: FunctionDefinition {
             name: "use_skill".to_owned(),
-            description: "Load the instructions of an installed skill, or one of its files.".to_owned(),
+            description: "Load the instructions of an installed skill, or one of its files."
+                .to_owned(),
             parameters: json!({
                 "type": "object",
                 "properties": {

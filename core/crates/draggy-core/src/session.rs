@@ -36,11 +36,11 @@ use crate::model::OpenAiModel;
 use crate::net::Net;
 use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
 use crate::plan;
-use crate::skills::{self, SkillStore};
 use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
     TurnOutcome,
 };
+use crate::skills::{self, SkillStore};
 use crate::tools::{FileTools, NoTools, definitions};
 use crate::web_tools::{self, WebTools};
 
@@ -166,7 +166,10 @@ impl TurnHost for Host {
     }
 
     fn get_plan(&mut self) -> Option<Vec<draggy_agent::agent_loop::PlanItem>> {
-        self.plan.lock().unwrap_or_else(PoisonError::into_inner).clone()
+        self.plan
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     fn on_plan(&mut self, items: &[draggy_agent::agent_loop::PlanItem]) {

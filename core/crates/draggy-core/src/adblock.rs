@@ -5,7 +5,10 @@ const HOSTS: &str = include_str!("../../../../shared/adblock/hosts.txt");
 
 /// The hosts in the list, without comments or blank lines.
 fn hosts(list: &str) -> Vec<&str> {
-    list.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect()
+    list.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect()
 }
 
 fn escape(host: &str) -> String {

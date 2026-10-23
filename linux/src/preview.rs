@@ -3,7 +3,10 @@
 
 /// Whether a code block's language is one to preview.
 pub fn is_html(language: &str) -> bool {
-    matches!(language.trim().to_ascii_lowercase().as_str(), "html" | "htm")
+    matches!(
+        language.trim().to_ascii_lowercase().as_str(),
+        "html" | "htm"
+    )
 }
 
 const POLICY: &str = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";

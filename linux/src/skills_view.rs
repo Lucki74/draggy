@@ -80,7 +80,11 @@ fn fill(list: &gtk::ListBox, notify: &Notify) {
     let dir = dir.to_string_lossy().into_owned();
     let skills = list_skills(dir.clone());
     if skills.is_empty() {
-        list.append(&adw::ActionRow::builder().title("No skills installed").build());
+        list.append(
+            &adw::ActionRow::builder()
+                .title("No skills installed")
+                .build(),
+        );
     }
     for skill in skills {
         let row = adw::ActionRow::builder()

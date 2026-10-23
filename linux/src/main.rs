@@ -5,8 +5,8 @@ mod browser_view;
 mod chat_view;
 mod models_view;
 mod servers_view;
-mod skills_view;
 mod settings_dialog;
+mod skills_view;
 mod state;
 mod window;
 
