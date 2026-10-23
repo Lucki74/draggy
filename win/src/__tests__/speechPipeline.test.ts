@@ -82,10 +82,30 @@ describe("reading the tokenizer files directly", () => {
     });
     const instance: { tokenizer?: unknown; processor?: unknown } = {};
 
-    await completePipeline(instance, "onnx-community/whisper-base", lib);
+    await completePipeline(instance, "onnx-community/moonshine-base-ONNX", lib);
 
     expect(built).toEqual([[{ file: "tokenizer.json" }, { file: "tokenizer_config.json" }]]);
     expect(lib.AutoTokenizer.from_pretrained).not.toHaveBeenCalled();
+  });
+
+  it("gives a whisper model the WhisperTokenizer and any other model the generic one", async () => {
+    const lib = library({
+      loadJson: vi.fn(async (_model: string, file: string) => ({ file })),
+      PreTrainedTokenizer: class {
+        kind = "generic";
+      } as unknown as SpeechLibrary["PreTrainedTokenizer"],
+      WhisperTokenizer: class {
+        kind = "whisper";
+      } as unknown as SpeechLibrary["WhisperTokenizer"],
+    });
+    const whisper: { tokenizer?: unknown } = {};
+    const moonshine: { tokenizer?: unknown } = {};
+
+    await completePipeline(whisper, "onnx-community/whisper-base", lib);
+    await completePipeline(moonshine, "onnx-community/moonshine-base-ONNX", lib);
+
+    expect(whisper.tokenizer).toMatchObject({ kind: "whisper" });
+    expect(moonshine.tokenizer).toMatchObject({ kind: "generic" });
   });
 
   it("names the tokenizer step when a file cannot be read", async () => {

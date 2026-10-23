@@ -7,6 +7,8 @@ export interface SpeechLibrary {
   WhisperFeatureExtractor: new (config: Record<string, unknown>) => unknown;
   Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown;
   PreTrainedTokenizer?: new (tokenizerJson: unknown, tokenizerConfig: unknown) => unknown;
+  /** Whisper decodes through _decode_asr, which only this subclass has. */
+  WhisperTokenizer?: new (tokenizerJson: unknown, tokenizerConfig: unknown) => unknown;
   /** Reads one JSON file of a model through the host the pipeline downloads from. */
   loadJson?: (model: string, file: string) => Promise<unknown>;
 }
@@ -37,12 +39,13 @@ export async function atStage<T>(stage: SpeechStage, run: () => Promise<T>): Pro
  * answer, gets none, and fails reading tokenizer_class of nothing. The two files are read directly.
  */
 async function loadTokenizer(model: string, lib: SpeechLibrary): Promise<unknown> {
-  if (!lib.loadJson || !lib.PreTrainedTokenizer) return lib.AutoTokenizer.from_pretrained(model);
+  const Tokenizer = model.includes("whisper") ? lib.WhisperTokenizer : lib.PreTrainedTokenizer;
+  if (!lib.loadJson || !Tokenizer) return lib.AutoTokenizer.from_pretrained(model);
   const [tokenizerJson, tokenizerConfig] = await Promise.all([
     lib.loadJson(model, "tokenizer.json"),
     lib.loadJson(model, "tokenizer_config.json"),
   ]);
-  return new lib.PreTrainedTokenizer(tokenizerJson, tokenizerConfig ?? {});
+  return new Tokenizer(tokenizerJson, tokenizerConfig ?? {});
 }
 
 async function loadProcessor(model: string, lib: SpeechLibrary): Promise<unknown> {
