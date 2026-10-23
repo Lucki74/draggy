@@ -27,6 +27,47 @@ template $DraggyChat: Gtk.Box {
     maximum-size: 760;
     tightening-threshold: 560;
 
+    Gtk.Box plan {
+      orientation: vertical;
+      spacing: 2;
+      visible: false;
+      margin-start: 16;
+      margin-end: 16;
+      styles ["card"]
+
+      Gtk.Box {
+        margin-top: 6;
+        margin-start: 10;
+        margin-end: 6;
+
+        Gtk.Label plan_title {
+          label: "Plan";
+          hexpand: true;
+          xalign: 0;
+          styles ["heading"]
+        }
+
+        Gtk.Button plan_clear {
+          icon-name: "edit-clear-symbolic";
+          tooltip-text: "Clear plan";
+          styles ["flat", "circular"]
+        }
+      }
+
+      Gtk.Box plan_steps {
+        orientation: vertical;
+        spacing: 2;
+        margin-start: 10;
+        margin-end: 10;
+        margin-bottom: 8;
+      }
+    }
+  }
+
+  Adw.Clamp {
+    maximum-size: 760;
+    tightening-threshold: 560;
+
     Gtk.Box {
       spacing: 8;
       margin-top: 8;

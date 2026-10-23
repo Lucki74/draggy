@@ -53,6 +53,14 @@ mod imp {
         #[template_child]
         pub transcript: TemplateChild<gtk::Box>,
         #[template_child]
+        pub plan: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub plan_title: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub plan_clear: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub plan_steps: TemplateChild<gtk::Box>,
+        #[template_child]
         pub input: TemplateChild<gtk::TextView>,
         #[template_child]
         pub attach: TemplateChild<gtk::Button>,
@@ -105,6 +113,13 @@ mod imp {
             self.stop.connect_clicked(move |_| {
                 if let Some(chat) = weak.upgrade() {
                     chat.stop_turn();
+                }
+            });
+
+            let weak = chat.downgrade();
+            self.plan_clear.connect_clicked(move |_| {
+                if let Some(chat) = weak.upgrade() {
+                    chat.clear_plan();
                 }
             });
 
@@ -242,6 +257,7 @@ impl DraggyChat {
         let imp = self.imp();
         *imp.live.borrow_mut() = None;
         *imp.pending.borrow_mut() = None;
+        self.refresh_plan();
     }
 
     fn notify_changed(&self) {
@@ -510,6 +526,43 @@ impl DraggyChat {
         Some(session)
     }
 
+    /// Shows the session's plan above the composer, or hides the strip while there is none.
+    fn refresh_plan(&self) {
+        let imp = self.imp();
+        let steps = match imp.live.borrow().as_ref() {
+            Some(live) => live.session.plan(),
+            None => Vec::new(),
+        };
+        while let Some(child) = imp.plan_steps.first_child() {
+            imp.plan_steps.remove(&child);
+        }
+        imp.plan.set_visible(!steps.is_empty());
+        let done = steps.iter().filter(|step| step.status == "done").count();
+        imp.plan_title
+            .set_label(&format!("Plan · {done} of {}", steps.len()));
+        for step in &steps {
+            let mark = match step.status.as_str() {
+                "done" => "✓",
+                "doing" => "▶",
+                _ => "○",
+            };
+            let label = gtk::Label::new(Some(&format!("{mark}  {}", step.text)));
+            label.set_xalign(0.0);
+            label.set_wrap(true);
+            if step.status == "done" {
+                label.add_css_class("dim-label");
+            }
+            imp.plan_steps.append(&label);
+        }
+    }
+
+    fn clear_plan(&self) {
+        if let Some(live) = self.imp().live.borrow().as_ref() {
+            live.session.clear_plan();
+        }
+        self.refresh_plan();
+    }
+
     fn clear_transcript(&self) {
         let imp = self.imp();
         *imp.log.borrow_mut() = Transcript::default();
@@ -546,6 +599,7 @@ impl DraggyChat {
                     ChatMessage::Events(events) => {
                         chat.imp().log.borrow_mut().apply(&events);
                         chat.refresh_reply();
+                        chat.refresh_plan();
                     }
                     ChatMessage::Approval { request, reply } => {
                         chat.ask_approval(request, reply);
@@ -553,6 +607,7 @@ impl DraggyChat {
                     ChatMessage::Finished(result) => {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
+                        chat.refresh_plan();
                         chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);
