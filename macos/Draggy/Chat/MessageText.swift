@@ -50,6 +50,8 @@ enum MessageText {
     static func message(_ text: String) -> NSAttributedString {
         let out = NSMutableAttributedString()
         var inFence = false
+        var language = ""
+        var fenced: [String] = []
         let rows = text.components(separatedBy: "\n")
         var index = 0
         while index < rows.count {
@@ -66,9 +68,16 @@ enum MessageText {
             index += 1
             if row.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                 inFence.toggle()
+                if inFence {
+                    language = String(row.trimmingCharacters(in: .whitespaces).dropFirst(3))
+                    fenced = []
+                } else if HTMLPreview.isHTML(language) {
+                    out.append(previewLink(fenced.joined(separator: "\n"), end: end))
+                }
                 continue
             }
             if inFence {
+                fenced.append(row)
                 out.append(NSAttributedString(string: row + end, attributes: [
                     .font: mono,
                     .foregroundColor: NSColor.labelColor,
@@ -79,6 +88,17 @@ enum MessageText {
                 out.append(NSAttributedString(string: end, attributes: [.font: body]))
             }
         }
+        return out
+    }
+
+    /// A link under a closed html block that opens the block in a preview window.
+    private static func previewLink(_ code: String, end: String) -> NSAttributedString {
+        let out = NSMutableAttributedString(string: "\u{25B6} " + String(localized: "Preview"), attributes: [
+            .font: small,
+            .foregroundColor: NSColor.linkColor,
+            .link: HTMLPreview(code),
+        ])
+        out.append(NSAttributedString(string: end, attributes: [.font: body]))
         return out
     }
 
