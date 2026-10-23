@@ -22,6 +22,7 @@ use draggy_linux::preview;
 use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 use draggy_linux::speech;
+use draggy_linux::talk;
 
 type Toast = Rc<dyn Fn(&str)>;
 
@@ -63,6 +64,8 @@ mod imp {
         pub plan_steps: TemplateChild<gtk::Box>,
         #[template_child]
         pub speak: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
+        pub talk: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub input: TemplateChild<gtk::TextView>,
         #[template_child]
@@ -128,6 +131,19 @@ mod imp {
                 {
                     button.set_active(false);
                     chat.toast("Install speech-dispatcher to hear replies.");
+                }
+            });
+
+            let weak = chat.downgrade();
+            self.talk.connect_toggled(move |button| {
+                let Some(chat) = weak.upgrade() else { return };
+                if !button.is_active() {
+                    speech::stop();
+                } else if let Some(problem) = talk::missing() {
+                    button.set_active(false);
+                    chat.toast(&problem);
+                } else if !chat.imp().log.borrow().is_busy() {
+                    chat.listen_next();
                 }
             });
 
@@ -583,6 +599,47 @@ impl DraggyChat {
         }
     }
 
+    /// Records the next spoken message and sends it, while talk mode is on.
+    fn listen_next(&self) {
+        let chat = self.clone();
+        glib::spawn_future_local(async move {
+            let heard = gio::spawn_blocking(talk::listen).await;
+            if !chat.imp().talk.is_active() {
+                return;
+            }
+            match heard {
+                Ok(Ok(text)) if text.is_empty() => chat.listen_next(),
+                Ok(Ok(text)) => {
+                    chat.imp().input.buffer().set_text(&text);
+                    chat.submit();
+                }
+                _ => {
+                    chat.imp().talk.set_active(false);
+                    chat.toast("The microphone could not be used.");
+                }
+            }
+        });
+    }
+
+    /// In talk mode: reads the finished reply to the end, then listens again. Otherwise reads it when asked to.
+    fn answer_aloud(&self) {
+        let imp = self.imp();
+        if !imp.talk.is_active() {
+            self.read_aloud();
+            return;
+        }
+        let text = imp.log.borrow().entries().last().map(|e| e.text.clone());
+        let chat = self.clone();
+        glib::spawn_future_local(async move {
+            if let Some(text) = text {
+                let _ = gio::spawn_blocking(move || speech::speak_wait(&text)).await;
+            }
+            if chat.imp().talk.is_active() {
+                chat.listen_next();
+            }
+        });
+    }
+
     fn clear_plan(&self) {
         if let Some(live) = self.imp().live.borrow().as_ref() {
             live.session.clear_plan();
@@ -635,7 +692,7 @@ impl DraggyChat {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
                         chat.refresh_plan();
-                        chat.read_aloud();
+                        chat.answer_aloud();
                         chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
                         chat.set_busy(false);

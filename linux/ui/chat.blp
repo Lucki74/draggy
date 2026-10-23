@@ -90,6 +90,13 @@ template $DraggyChat: Gtk.Box {
         styles ["flat", "circular"]
       }
 
+      Gtk.ToggleButton talk {
+        icon-name: "audio-input-microphone-symbolic";
+        tooltip-text: "Talk";
+        valign: end;
+        styles ["flat", "circular"]
+      }
+
       Gtk.ScrolledWindow {
         hexpand: true;
         propagate-natural-height: true;
