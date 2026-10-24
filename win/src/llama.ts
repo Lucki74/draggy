@@ -10,7 +10,7 @@ export const KEEP_ALIVE = "30m";
 
 export const FALLBACK_CONTEXT_LENGTH = 8192;
 
-export const CONTEXT_BUCKETS = [4096, 8192, 16384, 32768, 65536, 131072];
+export const CONTEXT_BUCKETS = [4096, 8192, 16384, 32768, 65536, 131072, 262144];
 
 export interface ModelInfo {
   contextLength: number | null;
