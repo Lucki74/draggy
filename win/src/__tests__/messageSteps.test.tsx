@@ -264,8 +264,9 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
-    // A lone step sits in its work group too, closed until opened.
-    fireEvent.click(screen.getByRole("button", { name: "Deleted 1 file" }));
+    // A lone step shows as its own row, with no group to open.
+    expect(screen.queryByRole("button", { name: "Deleted 1 file" })).toBeNull();
+    expect(screen.getByText("format.ts")).toBeTruthy();
     for (const name of ["Open changes", "Open", "Undo"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }

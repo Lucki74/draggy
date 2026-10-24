@@ -1340,6 +1340,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             if (thinkStartTime === null) thinkStartTime = performance.now();
             thinkingText += thinkingAdded;
           }
+          // A tool call ends the reasoning just as reply text does; the timer stops there.
+          if (toolAdded && nativeThinking && thinkStartTime !== null && thoughtTime === null) {
+            thoughtTime = (performance.now() - thinkStartTime) / 1000;
+          }
 
           if (added) {
             logStreamChunk(added, correlationId);
@@ -1452,6 +1456,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
                 (thinkStartTime !== null
                   ? (performance.now() - thinkStartTime) / 1000
                   : undefined),
+              ...(thoughtTime !== null ? { isComplete: true } : {}),
             });
 
             // The reply body only ever holds text from passes that are already
