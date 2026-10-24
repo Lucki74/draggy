@@ -1065,6 +1065,21 @@ function createWindow({ onboarding: showSetup = false } = {}) {
     if (bootModel && !mainWindow.isDestroyed()) sendTo(mainWindow, "boot-model", bootModel);
   });
 
+  // A crashed page reloads on its own; saved chats come back and the cut reply shows Resume.
+  const crashes = [];
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit" || mainWindow.isDestroyed()) return;
+    const now = Date.now();
+    while (crashes.length && now - crashes[0] > 60000) crashes.shift();
+    crashes.push(now);
+    if (crashes.length > 3) {
+      log.error("window", "renderer keeps crashing, not reloading", details);
+      return;
+    }
+    log.error("window", `renderer gone (${details.reason}), reloading`, details);
+    mainWindow.webContents.reload();
+  });
+
   const query = showSetup ? "?onboarding=true" : "";
   // Falls back to the built bundle when no dev server was started.
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, validatedURL) => {
