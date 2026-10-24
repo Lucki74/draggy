@@ -8,7 +8,7 @@ import { ProviderIcon } from "../providers/ProviderIcon";
 import { bundledCatalog } from "../../electron/providers/catalog.cjs";
 
 /** The servers with no brand mark to show: they keep a letter. */
-const LETTERS = ["llamafile", "colibri", "custom", "ollama-cloud", "nebius", "sambanova", "siliconflow", "novita"];
+const LETTERS = ["llamafile", "colibri"];
 
 const iconOf = (type: string | undefined, name = "Name") => {
   const { container } = render(<ProviderIcon type={type} name={name} />);
