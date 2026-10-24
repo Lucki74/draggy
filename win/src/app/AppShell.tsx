@@ -23,7 +23,6 @@ import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
 import { listInstalledModels } from "../llama";
-import { useEngineLoaded } from "./useEngineLoaded";
 import { isRemote } from "../ai/providers";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
@@ -373,7 +372,6 @@ export default function AppShell({
     patchActiveMessage: store.patchActiveMessage,
   });
   // Read again when a reply starts or ends, which is when a model gets loaded.
-  const engineLoaded = useEngineLoaded(turnModel, runs.running.length);
 
   useEffect(() => {
     const chatId = proceedChatRef.current;
@@ -1267,10 +1265,6 @@ export default function AppShell({
           open={sidebarOpen}
           onToggleOpen={toggleSidebar}
           onOpenPalette={() => setPaletteOpen(true)}
-          engineModel={turnModel}
-          engineState={
-            runs.running.includes(currentChatId!) ? "generating" : engineLoaded ? "ready" : "stopped"
-          }
         />
 
         <MainColumn

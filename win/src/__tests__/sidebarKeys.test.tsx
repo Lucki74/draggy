@@ -122,12 +122,3 @@ describe("the code view menu", () => {
     expect(screen.getByRole("menuitemradio", { name: "Title" })).toBeTruthy();
   });
 });
-
-describe("the engine row", () => {
-  it("only shows the model and its state", () => {
-    show({ engineModel: "qwen3:8b", engineState: "stopped" });
-    const row = screen.getByTitle("Model: qwen3:8b");
-    expect(row.tagName).toBe("DIV");
-    expect(row.textContent).toContain("Not loaded");
-  });
-});
