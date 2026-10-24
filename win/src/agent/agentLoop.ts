@@ -318,6 +318,8 @@ export interface AgentHost {
   getPlan?: () => PlanItem[] | null;
   /** Speed and context as the turn runs, a few times a second. */
   onLive?: (live: LiveTurn) => void;
+  /** Notes the user typed while the turn ran, handed over once each before every model request. */
+  takeSteering?: () => string[];
 }
 
 export interface AgentResult {
@@ -1080,6 +1082,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       });
       lastSeenPlan = livePlan;
     }
+
+    // A note typed mid-turn reaches the model at the next request, not after the whole task.
+    const steering = host.takeSteering?.() ?? [];
+    for (const note of steering) {
+      steps.push({ id: generateId(), type: "steer", content: note, isComplete: true });
+      wire.push({ role: "user", content: note });
+    }
+    if (steering.length > 0) host.onSteps([...steps]);
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();

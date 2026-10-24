@@ -18,6 +18,7 @@ import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { setUiLanguage, useTranslator } from "../i18n";
 import { AnswerQuestionContext } from "../chat/questionContext";
+import type { ComposerQueue } from "../chat/Composer";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
@@ -608,6 +609,20 @@ export default function AppShell({
     : selectedChatId;
 
   const measureConversation = runs.measure;
+  const queueChatId = currentChatId ?? null;
+  const composerQueue: ComposerQueue | undefined = queueChatId
+    ? {
+        chatId: queueChatId,
+        queue: runs.queues[queueChatId] ?? [],
+        enqueue: (content, attachments) => runs.enqueue(queueChatId, content, attachments),
+        steer: (content) => runs.steer(queueChatId, content),
+        sendNow: (content, attachments) => runs.sendNow(queueChatId, content, attachments),
+        editQueued: (id, content) => runs.editQueued(queueChatId, id, content),
+        removeQueued: (id) => runs.removeQueued(queueChatId, id),
+        moveQueued: (id, offset) => runs.moveQueued(queueChatId, id, offset),
+        sendQueuedNow: (id) => runs.sendQueuedNow(queueChatId, id),
+      }
+    : undefined;
   const measureContext = useCallback(
     (
       draft: string,
@@ -1297,6 +1312,7 @@ export default function AppShell({
           onInitProject={draftProject}
           onCompact={() => runs.compact(currentChatId!)}
           onImageCommand={(argument, attachments) => runs.image(currentChatId!, argument, attachments)}
+          composerQueue={composerQueue}
           onOpenUsage={handleOpenUsage}
           onMeasureContext={measureContext}
           onSelectModel={selectModelHere}

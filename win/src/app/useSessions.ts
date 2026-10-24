@@ -28,6 +28,7 @@ export interface SessionStore {
     chatId: string,
     patch: Partial<MessageVersion>,
     sessionPatch?: Partial<ChatSession>,
+    messageId?: string,
   ) => void;
   deleteSession: (chatId: string) => void;
   clearSessions: () => void;
@@ -124,8 +125,18 @@ export function useSessions(): SessionStore {
       chatId: string,
       patch: Partial<MessageVersion>,
       sessionPatch?: Partial<ChatSession>,
+      messageId?: string,
     ) => {
       updateSession(chatId, (s) => {
+        // A turn writes the newest version of its own reply, whatever is on screen or after it.
+        if (messageId !== undefined) {
+          const index = s.messages.findIndex((message) => message.id === messageId);
+          if (index === -1) return sessionPatch ? { ...s, ...sessionPatch } : s;
+          const msgs = s.messages.slice();
+          msgs[index] = { ...msgs[index], ...patch };
+          return { ...s, messages: msgs, ...sessionPatch };
+        }
+
         if (s.messages.length === 0) {
           return sessionPatch ? { ...s, ...sessionPatch } : s;
         }
