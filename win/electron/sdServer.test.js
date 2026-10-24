@@ -266,36 +266,16 @@ describe("sd-server lifecycle against a fake server", { timeout: 45_000 }, () =>
     expect(sdServer.status().running).toBe(false);
   });
 
-  it("reloads the chat model after image generation finishes when it was evicted", async () => {
+  it("stops the image engine after a job that pushed the chat model out, without reloading the chat model", async () => {
     const fake = fakeBinary();
-    let reloaded = 0;
     useFake({
       binaryPath: fake.binaryPath,
       argsPrefix: fake.prefix,
       memory: async () => ({ freeVramGB: 0.4, loadedLlmGB: 5.6, freeRamGB: 16 }),
       freeChatModel: () => {},
-      reloadChatModel: () => {
-        reloaded += 1;
-      },
     });
-    await sdServer.generate("req-reload", { prompt: "x" });
-    expect(reloaded).toBe(1);
-  });
-
-  it("does not reload the chat model if it was never evicted", async () => {
-    const fake = fakeBinary();
-    let reloaded = 0;
-    useFake({
-      binaryPath: fake.binaryPath,
-      argsPrefix: fake.prefix,
-      memory: async () => ({ freeVramGB: 8, loadedLlmGB: 2, freeRamGB: 16 }),
-      freeChatModel: () => {},
-      reloadChatModel: () => {
-        reloaded += 1;
-      },
-    });
-    await sdServer.generate("req-no-evict", { prompt: "x" });
-    expect(reloaded).toBe(0);
+    await sdServer.generate("req-evict", { prompt: "x" });
+    expect(sdServer.status().running).toBe(false);
   });
 
   it("leaves the image engine alone when the chat model was never pushed out", async () => {
@@ -320,7 +300,8 @@ describe("sd-server lifecycle against a fake server", { timeout: 45_000 }, () =>
     });
     await sdServer.generate("req-stop-chat", { prompt: "x", stopChat: true });
     expect(order).toEqual(["free", "measure"]);
-    expect(await sdServer.yieldToChat()).toBe(true);
+    // The engine already gave the memory back, so there is nothing left to yield.
+    expect(await sdServer.yieldToChat()).toBe(false);
   });
 
   it("reuses a running engine without measuring its own memory against it", async () => {

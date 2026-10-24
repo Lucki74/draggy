@@ -22,10 +22,9 @@ import type { ComposerQueue } from "../chat/Composer";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
-import { listInstalledModels, warmModel } from "../llama";
+import { listInstalledModels } from "../llama";
 import { useEngineLoaded } from "./useEngineLoaded";
 import { isRemote } from "../ai/providers";
-import { KEEP_ALIVE } from "../agent/agentLoop";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
@@ -271,10 +270,10 @@ export default function AppShell({
         return;
       }
 
+      // The model loads on the first message sent, never on a switch.
       updateSettings({ codeModel: name });
-      if (!isRemote(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("app", "warming a model is best effort"));
     },
-    [mode, onSelectModel, updateSettings, settings.fixedContextSize, rememberGeneration],
+    [mode, onSelectModel, updateSettings, rememberGeneration],
   );
 
   useEffect(() => {
