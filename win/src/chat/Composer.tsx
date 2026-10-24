@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ContextWheel from "./ContextWheel";
 import PermissionPicker from "./PermissionPicker";
 import ModelChoices from "../providers/ModelChoices";
@@ -25,6 +25,7 @@ import type {
     EffortLevel,
     PermissionMode,
     ProviderInstance,
+    QueuedMessage,
 } from "../types";
 import { allowedEfforts, effectiveEffort, effortColor, EFFORT_ORDER, nextEffort } from "../ai/effort";
 import { EffortSlider } from "./EffortSlider";
@@ -49,6 +50,23 @@ function fitHeight(field: HTMLTextAreaElement) {
 
 
 type OpenMenu = "permission" | "effort" | "model" | null;
+
+/** Queue of the chat on screen, bound to its id by the app so the composer never acts on another chat. */
+export interface ComposerQueue {
+    chatId: string;
+    queue: QueuedMessage[];
+    enqueue: (content: string, attachments?: Attachment[]) => void;
+    steer: (content: string) => void;
+    sendNow: (content: string, attachments?: Attachment[]) => void;
+    editQueued: (id: string, content: string) => void;
+    removeQueued: (id: string) => void;
+    moveQueued: (id: string, offset: number) => void;
+    sendQueuedNow: (id: string) => void;
+}
+
+// Lives beside Composer so MainColumn can supply the queue without threading props through ChatScreen.
+// eslint-disable-next-line react-refresh/only-export-components
+export const ComposerQueueContext = createContext<ComposerQueue | null>(null);
 
 export interface ComposerProps {
     model: string;
@@ -198,6 +216,10 @@ export function Composer({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
     const showPermission = surface === "code" && Boolean(permissionMode && onPermissionMode);
+    const queueCtx = useContext(ComposerQueueContext);
+    const queued = queueCtx?.chatId === chat.id ? queueCtx : null;
+    const queue = queued?.queue ?? [];
+    const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
     const [mention, setMention] = useState<Mention | null>(null);
     const [mentionIndex, setMentionIndex] = useState(0);
     const mentionHits = useMentionHits(mention?.query ?? null, workContext?.searchFiles);
@@ -317,10 +339,36 @@ export function Composer({
     // Drawing never reaches the chat model, so a missing or downloading one does not block it.
     const drawing = Boolean(onImageCommand) && parseSlashArgument(input.trim())?.id === "image";
 
+    // Without a queue to hand the text to, typing during a reply keeps its old meaning: stop.
+    const sendWhileGenerating = (mode: "queue" | "steer" | "now") => {
+        if (!queued) {
+            onStopGeneration();
+            return;
+        }
+        const text = input.trim();
+        if (!text && attachedFiles.length === 0) return;
+        const content = isBinary(text) ? "[Invalid text input removed]" : text;
+        // A steer note carries no attachments, so files fall back to the queue.
+        if (mode === "queue" || (mode === "steer" && attachedFiles.length > 0)) queued.enqueue(content, attachedFiles);
+        else if (mode === "steer") queued.steer(content);
+        else queued.sendNow(content, attachedFiles);
+        setInput("");
+        localStorage.removeItem(`draft_${chat.id}`);
+        clearAttachments();
+    };
+
+    const saveEdit = () => {
+        if (!editing) return;
+        const text = editing.text.trim();
+        if (text) queued?.editQueued(editing.id, text);
+        setEditing(null);
+        inputRef.current?.focus();
+    };
+
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (chat.isGenerating) {
-            onStopGeneration();
+            sendWhileGenerating("queue");
             return;
         }
         if (unavailable && !drawing) return;
@@ -502,6 +550,77 @@ export function Composer({
                     </p>
                 )}
 
+                {queued && queue.length > 0 && (
+                    <div className="mb-2 flex flex-col gap-1.5">
+                        <p className="px-1 text-[12px] text-text-secondary">{t("queuedMessages")}</p>
+                        <ul className="flex flex-col gap-1.5">
+                            {queue.map((item, index) => (
+                                <li key={item.id} className="flex items-center gap-1 ps-3 pe-1 py-1 rounded-lg bg-surface-tint text-[13px] text-text-primary">
+                                    {editing?.id === item.id ? (
+                                        <textarea
+                                            autoFocus
+                                            aria-label={t("edit")}
+                                            value={editing.text}
+                                            rows={1}
+                                            onChange={(e) => setEditing({ id: item.id, text: e.target.value })}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Escape") {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setEditing(null);
+                                                } else if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    saveEdit();
+                                                }
+                                            }}
+                                            className="min-w-0 flex-1 resize-none bg-transparent py-1 focus:outline-none"
+                                        />
+                                    ) : (
+                                        <span className="min-w-0 flex-1 truncate py-1">{item.content}</span>
+                                    )}
+                                    {editing?.id !== item.id && (
+                                        <IconButton
+                                            name="pencil-simple"
+                                            label={t("edit")}
+                                            size="dense"
+                                            onClick={() => setEditing({ id: item.id, text: item.content })}
+                                        />
+                                    )}
+                                    <IconButton
+                                        name="arrow-up"
+                                        label={t("queueMoveUp")}
+                                        size="dense"
+                                        disabled={index === 0}
+                                        onClick={() => queued.moveQueued(item.id, -1)}
+                                    />
+                                    <IconButton
+                                        name="arrow-down"
+                                        label={t("queueMoveDown")}
+                                        size="dense"
+                                        disabled={index === queue.length - 1}
+                                        onClick={() => queued.moveQueued(item.id, 1)}
+                                    />
+                                    <IconButton
+                                        name="skip-forward"
+                                        label={t("queueSendNow")}
+                                        size="dense"
+                                        onClick={() => queued.sendQueuedNow(item.id)}
+                                    />
+                                    <IconButton
+                                        name="x"
+                                        label={t("queueRemove")}
+                                        size="dense"
+                                        onClick={() => queued.removeQueued(item.id)}
+                                    />
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {queued && chat.isGenerating && (
+                    <p className="mb-2 px-1 text-[12px] text-text-secondary">{t("queueHint")}</p>
+                )}
+
                 <form
                     onSubmit={handleSubmit}
                     className="relative flex flex-col rounded-lg bg-surface-base border border-rule focus-within:border-rule-strong transition-colors duration-120"
@@ -620,13 +739,22 @@ export function Composer({
                                     return;
                                 }
                             }
+                            if (e.key === "ArrowUp" && !input && queue.length > 0) {
+                                e.preventDefault();
+                                const last = queue[queue.length - 1];
+                                setEditing({ id: last.id, text: last.content });
+                                return;
+                            }
+                            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                                e.preventDefault();
+                                if (chat.isGenerating) sendWhileGenerating(e.shiftKey ? "now" : "steer");
+                                else handleSubmit();
+                                return;
+                            }
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
-                                if (chat.isGenerating) {
-                                    onStopGeneration();
-                                } else {
-                                    handleSubmit();
-                                }
+                                if (chat.isGenerating) sendWhileGenerating("queue");
+                                else handleSubmit();
                             }
                         }}
                         placeholder={unavailable ?? t(workContext?.searchFiles ? "composerPlaceholderCode" : chat.messages.length > 0 ? "composerReply" : "composerPlaceholder")}

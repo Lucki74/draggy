@@ -28,7 +28,17 @@ import type {
   Message,
   MessageVersion,
   SearchStep,
+  TurnErrorKind,
 } from "../types";
+
+// Friendly line per failure kind; unknown failures show only the raw error.
+const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
+  engine: "errorKindEngine",
+  memory: "errorKindMemory",
+  network: "errorKindNetwork",
+  "rate-limit": "errorKindRateLimit",
+  context: "errorKindContext",
+};
 
 // Summarizes compacted history tokens so the user knows where earlier context was saved.
 export function FoldLine({
@@ -108,13 +118,14 @@ export function AssistantTurn({
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
   const isFailed = Boolean(displayMsg.failed) && !isGenerating;
   const errorMessage = displayMsg.error || (isFailed ? text : "");
+  // Content keeps only model text on failure; the error sits in `error`.
   const hasGeneratedText = isFailed
-    ? Boolean(
-        displayMsg.error &&
-          text.trim() &&
-          text.trim() !== displayMsg.error.trim(),
-      )
+    ? Boolean(text.trim()) && text.trim() !== errorMessage.trim()
     : Boolean(text.trim());
+  const friendlyError =
+    isFailed && displayMsg.errorKind && displayMsg.errorKind !== "unknown"
+      ? t(ERROR_KIND_KEYS[displayMsg.errorKind])
+      : null;
   const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
@@ -183,6 +194,19 @@ export function AssistantTurn({
       );
     }
 
+    // A note the user added mid-reply, shown where it was added.
+    if (step.type === "steer") {
+      return (
+        <div key={step.id} className="flex items-start gap-2 mb-3 text-[14px] text-text-secondary">
+          <Icon name="user" size={14} className="mt-1 flex-shrink-0" />
+          <span className="min-w-0 whitespace-pre-wrap wrap-anywhere">
+            <span className="text-text-tertiary me-1.5">{t("steerNote")}</span>
+            {step.content}
+          </span>
+        </div>
+      );
+    }
+
     return (
       <WorkBlock
         key={step.id}
@@ -210,12 +234,13 @@ export function AssistantTurn({
     (step.type === "thinking" &&
       (!step.content || (step.isComplete && view === "normal")));
 
-  // Consecutive tool steps fold into one work block; prose, reasoning and questions stand alone.
+  // Consecutive tool steps fold into one work block; prose, reasoning, notes and questions stand alone.
+  const isWork = (step: SearchStep) => isWorkStep(step) && step.type !== "steer";
   const segments: SearchStep[][] = [];
   for (const step of steps) {
     if (invisible(step)) continue;
     const last = segments[segments.length - 1];
-    if (isWorkStep(step) && last && isWorkStep(last[0])) last.push(step);
+    if (isWork(step) && last && isWork(last[0])) last.push(step);
     else segments.push([step]);
   }
 
@@ -268,7 +293,7 @@ export function AssistantTurn({
       >
         {[
           ...segments.map((segment, segmentIndex) =>
-            isWorkStep(segment[0]) ? (
+            isWork(segment[0]) ? (
               <WorkGroup
                 key={segment[0].id}
                 steps={segment}
@@ -317,12 +342,19 @@ export function AssistantTurn({
                 className="text-danger flex-shrink-0 mt-0.5"
               />
               <div className="min-w-0 flex-1 text-[14px] [&_p]:mb-1">
-                <ReactMarkdown
-                  remarkPlugins={REMARK_PLUGINS}
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {errorMessage}
-                </ReactMarkdown>
+                {friendlyError ? (
+                  <>
+                    <p className="mb-1">{friendlyError}</p>
+                    <p className="text-[12px] text-text-tertiary wrap-anywhere">{errorMessage}</p>
+                  </>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={REMARK_PLUGINS}
+                    components={MARKDOWN_COMPONENTS}
+                  >
+                    {errorMessage}
+                  </ReactMarkdown>
+                )}
               </div>
               {isLast && !isGenerating && (
                 <>
@@ -330,13 +362,13 @@ export function AssistantTurn({
                     variant="secondary"
                     size="dense"
                     icon={<Icon name="arrow-clockwise" size={16} />}
-                    onClick={() => (hasGeneratedText && onResume ? onResume() : onRegenerate(idx))}
+                    onClick={() => onRegenerate(idx)}
                   >
                     {t("regenerateResponse")}
                   </Button>
                   {hasGeneratedText && onResume && (
-                    <Button variant="ghost" size="dense" onClick={() => onRegenerate(idx)}>
-                      {t("regenerateFromScratch")}
+                    <Button variant="ghost" size="dense" onClick={onResume}>
+                      {t("resumeReply")}
                     </Button>
                   )}
                 </>
@@ -372,6 +404,17 @@ export function AssistantTurn({
               onClick={() => openTouched(file.path)}
             />
           ))}
+        </div>
+      )}
+
+      {!isFailed && (displayMsg.stopped || msg.interrupted) && (
+        <div role="status" className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text-secondary">
+          <span>{msg.interrupted ? t("replyInterrupted") : t("replyStopped")}</span>
+          {isLast && !isGenerating && onResume && (
+            <Button variant="ghost" size="dense" onClick={onResume}>
+              {msg.interrupted ? t("resumeReply") : t("continueGenerating")}
+            </Button>
+          )}
         </div>
       )}
 
