@@ -18,6 +18,7 @@ import DiffBlock from "./DiffBlock";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
 import { loadLabel, type LoadStage } from "./loadLabel";
+import { stepTotals } from "./workSummary";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
@@ -233,6 +234,7 @@ function FileCard({
               <>
                 {t("fileCreated")}
                 {lineCount > 0 ? ` · ${lineCount} ${t("lines")}` : ""}
+                {lineCount > 0 && <span className="font-mono tabular-nums text-ok">+{lineCount}</span>}
               </>
             )}
           </span>
@@ -525,6 +527,7 @@ export function WorkBlock({
   // A file read or changed opens from its step; a folder listing has no file to open.
   const openable =
     !isActive && step.filepath && (step.type === "edit_file" || (step.type === "reading" && step.filename));
+  const totals = isActive ? null : stepTotals(step);
   const openStep = () =>
     openInCanvas ? openInCanvas(step.filepath!) : window.electronAPI?.openFile?.(step.filepath!);
 
@@ -548,7 +551,7 @@ export function WorkBlock({
       <div className="flex items-center gap-2 min-h-7 text-[13px] text-text-secondary">
         <span className="flex w-4 justify-center flex-shrink-0">
           <Icon
-            name={failed ? "x-circle" : STEP_ICONS[step.type] || "globe-simple"}
+            name={failed ? "x-circle" : step.created ? "file-arrow-up" : STEP_ICONS[step.type] || "globe-simple"}
             size={16}
             className={failed ? "text-danger" : ""}
           />
@@ -567,7 +570,12 @@ export function WorkBlock({
         {failed && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
 
         <span className="ms-auto flex items-center gap-3 flex-shrink-0 ps-2">
-          {openable && step.type === "edit_file" && openDiff && (
+          {totals && (
+            <span className="font-mono text-[12px] tabular-nums whitespace-nowrap">
+              <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>
+            </span>
+          )}
+          {openable && step.type === "edit_file" && !step.created && openDiff && (
             <button
               type="button"
               onClick={() => openDiff(step.filepath)}

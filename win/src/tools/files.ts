@@ -334,26 +334,15 @@ const writeFile: ToolSpec = {
   run: async (args, ctx) => {
     const target = String(args.path);
     const contents = String(args.content ?? "");
-    // Adopt the file card the stream already opened, so the write does not show twice.
-    const streaming = ctx.findStep?.((s) => s.type === "create_file" && !s.isComplete);
-    const stepId = streaming ? streaming.id : ctx.newId();
-
-    if (streaming) {
-      ctx.patchStep(stepId, {
-        filename: nameOf(target),
-        fileContent: contents,
-        content: `${ctx.t("savingFile")} **${nameOf(target)}**...`,
-      });
-    } else {
-      ctx.pushStep({
-        id: stepId,
-        type: "edit_file",
-        content: `${ctx.t("savingFile")} **${nameOf(target)}**...`,
-        isComplete: false,
-        filename: nameOf(target),
-        fileContent: contents,
-      });
-    }
+    const stepId = ctx.newId();
+    ctx.pushStep({
+      id: stepId,
+      type: "edit_file",
+      content: `${ctx.t("savingFile")} **${nameOf(target)}**...`,
+      isComplete: false,
+      filename: nameOf(target),
+      fileContent: contents,
+    });
 
     const result = await api()?.write(
       workspaceOf(ctx),
@@ -370,9 +359,12 @@ const writeFile: ToolSpec = {
 
     ctx.patchStep(stepId, {
       isComplete: true,
-      content: `${ctx.t("wroteFile")} **${nameOf(target)}**`,
+      content: `${ctx.t(result.created ? "createdFile" : "wroteFile")} **${nameOf(target)}**`,
       filepath: result.path,
       checkpointId: result.checkpointId,
+      created: Boolean(result.created),
+      before: result.before,
+      after: result.after,
     });
     ctx.syncSteps();
 

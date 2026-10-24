@@ -1381,14 +1381,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             }
           }
 
-          // Live feedback while the model generates a file.
+          // Live feedback while the model generates a file for the user. Project writes stay one row each.
           let streamingCallStr: string | null = null;
           if (parsed.message?.streaming_tool_calls) {
-            const fileCall = parsed.message.streaming_tool_calls.find(
-              (t) => t.name === "create_file" || t.name === "write_file",
-            );
+            const fileCall = parsed.message.streaming_tool_calls.find((t) => t.name === "create_file");
             if (fileCall?.argsString) streamingCallStr = fileCall.argsString;
-          } else if (rawChunk.includes("create_file") || rawChunk.includes("write_file")) {
+          } else if (rawChunk.includes("create_file")) {
             streamingCallStr = rawChunk;
           }
 

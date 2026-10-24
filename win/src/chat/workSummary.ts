@@ -2,7 +2,7 @@ import { diffLines } from "./diff";
 import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 
-type Kind = "read" | "site" | "edited" | "ran" | "searched" | "browsed" | "other";
+type Kind = "read" | "site" | "created" | "edited" | "ran" | "searched" | "browsed" | "other";
 
 const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   reading: "read",
@@ -20,12 +20,13 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   scanned: "browsed",
 };
 
-const ORDER: Kind[] = ["read", "site", "edited", "ran", "searched", "browsed", "other"];
+const ORDER: Kind[] = ["read", "site", "created", "edited", "ran", "searched", "browsed", "other"];
 
 /** Translation keys are work<Name>_one and work<Name>_other. */
 const KEY: Record<Kind, string> = {
   read: "Read",
   site: "ReadPages",
+  created: "Created",
   edited: "Edited",
   ran: "Ran",
   searched: "Searched",
@@ -61,7 +62,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
       counts.set("site", (counts.get("site") ?? 0) + 1);
       continue;
     }
-    const kind = KIND_OF[step.type] ?? "other";
+    const kind = step.created ? "created" : (KIND_OF[step.type] ?? "other");
     counts.set(kind, (counts.get(kind) ?? 0) + 1);
   }
 
@@ -95,17 +96,28 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
   return { text: listOf(parts), failed };
 }
 
+/** Lines added and removed by one file step, or null when it has no diff. */
+export function stepTotals(step: SearchStep) {
+  if (step.type !== "edit_file" || step.before === undefined || step.after === undefined) return null;
+  let added = 0;
+  let removed = 0;
+  for (const hunk of diffLines(step.before, step.after).hunks) {
+    for (const line of hunk.lines) {
+      if (line.kind === "added") added += 1;
+      else if (line.kind === "removed") removed += 1;
+    }
+  }
+  return { added, removed };
+}
+
 export function editTotals(steps: SearchStep[]) {
   let added = 0;
   let removed = 0;
   for (const step of steps) {
-    if (step.type !== "edit_file" || step.before === undefined || step.after === undefined) continue;
-    for (const hunk of diffLines(step.before, step.after).hunks) {
-      for (const line of hunk.lines) {
-        if (line.kind === "added") added += 1;
-        else if (line.kind === "removed") removed += 1;
-      }
-    }
+    const totals = stepTotals(step);
+    if (!totals) continue;
+    added += totals.added;
+    removed += totals.removed;
   }
   return { added, removed };
 }
@@ -119,7 +131,7 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
       seen.set(step.filepath, {
         name: step.filename || step.filepath,
         path: step.filepath,
-        created: step.type === "create_file",
+        created: step.type === "create_file" || Boolean(step.created),
       });
     }
   }
