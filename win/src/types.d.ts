@@ -403,8 +403,8 @@ export interface SearchStep {
   checkpointId?: number;
   before?: string;
   after?: string;
-  /** On an "edit_file" step from write_file: the file was new. */
-  created?: boolean;
+  /** On an "edit_file" step: the file was new, moved or deleted rather than changed. */
+  change?: "created" | "moved" | "deleted";
   /** On an "app" step: the widget an extension returned, and who sent it. */
   app?: { serverId: string; html: string };
   /** On an "approval" step: the call the user is being asked about. */

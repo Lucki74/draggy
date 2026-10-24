@@ -2,7 +2,7 @@ import { diffLines } from "./diff";
 import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 
-type Kind = "read" | "site" | "created" | "edited" | "ran" | "searched" | "browsed" | "other";
+type Kind = "read" | "site" | "created" | "edited" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "other";
 
 const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   reading: "read",
@@ -20,7 +20,7 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   scanned: "browsed",
 };
 
-const ORDER: Kind[] = ["read", "site", "created", "edited", "ran", "searched", "browsed", "other"];
+const ORDER: Kind[] = ["read", "site", "created", "edited", "moved", "deleted", "ran", "searched", "browsed", "other"];
 
 /** Translation keys are work<Name>_one and work<Name>_other. */
 const KEY: Record<Kind, string> = {
@@ -28,6 +28,8 @@ const KEY: Record<Kind, string> = {
   site: "ReadPages",
   created: "Created",
   edited: "Edited",
+  moved: "Moved",
+  deleted: "Deleted",
   ran: "Ran",
   searched: "Searched",
   browsed: "Browsed",
@@ -35,9 +37,10 @@ const KEY: Record<Kind, string> = {
 };
 
 /** Steps that fold into a work block. Prose, reasoning, questions for the user and written files
- * stay in the transcript on their own. */
+ * stay in the transcript on their own; an answered approval folds in with the call it allowed. */
 export function isWorkStep(step: SearchStep) {
-  return !["text", "thinking", "approval", "create_file", "app", "image"].includes(step.type) &&
+  if (step.type === "approval") return Boolean(step.answer);
+  return !["text", "thinking", "create_file", "app", "image"].includes(step.type) &&
     !(step.type === "loading" && !step.isComplete);
 }
 
@@ -51,7 +54,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
       failed += 1;
       continue;
     }
-    if (step.type === "loading") continue;
+    if (step.type === "loading" || step.type === "approval") continue;
     // A search is its "searching" step plus the "results" row it fills in: one search, not two.
     if (step.type === "results") continue;
     const host = (step.type === "reading" || step.type === "opening") && step.url
@@ -62,7 +65,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
       counts.set("site", (counts.get("site") ?? 0) + 1);
       continue;
     }
-    const kind = step.created ? "created" : (KIND_OF[step.type] ?? "other");
+    const kind = step.change ?? KIND_OF[step.type] ?? "other";
     counts.set(kind, (counts.get(kind) ?? 0) + 1);
   }
 
@@ -126,12 +129,12 @@ export function editTotals(steps: SearchStep[]) {
 export function touchedFiles(steps: SearchStep[]): { name: string; path: string; created: boolean }[] {
   const seen = new Map<string, { name: string; path: string; created: boolean }>();
   for (const step of steps) {
-    if ((step.type !== "create_file" && step.type !== "edit_file") || !step.filepath) continue;
+    if ((step.type !== "create_file" && step.type !== "edit_file") || !step.filepath || step.change === "deleted") continue;
     if (!seen.has(step.filepath)) {
       seen.set(step.filepath, {
         name: step.filename || step.filepath,
         path: step.filepath,
-        created: step.type === "create_file" || Boolean(step.created),
+        created: step.type === "create_file" || step.change === "created",
       });
     }
   }

@@ -349,7 +349,7 @@ describe("writing, moving and deleting", () => {
     await runTool("write_file", { path: "new.ts", content: "a\nb" }, context, WITH_FOLDER);
 
     expect(steps).toHaveLength(1);
-    expect(steps[0]).toMatchObject({ type: "edit_file", isComplete: true, created: true, before: "", after: "a\nb" });
+    expect(steps[0]).toMatchObject({ type: "edit_file", isComplete: true, change: "created", before: "", after: "a\nb" });
     expect(steps[0].content).toContain("createdFile");
   });
 

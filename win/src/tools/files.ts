@@ -362,7 +362,7 @@ const writeFile: ToolSpec = {
       content: `${ctx.t(result.created ? "createdFile" : "wroteFile")} **${nameOf(target)}**`,
       filepath: result.path,
       checkpointId: result.checkpointId,
-      created: Boolean(result.created),
+      change: result.created ? "created" : undefined,
       before: result.before,
       after: result.after,
     });
@@ -421,6 +421,7 @@ const moveFile: ToolSpec = {
       isComplete: true,
       filepath: result.path,
       checkpointId: result.checkpointId,
+      change: "moved",
       content: `${ctx.t("movedFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
     });
     ctx.syncSteps();
@@ -474,6 +475,7 @@ const deleteFile: ToolSpec = {
       isComplete: true,
       filepath: result.path,
       checkpointId: result.checkpointId,
+      change: "deleted",
       content: `${ctx.t("deletedFile")} **${nameOf(target)}**`,
     });
     ctx.syncSteps();
