@@ -5,6 +5,7 @@ import { copyAsMarkdown } from "./copyMarkdown";
 import BrowserConsentCard from "./BrowserConsentCard";
 import ThinkingRow from "./ThinkingRow";
 import { showsTailMark } from "./indicator";
+import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { isWorkStep, touchedFiles } from "./workSummary";
@@ -377,11 +378,7 @@ export function AssistantTurn({
           ) : null,
         ]}
 
-        {showsTailMark(steps, text, isGenerating, isLast) && (
-          <div className="flex items-center h-6">
-            <Spark label={t("working")} />
-          </div>
-        )}
+        {showsTailMark(steps, isGenerating, isLast) && <WorkingStatus language={settings.language} />}
       </div>
 
       {!isGenerating && files.length > 0 && (
