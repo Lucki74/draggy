@@ -87,6 +87,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     onIdle: () => {
       void window.electronAPI?.browserAgent?.release().catch(swallowed("app", "the main process already logged this call"));
     },
+    oneTurnAtATime: true,
     getSession: input.getSession,
     addSession: input.addSession,
     updateSession: input.updateSession,

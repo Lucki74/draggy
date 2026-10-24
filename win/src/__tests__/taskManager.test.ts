@@ -143,16 +143,34 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")?.workspaceId).toBe("project-7");
   });
 
-  it("keeps two conversations generating at the same time", () => {
+  it("queues a second conversation until the first one's turn ends", async () => {
     const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
 
     manager.send("chat-1", "first");
     manager.send("chat-2", "second");
 
-    expect(manager.running()).toEqual(["chat-1", "chat-2"]);
-    expect(sessions.get("chat-1")?.isGenerating).toBe(true);
+    expect(manager.running()).toEqual(["chat-1"]);
+    expect(manager.queues()["chat-2"]?.map((item) => item.content)).toEqual(["second"]);
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
     expect(sessions.get("chat-2")?.isGenerating).toBe(true);
+  });
+
+  it("lets the chat that waited go before the finished chat's own queue", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "follow-up");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-1"]));
   });
 
   it("finishes a turn for a conversation that is no longer the one on screen", async () => {
@@ -474,13 +492,13 @@ describe("the end of every turn", () => {
   it("says nothing is driving the pane only once the last turn is over", async () => {
     const { host } = createHost();
     const onIdle = vi.fn();
-    const manager = createTaskManager({ ...host, onIdle });
+    const manager = createTaskManager({ ...host, onIdle, oneTurnAtATime: true });
 
     manager.send("chat-1", "first");
     manager.send("chat-2", "second");
 
-    pending[pending.length - 2].resolve(finished());
-    await vi.waitFor(() => expect(manager.isRunning("chat-1")).toBe(false));
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.isRunning("chat-2")).toBe(true));
     expect(onIdle).not.toHaveBeenCalled();
 
     pending[pending.length - 1].resolve(finished());
@@ -600,7 +618,10 @@ describe("recording a finished turn for the statistics page", () => {
     seed(sessions, "b");
     const manager = createTaskManager(host);
     manager.send("a", "one");
+    await Promise.resolve();
+    pending[pending.length - 1].resolve(finished());
     manager.send("b", "two");
+    await vi.waitFor(() => expect(manager.isRunning("b")).toBe(true));
     await Promise.resolve();
 
     const [first, second] = pending.slice(-2).map((turn) => turn.request.correlationId);

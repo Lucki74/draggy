@@ -59,6 +59,8 @@ export interface TaskHost {
   onFinished?: (chatId: string) => void;
   /** Every turn is over, so nothing is still driving the Browser pane. */
   onIdle?: () => void;
+  /** One model answers one chat at a time, so a second chat's message waits its turn. */
+  oneTurnAtATime?: boolean;
   getSession: (chatId: string) => ChatSession | undefined;
   addSession: (session: ChatSession) => void;
   updateSession: (
@@ -179,6 +181,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let queueSnapshot: Record<string, QueuedMessage[]> = Object.fromEntries(queueMap);
   const queueListeners = new Set<() => void>();
   const lastTurn = new Map<string, string>();
+  /** Chats whose next message waits for another chat's turn to end, oldest first. The model answers
+   * one chat at a time. */
+  const waitingTurn: string[] = [];
   /** Folds in flight. `started` flips once there is actually something being folded, which is when
    * a turn waiting on it has anything worth saying. */
   interface Fold {
@@ -711,7 +716,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         runs.delete(chatId);
         setLiveTurn(chatId, null);
         notify();
-        if (runs.size === 0) host.onIdle?.();
+        if (runs.size === 0 && waitingTurn.length === 0) host.onIdle?.();
 
         host.updateSession(chatId, (s) =>
           s.isGenerating ? { ...s, isGenerating: false } : s,
@@ -726,10 +731,17 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
         // The user is now reading rather than waiting, which is the only
         // moment folding is free.
+        const othersWaiting = waitingTurn.length > 0;
         if (!controller.signal.aborted) {
           host.onFinished?.(chatId);
-          // A failed turn holds the queue, so the next message is not sent into the same failure.
-          if (failed || !dispatchNext(chatId)) void compactChat(chatId, false);
+          // Another chat asked first, so this chat's own queue goes behind it.
+          if (othersWaiting) {
+            if (!failed && queueOf(chatId).length > 0) waitForTurn(chatId);
+          } else if (failed || !dispatchNext(chatId)) void compactChat(chatId, false);
+        }
+        if (runs.size === 0 && othersWaiting) {
+          dispatchWaiting();
+          if (runs.size === 0) host.onIdle?.();
         }
       }
     }
@@ -744,8 +756,29 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     return true;
   }
 
-  /** A new message from the user, starting the conversation if it is the first. */
+  function waitForTurn(chatId: string) {
+    if (!waitingTurn.includes(chatId)) waitingTurn.push(chatId);
+  }
+
+  /** Hands the model to the chat that has waited longest and still has something queued. */
+  function dispatchWaiting() {
+    while (waitingTurn.length > 0) {
+      if (dispatchNext(waitingTurn.shift()!)) return;
+    }
+  }
+
+  /** A new message from the user. While another chat's turn runs it waits in this chat's queue. */
   function send(chatId: string, content: string, attachments?: Attachment[]) {
+    if (host.oneTurnAtATime && runs.size > 0 && !runs.has(chatId)) {
+      setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments }]);
+      waitForTurn(chatId);
+      return;
+    }
+    deliver(chatId, content, attachments);
+  }
+
+  /** Starts the turn, and the conversation if this is its first message. */
+  function deliver(chatId: string, content: string, attachments?: Attachment[]) {
     const existing = host.getSession(chatId);
 
     const userMessage: Message = {
@@ -965,6 +998,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           runs.delete(chatId);
           notify();
           host.updateSession(chatId, (s) => (s.isGenerating ? { ...s, isGenerating: false } : s));
+          if (runs.size === 0) dispatchWaiting();
         }
       }
     })();
@@ -1111,6 +1145,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       runs.delete(chatId);
       setLiveTurn(chatId, null);
       notify();
+      if (runs.size === 0) dispatchWaiting();
       if (runs.size === 0) host.onIdle?.();
 
       // What it wrote stays, marked as stopped, so it can be carried on.
