@@ -85,7 +85,7 @@ describe("Composer while a reply generates", () => {
     );
 
     expect(screen.getByRole("button", { name: /^Stop/ })).toBeTruthy();
-    expect(screen.getByText(/Enter queues/)).toBeTruthy();
+    expect(screen.getByText(/Enter to queue/)).toBeTruthy();
   });
 
   it("renders each queued message with its controls", () => {
@@ -152,6 +152,6 @@ describe("Composer queue editing", () => {
     );
 
     expect(screen.queryByText("first note")).toBeNull();
-    expect(screen.queryByText(/Enter queues/)).toBeNull();
+    expect(screen.queryByText(/Enter to queue/)).toBeNull();
   });
 });

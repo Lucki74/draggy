@@ -552,10 +552,11 @@ export function Composer({
 
                 {queued && queue.length > 0 && (
                     <div className="mb-2 flex flex-col gap-1.5">
-                        <p className="px-1 text-[12px] text-text-secondary">{t("queuedMessages")}</p>
-                        <ul className="flex flex-col gap-1.5">
+                        <p className="px-1 text-[12px] text-text-secondary">{t("queuedMessages")} · {queue.length}</p>
+                        {/* A burst of queued messages scrolls here instead of pushing the transcript away. */}
+                        <ul className="flex max-h-[min(30vh,14rem)] flex-col gap-1 overflow-y-auto">
                             {queue.map((item, index) => (
-                                <li key={item.id} className="flex items-center gap-1 ps-3 pe-1 py-1 rounded-lg bg-surface-tint text-[13px] text-text-primary">
+                                <li key={item.id} className="flex shrink-0 items-center gap-1 ps-3 pe-1 rounded-lg bg-surface-tint text-[13px] text-text-primary">
                                     {editing?.id === item.id ? (
                                         <textarea
                                             autoFocus
@@ -576,7 +577,7 @@ export function Composer({
                                             className="min-w-0 flex-1 resize-none bg-transparent py-1 focus:outline-none"
                                         />
                                     ) : (
-                                        <span className="min-w-0 flex-1 truncate py-1">{item.content}</span>
+                                        <span className="min-w-0 flex-1 truncate py-0.5">{item.content}</span>
                                     )}
                                     {editing?.id !== item.id && (
                                         <IconButton
