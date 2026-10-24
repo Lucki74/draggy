@@ -94,6 +94,12 @@ const readDataUrl = (file: File) =>
     });
 
 /* State coordinator for draft persistence, model telemetry, slash actions and mic input. */
+/** Where a chat's unsent text is kept. A chat with nothing sent yet shares one key per mode, so a
+ * draft typed on the new chat screen is still there the next time it opens. */
+export function draftKeyFor(chat: Pick<ChatSession, "id" | "messages">, surface: "chat" | "code"): string {
+    return chat.messages.length === 0 ? `draft_new_${surface}` : `draft_${chat.id}`;
+}
+
 export function useChatSession({
     model,
     chat,
@@ -111,8 +117,8 @@ export function useChatSession({
     onInitProject,
     t,
 }: UseChatSessionOptions) {
-    const draftKey = `draft_${chat.id}`;
-    const [input, setInput] = useState(() => localStorage.getItem(draftKey) || seedDraft || "");
+    const draftKey = draftKeyFor(chat, surface);
+    const [input, setInput] = useState(() => seedDraft || localStorage.getItem(draftKey) || "");
 
     useEffect(() => {
         if (seedDraft) onSeedUsed?.();

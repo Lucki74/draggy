@@ -11,6 +11,7 @@ import { useSlowModel } from "./useSlowModel";
 import { chipSegments, parseSlashArgument } from "./slashCommands";
 import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
+import { draftKeyFor } from "./useChatSession";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
 import type { ModelInfo } from "../llama";
 import { formatTokenCount } from "../agent/contextBreakdown";
@@ -353,7 +354,7 @@ export function Composer({
         else if (mode === "steer") queued.steer(content);
         else queued.sendNow(content, attachedFiles);
         setInput("");
-        localStorage.removeItem(`draft_${chat.id}`);
+        localStorage.removeItem(draftKeyFor(chat, surface));
         clearAttachments();
     };
 
@@ -384,7 +385,7 @@ export function Composer({
         if (command?.id === "compact-limit") {
             if (setCompactLimit(command.argument)) {
                 setInput("");
-                localStorage.removeItem(`draft_${chat.id}`);
+                localStorage.removeItem(draftKeyFor(chat, surface));
             }
             return;
         }
@@ -392,14 +393,14 @@ export function Composer({
         if (command?.id === "image" && onImageCommand) {
             onImageCommand(command.argument, attachedFiles);
             setInput("");
-            localStorage.removeItem(`draft_${chat.id}`);
+            localStorage.removeItem(draftKeyFor(chat, surface));
             clearAttachments();
             return;
         }
 
         onSendMessage(sanitizedInput, attachedFiles);
         setInput("");
-        localStorage.removeItem(`draft_${chat.id}`);
+        localStorage.removeItem(draftKeyFor(chat, surface));
         // Sent with this message; left in place they would ride along on the next one.
         clearAttachments();
     };
