@@ -17,6 +17,7 @@ const HARMLESS = new Set([
   "webMode",
   "browserActions",
   "codeWebMode",
+  "defaultShell",
   "codePermissionMode",
   "voiceEngine",
   "neuralVoice",

@@ -1034,6 +1034,8 @@ export interface AppSettings {
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
   codeWebMode: "auto" | "on" | "off";
+  /** The shell run_command uses when the model names none. "auto" is bash from Git for Windows, then PowerShell. */
+  defaultShell: "auto" | "bash" | "pwsh" | "powershell" | "cmd";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
@@ -1417,7 +1419,7 @@ declare global {
           workspaceId: string,
           runId: string,
           command: string,
-          options?: { shell?: string; timeoutMs?: number },
+          options?: { shell?: string; defaultShell?: string; timeoutMs?: number },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;
       };

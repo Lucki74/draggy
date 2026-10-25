@@ -65,6 +65,7 @@ const SETTINGS = {
   codeInstructions: [],
   codeEffort: "medium",
   codeWebMode: "auto",
+  defaultShell: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "nomic-embed-text",

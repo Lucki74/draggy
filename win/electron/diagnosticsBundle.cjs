@@ -31,6 +31,7 @@ const SETTINGS_ALLOWLIST = new Set([
   "codeModel",
   "codeEffort",
   "codeWebMode",
+  "defaultShell",
   "codePermissionMode",
   "libraryEnabled",
   "embedModel",

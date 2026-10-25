@@ -67,7 +67,11 @@ const runCommand: ToolSpec = {
     ctx.signal.addEventListener("abort", stop, { once: true });
 
     const result = await api
-      .run(ctx.workspaceId, runId, command, { shell, timeoutMs: seconds * 1000 })
+      .run(ctx.workspaceId, runId, command, {
+        shell,
+        defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
+        timeoutMs: seconds * 1000,
+      })
       .finally(() => ctx.signal.removeEventListener("abort", stop));
 
     if (result.error && result.exitCode === undefined) {
