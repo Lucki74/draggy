@@ -5,6 +5,7 @@ import PlanPanel from "../plan/PlanPanel";
 import DiffPane from "../diff/DiffPane";
 import FilesPane from "../files/FilesPane";
 import BrowserPane from "../browser/BrowserPane";
+import TerminalPane from "../terminal/TerminalPane";
 import StatsPanel from "../stats/StatsPanel";
 import { baseName, isInsideRoot, relativePath } from "../files/tree";
 import { mentionFile } from "../chat/mentions";
@@ -34,6 +35,8 @@ export interface DockProps {
   /** The open chat, whose usage the Usage pane shows. */
   chatId?: string | null;
   rootPath?: string | null;
+  /** The Default shell setting, for a terminal the pane opens. */
+  defaultShell?: string;
   gitStatus?: GitStatus | null;
   t: (key: string) => string;
   onStartResize: (e: React.PointerEvent) => void;
@@ -61,6 +64,7 @@ export function Dock({
   workspaceId,
   chatId,
   rootPath,
+  defaultShell,
   gitStatus,
   t,
   onStartResize,
@@ -122,6 +126,7 @@ export function Dock({
       files: t("projectFiles"),
       browser: t("browser"),
       usage: t("usage"),
+      terminal: t("terminal"),
     };
     for (const pane of layout.panes) {
       const path = filePathOf(pane);
@@ -192,6 +197,9 @@ export function Dock({
           />
         );
       }
+      if (pane === "terminal") {
+        return <TerminalPane workspaceId={workspaceId} t={t} defaultShell={defaultShell} />;
+      }
       if (pane === "browser") {
         return <BrowserPane t={t} />;
       }
@@ -218,6 +226,7 @@ export function Dock({
       workspaceId,
       chatId,
       rootPath,
+      defaultShell,
       gitStatus,
       layout.diffFile,
       layout.file,

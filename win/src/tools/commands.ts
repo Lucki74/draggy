@@ -1,6 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { SHELL_IDS } from "../terminal/shells";
+import { appendAgentBlock, finishAgentBlock, startAgentBlock } from "../terminal/terminalBus";
 
 /** Commands in the project folder, the way a developer uses a terminal: git, gh, package managers,
  * tests and builds. Every call goes through the permission engine as a command. */
@@ -67,12 +68,14 @@ const runCommand: ToolSpec = {
     const runId = `${ctx.chatId ?? "turn"}-${stepId}`;
     const stop = () => void api.cancel(runId);
     ctx.signal.addEventListener("abort", stop, { once: true });
+    startAgentBlock({ id: runId, command, shell });
 
     // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
     let live = "";
     const unsubscribe = api.onOutput?.((event) => {
       if (event.runId !== runId) return;
       live = (live + event.chunk).slice(-LIVE_OUTPUT_CHARS);
+      appendAgentBlock(runId, event.chunk);
       ctx.patchStep(stepId, { stdout: live });
     });
 
@@ -88,6 +91,7 @@ const runCommand: ToolSpec = {
       });
 
     if (result.error && result.exitCode === undefined) {
+      finishAgentBlock(runId, { status: "failed" });
       ctx.patchStep(stepId, {
         isComplete: true,
         type: "error",
@@ -106,6 +110,11 @@ const runCommand: ToolSpec = {
           ? ctx.t("ranCommand")
           : ctx.t("commandFailed");
 
+    finishAgentBlock(runId, {
+      status: result.cancelled || result.timedOut ? "stopped" : result.success ? "done" : "failed",
+      exitCode: result.exitCode ?? null,
+      shell: result.shell ?? shell,
+    });
     ctx.patchStep(stepId, {
       isComplete: true,
       content: `${verb} \`${command}\`${result.success || result.cancelled ? "" : ` (exit ${result.exitCode ?? "?"})`}`,

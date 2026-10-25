@@ -1,3 +1,4 @@
+import { onPrefill } from "../terminal/terminalBus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildLabel } from "./buildLabel";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
@@ -800,6 +801,17 @@ export default function AppShell({
     updateDockLayout(openPane(currentDockLayout, "browser"));
   }, [currentDockLayout, updateDockLayout]);
 
+  const handleOpenTerminal = useCallback(() => {
+    updateDockLayout(openPane(currentDockLayout, "terminal"));
+  }, [currentDockLayout, updateDockLayout]);
+
+  // A Run button in a code block asks for the Terminal pane; the pane takes the command from there.
+  const openTerminalRef = useRef(handleOpenTerminal);
+  useEffect(() => {
+    openTerminalRef.current = handleOpenTerminal;
+  });
+  useEffect(() => onPrefill(() => openTerminalRef.current()), []);
+
   const handleOpenUsage = useCallback(() => {
     updateDockLayout(openPane(currentDockLayout, "usage"));
   }, [currentDockLayout, updateDockLayout]);
@@ -1067,6 +1079,7 @@ export default function AppShell({
         onOpenDiff={codePanes ? () => handleOpenDiff() : undefined}
         onOpenFiles={panesUsable ? handleOpenFiles : undefined}
         onOpenBrowser={panesUsable ? handleOpenBrowser : undefined}
+        onOpenTerminal={panesUsable ? handleOpenTerminal : undefined}
         onOpenPlan={codePanes ? () => updateDockLayout(openPane(currentDockLayout, "plan")) : undefined}
         planProgress={
           codePanes && currentChatId && runs.running.includes(currentChatId) && currentSession?.plan?.length
@@ -1286,6 +1299,7 @@ export default function AppShell({
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}
+              defaultShell={settings.defaultShell}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}

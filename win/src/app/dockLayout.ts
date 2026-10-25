@@ -1,5 +1,5 @@
 /** One tab per open file is `file:<path>`; the bare "file" is the single-file tab older layouts saved. */
-export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | "usage";
+export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | "usage" | "terminal";
 
 export function filePane(path: string): PaneId {
   return `file:${path}`;

@@ -23,6 +23,7 @@ export interface TitleBarProps {
   onOpenDiff?: () => void;
   onOpenFiles?: () => void;
   onOpenBrowser?: () => void;
+  onOpenTerminal?: () => void;
   onOpenPlan?: () => void;
   /** "3 of 7" while a run works through a plan; opens the plan pane. */
   planProgress?: string | null;
@@ -41,6 +42,7 @@ export function TitleBar({
   onOpenDiff,
   onOpenFiles,
   onOpenBrowser,
+  onOpenTerminal,
   onOpenPlan,
   planProgress,
   viewMode = "normal",
@@ -48,7 +50,7 @@ export function TitleBar({
   className = "",
 }: TitleBarProps) {
 
-  const hasPanes = Boolean(onOpenFiles || onOpenBrowser || onOpenPlan);
+  const hasPanes = Boolean(onOpenFiles || onOpenBrowser || onOpenTerminal || onOpenPlan);
   const viewItems: MenuEntry[] = [];
   if (onChangeViewMode) {
     viewItems.push({
@@ -75,6 +77,7 @@ export function TitleBar({
   if (onOpenFiles) viewItems.push({ id: "files", label: t("projectFiles"), shortcut: "Ctrl+Shift+F", onSelect: onOpenFiles });
   if (onOpenDiff) viewItems.push({ id: "diff", label: t("openDiff"), shortcut: "Ctrl+Shift+D", onSelect: onOpenDiff });
   if (onOpenBrowser) viewItems.push({ id: "browser", label: t("browser"), shortcut: "Ctrl+Shift+B", onSelect: onOpenBrowser });
+  if (onOpenTerminal) viewItems.push({ id: "terminal", label: t("terminal"), onSelect: onOpenTerminal });
   if (onOpenPlan) viewItems.push({ id: "plan", label: t("plan"), onSelect: onOpenPlan });
 
   return (

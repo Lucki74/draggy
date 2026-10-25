@@ -785,3 +785,105 @@ kbd {
         forced-color-adjust: none;
     }
 }
+
+/* Terminal pane: shell tabs, the shell, and what the agent ran. */
+.terminal-pane {
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    min-block-size: 0;
+    background: var(--surface-canvas);
+}
+.terminal-pane-empty {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-inline: 24px;
+    text-align: center;
+}
+.terminal-pane-note,
+.terminal-pane-notice {
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--text-secondary);
+}
+.terminal-pane-notice {
+    padding: 6px 12px;
+    border-block-end: 1px solid var(--rule);
+}
+.terminal-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-block-end: 1px solid var(--rule);
+    overflow-x: auto;
+}
+.terminal-tab {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    color: var(--text-secondary);
+}
+.terminal-tab-active {
+    background: var(--surface-tint);
+    color: var(--text-primary);
+}
+.terminal-tab-label {
+    padding: 4px;
+    padding-inline: 10px 4px;
+    font-size: 12px;
+    font-family: ui-monospace, Consolas, monospace;
+}
+.terminal-tab-close,
+.terminal-tab-new {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 22px;
+    block-size: 22px;
+    border-radius: 4px;
+    color: var(--text-tertiary);
+}
+.terminal-tab-close:hover,
+.terminal-tab-new:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+.terminal-body {
+    flex: 1 1 0;
+    min-block-size: 0;
+    padding: 6px 8px;
+    overflow: hidden;
+}
+.terminal-agent {
+    max-block-size: 40%;
+    overflow-y: auto;
+    border-block-start: 1px solid var(--rule);
+    padding: 8px 12px;
+}
+.terminal-agent-title {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-block-end: 4px;
+}
+.terminal-agent-block {
+    margin-block-end: 8px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+}
+.terminal-agent-command {
+    display: block;
+    color: var(--text-primary);
+}
+.terminal-agent-output {
+    margin: 2px 0 0;
+    max-block-size: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: var(--text-secondary);
+}
+.terminal-agent-status {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
