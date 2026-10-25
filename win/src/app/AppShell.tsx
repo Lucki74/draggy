@@ -1,3 +1,4 @@
+import { useShellTabs } from "../terminal/useShellTabs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildLabel } from "./buildLabel";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
@@ -848,9 +849,18 @@ export default function AppShell({
     updateDockLayout(openPane(currentDockLayout, "browser"));
   }, [currentDockLayout, updateDockLayout]);
 
-  const handleOpenUsage = useCallback(() => {
-    updateDockLayout(openPane(currentDockLayout, "usage"));
-  }, [currentDockLayout, updateDockLayout]);
+  // Each shell is a dock tab. A Run button in a code block also lands here, with a command for a prompt.
+  const { openShell } = useShellTabs({
+    workspaceId: active.id,
+    defaultShell: settings.defaultShell,
+    layout: currentDockLayout,
+    onLayoutChange: updateDockLayout,
+    onMessage: setViewToast,
+    t,
+  });
+
+  // The context wheel's usage link opens the Statistics page in Settings.
+  const handleOpenUsage = useCallback(() => openSettings("usage"), [openSettings]);
 
   // A link clicked anywhere in the app loads in the Browser pane; main asks for the pane to show.
   const openBrowserRef = useRef(handleOpenBrowser);
@@ -872,6 +882,9 @@ export default function AppShell({
       } else if (key === "b") {
         e.preventDefault();
         handleOpenBrowser();
+      } else if (key === "l" && mode === "code" && viewMode === "chat") {
+        e.preventDefault();
+        updateDockLayout(openPane(currentDockLayout, "plan"));
       } else if (key === "x") {
         e.preventDefault();
         handleSwitchMode(mode === "chat" ? "code" : "chat");
@@ -883,7 +896,18 @@ export default function AppShell({
     };
     window.addEventListener("keydown", handleShortcuts);
     return () => window.removeEventListener("keydown", handleShortcuts);
-  }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode]);
+  }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode, viewMode, updateDockLayout, currentDockLayout]);
+
+  // Ctrl+Shift+T opens a new terminal; the backtick needs AltGr on AZERTY.
+  useEffect(() => {
+    const handleTerminal = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || !e.shiftKey || e.key.toLowerCase() !== "t" || !active.rootPath) return;
+      e.preventDefault();
+      void openShell();
+    };
+    window.addEventListener("keydown", handleTerminal);
+    return () => window.removeEventListener("keydown", handleTerminal);
+  }, [active.rootPath, openShell]);
 
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {
@@ -994,21 +1018,42 @@ export default function AppShell({
           handleOpenBrowser();
         },
       },
-      {
-        id: "pane-usage",
-        label: t("usage"),
-        category: t("paletteSectionPanes"),
-        icon: "chart-bar",
-        onSelect: () => {
-          setPaletteOpen(false);
-          handleOpenUsage();
-        },
-      },
+      ...(active.rootPath
+        ? [
+            {
+              id: "pane-terminal",
+              label: t("terminal"),
+              category: t("paletteSectionPanes"),
+              icon: "terminal-window" as const,
+              shortcut: "Ctrl+Shift+T",
+              onSelect: () => {
+                setPaletteOpen(false);
+                void openShell();
+              },
+            },
+          ]
+        : []),
+      ...(currentDockLayout.active
+        ? [
+            {
+              id: "pane-close",
+              label: t("closePane"),
+              category: t("paletteSectionPanes"),
+              icon: "x" as const,
+              shortcut: "Ctrl+\\",
+              onSelect: () => {
+                setPaletteOpen(false);
+                if (currentDockLayout.active) updateDockLayout(closePane(currentDockLayout, currentDockLayout.active));
+              },
+            },
+          ]
+        : []),
       {
         id: "pane-plan",
         label: t("plan"),
         category: t("paletteSectionPanes"),
         icon: "check",
+        shortcut: "Ctrl+Shift+L",
         onSelect: () => {
           setPaletteOpen(false);
           updateDockLayout(openPane(currentDockLayout, "plan"));
@@ -1082,7 +1127,8 @@ export default function AppShell({
     handleOpenFiles,
     handleOpenDiff,
     handleOpenBrowser,
-    handleOpenUsage,
+    openShell,
+    active.rootPath,
     updateDockLayout,
     currentDockLayout,
     openSettings,
@@ -1116,6 +1162,7 @@ export default function AppShell({
         onOpenDiff={codePanes ? () => handleOpenDiff() : undefined}
         onOpenFiles={panesUsable ? handleOpenFiles : undefined}
         onOpenBrowser={panesUsable ? handleOpenBrowser : undefined}
+        onOpenTerminal={panesUsable ? () => void openShell() : undefined}
         onOpenPlan={codePanes ? () => updateDockLayout(openPane(currentDockLayout, "plan")) : undefined}
         planProgress={
           codePanes && currentChatId && runs.running.includes(currentChatId) && currentSession?.plan?.length
@@ -1329,10 +1376,10 @@ export default function AppShell({
               hasPlan={hasPlan}
               planItems={currentSession?.plan}
               isRunning={runs.running.includes(currentChatId!)}
-              chatId={currentChatId}
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}
+              onNewShell={(shell) => void openShell(shell)}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}

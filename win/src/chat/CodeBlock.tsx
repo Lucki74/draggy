@@ -4,6 +4,7 @@ import { SYNTAX_THEME } from "./syntaxTheme";
 import { Icon } from "../ui";
 import { copyText } from "../utils";
 import { translate } from "../i18n";
+import { requestPrefill, shellForLanguage } from "../terminal/terminalBus";
 
 /** A fenced code block: language, copy button, highlighted source. Its own file because fast
  * refresh wants components or constants exported, not both. */
@@ -24,10 +25,27 @@ export function CodeBlock({ language, value }: CodeBlockProps) {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const runShell = shellForLanguage(language);
+
   return (
     <div dir="ltr" data-code={language} className="my-4 rounded-md overflow-hidden border border-rule bg-surface-base max-w-full">
       <div data-copy-skip className="flex items-center justify-between h-9 ps-4 pe-2 border-b border-rule">
         <span className="font-mono text-[12px] text-text-secondary">{language}</span>
+        <div className="flex items-center gap-1">
+        {runShell ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              // Only a click by a person puts a command on a prompt.
+              if (event.isTrusted) requestPrefill({ command: value, shell: runShell });
+            }}
+            title={t("runInTerminal")}
+            className="flex items-center gap-1.5 h-7 px-2 rounded-xs text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+          >
+            <Icon name="terminal-window" size={14} />
+            <span>{t("runInTerminal")}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={copyCode}
@@ -36,6 +54,7 @@ export function CodeBlock({ language, value }: CodeBlockProps) {
           <Icon name={isCopied ? "check" : "copy"} size={14} />
           <span>{isCopied ? t("codeCopied") : t("copyCode")}</span>
         </button>
+        </div>
       </div>
       <SyntaxHighlighter
         style={SYNTAX_THEME}

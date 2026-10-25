@@ -1,5 +1,15 @@
-/** One tab per open file is `file:<path>`; the bare "file" is the single-file tab older layouts saved. */
-export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | "usage";
+/** One tab per open file is `file:<path>`; the bare "file" is the single-file tab older layouts saved.
+ * One tab per shell is `terminal:<session id>`. */
+export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | `terminal:${string}`;
+
+export function terminalPane(sessionId: string): PaneId {
+  return `terminal:${sessionId}`;
+}
+
+/** The shell session a tab shows, or null when the tab is not a shell. */
+export function terminalIdOf(pane: string): string | null {
+  return pane.startsWith("terminal:") ? pane.slice(9) : null;
+}
 
 export function filePane(path: string): PaneId {
   return `file:${path}`;

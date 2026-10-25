@@ -223,7 +223,45 @@ function gpuNameFrom(info) {
   return tidy(angle ? angle[1] : renderer);
 }
 
+/** node-pty is optional: it is loaded on first use, so a machine without its prebuilt binaries (the
+ * Linux CI image, an unsupported platform) still runs everything else. Null when it cannot load. */
+let ptyModule;
+function loadPty() {
+  if (ptyModule !== undefined) return ptyModule;
+  try {
+    ptyModule = require("node-pty");
+  } catch (error) {
+    log.warn("proc.pty", "node-pty is unavailable", { error: error?.message });
+    ptyModule = null;
+  }
+  return ptyModule;
+}
+
+/** An interactive shell on a pseudo-terminal (ConPTY on Windows). The one place a PTY starts, like
+ * spawnHidden for pipes. Throws when node-pty cannot load. */
+function spawnPty(file, args, options = {}) {
+  const pty = loadPty();
+  if (!pty) throw new Error("The terminal is not available on this computer.");
+  return pty.spawn(file, args, { name: "xterm-256color", cols: 80, rows: 24, ...options, useConpty: true });
+}
+
+/** Kills a PTY shell and everything it started. On Windows node-pty kills every process on the
+ * console itself, and killing the tree first leaves it nothing to attach to ("AttachConsole failed"). */
+function killPty(terminal, sync = false) {
+  if (!terminal) return;
+  const child = { pid: terminal.pid, exitCode: null, signalCode: null };
+  try {
+    if (!IS_WINDOWS) (sync ? killTreeSync : killTree)(child);
+    terminal.kill();
+  } catch (error) {
+    log.swallow("proc.pty", error, "the shell is already gone");
+  }
+}
+
 module.exports = {
+  spawnPty,
+  killPty,
+  ptyAvailable: () => loadPty() !== null,
   gpuNameFrom,
   IS_WINDOWS,
   runCommand,

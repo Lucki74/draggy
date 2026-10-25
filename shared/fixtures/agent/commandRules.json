@@ -136,7 +136,8 @@
       "name": "segments: stderr to nul on Windows",
       "input": {
         "op": "segments",
-        "command": "dir 2>nul"
+        "command": "dir 2>nul",
+        "shell": "cmd"
       },
       "expected": [
         "dir"
@@ -146,7 +147,8 @@
       "name": "segments: stdout to null on PowerShell",
       "input": {
         "op": "segments",
-        "command": "dir >$null"
+        "command": "dir >$null",
+        "shell": "pwsh"
       },
       "expected": [
         "dir"
@@ -310,12 +312,12 @@
       "expected": "env FOO=1 make"
     },
     {
-      "name": "prefix: a flag right after the first word",
+      "name": "prefix: git global options are skipped",
       "input": {
         "op": "prefix",
         "segment": "git -C path status"
       },
-      "expected": "git"
+      "expected": "git status"
     },
     {
       "name": "prefix: three words then more",

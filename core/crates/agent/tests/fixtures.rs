@@ -3,7 +3,7 @@
 
 use draggy_agent::announcement::announces_action;
 use draggy_agent::command_rules::{
-    command_covered, command_grant_targets, command_prefix, command_segments,
+    command_covered, command_grant_targets, command_prefix, command_segments, dialect_for,
 };
 use draggy_agent::effort::{
     EFFORT_DEFAULT, Effort, EffortInput, Surface, allowed_efforts, clamp_effort, effective_effort,
@@ -146,16 +146,28 @@ fn repetition(input: &Value) -> Value {
     })
 }
 
+/// The grammar a fixture names; one that names none reads as bash, as the TypeScript runner does.
+fn dialect(input: &Value) -> draggy_agent::command_rules::Dialect {
+    dialect_for(Some(input["shell"].as_str().unwrap_or("bash")))
+}
+
 fn command_rules(input: &Value) -> Value {
     match op(input) {
-        "segments" => json!(command_segments(optional(&input["command"]))),
+        "segments" => json!(command_segments(
+            optional(&input["command"]),
+            dialect(input)
+        )),
         "prefix" => json!(command_prefix(
             input["segment"].as_str().unwrap_or_default()
         )),
-        "targets" => json!(command_grant_targets(optional(&input["command"]))),
+        "targets" => json!(command_grant_targets(
+            optional(&input["command"]),
+            dialect(input)
+        )),
         "covered" => json!(command_covered(
             &string_list(&input["allowed"]),
-            optional(&input["command"])
+            optional(&input["command"]),
+            dialect(input)
         )),
         other => panic!("unknown commandRules op {other}"),
     }
@@ -231,6 +243,7 @@ fn permissions(input: &Value) -> Value {
                 annotations: annotations(&input["annotations"]),
                 target: optional(&input["target"]),
                 grants: &grants,
+                shell: Some(input["shell"].as_str().unwrap_or("bash")),
             });
             json!({ "decision": decision_name(verdict.decision), "reason": verdict.reason })
         }
@@ -247,6 +260,7 @@ fn permissions(input: &Value) -> Value {
             tool,
             optional(&input["target"]),
             annotations(&input["annotations"]),
+            Some(input["shell"].as_str().unwrap_or("bash")),
         )),
         "targetFromArgs" => json!(target_from_args(&input["args"])),
         "refusal" => {

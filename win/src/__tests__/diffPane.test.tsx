@@ -160,4 +160,34 @@ describe("DiffPane", () => {
     expect(onSendReviewComment).toHaveBeenCalledTimes(1);
     expect(onSendReviewComment.mock.calls[0][0]).toContain("Please refactor this");
   });
+
+  it("lists commits and switches branch from the history tabs", async () => {
+    const git = (window as unknown as { electronAPI: { git: Record<string, unknown> } }).electronAPI.git;
+    git.log = vi.fn().mockResolvedValue({
+      success: true,
+      commits: [{ hash: "a".repeat(40), short: "aaaaaaa", author: "Ann", date: "2026-01-01", subject: "Fix the thing" }],
+    });
+    git.branches = vi.fn().mockResolvedValue({
+      success: true,
+      branches: [{ name: "main", current: true }, { name: "dev", current: false }],
+    });
+    git.checkout = vi.fn().mockResolvedValue({ success: true, branch: "dev" });
+
+    await act(async () => {
+      render(<DiffPane workspaceId="w1" gitStatus={MOCK_GIT_STATUS} t={t} />);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "History" }));
+    });
+    expect(screen.getByText("Fix the thing")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Branches" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    });
+    expect(git.checkout).toHaveBeenCalledWith("w1", "dev");
+  });
 });

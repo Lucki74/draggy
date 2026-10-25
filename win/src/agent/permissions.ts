@@ -1,5 +1,5 @@
 import type { PermissionMode } from "../types";
-import { commandCovered, commandGrantTargets } from "./commandRules";
+import { commandCovered, commandGrantTargets, dialectFor } from "./commandRules";
 
 /** Whether a tool call may run. One pure function for built-in and MCP tools, with flags mirroring
  * MCP's own annotations, so there is one answer everywhere. */
@@ -48,6 +48,8 @@ export interface PermissionQuery {
   /** The path, file or address the call is about, when it has one. */
   target?: string | null;
   grants?: Grant[];
+  /** The shell a command runs in; a missing one reads as the strictest grammar. */
+  shell?: string | null;
 }
 
 const PLAN_REFUSAL =
@@ -88,7 +90,7 @@ export function addGrant(grants: Grant[], grant: Grant): Grant[] {
 }
 
 export function decide(query: PermissionQuery): Verdict {
-  const { mode, tool, annotations = {}, target = null, grants = [] } = query;
+  const { mode, tool, annotations = {}, target = null, grants = [], shell = null } = query;
   const isReadOnly = annotations.readOnlyHint ?? annotations.readOnly;
   const isDestructive = annotations.destructiveHint ?? annotations.destructive;
 
@@ -116,7 +118,7 @@ export function decide(query: PermissionQuery): Verdict {
       .filter((grant) => grant.tool === tool && grant.target)
       .map((grant) => grant.target as string);
 
-    if (commandCovered(allowed, target)) {
+    if (commandCovered(allowed, target, dialectFor(shell))) {
       return { decision: "allow", reason: "The user has already allowed this command." };
     }
 
@@ -160,9 +162,10 @@ export function grantsFor(
   tool: string,
   target: string | null | undefined,
   annotations: ToolAnnotations = {},
+  shell: string | null = null,
 ): Grant[] {
   if (annotations.executes) {
-    return commandGrantTargets(target).map((prefix) => ({ tool, target: prefix }));
+    return commandGrantTargets(target, dialectFor(shell)).map((prefix) => ({ tool, target: prefix }));
   }
   return [{ tool, ...(target ? { target } : {}) }];
 }

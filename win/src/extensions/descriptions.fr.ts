@@ -107,6 +107,7 @@ export const FR: Record<string, string> = {
   "mcp:phantom": "Inspecte les soldes crypto multichaîne, les jetons et les adresses de compte sur Solana et Ethereum.",
   "mcp:scryfall": "Cherche des cartes Magic : The Gathering, leurs règles, symboles d'extension, éditions et prix du marché.",
   "mcp:dchub": "DC Hub est la couche de données en direct pour choisir l'emplacement d'un centre de données. Son DCPI est un score quotidien de l'accès au réseau électrique, sur plus de 300 marchés.",
+  "mcp:bounty-guard": "Audite en amont les primes GitHub et vérifie sur la chaîne la preuve de séquestre, pour les agents de codage IA.",
   "skill:accessibility": "Audite et corrige les interfaces web pour l'accessibilité (HTML sémantique, clavier, focus, libellés, contraste, ARIA, lecteurs d'écran) selon WCAG 2.2 AA.",
   "skill:add-feature": "Ajoute une fonctionnalité de bout en bout dans un projet existant : comprend le code, planifie, suit les conventions, écrit code et tests et vérifie.",
   "skill:api-design": "Conçoit ou relit des API HTTP (REST ou JSON-RPC) et des schémas GraphQL : ressources, méthodes, codes, erreurs, pagination et cohérence.",

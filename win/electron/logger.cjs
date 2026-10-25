@@ -48,7 +48,7 @@ function reportFailure(error) {
   try {
     process.stderr.write(`logger failure: ${error?.message || error}\n`);
   } catch {
-    /* stderr may be closed */
+    /* silent-ok: stderr may be closed */
   }
 }
 

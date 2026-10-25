@@ -186,7 +186,7 @@ async function logMachineSnapshot({ app, screen, platform, modelsDir, statfs = f
     data.cpu = cpus[0]?.model?.trim();
     data.cores = cpus.length;
   } catch {
-    // no CPU list on this platform
+    // silent-ok: no CPU list on this platform
   }
   data.displays = safe(() => screen.getAllDisplays().map((d) => ({ w: d.size.width, h: d.size.height, scale: d.scaleFactor })));
   data.vramGB = await safeAsync(() => platform.detectVideoMemoryGB());
