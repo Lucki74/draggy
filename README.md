@@ -113,3 +113,6 @@ Draggy is licensed under the [Apache License 2.0](LICENSE). You can use, modify,
 ### Trademarks
 
 The license covers the code, not the Draggy name and logo. Provider logos shown in the app belong to their owners.
+
+- [DoomPay](https://github.com/doomsday-network/doom-pay) - Non-custodial 3-line Web3 checkout widget, REST API, and remote MCP payment receipt verifier (`wDOOM` on Base Mainnet & `DOOM` Layer-1).
+- [BountyGuard](https://github.com/doomsday-network/bounty-guard) - Zero-dependency MCP security server & CLI auditor that verifies on-chain bounty escrow before AI agents start work.
