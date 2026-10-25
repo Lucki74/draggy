@@ -773,10 +773,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
     const target = targetFromArgs(args);
     const annotations = annotationsFor(name);
-    const verdict = decide({ mode, tool: name, annotations, target, grants });
+    const shell = typeof args.shell === "string" ? args.shell : null;
+    const verdict = decide({ mode, tool: name, annotations, target, grants, shell });
     const kind = annotations.executes ? ("command" as const) : undefined;
     // What "always" would remember, shown on the card so the user knows before choosing.
-    const remembered = grantsFor(name, target, annotations);
+    const remembered = grantsFor(name, target, annotations, shell);
 
     if (verdict.decision === "allow") {
       const toolStart = performance.now();
