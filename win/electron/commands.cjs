@@ -35,7 +35,7 @@ function timeoutFor(value) {
 /** Commands in flight by id, so the renderer can stop one and a quit can stop them all. */
 const live = new Map();
 
-function run({ id, cwd, command, shell, timeoutMs }) {
+function run({ id, cwd, command, shell, defaultShell, timeoutMs }) {
   const text = String(command || "");
   if (!text.trim()) return Promise.resolve({ success: false, error: "No command was given." });
   if (text.length > MAX_COMMAND_CHARS) {
@@ -45,7 +45,7 @@ function run({ id, cwd, command, shell, timeoutMs }) {
     return Promise.resolve({ success: false, error: "The project folder is not available." });
   }
 
-  const invocation = shellInvocation(text, shell);
+  const invocation = shellInvocation(text, shell, { defaultShell });
   if (invocation.error) return Promise.resolve({ success: false, error: invocation.error });
 
   // A second run under the same id would overwrite the first one's entry and orphan it.
@@ -79,7 +79,7 @@ function run({ id, cwd, command, shell, timeoutMs }) {
       if (key && live.get(key) === entry) live.delete(key);
       const durationMs = Date.now() - started;
       log.info("proc.command", "command finished", { durationMs, exitCode: result.exitCode ?? null, timedOut, cancelled: entry.cancelled });
-      resolve({ ...result, shell: invocation.shell, durationMs });
+      resolve({ ...result, shell: invocation.shell, durationMs, ...(invocation.notice ? { notice: invocation.notice } : {}) });
     };
 
     // Set before the spawn, so a spawn that fails at once still clears it.
@@ -94,7 +94,7 @@ function run({ id, cwd, command, shell, timeoutMs }) {
     log.debug("proc.command", "invocation", { file: path.basename(invocation.file), args: invocation.args.length });
 
     entry.handle = spawnStream(
-      { file: invocation.file, args: invocation.args, cwd, env: buildEnv(), verbatim: invocation.verbatim },
+      { file: invocation.file, args: invocation.args, cwd, env: buildEnv(invocation.env), verbatim: invocation.verbatim },
       {
         onStdout: collect,
         onStderr: collect,

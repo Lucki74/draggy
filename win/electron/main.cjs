@@ -3317,6 +3317,7 @@ ipc.handle(
       cwd: root,
       command,
       shell: options?.shell,
+      defaultShell: options?.defaultShell,
       timeoutMs: options?.timeoutMs,
     });
   }),

@@ -86,10 +86,18 @@ function shellInvocation(command, requested, options = {}) {
   const find = options.find || ((name) => (windows && (name === "bash" || name === "sh") ? findWindowsPosixShell(name, env) : findOnPath(name, env)));
 
   let shell = SHELL_IDS.includes(requested) ? requested : "default";
+  let notice;
 
   if (shell === "default") {
     if (windows) {
-      shell = find("pwsh") ? "pwsh" : "powershell";
+      // The Default shell setting first, then bash when Git for Windows has it, then PowerShell.
+      const preferred = SHELL_IDS.includes(options.defaultShell) ? options.defaultShell : null;
+      if (preferred && (preferred === "cmd" || find(preferred))) {
+        shell = preferred;
+      } else {
+        if (preferred) notice = `${preferred} is not installed, so commands run in ${find("bash") ? "bash" : "PowerShell"} instead. Change the default shell in Settings.`;
+        shell = find("bash") ? "bash" : find("pwsh") ? "pwsh" : "powershell";
+      }
     } else {
       // The user's own shell, as a login shell, so PATH matches their terminal.
       const own = env.SHELL && (options.exists || fs.existsSync)(env.SHELL) ? env.SHELL : find("bash") || "/bin/sh";
@@ -101,19 +109,33 @@ function shellInvocation(command, requested, options = {}) {
     const file = find(shell);
     if (!file) return { error: `${shell} is not installed on this computer.` };
 
-    // Output as UTF-8, or Windows PowerShell hands back the console's code page.
+    // Output as UTF-8, or Windows PowerShell hands back the console's code page. Bypass lets npm's
+    // .ps1 shims run under the default Restricted policy, for this process only. "-Command" does not
+    // pass a native program's exit code on, so the last status is read back and returned.
     const utf8 = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ";
-    return { shell, file, args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", utf8 + command] };
+    const status = "\nif ($?) { exit 0 } elseif ($LASTEXITCODE) { exit $LASTEXITCODE } else { exit 1 }";
+    const base = ["-NoLogo", "-NoProfile", "-NonInteractive"];
+    const args = windows ? [...base, "-ExecutionPolicy", "Bypass", "-Command", utf8 + command + status] : [...base, "-Command", utf8 + command];
+    return { shell, file, args, ...(notice ? { notice } : {}) };
   }
 
   if (shell === "cmd") {
     if (!windows) return { error: "cmd is only available on Windows." };
-    return { shell, file: env.ComSpec || env.COMSPEC || "cmd.exe", args: ["/d", "/s", "/c", `"${command}"`], verbatim: true };
+    return { shell, file: env.ComSpec || env.COMSPEC || "cmd.exe", args: ["/d", "/s", "/c", `"${command}"`], verbatim: true, ...(notice ? { notice } : {}) };
   }
 
   const file = find(shell);
   if (!file) return { error: `${shell} is not installed on this computer.` };
-  return { shell, file, args: ["-c", command] };
+  // No profile files, so the user's prompt and aliases cannot change what a command does, and no
+  // path rewriting, so "/c" and "--flag=/x" reach programs as written.
+  if (!windows) return { shell, file, args: ["-c", command] };
+  return {
+    shell,
+    file,
+    args: shell === "bash" ? ["--noprofile", "--norc", "-c", command] : ["-c", command],
+    env: { MSYS_NO_PATHCONV: "1" },
+    ...(notice ? { notice } : {}),
+  };
 }
 
 module.exports = {
