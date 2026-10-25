@@ -35,6 +35,8 @@ export interface GenerationMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  /** What the window held when the turn ended: the last pass's prompt and reply. */
+  contextTokens?: number;
   breakdown?: ContextBreakdown;
 }
 

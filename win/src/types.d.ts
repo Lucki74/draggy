@@ -584,6 +584,8 @@ export interface TurnMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  /** What the window held when the turn ended: the last pass's prompt and reply. */
+  contextTokens?: number;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
 }

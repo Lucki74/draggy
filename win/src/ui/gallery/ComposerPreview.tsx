@@ -91,7 +91,6 @@ export function ComposerPreview({
         onSendMessage,
         onImageCommand,
         onStopGeneration: noop,
-        onDismissOutOfContext: noop,
         onSelectModel: noop,
         onOpenSettings,
         onPatchSettings: (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch })),
