@@ -24,6 +24,9 @@ export interface ParsedFileDiff {
   hunks: DiffHunk[];
   added: number;
   removed: number;
+  created?: boolean;
+  deleted?: boolean;
+  binary?: boolean;
 }
 
 export interface SplitRow {
@@ -45,129 +48,203 @@ function parseHunkHeader(line: string) {
   };
 }
 
-/** Strips git's standard path prefixes (a/ and b/) while preserving bare paths. */
+/** Strips git's standard path prefixes (a/ and b/) and quotes while preserving bare paths. */
 function cleanGitPath(pathStr: string): string {
-  const trimmed = pathStr.trim();
-  if (trimmed.startsWith("a/") || trimmed.startsWith("b/")) {
-    return trimmed.slice(2);
-  }
+  let trimmed = pathStr.trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) trimmed = trimmed.slice(1, -1);
+  if (trimmed.startsWith("a/") || trimmed.startsWith("b/")) return trimmed.slice(2);
   return trimmed;
 }
 
-/** Parses raw unified diff output into structured per-file hunks and lines. */
+/** The two paths of a `diff --git` line. Paths may hold spaces, so the line is split in the middle
+ * where both halves match, which holds for every diff except a rename (fixed up by rename lines). */
+function parseGitHeader(line: string): { oldPath: string; newPath: string } {
+  const rest = line.slice("diff --git ".length);
+  const quoted = /^"((?:[^"\\]|\\.)*)" "((?:[^"\\]|\\.)*)"$/.exec(rest);
+  if (quoted) return { oldPath: cleanGitPath(quoted[1]), newPath: cleanGitPath(quoted[2]) };
+
+  const middle = rest.length - 1;
+  if (middle % 2 === 0 && rest[middle / 2] === " ") {
+    const left = rest.slice(0, middle / 2);
+    const right = rest.slice(middle / 2 + 1);
+    if (left.startsWith("a/") && right.startsWith("b/")) {
+      return { oldPath: cleanGitPath(left), newPath: cleanGitPath(right) };
+    }
+  }
+
+  const at = rest.indexOf(" b/");
+  if (at > 0) return { oldPath: cleanGitPath(rest.slice(0, at)), newPath: cleanGitPath(rest.slice(at + 1)) };
+  const parts = rest.split(" ");
+  return { oldPath: cleanGitPath(parts[0] ?? ""), newPath: cleanGitPath(parts[1] ?? parts[0] ?? "") };
+}
+
+const emptyFile = (oldPath = "", newPath = oldPath): ParsedFileDiff => ({
+  oldPath,
+  newPath,
+  hunks: [],
+  added: 0,
+  removed: 0,
+});
+
+/** Parses raw unified diff output into structured per-file hunks and lines. A hunk ends when the
+ * counts in its header are used up, so a changed line that happens to read like a file header
+ * ("-- note", "++ n") is counted as a change and not mistaken for one. */
 export function parseDiff(rawDiff: string): ParsedFileDiff[] {
   if (!rawDiff || !rawDiff.trim()) return [];
 
   const files: ParsedFileDiff[] = [];
   const lines = rawDiff.replace(/\r\n/g, "\n").split("\n");
+  if (lines[lines.length - 1] === "") lines.pop();
 
   let currentFile: ParsedFileDiff | null = null;
   let currentHunk: DiffHunk | null = null;
   let beforeLine = 0;
   let afterLine = 0;
+  let oldLeft = 0;
+  let newLeft = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  const closeHunk = () => {
+    if (currentHunk && currentFile) currentFile.hunks.push(currentHunk);
+    currentHunk = null;
+  };
+  const closeFile = () => {
+    closeHunk();
+    if (currentFile) files.push(currentFile);
+    currentFile = null;
+  };
+  const named = (value: string) => (value === "/dev/null" ? "" : cleanGitPath(value));
+
+  for (const line of lines) {
+    const inHunk = currentHunk !== null && (oldLeft > 0 || newLeft > 0);
+
+    if (inHunk && currentHunk && currentFile) {
+      if (line.startsWith("\\")) continue;
+      if (line.startsWith("+")) {
+        currentHunk.lines.push({ kind: "added", text: line.slice(1), beforeLine: null, afterLine });
+        afterLine++;
+        newLeft--;
+        currentFile.added++;
+        continue;
+      }
+      if (line.startsWith("-")) {
+        currentHunk.lines.push({ kind: "removed", text: line.slice(1), beforeLine, afterLine: null });
+        beforeLine++;
+        oldLeft--;
+        currentFile.removed++;
+        continue;
+      }
+      if (line.startsWith(" ") || line === "") {
+        currentHunk.lines.push({ kind: "context", text: line.slice(1), beforeLine, afterLine });
+        beforeLine++;
+        afterLine++;
+        oldLeft--;
+        newLeft--;
+        continue;
+      }
+    }
 
     if (line.startsWith("diff --git ")) {
-      if (currentHunk && currentFile) currentFile.hunks.push(currentHunk);
-      if (currentFile) files.push(currentFile);
-      currentHunk = null;
-
-      const parts = line.split(" ");
-      const oldPath = parts[2] ? cleanGitPath(parts[2]) : "";
-      const newPath = parts[3] ? cleanGitPath(parts[3]) : oldPath;
-
-      currentFile = {
-        oldPath,
-        newPath,
-        hunks: [],
-        added: 0,
-        removed: 0,
-      };
-      continue;
-    }
-
-    if (line.startsWith("--- ")) {
-      if (currentFile && !currentFile.oldPath) {
-        currentFile.oldPath = cleanGitPath(line.slice(4));
-      }
-      continue;
-    }
-
-    if (line.startsWith("+++ ")) {
-      if (currentFile) {
-        currentFile.newPath = cleanGitPath(line.slice(4));
-        if (!currentFile.oldPath) currentFile.oldPath = currentFile.newPath;
-      }
+      closeFile();
+      const { oldPath, newPath } = parseGitHeader(line);
+      currentFile = emptyFile(oldPath, newPath);
       continue;
     }
 
     if (line.startsWith("@@ ")) {
-      if (currentHunk && currentFile) currentFile.hunks.push(currentHunk);
-      const headerInfo = parseHunkHeader(line);
-      if (!headerInfo) continue;
-
-      beforeLine = headerInfo.oldStart;
-      afterLine = headerInfo.newStart;
-
-      currentHunk = {
-        header: line,
-        lines: [],
-        oldStart: headerInfo.oldStart,
-        oldCount: headerInfo.oldCount,
-        newStart: headerInfo.newStart,
-        newCount: headerInfo.newCount,
-      };
-
-      if (!currentFile) {
-        currentFile = {
-          oldPath: "",
-          newPath: "",
-          hunks: [],
-          added: 0,
-          removed: 0,
-        };
-      }
+      closeHunk();
+      const info = parseHunkHeader(line);
+      if (!info) continue;
+      if (!currentFile) currentFile = emptyFile();
+      beforeLine = info.oldStart;
+      afterLine = info.newStart;
+      oldLeft = info.oldCount;
+      newLeft = info.newCount;
+      currentHunk = { header: line, lines: [], ...info };
       continue;
     }
 
-    if (!currentHunk || !currentFile) continue;
+    // A file with no `diff --git` line, as `git diff --no-index` and plain `diff -u` print it.
+    if (line.startsWith("--- ") && (!currentFile || currentFile.hunks.length > 0)) {
+      closeFile();
+      currentFile = emptyFile();
+    }
 
-    if (line.startsWith("+")) {
-      currentHunk.lines.push({
-        kind: "added",
-        text: line.slice(1),
-        beforeLine: null,
-        afterLine,
-      });
-      afterLine++;
-      currentFile.added++;
-    } else if (line.startsWith("-")) {
-      currentHunk.lines.push({
-        kind: "removed",
-        text: line.slice(1),
-        beforeLine,
-        afterLine: null,
-      });
-      beforeLine++;
-      currentFile.removed++;
-    } else if (line.startsWith(" ") || line === "") {
-      currentHunk.lines.push({
-        kind: "context",
-        text: line.startsWith(" ") ? line.slice(1) : line,
-        beforeLine,
-        afterLine,
-      });
-      beforeLine++;
-      afterLine++;
+    if (!currentFile) continue;
+
+    if (line.startsWith("--- ")) {
+      const old = named(line.slice(4).replace(/\t.*$/, ""));
+      if (!old) currentFile.created = true;
+      else if (!currentFile.oldPath) currentFile.oldPath = old;
+    } else if (line.startsWith("+++ ")) {
+      const next = named(line.slice(4).replace(/\t.*$/, ""));
+      if (!next) currentFile.deleted = true;
+      else currentFile.newPath = next;
+      if (!currentFile.oldPath) currentFile.oldPath = currentFile.newPath;
+    } else if (line.startsWith("new file mode")) currentFile.created = true;
+    else if (line.startsWith("deleted file mode")) currentFile.deleted = true;
+    else if (line.startsWith("rename from ")) currentFile.oldPath = line.slice("rename from ".length);
+    else if (line.startsWith("rename to ")) currentFile.newPath = line.slice("rename to ".length);
+    else if (line.startsWith("Binary files ") || line.startsWith("GIT binary patch")) currentFile.binary = true;
+  }
+
+  closeFile();
+  return files;
+}
+
+export type ClassifiedKind = "add" | "remove" | "hunk" | "meta" | "context";
+
+/** Every line of a diff, sorted into what it is, by the same count-based reading as `parseDiff`. */
+export function classifyDiffLines(rawDiff: string): Array<{ kind: ClassifiedKind; text: string }> {
+  const lines = String(rawDiff || "").replace(/\r\n/g, "\n").split("\n");
+  if (lines[lines.length - 1] === "") lines.pop();
+
+  const result: Array<{ kind: ClassifiedKind; text: string }> = [];
+  let oldLeft = 0;
+  let newLeft = 0;
+
+  for (const text of lines) {
+    if (oldLeft > 0 || newLeft > 0) {
+      if (text.startsWith("\\")) {
+        result.push({ kind: "meta", text });
+        continue;
+      }
+      if (text.startsWith("+")) {
+        newLeft--;
+        result.push({ kind: "add", text });
+        continue;
+      }
+      if (text.startsWith("-")) {
+        oldLeft--;
+        result.push({ kind: "remove", text });
+        continue;
+      }
+      if (text.startsWith(" ") || text === "") {
+        oldLeft--;
+        newLeft--;
+        result.push({ kind: "context", text });
+        continue;
+      }
+    }
+
+    const info = text.startsWith("@@") ? parseHunkHeader(text) : null;
+    if (info) {
+      oldLeft = info.oldCount;
+      newLeft = info.newCount;
+      result.push({ kind: "hunk", text });
+    } else if (text.startsWith("@@")) {
+      result.push({ kind: "hunk", text });
+    } else if (/^(diff --git|index |--- |\+\+\+ |new file mode|deleted file mode|old mode|new mode|similarity index|dissimilarity index|rename (from|to)|copy (from|to)|Binary files|GIT binary patch)/.test(text)) {
+      result.push({ kind: "meta", text });
+    } else if (text.startsWith("+")) {
+      result.push({ kind: "add", text });
+    } else if (text.startsWith("-")) {
+      result.push({ kind: "remove", text });
+    } else {
+      result.push({ kind: "context", text });
     }
   }
 
-  if (currentHunk && currentFile) currentFile.hunks.push(currentHunk);
-  if (currentFile) files.push(currentFile);
-
-  return files;
+  return result;
 }
 
 /** Aligns removed and added lines side by side within a hunk. */

@@ -368,7 +368,7 @@ function createGit({ run = defaultRun } = {}) {
   async function history(root, { limit = 50 } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
     const count = Math.min(Math.max(Math.trunc(Number(limit)) || 50, 1), MAX_LOG_ENTRIES);
-    const result = await git(root, ["log", `-n${count}`, "--no-show-signature", "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e"]);
+    const result = await git(root, ["log", `-n${count}`, "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e"]);
     if (result.code !== 0) {
       // A repository with no commits yet has no log, which is not an error.
       if (/does not have any commits/i.test(result.stderr)) return { success: true, commits: [] };
