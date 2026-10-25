@@ -1,10 +1,10 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
+import { SHELL_IDS } from "../terminal/shells";
 
 /** Commands in the project folder, the way a developer uses a terminal: git, gh, package managers,
  * tests and builds. Every call goes through the permission engine as a command. */
 
-const SHELLS = ["pwsh", "powershell", "cmd", "bash", "sh"];
 const MAX_TIMEOUT_SECONDS = 600;
 
 const runCommand: ToolSpec = {
@@ -41,7 +41,7 @@ const runCommand: ToolSpec = {
     Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
   run: async (args, ctx) => {
     const command = String(args.command).trim();
-    const shell = SHELLS.includes(String(args.shell)) ? String(args.shell) : undefined;
+    const shell = (SHELL_IDS as readonly string[]).includes(String(args.shell)) ? String(args.shell) : undefined;
     const seconds = Math.min(Math.max(Number(args.timeout_seconds) || 120, 1), MAX_TIMEOUT_SECONDS);
     const stepId = ctx.newId();
     const api = window.electronAPI?.commands;

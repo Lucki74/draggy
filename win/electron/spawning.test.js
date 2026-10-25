@@ -40,7 +40,8 @@ describe("no console window ever appears", () => {
   it("never starts PowerShell on its own: Norton and others block a hidden one started by an app", () => {
     // Only the run_command tool may, when the model asks and the user has approved that command.
     const offenders = sourceFiles()
-      .filter((file) => file.name !== "commands.cjs" && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
+      // shells.cjs holds the run_command shell list, which is where the commands.cjs exemption moved.
+      .filter((file) => !["commands.cjs", "shells.cjs"].includes(file.name) && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
       .map((file) => file.name);
     expect(offenders).toEqual([]);
   });
@@ -90,5 +91,14 @@ describe("no console window ever appears", () => {
     });
     expect(child.pid).toBeGreaterThan(0);
     child.kill();
+  });
+
+  it("keeps commands and git on exec.cjs rather than the raw helpers", () => {
+    // exec.cjs owns timeouts, decoding and stopping; these two must not grow their own launch code again.
+    const offenders = sourceFiles()
+      .filter((file) => ["commands.cjs", "git.cjs"].includes(file.name) && /\b(spawnHidden|execFileHidden)\s*\(/.test(file.text))
+      .map((file) => file.name);
+    expect(offenders).toEqual([]);
+    expect(sourceFiles().find((file) => file.name === "exec.cjs").text).toMatch(/spawnHidden\(/);
   });
 });

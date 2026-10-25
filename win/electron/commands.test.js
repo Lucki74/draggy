@@ -150,6 +150,19 @@ describe("running a command", () => {
     expect(commands.cancel("run-1")).toBe(false);
   }, 30_000);
 
+  it("refuses a second command under an id that is still running, and keeps the first", async () => {
+    const cwd = project();
+    const first = commands.run({ id: "run-dup", cwd, command: 'node -e "setTimeout(() => {}, 60000)"' });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const second = await commands.run({ id: "run-dup", cwd, command: "node -e \"\"" });
+
+    expect(second).toMatchObject({ success: false });
+    expect(second.error).toMatch(/already running/);
+    expect(commands.cancel("run-dup")).toBe(true);
+    expect((await first).cancelled).toBe(true);
+  }, 30_000);
+
   it("refuses to run without a project folder", async () => {
     const result = await commands.run({ cwd: path.join(os.tmpdir(), "no-such-folder-draggy"), command: "ls" });
     expect(result).toMatchObject({ success: false });

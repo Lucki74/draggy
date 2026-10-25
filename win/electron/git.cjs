@@ -1,5 +1,6 @@
 const path = require("node:path");
-const { execFileHidden } = require("./platform.cjs");
+const { buildEnv, runOnce } = require("./exec.cjs");
+const { findGitExe, findOnPath } = require("./shells.cjs");
 const { log } = require("./logger.cjs");
 
 /** Read-only git: never commits, stages or fetches. Repo config can run programs (fsmonitor,
@@ -36,35 +37,27 @@ function tailLines(text, count) {
   return String(text || "").split(/\r?\n/).filter(Boolean).slice(-count).join(" | ") || null;
 }
 
-function defaultRun(args, cwd) {
-  return new Promise((resolve) => {
-    execFileHidden(
-      "git",
-      args,
-      {
-        cwd,
-        encoding: "utf8",
-        timeout: GIT_TIMEOUT_MS,
-        maxBuffer: 16 * 1024 * 1024,
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: "0",
-          GIT_OPTIONAL_LOCKS: "0",
-        },
-      },
-      (error, stdout, stderr) => {
-        if (error && error.code === "ENOENT") {
-          resolve({ code: -1, stdout: "", stderr: "", missing: true });
-          return;
-        }
+/** git on PATH, or the copy Git for Windows installed when PATH has none. Looked up once. */
+let gitProgram = null;
+function gitBinary() {
+  if (!gitProgram) gitProgram = findOnPath("git") ? "git" : findGitExe() || "git";
+  return gitProgram;
+}
 
-        resolve({
-          code: error ? (typeof error.code === "number" ? error.code : 1) : 0,
-          stdout: String(stdout || ""),
-          stderr: String(stderr || ""),
-        });
-      },
-    );
+function defaultRun(args, cwd) {
+  return runOnce({
+    file: gitBinary(),
+    args,
+    cwd,
+    env: buildEnv({ GIT_OPTIONAL_LOCKS: "0" }),
+    timeoutMs: GIT_TIMEOUT_MS,
+    maxBuffer: 16 * 1024 * 1024,
+  }).then((result) => {
+    if (result.missing) return { code: -1, stdout: "", stderr: "", missing: true };
+
+    // Output cut short is a failure, as it was when execFile reported maxBuffer.
+    const code = result.truncated ? 1 : (result.code ?? 1);
+    return { code, stdout: result.stdout, stderr: result.stderr };
   });
 }
 
