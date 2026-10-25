@@ -143,16 +143,34 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")?.workspaceId).toBe("project-7");
   });
 
-  it("keeps two conversations generating at the same time", () => {
+  it("queues a second conversation until the first one's turn ends", async () => {
     const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
 
     manager.send("chat-1", "first");
     manager.send("chat-2", "second");
 
-    expect(manager.running()).toEqual(["chat-1", "chat-2"]);
-    expect(sessions.get("chat-1")?.isGenerating).toBe(true);
+    expect(manager.running()).toEqual(["chat-1"]);
+    expect(manager.queues()["chat-2"]?.map((item) => item.content)).toEqual(["second"]);
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
     expect(sessions.get("chat-2")?.isGenerating).toBe(true);
+  });
+
+  it("lets the chat that waited go before the finished chat's own queue", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "follow-up");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-1"]));
   });
 
   it("finishes a turn for a conversation that is no longer the one on screen", async () => {
@@ -308,7 +326,8 @@ describe("the task manager", () => {
     const messages = sessions.get("chat-1")?.messages ?? [];
     expect(messages).toHaveLength(2);
     expect(messages[1].failed).toBe(true);
-    expect(messages[1].content).toBe("second error");
+    expect(messages[1].content).toBe("");
+    expect(messages[1].error).toBe("second error");
     expect(messages[1].versions).toHaveLength(1);
     expect(messages[1].versions?.[0]?.content).toBe("first error");
     expect(messages[1].versions?.[0]?.failed).toBe(true);
@@ -473,13 +492,13 @@ describe("the end of every turn", () => {
   it("says nothing is driving the pane only once the last turn is over", async () => {
     const { host } = createHost();
     const onIdle = vi.fn();
-    const manager = createTaskManager({ ...host, onIdle });
+    const manager = createTaskManager({ ...host, onIdle, oneTurnAtATime: true });
 
     manager.send("chat-1", "first");
     manager.send("chat-2", "second");
 
-    pending[pending.length - 2].resolve(finished());
-    await vi.waitFor(() => expect(manager.isRunning("chat-1")).toBe(false));
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.isRunning("chat-2")).toBe(true));
     expect(onIdle).not.toHaveBeenCalled();
 
     pending[pending.length - 1].resolve(finished());
@@ -599,7 +618,10 @@ describe("recording a finished turn for the statistics page", () => {
     seed(sessions, "b");
     const manager = createTaskManager(host);
     manager.send("a", "one");
+    await Promise.resolve();
+    pending[pending.length - 1].resolve(finished());
     manager.send("b", "two");
+    await vi.waitFor(() => expect(manager.isRunning("b")).toBe(true));
     await Promise.resolve();
 
     const [first, second] = pending.slice(-2).map((turn) => turn.request.correlationId);
@@ -682,5 +704,124 @@ describe("a provider's state on the saved reply", () => {
     const reply = sessions.get("chat-1")?.messages[1];
     expect(reply?.versions?.[0]?.provider_state).toEqual(state);
     expect(reply?.provider_state).toBeUndefined();
+  });
+});
+
+describe("turns that overlap", () => {
+  beforeEach(() => {
+    pending.length = 0;
+    localStorage.clear();
+  });
+
+  it("keeps what a stopped reply wrote and says it was stopped", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write");
+    pending[0].host.onPatch({ content: "half an answer", textContent: "half an answer", steps: [] });
+    manager.stop("chat-1");
+
+    const last = sessions.get("chat-1")!.messages.at(-1)!;
+    expect(last.stopped).toBe(true);
+    expect(last.textContent).toBe("half an answer");
+    expect(last.failed).toBeUndefined();
+  });
+
+  it("drops what the old turn says once a new one has started", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    vi.useFakeTimers();
+    try {
+      manager.send("chat-1", "first");
+      manager.send("chat-1", "second");
+      // The old turn ignores the abort, so the new one waits out its grace period.
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(pending).toHaveLength(2);
+
+      pending[0].host.onPatch({ content: "stale", textContent: "stale", steps: [] });
+      pending[0].resolve({ ...finished(), content: "stale", textContent: "stale" });
+      await vi.advanceTimersByTimeAsync(10);
+      const messages = sessions.get("chat-1")!.messages;
+      expect(messages.some((m) => m.content === "stale" || m.textContent === "stale")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("queues a message sent while a reply is running and sends it after", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "next");
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["next"]);
+    expect(pending).toHaveLength(1);
+
+    pending[0].resolve(finished());
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(manager.queues()["chat-1"] ?? []).toEqual([]);
+    expect(sessions.get("chat-1")!.messages.some((m) => m.role === "user" && m.content === "next")).toBe(true);
+  });
+
+  it("holds the queue when a reply fails", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "next");
+    pending[0].reject(new Error("bad request"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+
+    expect(pending).toHaveLength(1);
+    expect(manager.queues()["chat-1"]).toHaveLength(1);
+  });
+
+  it("edits, reorders and removes queued messages", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "a");
+    manager.enqueue("chat-1", "b");
+    const [a, b] = manager.queues()["chat-1"];
+    manager.moveQueued("chat-1", b.id, -1);
+    manager.editQueued("chat-1", a.id, "a2");
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["b", "a2"]);
+    manager.removeQueued("chat-1", b.id);
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["a2"]);
+  });
+
+  it("hands steering notes to the running loop and queues the ones it never read", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.steer("chat-1", "use tabs");
+    expect(pending[0].host.takeSteering?.()).toEqual(["use tabs"]);
+    expect(pending[0].host.takeSteering?.()).toEqual([]);
+
+    manager.steer("chat-1", "late note");
+    pending[0].reject(new Error("bad request"));
+    await vi.waitFor(() => expect(manager.running()).toEqual([]));
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["late note"]);
+  });
+
+  it("retries a dropped connection quietly before anything is written", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sessions, host } = createHost();
+      const manager = createTaskManager(host);
+
+      manager.send("chat-1", "first");
+      pending[0].reject(new Error("fetch failed: ECONNRESET"));
+      await vi.waitFor(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(pending).toHaveLength(2);
+      });
+      expect(sessions.get("chat-1")!.messages.at(-1)!.failed).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

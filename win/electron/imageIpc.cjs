@@ -85,7 +85,6 @@ function register(ipc, deps) {
       log,
       // The chat engine loads its model again on the next message, so stopping it costs seconds.
       freeChatModel: () => llamaProcess.stopServerSync(),
-      reloadChatModel: () => llamaProcess.reloadServer?.(),
       memory: async () => ({
         freeVramGB: specs?.unifiedMemory ? null : await platform.detectFreeVideoMemoryGB(),
         totalVramGB: specs?.vram || 0,

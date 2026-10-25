@@ -770,6 +770,17 @@
                 "fold": null,
                 "currentVersionIndex": null,
                 "versions": []
+              },
+              {
+                "content": "",
+                "currentVersionIndex": null,
+                "failed": false,
+                "fold": null,
+                "providerState": null,
+                "role": "assistant",
+                "steps": [],
+                "textContent": null,
+                "versions": []
               }
             ]
           }
@@ -1989,7 +2000,7 @@
               },
               {
                 "role": "assistant",
-                "content": "boom",
+                "content": "",
                 "failed": true,
                 "textContent": null,
                 "steps": null,
@@ -2047,7 +2058,7 @@
               },
               {
                 "role": "assistant",
-                "content": "Error generating response.",
+                "content": "",
                 "failed": true,
                 "textContent": null,
                 "steps": null,

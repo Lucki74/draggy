@@ -37,6 +37,10 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
     setOpen(false);
   };
 
+  // A lone step needs no fold; its own row says what it did.
+  const rows = Children.toArray(children);
+  if (rows.length === 1) return <div className="mb-4">{rows[0]}</div>;
+
   return (
     <div className="mb-4">
       <div className="flex items-center gap-3">
@@ -70,7 +74,7 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
       )}
       </div>
       <ol ref={body} hidden={!open} className="mt-1 ms-2 ps-3 border-s border-rule">
-        {Children.toArray(children).map((child, index) => (
+        {rows.map((child, index) => (
           <li key={isValidElement(child) ? child.key : index} className="flex gap-2">
             <span aria-hidden="true" className="w-4 flex-shrink-0 pt-1.5 text-end text-[12px] leading-4 tabular-nums text-text-tertiary">
               {index + 1}

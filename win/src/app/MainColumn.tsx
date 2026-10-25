@@ -5,6 +5,7 @@ import Explorer from "../files/Explorer";
 import { OpenFileContext } from "../chat/openFileContext";
 import { OpenDiffContext } from "../chat/openDiffContext";
 import { relativePaths } from "../chat/mentions";
+import { ComposerQueueContext, type ComposerQueue } from "../chat/Composer";
 import { folderName } from "../workspaces";
 import { shouldShowStrip } from "../project/gitView";
 import CodeHome from "./CodeHome";
@@ -63,6 +64,7 @@ export interface MainColumnProps {
     onInitProject?: () => void;
     onCompact: () => Promise<CompactOutcome>;
     onImageCommand: (argument: string, attachments: Attachment[]) => void;
+    composerQueue?: ComposerQueue;
     onOpenUsage: () => void;
     onMeasureContext: (
         draft: string,
@@ -119,6 +121,7 @@ export function MainColumn({
     onInitProject,
     onCompact,
     onImageCommand,
+    composerQueue,
     onOpenUsage,
     onMeasureContext,
     onSelectModel,
@@ -148,6 +151,7 @@ export function MainColumn({
     }
 
     return (
+        <ComposerQueueContext.Provider value={composerQueue ?? null}>
         <div className="flex-1 flex flex-col min-w-0 relative">
             {arrivingModel && viewMode !== "settings" && (
                 <DownloadBar download={arrivingModel} placement="top" language={settings.language} t={t} />
@@ -249,6 +253,7 @@ export function MainColumn({
                 <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]" />
             )}
         </div>
+        </ComposerQueueContext.Provider>
     );
 }
 
