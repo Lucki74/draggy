@@ -32,7 +32,6 @@ interface ChatScreenProps {
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   onEditMessage: (messageIndex: number, newContent: string) => void;
   onStopGeneration: () => void;
-  onContinueGeneration: () => void;
   onDismissOutOfContext: () => void;
   onSelectModel: (name: string) => void;
   onOpenSettings: (tab: SettingsTab) => void;
@@ -71,7 +70,6 @@ export default function ChatScreen({
   onSwitchVersion,
   onEditMessage,
   onStopGeneration,
-  onContinueGeneration,
   onDismissOutOfContext,
   onSelectModel,
   onOpenSettings,
@@ -259,7 +257,6 @@ export default function ChatScreen({
       t={t}
       onSendMessage={onSendMessage}
       onStopGeneration={onStopGeneration}
-      onContinueGeneration={onContinueGeneration}
       onDismissOutOfContext={onDismissOutOfContext}
       onSelectModel={onSelectModel}
       onOpenSettings={onOpenSettings}

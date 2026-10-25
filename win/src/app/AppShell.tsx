@@ -1253,7 +1253,6 @@ export default function AppShell({
           onSwitchVersionChat={onSwitchVersionChat}
           onEditMessageChat={onEditMessageChat}
           onStopGeneration={() => runs.stop(currentChatId!)}
-          onContinueGeneration={() => runs.continueGeneration(currentChatId!)}
           onDismissOutOfContext={() => runs.dismissOutOfContext(currentChatId!)}
           onApproval={runs.answerApproval}
           onRevert={handleRevert}

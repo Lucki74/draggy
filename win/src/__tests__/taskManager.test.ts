@@ -258,6 +258,29 @@ describe("the task manager", () => {
     expect(messages[1].content).toBe("");
   });
 
+  it("continues a failed reply that kept partial text instead of clearing it", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "half an answer", textContent: "half an answer", failed: true, error: "context full" },
+      ],
+    });
+
+    manager.regenerate("chat-1");
+
+    const messages = sessions.get("chat-1")?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[1].content).toBe("half an answer");
+    expect(messages[1].failed).toBeUndefined();
+    expect(messages[1].error).toBeUndefined();
+    expect(messages[1].versions).toBeUndefined();
+  });
+
   it("preserves message versions when a retry attempt fails", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);

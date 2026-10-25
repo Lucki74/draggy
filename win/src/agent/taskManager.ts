@@ -773,6 +773,21 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       return;
     }
 
+    // A failed reply keeps what it produced and resumes from there, so Retry never throws work away.
+    const failedIdx = typeof index === "number" ? index : session.messages.length - 1;
+    const failed = session.messages[failedIdx];
+    const partial = failed ? Boolean(failed.textContent?.trim() || failed.steps?.length || (failed.content && failed.content !== failed.error)) : false;
+    if (failed?.failed && failed.error && partial && failedIdx === session.messages.length - 1) {
+      const resumed = { ...failed };
+      if (resumed.content === resumed.error) resumed.content = "";
+      delete resumed.failed;
+      delete resumed.error;
+      const messages = [...session.messages.slice(0, failedIdx), resumed];
+      host.updateSession(chatId, (s) => ({ ...s, messages }));
+      void run(chatId, messages, { isContinuation: true });
+      return;
+    }
+
     // Regenerating inside the folded range rewrites history the notes claim
     // to describe, so they have to go.
     const survived = compactionSurvives(

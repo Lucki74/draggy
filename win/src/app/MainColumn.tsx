@@ -56,7 +56,6 @@ export interface MainColumnProps {
     onSwitchVersionChat: (mIdx: number, vIdx: number) => void;
     onEditMessageChat: (mIdx: number, content: string) => void;
     onStopGeneration: () => void;
-    onContinueGeneration: () => void;
     onDismissOutOfContext: () => void;
     onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
     onRevert: (checkpointId: number) => Promise<boolean>;
@@ -112,7 +111,6 @@ export function MainColumn({
     onSwitchVersionChat,
     onEditMessageChat,
     onStopGeneration,
-    onContinueGeneration,
     onDismissOutOfContext,
     onApproval,
     onRevert,
@@ -195,7 +193,6 @@ export function MainColumn({
                             onSwitchVersion={onSwitchVersionChat}
                             onEditMessage={onEditMessageChat}
                             onStopGeneration={onStopGeneration}
-                            onContinueGeneration={onContinueGeneration}
                             onDismissOutOfContext={onDismissOutOfContext}
                             onApproval={onApproval}
                             onRevert={onRevert}

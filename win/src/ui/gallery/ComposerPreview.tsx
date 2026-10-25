@@ -97,7 +97,6 @@ export function ComposerPreview({
         onSendMessage,
         onImageCommand,
         onStopGeneration: noop,
-        onContinueGeneration: noop,
         onDismissOutOfContext: noop,
         onSelectModel: noop,
         onOpenSettings,

@@ -84,7 +84,6 @@ export interface ComposerProps {
     t: (key: string) => string;
     onSendMessage: (content: string, attachments?: Attachment[]) => void;
     onStopGeneration: () => void;
-    onContinueGeneration: () => void;
     onDismissOutOfContext: () => void;
     onSelectModel: (name: string) => void;
     onOpenSettings: (tab: SettingsTab) => void;
@@ -170,7 +169,6 @@ export function Composer({
     t,
     onSendMessage,
     onStopGeneration,
-    onContinueGeneration,
     onDismissOutOfContext,
     onSelectModel,
     onOpenSettings,
@@ -523,13 +521,6 @@ export function Composer({
                             <div className="flex items-center gap-3 px-4 py-2 border-b border-rule bg-surface-tint text-[13px]">
                                 <Icon name="warning" size={16} className="flex-shrink-0 text-warn" />
                                 <p className="flex-1 min-w-0 text-text-primary">{t("outOfContextMessage")}</p>
-                                <button
-                                    type="button"
-                                    onClick={onContinueGeneration}
-                                    className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
-                                >
-                                    {t("continueGenerating")}
-                                </button>
                                 <IconButton name="x" label={t("cancel")} size="sm" onClick={onDismissOutOfContext} />
                             </div>
                         )}

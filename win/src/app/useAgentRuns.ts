@@ -49,7 +49,6 @@ export interface AgentRuns {
     messageIndex: number,
     versionIndex: number,
   ) => void;
-  continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   /** Folds the older conversation into notes now. */
@@ -97,7 +96,6 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       regenerate: manager.regenerate,
       editMessage: manager.editMessage,
       switchVersion: manager.switchVersion,
-      continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
       compact: manager.compact,
