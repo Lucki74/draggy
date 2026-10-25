@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { CHANGE_COLOR, CHANGE_LETTER, changePath } from "../project/gitView";
-import { parseDiff, parseDiffStats } from "./diffParser";
+import { anchorKey, parseDiff, parseDiffStats, type CommentAnchor } from "./diffParser";
 import { UnifiedDiffView, type ReviewComment } from "./UnifiedDiffView";
 import { SplitDiffView } from "./SplitDiffView";
 import type { GitChange, GitStatus } from "../types";
@@ -43,7 +43,7 @@ export function DiffPane({
   const [error, setError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<ReviewComment[]>([]);
-  const [activeCommentLine, setActiveCommentLine] = useState<number | null>(null);
+  const [activeCommentLine, setActiveCommentLine] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
 
   const refreshStatus = useCallback(async () => {
@@ -126,8 +126,8 @@ export function DiffPane({
     ? t("gitDetached")
     : (gitStatus?.branch ?? "HEAD");
 
-  const handleStartComment = (line: number) => {
-    setActiveCommentLine(line);
+  const handleStartComment = (anchor: CommentAnchor) => {
+    setActiveCommentLine(anchorKey(anchor));
     setCommentDraft("");
   };
 
@@ -136,13 +136,14 @@ export function DiffPane({
     setCommentDraft("");
   };
 
-  const handleSaveComment = (line: number) => {
+  const handleSaveComment = (anchor: CommentAnchor) => {
     const targetFile = selectedFile || currentFileDiff?.newPath || currentFileDiff?.oldPath;
     if (!targetFile || !commentDraft.trim()) return;
     const newComment: ReviewComment = {
       id: `${Date.now()}-${Math.random()}`,
       file: targetFile,
-      line,
+      side: anchor.side,
+      line: anchor.line,
       text: commentDraft.trim(),
     };
     setComments((prev) => [...prev, newComment]);
@@ -157,7 +158,7 @@ export function DiffPane({
   const handleSendReview = useCallback(() => {
     if (comments.length === 0 || !onSendReviewComment) return;
     const summary = comments
-      .map((c) => `- ${c.file}:${c.line}: ${c.text}`)
+      .map((c) => `- ${c.file}:${c.line}${c.side === "old" ? " (before the change)" : ""}: ${c.text}`)
       .join("\n");
     const prompt = `Review comments on changes:\n\n${summary}`;
     onSendReviewComment(prompt);

@@ -173,3 +173,13 @@ describe("classifyDiff and diffStats share the parser's reading", () => {
     expect(diffStats(raw)).toEqual({ added: 0, removed: 1 });
   });
 });
+
+describe("comment anchors", () => {
+  it("tells a removed line from an added line with the same number", async () => {
+    const { anchorKey, anchorOf } = await import("../diff/diffParser");
+    const raw = ["diff --git a/a b/a", "--- a/a", "+++ b/a", "@@ -3,1 +3,1 @@", "-old", "+new", ""].join("\n");
+    const [removed, added] = parseDiff(raw)[0].hunks[0].lines;
+    expect(anchorKey(anchorOf(removed, 0))).toBe("old:3");
+    expect(anchorKey(anchorOf(added, 0))).toBe("new:3");
+  });
+});

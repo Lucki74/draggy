@@ -29,6 +29,23 @@ export interface ParsedFileDiff {
   binary?: boolean;
 }
 
+/** Which side of the diff a review comment sits on. A removed line and an added line can share a
+ * number, so the number alone would put a comment on both. */
+export type CommentSide = "old" | "new";
+
+export interface CommentAnchor {
+  side: CommentSide;
+  line: number;
+}
+
+export const anchorKey = (anchor: CommentAnchor): string => `${anchor.side}:${anchor.line}`;
+
+/** A removed line is anchored on the old side; context and added lines on the new one. */
+export function anchorOf(line: DiffLine, fallback: number): CommentAnchor {
+  if (line.kind === "removed") return { side: "old", line: line.beforeLine ?? fallback };
+  return { side: "new", line: line.afterLine ?? line.beforeLine ?? fallback };
+}
+
 export interface SplitRow {
   before: DiffLine | null;
   after: DiffLine | null;
