@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
-import { StrictMode } from "react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TerminalPane from "../terminal/TerminalPane";
-import { resetSessions } from "../terminal/terminalSessions";
+import { createDefaultDockLayout, terminalIdOf } from "../app/dockLayout";
+import { useShellTabs } from "../terminal/useShellTabs";
+import { allSessions, closeSession, resetSessions, sessionLabels, shellName } from "../terminal/terminalSessions";
 import { appendAgentBlock, finishAgentBlock, requestPrefill, resetTerminalBus, startAgentBlock } from "../terminal/terminalBus";
 import { translations } from "../translations";
 
-/** The pane opens shells in the project, keeps them across a remount, puts a code block's command on a
- * prompt without running it, and shows the agent's commands read-only. */
+/** Each shell is a dock tab. Opening one starts it in the project, a code block's command lands on a
+ * prompt without running, and the agent's commands show read-only. */
 
 const t = (key: string) => translations.en[key] || key;
 
@@ -72,67 +74,104 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("the terminal pane", () => {
-  it("opens a shell in the workspace and sends the fitted size", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} defaultShell="auto" />);
+let messages: string[] = [];
+
+/** The app's side of the tabs: a layout that gains a tab per shell, and the pane each tab shows. */
+function Harness() {
+  const [layout, setLayout] = useState(createDefaultDockLayout());
+  const tabs = useShellTabs({ workspaceId: "w1", defaultShell: "auto", layout, onLayoutChange: setLayout, onMessage: (text) => messages.push(text), t });
+  return (
+    <div>
+      <button onClick={() => void tabs.openShell()}>new shell</button>
+      <button onClick={tabs.showTerminal}>show terminal</button>
+      <ul>
+        {layout.panes.map((pane) => (
+          <li key={pane} data-testid="tab">
+            {sessionLabels("w1").get(terminalIdOf(pane) ?? "")}
+            <TerminalPane sessionId={terminalIdOf(pane) ?? ""} t={t} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+describe("shell tabs", () => {
+  beforeEach(() => {
+    messages = [];
+  });
+
+  it("opens a shell in the workspace as one named tab and sends the fitted size", async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("show terminal"));
 
     await waitFor(() => expect(shell.open).toHaveBeenCalledWith("w1", { shell: undefined, defaultShell: undefined }));
     await waitFor(() => expect(shell.resize).toHaveBeenCalledWith("pty-1", 90, 25));
-    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(screen.getAllByTestId("tab")).toHaveLength(1);
+    expect(screen.getByText("Bash")).toBeTruthy();
   });
 
-  it("opens one shell under strict mode", async () => {
-    render(
-      <StrictMode>
-        <TerminalPane workspaceId="w1" t={t} defaultShell="auto" />
-      </StrictMode>,
-    );
+  it("brings the open shell forward instead of starting another", async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("show terminal"));
+    await waitFor(() => expect(screen.getAllByTestId("tab")).toHaveLength(1));
 
-    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(1));
+    fireEvent.click(screen.getByText("show terminal"));
     expect(shell.open).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByTestId("tab")).toHaveLength(1);
   });
 
-  it("shows output and marks a shell that ended", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
+  it("numbers a second shell of the same kind", async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
+    await waitFor(() => expect(screen.getAllByTestId("tab")).toHaveLength(1));
+    fireEvent.click(screen.getByText("new shell"));
+
+    expect(await screen.findByText("Bash 2")).toBeTruthy();
+  });
+
+  it("names PowerShell and pwsh the same", () => {
+    expect(shellName("powershell")).toBe("Pwsh");
+    expect(shellName("pwsh.exe")).toBe("Pwsh");
+    expect(shellName("cmd")).toBe("CMD");
+    expect(shellName("zsh")).toBe("Zsh");
+  });
+
+  it("shows output and keeps the shell until it is closed", async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
     await waitFor(() => expect(views).toHaveLength(1));
 
     act(() => data({ id: "pty-1", data: "hello" }));
     expect(views[0].write).toHaveBeenCalledWith("hello");
 
-    act(() => exit({ id: "pty-1", exitCode: 0 }));
-    expect(await screen.findByText(/ended/)).toBeTruthy();
-  });
-
-  it("keeps its shells when the pane is closed and opened again", async () => {
-    const first = render(<TerminalPane workspaceId="w1" t={t} />);
-    await waitFor(() => expect(views).toHaveLength(1));
-    first.unmount();
-
-    render(<TerminalPane workspaceId="w1" t={t} />);
-    expect(screen.getAllByRole("tab")).toHaveLength(1);
-    expect(shell.open).toHaveBeenCalledTimes(1);
-  });
-
-  it("closes a tab through the host", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
-    await waitFor(() => expect(views).toHaveLength(1));
-
-    fireEvent.click(screen.getByLabelText("Close terminal"));
+    act(() => closeSession("pty-1"));
     expect(shell.close).toHaveBeenCalledWith("pty-1");
-    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+  });
+
+  it("marks a shell that ended so its tab can say so", async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
+    await waitFor(() => expect(views).toHaveLength(1));
+
+    act(() => exit({ id: "pty-1", exitCode: 3 }));
+    expect(allSessions()[0]).toMatchObject({ exited: true, exitCode: 3 });
   });
 
   it("says so when the terminal is not available", async () => {
     (window as unknown as { electronAPI: unknown }).electronAPI = {
       shell: { ...shell, open: vi.fn(async () => ({ success: false, unavailable: true })) },
     };
-    render(<TerminalPane workspaceId="w1" t={t} />);
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
 
-    expect(await screen.findByText(translations.en.terminalUnavailable)).toBeTruthy();
+    await waitFor(() => expect(messages).toContain(translations.en.terminalUnavailable));
+    expect(screen.queryAllByTestId("tab")).toHaveLength(0);
   });
 
   it("puts a command on the prompt without pressing Enter", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
     await waitFor(() => expect(views).toHaveLength(1));
 
     act(() => requestPrefill({ command: "npm test\n", shell: "bash" }));
@@ -141,7 +180,8 @@ describe("the terminal pane", () => {
   });
 
   it("sends a multi-line command as a paste", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
     await waitFor(() => expect(views).toHaveLength(1));
 
     act(() => requestPrefill({ command: "echo a\necho b", shell: "bash" }));
@@ -149,7 +189,8 @@ describe("the terminal pane", () => {
   });
 
   it("starts a shell of the right kind for a command when none matches", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
     await waitFor(() => expect(views).toHaveLength(1));
 
     act(() => requestPrefill({ command: "Get-Date", shell: "pwsh" }));
@@ -157,7 +198,9 @@ describe("the terminal pane", () => {
   });
 
   it("shows the agent's commands as read-only blocks", async () => {
-    render(<TerminalPane workspaceId="w1" t={t} />);
+    render(<Harness />);
+    fireEvent.click(screen.getByText("new shell"));
+    await waitFor(() => expect(views).toHaveLength(1));
     act(() => startAgentBlock({ id: "r1", command: "git status", shell: "bash" }));
     act(() => appendAgentBlock("r1", "clean"));
     act(() => finishAgentBlock("r1", { status: "done", exitCode: 0 }));

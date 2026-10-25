@@ -1,4 +1,4 @@
-import { onPrefill } from "../terminal/terminalBus";
+import { useShellTabs } from "../terminal/useShellTabs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildLabel } from "./buildLabel";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
@@ -801,16 +801,15 @@ export default function AppShell({
     updateDockLayout(openPane(currentDockLayout, "browser"));
   }, [currentDockLayout, updateDockLayout]);
 
-  const handleOpenTerminal = useCallback(() => {
-    updateDockLayout(openPane(currentDockLayout, "terminal"));
-  }, [currentDockLayout, updateDockLayout]);
-
-  // A Run button in a code block asks for the Terminal pane; the pane takes the command from there.
-  const openTerminalRef = useRef(handleOpenTerminal);
-  useEffect(() => {
-    openTerminalRef.current = handleOpenTerminal;
+  // Each shell is a dock tab. A Run button in a code block also lands here, with a command for a prompt.
+  const { openShell, showTerminal: handleOpenTerminal } = useShellTabs({
+    workspaceId: active.id,
+    defaultShell: settings.defaultShell,
+    layout: currentDockLayout,
+    onLayoutChange: updateDockLayout,
+    onMessage: setViewToast,
+    t,
   });
-  useEffect(() => onPrefill(() => openTerminalRef.current()), []);
 
   const handleOpenUsage = useCallback(() => {
     updateDockLayout(openPane(currentDockLayout, "usage"));
@@ -1299,7 +1298,7 @@ export default function AppShell({
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}
-              defaultShell={settings.defaultShell}
+              onNewShell={(shell) => void openShell(shell)}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}

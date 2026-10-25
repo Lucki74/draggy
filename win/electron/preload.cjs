@@ -218,6 +218,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   shell: {
+    list: () => ipcRenderer.invoke("shell:list"),
     open: (workspaceId, options) => ipcRenderer.invoke("shell:open", workspaceId, options),
     write: (id, data) => ipcRenderer.send("shell:write", id, data),
     resize: (id, cols, rows) => ipcRenderer.invoke("shell:resize", id, cols, rows),

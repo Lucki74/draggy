@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Dock as UiDock } from "../ui/dock/Dock";
 import Canvas from "../canvas/Canvas";
 import PlanPanel from "../plan/PlanPanel";
@@ -8,11 +8,14 @@ import BrowserPane from "../browser/BrowserPane";
 import TerminalPane from "../terminal/TerminalPane";
 import StatsPanel from "../stats/StatsPanel";
 import { baseName, isInsideRoot, relativePath } from "../files/tree";
+import type { ShellId } from "../terminal/shells";
+import { allSessions, availableShells, closeSession, sessionLabels, shellName, subscribeSessions } from "../terminal/terminalSessions";
 import { mentionFile } from "../chat/mentions";
 import {
   closePane,
   movePane,
   filePathOf,
+  terminalIdOf,
   openPane,
   renameFilePane,
   splitPane,
@@ -35,8 +38,8 @@ export interface DockProps {
   /** The open chat, whose usage the Usage pane shows. */
   chatId?: string | null;
   rootPath?: string | null;
-  /** The Default shell setting, for a terminal the pane opens. */
-  defaultShell?: string;
+  /** Opens a new shell as a tab; the + button offers the shells installed here. */
+  onNewShell?: (shell: ShellId) => void;
   gitStatus?: GitStatus | null;
   t: (key: string) => string;
   onStartResize: (e: React.PointerEvent) => void;
@@ -64,7 +67,7 @@ export function Dock({
   workspaceId,
   chatId,
   rootPath,
-  defaultShell,
+  onNewShell,
   gitStatus,
   t,
   onStartResize,
@@ -87,8 +90,34 @@ export function Dock({
     [layout, onLayoutChange, onOpenFile],
   );
 
+  const sessions = useSyncExternalStore(subscribeSessions, allSessions);
+
+  // A shell's tab goes with the shell: sessions do not outlive the app, so a saved tab with none is stale.
+  useEffect(() => {
+    const stale = layout.panes.filter((pane) => {
+      const id = terminalIdOf(pane);
+      return id !== null && !sessions.some((session) => session.id === id);
+    });
+    if (stale.length) onLayoutChange(stale.reduce(closePane, layout));
+  }, [layout, sessions, onLayoutChange]);
+
+  const [shells, setShells] = useState<ShellId[]>([]);
+  useEffect(() => {
+    let live = true;
+    void availableShells().then((found) => {
+      if (live) setShells(found);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const newMenu = useMemo(() => shells.map((id) => ({ id, label: shellName(id) })), [shells]);
+
   const handleClosePane = useCallback(
     (pane: PaneId) => {
+      const shellId = terminalIdOf(pane);
+      if (shellId) closeSession(shellId);
       const next = closePane(layout, pane);
       if (filePathOf(pane)) {
         // The file area follows the tab that comes forward; with no file tab left it closes.
@@ -126,14 +155,19 @@ export function Dock({
       files: t("projectFiles"),
       browser: t("browser"),
       usage: t("usage"),
-      terminal: t("terminal"),
     };
+    const labels = sessionLabels(workspaceId);
     for (const pane of layout.panes) {
       const path = filePathOf(pane);
       if (path) titles[pane] = baseName(path);
+      const shellId = terminalIdOf(pane);
+      if (shellId) {
+        const exited = sessions.find((session) => session.id === shellId)?.exited;
+        titles[pane] = `${labels.get(shellId) ?? t("terminal")}${exited ? ` (${t("terminalExited")})` : ""}`;
+      }
     }
     return titles;
-  }, [layout.panes, t]);
+  }, [layout.panes, sessions, workspaceId, t]);
 
   const renderPane = useCallback(
     (pane: PaneId, isSplit = false) => {
@@ -197,8 +231,9 @@ export function Dock({
           />
         );
       }
-      if (pane === "terminal") {
-        return <TerminalPane workspaceId={workspaceId} t={t} defaultShell={defaultShell} />;
+      const shellId = terminalIdOf(pane);
+      if (shellId) {
+        return <TerminalPane key={shellId} sessionId={shellId} t={t} />;
       }
       if (pane === "browser") {
         return <BrowserPane t={t} />;
@@ -226,7 +261,6 @@ export function Dock({
       workspaceId,
       chatId,
       rootPath,
-      defaultShell,
       gitStatus,
       layout.diffFile,
       layout.file,
@@ -244,6 +278,8 @@ export function Dock({
       width={width}
       t={t}
       paneTitles={paneTitles}
+      newMenu={newMenu}
+      onNewPane={onNewShell ? (id) => onNewShell(id as ShellId) : undefined}
       renderPane={renderPane}
       onSelectPane={handleSelectPane}
       onClosePane={handleClosePane}

@@ -50,6 +50,7 @@ const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
 const { createShellHost } = require("./shellHost.cjs");
+const { availableShells } = require("./shells.cjs");
 const shellHost = createShellHost();
 const { flushWindow, closeLogs } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
@@ -3408,6 +3409,8 @@ ipc.handle(
     return result;
   }),
 );
+
+ipc.handle("shell:list", wrap("shell", async () => ({ success: true, shells: availableShells() })));
 
 ipc.on("shell:write", (event, id, data) => {
   shellHost.write(String(id), event.sender.id, data);

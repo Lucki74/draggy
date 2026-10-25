@@ -138,8 +138,26 @@ function shellInvocation(command, requested, options = {}) {
   };
 }
 
+/** The shells a terminal can open on this computer. PowerShell and pwsh are one entry: pwsh when it
+ * is installed, Windows PowerShell otherwise. */
+function availableShells(options = {}) {
+  const platform = options.platform || process.platform;
+  const env = options.env || process.env;
+  const windows = platform === "win32";
+  const find = options.find || ((name) => (windows && (name === "bash" || name === "sh") ? findWindowsPosixShell(name, env) : findOnPath(name, env)));
+
+  const found = [];
+  const powershell = find("pwsh") ? "pwsh" : windows || find("powershell") ? "powershell" : null;
+  if (powershell) found.push(powershell);
+  if (windows) found.push("cmd");
+  if (find("bash")) found.push("bash");
+  if (find("sh")) found.push("sh");
+  return found;
+}
+
 module.exports = {
   SHELL_IDS,
+  availableShells,
   findOnPath,
   findGitRoot,
   findGitExe,

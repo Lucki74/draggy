@@ -49,6 +49,33 @@ export const allSessions = (): TerminalSession[] => sessions;
 export const sessionsFor = (workspaceId: string): TerminalSession[] => sessions.filter((session) => session.workspaceId === workspaceId);
 export const activeSessionId = (workspaceId: string): string | null => active.get(workspaceId) ?? null;
 
+/** The name a shell tab carries. PowerShell and pwsh are one shell, so both read "Pwsh". */
+export function shellName(shell: string): string {
+  const id = shell.toLowerCase().replace(/\.exe$/, "");
+  if (id === "pwsh" || id === "powershell") return "Pwsh";
+  if (id === "cmd") return "CMD";
+  return id ? id[0].toUpperCase() + id.slice(1) : "Shell";
+}
+
+/** Tab names for a workspace's shells; a second shell of one kind reads "Bash 2". */
+export function sessionLabels(workspaceId: string): Map<string, string> {
+  const seen = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const session of sessionsFor(workspaceId)) {
+    const name = shellName(session.shell);
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    labels.set(session.id, count === 1 ? name : `${name} ${count}`);
+  }
+  return labels;
+}
+
+/** The shells installed here, as the ids a new terminal takes. */
+export async function availableShells(): Promise<ShellId[]> {
+  const result = await api()?.list();
+  return (result?.shells ?? []) as ShellId[];
+}
+
 export function selectSession(workspaceId: string, id: string): void {
   active.set(workspaceId, id);
   notify();
