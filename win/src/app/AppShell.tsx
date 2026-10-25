@@ -802,7 +802,7 @@ export default function AppShell({
   }, [currentDockLayout, updateDockLayout]);
 
   // Each shell is a dock tab. A Run button in a code block also lands here, with a command for a prompt.
-  const { openShell, showTerminal: handleOpenTerminal } = useShellTabs({
+  const { openShell } = useShellTabs({
     workspaceId: active.id,
     defaultShell: settings.defaultShell,
     layout: currentDockLayout,
@@ -850,16 +850,16 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleShortcuts);
   }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode, viewMode, updateDockLayout, currentDockLayout]);
 
-  // Ctrl+Shift+T shows the terminal; the backtick needs AltGr on AZERTY.
+  // Ctrl+Shift+T opens a new terminal; the backtick needs AltGr on AZERTY.
   useEffect(() => {
     const handleTerminal = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || !e.shiftKey || e.key.toLowerCase() !== "t" || !active.rootPath) return;
       e.preventDefault();
-      handleOpenTerminal();
+      void openShell();
     };
     window.addEventListener("keydown", handleTerminal);
     return () => window.removeEventListener("keydown", handleTerminal);
-  }, [active.rootPath, handleOpenTerminal]);
+  }, [active.rootPath, openShell]);
 
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {
@@ -980,16 +980,6 @@ export default function AppShell({
               shortcut: "Ctrl+Shift+T",
               onSelect: () => {
                 setPaletteOpen(false);
-                handleOpenTerminal();
-              },
-            },
-            {
-              id: "pane-terminal-new",
-              label: t("terminalNew"),
-              category: t("paletteSectionPanes"),
-              icon: "plus" as const,
-              onSelect: () => {
-                setPaletteOpen(false);
                 void openShell();
               },
             },
@@ -1089,7 +1079,6 @@ export default function AppShell({
     handleOpenFiles,
     handleOpenDiff,
     handleOpenBrowser,
-    handleOpenTerminal,
     openShell,
     active.rootPath,
     updateDockLayout,
@@ -1124,7 +1113,7 @@ export default function AppShell({
         onOpenDiff={codePanes ? () => handleOpenDiff() : undefined}
         onOpenFiles={panesUsable ? handleOpenFiles : undefined}
         onOpenBrowser={panesUsable ? handleOpenBrowser : undefined}
-        onOpenTerminal={panesUsable ? handleOpenTerminal : undefined}
+        onOpenTerminal={panesUsable ? () => void openShell() : undefined}
         onOpenPlan={codePanes ? () => updateDockLayout(openPane(currentDockLayout, "plan")) : undefined}
         planProgress={
           codePanes && currentChatId && runs.running.includes(currentChatId) && currentSession?.plan?.length
