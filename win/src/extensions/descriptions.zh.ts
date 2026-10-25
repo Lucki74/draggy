@@ -107,7 +107,6 @@ export const ZH: Record<string, string> = {
   "mcp:phantom": "查看 Solana 和以太坊上的多链加密资产余额、代币和账户地址。",
   "mcp:scryfall": "搜索万智牌卡牌、裁决、系列标志、版本和市场价格。",
   "mcp:dchub": "DC Hub 是数据中心选址的实时数据层。其 DCPI 是每日评分，衡量 300 多个市场获取电网电力的难易程度。",
-  "mcp:bounty-guard": "为 AI 编程代理提供 GitHub 赏金的事前审核，以及链上托管证明验证。",
   "skill:accessibility": "按 WCAG 2.2 AA 审查并修复网页界面的无障碍问题（语义化 HTML、键盘操作、焦点、标签、对比度、ARIA、读屏器播报）。",
   "skill:add-feature": "在现有项目中从头到尾实现新功能：理解代码、制定计划、遵循现有写法、编写代码和测试并验证。",
   "skill:api-design": "设计或评审 HTTP API（REST 或 JSON-RPC 风格）和 GraphQL 结构：资源、方法、状态码、错误、分页和一致性。",
