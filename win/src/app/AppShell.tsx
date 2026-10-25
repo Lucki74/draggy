@@ -20,7 +20,8 @@ import { draftProjectMemory } from "../project/scan";
 import { setUiLanguage, useTranslator } from "../i18n";
 import { AnswerQuestionContext } from "../chat/questionContext";
 import type { ComposerQueue } from "../chat/Composer";
-import { logBreadcrumb, swallowed } from "../logger";
+import { logBreadcrumb, logSwallow, swallowed } from "../logger";
+import { chatToHtml, chatToMarkdown, transcriptFilename } from "../chat/transcriptExport";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
 import { listInstalledModels } from "../llama";
@@ -1301,6 +1302,15 @@ export default function AppShell({
           }}
           onPinChat={(id) => {
             store.updateSession(id, (s) => ({ ...s, pinned: !s.pinned }));
+          }}
+          onExportChat={(id, format) => {
+            const session = store.sessions.find((s) => s.id === id);
+            if (!session) return;
+            const now = new Date();
+            const content = format === "html" ? chatToHtml(session, { now }) : chatToMarkdown(session, { now });
+            window.electronAPI
+              ?.exportChat({ defaultName: transcriptFilename(session, format, now), content, ext: format })
+              ?.catch((error: unknown) => logSwallow("chat", error, "the export was not saved"));
           }}
           onViewTalk={() => {
             setSelectedChatId(generateId());

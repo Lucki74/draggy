@@ -1718,6 +1718,11 @@ declare global {
         export: (choices: DiagnosticsChoices) => Promise<{ saved: boolean; file?: string; bytes?: number; files?: number }>;
         crashNotice: () => Promise<{ show: boolean }>;
       };
+      exportChat: (request: {
+        defaultName: string;
+        content: string;
+        ext: "md" | "html";
+      }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;
 
