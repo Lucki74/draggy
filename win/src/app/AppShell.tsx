@@ -834,6 +834,9 @@ export default function AppShell({
       } else if (key === "b") {
         e.preventDefault();
         handleOpenBrowser();
+      } else if (key === "l" && mode === "code" && viewMode === "chat") {
+        e.preventDefault();
+        updateDockLayout(openPane(currentDockLayout, "plan"));
       } else if (key === "x") {
         e.preventDefault();
         handleSwitchMode(mode === "chat" ? "code" : "chat");
@@ -845,7 +848,7 @@ export default function AppShell({
     };
     window.addEventListener("keydown", handleShortcuts);
     return () => window.removeEventListener("keydown", handleShortcuts);
-  }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode]);
+  }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode, viewMode, updateDockLayout, currentDockLayout]);
 
   // Ctrl+` shows the terminal, as in code editors.
   useEffect(() => {
@@ -1012,6 +1015,7 @@ export default function AppShell({
         label: t("plan"),
         category: t("paletteSectionPanes"),
         icon: "check",
+        shortcut: "Ctrl+Shift+L",
         onSelect: () => {
           setPaletteOpen(false);
           updateDockLayout(openPane(currentDockLayout, "plan"));

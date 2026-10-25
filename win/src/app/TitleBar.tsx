@@ -77,8 +77,8 @@ export function TitleBar({
   if (onOpenFiles) viewItems.push({ id: "files", label: t("projectFiles"), shortcut: "Ctrl+Shift+F", onSelect: onOpenFiles });
   if (onOpenDiff) viewItems.push({ id: "diff", label: t("openDiff"), shortcut: "Ctrl+Shift+D", onSelect: onOpenDiff });
   if (onOpenBrowser) viewItems.push({ id: "browser", label: t("browser"), shortcut: "Ctrl+Shift+B", onSelect: onOpenBrowser });
-  if (onOpenTerminal) viewItems.push({ id: "terminal", label: t("terminal"), onSelect: onOpenTerminal });
-  if (onOpenPlan) viewItems.push({ id: "plan", label: t("plan"), onSelect: onOpenPlan });
+  if (onOpenTerminal) viewItems.push({ id: "terminal", label: t("terminal"), shortcut: "Ctrl+`", onSelect: onOpenTerminal });
+  if (onOpenPlan) viewItems.push({ id: "plan", label: t("plan"), shortcut: "Ctrl+Shift+L", onSelect: onOpenPlan });
 
   return (
     <header
