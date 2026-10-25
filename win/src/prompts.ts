@@ -113,7 +113,6 @@ export const THINKING_PROMPTS: Record<Exclude<AppSettings["effort"], "off">, str
 const CONVERGENCE_GUARDRAIL =
   "Avoid circular deliberation: if a deduction has already been verified against all constraints, do not restart or second-guess it. Progress decisively toward the final response.";
 
-export const FORCE_SEARCH_PROMPT = `The user has turned web search ON. Search the web before answering, even if you believe you already know the answer, and base your reply on what you find.`;
 
 export const NO_BROWSING_PROMPT = `Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched.`;
 
@@ -258,18 +257,31 @@ export function currentTimeNote(): string {
   return `[Current time: ${new Date().toLocaleTimeString()}]`;
 }
 
+/** Who is answering, in the words the user asked for. The model id comes from the user's own files
+ * and servers, so it is cut to one short line before it reaches the prompt. */
+export function modelIdentityNote(model: string | undefined): string {
+  const name = (model ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!name) return "";
+  return `<model_identity>
+The model answering is ${name}. When asked who or what you are, say it in one sentence, in the user's language: "I'm ${name}, running on the Draggy harness developed by lucki74." Never claim to be another model, and never say Draggy trained you.
+</model_identity>`;
+}
+
 export function buildSystemPrompt(
   settings: AppSettings,
   mode: PromptMode,
   environment: ToolEnvironment,
   memory?: ProjectMemory | null,
   skills: InstalledSkill[] = [],
+  model?: string,
 ) {
   const inProject = Boolean(environment.hasFolder && environment.projectRoot);
   const parts = [
     inProject ? CODE_BASE_PROMPT : BASE_PROMPT,
     `Today's date: ${new Date().toLocaleDateString()}`,
   ];
+  const identity = modelIdentityNote(model);
+  if (identity) parts.push(identity);
 
   if (mode.nativeTools) {
     parts.push(NATIVE_TOOL_PROMPT);
@@ -331,12 +343,8 @@ export function buildSystemPrompt(
 
   if (settings.webMode === "off") {
     parts.push(NO_BROWSING_PROMPT);
-  } else if (settings.webMode === "on") {
-    if (!mode.nativeTools) parts.push(BROWSING_WORKFLOW_PROMPT);
-    parts.push(FORCE_SEARCH_PROMPT);
   } else if (!mode.nativeTools) {
-    // Automatic mode: the model decides for itself whether a question needs
-    // the web.
+    // On means the model decides for itself whether a question needs the web.
     parts.push(BROWSING_WORKFLOW_PROMPT);
   }
 

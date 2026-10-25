@@ -37,7 +37,7 @@ function register(ipc, deps) {
   }
 
   /** The one image setting the renderer holds: which model draws. */
-  let imageSettings = { model: "" };
+  let imageSettings = { model: "", resolution: null };
 
   // The engine lets go of its memory the moment the last queued picture is done.
   sdServer.setOptions({ idleTimeoutSec: 0 });
@@ -85,7 +85,6 @@ function register(ipc, deps) {
       log,
       // The chat engine loads its model again on the next message, so stopping it costs seconds.
       freeChatModel: () => llamaProcess.stopServerSync(),
-      reloadChatModel: () => llamaProcess.reloadServer?.(),
       memory: async () => ({
         freeVramGB: specs?.unifiedMemory ? null : await platform.detectFreeVideoMemoryGB(),
         totalVramGB: specs?.vram || 0,
@@ -122,8 +121,17 @@ function register(ipc, deps) {
     };
   }));
 
+  /** The resolution chosen in the settings is the size drawn. */
+  const sized = (request) => {
+    const chosen = imageSettings.resolution;
+    return chosen ? { width: chosen[0], height: chosen[1] } : { width: request.width, height: request.height };
+  };
+
   ipc.handle("sd:configure", wrap("engine.image",async (_event, next = {}) => {
-    imageSettings = { model: typeof next.model === "string" ? next.model.slice(0, 300) : "" };
+    imageSettings = {
+      model: typeof next.model === "string" ? next.model.slice(0, 300) : "",
+      resolution: /^\d{2,4}x\d{2,4}$/.test(String(next.resolution)) ? String(next.resolution).split("x").map(Number) : null,
+    };
     return { success: true };
   }));
 
@@ -165,7 +173,7 @@ function register(ipc, deps) {
   /** An image model found by searching Hugging Face: it goes in the image folder, never beside chat models. */
   ipc.handle("sd:download-repo", wrap("engine.image",async (_event, raw) => {
     const reference = String(raw || "");
-    const resolved = await huggingface.resolveModelDownload(reference);
+    const resolved = await huggingface.resolveModelDownload(reference, { live: true });
     if (!resolved || resolved.parts) return { success: false, error: "That model cannot be downloaded as one file" };
     // A model Draggy knows comes with the encoder and VAE it needs, each checked against its pinned hash.
     const repo = String(reference || "").split(":")[0].toLowerCase();
@@ -324,8 +332,7 @@ function register(ipc, deps) {
         {
           prompt: request.prompt,
           negativePrompt: request.negativePrompt,
-          width: request.width,
-          height: request.height,
+          ...sized(request),
           steps: request.steps,
           cfgScale: request.cfgScale,
           seed: request.seed,

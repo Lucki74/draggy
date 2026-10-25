@@ -5,6 +5,7 @@ import { formatBytes } from "../formatBytes";
 import { Badge, ConfirmDialog } from "./Controls";
 import type { ImageModelEntry } from "../types";
 import { displayModelName, quantizationOf } from "../llama";
+import { CapabilityIcons } from "../providers/CapabilityIcons";
 
 /** An installed image model. The engine that draws with it installs itself; see `useImageEngine`. */
 
@@ -46,12 +47,12 @@ export function ImageModelRow({
         >
           <span className="flex items-center gap-2 text-[14px] leading-5 text-text-primary">
             <span className="truncate">{title}</span>
-            {quantization && <span className="flex-shrink-0 font-mono text-[12px] text-text-tertiary">{quantization}</span>}
+            <CapabilityIcons capabilities={["image-generation"]} t={t} />
             <Icon name="caret-down" size={12} className={`flex-shrink-0 text-text-tertiary transition-transform ${open ? "rotate-180" : ""}`} />
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-text-secondary">
-            <span className="tabular-nums">{formatSize(entry.size)}</span>
-            <Badge strong={active}>{t("capabilityImageGeneration")}</Badge>
+            <span className="tabular-nums">{[formatSize(entry.size), quantization].filter(Boolean).join(" · ")}</span>
+            {active && <Badge strong>{t("usedForImages")}</Badge>}
           </span>
         </button>
         <button

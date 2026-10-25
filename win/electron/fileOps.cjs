@@ -182,6 +182,9 @@ function create({ roots, storage, checkpoints, trash }) {
     const match = raw.match(/^data:([^;]+);base64,(.+)$/);
     const dataToWrite = match ? Buffer.from(match[2], "base64") : raw;
     const before = checkpoints.snapshot(resolved.path);
+    // Old and new text, when both are text, so the step can show what changed.
+    const oldText = before === null ? { ok: true, text: "" } : fsGuard.readText(resolved.path);
+    const diff = !match && oldText.ok ? { before: oldText.text, after: raw } : {};
 
     fs.mkdirSync(path.dirname(resolved.path), { recursive: true });
     fs.writeFileSync(resolved.path, dataToWrite);
@@ -201,6 +204,7 @@ function create({ roots, storage, checkpoints, trash }) {
       checkpointId: id,
       created: before === null,
       bytes: Buffer.byteLength(dataToWrite),
+      ...diff,
     };
   }
 

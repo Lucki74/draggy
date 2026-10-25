@@ -190,7 +190,7 @@ const readUrl: ToolSpec = {
 
       // An address the tools will not fetch. Saying so once, and why, is what
       // stops the model looking for a way around it.
-      if (page.blocked === "refused") {
+      if (page.blocked === "refused" || page.blocked === "unreachable") {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
         return `TOOL RESULT (read_url): ${page.reason || "That address cannot be opened."}`;

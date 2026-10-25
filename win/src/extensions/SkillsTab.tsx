@@ -5,6 +5,7 @@ import { Dialog } from "../ui/Dialog";
 import { IconButton } from "../ui/IconButton";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { Toggle } from "../settings/Controls";
+import { localDescription } from "./descriptions";
 import { ExtensionList, ExtensionRow } from "./ExtensionRow";
 import type { InstalledSkill, LoadedSkill } from "../types";
 import { swallowed } from "../logger";
@@ -19,21 +20,45 @@ type Shown = "all" | "on" | "off";
 
 /** The library's shelves, in the order they are shown, after the skills the user wrote. */
 const SKILL_CATEGORIES = [
-  "writing",
-  "documents",
+  "writing-editing",
+  "human-voice",
+  "email-comms",
+  "creative-writing",
+  "documents-files",
+  "spreadsheets",
+  "data-analysis",
   "research",
   "learning",
-  "planning",
-  "data",
-  "code",
-  "authoring",
+  "languages",
+  "productivity-planning",
+  "business-strategy",
+  "marketing-seo",
+  "sales-crm",
+  "finance-business",
+  "personal-finance",
+  "career-hiring",
+  "life-admin-travel",
+  "design-visual",
+  "media-audio-video",
+  "software-planning",
+  "debugging-testing",
+  "code-review-quality",
+  "refactor-migration",
+  "frontend-ui",
+  "backend-apis-db",
+  "devops-cloud",
+  "security",
+  "git-workflow",
+  "browser-web-automation",
+  "meta-agent",
+  "ai-prompting",
 ];
 
 /** Which heading a skill goes under: the project's and the user's own first, then the library's. */
 function groupOf(skill: InstalledSkill): string {
   if (skill.source === "project") return "project";
   if (skill.source === "user") return "user";
-  return skill.category && SKILL_CATEGORIES.includes(skill.category) ? skill.category : "authoring";
+  return skill.category && SKILL_CATEGORIES.includes(skill.category) ? skill.category : "meta-agent";
 }
 
 const GROUP_ORDER = ["project", "user", ...SKILL_CATEGORIES];
@@ -113,7 +138,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
       ? t("thisProject")
       : group === "user"
         ? t("skillsYours")
-        : t(`skillCategory_${group}`);
+        : t(`skillCategory_${group.replace(/-/g, "_")}`);
 
   return (
     <div className="space-y-3">
@@ -170,8 +195,13 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
               <ExtensionList>
                 {members.map((skill) => {
                   const open = expanded === skill.id;
-                  const side =
-                    skill.surface === "chat" ? t("chatMode") : skill.surface === "code" ? t("codeMode") : undefined;
+                  const side = skill.locked
+                    ? t("skillLocked")
+                    : skill.surface === "chat"
+                      ? t("chatMode")
+                      : skill.surface === "code"
+                        ? t("codeMode")
+                        : undefined;
 
                   return (
                     <ExtensionRow
@@ -179,7 +209,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
                       leading={<Icon name="book-open" size={18} className="text-text-tertiary" />}
                       name={skill.name}
                       tag={side}
-                      description={skill.description}
+                      description={skill.source === "library" ? localDescription(t, "skill", skill.id, skill.description) : skill.description}
                       control={
                         <>
                           <button
@@ -191,7 +221,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
                           >
                             <Icon name="caret-right" size={14} className={`transition-transform ${open ? "rotate-90" : ""}`} />
                           </button>
-                          <Toggle checked={isOn(skill)} label={skill.name} onChange={(value) => void toggle(skill, value)} />
+                          <Toggle checked={isOn(skill)} disabled={skill.locked} label={skill.name} onChange={(value) => void toggle(skill, value)} />
                         </>
                       }
                       menuLabel={skill.name}

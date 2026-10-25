@@ -1,8 +1,9 @@
 name: Release
 
-# Run from the Actions tab on main. Builds all three platforms as 3.0.N, where N is one more than
+# Run from the Actions tab on main. Builds Windows, macOS and Linux as 3.0.N, where N is one more than
 # the highest b-N tag, then publishes a release named build-N with the installers and the
-# latest*.yml files the in-app updater reads.
+# latest*.yml files the in-app updater reads. The native macOS zip and the Linux .deb and .rpm
+# ride along in the same release. The macOS build is signed ad hoc until there is a Developer ID.
 on:
   workflow_dispatch:
     inputs:
@@ -75,7 +76,7 @@ jobs:
           N: ${{ needs.prepare.outputs.n }}
           NOTES: ${{ inputs.notes }}
         run: |
-          npm version "3.0.$N" --no-git-tag-version
+          npm version "3.0.$N" --no-git-tag-version --allow-same-version
           printf '%s\n' "$NOTES" > build/release-notes.md
 
       - run: npm run ${{ matrix.script }}
@@ -89,10 +90,117 @@ jobs:
             win/dist-electron/latest*.yml
           if-no-files-found: error
 
+  macos:
+    needs: prepare
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - run: brew install xcodegen
+
+      - run: macos/scripts/build-core.sh
+
+      - run: xcodegen generate
+        working-directory: macos
+
+      - name: Test
+        run: >
+          xcodebuild test
+          -project Draggy.xcodeproj
+          -scheme Draggy
+          -destination "platform=macOS,arch=arm64"
+          CODE_SIGNING_ALLOWED=NO
+        working-directory: macos
+
+      - name: Build and sign ad hoc
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+        run: >
+          xcodebuild build
+          -project Draggy.xcodeproj
+          -scheme Draggy
+          -configuration Release
+          -destination "platform=macOS,arch=arm64"
+          -derivedDataPath build/derived
+          CODE_SIGN_IDENTITY=-
+          CODE_SIGNING_REQUIRED=NO
+          MARKETING_VERSION="3.0.$N"
+          CURRENT_PROJECT_VERSION="$N"
+        working-directory: macos
+
+      - name: Package
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+        run: |
+          app="macos/build/derived/Build/Products/Release/Draggy.app"
+          codesign --force --deep --sign - --options runtime "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir -p out
+          ditto -c -k --keepParent "$app" "out/Draggy-3.0.$N-macos-arm64.zip"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-macos
+          path: out/*.zip
+          if-no-files-found: error
+
+  linux:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev blueprint-compiler xvfb
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - name: Test
+        run: xvfb-run -a cargo test --locked -q
+
+      # The crate version is 0.1.0 in the repository. Cargo.lock follows it, so the packaging below runs without --locked.
+      - name: Set the version
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+        run: sed -i '0,/^version = ".*"/s//version = "3.0.'"$N"'"/' Cargo.toml
+
+      - run: cargo install cargo-deb --locked --version 3.6.0
+
+      - run: cargo install cargo-generate-rpm --locked --version 0.20.0
+
+      - run: cargo deb
+
+      - run: cargo build --release
+
+      - run: cargo generate-rpm
+
+      - name: Collect the packages
+        run: |
+          mkdir -p ../out
+          cp target/debian/*.deb target/generate-rpm/*.rpm ../out/
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-linux
+          path: out/*
+          if-no-files-found: error
+
   # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
   # release that installed apps would pick up.
   publish:
-    needs: [prepare, build]
+    needs: [prepare, build, macos, linux]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
@@ -144,7 +252,7 @@ jobs:
           N: ${{ needs.prepare.outputs.n }}
           NOTES: ${{ inputs.notes }}
         run: |
-          body="$NOTES"
+          body="$NOTES"$'\n\n'"The macOS app is signed ad hoc. On first launch, right-click it and choose Open."
           if [ "$N" -gt 1 ]; then
             body="$body"$'\n\n'"**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/b-$((N-1))...b-$N"
           fi

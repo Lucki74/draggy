@@ -202,6 +202,49 @@ pub struct SessionConfig {
     pub allow_commands: bool,
     /// How tool calls are decided. Leave it out to ask before anything that is not a read.
     pub permission_mode: Option<PermissionModeRecord>,
+    /// Gives the model `search_web` and `read_url`. Leave it out to keep the web off.
+    #[uniffi(default = None)]
+    pub web: Option<WebConfigRecord>,
+    /// Answers through the Antigravity CLI instead of a model server. The file, web and MCP tools are then off.
+    #[uniffi(default = None)]
+    pub agy: Option<AgyConfigRecord>,
+    /// A folder of skills, one subfolder each with a `SKILL.md`. Leave it out to offer none.
+    #[uniffi(default = None)]
+    pub skills_dir: Option<String>,
+}
+
+/// Where the Antigravity CLI is and which model it should use. Get it from `AgyAccount::config`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct AgyConfigRecord {
+    pub binary: String,
+    /// The slug to pass as `--model`. Empty keeps the CLI's own choice.
+    pub model: String,
+    /// The folder the CLI runs in, apart from the user's files.
+    pub work_dir: String,
+}
+
+/// One step of the plan the model keeps. `status` is `todo`, `doing` or `done`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct PlanStepRecord {
+    pub text: String,
+    pub status: String,
+}
+
+/// A picture sent with a message. `mime` is such as `image/png`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
+pub struct ImageRecord {
+    pub name: String,
+    pub mime: String,
+    pub data: Vec<u8>,
+}
+
+/// How the web tools search. An empty provider means "auto"; the scrapers need no setting.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
+pub struct WebConfigRecord {
+    /// One of `searxng`, `brave`, `duckduckgo`, `startpage`, `duckduckgo-lite`, `brave-html`, or empty for auto.
+    pub provider: String,
+    pub searxng_url: String,
+    pub brave_api_key: String,
 }
 
 /// How tool calls are decided, as the shell names them.

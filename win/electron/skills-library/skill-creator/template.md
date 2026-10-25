@@ -5,29 +5,26 @@ description: [What this skill does, in one sentence]. Use when [the situations a
 
 # [Skill title]
 
-[One or two lines: the goal, and what a good result achieves.]
+## Goal
 
-## Before starting
+[One short paragraph: the outcome the user wants and what a good result looks like.]
 
-1. [What to find out or check first. Ask the user only for what cannot be inferred.]
-2. [Where the information comes from: the conversation, a file, search_web, search_library, the project.]
+## When to use
+
+- [A situation that calls for this skill.]
+- [A near miss that belongs to another skill, and which one.]
 
 ## Steps
 
-1. [First action, naming the tool if one is needed.]
-2. [Next action.]
-3. [Check the result against the rules below.]
+1. [Gather: what to read or ask first. Name the tool in backticks, for example `read_file`, `search_files`, `search_web`.]
+2. [Do the work. Keep each step concrete and checkable.]
+3. [Verify the result against the Goal before answering.]
 
-## Rules
+## Gotchas
 
-- [Something the model must always do.]
-- [Something the model must never do.]
-- [A common mistake and how to avoid it.]
+- [A non-obvious failure mode of this task.]
+- [Another one. Three to six lines, no filler.]
 
 ## Output
 
-[The exact format of the result. For example: a title, three bullet points, then a table with columns A, B and C.]
-
-Example:
-
-[A short example of a good result.]
+[The exact format of the result: structure, length, where a file goes (`create_file`), and what is left unsaid.]

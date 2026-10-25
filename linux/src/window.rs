@@ -82,6 +82,12 @@ impl DraggyWindow {
         let window: Self = glib::Object::builder().property("application", app).build();
         window.install_actions();
         window.attach_chat();
+        window.attach_servers();
+        window.attach_models();
+        window.attach_google();
+        window.attach_browser();
+        window.attach_skills();
+        window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
         window
@@ -109,6 +115,69 @@ impl DraggyWindow {
                 });
             },
         );
+    }
+
+    fn attach_servers(&self) {
+        let weak = self.downgrade();
+        let page = crate::servers_view::build(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("servers"));
+    }
+
+    fn attach_skills(&self) {
+        let weak = self.downgrade();
+        let page = crate::skills_view::build(move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("skills"));
+    }
+
+    fn attach_browser(&self) {
+        let weak = self.downgrade();
+        let page = crate::browser_view::build(move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("browser"));
+    }
+
+    fn attach_google(&self) {
+        let weak = self.downgrade();
+        let page = crate::agy_view::build(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("google"));
+    }
+
+    fn attach_models(&self) {
+        let weak = self.downgrade();
+        let page = crate::models_view::build(&self.imp().state, move |text| {
+            if let Some(window) = weak.upgrade() {
+                window.toast(text);
+            }
+        });
+        self.imp().pages.add_named(&page, Some("models"));
+    }
+
+    /// Stops the MCP servers and the local engine when the window closes, so no child process outlives the app.
+    fn stop_servers_on_close(&self) {
+        self.connect_close_request(|window| {
+            if let Some(mcp) = window.imp().state.mcp() {
+                draggy_linux::runtime::runtime().block_on(mcp.stop_all());
+            }
+            if let Some(engine) = window.imp().state.engine_if_started() {
+                draggy_linux::runtime::runtime().block_on(engine.stop());
+            }
+            glib::Propagation::Proceed
+        });
     }
 
     fn install_actions(&self) {

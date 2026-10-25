@@ -47,7 +47,6 @@ export function SidebarPreview({ mode = "code" }: { mode?: "chat" | "code" }) {
         onRemoveWorkspace={() => {}}
         open
         onToggleOpen={() => {}}
-        engineModel="Qwen3 8B"
       />
     </div>
   );

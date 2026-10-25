@@ -20,6 +20,9 @@ struct ChatView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
             }
+            if !model.plan.isEmpty {
+                PlanStrip(steps: model.plan) { model.clearPlan() }
+            }
             composer
         }
     }
@@ -36,12 +39,53 @@ struct ChatView: View {
     }
 
     private var composer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !model.pendingImages.isEmpty { imageChips }
+            composerRow
+        }
+        .padding()
+        .fileImporter(isPresented: $isPickingFile, allowedContentTypes: Self.attachmentTypes) { result in
+            if case let .success(url) = result { Task { await model.attach(url) } }
+        }
+    }
+
+    private var imageChips: some View {
+        HStack {
+            ForEach(Array(model.pendingImages.enumerated()), id: \.offset) { index, image in
+                HStack(spacing: 4) {
+                    Image(systemName: "photo")
+                    Text(image.name).lineLimit(1)
+                    Button { model.removeImage(at: index) } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove picture")
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(.quaternary, in: Capsule())
+            }
+        }
+    }
+
+    private var composerRow: some View {
         HStack(alignment: .bottom) {
             Button { isPickingFile = true } label: { Image(systemName: "paperclip") }
                 .help("Add the text of a Word, PowerPoint, Excel or PDF file")
                 .accessibilityLabel("Attach a file")
                 .accessibilityHint("Add the text of a Word, PowerPoint, Excel or PDF file")
                 .disabled(model.isRunning)
+            Button { model.toggleTalk() } label: {
+                Image(systemName: model.isTalking ? "mic.fill" : "mic")
+            }
+            .help("Talk")
+            .accessibilityLabel("Talk")
+            .disabled(model.isRunning && !model.isTalking)
+            if model.isTalking {
+                Text(model.talkPhase.label).font(.caption).foregroundStyle(.secondary)
+            }
+            Toggle(isOn: $model.speakReplies) { Image(systemName: "speaker.wave.2") }
+                .toggleStyle(.button)
+                .help("Read replies aloud")
+                .accessibilityLabel("Read replies aloud")
             TextField("Message", text: $model.draft, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.roundedBorder)
@@ -54,12 +98,8 @@ struct ChatView: View {
                     .disabled(model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding()
-        .fileImporter(isPresented: $isPickingFile, allowedContentTypes: Self.documentTypes) { result in
-            if case let .success(url) = result { Task { await model.attach(url) } }
-        }
     }
 
-    private static let documentTypes: [UTType] = ["docx", "pptx", "xlsx", "pdf"]
+    private static let attachmentTypes: [UTType] = ["docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp"]
         .compactMap { UTType(filenameExtension: $0) }
 }

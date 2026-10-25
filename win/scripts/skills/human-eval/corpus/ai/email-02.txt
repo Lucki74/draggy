@@ -1,0 +1,16 @@
+Subject: Thank you for the interview
+
+Dear Mr. Alvarez,
+
+Thank you for taking the time to speak with me yesterday about the Senior Data Analyst position. I really enjoyed learning more about the team's work, particularly the upcoming project to modernize your reporting infrastructure. It was helpful to hear how the analytics group collaborates with product and operations.
+
+Our conversation reinforced my enthusiasm for the role. My experience building automated dashboards and leading cross-functional analysis projects aligns well with the goals you described, and I'm excited about the opportunity to contribute to that work. I was especially interested in your point about improving data quality at the source, which is an area I have focused on in my current position.
+
+As promised, I have attached a short summary of the forecasting project we discussed, including the methodology and the results. I hope it provides a clearer picture of how I approach problems like the ones your team is facing.
+
+If you need any additional information from me, such as references or work samples, please don't hesitate to ask. I look forward to hearing about the next steps in the process, and I'm happy to answer any further questions in the meantime.
+
+Thank you again for your time and consideration.
+
+Sincerely,
+Jordan Ellis

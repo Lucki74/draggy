@@ -4,6 +4,8 @@ import StreamingMarkdown from "./StreamingMarkdown";
 import { copyAsMarkdown } from "./copyMarkdown";
 import BrowserConsentCard from "./BrowserConsentCard";
 import ThinkingRow from "./ThinkingRow";
+import { showsTailMark } from "./indicator";
+import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { isWorkStep, touchedFiles } from "./workSummary";
@@ -13,6 +15,7 @@ import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { normalizeMath, sanitizeContent } from "../utils";
+import { continuesBody } from "./continuation";
 import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
@@ -26,7 +29,17 @@ import type {
   Message,
   MessageVersion,
   SearchStep,
+  TurnErrorKind,
 } from "../types";
+
+// Friendly line per failure kind; unknown failures show only the raw error.
+const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
+  engine: "errorKindEngine",
+  memory: "errorKindMemory",
+  network: "errorKindNetwork",
+  "rate-limit": "errorKindRateLimit",
+  context: "errorKindContext",
+};
 
 // Summarizes compacted history tokens so the user knows where earlier context was saved.
 export function FoldLine({
@@ -65,6 +78,7 @@ export interface AssistantTurnProps {
   isGenerating: boolean;
   isLast: boolean;
   onRegenerate: (index: number) => void;
+  onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   copiedIndex: number | null;
   copyToClipboard: (text: string, idx: number) => void;
@@ -89,6 +103,7 @@ export function AssistantTurn({
   isGenerating,
   isLast,
   onRegenerate,
+  onResume,
   onSwitchVersion,
   copiedIndex,
   copyToClipboard,
@@ -104,13 +119,14 @@ export function AssistantTurn({
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
   const isFailed = Boolean(displayMsg.failed) && !isGenerating;
   const errorMessage = displayMsg.error || (isFailed ? text : "");
+  // Content keeps only model text on failure; the error sits in `error`.
   const hasGeneratedText = isFailed
-    ? Boolean(
-        displayMsg.error &&
-          text.trim() &&
-          text.trim() !== displayMsg.error.trim(),
-      )
+    ? Boolean(text.trim()) && text.trim() !== errorMessage.trim()
     : Boolean(text.trim());
+  const friendlyError =
+    isFailed && displayMsg.errorKind && displayMsg.errorKind !== "unknown"
+      ? t(ERROR_KIND_KEYS[displayMsg.errorKind])
+      : null;
   const view = useTranscriptView();
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
@@ -131,6 +147,8 @@ export function AssistantTurn({
     live && lastStep?.type === "text" && !lastStep.isComplete
       ? lastStep.id
       : null;
+  // A continued reply streams as one block in the timeline, so the old body would show twice.
+  const bodyInStep = Boolean(writingId) && continuesBody(text, lastStep?.content ?? "");
   const [proseId, setProseId] = useState<string | null>(null);
   if (writingId && writingId !== proseId) setProseId(writingId);
   const bodyKey =
@@ -177,6 +195,19 @@ export function AssistantTurn({
       );
     }
 
+    // A note the user added mid-reply, shown where it was added.
+    if (step.type === "steer") {
+      return (
+        <div key={step.id} className="flex items-start gap-2 mb-3 text-[14px] text-text-secondary">
+          <Icon name="user" size={14} className="mt-1 flex-shrink-0" />
+          <span className="min-w-0 whitespace-pre-wrap wrap-anywhere">
+            <span className="text-text-tertiary me-1.5">{t("steerNote")}</span>
+            {step.content}
+          </span>
+        </div>
+      );
+    }
+
     return (
       <WorkBlock
         key={step.id}
@@ -204,12 +235,13 @@ export function AssistantTurn({
     (step.type === "thinking" &&
       (!step.content || (step.isComplete && view === "normal")));
 
-  // Consecutive tool steps fold into one work block; prose, reasoning and questions stand alone.
+  // Consecutive tool steps fold into one work block; prose, reasoning, notes and questions stand alone.
+  const isWork = (step: SearchStep) => isWorkStep(step) && step.type !== "steer";
   const segments: SearchStep[][] = [];
   for (const step of steps) {
     if (invisible(step)) continue;
     const last = segments[segments.length - 1];
-    if (isWorkStep(step) && last && isWorkStep(last[0])) last.push(step);
+    if (isWork(step) && last && isWork(last[0])) last.push(step);
     else segments.push([step]);
   }
 
@@ -262,7 +294,7 @@ export function AssistantTurn({
       >
         {[
           ...segments.map((segment, segmentIndex) =>
-            isWorkStep(segment[0]) ? (
+            isWork(segment[0]) ? (
               <WorkGroup
                 key={segment[0].id}
                 steps={segment}
@@ -279,7 +311,7 @@ export function AssistantTurn({
             ),
           ),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
-          !isFailed || hasGeneratedText ? (
+          (!isFailed || hasGeneratedText) && !bodyInStep ? (
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
@@ -311,37 +343,42 @@ export function AssistantTurn({
                 className="text-danger flex-shrink-0 mt-0.5"
               />
               <div className="min-w-0 flex-1 text-[14px] [&_p]:mb-1">
-                <ReactMarkdown
-                  remarkPlugins={REMARK_PLUGINS}
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {errorMessage}
-                </ReactMarkdown>
+                {friendlyError ? (
+                  <>
+                    <p className="mb-1">{friendlyError}</p>
+                    <p className="text-[12px] text-text-tertiary wrap-anywhere">{errorMessage}</p>
+                  </>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={REMARK_PLUGINS}
+                    components={MARKDOWN_COMPONENTS}
+                  >
+                    {errorMessage}
+                  </ReactMarkdown>
+                )}
               </div>
               {isLast && !isGenerating && (
-                <Button
-                  variant="secondary"
-                  size="dense"
-                  icon={<Icon name="arrow-clockwise" size={16} />}
-                  onClick={() => onRegenerate(idx)}
-                >
-                  {t("regenerateResponse")}
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="dense"
+                    icon={<Icon name="arrow-clockwise" size={16} />}
+                    onClick={() => onRegenerate(idx)}
+                  >
+                    {t("regenerateResponse")}
+                  </Button>
+                  {hasGeneratedText && onResume && (
+                    <Button variant="ghost" size="dense" onClick={onResume}>
+                      {t("resumeReply")}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           ) : null,
         ]}
 
-        {text === "" &&
-          !steps.some(
-            (s) => !s.isComplete && !(s.type === "thinking" && !s.content),
-          ) &&
-          isGenerating &&
-          isLast && (
-            <div className="flex items-center h-6">
-              <Spark label={t("working")} />
-            </div>
-          )}
+        {showsTailMark(steps, isGenerating, isLast) && <WorkingStatus language={settings.language} />}
       </div>
 
       {!isGenerating && files.length > 0 && (
@@ -364,6 +401,17 @@ export function AssistantTurn({
               onClick={() => openTouched(file.path)}
             />
           ))}
+        </div>
+      )}
+
+      {!isFailed && (displayMsg.stopped || msg.interrupted) && (
+        <div role="status" className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text-secondary">
+          <span>{msg.interrupted ? t("replyInterrupted") : t("replyStopped")}</span>
+          {isLast && !isGenerating && onResume && (
+            <Button variant="ghost" size="dense" onClick={onResume}>
+              {msg.interrupted ? t("resumeReply") : t("continueGenerating")}
+            </Button>
+          )}
         </div>
       )}
 

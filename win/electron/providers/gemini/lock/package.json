@@ -1,7 +1,0 @@
-{
-  "name": "draggy-gemini-cli",
-  "private": true,
-  "dependencies": {
-    "@google/gemini-cli": "0.61.0"
-  }
-}

@@ -10,7 +10,7 @@ export const KEEP_ALIVE = "30m";
 
 export const FALLBACK_CONTEXT_LENGTH = 8192;
 
-export const CONTEXT_BUCKETS = [4096, 8192, 16384, 32768, 65536, 131072];
+export const CONTEXT_BUCKETS = [4096, 8192, 16384, 32768, 65536, 131072, 262144];
 
 export interface ModelInfo {
   contextLength: number | null;
@@ -323,6 +323,21 @@ export function contextSizeFor(
   return size;
 }
 
+/** The next window above the one loaded, or null when the model cannot go higher. */
+export function nextContextSize(model: string, maxContext: number | null, from = 0): number | null {
+  if (isRemote(model)) return null;
+  const loaded = Math.max(from, loadedContextSizes.get(model) ?? 0);
+  const cap = windowCeiling(maxContext);
+  return CONTEXT_BUCKETS.find((bucket) => bucket > loaded && bucket <= cap) ?? null;
+}
+
+/** Raises the window the next turn loads at, so a cut reply can continue instead of being cut again. */
+export function growContext(model: string, maxContext: number | null, from = 0): number | null {
+  const next = nextContextSize(model, maxContext, from);
+  if (next !== null) loadedContextSizes.set(model, next);
+  return next;
+}
+
 /** The window a turn would ask for, without committing to it. For a look that must not grow the
  * tally, and with it force a reload later. */
 export function peekContextSize(
@@ -449,6 +464,20 @@ export async function isLoadedAt(
     return status.contextSize >= contextSize;
   } catch {
     return null;
+  }
+}
+
+/** Whether the engine holds this model at a smaller window, so loading it at `contextSize` is an extension. */
+export async function isExtendingContext(model: string, contextSize: number): Promise<boolean> {
+  if (isRemote(model) || typeof window === "undefined") return false;
+  try {
+    const status = await window.electronAPI?.gguf?.status();
+    if (!status?.running || !status.model) return false;
+    const target = bareModelName(model);
+    const same = status.model === target || status.model === model || servedFileName(status.model) === target;
+    return same && status.contextSize < contextSize;
+  } catch {
+    return false;
   }
 }
 

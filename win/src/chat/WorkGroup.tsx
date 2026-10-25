@@ -1,6 +1,7 @@
 import { Children, isValidElement, useMemo, useRef, useState } from "react";
 import { editTotals, summarizeWork } from "./workSummary";
 import { Icon, Spark } from "../ui";
+import { showsGroupMark } from "./indicator";
 import { useTranscriptView } from "./transcriptView";
 import type { SearchStep } from "../types";
 
@@ -36,6 +37,10 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
     setOpen(false);
   };
 
+  // A lone step needs no fold; its own row says what it did.
+  const rows = Children.toArray(children);
+  if (rows.length === 1) return <div className="mb-4">{rows[0]}</div>;
+
   return (
     <div className="mb-4">
       <div className="flex items-center gap-3">
@@ -45,7 +50,7 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
         onClick={() => setOpen((value) => !value)}
         className="group/work flex items-center gap-2 min-h-7 max-w-full text-start text-[13px] text-text-secondary hover:text-text-primary rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        {(running || summary.failed > 0) && (
+        {(showsGroupMark(steps, open) || (!running && summary.failed > 0)) && (
           <span className="flex w-4 justify-center flex-shrink-0">
             {running ? <Spark /> : <Icon name="warning-circle" size={16} className="text-danger" />}
           </span>
@@ -69,7 +74,7 @@ export function WorkGroup({ steps, active, language, t, children }: WorkGroupPro
       )}
       </div>
       <ol ref={body} hidden={!open} className="mt-1 ms-2 ps-3 border-s border-rule">
-        {Children.toArray(children).map((child, index) => (
+        {rows.map((child, index) => (
           <li key={isValidElement(child) ? child.key : index} className="flex gap-2">
             <span aria-hidden="true" className="w-4 flex-shrink-0 pt-1.5 text-end text-[12px] leading-4 tabular-nums text-text-tertiary">
               {index + 1}

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import MessageItem from "../chat/MessageItem";
 import { TranscriptViewContext, type TranscriptView } from "../chat/transcriptView";
 import { OpenDiffContext } from "../chat/openDiffContext";
@@ -65,6 +65,43 @@ describe("a provider being retried", () => {
     show([{ id: "r1", type: "loading", content: "", isComplete: false, retry: { attempt: 1, of: 2, until: Date.now() + 4000 } }]);
 
     expect(screen.getByText("Busy right now. Trying again in 4 s (1 of 2)...")).toBeTruthy();
+  });
+});
+
+describe("a model being loaded", () => {
+  const loading: SearchStep = { id: "l1", type: "loading", content: "", isComplete: false, model: "qwen3-8b", startedAt: Date.now() };
+
+  it("shows each step the engine reports, and no timer", async () => {
+    let push: (stage: { stage: string; percent?: number; tokensPerSecond?: number }) => void = () => {};
+    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+      gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
+    };
+    show([loading]);
+
+    expect(screen.getByText(/from disk\.\.\./)).toBeTruthy();
+    act(() => push({ stage: "loading", percent: 30 }));
+    expect(screen.getByText(/into RAM 30%/)).toBeTruthy();
+    act(() => push({ stage: "reading", percent: 42, tokensPerSecond: 910 }));
+    expect(screen.getByText(/Reading 42% \(910 tok\/s\)/)).toBeTruthy();
+    act(() => push({ stage: "readying" }));
+    expect(screen.getByText(/is readying/)).toBeTruthy();
+    expect(screen.queryByText(/\d+(\.\d)? s/)).toBeNull();
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  });
+
+  it("shows only an extending step, with the overall percent, when the window grows", async () => {
+    let push: (stage: { stage: string; percent?: number }) => void = () => {};
+    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+      gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
+    };
+    show([{ ...loading, extending: true }]);
+
+    act(() => push({ stage: "loading", percent: 60 }));
+    expect(screen.getByText("Extending context 30%...")).toBeTruthy();
+    act(() => push({ stage: "reading", percent: 50 }));
+    expect(screen.getByText("Extending context 75%...")).toBeTruthy();
+    expect(screen.queryByText(/RAM|Reading/)).toBeNull();
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 });
 
@@ -164,7 +201,7 @@ describe("a file the model wrote", () => {
     const { container } = show([generatingHtml]);
 
     expect(screen.getByText("Writing...")).toBeTruthy();
-    expect(screen.getByText("http://localhost:3000/index.html")).toBeTruthy();
+    expect(screen.queryByText(/localhost:3000/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByText("Live Webpage")).toBeTruthy();
     expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
@@ -198,7 +235,7 @@ describe("a file the model wrote", () => {
 });
 
 describe("an edited file step", () => {
-  it("renders Open diff action and opens diff pane on click", () => {
+  it("shows a deleted file as its own kind, with no actions on the row", () => {
     const onOpenDiff = vi.fn();
     render(
       <OpenDiffContext.Provider value={onOpenDiff}>
@@ -207,8 +244,10 @@ describe("an edited file step", () => {
             {
               id: "s1",
               type: "edit_file",
-              content: "Edited **format.ts**",
+              content: "Deleted **format.ts**",
               filepath: "/project/format.ts",
+              checkpointId: 3,
+              change: "deleted",
               isComplete: true,
             },
           ])}
@@ -225,12 +264,13 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
-    // A lone step sits in its work group too, closed until opened.
-    fireEvent.click(screen.getByRole("button", { name: "Edited 1 file" }));
-    const diffBtn = screen.getByRole("button", { name: "Open changes" });
-    expect(diffBtn).toBeTruthy();
-    diffBtn.click();
-    expect(onOpenDiff).toHaveBeenCalledWith("/project/format.ts");
+    // A lone step shows as its own row, with no group to open.
+    expect(screen.queryByRole("button", { name: "Deleted 1 file" })).toBeNull();
+    expect(screen.getByText("format.ts")).toBeTruthy();
+    for (const name of ["Open changes", "Open", "Undo"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(onOpenDiff).not.toHaveBeenCalled();
   });
 });
 

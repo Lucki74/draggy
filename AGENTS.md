@@ -104,7 +104,7 @@ Reasoning models must provide answers after tool calls: `agentLoop` prompts for 
 
 Next-step announcements are not replies: if a model finishes a turn only announcing intent, `src/agent/announcement.ts` prompts the model to execute the action.
 
-Immediate turn cancellation: aborting via Escape, Enter, or the Stop button halts running tool tasks and stops subsequent engine requests (`src/__tests__/agentLoop.test.ts`).
+Immediate turn cancellation: aborting via Escape or the Stop button halts running tool tasks and stops subsequent engine requests (`src/__tests__/agentLoop.test.ts`).
 
 Gateway routing: model requests route through `draggy-ai://chat` on the default session (`electron/providers/gateway.cjs`). Direct renderer access to port 11435 is forbidden by CSP (`electron/csp.test.js`).
 

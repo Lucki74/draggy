@@ -11,11 +11,9 @@ import {
     getModelInfo,
     needsTextModeTools,
     onModelInfoChange,
-    warmModel,
     windowCeiling,
 } from "../llama";
 import { isRemote } from "../ai/providers";
-import { KEEP_ALIVE } from "../agent/agentLoop";
 import type { ContextMeasurement } from "../agent/agentLoop";
 import {
     MIN_COMPACT_LIMIT,
@@ -37,7 +35,9 @@ import type { SettingsTab } from "../settings/pages";
 import {
     clampSlashIndex,
     matchSlashCommands,
-    slashQueryFor,
+    commandRanges,
+    replaceSlashToken,
+    slashTokenAt,
 } from "./slashCommands";
 import { isBinary, writeLocalStorage } from "../utils";
 import { appendMention, FILL_EVENT, MENTION_EVENT } from "./mentions";
@@ -94,6 +94,12 @@ const readDataUrl = (file: File) =>
     });
 
 /* State coordinator for draft persistence, model telemetry, slash actions and mic input. */
+/** Where a chat's unsent text is kept. A chat with nothing sent yet shares one key per mode, so a
+ * draft typed on the new chat screen is still there the next time it opens. */
+export function draftKeyFor(chat: Pick<ChatSession, "id" | "messages">, surface: "chat" | "code"): string {
+    return chat.messages.length === 0 ? `draft_new_${surface}` : `draft_${chat.id}`;
+}
+
 export function useChatSession({
     model,
     chat,
@@ -111,8 +117,8 @@ export function useChatSession({
     onInitProject,
     t,
 }: UseChatSessionOptions) {
-    const draftKey = `draft_${chat.id}`;
-    const [input, setInput] = useState(() => localStorage.getItem(draftKey) || seedDraft || "");
+    const draftKey = draftKeyFor(chat, surface);
+    const [input, setInput] = useState(() => seedDraft || localStorage.getItem(draftKey) || "");
 
     useEffect(() => {
         if (seedDraft) onSeedUsed?.();
@@ -157,6 +163,8 @@ export function useChatSession({
     const [micDetail, setMicDetail] = useState("");
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
     const [slashIndex, setSlashIndex] = useState(0);
+    // Where the caret is in the field, so a /command typed mid-message opens the menu too.
+    const [caret, setCaret] = useState<number | null>(null);
     const [lastSlashQuery, setLastSlashQuery] = useState<string | null>(null);
     const recorderRef = useRef<Recorder | null>(null);
 
@@ -269,10 +277,17 @@ export function useChatSession({
         return true;
     };
 
-    const runSlashCommand = (id: string) => {
+    const runSlashCommand = (id: string): number | void => {
         if (id === "compact-limit" || id === "image" || skills.some((skill) => skill.id === id)) {
-            setInput(`/${id} `);
-            return;
+            const token = slashTokenAt(input, Math.min(caret ?? input.length, input.length));
+            if (!token) {
+                setInput(`/${id} `);
+                return;
+            }
+            const next = replaceSlashToken(input, token, id);
+            setInput(next.text);
+            setCaret(next.caret);
+            return next.caret;
         }
 
         setInput("");
@@ -376,8 +391,9 @@ export function useChatSession({
         setFileErrors(rejected);
     };
 
-    const slashQuery = slashQueryFor(input);
-    const slashMatches = matchSlashCommands(input, { surface, skills });
+    const chipRanges = useMemo(() => commandRanges(input, { surface, skills }), [input, surface, skills]);
+    const slashQuery = slashTokenAt(input, Math.min(caret ?? input.length, input.length))?.query ?? null;
+    const slashMatches = matchSlashCommands(input, { surface, skills, caret: caret ?? undefined });
 
     if (lastSlashQuery !== slashQuery) {
         setLastSlashQuery(slashQuery);
@@ -432,7 +448,7 @@ export function useChatSession({
         const controller = new AbortController();
         const timer = setTimeout(
             () => {
-                onMeasureContext(input, attachedFiles, { signal: controller.signal, allowLoad: drafting })
+                onMeasureContext(input, attachedFiles, { signal: controller.signal, allowLoad: false })
                     .then((value) => {
                         if (!value || controller.signal.aborted) return;
                         setMeasured({ key: measureKey, historyKey, drafted: drafting, value });
@@ -449,26 +465,6 @@ export function useChatSession({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [measureKey, chat.isGenerating, onMeasureContext]);
-
-    const warmedForModelRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!input.trim()) {
-            warmedForModelRef.current = null;
-            return;
-        }
-        if (!model || warmedForModelRef.current === model || isRemote(model)) return;
-        warmedForModelRef.current = model;
-
-        if (onMeasureContext) {
-            void onMeasureContext(input, attachedFiles, {
-                signal: new AbortController().signal,
-                allowLoad: true,
-            }).catch(swallowed("chat", "best effort, the screen works without it"));
-        } else {
-            warmModel(model, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("chat", "warming a model is best effort"));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [input, model]);
 
     const current = measured?.key === measureKey ? measured : null;
     const lastTotal = lastMetrics ? lastMetrics.promptTokens + lastMetrics.responseTokens : null;
@@ -545,6 +541,8 @@ export function useChatSession({
         slashMatches,
         activeSlashIndex,
         setSlashIndex,
+        setCaret,
+        chipRanges,
         modelInfo,
         modelProvider,
         thinkingUnavailable,

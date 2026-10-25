@@ -59,7 +59,8 @@ function findLlamaBinary(userDataDir) {
   if (userDataDir) {
     const customBin = path.join(engineDir(userDataDir), binaryName);
     if (fs.existsSync(customBin)) {
-      log.info("binaryManager", `Found llama-server in user data: ${customBin}`);
+      // Called on every model start; one line per resolved path is enough.
+      log.once(`llama-userdata:${customBin}`, "binaryManager", "found llama-server in user data", { file: customBin }, "DEBUG");
       return customBin;
     }
   }

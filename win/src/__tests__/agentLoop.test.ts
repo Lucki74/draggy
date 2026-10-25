@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { llamaIsBusy } from "../llama";
+import { buildResumeMessage } from "../agent/resume";
 import { resetTailNotesForTests, runAgentTurn, toWireMessage } from "../agent/agentLoop";
 import { draggyRef } from "../ai/providers";
-import type { AgentHost, ApprovalRequest } from "../agent/agentLoop";
+import type { AgentHost, ApprovalRequest, OutOfContextInfo } from "../agent/agentLoop";
 import type { Grant } from "../agent/permissions";
 import { parsePlan } from "../plan/plan";
 import { registerPlanTools } from "../tools/plan";
@@ -38,17 +39,19 @@ vi.mock("../llama", async (importOriginal) => {
 
 const SETTINGS = {
   theme: "light",
+  accent: "vermilion",
   fontSize: "base",
   language: "en",
   modelName: MODEL,
   customInstructions: [],
   effort: "medium",
   defaultEffort: "medium",
+  newChatStart: "defaults",
   codeDefaultEffort: "medium",
   allowMaxInChat: false,
   slowModelThinking: false,
   colibriLossy: false,
-  webMode: "auto",
+  webMode: "on",
   voiceName: "",
   voiceModel: "",
   voiceEngine: "system",
@@ -64,7 +67,7 @@ const SETTINGS = {
   codeModel: "",
   codeInstructions: [],
   codeEffort: "medium",
-  codeWebMode: "auto",
+  codeWebMode: "on",
   defaultShell: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
@@ -75,10 +78,11 @@ const SETTINGS = {
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",
+  imageResolution: "1024x1024",
 } as AppSettings;
 
 const ENVIRONMENT: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: true,
   libraryReady: true,
 };
@@ -114,7 +118,7 @@ function turnToSseChunks(turn: Turn, extra: Record<string, unknown> = {}): unkno
       chunks.push({ choices: [{ delta: { tool_calls: group }, finish_reason: null }] });
     }
     chunks.push({
-      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      choices: [{ delta: {}, finish_reason: extra.finish_reason ?? "tool_calls" }],
       usage: { prompt_tokens: 120, completion_tokens: 40 },
       timings: { predicted_ms: 400, predicted_n: 40, prompt_ms: 60, prompt_n: 120 },
       ...extra,
@@ -243,6 +247,7 @@ function makeHost() {
   const recordedSteps: SearchStep[][] = [];
   let metrics: TurnMetrics | null = null;
   let outOfContext = false;
+  let cutInfo: OutOfContextInfo | undefined;
 
   const host: AgentHost = {
     t: (key) => key,
@@ -255,8 +260,9 @@ function makeHost() {
       steps = next;
       recordedSteps.push(JSON.parse(JSON.stringify(next)));
     },
-    onOutOfContext: (flag) => {
+    onOutOfContext: (flag, info) => {
       outOfContext = flag;
+      cutInfo = info;
     },
     onMetrics: (next) => {
       metrics = next;
@@ -275,6 +281,9 @@ function makeHost() {
     },
     get outOfContext() {
       return outOfContext;
+    },
+    get cutInfo() {
+      return cutInfo;
     },
   };
 }
@@ -517,6 +526,16 @@ describe("a plain answer with no tools", () => {
 
     expect(result.outOfContext).toBe(true);
     expect(host.outOfContext).toBe(true);
+  });
+
+  it("reports the window it was loaded with when the reply is cut", async () => {
+    installFetch([{ content: ["truncated"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }], []);
+
+    const { host, promise } = run([userMessage("hi")]);
+    await promise;
+
+    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: true });
+    expect(host.cutInfo?.used).toBeGreaterThan(0);
   });
 });
 
@@ -1328,6 +1347,20 @@ describe("carrying on a reply that was cut short", () => {
     (requests[0].messages as { role: string; content: string }[])
       .map((message) => message.content)
       .join("\n");
+
+  it("shows the continued text after the text already written, at every chunk", async () => {
+    const host = makeHost();
+    // The screen is refreshed at most every few milliseconds, so the clock jumps to let each chunk through.
+    let clock = 0;
+    const tick = vi.spyOn(performance, "now").mockImplementation(() => (clock += 1000));
+    const { promise } = continueWith([], host);
+    await promise;
+    tick.mockRestore();
+
+    const shown = host.recordedSteps.flatMap((steps) => steps.filter((step) => step.type === "text").map((step) => step.content));
+    expect(shown.length).toBeGreaterThan(0);
+    for (const content of shown) expect(content.startsWith("I have started the report")).toBe(true);
+  });
 
   it("tells the model about a file it already wrote", async () => {
     const { requests, promise } = continueWith([
@@ -2514,6 +2547,57 @@ describe("live streaming file creation", () => {
     expect(fileSteps[0].isComplete).toBe(true);
     expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
     expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("keeps a file cut by the context and rewrites it as one file on resume", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          toolCallChunks: [[{ index: 0, id: "call_cut", function: { name: "create_file", arguments: '{"filename": "big.txt", "content": "first half' } }]],
+          final: { finish_reason: "length" },
+        },
+      ],
+      ["tools"],
+    );
+
+    const cut = await run([userMessage("write big.txt")], undefined, host).promise;
+    const cutSteps = cut.steps.filter((s) => s.type === "create_file");
+    expect(cutSteps).toHaveLength(1);
+    expect(cutSteps[0]).toMatchObject({ cut: true, isComplete: true, filename: "big.txt" });
+    const message = buildResumeMessage(cut.steps) ?? "";
+    expect(message).toContain("big.txt");
+    expect(message).toContain("first half");
+    expect(message).toContain("same name");
+
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/big.txt" });
+    installFetch(
+      [
+        { toolCallChunks: [[{ index: 0, id: "call_full", function: { name: "create_file", arguments: '{"filename": "big.txt", "content": "first half and second half"}' } }]] },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+    (window.electronAPI as Record<string, unknown>).createFile = createFile;
+
+    const resumed = await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("write big.txt")],
+        isContinuation: true,
+        seed: { content: cut.content, textContent: cut.textContent, steps: cut.steps },
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect(createFile).toHaveBeenCalledTimes(1);
+    expect(createFile).toHaveBeenCalledWith("big.txt", "first half and second half");
+    const files = resumed.steps.filter((s) => s.type === "create_file");
+    expect(files).toHaveLength(1);
+    expect(files[0].filepath).toBe("C:/out/big.txt");
   });
 
   it("streams file creation in text mode and reuses the in-progress step", async () => {

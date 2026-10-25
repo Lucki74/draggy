@@ -21,6 +21,9 @@
     --color-action-bg: var(--action-bg);
     --color-action-fg: var(--action-fg);
     --color-focus: var(--focus);
+    --color-accent: var(--accent);
+    --color-accent-ink: var(--accent-ink);
+    --color-accent-soft: var(--accent-soft);
 
     --color-ok: var(--ok);
     --color-warn: var(--warn);
@@ -61,9 +64,9 @@
     --text-tertiary: #82878c;
 
     /* Actions and focus */
-    --action-bg: #1a1e24;
-    --action-fg: #ffffff;
-    --focus: #1a1e24;
+    --action-bg: #d55e00;
+    --action-fg: #000000;
+    --focus: #ad4c00;
 
     /* Status */
     --ok: #1a763f;
@@ -72,7 +75,7 @@
 
     /* Syntax: one restrained palette, ember for keywords so code reads as Draggy's own. */
     --syn-comment: #82878c;
-    --syn-keyword: #b23c00;
+    --syn-keyword: #ad4c00;
     --syn-string: #2b6e46;
     --syn-number: #8a5a00;
     --syn-function: #2b55a3;
@@ -80,10 +83,10 @@
     --syn-punct: #565b62;
 
     /* Ember ramp */
-    --ember-1: #f9ad26;
-    --ember-2: #e75c00;
-    --ember-3: #cd3000;
-    --ember-glow: rgba(231, 92, 0, 0.16);
+    --ember-1: #e49659;
+    --ember-2: #d55e00;
+    --ember-3: #a04700;
+    --ember-glow: rgba(213, 94, 0, 0.16);
 
     /* Geometry */
     --r-xs: 6px;
@@ -110,11 +113,12 @@
     --chat-font-size: 15px;
     /* The voice orb: one flat colour, opposite the page it sits on. */
     --orb: #111111;
-    /* The website's accent, defined here first so the two palettes stay one. */
-    --accent: #b45309;
-    --accent-text: #ffffff;
-    --accent-ink: #92400e;
-    --accent-soft: #fef3c7;
+    /* The default accent; src/app/accent.ts sets the chosen one on the body. */
+    --accent: #d55e00;
+    --accent-text: #000000;
+    --accent-ink: #ad4c00;
+    --accent-soft: #f1e0d3;
+    --accent-hover: #b75100;
     /* Effort levels: white off, green low, blue medium, yellow high, orange max. */
     --effort-low: #16a34a;
     --effort-mid: #2563eb;
@@ -141,9 +145,9 @@ body.dark,
     --text-tertiary: #767b81;
 
     /* Actions and focus */
-    --action-bg: #e7eaed;
-    --action-fg: #0e1012;
-    --focus: #e7eaed;
+    --action-bg: #d55e00;
+    --action-fg: #000000;
+    --focus: #d96e1a;
 
     /* Status */
     --ok: #78d694;
@@ -151,7 +155,7 @@ body.dark,
     --danger: #fa7f8e;
 
     --syn-comment: #767b81;
-    --syn-keyword: #fd962c;
+    --syn-keyword: #d96e1a;
     --syn-string: #8fd19e;
     --syn-number: #e5d183;
     --syn-function: #8ab4f8;
@@ -159,10 +163,10 @@ body.dark,
     --syn-punct: #a6abb2;
 
     /* Ember ramp */
-    --ember-1: #ffeeb5;
-    --ember-2: #fd962c;
-    --ember-3: #f15d1f;
-    --ember-glow: rgba(253, 150, 44, 0.22);
+    --ember-1: #f2cfb3;
+    --ember-2: #d55e00;
+    --ember-3: #a04700;
+    --ember-glow: rgba(213, 94, 0, 0.22);
 
     /* Shadows vanish on the dark canvas, so floating layers get a lighter edge instead. */
     --elev-1: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--rule-strong);
@@ -180,10 +184,11 @@ body.dark,
     --text-inverted: #ffffff;
     --hover-bg: #2a2a2a;
     --orb: #ffffff;
-    --accent: #fbbf24;
-    --accent-text: #111111;
-    --accent-ink: #fbbf24;
-    --accent-soft: #3a2a08;
+    --accent: #d55e00;
+    --accent-text: #000000;
+    --accent-ink: #d96e1a;
+    --accent-soft: #432b18;
+    --accent-hover: #db7524;
     --effort-low: #4ade80;
     --effort-mid: #60a5fa;
     --effort-high: #fbbf24;
@@ -238,7 +243,10 @@ body.browser-bar {
     border-radius: var(--r-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-secondary);
+    background-color: var(--accent);
+}
+::selection {
+    background-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 /* Reading text: hierarchy from weight and size, not rules or color. */
@@ -284,7 +292,7 @@ body.browser-bar {
     @apply my-6;
 }
 .markdown-body a {
-    color: var(--text-primary);
+    color: var(--accent-ink);
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
     text-underline-offset: 3px;

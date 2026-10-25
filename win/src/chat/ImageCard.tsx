@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Chip, Fuse, Icon, IconButton, Lightbox, Skeleton, Spark, Tooltip } from "../ui";
+import { Chip, Icon, IconButton, Lightbox, Skeleton, Spark, Tooltip } from "../ui";
 import type { ImageStepInfo, SearchStep } from "../types";
 import { INLINE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import { swallowed } from "../logger";
@@ -147,7 +147,6 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
       {running && (
         <div className="relative mx-auto w-full" style={{ aspectRatio: `${width} / ${height}`, maxWidth: `${MAX_HEIGHT_REM * ratio}rem` }}>
           <Skeleton className="absolute inset-0 rounded-none motion-reduce:animate-none" />
-          {info.status === "generating" && <Fuse className="absolute inset-x-0 bottom-0" label={t("imageGenerating")} />}
         </div>
       )}
 

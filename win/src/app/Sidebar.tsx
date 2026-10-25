@@ -2,14 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { StatusDot } from "../ui/StatusDot";
 import { Spark } from "../ui/signature/Spark";
-import { Fuse } from "../ui/signature/Fuse";
 import { Icon, type IconName } from "../ui/icons/Icon";
 import { Menu, type MenuEntry } from "../ui/Menu";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
 import { SessionViewMenu } from "./SessionViewMenu";
 import { arrangeSessions, sortSessions, useSessionView } from "./sessionView";
-import { modelLabel } from "../llama";
 import { isDefault, workspaceLabel } from "../workspaces";
 import type { AppMode } from "./modes";
 import type { ChatSession, Workspace } from "../types";
@@ -37,20 +35,9 @@ export interface SidebarProps {
   onRemoveWorkspace: (id: string) => void;
   open: boolean;
   onToggleOpen: () => void;
-  engineModel?: string;
-  engineState?: "ready" | "loading" | "generating" | "stopped";
-  engineProgress?: number;
-  vramGB?: number;
   onOpenPalette?: () => void;
   className?: string;
 }
-
-const ENGINE_LABEL = {
-  ready: "engineReady",
-  loading: "loading",
-  generating: "engineGenerating",
-  stopped: "engineStopped",
-} as const;
 
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -72,7 +59,7 @@ function NavRow({ icon, label, shortcut, onClick }: { icon: IconName; label: str
   );
 }
 
-// Session navigation sidebar hosting mode switcher, project/time grouping and engine status.
+// Session navigation sidebar hosting mode switcher, project/time grouping and settings.
 export function Sidebar({
   mode,
   codeHome,
@@ -94,10 +81,6 @@ export function Sidebar({
   onSelectWorkspace,
   onRemoveWorkspace,
   open,
-  engineModel,
-  engineState = "ready",
-  engineProgress,
-  vramGB,
   onOpenPalette,
   className = "",
 }: SidebarProps) {
@@ -597,39 +580,8 @@ export function Sidebar({
             )}
           </div>
 
-          {/* Footer: Engine row and Settings */}
+          {/* Footer: Settings */}
           <div className="p-2 border-t border-rule space-y-1 shrink-0 bg-surface-canvas">
-            {/* Engine row: the model in use and whether the engine holds it */}
-            <div
-              title={`${t("model")}: ${engineModel || t("noModelSelected")}`}
-              className="w-full flex items-center justify-between p-2 rounded-sm text-xs"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="w-4 flex justify-center shrink-0">
-                  {engineState === "generating" ? (
-                    <Spark />
-                  ) : engineState === "loading" ? (
-                    <div className="w-4 h-2">
-                      <Fuse progress={engineProgress} />
-                    </div>
-                  ) : engineState === "ready" ? (
-                    <StatusDot status="ok" />
-                  ) : (
-                    <StatusDot status="idle" />
-                  )}
-                </span>
-                <span className="flex flex-col items-start min-w-0 text-start">
-                  <span className="text-[13px] font-medium text-text-primary truncate max-w-full">
-                    {engineModel ? modelLabel(engineModel) : t("noModelSelected")}
-                  </span>
-                  <span className="text-[11px] text-text-secondary tabular-nums truncate max-w-full">
-                    {t(ENGINE_LABEL[engineState])}
-                    {vramGB !== undefined && vramGB > 0 ? ` · ${vramGB.toFixed(1)} GB` : ""}
-                  </span>
-                </span>
-              </div>
-            </div>
-
             {/* Settings Row */}
             <button
               onClick={() => onOpenSettings("general")}

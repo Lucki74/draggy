@@ -17,8 +17,9 @@ use draggy_models::model_kinds::{
     Capabilities, cannot_generate, is_embedding_model, is_image_model, selectable_models,
 };
 use draggy_models::model_recommendations::{
-    CPU_ONLY_RAM_FRACTION, GGUF_LADDER, RuntimeTarget, USABLE_RAM_FRACTION, chip_class_of,
-    get_recommended_download, get_recommended_model, ladder_for, supports_mlx,
+    CPU_ONLY_DENSE_CAP_GB, CPU_ONLY_RAM_FRACTION, GGUF_LADDER, RuntimeTarget, USABLE_RAM_FRACTION,
+    USABLE_UNIFIED_RAM_FRACTION, chip_class_of, get_recommended_download, get_recommended_model,
+    ladder_for, supports_mlx,
 };
 use draggy_models::shards::{parse_shard, shard_names};
 use draggy_models::vram::{
@@ -368,6 +369,9 @@ fn run_recommendations(input: &Value) -> Value {
                         "label": rung.label,
                         "params": rung.params,
                         "sizeGB": canon(rung.size_gb),
+                        "kind": rung.kind.as_str(),
+                        "memory": canon(rung.memory),
+                        "pending": rung.pending,
                     })
                 })
                 .collect(),
@@ -381,6 +385,8 @@ fn run_recommendations(input: &Value) -> Value {
         "constants" => json!({
             "USABLE_RAM_FRACTION": canon(USABLE_RAM_FRACTION),
             "CPU_ONLY_RAM_FRACTION": canon(CPU_ONLY_RAM_FRACTION),
+            "CPU_ONLY_DENSE_CAP_GB": canon(CPU_ONLY_DENSE_CAP_GB),
+            "USABLE_UNIFIED_RAM_FRACTION": canon(USABLE_UNIFIED_RAM_FRACTION),
         }),
         "getRecommendedModel" => json!(get_recommended_model(num(&input["vram"]), &target)),
         "getRecommendedDownload" => {

@@ -194,11 +194,18 @@ function runModelKinds(input: { op: string } & Record<string, unknown>): unknown
 function runRecommendations(input: { op: string } & Record<string, unknown>): unknown {
   const target = (input.target ?? {}) as Target;
   if (input.op === "ladder") {
-    return recs.ggufLadder.map((r) => ({ vram: r.vram, model: r.model, label: r.label, params: r.params, sizeGB: r.sizeGB }));
+    return recs.ggufLadder.map((r) => ({
+      vram: r.vram, model: r.model, label: r.label, params: r.params, sizeGB: r.sizeGB, kind: r.kind, memory: r.memory, pending: r.pending,
+    }));
   }
   if (input.op === "ladderFor") return recs.ladderFor(target).map((r) => r.model);
   if (input.op === "constants") {
-    return { USABLE_RAM_FRACTION: recs.USABLE_RAM_FRACTION, CPU_ONLY_RAM_FRACTION: recs.CPU_ONLY_RAM_FRACTION };
+    return {
+      USABLE_RAM_FRACTION: recs.USABLE_RAM_FRACTION,
+      CPU_ONLY_RAM_FRACTION: recs.CPU_ONLY_RAM_FRACTION,
+      CPU_ONLY_DENSE_CAP_GB: recs.CPU_ONLY_DENSE_CAP_GB,
+      USABLE_UNIFIED_RAM_FRACTION: recs.USABLE_UNIFIED_RAM_FRACTION,
+    };
   }
   if (input.op === "getRecommendedModel") return recs.getRecommendedModel(num(input.vram), target);
   if (input.op === "getRecommendedDownload") return recs.getRecommendedDownload(num(input.vram), target);

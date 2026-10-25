@@ -10,7 +10,7 @@ use std::time::Duration;
 use draggy_core::{
     ApprovalChoice, ApprovalHandler, ApprovalRecord, CancelToken, CoreError, McpManager,
     McpServerConfigRecord, MessageRecord, PermissionModeRecord, Session, SessionConfig,
-    TurnEventRecord, TurnObserver, TurnOutcome,
+    TurnEventRecord, TurnObserver, TurnOutcome, WebConfigRecord,
 };
 use serde_json::{Value, json};
 
@@ -131,6 +131,9 @@ fn config(url: &str, folder: Option<&std::path::Path>) -> SessionConfig {
         loop_limit: Some(6),
         allow_commands: false,
         permission_mode: None,
+        web: None,
+        agy: None,
+        skills_dir: None,
     }
 }
 
@@ -142,6 +145,9 @@ fn command_config(
     SessionConfig {
         allow_commands: true,
         permission_mode: mode,
+        web: None,
+        agy: None,
+        skills_dir: None,
         ..config(url, Some(folder))
     }
 }
@@ -366,6 +372,60 @@ fn a_file_outside_the_folder_is_refused() {
     let second = bodies[1]["messages"].to_string();
     assert!(second.contains("TOOL RESULT (read_file)"), "{second}");
     assert!(!second.contains("private words"), "{second}");
+}
+
+#[test]
+fn the_web_tools_are_offered_only_when_the_web_is_on() {
+    let server = serve(vec![text_reply(&["a"]), text_reply(&["b"])]);
+    let recorder = Arc::new(Recorder::default());
+    let off = Session::new(config(&server.url, None)).expect("session");
+    run(&off, "hi", &recorder);
+    let on = Session::new(SessionConfig {
+        web: Some(WebConfigRecord::default()),
+        ..config(&server.url, None)
+    })
+    .expect("session");
+    run(&on, "hi", &recorder);
+
+    let bodies = server.bodies.lock().expect("bodies");
+    let names_in = |body: &Value| -> Vec<String> {
+        body["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .map(|tool| tool["function"]["name"].as_str().unwrap_or("").to_owned())
+            .collect()
+    };
+    assert_eq!(names_in(&bodies[0]), ["update_plan"]);
+    assert_eq!(
+        names_in(&bodies[1]),
+        ["search_web", "read_url", "update_plan"]
+    );
+}
+
+#[test]
+fn read_url_refuses_a_local_address_and_says_why() {
+    let server = serve(vec![
+        tool_reply("read_url", r#"{"url": "http://127.0.0.1:1/secret"}"#),
+        text_reply(&["No."]),
+    ]);
+    let session = Session::new(SessionConfig {
+        web: Some(WebConfigRecord::default()),
+        ..config(&server.url, None)
+    })
+    .expect("session");
+    let recorder = Arc::new(Recorder::default());
+
+    let outcome = run(&session, "Read it", &recorder);
+
+    assert_eq!(outcome.tool_calls.get("read_url"), Some(&1));
+    let bodies = server.bodies.lock().expect("bodies");
+    let second = bodies[1]["messages"].to_string();
+    assert!(second.contains("TOOL RESULT (read_url)"), "{second}");
+    assert!(
+        second.contains("Refused") || second.contains("local"),
+        "{second}"
+    );
 }
 
 #[test]
@@ -800,7 +860,8 @@ fn a_session_with_mcp_runs_normally_when_no_mcp_servers_are_active() {
     assert_eq!(outcome.text_content, "Hello from session.");
 
     let bodies = server.bodies.lock().expect("bodies");
-    assert!(bodies[0]["tools"].as_array().is_none_or(|a| a.is_empty()));
+    let tools = bodies[0]["tools"].as_array().expect("tools");
+    assert_eq!(tools.len(), 1, "only update_plan is offered");
 }
 
 #[test]
@@ -846,4 +907,67 @@ fn a_session_with_mcp_offers_server_tools_and_runs_them() {
     assert!(bodies[0]["tools"].to_string().contains("test_srv__echo"));
     let second_pass_messages = bodies[1]["messages"].to_string();
     assert!(second_pass_messages.contains("mcp says banana"));
+}
+
+#[test]
+fn a_picture_goes_to_the_model_as_an_image_part() {
+    let server = serve(vec![text_reply(&["Seen"])]);
+    let session = Session::new(config(&server.url, None)).expect("session");
+    let observer: Arc<dyn TurnObserver> = Arc::new(Recorder::default());
+    let image = draggy_core::ImageRecord {
+        name: "dot.png".to_owned(),
+        mime: "image/png".to_owned(),
+        data: vec![0x89, b'P', b'N', b'G'],
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .enable_time()
+        .build()
+        .expect("runtime");
+
+    let outcome = runtime
+        .block_on(Arc::clone(&session).send_with_images(
+            "What is this".to_owned(),
+            vec![image],
+            observer,
+            None,
+            CancelToken::new(),
+        ))
+        .expect("turn");
+
+    assert_eq!(outcome.text_content, "Seen");
+    let bodies = server.bodies.lock().expect("bodies");
+    let sent = bodies[0].to_string();
+    assert!(sent.contains("data:image/png;base64,iVBORw=="), "{sent}");
+}
+
+#[test]
+fn the_plan_the_model_writes_is_kept_and_can_be_cleared() {
+    let server = serve(vec![
+        tool_reply(
+            "update_plan",
+            r#"{"steps":"[x] Read it\n[>] Fix it\n[ ] Test it"}"#,
+        ),
+        text_reply(&["Done"]),
+    ]);
+    let session = Session::new(config(&server.url, None)).expect("session");
+    assert!(session.plan().is_empty());
+
+    run(&session, "Fix the bug", &Arc::new(Recorder::default()));
+
+    let steps: Vec<(String, String)> = session
+        .plan()
+        .into_iter()
+        .map(|step| (step.text, step.status))
+        .collect();
+    assert_eq!(
+        steps,
+        [
+            ("Read it".to_owned(), "done".to_owned()),
+            ("Fix it".to_owned(), "doing".to_owned()),
+            ("Test it".to_owned(), "todo".to_owned()),
+        ]
+    );
+    session.clear_plan();
+    assert!(session.plan().is_empty());
 }

@@ -10,13 +10,21 @@ import { displayModelName } from "../llama";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
+import QuestionCard from "./QuestionCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
-import { OpenDiffContext } from "./openDiffContext";
 import DiffBlock from "./DiffBlock";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
+import { loadLabel, type LoadStage } from "./loadLabel";
+import { stepTotals } from "./workSummary";
 import type { ApprovalAnswer, SearchStep } from "../types";
+
+const CHANGE_ICONS: Record<NonNullable<SearchStep["change"]>, IconName> = {
+  created: "file-arrow-up",
+  moved: "arrow-right",
+  deleted: "trash",
+};
 
 const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
   searching: "magnifying-glass",
@@ -231,6 +239,7 @@ function FileCard({
               <>
                 {t("fileCreated")}
                 {lineCount > 0 ? ` · ${lineCount} ${t("lines")}` : ""}
+                {lineCount > 0 && <span className="font-mono tabular-nums text-ok">+{lineCount}</span>}
               </>
             )}
           </span>
@@ -325,17 +334,16 @@ function FileCard({
   );
 }
 
-// Shows elapsed seconds while loading so large models do not look frozen.
+// Shows the steps of a wait as the engine reports them: nothing here is estimated.
 function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const [stage, setStage] = useState<LoadStage | null>(null);
 
+  // The engine's own log says which part of the wait it is in.
   useEffect(() => {
-    if (step.startedAt === undefined) return;
-    const startedAt = step.startedAt;
-    const timer = setInterval(() => setElapsedMs(Math.max(0, Date.now() - startedAt)), 100);
-    return () => clearInterval(timer);
-  }, [step.startedAt]);
+    if (!step.model) return;
+    return window.electronAPI?.gguf?.onStage?.(setStage);
+  }, [step.model]);
 
   useEffect(() => {
     if (!step.retry) return;
@@ -349,9 +357,7 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
         .replace("{attempt}", String(step.retry.attempt))
         .replace("{of}", String(step.retry.of))
     : step.model
-      ? t("loadingModel")
-          .replace("{model}", displayModelName(step.model))
-          .replace("{seconds}", (elapsedMs / 1000).toFixed(1))
+      ? loadLabel(stage, { model: displayModelName(step.model), extending: step.extending, t })
       : step.content;
 
   return (
@@ -419,7 +425,6 @@ export function WorkBlock({
 }: WorkBlockProps) {
   const verbose = useTranscriptView() === "verbose";
   const openInCanvas = useContext(OpenFileContext);
-  const openDiff = useContext(OpenDiffContext);
   if (step.type === "results" && step.results && step.results.length > 0) {
     return (
       <details key={step.id} className="mb-2 group/results" open={verbose}>
@@ -474,6 +479,10 @@ export function WorkBlock({
     );
   }
 
+  if (step.type === "question") {
+    return <QuestionCard key={step.id} step={step} t={t} />;
+  }
+
   if (step.type === "approval") {
     return (
       <ApprovalCard
@@ -519,9 +528,9 @@ export function WorkBlock({
 
   const failed = step.type === "error";
   const isActive = !step.isComplete;
-  // A file read or changed opens from its step; a folder listing has no file to open.
-  const openable =
-    !isActive && step.filepath && (step.type === "edit_file" || (step.type === "reading" && step.filename));
+  // A file read opens from its step; a folder listing has no file to open. File changes show only their diff.
+  const openable = !isActive && step.filepath && step.type === "reading" && step.filename;
+  const totals = isActive ? null : stepTotals(step);
   const openStep = () =>
     openInCanvas ? openInCanvas(step.filepath!) : window.electronAPI?.openFile?.(step.filepath!);
 
@@ -545,7 +554,7 @@ export function WorkBlock({
       <div className="flex items-center gap-2 min-h-7 text-[13px] text-text-secondary">
         <span className="flex w-4 justify-center flex-shrink-0">
           <Icon
-            name={failed ? "x-circle" : STEP_ICONS[step.type] || "globe-simple"}
+            name={failed ? "x-circle" : (step.change && CHANGE_ICONS[step.change]) || STEP_ICONS[step.type] || "globe-simple"}
             size={16}
             className={failed ? "text-danger" : ""}
           />
@@ -564,15 +573,10 @@ export function WorkBlock({
         {failed && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
 
         <span className="ms-auto flex items-center gap-3 flex-shrink-0 ps-2">
-          {openable && step.type === "edit_file" && openDiff && (
-            <button
-              type="button"
-              onClick={() => openDiff(step.filepath)}
-              title={step.filepath}
-              className="text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline"
-            >
-              {t("openDiff")}
-            </button>
+          {totals && (
+            <span className="font-mono text-[12px] tabular-nums whitespace-nowrap">
+              <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>
+            </span>
           )}
           {openable && (
             <button
@@ -584,7 +588,7 @@ export function WorkBlock({
               {t("openFile")}
             </button>
           )}
-          {step.checkpointId !== undefined && onRevert && (
+          {step.checkpointId !== undefined && onRevert && step.type !== "edit_file" && (
             <button
               type="button"
               onClick={() => onRevert(step.checkpointId as number)}

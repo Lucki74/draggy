@@ -1,41 +1,57 @@
 ---
 name: human
-description: Removes AI writing patterns, inflated language, superficial phrasing and em dashes to restore a natural, varied human voice. Use when the user asks to humanize text, remove AI tells or make writing sound human.
+description: Writes new prose, or rewrites a draft, so it reads like a specific person and is less likely to be flagged as machine text. Matches the user's own voice from a sample, fixes structure instead of swapping words, and measures the result with a bundled script. Use when the user asks to humanize text, make it sound like them, remove the AI feel, or lower an AI-detector score.
 ---
 
 # Human
 
-Remove signs of AI-generated text and restore natural human rhythm, voice, and directness. Keep what the text says; change how it sounds.
+## Goal
 
-## Core Rules
+Produce text that sounds like one particular person wrote it, and report honestly what changed. This lowers how machine-like the text looks to readers and to detectors. It does not make text undetectable, and no detector result can be promised.
 
-1. **Rewrite, do not shorten:** Keep the same paragraph count, arguments, facts, numbers, and scope as the original. If the original has four paragraphs, produce four paragraphs.
-2. **Preserve meaning and voice:** Match the intended register (formal, technical, or casual). If the user provides a writing sample, calibrate to their sentence length, punctuation habits, and vocabulary.
-3. **No em dashes:** The final rewrite must contain zero em dashes (—) or en dashes (–). Replace them with commas, periods, colons, parentheses, or restructured phrasing.
-4. **Be direct:** Output the rewritten text directly. Never include conversational preamble ("Sure, here is...", "Certainly!"), sign-offs ("I hope this helps!"), or intermediate commentary.
+## When to use
 
-## Patterns to Eliminate
+- The user pastes a draft and wants it to sound human or sound like them.
+- The user wants new writing (email, post, essay, story, report) that does not read as model output.
+- The user wants a before and after measurement of a text.
 
-- **Overused AI vocabulary:** Avoid words like *delve, testament, tapestry, landscape, pivotal, crucial, vibrant, foster, underscore, interplay, intricate, multifaceted, realm, beacon, enduring, showcase*. Use plain equivalents.
-- **Puffed-up significance:** Cut claims that an event "stands as a testament," "marks a pivotal moment," "sets the stage," or "reflects broader trends." State what happened plainly.
-- **Superficial -ing clauses:** Avoid tacking participial phrases onto the ends of sentences (*"...highlighting the importance of...", "...ensuring a seamless experience"*). Turn them into separate clauses or cut them.
-- **Copula avoidance:** Replace elaborate substitutes like *serves as, stands as, boasts, features* with simple copulas (*is, has, are*).
-- **Promotional hype:** Remove adjectives like *breathtaking, nestled, groundbreaking, stunning, rich cultural heritage*.
-- **Vague attributions:** Avoid *experts argue, observers cite, industry reports suggest*. Name the source or state the concrete fact directly.
-- **Negative parallelisms & tailing negations:** Avoid *not only... but also...* and clipped fragments tacked onto sentence ends (*"...no guessing," "...no wasted motion"*).
-- **Rule of three:** Do not mechanically bundle examples or adjectives into triplets.
-- **Formulaic structure:** Avoid canned "Challenges and Future Prospects" or "Looking ahead" summaries.
-- **Mechanical formatting:** Do not use bolded inline list headers (*- **Concept:** description*). Avoid emojis and title case in subheadings.
-- **Theatrical openers:** Remove fake-candid hooks like *Honestly?, Look, Here's the thing, The real question is*.
-- **Filler phrases:** Replace *in order to* (to), *due to the fact that* (because), *at this point in time* (now).
+Not for code, data, front matter or link targets. Leave those exactly as they are. For a plain proofread, use `use_skill` with `proofreader`.
 
-## Human Qualities to Preserve
+## Steps
 
-- **Specific, concrete detail:** Real names, dates, quotes, figures, and technical terms.
-- **Varied cadence:** Mix short, punchy statements with longer sentences that develop a thought naturally.
-- **Real opinions and uncertainty:** Allow mixed feelings, trade-offs, and natural perspective when the genre calls for it. Do not force artificial neutrality onto personal or opinion pieces.
-- **Technical precision:** In technical or academic prose, keep necessary specialized terms without dumbing them down.
+1. **Get a voice sample.** Ask for 300 words or more that the user wrote themselves, with no AI help. Look at sentence length (short and long), punctuation habits, favorite plain verbs, how paragraphs open and end, and what they never do. No sample: continue, and say once that the result carries the model's default voice.
+2. **Get the facts.** Rewriting keeps every fact, number, name and quote from the source. Writing new text uses only what the user supplied. If a detail is missing, ask for it or leave a visible gap. Never invent one to add life.
+3. **Measure the starting point.** Read the bundled file `metrics.cjs` through this skill.
+   Run it with `run_code`, language javascript: put `const TEXT = \`...\`;` above the script body, with the text inside the template literal. Measure the voice sample the same way. The sample sets the targets. A universal norm does not exist.
+4. **Write or rewrite under structural rules.**
+   - Vary sentence length the way the sample does. Put a short sentence next to a long one. Let a one-line paragraph stand when it lands a point.
+   - Vary paragraph shape. Not every paragraph is claim, support, takeaway.
+   - Start with the thing itself (a scene, a number, a document), not general context.
+   - Use plain `is`, `has`, `wrote`, `moved`. Repeat a noun instead of cycling through synonyms.
+   - Name real specifics from the material: people, places, amounts, dates.
+   - Do not explain a point that was just made. End where the substance ends.
+   - Allow at most one aphorism. Leave one or two sentences at half pressure: plain, flat, a little underdeveloped.
+   - Do not insert typos, filler words or fake casualness. They read as costume.
+5. **Measure again and fix the worst number.** Compare `lenCV`, `shareNearMean`, `repeatedOpeners`, `paraShapes` and `tellHitsPer1000` with the sample. Fix the worst one, then re-measure. Stop after two passes. More passes drift from the source.
+6. **Check against the source.** Every fact, number, name and quote still matches. Anything that does not is restored.
+7. **Score it** with the rubric below. Under 8 of 10: one more pass, once.
+8. **Report** in a few plain sentences: what changed, the before and after numbers, and the limits.
+
+## Rubric
+
+Score each from 0 to 2: specificity, rhythm, tells removed (see `tells.md`), claims preserved, fit with the voice sample. Pass is 8 or more. Without a sample, score voice fit as 1 and say so.
+
+## Gotchas
+
+- Swapping words does not fix structure. Replacing one stock word with another changes nothing a detector looks at. Rhythm, paragraph shape and specifics do.
+- The metrics are heuristics from sentence counts. A very short text (under 100 words) gives noisy numbers, so say so.
+- A tidy, even human text will measure like a model. Judge against the user's own sample, not against a rule.
+- Do not claim a text will pass GPTZero, Turnitin or any other detector. If the user pastes in a detector score, record it next to the measured numbers and treat it as one data point.
+- Academic or assessed work: say once that a submission policy may forbid undisclosed AI help. That is the user's decision.
+- Rewriting for another named person's style is out of scope. Use the user's own sample only.
+- Do not run the script on code blocks or tables. The script skips fenced code but not tables.
+- Translated text keeps the source's rhythm. Rewrite in the target language from the sample of that language.
 
 ## Output
 
-Deliver the clean rewritten text immediately. If the user asked for specific change notes, follow the rewrite with a short bulleted list of 2 to 3 major edits.
+The finished text first, with no preamble. Then a short note: the measured before and after values for the five metrics, the rubric score, and any gaps the user must fill. In chat, no bold labels or headings in the note.

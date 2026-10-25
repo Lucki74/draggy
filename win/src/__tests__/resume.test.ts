@@ -4,6 +4,7 @@ import {
   buildResumeMessage,
   describeCompletedWork,
   joinContinuation,
+  stripWorkRecap,
 } from "../agent/resume";
 import type { SearchStep } from "../types";
 
@@ -234,5 +235,22 @@ describe("stitching a continued reply back on", () => {
     expect(joinContinuation("First part.", " Second part.")).toBe(
       "First part. Second part.",
     );
+  });
+});
+
+describe("a recap heading the model copied into its reply", () => {
+  it("is removed with the bullets under it, however often it repeats", () => {
+    const copied = "[Work done in this reply]\n- Search results already gathered:\n\n[Work done in this reply]\n- Search results already gathered:";
+    expect(stripWorkRecap(copied)).toBe("");
+  });
+
+  it("keeps the real answer around it", () => {
+    const text = "Let me search.\n\n[Work done in this reply]\n- Search results already gathered:\n\nDeepSeek is the latest.";
+    expect(stripWorkRecap(text)).toBe("Let me search.\n\nDeepSeek is the latest.");
+  });
+
+  it("leaves ordinary text and lists alone", () => {
+    const text = "Steps:\n- one\n- two";
+    expect(stripWorkRecap(text)).toBe(text);
   });
 });

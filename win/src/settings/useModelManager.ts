@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unloadModel } from "../llama";
-import type { InstalledModel, PullPhase, PullProgress } from "../llama";
+import type { InstalledModel, PullPhase } from "../llama";
 import { pullImageModel } from "../images/pullImageModel";
+import { createSpeedMeter } from "../downloadSpeed";
 import { swallowed } from "../logger";
 
 /** Downloads that run at once. More than this wait their turn: several multi-gigabyte files sharing
@@ -18,7 +19,7 @@ export interface PullState {
   /** Bytes written so far and in total, once the engine reports them. */
   completed?: number;
   total?: number;
-  /** Average speed since the first byte, in bytes per second. */
+  /** Average speed over the last 10 seconds, in bytes per second. */
   bytesPerSecond?: number | null;
   /** Why a failed download stopped. */
   error?: string;
@@ -28,21 +29,6 @@ export interface PullState {
 
 /** A download still on its way: running or waiting, not one that stopped on an error. */
 export const isActivePull = (pull: PullState) => pull.phase !== "failed";
-
-/** Fallback for when the main process sent no estimate: the average speed since the first byte seen. */
-export function estimateRemaining(progress: PullProgress, first: { time: number; completed: number } | null): number | null {
-  if (!first || progress.total <= progress.completed) return null;
-  const speed = averageSpeed(progress, first);
-  return speed ? Math.round((progress.total - progress.completed) / speed) : null;
-}
-
-/** Bytes per second since the first byte seen, or null before there is any time to measure over. */
-export function averageSpeed(progress: PullProgress, first: { time: number; completed: number } | null): number | null {
-  if (!first) return null;
-  const elapsed = (Date.now() - first.time) / 1000;
-  const speed = elapsed > 0 ? (progress.completed - first.completed) / elapsed : 0;
-  return speed > 0 ? speed : null;
-}
 
 export interface ModelManager {
   installed: InstalledModel[];
@@ -163,21 +149,19 @@ export function useModelManager(page?: string): ModelManager {
 
         job.started = true;
         patchPull(job.name, { phase: "preparing" });
-        let first: { time: number; completed: number } | null = null;
+        const meter = createSpeedMeter();
 
         void (job.image ? pullImageModel : pullModel)(
           job.name,
           (progress) => {
-            if (!first && progress.phase === "downloading" && progress.completed > 0) {
-              first = { time: Date.now(), completed: progress.completed };
-            }
+            const measured = progress.phase === "downloading" ? meter.sample(progress.completed, progress.total) : null;
             patchPull(job.name, {
               percent: progress.percent,
               phase: progress.phase,
-              remainingSeconds: progress.remainingSeconds ?? estimateRemaining(progress, first),
+              remainingSeconds: measured ? measured.remainingSeconds : progress.remainingSeconds,
               completed: progress.completed,
               total: progress.total,
-              bytesPerSecond: averageSpeed(progress, first),
+              bytesPerSecond: measured?.bytesPerSecond ?? null,
             });
           },
           job.controller.signal,

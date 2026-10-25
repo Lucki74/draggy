@@ -490,10 +490,23 @@ describe("repo tree pages", () => {
 });
 
 describe("model size lookups", () => {
-  it("resolves exact byte sizes for curated model variants", async () => {
+  beforeEach(() => huggingface.resetSearchCache());
+  it("uses the registry's bytes only when Hugging Face cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const size = await huggingface.fetchModelSize("llama3.1", "8b");
-    expect(size.success).toBe(true);
-    expect(size.bytes).toBe(4920733696);
+    expect(size).toEqual({ success: true, bytes: 4920733696 });
+  });
+
+  it("takes a curated variant's size from the repository, not the registry", async () => {
+    mockTree([["Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", 4_921_000_123]]);
+    const size = await huggingface.fetchModelSize("llama3.1", "8b", { live: true });
+    expect(size).toEqual({ success: true, bytes: 4_921_000_123 });
+  });
+
+  it("keeps the registry's size when the app has not asked for the live one", async () => {
+    mockTree([["Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", 4_921_000_123]]);
+    const size = await huggingface.fetchModelSize("llama3.1", "8b");
+    expect(size).toEqual({ success: true, bytes: 4920733696 });
   });
 
   it("returns error for unknown variant without crashing", async () => {
@@ -504,6 +517,7 @@ describe("model size lookups", () => {
 
 describe("resolving model download URLs", () => {
   it("resolves curated reference to Hugging Face direct resolve URL", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const resolved = await huggingface.resolveModelDownload("llama3.1:8b");
     expect(resolved).toBeDefined();
     expect(resolved.filename).toBe("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf");
@@ -624,6 +638,10 @@ describe("vision model downloads", () => {
 });
 
 describe("draft model downloads", () => {
+  beforeEach(() => {
+    huggingface.resetSearchCache();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  });
   it("resolves companion draft metadata without bundling it by default", async () => {
     const resolved = await huggingface.resolveModelDownload("llama3.1:8b");
     expect(resolved.filename).toBe("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf");

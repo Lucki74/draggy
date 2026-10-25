@@ -1,4 +1,4 @@
-import type { AppSettings, ChatSession, SearchStep } from "./types";
+import type { AppSettings, ChatSession, Message, SearchStep } from "./types";
 import { safeJsonParse, writeLocalStorage } from "./utils";
 import { logRendererEvent } from "./logger";
 
@@ -45,10 +45,23 @@ function settleSteps<T extends { steps?: SearchStep[] }>(holder: T): T {
   };
 }
 
+/** A reply still spinning, or still blank, when the app closed was cut short; it says so and can be resumed. */
+function markInterrupted(message: Message): Message {
+  if (message.role !== "assistant" || message.failed || message.stopped || message.interrupted) return message;
+  const spinning = message.steps?.some((step) => !step.isComplete) ?? false;
+  const blank = !message.content?.trim() && !message.textContent?.trim() && !(message.steps && message.steps.length > 0);
+  if (!spinning && !blank) return message;
+  return {
+    ...message,
+    interrupted: true,
+    ...(message.steps ? { steps: message.steps.map((step) => (step.isComplete ? step : { ...step, isComplete: true })) } : {}),
+  };
+}
+
 /** A conversation as it should look when the app opens. Nothing can be running yet: a turn or a
  * fold cut short by quitting would otherwise spin forever. */
 export function settleSession(session: ChatSession): ChatSession {
-  const messages = session.messages?.map((message) => {
+  const messages = session.messages?.map((message, index) => {
     let settled = settleSteps(message);
     if (settled.versions) {
       const versions = settled.versions.map(settleSteps);
@@ -58,6 +71,7 @@ export function settleSession(session: ChatSession): ChatSession {
       settled = { ...settled };
       delete settled.fold;
     }
+    if (index === session.messages.length - 1) settled = markInterrupted(settled);
     return settled;
   });
   const changed = messages?.some((message, index) => message !== session.messages[index]);
@@ -76,6 +90,7 @@ function stripRuntimeFields(session: ChatSession) {
     updatedAt: session.updatedAt,
     workspaceId: session.workspaceId,
     plan: session.plan ?? null,
+    generation: session.generation ?? null,
     isOutOfContext: Boolean(session.isOutOfContext),
     messages: session.messages,
   };

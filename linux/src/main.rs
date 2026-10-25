@@ -1,7 +1,14 @@
 //! The Draggy window. Everything that is not widget code lives in the library so it can be tested without a display.
 
+mod agy_view;
+mod browser_view;
 mod chat_view;
+#[cfg(test)]
+mod gtk_test;
+mod models_view;
+mod servers_view;
 mod settings_dialog;
+mod skills_view;
 mod state;
 mod window;
 

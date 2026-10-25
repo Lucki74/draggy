@@ -1,3 +1,4 @@
+import DraggyCore
 import SwiftUI
 import WebKit
 
@@ -55,11 +56,24 @@ private struct WebPage: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: browserStoreID)
+        blockAds(in: configuration.userContentController)
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
         commands.view = view
         return view
+    }
+
+    /// Compiles the shared ad and tracker rules and adds them. Pages load without them until the rules are ready.
+    private func blockAds(in controller: WKUserContentController) {
+        Task { @MainActor in
+            let store = WKContentRuleListStore.default()
+            if let list = try? await store?.compileContentRuleList(
+                forIdentifier: "draggy-adblock", encodedContentRuleList: adblockRules()
+            ) {
+                controller.add(list)
+            }
+        }
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
@@ -69,9 +83,10 @@ private struct WebPage: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
         let browser: BrowserModel
         var requested: URL?
+        private var saved: URL?
 
         init(browser: BrowserModel) { self.browser = browser }
 
@@ -79,7 +94,43 @@ private struct WebPage: NSViewRepresentable {
             _ webView: WKWebView, decidePolicyFor action: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
             guard let url = action.request.url else { return .cancel }
-            return browser.permits(url) ? .allow : .cancel
+            guard browser.permits(url) else { return .cancel }
+            return action.shouldPerformDownload ? .download : .allow
+        }
+
+        /// A response the view cannot show is a file: it is downloaded instead of dropped.
+        func webView(
+            _ webView: WKWebView, decidePolicyFor response: WKNavigationResponse
+        ) async -> WKNavigationResponsePolicy {
+            response.canShowMIMEType ? .allow : .download
+        }
+
+        func webView(_ webView: WKWebView, navigationAction _: WKNavigationAction, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse _: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        /// Asks where to save the file. Cancelling the panel cancels the download.
+        func download(
+            _ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String
+        ) async -> URL? {
+            saved = nil
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = suggestedFilename
+            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+            saved = url
+            return url
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            if let saved { NSWorkspace.shared.activateFileViewerSelecting([saved]) }
+        }
+
+        func download(_ download: WKDownload, didFailWithError error: Error, resumeData _: Data?) {
+            browser.reportFailure(error.localizedDescription)
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation _: WKNavigation!) { report(webView) }

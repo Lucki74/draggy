@@ -16,7 +16,7 @@ const settings = {
   modelName: "qwen3:8b",
   customInstructions: [],
   effort: "medium",
-  webMode: "auto",
+  webMode: "on",
   voiceName: "",
   voiceModel: "",
   voiceEngine: "system",

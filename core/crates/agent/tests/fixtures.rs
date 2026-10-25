@@ -436,6 +436,7 @@ fn prompts(input: &Value) -> Value {
                 date: input["date"].as_str().unwrap_or_default(),
                 memory: memory.as_ref(),
                 skills: &skills,
+                model: input["model"].as_str(),
             }))
         }
         "time" => json!(current_time_note(

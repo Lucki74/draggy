@@ -7,8 +7,9 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 
-use crate::state::{AppState, SERVER_KEY};
+use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use draggy_linux::runtime::runtime;
+use draggy_linux::settings::PROVIDERS;
 
 mod imp {
     use super::*;
@@ -32,6 +33,14 @@ mod imp {
         pub choose_folder: TemplateChild<gtk::Button>,
         #[template_child]
         pub commands: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub web: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub provider: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub searxng: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub brave_key: TemplateChild<adw::PasswordEntryRow>,
     }
 
     #[glib::object_subclass]
@@ -71,6 +80,13 @@ impl DraggySettings {
             imp.server.set_text(&settings.server_url);
             imp.model.set_text(&settings.model);
             imp.commands.set_active(settings.allow_commands);
+            imp.web.set_active(settings.web);
+            imp.searxng.set_text(&settings.searxng_url);
+            let chosen = PROVIDERS
+                .iter()
+                .position(|id| *id == settings.search_provider)
+                .unwrap_or(0);
+            imp.provider.set_selected(chosen as u32);
             dialog.show_folder(&settings.folder);
         }
 
@@ -85,6 +101,51 @@ impl DraggySettings {
         let keep = Rc::clone(state);
         imp.commands.connect_active_notify(move |row| {
             keep.settings.borrow_mut().allow_commands = row.is_active();
+        });
+
+        let keep = Rc::clone(state);
+        imp.web.connect_active_notify(move |row| {
+            keep.settings.borrow_mut().web = row.is_active();
+        });
+        let keep = Rc::clone(state);
+        imp.searxng.connect_changed(move |row| {
+            keep.settings.borrow_mut().searxng_url = row.text().to_string();
+        });
+        let keep = Rc::clone(state);
+        imp.provider.connect_selected_notify(move |row| {
+            let id = PROVIDERS
+                .get(row.selected() as usize)
+                .copied()
+                .unwrap_or("");
+            keep.settings.borrow_mut().search_provider = id.to_owned();
+        });
+        // The key is stored when the apply button is pressed, and the field is then cleared.
+        let secrets = Arc::clone(&state.secrets);
+        let notify = toast.clone();
+        imp.brave_key.connect_apply(move |row| {
+            let value = row.text().to_string();
+            let secrets = Arc::clone(&secrets);
+            let notify = notify.clone();
+            let row = row.clone();
+            glib::spawn_future_local(async move {
+                let outcome = runtime()
+                    .spawn(async move {
+                        if value.is_empty() {
+                            secrets.clear(BRAVE_KEY).await
+                        } else {
+                            secrets.set(BRAVE_KEY, &value).await
+                        }
+                    })
+                    .await;
+                match outcome {
+                    Ok(Ok(())) => {
+                        row.set_text("");
+                        notify("The search key was updated in your keyring.");
+                    }
+                    Ok(Err(error)) => notify(&error.to_string()),
+                    Err(_) => notify("The keyring request was interrupted."),
+                }
+            });
         });
 
         let state_for_folder = Rc::clone(state);
@@ -177,16 +238,17 @@ mod tests {
     #[test]
     fn the_dialog_builds_shows_the_state_and_writes_edits_back() {
         // Needs a display (run under xvfb-run); with none there is nothing to check.
-        if adw::init().is_err() {
-            return;
-        }
-        gio::resources_register_include!("draggy.gresource").expect("resources");
+        crate::gtk_test::run(dialog_body);
+    }
+
+    fn dialog_body() {
         let state = Rc::new(AppState::new());
         *state.settings.borrow_mut() = Settings {
             server_url: "http://127.0.0.1:8080".into(),
             model: "qwen".into(),
             folder: "/tmp/project".into(),
             allow_commands: true,
+            ..Settings::default()
         };
         let dialog = DraggySettings::new(&state, |_| {});
         let imp = dialog.imp();

@@ -73,6 +73,7 @@ function matches(event, options, now) {
   if (options.level && (LEVELS[event.level] ?? 0) < LEVELS[options.level]) return false;
   if (options.scope && !(event.scope === options.scope || String(event.scope).startsWith(`${options.scope}.`))) return false;
   if (options.cid && event.cid !== options.cid) return false;
+  if (options.cids && !options.cids.has(event.cid)) return false;
   if (options.session && event.session !== options.session) return false;
   if (options.since && Date.parse(event.ts) < now - parseDuration(options.since)) return false;
   return true;
@@ -93,13 +94,30 @@ function select(events, options, now = Date.now()) {
   return events.filter((event) => matches(event, options, now));
 }
 
+/** The turn and every continue or retry linked to it: "turn sent" names the turn it follows in `data.after`. */
+function chainOf(events, cid) {
+  const links = events.filter((event) => event.msg === "turn sent" && event.cid && event.data?.after).map((event) => [event.cid, event.data.after]);
+  const chain = new Set([cid]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [next, before] of links) {
+      if ((chain.has(before) && !chain.has(next)) || (chain.has(next) && !chain.has(before))) {
+        chain.add(next).add(before);
+        grew = true;
+      }
+    }
+  }
+  return chain;
+}
+
 function run(argv, out = (line) => process.stdout.write(`${line}\n`)) {
   const { options, positional } = parseArgs(argv);
   const turn = options.turn ? positional[0] : null;
   if (options.turn && !turn) throw new Error("usage: npm run logs:turn <cid>");
-  if (turn) options.cid = turn;
   const dir = options.dir || defaultDir();
-  const chosen = select(readEvents(dir), options);
+  const events = readEvents(dir);
+  if (turn) options.cids = chainOf(events, turn);
+  const chosen = select(events, options);
   if (!chosen.length) {
     out(`no matching lines in ${path.join(dir, "events.jsonl")}`);
     return 1;
@@ -118,4 +136,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { parseArgs, parseDuration, readEvents, select, format, run, defaultDir };
+module.exports = { chainOf, parseArgs, parseDuration, readEvents, select, format, run, defaultDir };

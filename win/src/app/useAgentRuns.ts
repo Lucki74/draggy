@@ -5,11 +5,13 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "../agent/permissions";
 import type {
   ApprovalAnswer,
+  UserReply,
   AppSettings,
   Attachment,
   ChatSession,
   MessageVersion,
   PermissionMode,
+  QueuedMessage,
 } from "../types";
 import { swallowed } from "../logger";
 
@@ -34,6 +36,7 @@ interface AgentRunsInput {
     chatId: string,
     patch: Partial<MessageVersion>,
     sessionPatch?: Partial<ChatSession>,
+    messageId?: string,
   ) => void;
 }
 
@@ -49,14 +52,25 @@ export interface AgentRuns {
     messageIndex: number,
     versionIndex: number,
   ) => void;
+  continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  answerQuestion: (questionId: string, reply: UserReply | null) => void;
   /** Folds the older conversation into notes now. */
   compact: (chatId: string) => Promise<CompactOutcome>;
   /** What the model counts for the next turn of a conversation, draft included. */
   measure: TaskManager["measure"];
   stop: (chatId: string) => void;
   stopAll: () => void;
+  /** Messages waiting for each conversation's turn to end. */
+  queues: Record<string, QueuedMessage[]>;
+  enqueue: TaskManager["enqueue"];
+  editQueued: TaskManager["editQueued"];
+  removeQueued: TaskManager["removeQueued"];
+  moveQueued: TaskManager["moveQueued"];
+  sendQueuedNow: TaskManager["sendQueuedNow"];
+  steer: TaskManager["steer"];
+  sendNow: TaskManager["sendNow"];
 }
 
 /** The task manager wired to React: created once and re-pointed each render, so its handlers keep
@@ -70,6 +84,10 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     getPermission: () => input.permission,
     onGrant: (grant) => input.onGrant(grant),
     onFinished: (chatId) => input.onFinished(chatId),
+    onIdle: () => {
+      void window.electronAPI?.browserAgent?.release().catch(swallowed("app", "the main process already logged this call"));
+    },
+    oneTurnAtATime: true,
     getSession: input.getSession,
     addSession: input.addSession,
     updateSession: input.updateSession,
@@ -87,6 +105,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
   });
 
   const running = useSyncExternalStore(manager.subscribe, manager.running);
+  const queues = useSyncExternalStore(manager.subscribeQueues, manager.queues);
 
   return useMemo(
     () => ({
@@ -96,13 +115,23 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       regenerate: manager.regenerate,
       editMessage: manager.editMessage,
       switchVersion: manager.switchVersion,
+      continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
+      answerQuestion: manager.answerQuestion,
       compact: manager.compact,
       measure: manager.measure,
       stop: manager.stop,
       stopAll: manager.stopAll,
+      queues,
+      enqueue: manager.enqueue,
+      editQueued: manager.editQueued,
+      removeQueued: manager.removeQueued,
+      moveQueued: manager.moveQueued,
+      sendQueuedNow: manager.sendQueuedNow,
+      steer: manager.steer,
+      sendNow: manager.sendNow,
     }),
-    [running, manager],
+    [running, queues, manager],
   );
 }

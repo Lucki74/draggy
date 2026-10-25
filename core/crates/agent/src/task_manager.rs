@@ -19,9 +19,6 @@ use crate::live_turn::{LiveTurn, LiveTurns};
 use crate::permissions::Grant;
 use crate::resume::SearchStep;
 
-/// The reply text written when a turn fails without a message of its own.
-const FAILURE_TEXT: &str = "Error generating response.";
-
 /// A file the user attached to a message.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -467,6 +464,12 @@ impl TaskManager {
     ) -> Option<Turn> {
         let session = self.sessions.get(chat_id)?;
         let messages = &session.messages;
+        // A question that never got its reply is simply asked again.
+        let last = messages.len().saturating_sub(1);
+        if index.is_none_or(|at| at == last) && messages.last().is_some_and(|m| m.role == "user") {
+            let target = messages.clone();
+            return self.begin_turn(chat_id, target, TurnOptions::default(), now, ids);
+        }
         let target: Vec<Message> = match index {
             Some(index) => messages[..index.min(messages.len())].to_vec(),
             None => messages[..messages.len().saturating_sub(1)].to_vec(),
@@ -681,19 +684,15 @@ impl TaskManager {
                     );
                 }
             }
-            TurnOutcome::Failed(message) => {
-                let text = if message.is_empty() {
-                    FAILURE_TEXT.to_string()
-                } else {
-                    message
-                };
+            TurnOutcome::Failed(_message) => {
+                // The error lives beside the reply in TS; content keeps only generated text.
                 if let Some(session) = self.sessions.get_mut(chat_id) {
                     let keep = session.messages.len().saturating_sub(1);
                     session.messages.truncate(keep);
                     session.messages.push(Message {
                         id: ids(),
                         role: "assistant".to_string(),
-                        content: text,
+                        content: String::new(),
                         failed: Some(true),
                         ..Message::default()
                     });

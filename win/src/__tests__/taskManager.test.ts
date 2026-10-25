@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { contextSizeFor, forgetContextSize } from "../llama";
 import type { AgentHost, AgentRequest, AgentResult } from "../agent/agentLoop";
 import type { AppSettings, ChatSession, MessageVersion } from "../types";
 import type { Grant } from "../agent/permissions";
@@ -23,6 +24,19 @@ vi.mock("../agent/agentLoop", () => ({
       pending.push({ request, host, resolve, reject });
     }),
 }));
+
+const sent = vi.hoisted(() => [] as { data: Record<string, unknown>; cid?: string }[]);
+
+vi.mock("../logger", async (original) => {
+  const real = await original<typeof import("../logger")>();
+  return {
+    ...real,
+    logRendererEvent: (scope: string, level: string, msg: string, data?: Record<string, unknown>, cid?: string) => {
+      if (msg === "turn sent") sent.push({ data: data ?? {}, cid });
+      return (real.logRendererEvent as (...args: unknown[]) => unknown)(scope, level, msg, data, cid);
+    },
+  };
+});
 
 const { createTaskManager } = await import("../agent/taskManager");
 import type { MetricRow } from "../types";
@@ -93,6 +107,22 @@ describe("the task manager", () => {
     pending.length = 0;
   });
 
+  it("names the turn a retry follows so the log can chain them", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    sent.length = 0;
+
+    manager.send("chat-1", "question");
+    pending[0].reject(new Error("boom"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    manager.regenerate("chat-1");
+
+    expect(sent).toHaveLength(2);
+    expect(sent[0].data.after).toBeUndefined();
+    expect(sent[1].data.retry).toBe(true);
+    expect(sent[1].data.after).toBe(sent[0].cid);
+  });
+
   it("starts a conversation the first message arrives for", () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);
@@ -113,16 +143,34 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")?.workspaceId).toBe("project-7");
   });
 
-  it("keeps two conversations generating at the same time", () => {
+  it("queues a second conversation until the first one's turn ends", async () => {
     const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
 
     manager.send("chat-1", "first");
     manager.send("chat-2", "second");
 
-    expect(manager.running()).toEqual(["chat-1", "chat-2"]);
-    expect(sessions.get("chat-1")?.isGenerating).toBe(true);
+    expect(manager.running()).toEqual(["chat-1"]);
+    expect(manager.queues()["chat-2"]?.map((item) => item.content)).toEqual(["second"]);
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
     expect(sessions.get("chat-2")?.isGenerating).toBe(true);
+  });
+
+  it("lets the chat that waited go before the finished chat's own queue", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager({ ...host, oneTurnAtATime: true });
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "follow-up");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-1"]));
   });
 
   it("finishes a turn for a conversation that is no longer the one on screen", async () => {
@@ -301,10 +349,57 @@ describe("the task manager", () => {
     const messages = sessions.get("chat-1")?.messages ?? [];
     expect(messages).toHaveLength(2);
     expect(messages[1].failed).toBe(true);
-    expect(messages[1].content).toBe("second error");
+    expect(messages[1].content).toBe("");
+    expect(messages[1].error).toBe("second error");
     expect(messages[1].versions).toHaveLength(1);
     expect(messages[1].versions?.[0]?.content).toBe("first error");
     expect(messages[1].versions?.[0]?.failed).toBe(true);
+  });
+
+  it("resumes a failed reply from its partial text instead of wiping it", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "half an ans", textContent: "half an ans", failed: true, error: "engine stopped" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    const reply = sessions.get("chat-1")?.messages[1];
+    expect(reply?.textContent).toBe("half an ans");
+    expect(reply?.failed).toBeUndefined();
+    expect(reply?.error).toBeUndefined();
+    expect(pending.at(-1)?.request.isContinuation).toBe(true);
+    expect(pending.at(-1)?.request.seed?.textContent).toBe("half an ans");
+  });
+
+  it("loads a larger window to continue a reply the context cut", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    const model = host.getModel() as string;
+    forgetContextSize(model);
+
+    seed(sessions, "chat-1");
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      isOutOfContext: true,
+      outOfContextInfo: { loaded: 4096, modelMax: 32768, used: 4000, canGrow: true },
+      messages: [
+        { id: "m1", role: "user", content: "question" },
+        { id: "m2", role: "assistant", content: "cut", textContent: "cut" },
+      ],
+    });
+
+    manager.continueGeneration("chat-1");
+
+    expect(contextSizeFor(model, 100, 32768)).toBe(8192);
+    expect(sessions.get("chat-1")?.outOfContextInfo).toBeUndefined();
   });
 
   it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {
@@ -416,6 +511,76 @@ describe("a turn waiting on the user", () => {
   });
 });
 
+describe("the end of every turn", () => {
+  it("says nothing is driving the pane only once the last turn is over", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle, oneTurnAtATime: true });
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.isRunning("chat-2")).toBe(true));
+    expect(onIdle).not.toHaveBeenCalled();
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalledTimes(1));
+  });
+
+  it("says it when the user stops the only turn", async () => {
+    const { host } = createHost();
+    const onIdle = vi.fn();
+    const manager = createTaskManager({ ...host, onIdle });
+
+    manager.send("chat-1", "go");
+    manager.stop("chat-1");
+    pending[pending.length - 1].resolve(finished());
+
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalled());
+  });
+});
+
+describe("a turn waiting on a question", () => {
+  const question = { id: "q-1", text: "Which one?", options: ["A", "B"], multiple: false };
+  const ask = () => pending[pending.length - 1].host.requestAnswer!(question);
+
+  it("carries on with the reply the user gives", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", { choices: ["B"], text: "" });
+
+    expect(await answered).toEqual({ choices: ["B"], text: "" });
+  });
+
+  it("gets nothing back when the user skips", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.answerQuestion("q-1", null);
+
+    expect(await answered).toBeNull();
+  });
+
+  it("is dismissed when the conversation is stopped", async () => {
+    const manager = createTaskManager(createHost().host);
+
+    manager.send("chat-1", "go");
+    const answered = ask();
+    manager.stop("chat-1");
+
+    expect(await answered).toBeNull();
+  });
+
+  it("ignores a reply to a question nobody asked", () => {
+    const manager = createTaskManager(createHost().host);
+    expect(() => manager.answerQuestion("nope", null)).not.toThrow();
+  });
+});
+
 describe("recording a finished turn for the statistics page", () => {
   beforeEach(() => {
     pending.length = 0;
@@ -476,7 +641,10 @@ describe("recording a finished turn for the statistics page", () => {
     seed(sessions, "b");
     const manager = createTaskManager(host);
     manager.send("a", "one");
+    await Promise.resolve();
+    pending[pending.length - 1].resolve(finished());
     manager.send("b", "two");
+    await vi.waitFor(() => expect(manager.isRunning("b")).toBe(true));
     await Promise.resolve();
 
     const [first, second] = pending.slice(-2).map((turn) => turn.request.correlationId);
@@ -559,5 +727,124 @@ describe("a provider's state on the saved reply", () => {
     const reply = sessions.get("chat-1")?.messages[1];
     expect(reply?.versions?.[0]?.provider_state).toEqual(state);
     expect(reply?.provider_state).toBeUndefined();
+  });
+});
+
+describe("turns that overlap", () => {
+  beforeEach(() => {
+    pending.length = 0;
+    localStorage.clear();
+  });
+
+  it("keeps what a stopped reply wrote and says it was stopped", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "write");
+    pending[0].host.onPatch({ content: "half an answer", textContent: "half an answer", steps: [] });
+    manager.stop("chat-1");
+
+    const last = sessions.get("chat-1")!.messages.at(-1)!;
+    expect(last.stopped).toBe(true);
+    expect(last.textContent).toBe("half an answer");
+    expect(last.failed).toBeUndefined();
+  });
+
+  it("drops what the old turn says once a new one has started", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    vi.useFakeTimers();
+    try {
+      manager.send("chat-1", "first");
+      manager.send("chat-1", "second");
+      // The old turn ignores the abort, so the new one waits out its grace period.
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(pending).toHaveLength(2);
+
+      pending[0].host.onPatch({ content: "stale", textContent: "stale", steps: [] });
+      pending[0].resolve({ ...finished(), content: "stale", textContent: "stale" });
+      await vi.advanceTimersByTimeAsync(10);
+      const messages = sessions.get("chat-1")!.messages;
+      expect(messages.some((m) => m.content === "stale" || m.textContent === "stale")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("queues a message sent while a reply is running and sends it after", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "next");
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["next"]);
+    expect(pending).toHaveLength(1);
+
+    pending[0].resolve(finished());
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(manager.queues()["chat-1"] ?? []).toEqual([]);
+    expect(sessions.get("chat-1")!.messages.some((m) => m.role === "user" && m.content === "next")).toBe(true);
+  });
+
+  it("holds the queue when a reply fails", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "next");
+    pending[0].reject(new Error("bad request"));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+
+    expect(pending).toHaveLength(1);
+    expect(manager.queues()["chat-1"]).toHaveLength(1);
+  });
+
+  it("edits, reorders and removes queued messages", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.enqueue("chat-1", "a");
+    manager.enqueue("chat-1", "b");
+    const [a, b] = manager.queues()["chat-1"];
+    manager.moveQueued("chat-1", b.id, -1);
+    manager.editQueued("chat-1", a.id, "a2");
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["b", "a2"]);
+    manager.removeQueued("chat-1", b.id);
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["a2"]);
+  });
+
+  it("hands steering notes to the running loop and queues the ones it never read", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.steer("chat-1", "use tabs");
+    expect(pending[0].host.takeSteering?.()).toEqual(["use tabs"]);
+    expect(pending[0].host.takeSteering?.()).toEqual([]);
+
+    manager.steer("chat-1", "late note");
+    pending[0].reject(new Error("bad request"));
+    await vi.waitFor(() => expect(manager.running()).toEqual([]));
+    expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["late note"]);
+  });
+
+  it("retries a dropped connection quietly before anything is written", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sessions, host } = createHost();
+      const manager = createTaskManager(host);
+
+      manager.send("chat-1", "first");
+      pending[0].reject(new Error("fetch failed: ECONNRESET"));
+      await vi.waitFor(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(pending).toHaveLength(2);
+      });
+      expect(sessions.get("chat-1")!.messages.at(-1)!.failed).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

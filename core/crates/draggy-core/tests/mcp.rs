@@ -75,3 +75,22 @@ fn server_config_record_converts_env_and_arguments() {
         Some("/tmp")
     );
 }
+
+#[test]
+fn a_server_that_needs_a_value_lists_it_as_an_input() {
+    let all = mcp_catalogue(String::new());
+    let needing: Vec<_> = all
+        .iter()
+        .filter(|server| !server.inputs.is_empty())
+        .collect();
+    assert!(
+        !needing.is_empty(),
+        "some catalogue server asks for a value"
+    );
+    assert!(needing.iter().all(|server| {
+        server
+            .inputs
+            .iter()
+            .all(|input| !input.key.is_empty() && !input.label.is_empty())
+    }));
+}

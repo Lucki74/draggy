@@ -1036,6 +1036,7 @@ pub fn prepare_turn(
         date: &request.date,
         memory: request.memory.as_ref(),
         skills: &offered,
+        model: Some(request.profile.model.as_str()),
     });
     if !loaded_section.is_empty() {
         system.push_str("\n\n");

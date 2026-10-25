@@ -1,0 +1,580 @@
+{
+ "category": "devops-cloud",
+ "skills": [
+  {
+   "id": "docker-compose-setup",
+   "summary": "Write a Compose file for local multi-service dev",
+   "job": "Write or fix a docker-compose file that runs an app with its databases and services locally",
+   "triggers": [
+    "set up docker compose for this project",
+    "add postgres and redis to my compose file",
+    "my compose services cannot reach each other"
+   ],
+   "gotchas": [
+    "`depends_on` without a health condition only waits for the container to start, not for the database to accept connection",
+    "Inside a container `localhost` is the container itself",
+    "A bind mount over `node_modules` or a virtualenv hides what the image installed and causes missing-module errors"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "create_file",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "docker",
+    "compose",
+    "local-dev",
+    "services",
+    "networking"
+   ]
+  },
+  {
+   "id": "kubernetes-manifest-review",
+   "summary": "Review K8s manifests for safety and reliability",
+   "job": "Review Kubernetes manifests or Helm output for missing limits, probes, security context and rollout risks",
+   "triggers": [
+    "review my kubernetes yaml",
+    "is this deployment production ready",
+    "why does my pod keep restarting"
+   ],
+   "gotchas": [
+    "A liveness probe that checks a database turns a database blip into a restart storm of every pod",
+    "CPU limits that are too low cause throttling that looks like slowness, with no error in the logs",
+    "Selector labels in a Deployment are immutable"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "list_directory",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "kubernetes",
+    "manifests",
+    "review",
+    "helm",
+    "reliability"
+   ]
+  },
+  {
+   "id": "terraform-review",
+   "summary": "Review Terraform plans and modules before apply",
+   "job": "Review Terraform code and a plan output for destructive changes, drift, state and security problems",
+   "triggers": [
+    "review my terraform",
+    "is this terraform plan safe to apply",
+    "check this module for problems"
+   ],
+   "gotchas": [
+    "Reordering a list used with `count` makes Terraform replace resources whose index shifted",
+    "A plan reads state at one moment",
+    "`terraform state rm` and `import` change what Terraform believes without touching real infrastructure"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "list_directory",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "terraform",
+    "iac",
+    "plan",
+    "state",
+    "review"
+   ]
+  },
+  {
+   "id": "deploy-checklist",
+   "summary": "Release specific pre and post deploy list",
+   "job": "Produce a deploy checklist tailored to the change being released, covering before, during and after",
+   "triggers": [
+    "make a deploy checklist for this release",
+    "what should I check before deploying",
+    "we are shipping tonight, what could go wrong"
+   ],
+   "gotchas": [
+    "Deploying app code before a migration that it needs, or the reverse, is the classic ordering failure",
+    "A green health endpoint proves the process is up, not that checkout or login works",
+    "A change that is safe alone can fail with the old version still running during a rolling deploy"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "git_diff",
+    "ask_user",
+    "update_plan"
+   ],
+   "surface": "both",
+   "tags": [
+    "deploy",
+    "checklist",
+    "release",
+    "preflight",
+    "verification"
+   ]
+  },
+  {
+   "id": "rollback-runbook",
+   "summary": "Write and test a rollback plan for a service",
+   "job": "Write a step by step rollback runbook for a service, including data and config, and check it can actually work",
+   "triggers": [
+    "how do we roll this back",
+    "write a rollback plan",
+    "the deploy is broken, undo it"
+   ],
+   "gotchas": [
+    "Rolling back code over a migrated schema can crash the old version",
+    "An image tag like `stable` may already point at the bad build",
+    "Caches, search indexes and queued messages written by the new version stay behind after rollback"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "git_status",
+    "ask_user",
+    "create_file"
+   ],
+   "surface": "both",
+   "tags": [
+    "rollback",
+    "runbook",
+    "recovery",
+    "release",
+    "migrations"
+   ]
+  },
+  {
+   "id": "incident-response",
+   "summary": "Run a live outage from triage to recovery",
+   "job": "Guide a live production incident: assess, mitigate first, communicate, find cause, and record a timeline",
+   "triggers": [
+    "production is down",
+    "we have an incident, help me triage",
+    "the site is throwing 500 errors"
+   ],
+   "gotchas": [
+    "Restarting everything erases the evidence (memory state, logs on ephemeral disks)",
+    "Chasing the root cause while users are still down extends the outage",
+    "Several people changing things at once makes cause unknowable"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "update_plan",
+    "search_web"
+   ],
+   "surface": "both",
+   "tags": [
+    "incident",
+    "outage",
+    "triage",
+    "mitigation",
+    "oncall"
+   ]
+  },
+  {
+   "id": "postmortem-writer",
+   "summary": "Write a blameless incident review",
+   "job": "Write a blameless postmortem from incident notes, with timeline, causes, impact and action items with owners",
+   "triggers": [
+    "write a postmortem for yesterday's outage",
+    "turn these incident notes into a review",
+    "root cause analysis document"
+   ],
+   "gotchas": [
+    "A \"human error\" root cause ends the learning",
+    "Timelines built from memory drift",
+    "Action items like \"be more careful\" or \"improve monitoring\" never close"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "create_file"
+   ],
+   "surface": "chat",
+   "tags": [
+    "postmortem",
+    "incident",
+    "review",
+    "blameless",
+    "actions"
+   ]
+  },
+  {
+   "id": "monitoring-alerts",
+   "summary": "Design alerts that page on real user pain",
+   "job": "Design a small set of monitoring signals and alert rules that catch user impact without noise",
+   "triggers": [
+    "what should I monitor for this service",
+    "my alerts are too noisy",
+    "set up alerting for production"
+   ],
+   "gotchas": [
+    "Alerting on CPU above a number pages for healthy busy servers and misses a broken app with idle CPU",
+    "Averages hide the slow tail",
+    "If a service has zero traffic, an error ratio is undefined and the alert may never fire or always fire"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "create_file",
+    "ask_user"
+   ],
+   "surface": "both",
+   "tags": [
+    "monitoring",
+    "alerts",
+    "slo",
+    "metrics",
+    "oncall"
+   ]
+  },
+  {
+   "id": "log-aggregation",
+   "summary": "Structure and ship logs so they are searchable",
+   "job": "Set up structured logging and a shipping path so logs from every instance can be searched and correlated",
+   "triggers": [
+    "centralise our logs",
+    "make our logs searchable",
+    "add request ids to our logging"
+   ],
+   "gotchas": [
+    "Logging full request or response objects leaks tokens and personal data into a store with wider access than the app",
+    "Local time stamps without a zone make cross-service ordering wrong",
+    "Multiline stack traces split into separate events unless the stack is one field in a JSON line"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "logging",
+    "observability",
+    "structured",
+    "correlation",
+    "retention"
+   ]
+  },
+  {
+   "id": "cost-audit",
+   "summary": "Find waste in cloud spend and rank savings",
+   "job": "Audit cloud spend and infrastructure definitions for waste and rank savings by size, effort and risk",
+   "triggers": [
+    "our cloud bill is too high",
+    "find savings in our aws account",
+    "what is costing us the most"
+   ],
+   "gotchas": [
+    "Deleting a snapshot, disk or bucket that looks unused can destroy the only copy",
+    "Rightsizing from average CPU ignores memory and peak load",
+    "Data transfer and managed service request charges hide below the compute lines and often make the surprise"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "search_web",
+    "read_url",
+    "ask_user"
+   ],
+   "surface": "both",
+   "tags": [
+    "cost",
+    "cloud",
+    "finops",
+    "savings",
+    "audit"
+   ]
+  },
+  {
+   "id": "env-config-management",
+   "summary": "Organise env vars and secrets per environment",
+   "job": "Organise configuration and secrets across dev, staging and production with validation and no leaked values",
+   "triggers": [
+    "clean up our env vars",
+    "how should I manage config across environments",
+    "app breaks in prod but works locally"
+   ],
+   "gotchas": [
+    "Prefixed variables such as `NEXT_PUBLIC_` or `VITE_` are embedded in browser bundles",
+    "Env values are always strings",
+    "A fallback like `process"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "config",
+    "env",
+    "secrets",
+    "environments",
+    "twelve-factor"
+   ]
+  },
+  {
+   "id": "health-checks",
+   "summary": "Design liveness, readiness and dependency checks",
+   "job": "Design and implement health endpoints that load balancers, orchestrators and monitors can trust",
+   "triggers": [
+    "add a health endpoint",
+    "my service gets killed by the orchestrator",
+    "what should readiness check"
+   ],
+   "gotchas": [
+    "A liveness check that calls the database restarts every instance during a database outage and makes it worse",
+    "A readiness check that depends on a flaky optional service removes the whole fleet from rotation",
+    "Probes hitting an authenticated route return 401 and mark everything unhealthy"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "health",
+    "readiness",
+    "liveness",
+    "probes",
+    "endpoints"
+   ]
+  },
+  {
+   "id": "blue-green-deploy",
+   "summary": "Plan zero downtime blue green or canary releases",
+   "job": "Plan a blue green or canary release with traffic switching, data compatibility and a fast switch back",
+   "triggers": [
+    "set up blue green deployment",
+    "deploy without downtime",
+    "how do I do a canary release"
+   ],
+   "gotchas": [
+    "The database is the part that makes blue green hard",
+    "Workers on both versions consuming the same queue can process one job with two different code paths",
+    "Sticky sessions pin users to the old version, so a canary percentage is not what users really see"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "create_file",
+    "edit_file",
+    "ask_user"
+   ],
+   "surface": "both",
+   "tags": [
+    "blue-green",
+    "canary",
+    "zero-downtime",
+    "traffic",
+    "release"
+   ]
+  },
+  {
+   "id": "cron-job-design",
+   "summary": "Make cron jobs safe, observable and idempotent",
+   "job": "Design or fix scheduled jobs so they do not overlap, fail silently, double run or skip after downtime",
+   "triggers": [
+    "set up a cron job",
+    "my scheduled task ran twice",
+    "how do I know if the nightly job failed"
+   ],
+   "gotchas": [
+    "Cron's minimal environment is why a script works in a terminal and fails from cron",
+    "A job scheduled at 02",
+    "Alerting only on failure misses the job that never started"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "cron",
+    "scheduler",
+    "idempotent",
+    "jobs",
+    "locking"
+   ]
+  },
+  {
+   "id": "nginx-config",
+   "summary": "Write and debug nginx reverse proxy config",
+   "job": "Write, review or debug nginx configuration for reverse proxying, TLS, caching and static files",
+   "triggers": [
+    "set up nginx as a reverse proxy",
+    "nginx returns 502",
+    "add https and redirects to nginx"
+   ],
+   "gotchas": [
+    "A trailing slash on `proxy_pass` changes how the request path is rewritten, and gives surprising 404s",
+    "`if` inside `location` is unreliable",
+    "502 with the upstream running is often the upstream listening on 127"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file",
+    "create_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "nginx",
+    "reverse-proxy",
+    "tls",
+    "config",
+    "web-server"
+   ]
+  },
+  {
+   "id": "ssh-hardening-setup",
+   "summary": "Set up SSH keys and harden server access",
+   "job": "Set up key based SSH access and harden sshd configuration without locking the user out",
+   "triggers": [
+    "harden ssh on my server",
+    "set up ssh keys",
+    "disable password login over ssh"
+   ],
+   "gotchas": [
+    "Reloading sshd with a typo or with password login off before the key works locks the user out",
+    "Wrong permissions on `~/",
+    "Cloud images often ship a drop-in file that re-enables password login after your edit"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "edit_file"
+   ],
+   "surface": "both",
+   "tags": [
+    "ssh",
+    "hardening",
+    "keys",
+    "server",
+    "access"
+   ]
+  },
+  {
+   "id": "backup-and-restore",
+   "summary": "Plan backups and prove restores work",
+   "job": "Design a backup plan with schedule, retention and location, and prove it with a restore test",
+   "triggers": [
+    "set up backups for this database",
+    "how often should we back up",
+    "test that our backup restores"
+   ],
+   "gotchas": [
+    "Copying database files while the database runs yields a corrupt backup",
+    "Backups stored beside the data, with the same credentials, die with it",
+    "Backup jobs that exit zero after writing an empty file look healthy"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "ask_user",
+    "create_file"
+   ],
+   "surface": "both",
+   "tags": [
+    "backup",
+    "restore",
+    "retention",
+    "recovery",
+    "database"
+   ]
+  },
+  {
+   "id": "release-pipeline",
+   "summary": "Automate versioned builds and promotion to prod",
+   "job": "Design a pipeline that builds once, versions the artifact, promotes it across environments and gates on checks",
+   "triggers": [
+    "automate our releases",
+    "build once and deploy to staging and prod",
+    "add version tags and changelog to the pipeline"
+   ],
+   "gotchas": [
+    "Rebuilding per environment means production runs code that was never tested",
+    "Mutable tags such as `latest` or `v1` make it impossible to say what is running or to roll back precisely",
+    "Secrets available to pull request builds from forks can be exfiltrated"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "create_file",
+    "edit_file",
+    "read_url"
+   ],
+   "surface": "code",
+   "tags": [
+    "release",
+    "pipeline",
+    "versioning",
+    "promotion",
+    "artifacts"
+   ]
+  },
+  {
+   "id": "container-size-diet",
+   "summary": "Shrink and speed up container images",
+   "job": "Reduce container image size and build time by analysing layers, base images and build context",
+   "triggers": [
+    "my docker image is huge",
+    "make the docker build faster",
+    "slim down this image"
+   ],
+   "gotchas": [
+    "Deleting a file in a later layer does not shrink the image",
+    "`COPY ",
+    "Secrets or credentials copied into a build stage can remain in layer history"
+   ],
+   "tools": [
+    "read_file",
+    "search_files",
+    "run_command",
+    "edit_file"
+   ],
+   "surface": "code",
+   "tags": [
+    "docker",
+    "image-size",
+    "layers",
+    "multi-stage",
+    "build-cache"
+   ]
+  }
+ ]
+}

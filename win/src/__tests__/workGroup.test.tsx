@@ -123,11 +123,14 @@ describe("work groups around hidden thinking", () => {
 
   it("keeps them apart when the thinking row is on screen", () => {
     turn("thinking", steps());
-    expect(screen.getAllByRole("button", { name: /read 1 file/i })).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: /read 1 file/i })).toBeNull();
+    expect(screen.getByText("one.ts")).toBeTruthy();
+    expect(screen.getByText("two.ts")).toBeTruthy();
   });
 
-  it("puts a lone step in a dropdown too", () => {
+  it("shows a lone step as its own row with no dropdown", () => {
     turn("normal", [step("one.ts", "reading")]);
-    expect(screen.getByRole("button", { name: /read 1 file/i }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: /read 1 file/i })).toBeNull();
+    expect(screen.getByText("one.ts")).toBeTruthy();
   });
 });

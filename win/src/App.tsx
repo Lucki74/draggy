@@ -6,7 +6,6 @@ import { MODE_KEY } from "./app/modes";
 import { writeLocalStorage } from "./utils";
 import AppShell from "./app/AppShell";
 import { useSettings } from "./app/settings";
-import { warmModel } from "./llama";
 import { isRemote } from "./ai/providers";
 import { registerBuiltinTools } from "./tools/builtin";
 import { registerFileTools } from "./tools/files";
@@ -16,7 +15,6 @@ import { registerExploreTools } from "./tools/explore";
 import { registerGitTools } from "./tools/git";
 import { registerCommandTools } from "./tools/commands";
 import { registerImageTools } from "./tools/image";
-import { KEEP_ALIVE } from "./agent/agentLoop";
 import type { AppSettings } from "./types";
 import { swallowed } from "./logger";
 
@@ -76,13 +74,8 @@ export default function App() {
           ? prev
           : { ...prev, modelName: selectedModel },
       );
-      // Loading the weights takes seconds, and the first message is where that
-      // hurts most. Sized for an empty chat; typing into a long one warms again.
-      if (!isRemote(selectedModel)) {
-        warmModel(selectedModel, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("app", "warming a model is best effort"));
-      }
     },
-    [setSettings, settings.fixedContextSize],
+    [setSettings],
   );
 
   const updateSettings = useCallback(
@@ -109,8 +102,7 @@ export default function App() {
     if (!landed) return;
     // Only now: a record written before the model was on disk would skip the setup after a quit.
     window.electronAPI?.onboarding?.complete(landingPath).catch(swallowed("app", "the main process already logged this call"));
-    warmModel(landed, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("app", "warming a model is best effort"));
-  }, [landed, landingPath, settings.fixedContextSize]);
+  }, [landed, landingPath]);
 
   // The optional downloads join the app's own list once the model is in, never beside it.
   const takeOver = useMemo(

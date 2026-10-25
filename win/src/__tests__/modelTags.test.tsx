@@ -75,17 +75,27 @@ describe("model tags in the download list", () => {
   it("says what a model that cannot chat is instead", async () => {
     await renderWith([
       model("FLUX", ["image-generation"]),
-      model("Whisper", ["speech-recognition"]),
       model("bge", ["embedding"]),
       model("Mystery", ["other"]),
     ]);
 
     const rows = screen.getAllByRole("button", { expanded: false });
-    for (const [name, tag] of [["FLUX", "Image generation"], ["Whisper", "Speech recognition"], ["bge", "Embedding"], ["Mystery", "Other"]]) {
+    for (const [name, tag] of [["FLUX", "Image generation"], ["bge", "Embedding"], ["Mystery", "Other"]]) {
       const row = rows.find((button) => button.textContent?.startsWith(name));
       expect(row && within(row).getByText(tag)).toBeTruthy();
     }
     expect(tags()).toHaveLength(0);
+  });
+
+  it("hides a model the app cannot run yet", async () => {
+    await renderWith([
+      model("Llama-3", ["completion"]),
+      model("Whisper", ["speech-recognition"]),
+      model("Kokoro", ["text-to-speech"]),
+    ]);
+
+    expect(screen.queryByText("Whisper")).toBeNull();
+    expect(screen.queryByText("Kokoro")).toBeNull();
   });
 });
 

@@ -32,6 +32,7 @@ interface ChatScreenProps {
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   onEditMessage: (messageIndex: number, newContent: string) => void;
   onStopGeneration: () => void;
+  onContinueGeneration: () => void;
   onDismissOutOfContext: () => void;
   onSelectModel: (name: string) => void;
   onOpenSettings: (tab: SettingsTab) => void;
@@ -70,6 +71,7 @@ export default function ChatScreen({
   onSwitchVersion,
   onEditMessage,
   onStopGeneration,
+  onContinueGeneration,
   onDismissOutOfContext,
   onSelectModel,
   onOpenSettings,
@@ -231,7 +233,6 @@ export default function ChatScreen({
       chat={chat}
       surface={surface}
       settings={settings}
-      skills={skills}
       unavailable={unavailable}
       input={session.input}
       setInput={session.setInput}
@@ -257,6 +258,7 @@ export default function ChatScreen({
       t={t}
       onSendMessage={onSendMessage}
       onStopGeneration={onStopGeneration}
+      onContinueGeneration={onContinueGeneration}
       onDismissOutOfContext={onDismissOutOfContext}
       onSelectModel={onSelectModel}
       onOpenSettings={onOpenSettings}
@@ -272,6 +274,8 @@ export default function ChatScreen({
       handleMicClick={session.handleMicClick}
       runSlashCommand={session.runSlashCommand}
       setSlashIndex={session.setSlashIndex}
+      setCaret={session.setCaret}
+      chipRanges={session.chipRanges}
       onPaste={handlePaste}
       onDrop={handleDrop}
       processFiles={session.processFiles}
@@ -317,6 +321,7 @@ export default function ChatScreen({
             copiedIndex={copiedIndex}
             settings={settings}
             onRegenerate={onRegenerate}
+            onResume={onContinueGeneration}
             onSwitchVersion={onSwitchVersion}
             onEditMessage={onEditMessage}
             onApproval={onApproval}

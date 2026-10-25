@@ -13,7 +13,7 @@ import type { SearchStep } from "../types";
  * every change is offered back with an undo. */
 
 const WITH_FOLDER: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
   hasFolder: true,
@@ -21,7 +21,7 @@ const WITH_FOLDER: ToolEnvironment = {
 };
 
 const WITHOUT_FOLDER: ToolEnvironment = {
-  webMode: "auto",
+  webMode: "on",
   codeExecution: false,
   libraryReady: false,
 };
@@ -339,32 +339,18 @@ describe("writing, moving and deleting", () => {
     expect(result).toMatch(/Created/);
   });
 
-  /** The stream opens a file card while the model writes; the tool finishes that card rather than
-   * adding a second one beside it. */
-  it("finishes the file card the stream opened, with no second card", async () => {
+  // A project write is one compact row with its diff, never a preview card.
+  it("writes a new project file as one created row with its diff", async () => {
     stubFiles({
-      write: { success: true, path: "p", checkpointId: 9, created: true },
+      write: { success: true, path: "p", checkpointId: 9, created: true, before: "", after: "a\nb" },
     });
 
     const { context, steps } = harness();
-    steps.push({
-      id: "stream-1",
-      type: "create_file",
-      content: "Creating **new.ts**",
-      isComplete: false,
-      filename: "new.ts",
-      fileContent: "export const x = 1;",
-    });
-
-    await runTool(
-      "write_file",
-      { path: "new.ts", content: "export const x = 1;" },
-      context,
-      WITH_FOLDER,
-    );
+    await runTool("write_file", { path: "new.ts", content: "a\nb" }, context, WITH_FOLDER);
 
     expect(steps).toHaveLength(1);
-    expect(steps[0]).toMatchObject({ id: "stream-1", isComplete: true, checkpointId: 9 });
+    expect(steps[0]).toMatchObject({ type: "edit_file", isComplete: true, change: "created", before: "", after: "a\nb" });
+    expect(steps[0].content).toContain("createdFile");
   });
 
   it("moves a file and says where it went", async () => {

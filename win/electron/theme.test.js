@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
+import { ACCENTS } from "../src/app/accent";
 
 const require = createRequire(import.meta.url);
 const themes = require("./theme.cjs");
@@ -56,5 +57,19 @@ describe("the window colour before the page paints", () => {
       symbolColor: themes.FOREGROUNDS.light,
       height: 40,
     });
+  });
+});
+
+describe("the accent for native pieces", () => {
+  it("matches the accents the page offers", () => {
+    expect(Object.entries(themes.ACCENT_COLORS)).toEqual(ACCENTS.map((one) => [one.id, one.color.toLowerCase()]));
+  });
+
+  it("reads the saved accent, and falls back to vermilion", () => {
+    expect(themes.accentColor(JSON.stringify({ accent: "blue" }))).toBe("#0072b2");
+    expect(themes.accentColor(JSON.stringify({ accent: "nope" }))).toBe("#d55e00");
+    expect(themes.accentColor(JSON.stringify({ accent: "__proto__" }))).toBe("#d55e00");
+    expect(themes.accentColor("not json")).toBe("#d55e00");
+    expect(themes.accentColor(null)).toBe("#d55e00");
   });
 });

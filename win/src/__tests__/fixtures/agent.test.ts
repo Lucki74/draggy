@@ -208,6 +208,7 @@ function runSystem(input: Fixture): string {
       input.environment as ToolEnvironment,
       (input.memory ?? null) as ProjectMemory | null,
       (input.skills ?? []) as InstalledSkill[],
+      typeof input.model === "string" ? input.model : undefined,
     );
   } finally {
     date.mockRestore();

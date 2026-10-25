@@ -1,0 +1,17 @@
+Subject: Update on project timeline
+
+Hello Sarah,
+
+I wanted to reach out personally to let you know about a delay affecting the website redesign. Our development team discovered a compatibility issue between the new checkout module and your existing payment provider. Resolving it will require additional testing, and as a result, the launch date will move from March 14 to March 28.
+
+I understand this is not the news you were hoping for, especially with the spring campaign approaching. I want to be transparent about what happened and what we are doing to address it. The issue was found during final quality assurance, which means it did not affect any live customers. Our engineers are already working on a fix, and we have added a second tester to speed up the review.
+
+To minimize the impact on your campaign, we can launch the landing pages and product catalog on the original date, with the checkout functionality following two weeks later. If you prefer to keep everything together, we can also adjust the campaign schedule. I'm happy to walk through either option with you.
+
+Would you be available for a call tomorrow afternoon? I'd like to answer your questions and make sure we agree on the best path forward.
+
+Thank you for your patience and your continued trust in our team.
+
+Warm regards,
+Michael Chen
+Project Manager, Brightline Studio

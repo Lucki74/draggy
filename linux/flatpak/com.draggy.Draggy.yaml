@@ -1,0 +1,52 @@
+# Flatpak manifest for the native Linux app. Build from the repository root:
+#   flatpak-builder --user --install --force-clean build-dir linux/flatpak/com.draggy.Draggy.yaml
+#
+# Cargo downloads crates during the build, which Flathub does not allow. Before submitting there, generate
+# `cargo-sources.json` with flatpak-cargo-generator.py from linux/Cargo.lock and drop the `--share=network` build arg.
+app-id: com.draggy.Draggy
+runtime: org.gnome.Platform
+runtime-version: "48"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: draggy
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Speech output for reading replies aloud, and the Secret Service for the API key.
+  - --socket=pulseaudio
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Speech.Dispatcher
+  # The folder the user picks for the model to work in.
+  - --filesystem=home
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+  env:
+    CARGO_HOME: /run/build/draggy/cargo
+
+modules:
+  - name: draggy
+    buildsystem: simple
+    build-commands:
+      - cd linux && cargo build --release --locked
+      - install -Dm755 linux/target/release/draggy /app/bin/draggy
+      - install -Dm644 linux/data/com.draggy.Draggy.desktop /app/share/applications/com.draggy.Draggy.desktop
+      - install -Dm644 linux/data/com.draggy.Draggy.metainfo.xml /app/share/metainfo/com.draggy.Draggy.metainfo.xml
+      - install -Dm644 linux/data/icons/hicolor/512x512/apps/com.draggy.Draggy.png /app/share/icons/hicolor/512x512/apps/com.draggy.Draggy.png
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - target
+          - node_modules
+          - win
+          - macos
+          - draggy-website

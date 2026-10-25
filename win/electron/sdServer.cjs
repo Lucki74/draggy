@@ -205,7 +205,7 @@ async function waitForCapabilities(proc, deadlineMs) {
   return null;
 }
 
-async function launch(info, resolved, { offload }) {
+async function launch(info, resolved, { offload, safe }) {
   const logger = info.log || defaultLog;
   // Replacing the engine does not give the chat model its memory back; the new one takes it over.
   const holdsChatMemory = tookChatMemory;
@@ -222,11 +222,13 @@ async function launch(info, resolved, { offload }) {
     "-t", String(info.threads || Math.min(8, os.cpus().length)),
     ...(info.loraDir ? ["--lora-model-dir", info.loraDir] : []),
     // Auto-fit places weights by live free memory; forcing them all into RAM made a 4070 Ti decode for minutes.
-    ...(offload ? ["--vae-tiling"] : []),
+    ...(offload || safe ? ["--vae-tiling"] : []),
+    // After a crash: lean attention, weights in RAM, so a driver or memory fault has less to hit.
+    ...(safe ? ["--diffusion-fa", "--offload-to-cpu"] : []),
   ];
-  logger.info("sd", `Starting sd-server: model=${resolved.entry.id} port=${port} tiled=${Boolean(offload)}`);
+  logger.info("sd", `Starting sd-server: model=${resolved.entry.id} port=${port} tiled=${Boolean(offload || safe)} safe=${Boolean(safe)}`);
   const spawnedAt = Date.now();
-  logger.info("proc.engine", "sd launch", { binary: path.basename(info.binaryPath), model: resolved.entry.id, port, threads: info.threads || null, tiled: Boolean(offload), argc: args.length });
+  logger.info("proc.engine", "sd launch", { binary: path.basename(info.binaryPath), model: resolved.entry.id, port, threads: info.threads || null, tiled: Boolean(offload || safe), safe: Boolean(safe), argc: args.length });
 
   const proc = platform.spawnHidden(info.binaryPath, args, {
     cwd: path.dirname(info.binaryPath),
@@ -286,7 +288,7 @@ async function ensure(info, resolved, plan) {
   if (starting && starting.key === key) return starting.promise;
 
   const entry = { key, promise: null };
-  entry.promise = launch(info, resolved, { offload: plan === "offload" })
+  entry.promise = launch(info, resolved, { offload: plan === "offload", safe: plan === "safe" })
     .then((caps) => {
       loadedKey = key;
       loadedModelId = resolved.entry.id;
@@ -416,7 +418,8 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
         await info.freeChatModel?.();
         const totalVram = memory.totalVramGB || 0;
         const freeAfter = (memory.freeVramGB || 0) + (memory.loadedLlmGB || 0);
-        plan = totalVram >= needGB || freeAfter >= needGB ? "gpu" : "offload";
+        // The decode needs about 3 GB beyond the weights; without it a 1024 px image fails in the VAE, so tile.
+        plan = totalVram >= needGB + 3 || freeAfter >= needGB + 3 ? "gpu" : "offload";
         evicted = true;
         tookChatMemory = true;
       }
@@ -441,21 +444,16 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
           const crashed = error.code === "E_CRASH" || crashedDuringJob;
           if (crashed) noteStat("engineCrash");
           if (crashed && attempt === 0) {
-            (info.log || defaultLog).warn("sd", "sd-server stopped during a job; restarting it once");
+            (info.log || defaultLog).warn("sd", "sd-server stopped during a job; restarting it once in safe mode");
+            plan = "safe";
             continue;
           }
           throw crashed ? new SdError("E_CRASH", "The image engine stopped during the job") : error;
         }
       }
     } finally {
-      if (tookChatMemory && pending <= 1 && info.reloadChatModel) {
-        stopSync();
-        try {
-          await info.reloadChatModel();
-        } catch (err) {
-          defaultLog.swallow("sd", err, "reloading chat model after image generation");
-        }
-      }
+      // The image engine gives the memory back; the chat model loads again only on the next message.
+      if (tookChatMemory && pending <= 1) stopSync();
     }
   });
 

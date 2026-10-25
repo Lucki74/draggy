@@ -38,10 +38,13 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.productivity
         NSHighResolutionCapable: true
+        NSMicrophoneUsageDescription: Draggy listens to you when you use talk mode.
+        NSSpeechRecognitionUsageDescription: Draggy turns what you say into text in talk mode.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.draggy.app
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Draggy/Resources/Draggy.entitlements
   DraggyTests:
     type: bundle.unit-test
     platform: macOS

@@ -7,6 +7,7 @@ import InView from "../chat/InView";
 import { describeMemoryLoad, FIT_STATUS } from "../vram";
 import type { PullState } from "./useModelManager";
 import type { LibraryModel } from "../types";
+import { isRunnable } from "../modelKinds";
 import { swallowed } from "../logger";
 
 /** Hugging Face search with each variant's size and fit, shared by the Models page and the
@@ -69,15 +70,16 @@ export default function ModelSearch({ vram, ram, unifiedMemory, phaseFor, onPick
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [filters, setFilters] = useState<string[]>([]);
+  const runnable = useMemo(() => results.filter((model) => isRunnable(model.capabilities)), [results]);
 
   // Every chat model can chat, so that is no filter; the chips are the other abilities in the results,
   // plus any still switched on so it can be switched off again.
   const abilities = useMemo(() => {
-    const present = new Set([...results.flatMap((model) => model.capabilities), ...filters]);
+    const present = new Set([...runnable.flatMap((model) => model.capabilities), ...filters]);
     present.delete("completion");
     return Object.keys(CAPABILITY_KEYS).filter((capability) => present.has(capability));
-  }, [results, filters]);
-  const shown = results.filter((model) => filters.every((filter) => model.capabilities.includes(filter)));
+  }, [runnable, filters]);
+  const shown = runnable.filter((model) => filters.every((filter) => model.capabilities.includes(filter)));
   const toggle = (capability: string) =>
     setFilters((current) =>
       current.includes(capability) ? current.filter((entry) => entry !== capability) : [...current, capability],

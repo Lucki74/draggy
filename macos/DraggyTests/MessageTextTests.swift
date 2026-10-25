@@ -4,6 +4,10 @@ import XCTest
 
 @MainActor
 final class MessageTextTests: XCTestCase {
+    func testNumberedListsKeepTheirNumbersAndDrawInlineMarks() {
+        XCTAssertEqual(MessageText.message("1) **one**\n2. two").string, "1. one\n2. two")
+    }
+
     func testFenceMarkersAreDroppedAndCodeIsMonospaced() {
         let text = MessageText.message("before\n```swift\nlet x = 1\n```\nafter")
         XCTAssertEqual(text.string, "before\nlet x = 1\nafter")

@@ -15,9 +15,9 @@ import type { AppSettings, InstalledSkill } from "../types";
 /** The built-in engine's prompt, frozen: `compact` must stay byte for byte what the engine was sent
  * before prompt profiles existed. The snapshots were written against that code. */
 
-const SETTINGS = { effort: "medium", webMode: "auto", customInstructions: [] } as unknown as AppSettings;
-const CHAT: ToolEnvironment = { webMode: "auto", codeExecution: false, libraryReady: true };
-const CODE: ToolEnvironment = { webMode: "auto", codeExecution: true, libraryReady: false, hasFolder: true, projectRoot: "C:\\projects\\thing" };
+const SETTINGS = { effort: "medium", webMode: "on", customInstructions: [] } as unknown as AppSettings;
+const CHAT: ToolEnvironment = { webMode: "on", codeExecution: false, libraryReady: true };
+const CODE: ToolEnvironment = { webMode: "on", codeExecution: true, libraryReady: false, hasFolder: true, projectRoot: "C:\\projects\\thing" };
 const SKILL = { id: "pdf", name: "PDF", description: "Reads and writes PDF files.", path: "pdf/SKILL.md", source: "library" } as InstalledSkill;
 
 const CASES: [string, () => string][] = [

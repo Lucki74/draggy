@@ -103,6 +103,37 @@ function writeDemoProject(project) {
   fs.writeFileSync(path.join(project, "src/units.ts"), 'export type Units = "metric" | "imperial";\n');
 }
 
+// Chats from the past few weeks, so the sidebar looks lived in. Titles are what a person would type.
+function seedHistory(storage) {
+  const hour = 3600 * 1000;
+  const chats = [
+    ["default", "sourdough starter stuck at day 3", 20, "my starter hasnt risen in 2 days, is it dead?", "Probably not. At day 3 it is common for a starter to go quiet. Keep feeding it equal weights of flour and water at the same time each day and keep it somewhere warm, around 24 C."],
+    ["default", "cover letter for the junior designer role", 30, "can you tighten this? it feels too long", "Cut the second paragraph down to one sentence about the portfolio project, and lead with why you want this team. That brings it under 250 words."],
+    ["default", "rename 200 photos by date", 52, "how do i rename a folder of jpgs to their date taken", "On Windows the quickest way is PowerShell: read each file's DateTaken from its metadata and rename it to yyyy-MM-dd_hhmm. I can write that script if you tell me the folder."],
+    ["default", "4 days in lisbon, not too touristy", 75, "we land thursday morning and leave sunday night", "Thursday: Alfama on foot, then dinner in Graca. Friday: Belem early before the queues, LX Factory in the afternoon. Saturday: a day trip to Sintra by train."],
+    ["default", "why does my pandas merge duplicate rows", 130, "left merge gives me 12k rows from 10k", "That happens when the right table has repeated keys. Check right.duplicated(subset=['id']).sum(), then drop duplicates before the merge."],
+    ["default", "birthday toast for my sister", 200, "she turns 30 and hates fuss. keep it short", "Here is a version that takes about twenty seconds: a story about the time she drove two hours for a cake, then one line that is only about her."],
+    ["default", "lease says no subletting, what does it mean", 340, "paste of clause 14", "It says you cannot rent the space to someone else without the landlord's written consent. A friend staying a few weeks is usually not subletting, but check whether the clause limits guests."],
+    ["weather", "fix the flaky forecast test", 26, "the forecast test fails every few runs", "The test compares against the current time. Passing a fixed clock into the formatter makes it stable."],
+    ["weather", "add a --units flag", 100, "can the cli take --units metric or imperial", "Yes. Parse the flag in the entry point and pass it to formatTemperature, with metric as the default."],
+  ];
+  const now = Date.now();
+  chats.forEach(([workspaceId, title, ago, ask, answer], index) => {
+    const at = now - ago * hour;
+    storage.saveChat({
+      id: `history-${index}`,
+      title,
+      updatedAt: at,
+      isOutOfContext: false,
+      workspaceId,
+      messages: [
+        { id: `h${index}-1`, role: "user", content: ask },
+        { id: `h${index}-2`, role: "assistant", content: answer, textContent: answer },
+      ],
+    });
+  });
+}
+
 // The project workspace, written before the app opens its database.
 function seedDatabase(project, captureModel) {
   const storage = require(path.join(__dirname, "..", "electron", "storage.cjs"));
@@ -115,6 +146,7 @@ function seedDatabase(project, captureModel) {
     permissionMode: process.env.DRAGGY_CAPTURE_MODE || "acceptEdits",
     settings: {},
   });
+  seedHistory(storage);
   storage.setValue("draggy_settings", JSON.stringify({ modelName: captureModel }));
   // Recorded as set up, or every capture would open on the first-run setup instead of the app.
   const onboarding = require(path.join(__dirname, "..", "electron", "onboarding.cjs"));

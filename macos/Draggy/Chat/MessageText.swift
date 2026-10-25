@@ -13,6 +13,7 @@ enum MessageText {
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
     private static let quote = try? NSRegularExpression(pattern: "^>\\s?(.*)$")
     private static let bullet = try? NSRegularExpression(pattern: "^(\\s*)[-*+]\\s+(.*)$")
+    private static let numbered = try? NSRegularExpression(pattern: "^(\\s*)(\\d{1,3})[.)]\\s+(.*)$")
     private static let tableSeparator = try? NSRegularExpression(pattern: "^\\s*\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
     private static let columnWidth: CGFloat = 160
 
@@ -49,6 +50,8 @@ enum MessageText {
     static func message(_ text: String) -> NSAttributedString {
         let out = NSMutableAttributedString()
         var inFence = false
+        var language = ""
+        var fenced: [String] = []
         let rows = text.components(separatedBy: "\n")
         var index = 0
         while index < rows.count {
@@ -65,9 +68,16 @@ enum MessageText {
             index += 1
             if row.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                 inFence.toggle()
+                if inFence {
+                    language = String(row.trimmingCharacters(in: .whitespaces).dropFirst(3))
+                    fenced = []
+                } else if HTMLPreview.isHTML(language) {
+                    out.append(previewLink(fenced.joined(separator: "\n"), end: end))
+                }
                 continue
             }
             if inFence {
+                fenced.append(row)
                 out.append(NSAttributedString(string: row + end, attributes: [
                     .font: mono,
                     .foregroundColor: NSColor.labelColor,
@@ -78,6 +88,17 @@ enum MessageText {
                 out.append(NSAttributedString(string: end, attributes: [.font: body]))
             }
         }
+        return out
+    }
+
+    /// A link under a closed html block that opens the block in a preview window.
+    private static func previewLink(_ code: String, end: String) -> NSAttributedString {
+        let out = NSMutableAttributedString(string: "\u{25B6} " + String(localized: "Preview"), attributes: [
+            .font: small,
+            .foregroundColor: NSColor.linkColor,
+            .link: HTMLPreview(code),
+        ])
+        out.append(NSAttributedString(string: end, attributes: [.font: body]))
         return out
     }
 
@@ -145,6 +166,11 @@ enum MessageText {
         if let match = bullet?.firstMatch(in: row, range: whole) {
             let indent = (row as NSString).substring(with: match.range(at: 1))
             return styled(indent + "\u{2022} " + (row as NSString).substring(with: match.range(at: 2)), font: body)
+        }
+        if let match = numbered?.firstMatch(in: row, range: whole) {
+            let ns = row as NSString
+            return styled(ns.substring(with: match.range(at: 1)) + ns.substring(with: match.range(at: 2)) + ". "
+                + ns.substring(with: match.range(at: 3)), font: body)
         }
         return styled(row, font: body)
     }

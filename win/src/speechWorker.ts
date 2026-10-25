@@ -1,5 +1,6 @@
 import { workerThreads } from "./voice/threads";
 import { createFileProgressTracker } from "./utils";
+import { atStage, completePipeline, type SpeechLibrary } from "./speechPipeline";
 
 const SAMPLE_RATE = 16000;
 const CHUNKING_THRESHOLD = SAMPLE_RATE * 28;
@@ -42,41 +43,9 @@ async function detectDevice(): Promise<"webgpu" | "wasm"> {
   }
 }
 
-/** The pipeline loads its processor only when the model's file list names one.
- * Moonshine reads sample rate from it, while Whisper needs mel spectrogram features. */
-async function ensureProcessor(instance: { processor?: unknown }, model: string): Promise<void> {
-  if (instance.processor) return;
-  try {
-    const { AutoProcessor } = await import("@huggingface/transformers");
-    instance.processor = await AutoProcessor.from_pretrained(model);
-  } catch {
-    if (model.includes("whisper")) {
-      const { WhisperFeatureExtractor } = await import("@huggingface/transformers");
-      const extractor = new WhisperFeatureExtractor({
-        feature_size: 80,
-        sampling_rate: SAMPLE_RATE,
-        hop_length: 160,
-        chunk_length: 30,
-        n_fft: 400,
-        n_samples: 480000,
-        nb_max_frames: 3000,
-      });
-      (extractor as unknown as { feature_extractor: unknown }).feature_extractor = extractor;
-      instance.processor = extractor;
-    } else {
-      // Moonshine takes the raw waveform, so a callable that wraps it is all the pipeline needs.
-      const { Tensor } = await import("@huggingface/transformers");
-      const processor = async (audio: Float32Array) => ({
-        input_values: new Tensor("float32", audio, [1, audio.length]),
-      });
-      processor.feature_extractor = { config: { sampling_rate: SAMPLE_RATE } };
-      instance.processor = processor;
-    }
-  }
-}
-
 async function load(request: InitRequest): Promise<void> {
-  const { pipeline, env } = await import("@huggingface/transformers");
+  const lib = await import("@huggingface/transformers");
+  const { pipeline, env } = lib;
 
   if (request.cacheHost) {
     env.remoteHost = request.cacheHost;
@@ -95,7 +64,7 @@ async function load(request: InitRequest): Promise<void> {
   transcriber = null;
   loadedModel = "";
 
-  const instance = await pipeline(
+  const instance = await atStage("download", () => pipeline(
     "automatic-speech-recognition",
     request.model,
     {
@@ -120,12 +89,22 @@ async function load(request: InitRequest): Promise<void> {
         });
       },
     },
-  );
+  ));
 
   loadedModel = request.model;
-  await ensureProcessor(instance as unknown as { processor?: unknown }, request.model);
+  const speechLib = {
+    ...(lib as unknown as SpeechLibrary),
+    loadJson: async (model: string, file: string) => {
+      const path = env.remotePathTemplate.replace("{model}", model).replace("{revision}", "main");
+      const response = await fetch(`${env.remoteHost}${path}${file}`);
+      if (!response.ok) throw new Error(`${file} could not be read (${response.status})`);
+      return response.json();
+    },
+  } as SpeechLibrary;
+  await completePipeline(instance as unknown as { tokenizer?: unknown; processor?: unknown }, request.model, speechLib);
   transcriber = instance as unknown as Transcriber;
-  await transcriber(new Float32Array(SAMPLE_RATE), isWhisper() ? { return_timestamps: false } : {});
+  const warm = transcriber;
+  await atStage("warm-up", () => warm(new Float32Array(SAMPLE_RATE), isWhisper() ? { return_timestamps: false } : {}));
 }
 
 self.onmessage = async (event: MessageEvent<Request>) => {
@@ -155,7 +134,8 @@ self.onmessage = async (event: MessageEvent<Request>) => {
       options.stride_length_s = 5;
     }
 
-    const result = await transcriber(samples, options);
+    const run = transcriber;
+    const result = await atStage("transcribe", () => run(samples, options));
 
     self.postMessage({
       type: "result",

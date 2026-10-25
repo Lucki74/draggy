@@ -17,7 +17,7 @@ export interface ExtraOffer {
   installed: boolean;
 }
 
-export type ExtraKind = "voice" | "library";
+export type ExtraKind = "voice" | "library" | "image";
 
 export default function Preferences({
   settings,
@@ -110,6 +110,7 @@ export default function Preferences({
       <Group title={t("onbExtrasTitle")}>
         {extraRow("voice", "onbExtraVoice", "onbExtraVoiceHint")}
         {extraRow("library", "onbExtraLibrary", "onbExtraLibraryHint")}
+        {extraRow("image", "onbExtraImage", "onbExtraImageHint")}
       </Group>
 
       <div className="space-y-3">

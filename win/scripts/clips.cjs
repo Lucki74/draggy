@@ -168,15 +168,35 @@ class Recorder {
     this.win.webContents.sendInputEvent({ type, x: Math.round(this.x), y: Math.round(this.y), ...extra });
   }
 
-  async moveTo(x, y, ms = 650) {
+  // A hand does not travel in a straight line at an even pace. The path is a curve that bows to one side,
+  // speed follows the distance, a long move overshoots a little and settles back, and the cursor shakes slightly.
+  async moveTo(x, y, ms) {
     const from = { x: this.x, y: this.y };
-    // A slight arc, so it reads as a hand and not a ruler.
-    const bow = Math.min(60, Math.hypot(x - from.x, y - from.y) / 8);
+    const distance = Math.hypot(x - from.x, y - from.y);
+    const total = ms ?? Math.min(1100, 280 + distance * 0.9 + Math.random() * 140);
+    const overshoot = distance > 260 && Math.random() < 0.7;
+    const aim = overshoot
+      ? { x: x + ((x - from.x) / distance) * (8 + Math.random() * 10), y: y + ((y - from.y) / distance) * (8 + Math.random() * 10) }
+      : { x, y };
+    await this.travel(from, aim, overshoot ? total * 0.86 : total, 1);
+    if (overshoot) await this.travel(aim, { x, y }, 140 + Math.random() * 80, 0.25);
+  }
+
+  async travel(from, to, ms, bowScale) {
+    const length = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const bow = Math.min(70, length / 6) * bowScale * side * (0.5 + Math.random() * 0.7);
+    const nx = -(to.y - from.y) / length;
+    const ny = (to.x - from.x) / length;
     const steps = Math.max(8, Math.round(ms / 16));
     for (let i = 1; i <= steps; i += 1) {
-      const t = ease(i / steps);
-      this.x = from.x + (x - from.x) * t;
-      this.y = from.y + (y - from.y) * t - Math.sin(Math.PI * t) * bow;
+      const t = i / steps;
+      // Minimum-jerk profile: slow start, fast middle, a long gentle landing.
+      const p = 10 * t ** 3 - 15 * t ** 4 + 6 * t ** 5;
+      const arc = Math.sin(Math.PI * p) * bow;
+      const shake = (1 - p) * p * 4;
+      this.x = from.x + (to.x - from.x) * p + nx * arc + (Math.random() - 0.5) * shake;
+      this.y = from.y + (to.y - from.y) * p + ny * arc + (Math.random() - 0.5) * shake;
       this.mouse("mouseMove");
       await this.win.webContents.executeJavaScript(`window.__clipMove(${this.x},${this.y})`);
       await sleep(16);
@@ -188,7 +208,7 @@ class Recorder {
     const y = Math.round(this.y);
     await this.win.webContents.executeJavaScript(`window.__clipDown(true);window.__clipRipple(${x},${y})`);
     this.mouse("mouseDown", { button: "left", clickCount: 1 });
-    await sleep(110);
+    await sleep(70 + Math.random() * 70);
     this.mouse("mouseUp", { button: "left", clickCount: 1 });
     await this.win.webContents.executeJavaScript("window.__clipDown(false)");
     await sleep(200);
@@ -210,14 +230,41 @@ class Recorder {
 
   async clickOn(finder, ...args) {
     const { x, y } = await this.centre(finder, ...args);
-    await this.moveTo(x, y, 360 + Math.random() * 100);
+    // Aim a little off the centre of the target, as a hand does, then rest a beat before pressing.
+    await this.moveTo(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 6);
+    await sleep(120 + Math.random() * 180);
     await this.click();
   }
 
-  async type(text, perKey = 38) {
-    for (const char of text) {
-      this.win.webContents.sendInputEvent({ type: "char", keyCode: char });
-      await sleep(perKey + Math.random() * 18);
+  // Typed the way a person types: a pause to think first, a steady rhythm that quickens inside a word and
+  // slows at spaces and punctuation, now and then a wrong key that is noticed and backspaced.
+  async type(text, rhythm = 1) {
+    const key = (type, keyCode) => this.win.webContents.sendInputEvent({ type, keyCode });
+    const near = "qwertyuiop asdfghjkl zxcvbnm";
+    await sleep(500 + Math.random() * 500);
+    let streak = 0;
+    for (const [index, char] of [...text].entries()) {
+      const letter = /[a-z]/i.test(char);
+      if (letter && streak > 1 && Math.random() < 0.025) {
+        const at = near.indexOf(char.toLowerCase());
+        const wrong = near[at + (Math.random() < 0.5 ? -1 : 1)];
+        if (wrong && wrong !== " ") {
+          key("char", wrong);
+          await sleep((90 + Math.random() * 90) * rhythm);
+          await sleep(180 + Math.random() * 220);
+          key("keyDown", "Backspace");
+          key("keyUp", "Backspace");
+          await sleep(110 + Math.random() * 80);
+        }
+      }
+      key("char", char);
+      streak = letter ? streak + 1 : 0;
+      let wait = 55 + Math.random() * 75;
+      if (streak > 3) wait *= 0.8;
+      if (char === " ") wait += Math.random() < 0.3 ? 120 + Math.random() * 220 : 30;
+      if (/[,.?!;:]/.test(char)) wait += 160 + Math.random() * 260;
+      if (index > 0 && Math.random() < 0.02) wait += 300 + Math.random() * 400;
+      await sleep(wait * rhythm);
     }
   }
 
@@ -314,10 +361,10 @@ const approving = (win) =>
   inPage(win, () => [...document.querySelectorAll("button")].some((n) => n.textContent.trim().startsWith("Allow once")));
 
 // Types a question like a person and sends it.
-async function ask(rec, text, perKey = 14) {
+async function ask(rec, text, rhythm = 1) {
   await rec.clickOn(() => document.querySelector("[data-region=composer] form textarea"));
-  await rec.type(text, perKey);
-  await sleep(250);
+  await rec.type(text, rhythm);
+  await sleep(450 + Math.random() * 350);
   await rec.clickOn(() => document.querySelector("[data-region=composer] form button[type=submit]"));
 }
 
@@ -353,7 +400,7 @@ const CLIPS = {
     workspace: ["default", "chat"],
     speed: 8,
     async script(rec, win) {
-      await ask(rec, "What does the Open-Meteo API return for current weather? Check their docs.");
+      await ask(rec, "what does open-meteo send back for current weather? check their docs");
       await work(rec, win);
       rec.fast = false;
       await sleep(2000);
@@ -363,7 +410,7 @@ const CLIPS = {
     workspace: ["default", "chat"],
     speed: 24,
     async script(rec, win) {
-      await ask(rec, "Does the Open-Meteo API need a key? Cite your sources.");
+      await ask(rec, "does open-meteo need an api key? link where you found that");
       await work(rec, win);
       rec.fast = false;
       await sleep(900);
@@ -381,7 +428,7 @@ const CLIPS = {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, win) {
-      await ask(rec, "In src/format.ts, make formatTemperature round to one decimal place and add a °C suffix. Update the test to match. Only edit the files; do not run or install anything.", 16);
+      await ask(rec, "make formatTemperature in src/format.ts round to 1 decimal and add °C, then fix tests/format.test.ts to match. just edit the files, dont run anything");
       await work(rec, win);
       rec.fast = false;
       await sleep(2200);
@@ -391,7 +438,7 @@ const CLIPS = {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, win) {
-      await ask(rec, "Use the terminal to run node --version and tell me what it prints.");
+      await ask(rec, "which node version is installed here? check in the terminal");
       rec.fast = true;
       await waitFor(() => approving(win), { timeout: 150_000, every: 300, label: "the approval card" });
       rec.fast = false;
@@ -431,13 +478,20 @@ const CLIPS = {
     watchPane: true,
     speed: 20,
     async script(rec, win) {
-      await ask(rec, "Open superadblocktest.com, tell me how many ads it blocked, and link the page.");
-      await work(rec, win);
+      await ask(rec, "whats the difference between a 401 and a 403? check mdn and link the page");
+      // The agent asks before it clicks on the site: allow it for the session, then wait for the reply.
+      for (;;) {
+        await work(rec, win);
+        if (!(await approving(win))) break;
+        rec.fast = false;
+        await sleep(900);
+        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow for this session/.test(n.textContent.trim())));
+      }
       rec.fast = false;
       await sleep(500);
       await dump(win, "browser");
-      // Press the link: Draggy's own browser opens on the page and the block count climbs.
-      const find = () => [...document.querySelectorAll("[data-region=transcript] a[href*='superadblocktest']")].pop();
+      // Press the link: Draggy's own browser opens on the page.
+      const find = () => [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org']")].pop();
       await rec.clickOn(find);
       await waitFor(() => Boolean(rec.pane()), { timeout: 15_000, every: 200, label: "the browser pane" });
       const inPane = async (code) => {
@@ -461,31 +515,19 @@ const CLIPS = {
         }
       };
       await waitFor(
-        async () => (await inPane("/start test/i.test(document.body ? document.body.innerText : '')")) && (await painted()),
+        async () => (await inPane("/40[13]/.test(document.body ? document.body.innerText : '')")) && (await painted()),
         { timeout: 40_000, every: 300, label: "the page" },
       ).catch(() => log("pane never painted blank-free"));
       rec.fast = false;
       log("pane text", JSON.stringify(await inPane("document.body ? document.body.innerText.slice(0, 160) : 'nobody'")), rec.pane() && JSON.stringify(rec.pane().getBounds()));
       await sleep(700);
-      // The test starts on a button inside the page; the count then climbs as the blocker answers.
-      await rec.pane().webContents.executeJavaScript(
-        "(() => { const b = [...document.querySelectorAll('button, a')].find((n) => /start test/i.test(n.textContent || '')); if (b) b.click(); return Boolean(b); })()",
-      );
-      rec.fast = true;
-      await waitFor(
-        async () => {
-          const view = rec.pane();
-          if (!view) return false;
-          try {
-            return await view.webContents.executeJavaScript("/Completed:/.test(document.body.innerText)");
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 45_000, every: 400, label: "the ad block test" },
-      ).catch(() => {});
+      // Read down the page a little, the way a person would.
       rec.fast = false;
-      await sleep(1500);
+      for (let i = 0; i < 3; i += 1) {
+        await rec.pane().webContents.executeJavaScript("window.scrollBy({ top: 260, behavior: 'smooth' })").catch(() => {});
+        await sleep(900);
+      }
+      await sleep(1200);
     },
   },
 };
@@ -524,14 +566,29 @@ async function warmUp(win) {
   throw new Error("the model would not load");
 }
 
+const chatIds = (win) => inPage(win, async () => (await window.electronAPI.db.loadChats()).chats.map((c) => c.id));
+
+// Each take leaves its session in the sidebar; drop it so the next take and the other tone start from the seeded history.
+async function dropNewChats(win, keep) {
+  const ids = await chatIds(win);
+  await inPage(win, async (gone) => { for (const id of gone) await window.electronAPI.db.deleteChat(id); }, ids.filter((id) => !keep.includes(id)));
+  const loaded = new Promise((resolve) => win.webContents.once("did-finish-load", resolve));
+  win.webContents.reload();
+  await loaded;
+  await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=transcript], textarea"))), { timeout: 60_000, every: 500, label: "the window to reload" });
+  await sleep(1500);
+}
+
 async function record(win, name) {
   const clip = CLIPS[name];
   let seconds = 0;
   let speed = SPEED;
+  const keep = await chatIds(win);
   for (const tone of TONES) {
     for (let take = 1; take <= 3; take += 1) {
       if (clip.reset) resetProject();
       // A page left open in the Browser pane by the take before would sit over this one.
+      await inPage(win, () => window.electronAPI?.browserPane?.setVisible?.(false));
       for (const child of win.contentView.children) {
         try {
           if (/^https?:/.test(child.webContents.getURL())) await child.webContents.loadURL("about:blank");
@@ -559,10 +616,12 @@ async function record(win, name) {
       });
       if (hasErrors && take < 3) {
         log(`${name}-${tone}: take ${take} showed failed steps, retrying...`);
+        await dropNewChats(win, keep);
         continue;
       }
       seconds = await rec.encode(name, tone);
       await setDark(win, false);
+      await dropNewChats(win, keep);
       break;
     }
   }

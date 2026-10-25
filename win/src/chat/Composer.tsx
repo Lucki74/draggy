@@ -1,17 +1,20 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ContextWheel from "./ContextWheel";
 import PermissionPicker from "./PermissionPicker";
 import ModelChoices from "../providers/ModelChoices";
 import RemoteFilesNotice from "../providers/RemoteFilesNotice";
+import StarNotice from "./StarNotice";
 import { ProviderIcon } from "../providers/ProviderIcon";
 import { displayModelName, modelLabel } from "../llama";
 import { isRemote } from "../ai/providers";
 import { useSlowModel } from "./useSlowModel";
-import { parseSlashArgument } from "./slashCommands";
+import { chipSegments, parseSlashArgument } from "./slashCommands";
 import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
+import { draftKeyFor } from "./useChatSession";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
 import type { ModelInfo } from "../llama";
+import { formatTokenCount } from "../agent/contextBreakdown";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
 import type { SettingsTab } from "../settings/pages";
@@ -21,18 +24,17 @@ import type {
     Attachment,
     ChatSession,
     EffortLevel,
-    InstalledSkill,
     PermissionMode,
     ProviderInstance,
+    QueuedMessage,
 } from "../types";
 import { allowedEfforts, effectiveEffort, effortColor, EFFORT_ORDER, nextEffort } from "../ai/effort";
 import { EffortSlider } from "./EffortSlider";
 import { EFFORT_LABELS } from "../settings/pages";
 
 const MAX_INPUT_HEIGHT = 200;
-const WEB_MODE_ORDER: AppSettings["webMode"][] = ["auto", "on", "off"];
+const WEB_MODE_ORDER: AppSettings["webMode"][] = ["on", "off"];
 const WEB_MODE_LABELS: Record<AppSettings["webMode"], string> = {
-    auto: "webAuto",
     on: "webOn",
     off: "webOff",
 };
@@ -47,16 +49,31 @@ function fitHeight(field: HTMLTextAreaElement) {
     field.scrollTop = prevScroll;
 }
 
-const MENU_SKILLS = 6;
 
 type OpenMenu = "permission" | "effort" | "model" | null;
+
+/** Queue of the chat on screen, bound to its id by the app so the composer never acts on another chat. */
+export interface ComposerQueue {
+    chatId: string;
+    queue: QueuedMessage[];
+    enqueue: (content: string, attachments?: Attachment[]) => void;
+    steer: (content: string) => void;
+    sendNow: (content: string, attachments?: Attachment[]) => void;
+    editQueued: (id: string, content: string) => void;
+    removeQueued: (id: string) => void;
+    moveQueued: (id: string, offset: number) => void;
+    sendQueuedNow: (id: string) => void;
+}
+
+// Lives beside Composer so MainColumn can supply the queue without threading props through ChatScreen.
+// eslint-disable-next-line react-refresh/only-export-components
+export const ComposerQueueContext = createContext<ComposerQueue | null>(null);
 
 export interface ComposerProps {
     model: string;
     chat: ChatSession;
     surface: "chat" | "code";
     settings: AppSettings;
-    skills: InstalledSkill[];
     unavailable?: string;
     input: string;
     setInput: React.Dispatch<React.SetStateAction<string>>;
@@ -84,6 +101,7 @@ export interface ComposerProps {
     t: (key: string) => string;
     onSendMessage: (content: string, attachments?: Attachment[]) => void;
     onStopGeneration: () => void;
+    onContinueGeneration: () => void;
     onDismissOutOfContext: () => void;
     onSelectModel: (name: string) => void;
     onOpenSettings: (tab: SettingsTab) => void;
@@ -95,8 +113,12 @@ export interface ComposerProps {
     onProjectMemory?: () => void;
     removeFile: (index: number) => void;
     handleMicClick: () => void;
-    runSlashCommand: (id: string) => void;
+    /** Returns where the caret goes when the command was written into the text. */
+    runSlashCommand: (id: string) => number | void;
     setSlashIndex: React.Dispatch<React.SetStateAction<number>>;
+    setCaret: (position: number) => void;
+    /** Stretches of the text that run a command, drawn as chips behind the field. */
+    chipRanges: Array<[number, number]>;
     onPaste: (e: React.ClipboardEvent) => void;
     onDrop: (e: React.DragEvent) => void;
     processFiles: (files: File[]) => Promise<void>;
@@ -143,7 +165,6 @@ export function Composer({
     chat,
     surface,
     settings,
-    skills,
     unavailable: downloading,
     input,
     setInput,
@@ -169,6 +190,7 @@ export function Composer({
     t,
     onSendMessage,
     onStopGeneration,
+    onContinueGeneration,
     onDismissOutOfContext,
     onSelectModel,
     onOpenSettings,
@@ -182,6 +204,8 @@ export function Composer({
     handleMicClick,
     runSlashCommand,
     setSlashIndex,
+    setCaret,
+    chipRanges,
     onPaste,
     onDrop,
     processFiles,
@@ -193,6 +217,10 @@ export function Composer({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
     const showPermission = surface === "code" && Boolean(permissionMode && onPermissionMode);
+    const queueCtx = useContext(ComposerQueueContext);
+    const queued = queueCtx?.chatId === chat.id ? queueCtx : null;
+    const queue = queued?.queue ?? [];
+    const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
     const [mention, setMention] = useState<Mention | null>(null);
     const [mentionIndex, setMentionIndex] = useState(0);
     const mentionHits = useMentionHits(mention?.query ?? null, workContext?.searchFiles);
@@ -217,6 +245,17 @@ export function Composer({
         const next = field.selectionStart === field.selectionEnd ? mentionAt(field.value, field.selectionStart) : null;
         setMention((current) => (current?.start === next?.start && current?.query === next?.query ? current : next));
         if (next?.query !== mention?.query) setMentionIndex(0);
+    };
+
+    const chipLayerRef = useRef<HTMLDivElement>(null);
+
+    const pickSlash = (id: string) => {
+        const caret = runSlashCommand(id);
+        if (typeof caret !== "number") return;
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.setSelectionRange(caret, caret);
+        });
     };
 
     const pickMention = (path: string) => {
@@ -301,10 +340,36 @@ export function Composer({
     // Drawing never reaches the chat model, so a missing or downloading one does not block it.
     const drawing = Boolean(onImageCommand) && parseSlashArgument(input.trim())?.id === "image";
 
+    // Without a queue to hand the text to, typing during a reply keeps its old meaning: stop.
+    const sendWhileGenerating = (mode: "queue" | "steer" | "now") => {
+        if (!queued) {
+            onStopGeneration();
+            return;
+        }
+        const text = input.trim();
+        if (!text && attachedFiles.length === 0) return;
+        const content = isBinary(text) ? "[Invalid text input removed]" : text;
+        // A steer note carries no attachments, so files fall back to the queue.
+        if (mode === "queue" || (mode === "steer" && attachedFiles.length > 0)) queued.enqueue(content, attachedFiles);
+        else if (mode === "steer") queued.steer(content);
+        else queued.sendNow(content, attachedFiles);
+        setInput("");
+        localStorage.removeItem(draftKeyFor(chat, surface));
+        clearAttachments();
+    };
+
+    const saveEdit = () => {
+        if (!editing) return;
+        const text = editing.text.trim();
+        if (text) queued?.editQueued(editing.id, text);
+        setEditing(null);
+        inputRef.current?.focus();
+    };
+
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (chat.isGenerating) {
-            onStopGeneration();
+            sendWhileGenerating("queue");
             return;
         }
         if (unavailable && !drawing) return;
@@ -320,7 +385,7 @@ export function Composer({
         if (command?.id === "compact-limit") {
             if (setCompactLimit(command.argument)) {
                 setInput("");
-                localStorage.removeItem(`draft_${chat.id}`);
+                localStorage.removeItem(draftKeyFor(chat, surface));
             }
             return;
         }
@@ -328,21 +393,19 @@ export function Composer({
         if (command?.id === "image" && onImageCommand) {
             onImageCommand(command.argument, attachedFiles);
             setInput("");
-            localStorage.removeItem(`draft_${chat.id}`);
+            localStorage.removeItem(draftKeyFor(chat, surface));
             clearAttachments();
             return;
         }
 
         onSendMessage(sanitizedInput, attachedFiles);
         setInput("");
-        localStorage.removeItem(`draft_${chat.id}`);
+        localStorage.removeItem(draftKeyFor(chat, surface));
+        // Sent with this message; left in place they would ride along on the next one.
+        clearAttachments();
     };
 
     const webMode = toolsUnavailable ? "off" : settings.webMode;
-    // A short list; the slash menu and the Extensions page reach the rest.
-    const offeredSkills = skills
-        .filter((skill) => !skill.surface || skill.surface === "both" || skill.surface === surface)
-        .slice(0, MENU_SKILLS);
     const plusItems: MenuEntry[] = [
         {
             id: "attach",
@@ -362,18 +425,6 @@ export function Composer({
             icon: <Icon name="puzzle-piece" size={16} />,
             onSelect: () => onOpenSettings("extensions"),
         },
-        ...(offeredSkills.length > 0
-            ? [
-                  { type: "separator", id: "skills-sep" } as MenuEntry,
-                  { type: "heading", id: "skills", label: t("extensionSkills") } as MenuEntry,
-                  ...offeredSkills.map<MenuEntry>((skill) => ({
-                      id: `skill-${skill.id}`,
-                      label: skill.name,
-                      title: skill.summary ?? skill.description,
-                      onSelect: () => runSlashCommand(skill.id),
-                  })),
-              ]
-            : []),
         { type: "separator", id: "web-sep" },
         { type: "heading", id: "web", label: t("webAccess") },
         ...WEB_MODE_ORDER.map<MenuEntry>((mode) => ({
@@ -468,7 +519,7 @@ export function Composer({
                                 aria-selected={index === activeSlashIndex}
                                 onMouseDown={(event) => {
                                     event.preventDefault();
-                                    runSlashCommand(command.id);
+                                    pickSlash(command.id);
                                 }}
                                 className={`w-full flex items-baseline gap-3 px-3 py-1.5 text-start text-[13px] ${
                                     index === activeSlashIndex ? "bg-surface-raised text-text-primary" : "text-text-secondary hover:bg-surface-raised"
@@ -500,6 +551,78 @@ export function Composer({
                     </p>
                 )}
 
+                {queued && queue.length > 0 && (
+                    <div className="mb-2 flex flex-col gap-1.5">
+                        <p className="px-1 text-[12px] text-text-secondary">{t("queuedMessages")} · {queue.length}</p>
+                        {/* A burst of queued messages scrolls here instead of pushing the transcript away. */}
+                        <ul className="flex max-h-[min(30vh,14rem)] flex-col gap-1 overflow-y-auto">
+                            {queue.map((item, index) => (
+                                <li key={item.id} className="flex shrink-0 items-center gap-1 ps-3 pe-1 rounded-lg bg-surface-tint text-[13px] text-text-primary">
+                                    {editing?.id === item.id ? (
+                                        <textarea
+                                            autoFocus
+                                            aria-label={t("edit")}
+                                            value={editing.text}
+                                            rows={1}
+                                            onChange={(e) => setEditing({ id: item.id, text: e.target.value })}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Escape") {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setEditing(null);
+                                                } else if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    saveEdit();
+                                                }
+                                            }}
+                                            className="min-w-0 flex-1 resize-none bg-transparent py-1 focus:outline-none"
+                                        />
+                                    ) : (
+                                        <span className="min-w-0 flex-1 truncate py-0.5">{item.content}</span>
+                                    )}
+                                    {editing?.id !== item.id && (
+                                        <IconButton
+                                            name="pencil-simple"
+                                            label={t("edit")}
+                                            size="dense"
+                                            onClick={() => setEditing({ id: item.id, text: item.content })}
+                                        />
+                                    )}
+                                    <IconButton
+                                        name="arrow-up"
+                                        label={t("queueMoveUp")}
+                                        size="dense"
+                                        disabled={index === 0}
+                                        onClick={() => queued.moveQueued(item.id, -1)}
+                                    />
+                                    <IconButton
+                                        name="arrow-down"
+                                        label={t("queueMoveDown")}
+                                        size="dense"
+                                        disabled={index === queue.length - 1}
+                                        onClick={() => queued.moveQueued(item.id, 1)}
+                                    />
+                                    <IconButton
+                                        name="skip-forward"
+                                        label={t("queueSendNow")}
+                                        size="dense"
+                                        onClick={() => queued.sendQueuedNow(item.id)}
+                                    />
+                                    <IconButton
+                                        name="x"
+                                        label={t("queueRemove")}
+                                        size="dense"
+                                        onClick={() => queued.removeQueued(item.id)}
+                                    />
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {queued && chat.isGenerating && (
+                    <p className="mb-2 px-1 text-[12px] text-text-secondary">{t("queueHint")}</p>
+                )}
+
                 <form
                     onSubmit={handleSubmit}
                     className="relative flex flex-col rounded-lg bg-surface-base border border-rule focus-within:border-rule-strong transition-colors duration-120"
@@ -517,24 +640,63 @@ export function Composer({
                             inProject={surface === "code" && Boolean(onProjectMemory)}
                             t={t}
                         />
+                        <StarNotice generating={chat.isGenerating} t={t} />
                         {chat.isOutOfContext && (
                             <div className="flex items-center gap-3 px-4 py-2 border-b border-rule bg-surface-tint text-[13px]">
                                 <Icon name="warning" size={16} className="flex-shrink-0 text-warn" />
-                                <p className="flex-1 min-w-0 text-text-primary">{t("outOfContextMessage")}</p>
+                                <p className="flex-1 min-w-0 text-text-primary">{outOfContextText(chat.outOfContextInfo, t)}</p>
+                                {(!chat.outOfContextInfo || chat.outOfContextInfo.canGrow) && (
+                                    <button
+                                        type="button"
+                                        onClick={onContinueGeneration}
+                                        className="h-7 px-3 rounded-pill text-[12px] font-medium bg-action-bg text-action-fg hover:opacity-90 flex-shrink-0"
+                                    >
+                                        {t("continueGenerating")}
+                                    </button>
+                                )}
                                 <IconButton name="x" label={t("cancel")} size="sm" onClick={onDismissOutOfContext} />
                             </div>
                         )}
                     </div>
 
+                    <div className="relative">
+                    {chipRanges.length > 0 && (
+                        <div
+                            ref={chipLayerRef}
+                            aria-hidden="true"
+                            data-testid="command-chips"
+                            className="absolute inset-0 px-4 pt-3.5 pb-1 text-[15px] leading-6 whitespace-pre-wrap break-words overflow-y-auto pointer-events-none text-transparent"
+                            style={{ scrollbarColor: "transparent transparent" }}
+                        >
+                            {chipSegments(input, chipRanges).map((part, index) =>
+                                part.chip ? (
+                                    <mark key={index} className="rounded-xs bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+                                        {part.text}
+                                    </mark>
+                                ) : (
+                                    <span key={index}>{part.text}</span>
+                                ),
+                            )}
+                            {/* A last newline needs a line of its own, as it has in the field. */}
+                            {input.endsWith("\n") ? "\u200b" : null}
+                        </div>
+                    )}
                     <textarea
                         ref={inputRef}
                         value={input}
                         aria-label={t("messageModel")}
                         onChange={(e) => {
                             setInput(e.target.value);
+                            setCaret(e.target.selectionStart);
                             trackMention(e.target);
                         }}
-                        onSelect={(e) => trackMention(e.currentTarget)}
+                        onSelect={(e) => {
+                            setCaret(e.currentTarget.selectionStart);
+                            trackMention(e.currentTarget);
+                        }}
+                        onScroll={(e) => {
+                            if (chipLayerRef.current) chipLayerRef.current.scrollTop = e.currentTarget.scrollTop;
+                        }}
                         onBlur={() => setMention(null)}
                         onPaste={onPaste}
                         onDrop={onDrop}
@@ -570,22 +732,31 @@ export function Composer({
                                 }
                                 if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
                                     e.preventDefault();
-                                    runSlashCommand(slashMatches[activeSlashIndex].id);
+                                    pickSlash(slashMatches[activeSlashIndex].id);
                                     return;
                                 }
                                 if (e.key === "Escape") {
                                     e.preventDefault();
-                                    setInput("");
+                                    if (input.startsWith("/") && !/\s/.test(input)) setInput("");
                                     return;
                                 }
                             }
+                            if (e.key === "ArrowUp" && !input && queue.length > 0) {
+                                e.preventDefault();
+                                const last = queue[queue.length - 1];
+                                setEditing({ id: last.id, text: last.content });
+                                return;
+                            }
+                            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                                e.preventDefault();
+                                if (chat.isGenerating) sendWhileGenerating(e.shiftKey ? "now" : "steer");
+                                else handleSubmit();
+                                return;
+                            }
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
-                                if (chat.isGenerating) {
-                                    onStopGeneration();
-                                } else {
-                                    handleSubmit();
-                                }
+                                if (chat.isGenerating) sendWhileGenerating("queue");
+                                else handleSubmit();
                             }
                         }}
                         placeholder={unavailable ?? t(workContext?.searchFiles ? "composerPlaceholderCode" : chat.messages.length > 0 ? "composerReply" : "composerPlaceholder")}
@@ -593,6 +764,7 @@ export function Composer({
                         rows={1}
                         style={{ minHeight: variant === "home" ? "72px" : "48px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
                     />
+                    </div>
 
                     {(notice || fileErrors.length > 0 || attachedFiles.length > 0) && (
                         <div className="px-3 pb-1.5 flex flex-wrap gap-1.5">
@@ -885,4 +1057,18 @@ export function Composer({
             </div>
         </div>
     );
+}
+
+/** The same figures as the context wheel: what the model supports, what it was loaded with, what the reply used. */
+function outOfContextText(
+    info: { loaded: number; modelMax: number | null; used: number; canGrow: boolean } | undefined,
+    t: (key: string) => string,
+): string {
+    if (!info) return t("outOfContextMessage");
+    const fill = (text: string) =>
+        text
+            .replace("{max}", info.modelMax ? formatTokenCount(info.modelMax) : "?")
+            .replace("{loaded}", formatTokenCount(info.loaded))
+            .replace("{used}", formatTokenCount(info.used));
+    return fill(t(info.canGrow ? "outOfContextRoom" : "outOfContextLimit"));
 }

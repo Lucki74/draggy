@@ -17,9 +17,9 @@ const pc = (vram: number, ram: number): SystemSpecs => ({ cpu: "AMD", ram, vram,
 describe("the first download's choices", () => {
   it("offers the splash's own pick with the rung either side of it", () => {
     const plan = planFromSpecs(pc(12, 64), 0);
-    expect(plan.recommended.reference).toBe("mistralai/Ministral-3-14B-Instruct-2512-GGUF:Q4_K_M");
-    expect(plan.lighter?.label).toBe("Gemma 4 12B");
-    expect(plan.stronger?.label).toBe("GPT-OSS 20B");
+    expect(plan.recommended.reference).toBe("unsloth/Qwen3.5-122B-A10B-GGUF:UD-Q3_K_XL");
+    expect(plan.lighter?.label).toBe("Qwen 3.6 35B Q8");
+    expect(plan.stronger?.label).toBe("Qwen 3.5 122B");
     expect(plan.stronger?.fit.tone).toBe("amber");
   });
 
@@ -31,17 +31,26 @@ describe("the first download's choices", () => {
   });
 
   it("has nothing stronger at the top", () => {
+    // The DeepSeek V4.1 rungs above wait on upstream llama.cpp, so they are never offered.
     const plan = planFromSpecs(pc(128, 256), 0);
-    expect(plan.recommended.label).toBe("Qwen 3.5 122B");
+    expect(plan.recommended.label).toBe("GLM-5.3-Flash Q5");
     expect(plan.stronger).toBeUndefined();
-    expect(plan.lighter?.label).toBe("GPT-OSS 120B");
+    expect(plan.lighter?.label).toBe("GLM-5.3-Flash");
   });
 
-  it("leaves out a stronger model the graphics memory cannot run", () => {
-    // Integrated graphics: RAM picks the rung, and the next one up would barely touch the GPU.
-    const plan = planFromSpecs(pc(0.5, 32), 0);
-    expect(plan.recommended.label).toBe("GPT-OSS 20B");
+  it("leaves out a stronger model the memory cannot run", () => {
+    // The next rung is a 61 GB MoE, far past a 16 GB card and 32 GB of RAM together.
+    const plan = planFromSpecs(pc(16, 32), 0);
+    expect(plan.recommended.label).toBe("Qwen 3.8 27B Q3");
     expect(plan.stronger).toBeUndefined();
+  });
+
+  it("reads an MoE's fit from card and RAM together", () => {
+    // Integrated graphics with 32 GB: the card alone would call this model red.
+    const plan = planFromSpecs(pc(0.5, 32), 0);
+    expect(plan.recommended.label).toBe("Qwen 3.6 35B");
+    expect(plan.recommended.fit.tone).toBe("green");
+    expect(plan.lighter?.label).toBe("Gemma 4 26B");
   });
 
   it("marks an option that does not fit on disk, and never refuses when space is unknown", () => {

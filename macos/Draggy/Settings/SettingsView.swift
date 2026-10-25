@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var keyDraft = ""
+    @State private var braveDraft = ""
+    @State private var askingAgy = false
 
     var body: some View {
         Form {
@@ -40,7 +42,7 @@ struct SettingsView: View {
                         Button("Start") { Task { await model.engine.start() } }
                             .disabled(model.engine.isBusy || model.engine.binaryPath.isEmpty || model.engine.modelPath.isEmpty)
                     }
-                    Text(status(model.engine.phase)).foregroundStyle(.secondary).lineLimit(2)
+                    Text(model.engine.loadStage ?? status(model.engine.phase)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
 
@@ -63,9 +65,59 @@ struct SettingsView: View {
                 Toggle("Let the model run commands", isOn: $model.allowCommands)
                     .disabled(model.folderPath.isEmpty)
             }
+
+            Section("Web") {
+                Toggle("Let the model search the web", isOn: $model.webEnabled)
+                Picker("Search engine", selection: $model.searchProvider) {
+                    ForEach(SearchProviderChoice.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .disabled(!model.webEnabled)
+                TextField("SearXNG address", text: $model.searxngURL)
+                    .disabled(!model.webEnabled)
+                SecureField("Brave API key", text: $braveDraft, prompt: Text(model.hasBraveKey() ? String(localized: "Saved in the Keychain") : String(localized: "None")))
+                    .disabled(!model.webEnabled)
+                Button("Save Brave key") {
+                    model.saveBraveKey(braveDraft)
+                    braveDraft = ""
+                }
+                .disabled(!model.webEnabled || braveDraft.isEmpty)
+            }
+
+            Section("Google") {
+                LabeledContent("Antigravity CLI") {
+                    Text(model.agy.status.signedIn ? String(localized: "Signed in") : String(localized: "Not signed in"))
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    if model.agy.status.signedIn {
+                        Button("Sign out") { model.signOutAgy() }
+                    } else {
+                        Button("Sign in") { askingAgy = true }
+                            .disabled(model.agy.isBusy)
+                    }
+                    Button("List models") { Task { await model.agy.listModels() } }
+                        .disabled(!model.agy.status.signedIn || model.agy.isBusy)
+                }
+                Toggle("Chat through Antigravity", isOn: $model.agyEnabled)
+                    .disabled(!model.agy.status.signedIn)
+                TextField("Antigravity model", text: $model.agyModel)
+                    .disabled(!model.agy.status.signedIn)
+                if !model.agy.modelNames.isEmpty {
+                    Text(model.agy.modelNames.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                }
+                if let error = model.agy.errorMessage {
+                    Text(error).font(.callout).foregroundStyle(.red)
+                }
+            }
         }
         .padding()
         .frame(width: 480)
+        .alert("Before you sign in", isPresented: $askingAgy) {
+            Button("Cancel", role: .cancel) {}
+            Button("I accept the risk", role: .destructive) { Task { await model.agy.signIn() } }
+        } message: {
+            Text(AgyModel.termsWarning)
+        }
     }
 
     private func pathRow(
@@ -109,6 +161,31 @@ struct SettingsView: View {
         panel.prompt = String(localized: "Choose")
         if panel.runModal() == .OK, let url = panel.url {
             model.folderPath = url.path
+        }
+    }
+}
+
+/// The search engines a user can pick, as the core names them. The empty id lets the core choose.
+enum SearchProviderChoice: String, CaseIterable, Identifiable {
+    case automatic = ""
+    case searxng
+    case brave
+    case duckduckgo
+    case startpage
+    case duckduckgoLite = "duckduckgo-lite"
+    case braveHTML = "brave-html"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: String(localized: "Automatic")
+        case .searxng: "SearXNG"
+        case .brave: "Brave API"
+        case .duckduckgo: "DuckDuckGo"
+        case .startpage: "Startpage"
+        case .duckduckgoLite: "DuckDuckGo Lite"
+        case .braveHTML: "Brave web"
         }
     }
 }

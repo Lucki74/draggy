@@ -284,10 +284,6 @@ pub(crate) mod memory {
     }
 
     impl MemFs {
-        pub fn has_file(&self, path: &str) -> bool {
-            self.files.contains_key(&key(path))
-        }
-
         pub fn is_executable(&self, path: &str) -> bool {
             self.executable.contains(&key(path))
         }
