@@ -40,6 +40,7 @@ export default function TerminalPane({ workspaceId, t, defaultShell }: TerminalP
   const activeId = activeSessionId(workspaceId);
   const current = tabs.find((tab) => tab.id === activeId) ?? null;
   const claimed = useRef(false);
+  const starting = useRef(false);
   const defaultRef = useRef(defaultShell);
   useEffect(() => {
     defaultRef.current = defaultShell;
@@ -92,7 +93,13 @@ export default function TerminalPane({ workspaceId, t, defaultShell }: TerminalP
   }, [workspaceId]);
 
   useEffect(() => {
-    if (!unavailable && tabs.length === 0 && !claimed.current) void open();
+    // Strict mode runs this twice before the first shell exists, so a ref guards the open.
+    if (!unavailable && tabs.length === 0 && !claimed.current && !starting.current) {
+      starting.current = true;
+      void open().finally(() => {
+        starting.current = false;
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a first shell opens once per workspace
   }, [workspaceId, unavailable]);
 

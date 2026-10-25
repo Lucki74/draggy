@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TerminalPane from "../terminal/TerminalPane";
@@ -78,6 +79,17 @@ describe("the terminal pane", () => {
     await waitFor(() => expect(shell.open).toHaveBeenCalledWith("w1", { shell: undefined, defaultShell: undefined }));
     await waitFor(() => expect(shell.resize).toHaveBeenCalledWith("pty-1", 90, 25));
     expect(screen.getAllByRole("tab")).toHaveLength(1);
+  });
+
+  it("opens one shell under strict mode", async () => {
+    render(
+      <StrictMode>
+        <TerminalPane workspaceId="w1" t={t} defaultShell="auto" />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(1));
+    expect(shell.open).toHaveBeenCalledTimes(1);
   });
 
   it("shows output and marks a shell that ended", async () => {
