@@ -850,10 +850,10 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleShortcuts);
   }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode, viewMode, updateDockLayout, currentDockLayout]);
 
-  // Ctrl+` shows the terminal, as in code editors.
+  // Ctrl+Shift+T shows the terminal; the backtick needs AltGr on AZERTY.
   useEffect(() => {
     const handleTerminal = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key !== "`" || !active.rootPath) return;
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || !e.shiftKey || e.key.toLowerCase() !== "t" || !active.rootPath) return;
       e.preventDefault();
       handleOpenTerminal();
     };
@@ -977,7 +977,7 @@ export default function AppShell({
               label: t("terminal"),
               category: t("paletteSectionPanes"),
               icon: "terminal-window" as const,
-              shortcut: "Ctrl+`",
+              shortcut: "Ctrl+Shift+T",
               onSelect: () => {
                 setPaletteOpen(false);
                 handleOpenTerminal();
