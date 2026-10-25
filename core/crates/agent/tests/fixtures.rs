@@ -153,11 +153,17 @@ fn dialect(input: &Value) -> draggy_agent::command_rules::Dialect {
 
 fn command_rules(input: &Value) -> Value {
     match op(input) {
-        "segments" => json!(command_segments(optional(&input["command"]), dialect(input))),
+        "segments" => json!(command_segments(
+            optional(&input["command"]),
+            dialect(input)
+        )),
         "prefix" => json!(command_prefix(
             input["segment"].as_str().unwrap_or_default()
         )),
-        "targets" => json!(command_grant_targets(optional(&input["command"]), dialect(input))),
+        "targets" => json!(command_grant_targets(
+            optional(&input["command"]),
+            dialect(input)
+        )),
         "covered" => json!(command_covered(
             &string_list(&input["allowed"]),
             optional(&input["command"]),

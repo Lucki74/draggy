@@ -245,12 +245,13 @@ function spawnPty(file, args, options = {}) {
   return pty.spawn(file, args, { name: "xterm-256color", cols: 80, rows: 24, ...options, useConpty: true });
 }
 
-/** Kills a PTY shell and everything it started. */
+/** Kills a PTY shell and everything it started. On Windows node-pty kills every process on the
+ * console itself, and killing the tree first leaves it nothing to attach to ("AttachConsole failed"). */
 function killPty(terminal, sync = false) {
   if (!terminal) return;
   const child = { pid: terminal.pid, exitCode: null, signalCode: null };
   try {
-    (sync ? killTreeSync : killTree)(child);
+    if (!IS_WINDOWS) (sync ? killTreeSync : killTree)(child);
     terminal.kill();
   } catch (error) {
     log.swallow("proc.pty", error, "the shell is already gone");
