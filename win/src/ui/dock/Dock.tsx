@@ -30,7 +30,6 @@ const DEFAULT_PANE_ICONS: Partial<Record<PaneId, IconName>> = {
   files: "folder-simple",
   diff: "git-diff",
   browser: "globe-simple",
-  usage: "chart-bar",
 };
 
 /** Secondary column hosting active implementation plans, diffs, files and canvases. */

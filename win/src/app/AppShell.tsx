@@ -811,9 +811,8 @@ export default function AppShell({
     t,
   });
 
-  const handleOpenUsage = useCallback(() => {
-    updateDockLayout(openPane(currentDockLayout, "usage"));
-  }, [currentDockLayout, updateDockLayout]);
+  // The context wheel's usage link opens the Statistics page in Settings.
+  const handleOpenUsage = useCallback(() => openSettings("usage"), [openSettings]);
 
   // A link clicked anywhere in the app loads in the Browser pane; main asks for the pane to show.
   const openBrowserRef = useRef(handleOpenBrowser);
@@ -1009,16 +1008,6 @@ export default function AppShell({
           ]
         : []),
       {
-        id: "pane-usage",
-        label: t("usage"),
-        category: t("paletteSectionPanes"),
-        icon: "chart-bar",
-        onSelect: () => {
-          setPaletteOpen(false);
-          handleOpenUsage();
-        },
-      },
-      {
         id: "pane-plan",
         label: t("plan"),
         category: t("paletteSectionPanes"),
@@ -1096,7 +1085,6 @@ export default function AppShell({
     handleOpenFiles,
     handleOpenDiff,
     handleOpenBrowser,
-    handleOpenUsage,
     handleOpenTerminal,
     openShell,
     active.rootPath,
@@ -1348,7 +1336,6 @@ export default function AppShell({
               hasPlan={hasPlan}
               planItems={currentSession?.plan}
               isRunning={runs.running.includes(currentChatId!)}
-              chatId={currentChatId}
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}

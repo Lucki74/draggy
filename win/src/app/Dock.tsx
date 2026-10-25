@@ -6,7 +6,6 @@ import DiffPane from "../diff/DiffPane";
 import FilesPane from "../files/FilesPane";
 import BrowserPane from "../browser/BrowserPane";
 import TerminalPane from "../terminal/TerminalPane";
-import StatsPanel from "../stats/StatsPanel";
 import { baseName, isInsideRoot, relativePath } from "../files/tree";
 import type { ShellId } from "../terminal/shells";
 import { allSessions, availableShells, closeSession, sessionLabels, shellName, subscribeSessions } from "../terminal/terminalSessions";
@@ -35,8 +34,6 @@ export interface DockProps {
   isRunning: boolean;
   width: number;
   workspaceId: string;
-  /** The open chat, whose usage the Usage pane shows. */
-  chatId?: string | null;
   rootPath?: string | null;
   /** Opens a new shell as a tab; the + button offers the shells installed here. */
   onNewShell?: (shell: ShellId) => void;
@@ -65,7 +62,6 @@ export function Dock({
   isRunning,
   width,
   workspaceId,
-  chatId,
   rootPath,
   onNewShell,
   gitStatus,
@@ -154,7 +150,6 @@ export function Dock({
       diff: t("diffPane"),
       files: t("projectFiles"),
       browser: t("browser"),
-      usage: t("usage"),
     };
     const labels = sessionLabels(workspaceId);
     for (const pane of layout.panes) {
@@ -238,13 +233,6 @@ export function Dock({
       if (pane === "browser") {
         return <BrowserPane t={t} />;
       }
-      if (pane === "usage") {
-        return (
-          <div className="h-full overflow-y-auto p-4">
-            <StatsPanel t={t} chatId={chatId ?? null} />
-          </div>
-        );
-      }
       return null;
     },
     [
@@ -259,7 +247,6 @@ export function Dock({
       layout,
       onLayoutChange,
       workspaceId,
-      chatId,
       rootPath,
       gitStatus,
       layout.diffFile,

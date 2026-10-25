@@ -1,6 +1,6 @@
 /** One tab per open file is `file:<path>`; the bare "file" is the single-file tab older layouts saved.
  * One tab per shell is `terminal:<session id>`. */
-export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | "usage" | `terminal:${string}`;
+export type PaneId = "plan" | "file" | `file:${string}` | "files" | "diff" | "browser" | `terminal:${string}`;
 
 export function terminalPane(sessionId: string): PaneId {
   return `terminal:${sessionId}`;
