@@ -262,7 +262,7 @@ export function parseTokenCount(raw: string): number | null | undefined {
 export function formatTokenCount(tokens: number): string {
   const value = Math.max(0, Math.round(tokens));
 
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (value >= 999_500) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (value >= 100_000) return `${Math.round(value / 1000)}k`;
   if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
   return String(value);
