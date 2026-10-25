@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /** Counts catch blocks that swallow an error without a word: empty, or only a comment, and
- * `.catch(() => {})`. `node scripts/silentCatches.cjs` lists them per file. */
+ * `.catch(() => {})`. A block whose comment starts with `silent-ok:` is a reviewed exception
+ * (the logger files cannot log their own failures) and is not counted.
+ * `node scripts/silentCatches.cjs` lists them per file. */
 const fs = require("fs");
 const path = require("path");
 
@@ -28,7 +30,8 @@ function countSilentCatches(root = ROOT) {
     if (!fs.existsSync(dir)) continue;
     for (const file of sourceFiles(dir)) {
       const text = fs.readFileSync(file, "utf8");
-      const n = (text.match(BLOCK) || []).length + (text.match(PROMISE) || []).length;
+      const blocks = (text.match(BLOCK) || []).filter((block) => !block.includes("silent-ok:"));
+      const n = blocks.length + (text.match(PROMISE) || []).length;
       if (n) counts[path.relative(root, file).split(path.sep).join("/")] = n;
     }
   }

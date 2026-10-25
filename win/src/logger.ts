@@ -318,6 +318,6 @@ export function installGlobalHandlers(target: Window = window): void {
     });
     observer.observe({ entryTypes: ["longtask"] });
   } catch {
-    // longtask entries are not available in every renderer
+    // silent-ok: longtask entries are not available in every renderer
   }
 }
