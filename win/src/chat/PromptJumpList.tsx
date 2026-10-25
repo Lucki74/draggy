@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 /** Past this many prompts a session is long enough to need a way back to an earlier one. */
 export const JUMP_LIST_MIN_PROMPTS = 8;
 
@@ -19,10 +21,21 @@ export function PromptJumpList({
   onJump: (id: string) => void;
   t: (key: string) => string;
 }) {
+  const list = useRef<HTMLElement>(null);
+
+  // More ticks than fit scroll, so keep the one for the prompt on screen centred as the chat moves.
+  useEffect(() => {
+    const nav = list.current;
+    const tick = nav?.querySelector<HTMLElement>("[aria-current]")?.parentElement;
+    if (!nav || !tick || nav.scrollHeight <= nav.clientHeight) return;
+    nav.scrollTop = tick.offsetTop - (nav.clientHeight - tick.offsetHeight) / 2;
+  }, [current, prompts.length]);
+
   if (prompts.length < JUMP_LIST_MIN_PROMPTS) return null;
 
   return (
     <nav
+      ref={list}
       aria-label={t("yourPrompts")}
       className="absolute end-5 top-10 bottom-14 w-6 flex flex-col overflow-y-auto [scrollbar-width:none]"
     >

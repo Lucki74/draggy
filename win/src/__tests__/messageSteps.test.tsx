@@ -235,7 +235,7 @@ describe("a file the model wrote", () => {
 });
 
 describe("an edited file step", () => {
-  it("renders Open diff action and opens diff pane on click", () => {
+  it("shows a deleted file as its own kind, with no actions on the row", () => {
     const onOpenDiff = vi.fn();
     render(
       <OpenDiffContext.Provider value={onOpenDiff}>
@@ -244,8 +244,10 @@ describe("an edited file step", () => {
             {
               id: "s1",
               type: "edit_file",
-              content: "Edited **format.ts**",
+              content: "Deleted **format.ts**",
               filepath: "/project/format.ts",
+              checkpointId: 3,
+              change: "deleted",
               isComplete: true,
             },
           ])}
@@ -262,12 +264,13 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
-    // A lone step sits in its work group too, closed until opened.
-    fireEvent.click(screen.getByRole("button", { name: "Edited 1 file" }));
-    const diffBtn = screen.getByRole("button", { name: "Open changes" });
-    expect(diffBtn).toBeTruthy();
-    diffBtn.click();
-    expect(onOpenDiff).toHaveBeenCalledWith("/project/format.ts");
+    // A lone step shows as its own row, with no group to open.
+    expect(screen.queryByRole("button", { name: "Deleted 1 file" })).toBeNull();
+    expect(screen.getByText("format.ts")).toBeTruthy();
+    for (const name of ["Open changes", "Open", "Undo"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(onOpenDiff).not.toHaveBeenCalled();
   });
 });
 

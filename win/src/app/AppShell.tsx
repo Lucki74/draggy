@@ -18,13 +18,12 @@ import { MEMORY_NAMES } from "../project/memory";
 import { draftProjectMemory } from "../project/scan";
 import { setUiLanguage, useTranslator } from "../i18n";
 import { AnswerQuestionContext } from "../chat/questionContext";
+import type { ComposerQueue } from "../chat/Composer";
 import { logBreadcrumb, swallowed } from "../logger";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
-import { listInstalledModels, warmModel } from "../llama";
-import { useEngineLoaded } from "./useEngineLoaded";
+import { listInstalledModels } from "../llama";
 import { isRemote } from "../ai/providers";
-import { KEEP_ALIVE } from "../agent/agentLoop";
 import { unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
@@ -270,10 +269,10 @@ export default function AppShell({
         return;
       }
 
+      // The model loads on the first message sent, never on a switch.
       updateSettings({ codeModel: name });
-      if (!isRemote(name)) warmModel(name, KEEP_ALIVE, 0, settings.fixedContextSize).catch(swallowed("app", "warming a model is best effort"));
     },
-    [mode, onSelectModel, updateSettings, settings.fixedContextSize, rememberGeneration],
+    [mode, onSelectModel, updateSettings, rememberGeneration],
   );
 
   useEffect(() => {
@@ -373,7 +372,6 @@ export default function AppShell({
     patchActiveMessage: store.patchActiveMessage,
   });
   // Read again when a reply starts or ends, which is when a model gets loaded.
-  const engineLoaded = useEngineLoaded(turnModel, runs.running.length);
 
   useEffect(() => {
     const chatId = proceedChatRef.current;
@@ -608,6 +606,20 @@ export default function AppShell({
     : selectedChatId;
 
   const measureConversation = runs.measure;
+  const queueChatId = currentChatId ?? null;
+  const composerQueue: ComposerQueue | undefined = queueChatId
+    ? {
+        chatId: queueChatId,
+        queue: runs.queues[queueChatId] ?? [],
+        enqueue: (content, attachments) => runs.enqueue(queueChatId, content, attachments),
+        steer: (content) => runs.steer(queueChatId, content),
+        sendNow: (content, attachments) => runs.sendNow(queueChatId, content, attachments),
+        editQueued: (id, content) => runs.editQueued(queueChatId, id, content),
+        removeQueued: (id) => runs.removeQueued(queueChatId, id),
+        moveQueued: (id, offset) => runs.moveQueued(queueChatId, id, offset),
+        sendQueuedNow: (id) => runs.sendQueuedNow(queueChatId, id),
+      }
+    : undefined;
   const measureContext = useCallback(
     (
       draft: string,
@@ -1253,10 +1265,6 @@ export default function AppShell({
           open={sidebarOpen}
           onToggleOpen={toggleSidebar}
           onOpenPalette={() => setPaletteOpen(true)}
-          engineModel={turnModel}
-          engineState={
-            runs.running.includes(currentChatId!) ? "generating" : engineLoaded ? "ready" : "stopped"
-          }
         />
 
         <MainColumn
@@ -1297,6 +1305,7 @@ export default function AppShell({
           onInitProject={draftProject}
           onCompact={() => runs.compact(currentChatId!)}
           onImageCommand={(argument, attachments) => runs.image(currentChatId!, argument, attachments)}
+          composerQueue={composerQueue}
           onOpenUsage={handleOpenUsage}
           onMeasureContext={measureContext}
           onSelectModel={selectModelHere}

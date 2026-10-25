@@ -318,6 +318,8 @@ export interface AgentHost {
   getPlan?: () => PlanItem[] | null;
   /** Speed and context as the turn runs, a few times a second. */
   onLive?: (live: LiveTurn) => void;
+  /** Notes the user typed while the turn ran, handed over once each before every model request. */
+  takeSteering?: () => string[];
 }
 
 export interface AgentResult {
@@ -1081,6 +1083,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       lastSeenPlan = livePlan;
     }
 
+    // A note typed mid-turn reaches the model at the next request, not after the whole task.
+    const steering = host.takeSteering?.() ?? [];
+    for (const note of steering) {
+      steps.push({ id: generateId(), type: "steer", content: note, isComplete: true });
+      wire.push({ role: "user", content: note });
+    }
+    if (steering.length > 0) host.onSteps([...steps]);
+
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();
     if (signal.aborted) {
@@ -1330,6 +1340,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             if (thinkStartTime === null) thinkStartTime = performance.now();
             thinkingText += thinkingAdded;
           }
+          // A tool call ends the reasoning just as reply text does; the timer stops there.
+          if (toolAdded && nativeThinking && thinkStartTime !== null && thoughtTime === null) {
+            thoughtTime = (performance.now() - thinkStartTime) / 1000;
+          }
 
           if (added) {
             logStreamChunk(added, correlationId);
@@ -1371,14 +1385,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             }
           }
 
-          // Live feedback while the model generates a file.
+          // Live feedback while the model generates a file for the user. Project writes stay one row each.
           let streamingCallStr: string | null = null;
           if (parsed.message?.streaming_tool_calls) {
-            const fileCall = parsed.message.streaming_tool_calls.find(
-              (t) => t.name === "create_file" || t.name === "write_file",
-            );
+            const fileCall = parsed.message.streaming_tool_calls.find((t) => t.name === "create_file");
             if (fileCall?.argsString) streamingCallStr = fileCall.argsString;
-          } else if (rawChunk.includes("create_file") || rawChunk.includes("write_file")) {
+          } else if (rawChunk.includes("create_file")) {
             streamingCallStr = rawChunk;
           }
 
@@ -1444,6 +1456,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
                 (thinkStartTime !== null
                   ? (performance.now() - thinkStartTime) / 1000
                   : undefined),
+              ...(thoughtTime !== null ? { isComplete: true } : {}),
             });
 
             // The reply body only ever holds text from passes that are already

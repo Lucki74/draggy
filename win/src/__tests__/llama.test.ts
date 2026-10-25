@@ -56,7 +56,7 @@ describe("context budgeting", () => {
   });
 
   it("caps automatic bucket selection at the maximum local context bucket", () => {
-    expect(pickContextSize(1_000_000, 262144)).toBe(131072);
+    expect(pickContextSize(10_000_000, 1048576)).toBe(262144);
   });
 
 

@@ -379,7 +379,9 @@ export interface SearchStep {
     /** A tool borrowed from an MCP server, so the timeline shows those too. */
     | "extension"
     /** A picture made by the local image engine, shown as a card. */
-    | "image";
+    | "image"
+    /** A note the user added while the turn ran, handed to the model at its next step. */
+    | "steer";
   content: string;
   thoughtTime?: number;
   isComplete?: boolean;
@@ -401,6 +403,8 @@ export interface SearchStep {
   checkpointId?: number;
   before?: string;
   after?: string;
+  /** On an "edit_file" step: the file was new, moved or deleted rather than changed. */
+  change?: "created" | "moved" | "deleted";
   /** On an "app" step: the widget an extension returned, and who sent it. */
   app?: { serverId: string; html: string };
   /** On an "approval" step: the call the user is being asked about. */
@@ -690,10 +694,26 @@ export interface MessageVersion {
   metrics?: TurnMetrics | null;
   /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
   provider_state?: ProviderState;
-  /** The turn ended in an error; content holds the reason. */
+  /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
-  /** When a turn fails after text was generated, the error description is preserved here. */
   error?: string;
+  errorKind?: TurnErrorKind;
+  /** The user stopped this reply; what it had written is kept. */
+  stopped?: boolean;
+  /** On a user message's earlier wording. */
+  attachments?: Attachment[];
+  /** The conversation that followed this version, put back when it is shown again. */
+  tail?: Message[];
+}
+
+/** Why a turn failed, which decides what the failure offers. */
+export type TurnErrorKind = "engine" | "memory" | "network" | "rate-limit" | "context" | "unknown";
+
+/** A message written while a turn ran, sent when it ends. */
+export interface QueuedMessage {
+  id: string;
+  content: string;
+  attachments?: Attachment[];
 }
 
 export interface Message {
@@ -710,10 +730,16 @@ export interface Message {
   metrics?: TurnMetrics | null;
   fold?: FoldMarker;
   provider_state?: ProviderState;
-  /** The turn ended in an error; content holds the reason. */
+  /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
-  /** When a turn fails after text was generated, the error description is preserved here. */
   error?: string;
+  errorKind?: TurnErrorKind;
+  /** The user stopped this reply; what it had written is kept. */
+  stopped?: boolean;
+  /** The app closed while this reply was being written. */
+  interrupted?: boolean;
+  /** The conversation after the newest version, kept while an older version is shown. */
+  tail?: Message[];
 }
 
 /** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what
@@ -1301,7 +1327,7 @@ declare global {
           path: string,
           contents: string,
           chatId?: string,
-        ) => Promise<FileWriteResult>;
+        ) => Promise<FileWriteResult & { before?: string; after?: string }>;
         edit: (
           workspaceId: string,
           path: string,

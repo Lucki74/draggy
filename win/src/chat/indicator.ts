@@ -7,9 +7,9 @@ function showsItself(step: SearchStep): boolean {
   return !step.isComplete && !(step.type === "thinking" && !step.content);
 }
 
-/** The mark under a reply that has begun but has nothing visible yet. */
-export function showsTailMark(steps: SearchStep[], text: string, isGenerating: boolean, isLast: boolean): boolean {
-  return text === "" && isGenerating && isLast && !steps.some(showsItself);
+/** The mark under a busy reply when no running step shows its own. */
+export function showsTailMark(steps: SearchStep[], isGenerating: boolean, isLast: boolean): boolean {
+  return isGenerating && isLast && !steps.some(showsItself);
 }
 
 /** A collapsed work group stands in for its running steps; an open one lets them show their own. */

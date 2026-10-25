@@ -60,8 +60,9 @@ describe("finished reasoning", () => {
 
 describe("a finished work group", () => {
   const group = (
-    <WorkGroup steps={[read]} active={false} language="en" t={t}>
+    <WorkGroup steps={[read, read]} active={false} language="en" t={t}>
       <p>step detail</p>
+      <p>second detail</p>
     </WorkGroup>
   );
 

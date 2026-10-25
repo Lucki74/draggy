@@ -452,14 +452,8 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
         }
       }
     } finally {
-      if (tookChatMemory && pending <= 1 && info.reloadChatModel) {
-        stopSync();
-        try {
-          await info.reloadChatModel();
-        } catch (err) {
-          defaultLog.swallow("sd", err, "reloading chat model after image generation");
-        }
-      }
+      // The image engine gives the memory back; the chat model loads again only on the next message.
+      if (tookChatMemory && pending <= 1) stopSync();
     }
   });
 
