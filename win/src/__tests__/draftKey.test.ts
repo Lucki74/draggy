@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { draftKeyFor } from "../chat/useChatSession";
-import type { ChatMessage } from "../types";
+import type { Message } from "../types";
 
 describe("where a draft is kept", () => {
   it("shares one key per mode until the first message is sent", () => {
@@ -10,6 +10,6 @@ describe("where a draft is kept", () => {
   });
 
   it("keys a chat with messages by its id", () => {
-    expect(draftKeyFor({ id: "a", messages: [{} as ChatMessage] }, "chat")).toBe("draft_a");
+    expect(draftKeyFor({ id: "a", messages: [{} as Message] }, "chat")).toBe("draft_a");
   });
 });
