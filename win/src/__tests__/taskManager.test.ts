@@ -379,6 +379,35 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")?.outOfContextInfo).toBeUndefined();
   });
 
+  it("resumes a reply the context cut at the next window without a button", async () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+    const model = host.getModel() as string;
+    forgetContextSize(model);
+
+    manager.send("chat-1", "long question");
+    pending[0].host.onOutOfContext(true, { loaded: 4096, modelMax: 32768, used: 4000, canGrow: true });
+    pending[0].resolve({ ...finished(), outOfContext: true });
+
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(pending[1].request.isContinuation).toBe(true);
+    expect(contextSizeFor(model, 100, 32768)).toBe(8192);
+  });
+
+  it("stops auto-resuming when the window cannot grow", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+    forgetContextSize(host.getModel() as string);
+
+    manager.send("chat-1", "long question");
+    pending[0].host.onOutOfContext(true, { loaded: 4096, modelMax: 4096, used: 4000, canGrow: false });
+    pending[0].resolve({ ...finished(), outOfContext: true });
+
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+    expect(pending).toHaveLength(1);
+    expect(sessions.get("chat-1")?.isOutOfContext).toBe(true);
+  });
+
   it("preserves generated text, steps, and records error when turn fails mid-stream", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);

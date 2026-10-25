@@ -3808,6 +3808,22 @@ ipc.handle("diagnostics:export", async (_event, choices) => {
   shell.showItemInFolder(picked.filePath);
   return { saved: true, ...result };
 });
+/* The renderer builds the file; main only asks where to put it, so nothing reaches disk unpicked. */
+ipc.handle("chat:export", async (_event, request) => {
+  const ext = request?.ext === "html" ? "html" : "md";
+  const content = typeof request?.content === "string" ? request.content : "";
+  // Control characters are exactly what a file name cannot hold.
+  // eslint-disable-next-line no-control-regex
+  const name = String(request?.defaultName || "Conversation").replace(/[<>:"/\\|?*\u0000-\u001f]/g, " ").trim();
+  const filters = ext === "html" ? [{ name: "HTML", extensions: ["html"] }] : [{ name: "Markdown", extensions: ["md"] }];
+  const picked = await dialog.showSaveDialog(mainWindow, { defaultPath: path.join(app.getPath("documents"), name || `Conversation.${ext}`), filters });
+  if (picked.canceled || !picked.filePath) return { saved: false };
+  const target = picked.filePath.toLowerCase().endsWith(`.${ext}`) ? picked.filePath : `${picked.filePath}.${ext}`;
+  await fs.promises.writeFile(target, content, "utf8");
+  log.info("files", "chat exported", { format: ext, bytes: Buffer.byteLength(content, "utf8") });
+  shell.showItemInFolder(target);
+  return { saved: true, file: target, bytes: Buffer.byteLength(content, "utf8") };
+});
 ipc.handle("diagnostics:crash-notice", () => {
   const show = previousSessionCrashed;
   previousSessionCrashed = false;

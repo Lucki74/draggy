@@ -1,4 +1,4 @@
-import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, nextContextSize, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
@@ -14,6 +14,7 @@ import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
 import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
+import { autoContinueWindow } from "./autoContinue";
 import { defaultProjectPath, parseImageCommand } from "../images/imageCommand";
 import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
 import { imageFailure } from "../ai/engineErrors";
@@ -734,8 +735,15 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         const othersWaiting = waitingTurn.length > 0;
         if (!controller.signal.aborted) {
           host.onFinished?.(chatId);
-          // Another chat asked first, so this chat's own queue goes behind it.
-          if (othersWaiting) {
+          // A reply the context cut resumes at the next window up, ahead of queued messages.
+          const cutSession = failed ? undefined : host.getSession(chatId);
+          const cut = cutSession?.isOutOfContext ? cutSession.outOfContextInfo : undefined;
+          if (cutSession && cut && model && autoContinueWindow(cut, nextContextSize(model, cut.modelMax, cut.loaded)) !== null) {
+            growWindow(chatId, model, cut);
+            dismissOutOfContext(chatId);
+            void run(chatId, cutSession.messages, { isContinuation: true });
+          } else if (othersWaiting) {
+            // Another chat asked first, so this chat's own queue goes behind it.
             if (!failed && queueOf(chatId).length > 0) waitForTurn(chatId);
           } else if (failed || !dispatchNext(chatId)) void compactChat(chatId, false);
         }
@@ -1083,6 +1091,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     });
   }
 
+  /** Raises the window the next load uses, so the cut reply is not cut again at the same size. */
+  function growWindow(chatId: string, model: string, cut: OutOfContextInfo) {
+    const grown = growContext(model, cut.modelMax, cut.loaded);
+    logRendererEvent("chat", "INFO", "context grown to continue", { chatId, from: cut.loaded, to: grown, max: cut.modelMax });
+  }
+
   function dismissOutOfContext(chatId: string) {
     host.updateSession(chatId, (s) => ({ ...s, isOutOfContext: false, outOfContextInfo: undefined }));
   }
@@ -1094,10 +1108,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     // The same window would cut the reply again, so the next load goes one size up.
     const cut = session.outOfContextInfo;
     const model = host.getModel();
-    if (cut?.canGrow && model) {
-      const grown = growContext(model, cut.modelMax, cut.loaded);
-      logRendererEvent("chat", "INFO", "context grown to continue", { chatId, from: cut.loaded, to: grown, max: cut.modelMax });
-    }
+    if (cut?.canGrow && model) growWindow(chatId, model, cut);
     dismissOutOfContext(chatId);
     void run(chatId, session.messages, { isContinuation: true });
   }

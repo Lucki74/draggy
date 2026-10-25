@@ -353,6 +353,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     export: (choices) => ipcRenderer.invoke("diagnostics:export", choices),
     crashNotice: () => ipcRenderer.invoke("diagnostics:crash-notice"),
   },
+  exportChat: (request) => ipcRenderer.invoke("chat:export", request),
   logEntry: (entry) => ipcRenderer.send("logs:write", entry),
   logBatch: (entries) => ipcRenderer.send("logs:batch", entries),
 

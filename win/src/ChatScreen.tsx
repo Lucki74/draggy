@@ -258,7 +258,6 @@ export default function ChatScreen({
       t={t}
       onSendMessage={onSendMessage}
       onStopGeneration={onStopGeneration}
-      onContinueGeneration={onContinueGeneration}
       onDismissOutOfContext={onDismissOutOfContext}
       onSelectModel={onSelectModel}
       onOpenSettings={onOpenSettings}
