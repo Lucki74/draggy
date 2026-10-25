@@ -848,6 +848,17 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleShortcuts);
   }, [handleOpenFiles, handleOpenDiff, handleOpenBrowser, handleSwitchMode, enterMode, mode]);
 
+  // Ctrl+` shows the terminal, as in code editors.
+  useEffect(() => {
+    const handleTerminal = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key !== "`" || !active.rootPath) return;
+      e.preventDefault();
+      handleOpenTerminal();
+    };
+    window.addEventListener("keydown", handleTerminal);
+    return () => window.removeEventListener("keydown", handleTerminal);
+  }, [active.rootPath, handleOpenTerminal]);
+
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {
     const handleClosePane = (e: KeyboardEvent) => {
@@ -957,6 +968,46 @@ export default function AppShell({
           handleOpenBrowser();
         },
       },
+      ...(active.rootPath
+        ? [
+            {
+              id: "pane-terminal",
+              label: t("terminal"),
+              category: t("paletteSectionPanes"),
+              icon: "terminal-window" as const,
+              shortcut: "Ctrl+`",
+              onSelect: () => {
+                setPaletteOpen(false);
+                handleOpenTerminal();
+              },
+            },
+            {
+              id: "pane-terminal-new",
+              label: t("terminalNew"),
+              category: t("paletteSectionPanes"),
+              icon: "plus" as const,
+              onSelect: () => {
+                setPaletteOpen(false);
+                void openShell();
+              },
+            },
+          ]
+        : []),
+      ...(currentDockLayout.active
+        ? [
+            {
+              id: "pane-close",
+              label: t("closePane"),
+              category: t("paletteSectionPanes"),
+              icon: "x" as const,
+              shortcut: "Ctrl+\\",
+              onSelect: () => {
+                setPaletteOpen(false);
+                if (currentDockLayout.active) updateDockLayout(closePane(currentDockLayout, currentDockLayout.active));
+              },
+            },
+          ]
+        : []),
       {
         id: "pane-usage",
         label: t("usage"),
@@ -1046,6 +1097,9 @@ export default function AppShell({
     handleOpenDiff,
     handleOpenBrowser,
     handleOpenUsage,
+    handleOpenTerminal,
+    openShell,
+    active.rootPath,
     updateDockLayout,
     currentDockLayout,
     openSettings,

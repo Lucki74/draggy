@@ -50,6 +50,8 @@ export function ShortcutsSheet({ open, onClose, t }: ShortcutsSheetProps) {
         { label: t("files"), keys: [`${mod}+Shift+F`] },
         { label: t("diffPane"), keys: [`${mod}+Shift+D`] },
         { label: t("browser"), keys: [`${mod}+Shift+B`] },
+        { label: t("terminal"), keys: [`${mod}+\``] },
+        { label: t("closePane"), keys: [`${mod}+\\`] },
         { label: t("talk"), keys: [`${mod}+Shift+Space`] },
       ],
     },
