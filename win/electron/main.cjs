@@ -49,6 +49,8 @@ const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
+const { createShellHost } = require("./shellHost.cjs");
+const shellHost = createShellHost();
 const { flushWindow, closeLogs } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
@@ -1266,6 +1268,7 @@ function shutdown() {
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
+    ["terminals", () => shellHost.stopAll()],
     ["llama", () => llamaProcess.stopServerSync()],
     ["colibri", () => {
       saveColibriUsage();
@@ -3319,12 +3322,50 @@ ipc.handle(
       shell: options?.shell,
       defaultShell: options?.defaultShell,
       timeoutMs: options?.timeoutMs,
+      onOutput: (chunk) => sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk }),
     });
   }),
 );
 
 ipc.handle("commands:cancel", wrap("commands", async (event, runId) => ({
   success: commands.cancel(String(runId || "")),
+})));
+
+// Terminals are the user's own shells. The renderer names a workspace and gets an id minted here; a
+// window can only write to, resize or close the ones it opened.
+ipc.handle(
+  "shell:open",
+  wrap("shell", async (event, workspaceId, options) => {
+    const root = rootsFor(workspaceId)[0];
+    if (!root) return { success: false, error: "Terminals open inside a project, and this conversation has none." };
+
+    const owner = event.sender.id;
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = shellHost.open({
+      owner,
+      cwd: root,
+      shell: options?.shell,
+      defaultShell: options?.defaultShell,
+      cols: options?.cols,
+      rows: options?.rows,
+      onData: (id, data) => sendTo(win, "shell:data", { id, data }),
+      onExit: (id, code) => sendTo(win, "shell:exit", { id, exitCode: code }),
+    });
+    if (result.success) event.sender.once("destroyed", () => shellHost.closeOwner(owner));
+    return result;
+  }),
+);
+
+ipc.on("shell:write", (event, id, data) => {
+  shellHost.write(String(id), event.sender.id, data);
+});
+
+ipc.handle("shell:resize", wrap("shell", async (event, id, cols, rows) => ({
+  success: shellHost.resize(String(id), event.sender.id, cols, rows),
+})));
+
+ipc.handle("shell:close", wrap("shell", async (event, id) => ({
+  success: shellHost.close(String(id), event.sender.id),
 })));
 
 ipc.handle("runner:probe", wrap("runner", async () => ({

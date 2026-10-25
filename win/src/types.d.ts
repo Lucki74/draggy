@@ -1422,6 +1422,21 @@ declare global {
           options?: { shell?: string; defaultShell?: string; timeoutMs?: number },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;
+        /** Output of a running command as it arrives. */
+        onOutput: (callback: (event: { runId: string; chunk: string }) => void) => () => void;
+      };
+
+      shell: {
+        /** Opens an interactive shell in the workspace's folder. The id is minted by the main process. */
+        open: (
+          workspaceId: string,
+          options?: { shell?: string; defaultShell?: string; cols?: number; rows?: number },
+        ) => Promise<{ success: boolean; id?: string; shell?: string; notice?: string; unavailable?: boolean; error?: string }>;
+        write: (id: string, data: string) => void;
+        resize: (id: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+        close: (id: string) => Promise<{ success: boolean }>;
+        onData: (callback: (event: { id: string; data: string }) => void) => () => void;
+        onExit: (callback: (event: { id: string; exitCode: number }) => void) => () => void;
       };
 
       runner: {

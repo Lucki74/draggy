@@ -143,7 +143,7 @@ describe("shutdown covers every module that starts a process", () => {
     const shutdown = main.slice(main.indexOf("function shutdown()"));
     const body = shutdown.slice(0, shutdown.indexOf("\n}"));
 
-    for (const call of ["mcp.stopAll()", "runner.stopAll()", "llamaProcess.stopServerSync()", "embedServer.stopSync()", "imageEngine.stopSync()"]) {
+    for (const call of ["mcp.stopAll()", "runner.stopAll()", "llamaProcess.stopServerSync()", "embedServer.stopSync()", "imageEngine.stopSync()", "shellHost.stopAll()"]) {
       expect(body).toContain(call);
     }
   });

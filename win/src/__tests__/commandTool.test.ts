@@ -36,7 +36,9 @@ function harness(signal = new AbortController().signal) {
   return { context, steps };
 }
 
-function stubCommands(answer: (command: string) => Promise<CommandResult>) {
+function stubCommands(answer: (command: string, emit: (runId: string, chunk: string) => void) => Promise<CommandResult>) {
+  const listeners = new Set<(event: { runId: string; chunk: string }) => void>();
+  const emit = (runId: string, chunk: string) => listeners.forEach((listener) => listener({ runId, chunk }));
   const calls: { workspaceId: string; runId: string; command: string; options: unknown }[] = [];
   const cancel = vi.fn(async () => ({ success: true }));
 
@@ -45,9 +47,13 @@ function stubCommands(answer: (command: string) => Promise<CommandResult>) {
       commands: {
         run: async (workspaceId: string, runId: string, command: string, options: unknown) => {
           calls.push({ workspaceId, runId, command, options });
-          return answer(command);
+          return answer(command, emit);
         },
         cancel,
+        onOutput: (callback: (event: { runId: string; chunk: string }) => void) => {
+          listeners.add(callback);
+          return () => void listeners.delete(callback);
+        },
       },
     },
   });
@@ -98,6 +104,23 @@ describe("running one", () => {
     expect(result).toContain("12 passed");
     expect(steps[0]).toMatchObject({ type: "command", isComplete: true, stdout: "12 passed" });
     expect(steps[0].content).toBe("ranCommand `npm test`");
+  });
+
+  it("shows output on the step while the command runs, then lets go of the stream", async () => {
+    let during = "";
+    const { context, steps } = harness();
+    const { calls } = stubCommands(async (_command, emit) => {
+      emit(`${context.chatId}-step-0`, "building...");
+      emit("another-run", "not ours");
+      during = String(steps[0].stdout);
+      return { success: true, exitCode: 0, output: "done" };
+    });
+
+    await runTool("run_command", { command: "npm run build" }, context, CODE);
+
+    expect(calls).toHaveLength(1);
+    expect(during).toBe("building...");
+    expect(steps[0].stdout).toBe("done");
   });
 
   it("says a failed command failed, with its exit code", async () => {

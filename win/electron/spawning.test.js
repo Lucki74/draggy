@@ -37,11 +37,19 @@ describe("no console window ever appears", () => {
     expect(offenders, "use platform.spawnHidden or platform.execFileHidden").toEqual([]);
   });
 
+  it("starts a pseudo-terminal only through platform.spawnPty", () => {
+    // pty.spawn() is a method call, so the launcher pattern above cannot see it.
+    const offenders = sourceFiles()
+      .filter((file) => file.name !== "platform.cjs" && /node-pty|\bpty\s*\.\s*spawn\s*\(/.test(file.text))
+      .map((file) => file.name);
+    expect(offenders, "use platform.spawnPty").toEqual([]);
+  });
+
   it("never starts PowerShell on its own: Norton and others block a hidden one started by an app", () => {
     // Only the run_command tool may, when the model asks and the user has approved that command.
     const offenders = sourceFiles()
-      // shells.cjs holds the run_command shell list, which is where the commands.cjs exemption moved.
-      .filter((file) => !["commands.cjs", "shells.cjs"].includes(file.name) && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
+      // shells.cjs holds the run_command shell list, which is where the commands.cjs exemption moved. shellHost.cjs opens the terminal the user asks for.
+      .filter((file) => !["commands.cjs", "shells.cjs", "shellHost.cjs"].includes(file.name) && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
       .map((file) => file.name);
     expect(offenders).toEqual([]);
   });

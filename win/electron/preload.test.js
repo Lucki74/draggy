@@ -366,3 +366,13 @@ describe("the speech bridge", () => {
     expect(seen).toEqual([{ turnId: 1 }]);
   });
 });
+
+describe("the shell bridge", () => {
+  it("exposes exactly the terminal calls, and subscriptions return disposers", () => {
+    const { api } = loadPreload();
+
+    expect(Object.keys(api.shell).sort()).toEqual(["close", "onData", "onExit", "open", "resize", "write"]);
+    expect(typeof api.shell.onData(() => {})).toBe("function");
+    expect(typeof api.shell.onExit(() => {})).toBe("function");
+  });
+});

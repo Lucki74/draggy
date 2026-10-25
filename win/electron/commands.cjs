@@ -35,7 +35,8 @@ function timeoutFor(value) {
 /** Commands in flight by id, so the renderer can stop one and a quit can stop them all. */
 const live = new Map();
 
-function run({ id, cwd, command, shell, defaultShell, timeoutMs }) {
+/** `onOutput` gets each piece of output as it arrives, for a pane that shows a command running. */
+function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput }) {
   const text = String(command || "");
   if (!text.trim()) return Promise.resolve({ success: false, error: "No command was given." });
   if (text.length > MAX_COMMAND_CHARS) {
@@ -66,6 +67,7 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs }) {
 
     const collect = (chunk) => {
       output += chunk;
+      onOutput?.(String(chunk));
       // Kept bounded while it runs: the start, and a generous end.
       if (output.length > MAX_OUTPUT_CHARS * 3) {
         output = output.slice(0, HEAD_CHARS) + output.slice(-(MAX_OUTPUT_CHARS * 2));

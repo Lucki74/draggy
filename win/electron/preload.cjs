@@ -208,6 +208,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     run: (workspaceId, runId, command, options) =>
       ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
     cancel: (runId) => ipcRenderer.invoke("commands:cancel", runId),
+    onOutput: (callback) => subscribe("commands:output", callback),
+  },
+
+  shell: {
+    open: (workspaceId, options) => ipcRenderer.invoke("shell:open", workspaceId, options),
+    write: (id, data) => ipcRenderer.send("shell:write", id, data),
+    resize: (id, cols, rows) => ipcRenderer.invoke("shell:resize", id, cols, rows),
+    close: (id) => ipcRenderer.invoke("shell:close", id),
+    onData: (callback) => subscribe("shell:data", callback),
+    onExit: (callback) => subscribe("shell:exit", callback),
   },
 
   runner: {

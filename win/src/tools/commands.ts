@@ -6,6 +6,8 @@ import { SHELL_IDS } from "../terminal/shells";
  * tests and builds. Every call goes through the permission engine as a command. */
 
 const MAX_TIMEOUT_SECONDS = 600;
+/** How much of a running command's output the step holds before it ends. */
+const LIVE_OUTPUT_CHARS = 20000;
 
 const runCommand: ToolSpec = {
   name: "run_command",
@@ -66,13 +68,24 @@ const runCommand: ToolSpec = {
     const stop = () => void api.cancel(runId);
     ctx.signal.addEventListener("abort", stop, { once: true });
 
+    // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
+    let live = "";
+    const unsubscribe = api.onOutput?.((event) => {
+      if (event.runId !== runId) return;
+      live = (live + event.chunk).slice(-LIVE_OUTPUT_CHARS);
+      ctx.patchStep(stepId, { stdout: live });
+    });
+
     const result = await api
       .run(ctx.workspaceId, runId, command, {
         shell,
         defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
         timeoutMs: seconds * 1000,
       })
-      .finally(() => ctx.signal.removeEventListener("abort", stop));
+      .finally(() => {
+        ctx.signal.removeEventListener("abort", stop);
+        unsubscribe?.();
+      });
 
     if (result.error && result.exitCode === undefined) {
       ctx.patchStep(stepId, {
