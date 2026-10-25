@@ -3106,34 +3106,87 @@ ipc.handle("git:status", wrap("git", async (event, workspaceId) => {
   return git.status(root);
 }));
 
-ipc.handle("git:diff", wrap("git", async (event, workspaceId, target, staged) => {
-  const roots = rootsFor(String(workspaceId || ""));
+/** A path the renderer named, as git should see it inside the project. The same guard as reading the
+ * file, which also keeps a credentials file out of a diff or a commit asked for by name. */
+function gitPathspec(roots, target) {
   const root = roots[0];
-  if (!root) return { success: false, error: "This conversation has no project folder." };
+  if (!target || !String(target).trim() || String(target).trim() === ".") return { ok: true, relative: "." };
 
-  // One file goes through the same guard as reading it would, which is also
-  // what keeps a credentials file out of a diff asked for by name.
-  let relative = ".";
-  if (target && String(target).trim() && String(target).trim() !== ".") {
-    const resolved = fsGuard.resolveWithin(roots, String(target), { mustExist: false });
-    if (!resolved.ok) return { success: false, error: resolved.error };
+  const resolved = fsGuard.resolveWithin(roots, String(target), { mustExist: false });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
 
-    let realRoot = root;
-    try {
-      realRoot = fs.realpathSync.native(root);
-    } catch (error) {
-      log.swallow("ipc", error, "a root that cannot be resolved has already failed the guard above");
-    }
-
-    relative = gitTools.toPathspec(realRoot, resolved.path);
-    if (!relative) return { success: false, error: "That path is outside the project." };
+  let realRoot = root;
+  try {
+    realRoot = fs.realpathSync.native(root);
+  } catch (error) {
+    log.swallow("ipc", error, "a root that cannot be resolved has already failed the guard above");
   }
 
-  return git.diff(root, {
-    relative,
+  const relative = gitTools.toPathspec(realRoot, resolved.path);
+  return relative ? { ok: true, relative } : { ok: false, error: "That path is outside the project." };
+}
+
+const NO_FOLDER = { success: false, error: "This conversation has no project folder." };
+
+ipc.handle("git:diff", wrap("git", async (event, workspaceId, target, staged, untracked) => {
+  const roots = rootsFor(String(workspaceId || ""));
+  if (!roots[0]) return NO_FOLDER;
+
+  const spec = gitPathspec(roots, target);
+  if (!spec.ok) return { success: false, error: spec.error };
+
+  return git.diff(roots[0], {
+    relative: spec.relative,
     staged: Boolean(staged),
+    untracked: Boolean(untracked),
     allow: (absolute) => fsGuard.isReadable(absolute),
   });
+}));
+
+ipc.handle("git:log", wrap("git", async (event, workspaceId, limit) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  return root ? git.log(root, { limit }) : NO_FOLDER;
+}));
+
+ipc.handle("git:branches", wrap("git", async (event, workspaceId) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  return root ? git.branches(root) : NO_FOLDER;
+}));
+
+/** Stage and unstage name files; each goes through the project guard first. */
+function gitPathsOf(roots, targets) {
+  const list = Array.isArray(targets) ? targets : [targets];
+  const relative = [];
+  for (const target of list.slice(0, gitTools.MAX_DIFF_FILES)) {
+    const spec = gitPathspec(roots, target);
+    if (!spec.ok) return { ok: false, error: spec.error };
+    relative.push(spec.relative);
+  }
+  return { ok: true, relative };
+}
+
+ipc.handle("git:stage", wrap("git", async (event, workspaceId, targets) => {
+  const roots = rootsFor(String(workspaceId || ""));
+  if (!roots[0]) return NO_FOLDER;
+  const paths = gitPathsOf(roots, targets);
+  return paths.ok ? git.stage(roots[0], paths.relative) : { success: false, error: paths.error };
+}));
+
+ipc.handle("git:unstage", wrap("git", async (event, workspaceId, targets) => {
+  const roots = rootsFor(String(workspaceId || ""));
+  if (!roots[0]) return NO_FOLDER;
+  const paths = gitPathsOf(roots, targets);
+  return paths.ok ? git.unstage(roots[0], paths.relative) : { success: false, error: paths.error };
+}));
+
+ipc.handle("git:commit", wrap("git", async (event, workspaceId, message) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  return root ? git.commit(root, message) : NO_FOLDER;
+}));
+
+ipc.handle("git:checkout", wrap("git", async (event, workspaceId, branch) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  return root ? git.checkout(root, branch) : NO_FOLDER;
 }));
 
 ipc.handle("fs:search", wrap("fs", async (event, workspaceId, query) =>

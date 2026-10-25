@@ -646,6 +646,39 @@ export interface GitDiff {
   error?: string;
 }
 
+export interface GitCommit {
+  hash: string;
+  short: string;
+  author: string;
+  date: string;
+  subject: string;
+}
+
+export interface GitLog {
+  success: boolean;
+  commits?: GitCommit[];
+  error?: string;
+}
+
+export interface GitBranch {
+  name: string;
+  current: boolean;
+  upstream?: string;
+}
+
+export interface GitBranches {
+  success: boolean;
+  branches?: GitBranch[];
+  error?: string;
+}
+
+/** What stage, unstage, commit and checkout answer. */
+export interface GitWrite {
+  success: boolean;
+  files?: number;
+  error?: string;
+}
+
 /** The conversation being folded into notes, shown after the reply it followed. Kept once done, so
  * the user can see where the older messages went. */
 export interface FoldMarker {
@@ -1336,7 +1369,14 @@ declare global {
           workspaceId: string,
           path?: string,
           staged?: boolean,
+          untracked?: boolean,
         ) => Promise<GitDiff>;
+        log: (workspaceId: string, limit?: number) => Promise<GitLog>;
+        branches: (workspaceId: string) => Promise<GitBranches>;
+        stage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
+        unstage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
+        commit: (workspaceId: string, message: string) => Promise<GitWrite & { hash?: string | null }>;
+        checkout: (workspaceId: string, branch: string) => Promise<GitWrite & { branch?: string }>;
       };
 
       skills: {
