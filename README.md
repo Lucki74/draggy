@@ -53,7 +53,7 @@ architecture in English, French, Spanish, and Chinese. Start with
 - Interactive task lists let you check off, reorder, or edit steps during execution.
 - Web search and sandboxed browsing with ad blocking, plus document creation for docx, pptx, xlsx, and pdf formats.
 - Local document indexing and semantic retrieval over folders you select.
-- Extension support for 108 MCP servers, the official MCP registry, remote servers, and 572 built-in skills.
+- Extension support for 107 MCP servers, the official MCP registry, remote servers, and 572 built-in skills.
 - Large Mixture-of-Experts models that do not fit in memory run through a second engine, colibri, which keeps the always-used weights in VRAM and RAM and reads experts from your drive. Expect roughly 0.3 to 3 tokens per second on a good NVMe drive.
 - Voice mode with automatic turn detection, spoken responses, interruption handling, and an optional cloud voice.
 - Replies stream in word by word with a short fade-in.

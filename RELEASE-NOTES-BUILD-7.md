@@ -12,7 +12,6 @@
 - Error notices specify whether a failure came from the model engine, memory limits, network drops, or rate limits
 - Work summary blocks show counts of files created, moved, and deleted
 - Added provider icons for Nebius, Novita, SambaNova, SiliconFlow, and custom endpoints
-- Added BountyGuard to the MCP catalogue
 
 **Fixes**
 
@@ -21,9 +20,5 @@
 - Fixed context meter totals on multi-pass agent turns to avoid double-counting earlier passes
 - Fixed race conditions when stopping a generation turn
 - Updated bundled Electron, undici, and fast-uri dependencies
-
-### New Contributors
-
-* @doomsday-network made their first contribution in https://github.com/Lucki74/draggy/pull/114
 
 **Full Changelog**: https://github.com/Lucki74/draggy/compare/b-6...b-7
