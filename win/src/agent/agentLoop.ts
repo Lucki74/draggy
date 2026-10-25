@@ -95,6 +95,7 @@ import {
   logRendererEvent,
   logRendererOnce, newCorrelationId, swallowed } from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
+import { raceAbort } from "./abortRace";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -306,6 +307,9 @@ const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
 const FALLBACK_RESULT_CHARS = 2000;
+
+/** What a tool call answers when the user stops the turn first. */
+const CANCELLED_RESULT = "Tool execution cancelled.";
 
 const ACT_ON_ANNOUNCEMENT =
   "You said what you would do next but did not do it. Make that tool call now, or if you have finished, give your final answer.";
@@ -768,7 +772,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     name: string,
     args: Record<string, unknown>,
   ): Promise<string> {
-    if (signal.aborted) return "Tool execution cancelled.";
+    if (signal.aborted) return CANCELLED_RESULT;
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
     const target = targetFromArgs(args);
@@ -783,13 +787,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const toolStart = performance.now();
       logToolCall(name, "start", args, correlationId);
       try {
-        const abortPromise = new Promise<string>((resolve) => {
-          signal.addEventListener("abort", () => resolve("Tool execution cancelled."), { once: true });
-        });
-        const toolOutput = await Promise.race([
+        const toolOutput = await raceAbort(
+          signal,
           runTool(name, args, toolContext, environment),
-          abortPromise,
-        ]);
+          CANCELLED_RESULT,
+        );
         logToolCall(name, "complete", { durationMs: performance.now() - toolStart }, correlationId);
         return toolOutput;
       } catch (err) {
@@ -858,7 +860,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       for (const grant of remembered) host.onGrant?.(grant);
     }
 
-    return runTool(name, args, toolContext, environment);
+    return raceAbort(signal, runTool(name, args, toolContext, environment), CANCELLED_RESULT);
   }
 
   /** One repair per turn for a malformed call: asked again with a JSON schema, so the sampler
