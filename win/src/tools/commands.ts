@@ -1,11 +1,14 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
+import { SHELL_IDS } from "../terminal/shells";
+import { appendAgentBlock, finishAgentBlock, startAgentBlock } from "../terminal/terminalBus";
 
 /** Commands in the project folder, the way a developer uses a terminal: git, gh, package managers,
  * tests and builds. Every call goes through the permission engine as a command. */
 
-const SHELLS = ["pwsh", "powershell", "cmd", "bash", "sh"];
 const MAX_TIMEOUT_SECONDS = 600;
+/** How much of a running command's output the step holds before it ends. */
+const LIVE_OUTPUT_CHARS = 20000;
 
 const runCommand: ToolSpec = {
   name: "run_command",
@@ -41,7 +44,7 @@ const runCommand: ToolSpec = {
     Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
   run: async (args, ctx) => {
     const command = String(args.command).trim();
-    const shell = SHELLS.includes(String(args.shell)) ? String(args.shell) : undefined;
+    const shell = (SHELL_IDS as readonly string[]).includes(String(args.shell)) ? String(args.shell) : undefined;
     const seconds = Math.min(Math.max(Number(args.timeout_seconds) || 120, 1), MAX_TIMEOUT_SECONDS);
     const stepId = ctx.newId();
     const api = window.electronAPI?.commands;
@@ -65,12 +68,30 @@ const runCommand: ToolSpec = {
     const runId = `${ctx.chatId ?? "turn"}-${stepId}`;
     const stop = () => void api.cancel(runId);
     ctx.signal.addEventListener("abort", stop, { once: true });
+    startAgentBlock({ id: runId, command, shell });
+
+    // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
+    let live = "";
+    const unsubscribe = api.onOutput?.((event) => {
+      if (event.runId !== runId) return;
+      live = (live + event.chunk).slice(-LIVE_OUTPUT_CHARS);
+      appendAgentBlock(runId, event.chunk);
+      ctx.patchStep(stepId, { stdout: live });
+    });
 
     const result = await api
-      .run(ctx.workspaceId, runId, command, { shell, timeoutMs: seconds * 1000 })
-      .finally(() => ctx.signal.removeEventListener("abort", stop));
+      .run(ctx.workspaceId, runId, command, {
+        shell,
+        defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
+        timeoutMs: seconds * 1000,
+      })
+      .finally(() => {
+        ctx.signal.removeEventListener("abort", stop);
+        unsubscribe?.();
+      });
 
     if (result.error && result.exitCode === undefined) {
+      finishAgentBlock(runId, { status: "failed" });
       ctx.patchStep(stepId, {
         isComplete: true,
         type: "error",
@@ -89,6 +110,11 @@ const runCommand: ToolSpec = {
           ? ctx.t("ranCommand")
           : ctx.t("commandFailed");
 
+    finishAgentBlock(runId, {
+      status: result.cancelled || result.timedOut ? "stopped" : result.success ? "done" : "failed",
+      exitCode: result.exitCode ?? null,
+      shell: result.shell ?? shell,
+    });
     ctx.patchStep(stepId, {
       isComplete: true,
       content: `${verb} \`${command}\`${result.success || result.cancelled ? "" : ` (exit ${result.exitCode ?? "?"})`}`,

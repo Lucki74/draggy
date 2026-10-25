@@ -15,7 +15,13 @@ import {
 } from "../../toolParsing";
 import { detectRepetition } from "../../agent/repetition";
 import { announcesAction } from "../../agent/announcement";
-import { commandCovered, commandGrantTargets, commandPrefix, commandSegments } from "../../agent/commandRules";
+import {
+  commandCovered,
+  commandGrantTargets,
+  commandPrefix,
+  commandSegments,
+  dialectFor,
+} from "../../agent/commandRules";
 import {
   addGrant,
   decide,
@@ -130,16 +136,21 @@ function runRepetition(input: Fixture): unknown {
   };
 }
 
+/** The grammar a fixture reads its command in; bash unless it names a shell. */
+function shellOf(input: Fixture) {
+  return dialectFor((input.shell as string | undefined) ?? "bash");
+}
+
 function runCommandRules(input: Fixture): unknown {
   switch (input.op) {
     case "segments":
-      return commandSegments(input.command as string | null);
+      return commandSegments(input.command as string | null, shellOf(input));
     case "prefix":
       return commandPrefix(text(input, "segment"));
     case "targets":
-      return commandGrantTargets(input.command as string | null);
+      return commandGrantTargets(input.command as string | null, shellOf(input));
     case "covered":
-      return commandCovered(input.allowed as string[], input.command as string | null);
+      return commandCovered(input.allowed as string[], input.command as string | null, shellOf(input));
     default:
       throw new Error(`unknown commandRules op ${input.op}`);
   }
@@ -155,6 +166,7 @@ function runPermissions(input: Fixture): unknown {
         annotations: (input.annotations ?? {}) as ToolAnnotations,
         target: (input.target ?? null) as string | null,
         grants: (input.grants ?? []) as Grant[],
+        shell: (input.shell as string | undefined) ?? "bash",
       });
       return { decision: verdict.decision, reason: verdict.reason };
     }
@@ -163,7 +175,12 @@ function runPermissions(input: Fixture): unknown {
     case "addGrant":
       return addGrant(input.grants as Grant[], input.grant as Grant);
     case "grantsFor":
-      return grantsFor(tool, (input.target ?? null) as string | null, (input.annotations ?? {}) as ToolAnnotations);
+      return grantsFor(
+        tool,
+        (input.target ?? null) as string | null,
+        (input.annotations ?? {}) as ToolAnnotations,
+        (input.shell as string | undefined) ?? "bash",
+      );
     case "targetFromArgs":
       return targetFromArgs(input.args as Record<string, unknown>);
     case "refusal":

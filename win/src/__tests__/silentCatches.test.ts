@@ -6,20 +6,10 @@ const { countSilentCatches } = require("../../scripts/silentCatches.cjs") as {
   countSilentCatches: (root?: string) => Record<string, number>;
 };
 
-/** The logger files report their own failures to stderr, since logging through themselves would loop.
- * Everything else logs a swallowed error with `log.swallow` / `logSwallow` / `swallowed`. */
-const REVIEWED = {
-  "electron/ipcLog.cjs": 1,
-  "electron/lifecycleLog.cjs": 1,
-  "electron/logger.cjs": 1,
-  "electron/spawnLog.cjs": 1,
-  "src/logger.ts": 1,
-};
-
+/** A catch that must stay silent (the logger files cannot log their own failures) carries a
+ * `silent-ok:` comment. Everything else logs with `log.swallow` / `logSwallow` / `swallowed`. */
 describe("silent catches", () => {
-  it("has no catch block or .catch(() => {}) outside the reviewed logger files", () => {
-    const found = countSilentCatches();
-    const unexpected = Object.fromEntries(Object.entries(found).filter(([file, n]) => n > ((REVIEWED as Record<string, number>)[file] ?? 0)));
-    expect(unexpected).toEqual({});
+  it("has no catch block or .catch(() => {}) without a silent-ok comment", () => {
+    expect(countSilentCatches()).toEqual({});
   });
 });

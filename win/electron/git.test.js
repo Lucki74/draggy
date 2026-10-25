@@ -312,3 +312,126 @@ describe.skipIf(!hasGit)("against a real repository", () => {
     expect(fs.existsSync(marker)).toBe(false);
   });
 });
+
+describe.skipIf(!hasGit)("history, branches and changes made by the app", () => {
+  let root;
+  const git = gitTools.createGit();
+
+  const run = (...args) => execFileSync("git", args, { cwd: root, stdio: "pipe", encoding: "utf8" });
+  const write = (name, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+    fs.writeFileSync(path.join(root, name), text);
+  };
+
+  beforeEach(() => {
+    root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "draggy-git-write-")));
+    run("init", "-q", "-b", "main", ".");
+    run("config", "user.email", "t@t");
+    run("config", "user.name", "t");
+    write("readme.md", "hello\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "first");
+  });
+
+  afterEach(() => {
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Windows can hold a handle on a fresh repository for a moment.
+    }
+  });
+
+  it("lists commits, newest first", async () => {
+    write("a.txt", "a\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "second: with a colon");
+
+    const result = await git.log(root, { limit: 10 });
+
+    expect(result.success).toBe(true);
+    expect(result.commits.map((commit) => commit.subject)).toEqual(["second: with a colon", "first"]);
+    expect(result.commits[0]).toMatchObject({ author: "t" });
+    expect(result.commits[0].hash).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("lists branches and marks the current one", async () => {
+    run("branch", "feature");
+    const result = await git.branches(root);
+
+    expect(result.branches).toEqual(expect.arrayContaining([{ name: "main", current: true }, { name: "feature", current: false }]));
+  });
+
+  it("includes untracked files in the diff as additions when asked", async () => {
+    write("new.txt", "brand new\n");
+
+    const without = await git.diff(root, {});
+    const withNew = await git.diff(root, { untracked: true });
+
+    expect(without.diff).toBe("");
+    expect(withNew.diff).toContain("+++ b/new.txt");
+    expect(withNew.diff).toContain("+brand new");
+    expect(withNew.files).toBe(1);
+  });
+
+  it("cuts a long diff at a whole line and says so", async () => {
+    write("big.txt", "x".repeat(100) + "\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "big");
+    write("big.txt", Array.from({ length: 2000 }, (_, i) => `line ${i} ${"y".repeat(40)}`).join("\n") + "\n");
+
+    const result = await git.diff(root, {});
+
+    expect(result.truncated).toBe(true);
+    expect(result.diff.length).toBeLessThanOrEqual(gitTools.MAX_DIFF_CHARS);
+    expect(result.diff.endsWith("\n")).toBe(true);
+  });
+
+  it("stages, unstages and commits", async () => {
+    write("a.txt", "a\n");
+
+    expect(await git.stage(root, ["a.txt"])).toMatchObject({ success: true });
+    expect((await git.status(root)).files).toEqual([expect.objectContaining({ path: "a.txt", staged: true })]);
+
+    expect(await git.unstage(root, ["a.txt"])).toMatchObject({ success: true });
+    expect((await git.status(root)).files).toEqual([expect.objectContaining({ path: "a.txt", kind: "untracked" })]);
+
+    await git.stage(root, ["a.txt"]);
+    const done = await git.commit(root, "Add a");
+    expect(done.success).toBe(true);
+    expect(done.hash).toMatch(/^[0-9a-f]+$/);
+    expect(run("log", "-1", "--format=%s").trim()).toBe("Add a");
+  });
+
+  it("does not run a hook when it commits", async () => {
+    const marker = path.join(root, "hook-ran");
+    write(".git/hooks/pre-commit", `#!/bin/sh\ntouch "${marker.split(path.sep).join("/")}"\n`);
+    write(".git/hooks/post-commit", `#!/bin/sh\ntouch "${marker.split(path.sep).join("/")}"\n`);
+    write("a.txt", "a\n");
+    await git.stage(root, ["a.txt"]);
+
+    const done = await git.commit(root, "Add a");
+
+    expect(done.success).toBe(true);
+    expect(fs.existsSync(marker)).toBe(false);
+  });
+
+  it("refuses an empty message and nothing staged", async () => {
+    expect((await git.commit(root, "  ")).success).toBe(false);
+    expect((await git.commit(root, "Nothing")).success).toBe(false);
+  });
+
+  it("switches to an existing branch and refuses odd names", async () => {
+    run("branch", "feature");
+
+    expect(await git.checkout(root, "feature")).toMatchObject({ success: true, branch: "feature" });
+    expect(run("branch", "--show-current").trim()).toBe("feature");
+    expect((await git.checkout(root, "--detach")).success).toBe(false);
+    expect((await git.checkout(root, "no-such-branch")).success).toBe(false);
+  });
+
+  it("keeps a path that looks like an option from becoming one", async () => {
+    write("-n", "x\n");
+    expect((await git.stage(root, ["-n"])).success).toBe(true);
+    expect((await git.status(root)).files[0].path).toBe("-n");
+  });
+});

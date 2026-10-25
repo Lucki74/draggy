@@ -65,7 +65,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     id: "code",
     label: "codeMode",
     pages: [
-      { id: "code", label: "preferences", icon: "code", keywords: ["model", "thinking", "webAccess", "defaultPermission", "customInstructions"] },
+      { id: "code", label: "preferences", icon: "code", keywords: ["model", "thinking", "webAccess", "defaultShell", "defaultPermission", "customInstructions"] },
       { id: "projects", label: "projects", icon: "folder-simple", keywords: ["projectName", "projectFolder", "permissionMode", "alwaysAllowed", "projectMemory"] },
       { id: "permissions", label: "permissions", icon: "shield-check", keywords: ["alwaysAllowed"] },
     ],

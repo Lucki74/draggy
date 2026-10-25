@@ -57,7 +57,7 @@ function resolveBinary(file, env = process.env) {
       }
     }
   } catch {
-    // an unreadable PATH entry is not worth a line
+    // silent-ok: an unreadable PATH entry is not worth a line
   }
   return null;
 }

@@ -110,6 +110,7 @@ const LIBRARY_PROMPT: &str = r##"The user indexed local documents in a private l
 const CODE_EXECUTION_PROMPT: &str = r##"Run short Python or JavaScript programs via run_code to verify arithmetic, transformations, and non-trivial code execution before answering. Inspect errors, fix issues, and present working code. Programs execute in a 20-second isolated scratch sandbox with no network or filesystem access. Show the working code and mention that you ran it."##;
 
 const COMMANDS_PROMPT: &str = r##"Execute terminal commands in the project folder with run_command using the local shell. Run tests, builds, linting, git, or gh; prefer existing project scripts.
+Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose.
 Commands cannot receive input while running, so pass flags that avoid prompts and pagers. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success."##;
 
 const PLAN_PROMPT: &str = r##"For multi-step work, initialize a checklist via update_plan before starting, updating it as steps complete so the user can track progress. Single questions or one-step tasks require no plan. If the user edits the plan, follow their updated checklist."##;

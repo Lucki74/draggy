@@ -25,7 +25,7 @@ function argBytes(args) {
       try {
         total += Buffer.byteLength(JSON.stringify(arg) ?? "");
       } catch {
-        // circular or unserialisable: the size is unknown, not worth a line
+        // silent-ok: circular or unserialisable: the size is unknown, not worth a line
       }
     }
   }

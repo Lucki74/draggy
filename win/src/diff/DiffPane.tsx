@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { CHANGE_COLOR, CHANGE_LETTER, changePath } from "../project/gitView";
-import { parseDiff, parseDiffStats } from "./diffParser";
+import { anchorKey, parseDiff, parseDiffStats, type CommentAnchor } from "./diffParser";
 import { UnifiedDiffView, type ReviewComment } from "./UnifiedDiffView";
 import { SplitDiffView } from "./SplitDiffView";
 import type { GitChange, GitStatus } from "../types";
 import { logSwallow } from "../logger";
+import { GitHistory } from "./GitHistory";
 
 export interface DiffPaneProps {
   workspaceId: string;
@@ -37,13 +38,14 @@ export function DiffPane({
   const [chosenFile, setChosenFile] = useState<string | null>(null);
   const selectedFile = chosenFile ?? initialFile ?? files[0]?.path ?? null;
 
+  const [tab, setTab] = useState<"changes" | "history" | "branches">("changes");
   const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
   const [rawDiff, setRawDiff] = useState<string>("");
   const [loading, setLoading] = useState(() => Boolean(window.electronAPI?.git));
   const [error, setError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<ReviewComment[]>([]);
-  const [activeCommentLine, setActiveCommentLine] = useState<number | null>(null);
+  const [activeCommentLine, setActiveCommentLine] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
 
   const refreshStatus = useCallback(async () => {
@@ -126,8 +128,8 @@ export function DiffPane({
     ? t("gitDetached")
     : (gitStatus?.branch ?? "HEAD");
 
-  const handleStartComment = (line: number) => {
-    setActiveCommentLine(line);
+  const handleStartComment = (anchor: CommentAnchor) => {
+    setActiveCommentLine(anchorKey(anchor));
     setCommentDraft("");
   };
 
@@ -136,13 +138,14 @@ export function DiffPane({
     setCommentDraft("");
   };
 
-  const handleSaveComment = (line: number) => {
+  const handleSaveComment = (anchor: CommentAnchor) => {
     const targetFile = selectedFile || currentFileDiff?.newPath || currentFileDiff?.oldPath;
     if (!targetFile || !commentDraft.trim()) return;
     const newComment: ReviewComment = {
       id: `${Date.now()}-${Math.random()}`,
       file: targetFile,
-      line,
+      side: anchor.side,
+      line: anchor.line,
       text: commentDraft.trim(),
     };
     setComments((prev) => [...prev, newComment]);
@@ -157,7 +160,7 @@ export function DiffPane({
   const handleSendReview = useCallback(() => {
     if (comments.length === 0 || !onSendReviewComment) return;
     const summary = comments
-      .map((c) => `- ${c.file}:${c.line}: ${c.text}`)
+      .map((c) => `- ${c.file}:${c.line}${c.side === "old" ? " (before the change)" : ""}: ${c.text}`)
       .join("\n");
     const prompt = `Review comments on changes:\n\n${summary}`;
     onSendReviewComment(prompt);
@@ -216,6 +219,22 @@ export function DiffPane({
 
         {/* View mode toggle and tools */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center rounded-pill border border-rule p-0.5 bg-surface-canvas text-[11px]">
+            {(["changes", "history", "branches"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`px-2 py-0.5 rounded-pill font-medium transition-colors ${
+                  tab === id
+                    ? "bg-surface-raised text-text-primary shadow-xs"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {t(id === "changes" ? "gitTabChanges" : id === "history" ? "gitTabHistory" : "gitTabBranches")}
+              </button>
+            ))}
+          </div>
           {canShowSplit && (
             <div className="flex items-center rounded-pill border border-rule p-0.5 bg-surface-canvas text-[11px]">
               <button
@@ -269,7 +288,21 @@ export function DiffPane({
       </div>
 
       {/* Main body: File list on start side, Diff viewer on end side */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      {tab !== "changes" && (
+        <div className="flex-1 min-h-0 overflow-y-auto bg-surface-canvas">
+          <GitHistory
+            key={tab}
+            workspaceId={workspaceId}
+            view={tab}
+            t={t}
+            onChanged={() => {
+              void refreshStatus();
+              void fetchDiff();
+            }}
+          />
+        </div>
+      )}
+      <div className={`flex-1 min-h-0 overflow-hidden ${tab === "changes" ? "flex" : "hidden"}`}>
         {/* Changed file list */}
         <div className="w-56 flex-shrink-0 border-e border-rule flex flex-col bg-surface-base overflow-y-auto">
           {files.length === 0 ? (

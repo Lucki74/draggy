@@ -1,17 +1,17 @@
 import React from "react";
 import { Icon } from "../ui/icons/Icon";
-import { hunkToSplitRows, type DiffLine, type ParsedFileDiff } from "./diffParser";
+import { anchorKey, anchorOf, hunkToSplitRows, type CommentAnchor, type DiffLine, type ParsedFileDiff } from "./diffParser";
 import type { ReviewComment } from "./UnifiedDiffView";
 
 interface SplitDiffViewProps {
   fileDiff: ParsedFileDiff;
   comments: ReviewComment[];
-  activeCommentLine: number | null;
+  activeCommentLine: string | null;
   commentDraft: string;
-  onStartComment: (line: number) => void;
+  onStartComment: (anchor: CommentAnchor) => void;
   onCancelComment: () => void;
   onChangeCommentDraft: (text: string) => void;
-  onSaveComment: (line: number) => void;
+  onSaveComment: (anchor: CommentAnchor) => void;
   onDeleteComment: (commentId: string) => void;
   t: (key: string) => string;
 }
@@ -51,11 +51,15 @@ export function SplitDiffView({
             {rows.map((row, rIdx) => {
               const before = row.before;
               const after = row.after;
-              const lineNum = after?.afterLine ?? before?.beforeLine ?? rIdx;
+              const anchor: CommentAnchor = after
+                ? anchorOf(after, rIdx)
+                : before
+                  ? anchorOf(before, rIdx)
+                  : { side: "new", line: rIdx };
               const lineComments = comments.filter(
-                (c) => c.file === filePath && c.line === lineNum,
+                (c) => c.file === filePath && c.side === anchor.side && c.line === anchor.line,
               );
-              const isCommenting = activeCommentLine === lineNum;
+              const isCommenting = activeCommentLine === anchorKey(anchor);
 
               return (
                 <React.Fragment key={`${hIdx}-${rIdx}`}>
@@ -97,7 +101,7 @@ export function SplitDiffView({
                       <div className="absolute end-2 top-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
-                          onClick={() => onStartComment(lineNum)}
+                          onClick={() => onStartComment(anchor)}
                           title={t("addComment")}
                           aria-label={t("addComment")}
                           className="p-1 rounded-xs bg-surface-base border border-rule shadow-xs hover:bg-surface-raised text-text-secondary hover:text-text-primary"
@@ -152,7 +156,7 @@ export function SplitDiffView({
                         <button
                           type="button"
                           disabled={!commentDraft.trim()}
-                          onClick={() => onSaveComment(lineNum)}
+                          onClick={() => onSaveComment(anchor)}
                           className="px-2.5 py-1 rounded-xs bg-text-primary text-surface-base disabled:opacity-40 text-[11px] font-semibold"
                         >
                           {t("addComment")}

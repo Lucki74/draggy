@@ -30,19 +30,29 @@ function keep(contents) {
 
   if (!fs.existsSync(target)) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, bytes);
+    // Written beside the blob and renamed in, so a crash never leaves a half-written file under a
+    // hash that claims to be whole.
+    const partial = `${target}.${process.pid}.tmp`;
+    fs.writeFileSync(partial, bytes);
+    fs.renameSync(partial, target);
     log.debug("files", "checkpoint blob stored", { bytes: bytes.length });
   }
 
   return hash;
 }
 
-/** The bytes back, exactly as they were. Null when the store has lost them. */
+/** The bytes back, exactly as they were. Null when the store has lost them or they no longer match
+ * their name, so a damaged blob is never written back over a user's file. */
 function read(hash) {
   if (!hash) return null;
 
   try {
-    return fs.readFileSync(blobPath(hash));
+    const bytes = fs.readFileSync(blobPath(hash));
+    if (crypto.createHash("sha256").update(bytes).digest("hex") !== hash) {
+      log.warn("files", "checkpoint blob does not match its hash");
+      return null;
+    }
+    return bytes;
   } catch (error) {
     log.warn("files", "checkpoint blob unreadable", { code: error?.code ?? null });
     return null;
@@ -75,7 +85,8 @@ function collect(usedHashes) {
     let entries;
     try {
       entries = fs.readdirSync(shardDir);
-    } catch {
+    } catch (error) {
+      log.swallow("files", error, "a stray file in the store is not a shard");
       continue;
     }
 

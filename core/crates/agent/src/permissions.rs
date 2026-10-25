@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::command_rules::{command_covered, command_grant_targets};
+use crate::command_rules::{command_covered, command_grant_targets, dialect_for};
 use crate::js::trim_js;
 
 const PLAN_REFUSAL: &str = "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide.";
@@ -64,6 +64,8 @@ pub struct PermissionQuery<'a> {
     pub annotations: ToolAnnotations,
     pub target: Option<&'a str>,
     pub grants: &'a [Grant],
+    /// The shell a command runs in; a missing one reads as the strictest grammar.
+    pub shell: Option<&'a str>,
 }
 
 /// Whether a tool call may run.
@@ -90,7 +92,7 @@ pub fn decide(query: &PermissionQuery<'_>) -> Verdict {
             .filter(|grant| grant.tool == query.tool)
             .filter_map(|grant| grant.target.clone().filter(|target| !target.is_empty()))
             .collect();
-        if command_covered(&allowed, query.target) {
+        if command_covered(&allowed, query.target, dialect_for(query.shell)) {
             return verdict(
                 Decision::Allow,
                 "The user has already allowed this command.",
@@ -191,9 +193,14 @@ pub fn add_grant(grants: &[Grant], grant: Grant) -> Vec<Grant> {
 
 /// What an approval remembers. A command keeps the start of each command in it, so "always" for "npm test --watch"
 /// allows "npm test" again but not anything chained after it.
-pub fn grants_for(tool: &str, target: Option<&str>, annotations: ToolAnnotations) -> Vec<Grant> {
+pub fn grants_for(
+    tool: &str,
+    target: Option<&str>,
+    annotations: ToolAnnotations,
+    shell: Option<&str>,
+) -> Vec<Grant> {
     if annotations.executes {
-        return command_grant_targets(target)
+        return command_grant_targets(target, dialect_for(shell))
             .into_iter()
             .map(|prefix| Grant {
                 tool: tool.to_string(),

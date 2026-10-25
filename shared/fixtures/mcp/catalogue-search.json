@@ -9,7 +9,8 @@
       },
       "expected": [
         "github",
-        "composio"
+        "composio",
+        "bounty-guard"
       ]
     },
     {
@@ -173,7 +174,8 @@
         "clarity",
         "phantom",
         "scryfall",
-        "dchub"
+        "dchub",
+        "bounty-guard"
       ]
     },
     {
@@ -288,7 +290,8 @@
         "clarity",
         "phantom",
         "scryfall",
-        "dchub"
+        "dchub",
+        "bounty-guard"
       ]
     },
     {
@@ -403,7 +406,8 @@
         "clarity",
         "phantom",
         "scryfall",
-        "dchub"
+        "dchub",
+        "bounty-guard"
       ]
     },
     {
