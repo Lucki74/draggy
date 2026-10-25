@@ -4,7 +4,7 @@
 
 # Draggy
 
-A local AI assistant and coding agent for Windows. Free, open source, no account.
+A local AI assistant and coding agent for Windows, macOS, and Linux. Free, open source, no account.
 
 [![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat&logo=vercel&logoColor=white)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
@@ -28,7 +28,8 @@ running open models on your own computer.
 
 It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
 from Hugging Face. There is no account, no telemetry, and no network traffic
-unless you request it. Built with Electron, React, and TypeScript for Windows.
+unless you request it. Available as an Electron application on Windows, a native
+SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
 reads, edits and runs commands in a project folder, shows every change as a diff
@@ -52,7 +53,7 @@ architecture in English, French, Spanish, and Chinese. Start with
 - Interactive task lists let you check off, reorder, or edit steps during execution.
 - Web search and sandboxed browsing with ad blocking, plus document creation for docx, pptx, xlsx, and pdf formats.
 - Local document indexing and semantic retrieval over folders you select.
-- Extension support for 107 MCP servers, the official MCP registry, remote servers, and 66 built-in skills.
+- Extension support for 107 MCP servers, the official MCP registry, remote servers, and 572 built-in skills.
 - Large Mixture-of-Experts models that do not fit in memory run through a second engine, colibri, which keeps the always-used weights in VRAM and RAM and reads experts from your drive. Expect roughly 0.3 to 3 tokens per second on a good NVMe drive.
 - Voice mode with automatic turn detection, spoken responses, interruption handling, and an optional cloud voice.
 - Replies stream in word by word with a short fade-in.
@@ -62,10 +63,10 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 ## Installing and requirements
 
-Download the [Windows installer](https://github.com/Lucki74/draggy/releases/latest/download/draggy_setup.exe) from [draggy.org](https://draggy.org) or the
+Installers for Windows (`.exe`), macOS (`.zip`), and Linux (`.deb`, `.rpm`) are available from [draggy.org](https://draggy.org) and the
 [Releases page](https://github.com/Lucki74/draggy/releases/latest). On first launch,
 Draggy suggests a model sized for your hardware and downloads it directly. See
-[Installation](https://draggy.org/wiki/installation) for system requirements.
+[Installation](https://draggy.org/wiki/installation) for system requirements and platform setup details.
 
 Image generation is optional and installed from Settings, under Models. The engine is a separate download of 17 to 900 MB depending on the build, and a model needs about 2 GB of video memory for Stable Diffusion 1.5 or 6 GB for Z-Image Turbo. With less, the weights stay in system memory.
 

@@ -31,7 +31,7 @@ Works:
 Missing:
 
 - HTML previews of model output and ad blocking in the Browser page.
-- A signed, published release. A manual workflow builds an unsigned `.deb` and `.rpm`. Signing needs package keys. A Flatpak manifest (`linux/flatpak`) and a manual "Flatpak" workflow exist but are unverified; Flathub needs `cargo-sources.json` generated and the build network access dropped.
+- Automated release packaging builds unsigned .deb and .rpm packages in `.github/workflows/release.yml`. Signing needs package keys. A Flatpak manifest (`linux/flatpak`) and a manual "Flatpak" workflow exist but are unverified; Flathub needs `cargo-sources.json` generated and the build network access dropped.
 - Widget tests beyond two small ones that run under xvfb. The turn logic is tested without one.
 
 Not verified on this branch's author machine (Windows): building and running the app. See `docs/linux.md` for the commands CI runs.

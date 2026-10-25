@@ -326,6 +326,19 @@ class Recorder {
       execFileSync(ffmpeg, ["-y", "-loglevel", "error", "-i", still, "-vf", `scale=${scale}:-2:flags=lanczos`, "-q:v", String(q), `${stem}.jpg`]);
       if (size(`${stem}.jpg`) <= POSTER_LIMIT) break;
     }
+    if (name === "code-dark") {
+      const readmeGif = path.resolve(__dirname, "..", "..", ".github", "media", "demo-code.gif");
+      try {
+        execFileSync(ffmpeg, [
+          "-y", "-loglevel", "error", "-i", `${stem}.mp4`,
+          "-vf", "fps=12,scale=880:-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer",
+          readmeGif,
+        ]);
+        log("wrote readme demo-code.gif at", readmeGif);
+      } catch (err) {
+        console.error("failed to generate demo-code.gif:", err.message);
+      }
+    }
     log(`wrote ${name} (${this.frames.length} frames, ${kept.length} kept, ${total.toFixed(1)} s, webm ${size(`${stem}.webm`)} B, mp4 ${size(`${stem}.mp4`)} B, jpg ${size(`${stem}.jpg`)} B)`);
     return total;
   }
@@ -438,7 +451,7 @@ const CLIPS = {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, win) {
-      await ask(rec, "which node version is installed here? check in the terminal");
+      await ask(rec, "run npm test in the terminal to verify the test suite");
       rec.fast = true;
       await waitFor(() => approving(win), { timeout: 150_000, every: 300, label: "the approval card" });
       rec.fast = false;
@@ -491,9 +504,14 @@ const CLIPS = {
       await sleep(500);
       await dump(win, "browser");
       // Press the link: Draggy's own browser opens on the page.
-      const find = () => [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org']")].pop();
+      const find = () =>
+        [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org'], [data-region=transcript] a[href^='http']")].pop();
       await rec.clickOn(find);
-      await waitFor(() => Boolean(rec.pane()), { timeout: 15_000, every: 200, label: "the browser pane" });
+      await inPage(win, () => {
+        const a = [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org'], [data-region=transcript] a[href^='http']")].pop();
+        a?.click();
+      });
+      await waitFor(() => Boolean(rec.pane()), { timeout: 30_000, every: 200, label: "the browser pane" });
       const inPane = async (code) => {
         try {
           return await rec.pane().webContents.executeJavaScript(code);

@@ -46,7 +46,7 @@ cargo test --workspace
 
 ## Packaging
 
-`cargo deb` metadata is in `linux/Cargo.toml`. The desktop file, AppStream metadata and the 512 px icon are in `linux/data/`. The manual workflow `linux-release.yml` builds the `.deb` and keeps it as a workflow artifact. Nothing is signed or published yet.
+`cargo deb` metadata is in `linux/Cargo.toml`. The desktop file, AppStream metadata and the 512 px icon are in `linux/data/`. Automated packaging runs in `.github/workflows/release.yml`, which compiles the GTK application and packages both `.deb` and `.rpm` files for each tagged release.
 
 ## Status
 
