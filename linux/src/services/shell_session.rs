@@ -33,7 +33,7 @@ impl ShellSession {
 
     pub fn start<F>(&self, on_output: F) -> Result<(), String>
     where
-        F: Fn(String) + Send + 'static,
+        F: Fn(String) + Send + Sync + 'static,
     {
         let mut child = Command::new(&self.shell.path)
             .arg("-l")

@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-public struct GeneratedImageItem: Identifiable, Sendable {
+public struct GeneratedImageItem: Identifiable, @unchecked Sendable {
     public let id: UUID
     public let prompt: String
     public let image: NSImage?
