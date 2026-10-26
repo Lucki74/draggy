@@ -109,6 +109,11 @@ struct SettingsView: View {
                     Text(error).font(.callout).foregroundStyle(.red)
                 }
             }
+
+            Section("Voice & Updates") {
+                CloudTTSView()
+                UpdateSettingsView()
+            }
         }
         .padding()
         .frame(width: 480)

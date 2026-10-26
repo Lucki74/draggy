@@ -7,9 +7,11 @@ mod chat_view;
 mod gtk_test;
 mod models_view;
 mod servers_view;
+mod services;
 mod settings_dialog;
 mod skills_view;
 mod state;
+mod ui;
 mod window;
 
 use adw::prelude::*;

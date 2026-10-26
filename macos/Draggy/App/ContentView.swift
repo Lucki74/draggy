@@ -6,7 +6,7 @@ struct ContentView: View {
     @State private var page: Page = .chat
 
     enum Page: Hashable {
-        case chat, browser
+        case chat, browser, terminal, files, search, diff, canvas, images, extensions, stats, talk, diagnostics
     }
 
     var body: some View {
@@ -14,6 +14,16 @@ struct ContentView: View {
             List(selection: $page) {
                 Label("Chat", systemImage: "bubble.left").tag(Page.chat)
                 Label("Browser", systemImage: "globe").tag(Page.browser)
+                Label("Terminal", systemImage: "terminal").tag(Page.terminal)
+                Label("Files", systemImage: "folder").tag(Page.files)
+                Label("Search", systemImage: "magnifyingglass").tag(Page.search)
+                Label("Diff", systemImage: "arrow.left.and.right").tag(Page.diff)
+                Label("Canvas", systemImage: "pencil.and.outline").tag(Page.canvas)
+                Label("Images", systemImage: "wand.and.stars").tag(Page.images)
+                Label("Extensions", systemImage: "puzzlepiece").tag(Page.extensions)
+                Label("Stats", systemImage: "chart.bar").tag(Page.stats)
+                Label("Talk", systemImage: "waveform").tag(Page.talk)
+                Label("Diagnostics", systemImage: "stethoscope").tag(Page.diagnostics)
                 if !model.conversations.isEmpty {
                     Section("History") {
                         ForEach(model.conversations) { item in
@@ -45,6 +55,26 @@ struct ContentView: View {
                     }
             case .browser:
                 BrowserView(browser: model.browser)
+            case .terminal:
+                TerminalPane()
+            case .files:
+                FileExplorerPane()
+            case .search:
+                SearchView()
+            case .diff:
+                DiffPaneView()
+            case .canvas:
+                CanvasView(store: CanvasStore())
+            case .images:
+                ImageGenerationView()
+            case .extensions:
+                ExtensionsPanelView()
+            case .stats:
+                StatsPanelView(store: StatsStore())
+            case .talk:
+                TalkModeView()
+            case .diagnostics:
+                DiagnosticsView()
             }
         }
         .frame(minWidth: 720, minHeight: 480)
