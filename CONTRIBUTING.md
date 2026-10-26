@@ -43,7 +43,7 @@ All child processes must run through `platform.spawnHidden` or `platform.execFil
 
 Pictures come from stable-diffusion.cpp's `sd-server`, a hidden child process on `127.0.0.1` (`electron/sdServer.cjs`, installed by `electron/sdBinaryManager.cjs`). Its tests run against a fake server started as a real child process, so they need no binary and no GPU. Keep it that way.
 
-Models too large for memory run on colibri, a second engine managed by `electron/colibriProcess.cjs` and installed by `electron/colibriBinary.cjs`. Its tests also use fakes (a stub gateway process, recorded hardware output in `electron/fixtures/hardware/`), so they need no engine, no GPU and no big download. Only one local engine runs at a time (`electron/engineHost.cjs`). The user-facing side is described in [docs/large-models.md](docs/large-models.md).
+Models too large for memory run on colibri, a second engine managed by `electron/colibriProcess.cjs` and installed by `electron/colibriBinary.cjs`. Its tests also use fakes (a stub gateway process, recorded hardware output in `electron/fixtures/hardware/`), so they need no engine, no GPU and no big download. Only one local engine runs at a time (`electron/engineHost.cjs`). The user-facing side is described on the wiki at [draggy.org/wiki](https://draggy.org/wiki).
 
 ## House style
 

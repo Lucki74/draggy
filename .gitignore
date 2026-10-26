@@ -31,17 +31,13 @@ Draggy_Setup
 .dotnet
 dotnet-install.ps1
 
-# AI and local planning files
+# AI
 .claude
 .agents
 .impeccable
 graphify-out
-*plan*.md
-*prompt*.md
-PLAN-*.md
-docs/concept/
-docs/experiments/
-docs/voice-bench/
+# Local planning docs
+docs/
 scratch/
 win/build/release-notes.md
 .env.local
