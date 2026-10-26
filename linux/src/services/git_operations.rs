@@ -11,17 +11,22 @@ pub struct GitCommitInfo {
 }
 
 pub fn git_diff<P: AsRef<Path>>(dir: P) -> String {
-    let output = Command::new("git")
-        .arg("diff")
-        .current_dir(dir)
-        .output();
+    let output = Command::new("git").arg("diff").current_dir(dir).output();
 
-    output.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
+    output
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default()
 }
 
 pub fn git_log<P: AsRef<Path>>(dir: P, max: usize) -> Vec<GitCommitInfo> {
     let output = Command::new("git")
-        .args(["log", "-n", &max.to_string(), "--pretty=format:%h|%an|%ad|%s", "--date=short"])
+        .args([
+            "log",
+            "-n",
+            &max.to_string(),
+            "--pretty=format:%h|%an|%ad|%s",
+            "--date=short",
+        ])
         .current_dir(dir)
         .output();
 

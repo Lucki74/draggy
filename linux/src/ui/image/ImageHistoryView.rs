@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::image_engine::GeneratedImage;
+use adw::prelude::*;
 
 pub fn build_history_list(images: &[GeneratedImage]) -> gtk::ListBox {
     let list_box = gtk::ListBox::builder()

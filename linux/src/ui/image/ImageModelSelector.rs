@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::image_model_manager::available_image_models;
+use adw::prelude::*;
 
 pub fn build_selector() -> gtk::DropDown {
     let models = available_image_models();

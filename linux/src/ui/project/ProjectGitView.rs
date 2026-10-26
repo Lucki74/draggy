@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::git_status_monitor::get_git_status;
+use adw::prelude::*;
 
 pub fn build(dir: &str) -> gtk::Widget {
     let vbox = gtk::Box::builder()

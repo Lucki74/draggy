@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use super::shell_detection::{default_shell, ShellInfo};
+use super::shell_detection::{ShellInfo, default_shell};
 
 #[derive(Clone, Debug)]
 pub struct SessionMessage {

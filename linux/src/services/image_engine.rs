@@ -23,7 +23,13 @@ impl ImageEngine {
         *self.is_generating.lock().unwrap() = true;
 
         let img = GeneratedImage {
-            id: format!("img-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)),
+            id: format!(
+                "img-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0)
+            ),
             prompt: prompt.to_string(),
             path: "/tmp/generated.png".to_string(),
         };

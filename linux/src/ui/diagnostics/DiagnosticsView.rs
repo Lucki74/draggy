@@ -1,6 +1,6 @@
-use adw::prelude::*;
 use crate::services::hardware_probe::probe_linux_hardware;
 use crate::services::tier_planner::plan_tier;
+use adw::prelude::*;
 
 pub fn build() -> gtk::Widget {
     let main_box = gtk::Box::builder()

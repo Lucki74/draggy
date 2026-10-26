@@ -1,4 +1,4 @@
-use super::search_engine::{search_in_directory, SearchResult};
+use super::search_engine::{SearchResult, search_in_directory};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default, Clone)]

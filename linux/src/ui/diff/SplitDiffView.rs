@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::diff_parser::{DiffLineType, FileDiff};
+use adw::prelude::*;
 
 pub fn build(diff: &FileDiff) -> gtk::Widget {
     let paned = gtk::Paned::builder()

@@ -1,6 +1,6 @@
 use super::browser_safety::BrowserSafety;
-use webkit6::prelude::*;
 use webkit6::WebView;
+use webkit6::prelude::*;
 
 pub struct BrowserControl;
 

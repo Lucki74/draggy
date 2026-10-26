@@ -42,7 +42,8 @@ mod tests {
         let shell = default_shell();
         assert!(!shell.name.is_empty());
 
-        let diff = parse_git_diff("diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1,1 +1,1 @@\n-1\n+2\n");
+        let diff =
+            parse_git_diff("diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1,1 +1,1 @@\n-1\n+2\n");
         assert_eq!(diff.len(), 1);
 
         let vad = VadDetector::default();

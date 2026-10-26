@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::search_engine::SearchResult;
+use adw::prelude::*;
 
 pub fn build_result_row(item: &SearchResult) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();

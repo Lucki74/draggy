@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::skill_definition::SkillDefinition;
+use adw::prelude::*;
 
 pub fn build_skill_row(skill: &SkillDefinition, is_enabled: bool) -> adw::ActionRow {
     let row = adw::ActionRow::builder()

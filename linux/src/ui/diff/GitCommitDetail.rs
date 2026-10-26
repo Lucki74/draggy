@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::git_operations::GitCommitInfo;
+use adw::prelude::*;
 
 pub struct GitCommitDetailWidget {
     pub container: gtk::Box,

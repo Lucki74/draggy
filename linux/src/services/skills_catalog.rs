@@ -21,7 +21,9 @@ impl SkillsCatalog {
             .lock()
             .unwrap()
             .iter()
-            .filter(|s| s.name.to_lowercase().contains(&q) || s.description.to_lowercase().contains(&q))
+            .filter(|s| {
+                s.name.to_lowercase().contains(&q) || s.description.to_lowercase().contains(&q)
+            })
             .cloned()
             .collect()
     }

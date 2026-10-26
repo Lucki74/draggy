@@ -14,7 +14,10 @@ pub fn build_editor(path: &str) -> gtk::Widget {
         .orientation(gtk::Orientation::Horizontal)
         .build();
 
-    let title = gtk::Label::builder().label(path).css_classes(["heading"]).build();
+    let title = gtk::Label::builder()
+        .label(path)
+        .css_classes(["heading"])
+        .build();
     let save_btn = gtk::Button::with_label("Save");
     save_btn.add_css_class("suggested-action");
 

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::FileTreeItem::build_row;
-use crate::services::file_operations::{delete_item, list_directory, FileTreeEntry};
+use crate::services::file_operations::{FileTreeEntry, delete_item, list_directory};
 
 pub struct FileExplorerWidget {
     pub container: gtk::Box,

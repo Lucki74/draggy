@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::stats_store::UsageHistoryItem;
+use adw::prelude::*;
 
 pub fn build_chart(history: &[UsageHistoryItem]) -> gtk::Widget {
     let frame = gtk::Frame::builder()

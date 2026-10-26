@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::file_operations::FileTreeEntry;
+use adw::prelude::*;
 
 pub fn build_row(entry: &FileTreeEntry) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();

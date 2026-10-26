@@ -31,7 +31,13 @@ impl ExtensionStore {
 
     pub fn add_server(&self, name: &str, url: &str) {
         let server = RemoteServer {
-            id: format!("srv-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)),
+            id: format!(
+                "srv-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0)
+            ),
             name: name.to_string(),
             url: url.to_string(),
         };

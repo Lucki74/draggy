@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::git_operations::GitCommitInfo;
+use adw::prelude::*;
 
 pub fn build_commit_row(commit: &GitCommitInfo) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();

@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::search_engine::SearchResult;
+use adw::prelude::*;
 
 pub struct SearchPreviewWidget {
     pub container: gtk::Box,
@@ -55,8 +55,10 @@ impl SearchPreviewWidget {
     }
 
     pub fn show_result(&self, result: &SearchResult) {
-        self.title_label
-            .set_label(&format!("{} (line {})", result.file_name, result.line_number));
+        self.title_label.set_label(&format!(
+            "{} (line {})",
+            result.file_name, result.line_number
+        ));
 
         if let Ok(content) = std::fs::read_to_string(&result.file_path) {
             let buffer = self.text_view.buffer();

@@ -20,10 +20,7 @@ pub fn build() -> gtk::Widget {
         .placeholder_text("Document Title...")
         .build();
 
-    let text_view = gtk::TextView::builder()
-        .vexpand(true)
-        .hexpand(true)
-        .build();
+    let text_view = gtk::TextView::builder().vexpand(true).hexpand(true).build();
 
     let gen_btn = gtk::Button::with_label("Export DOCX");
     gen_btn.add_css_class("suggested-action");

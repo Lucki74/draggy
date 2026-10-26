@@ -1,5 +1,5 @@
-use adw::prelude::*;
 use crate::services::plan_store::{PlanStep, StepStatus};
+use adw::prelude::*;
 
 pub fn build_step_row(step: &PlanStep) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();

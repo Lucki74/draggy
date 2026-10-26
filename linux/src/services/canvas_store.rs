@@ -21,7 +21,13 @@ impl CanvasStore {
 
     pub fn add_note(&self, x: f64, y: f64, text: &str) {
         let note = CanvasNote {
-            id: format!("note-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)),
+            id: format!(
+                "note-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0)
+            ),
             x,
             y,
             text: text.to_string(),

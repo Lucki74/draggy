@@ -1,4 +1,4 @@
-use super::hardware_metrics::{sample_metrics, SystemMetrics};
+use super::hardware_metrics::{SystemMetrics, sample_metrics};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
