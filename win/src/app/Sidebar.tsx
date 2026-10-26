@@ -29,6 +29,7 @@ export interface SidebarProps {
   onDeleteChat: (e: React.MouseEvent, id: string) => void;
   onRenameChat?: (id: string, newTitle: string) => void;
   onPinChat?: (id: string) => void;
+  onExportChat?: (id: string, format: "md" | "html") => void;
   onViewTalk?: () => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onSelectWorkspace: (id: string) => void;
@@ -76,6 +77,7 @@ export function Sidebar({
   onDeleteChat,
   onRenameChat,
   onPinChat,
+  onExportChat,
   onViewTalk,
   onOpenSettings,
   onSelectWorkspace,
@@ -263,6 +265,24 @@ export function Sidebar({
               label: session.pinned ? t("unpinSession") : t("pinSession"),
               icon: <Icon name="push-pin" size={16} />,
               onSelect: () => onPinChat(session.id),
+            },
+          ]
+        : []),
+      ...(onExportChat
+        ? [
+            { type: "separator", id: "sep-export" } as MenuEntry,
+            { type: "heading", id: "export-heading", label: t("exportChat") } as MenuEntry,
+            {
+              id: "export-md",
+              label: t("exportMarkdown"),
+              icon: <Icon name="download-simple" size={16} />,
+              onSelect: () => onExportChat(session.id, "md"),
+            },
+            {
+              id: "export-html",
+              label: t("exportHtml"),
+              icon: <Icon name="download-simple" size={16} />,
+              onSelect: () => onExportChat(session.id, "html"),
             },
           ]
         : []),

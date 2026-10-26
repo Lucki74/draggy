@@ -467,7 +467,9 @@ export function useChatSession({
     }, [measureKey, chat.isGenerating, onMeasureContext]);
 
     const current = measured?.key === measureKey ? measured : null;
-    const lastTotal = lastMetrics ? lastMetrics.promptTokens + lastMetrics.responseTokens : null;
+    const lastTotal = lastMetrics
+        ? (lastMetrics.contextTokens ?? lastMetrics.promptTokens + lastMetrics.responseTokens)
+        : null;
 
     let usedTokens: number | null = null;
     let exactFigure = true;

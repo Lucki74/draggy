@@ -1801,13 +1801,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   if (!signal.aborted) host.onPatch(combine("", ""));
 
   if (metrics) {
+    // The window holds the last pass's prompt and its reply. Summed response tokens would count earlier passes twice.
+    const contextTokens = contextCheckpoint?.tokens ?? metrics.promptTokens + metrics.responseTokens;
     metrics = {
       ...metrics,
       gpuPercent: await gpuShareFor(model),
-      breakdown: measureBreakdown(
-        promptParts,
-        metrics.promptTokens + metrics.responseTokens,
-      ),
+      contextTokens,
+      breakdown: measureBreakdown(promptParts, contextTokens),
     };
     host.onMetrics?.(metrics);
     // Counts and timings only: the speed this computer reached feeds the plan's estimate for the model.

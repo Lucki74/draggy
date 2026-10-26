@@ -1292,16 +1292,6 @@ const CATALOGUE = [
       },
     ],
   },
-  {
-    id: "bounty-guard",
-    name: "BountyGuard Escrow Auditor",
-    description:
-      "Pre-flight GitHub bounty auditor and on-chain Proof-of-Escrow verification MCP server for AI coding agents.",
-    package: "bounty-guard",
-    site: "https://github.com/doomsday-network/bounty-guard",
-    args: ["mcp"],
-    env: [],
-  },
 ];
 
 /** The package's page on npm, which renders its README. Derived rather than stored, so the link can

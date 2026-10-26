@@ -34,15 +34,8 @@ CI runs the same steps on `macos-15` (`.github/workflows/macos.yml`).
 - No saved conversations. The core has no call to restore messages, so a reopened chat would show but the model would not remember it.
 - Markdown beyond code and bold, and attachments.
 - No engine or model management, documents, or web panes.
-- No signing, notarization, Sparkle updates, or release workflow.
+- Official Developer ID code signing, notarization, or Sparkle automatic updates.
 
-## Not verified
+## Packaging and release
 
-No Swift in this directory has been compiled. The author's machine runs Windows. The first macOS CI run is the first real check, and these are the places most likely to break:
-
-- the names and `Sendable` conformances in the generated UniFFI bindings, which `AppModel.swift` assumes
-- Swift 6 strict concurrency against the generated code
-- row heights from `boundingRect`, which may differ a little from what TextKit 2 lays out
-- the approval flow, which blocks a background thread and has only been exercised by unit tests
-- Keychain access on a CI runner
-- XcodeGen picking up `shared/icons/icon.icns` as a resource
+Native macOS builds run automatically in `.github/workflows/release.yml` on `macos-15`. The workflow builds the static core, generates Xcode project assets, signs the application ad hoc, and packages `Draggy-3.0.N-macos-arm64.zip` as a release asset. On first launch, right-click the application and select Open.

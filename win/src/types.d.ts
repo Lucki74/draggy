@@ -584,6 +584,8 @@ export interface TurnMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  /** What the window held when the turn ended: the last pass's prompt and reply. */
+  contextTokens?: number;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
 }
@@ -1718,6 +1720,11 @@ declare global {
         export: (choices: DiagnosticsChoices) => Promise<{ saved: boolean; file?: string; bytes?: number; files?: number }>;
         crashNotice: () => Promise<{ show: boolean }>;
       };
+      exportChat: (request: {
+        defaultName: string;
+        content: string;
+        ext: "md" | "html";
+      }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;
 

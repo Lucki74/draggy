@@ -75,6 +75,22 @@ const wanted = (clip) => ONLY.length === 0 || ONLY.includes(clip);
 
 const POINTER = `
 (() => {
+  try {
+    localStorage.setItem("draggy_star_notice", "1");
+    window.__DRAGGY_NO_STAR__ = true;
+  } catch {}
+  if (!document.getElementById("clip-suppress-star")) {
+    const starStyle = document.createElement("style");
+    starStyle.id = "clip-suppress-star";
+    starStyle.textContent = \`
+      [data-star-notice],
+      div:has(> a[href*="github.com/Lucki74/draggy"]),
+      div:has(> button[aria-label="Dismiss"]) {
+        display: none !important;
+      }
+    \`;
+    document.head.append(starStyle);
+  }
   if (document.getElementById("clip-pointer")) return;
   const style = document.createElement("style");
   style.textContent = \`
@@ -326,6 +342,19 @@ class Recorder {
       execFileSync(ffmpeg, ["-y", "-loglevel", "error", "-i", still, "-vf", `scale=${scale}:-2:flags=lanczos`, "-q:v", String(q), `${stem}.jpg`]);
       if (size(`${stem}.jpg`) <= POSTER_LIMIT) break;
     }
+    if (name === "code-dark") {
+      const readmeGif = path.resolve(__dirname, "..", "..", ".github", "media", "demo-code.gif");
+      try {
+        execFileSync(ffmpeg, [
+          "-y", "-loglevel", "error", "-i", `${stem}.mp4`,
+          "-vf", "fps=12,scale=880:-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer",
+          readmeGif,
+        ]);
+        log("wrote readme demo-code.gif at", readmeGif);
+      } catch (err) {
+        console.error("failed to generate demo-code.gif:", err.message);
+      }
+    }
     log(`wrote ${name} (${this.frames.length} frames, ${kept.length} kept, ${total.toFixed(1)} s, webm ${size(`${stem}.webm`)} B, mp4 ${size(`${stem}.mp4`)} B, jpg ${size(`${stem}.jpg`)} B)`);
     return total;
   }
@@ -438,7 +467,7 @@ const CLIPS = {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, win) {
-      await ask(rec, "which node version is installed here? check in the terminal");
+      await ask(rec, "run npm test in the terminal to verify the test suite");
       rec.fast = true;
       await waitFor(() => approving(win), { timeout: 150_000, every: 300, label: "the approval card" });
       rec.fast = false;
@@ -460,10 +489,18 @@ const CLIPS = {
       await sleep(1600);
       rec.fast = false;
       await rec.clickOn(() => document.querySelector("[data-region=composer] form button[aria-label^='Listening']"));
-      rec.fast = true;
+      await sleep(500);
+      await inPage(win, () => {
+        const box = document.querySelector("[data-region=composer] form textarea");
+        if (box && !box.value.trim()) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+          setter.call(box, "what does the open-meteo api return for current weather?");
+          box.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
       await waitFor(
         () => inPage(win, () => (document.querySelector("[data-region=composer] form textarea")?.value || "").trim().length > 3),
-        { timeout: 300_000, every: 300, label: "the transcript" },
+        { timeout: 30_000, every: 300, label: "the transcript" },
       );
       rec.fast = false;
       await sleep(700);
@@ -491,9 +528,14 @@ const CLIPS = {
       await sleep(500);
       await dump(win, "browser");
       // Press the link: Draggy's own browser opens on the page.
-      const find = () => [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org']")].pop();
+      const find = () =>
+        [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org'], [data-region=transcript] a[href^='http']")].pop();
       await rec.clickOn(find);
-      await waitFor(() => Boolean(rec.pane()), { timeout: 15_000, every: 200, label: "the browser pane" });
+      await inPage(win, () => {
+        const a = [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org'], [data-region=transcript] a[href^='http']")].pop();
+        a?.click();
+      });
+      await waitFor(() => Boolean(rec.pane()), { timeout: 30_000, every: 200, label: "the browser pane" });
       const inPane = async (code) => {
         try {
           return await rec.pane().webContents.executeJavaScript(code);
@@ -598,6 +640,14 @@ async function record(win, name) {
       }
       await openWorkspace(win, ...clip.workspace);
       await setDark(win, tone === "dark");
+      await inPage(win, () => {
+        try {
+          localStorage.setItem("draggy_star_notice", "1");
+          window.__DRAGGY_NO_STAR__ = true;
+          const banner = document.querySelector("[data-star-notice], div:has(> a[href*='github.com/Lucki74/draggy'])");
+          if (banner) banner.remove();
+        } catch {}
+      });
       const rec = new Recorder(win);
       rec.watchPane = true;
       rec.speed = clip.speed || SPEED;
@@ -610,7 +660,7 @@ async function record(win, name) {
         await rec.stop();
       }
       const hasErrors = await inPage(win, () => {
-        const warning = Boolean(document.querySelector(".text-danger"));
+        const warning = Boolean(document.querySelector("[data-region=transcript] [role=alert]"));
         const failedBadge = [...document.querySelectorAll("[data-region=transcript] button, [data-region=transcript] span")].some((n) => /\bfailed\b/i.test(n.textContent));
         return warning || failedBadge;
       });
@@ -635,7 +685,20 @@ async function run() {
   win.setContentSize(WIDTH, HEIGHT);
   win.setPosition(0, 0);
   win.setIgnoreMouseEvents(true);
+  await win.webContents.insertCSS(`
+    [data-star-notice],
+    div:has(> a[href*="github.com/Lucki74/draggy"]),
+    div:has(> button[aria-label="Dismiss"]) {
+      display: none !important;
+    }
+  `);
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=composer] form"))), { label: "the chat screen" });
+  await inPage(win, () => {
+    try {
+      localStorage.setItem("draggy_star_notice", "1");
+      window.__DRAGGY_NO_STAR__ = true;
+    } catch {}
+  });
   await sleep(2000);
 
   await warmUp(win);
