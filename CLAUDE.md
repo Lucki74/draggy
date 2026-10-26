@@ -12,7 +12,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 - During iteration run one file: `npx vitest run src/__tests__/<file>.test.ts` or `-t "test name"`. Vitest takes `--reporter=dot` for short output, not `-q`.
 - The development server is `npm run electron:dev` on port 5173. Kill a stale Vite process if the port is taken.
 - On Windows without Developer Mode, 48 tests in `toolsFiles.test.ts` fail with EPERM because they create symlinks. Treat them as environmental, not as regressions.
-- `docs/effort-levels-plan.md` is gitignored working state. Do not commit it. An untracked `win/chat` file may also be lying around; leave it out of commits.
+- An untracked `win/chat` file may be lying around; leave it out of commits.
 
 ## Editing
 
@@ -24,7 +24,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 ## macOS and Rust work
 
 - Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
-- After a Swift change, update `NATIVE-STATUS.md` and watch the "Build and test" macOS job, the only compile.
+- After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
 - Commits and PRs carry a subject or title only, no body and no attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions
